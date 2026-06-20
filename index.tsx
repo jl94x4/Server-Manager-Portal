@@ -3420,9 +3420,9 @@ const LibraryDashboard: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                             {dashboardData.activeSessions.map((session, i) => (
                                 <div key={i} onClick={() => setSelectedSession(session)} className="bg-card rounded-xl border border-border flex flex-col overflow-hidden shadow-lg hover:border-plex/50 hover:shadow-plex/20 transition-all cursor-pointer select-none">
                                     <div className="flex flex-row flex-grow relative">
-                                        <div className="w-28 md:w-32 flex-shrink-0 relative overflow-hidden bg-card">
+                                        <div className="w-36 md:w-44 flex-shrink-0 relative overflow-hidden bg-card">
                                             <div className="w-full pb-[150%]"></div>
-                                            <img src={`/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=300&height=450`} alt={session.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover drop-shadow-2xl" />
+                                            <img src={`/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=400&height=600`} alt={session.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover drop-shadow-2xl" />
                                         </div>
                                         <div className="p-3 md:p-4 flex flex-col flex-grow min-w-0 justify-center relative">
                                             <div className="absolute top-3 right-3 flex items-center gap-2 bg-black/50 backdrop-blur-md rounded-full pr-3 p-1 shadow-md border border-white/5">
