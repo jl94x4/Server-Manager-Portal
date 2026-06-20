@@ -1860,6 +1860,20 @@ var AnalyticsDashboard = ({ isAdmin, sessionInfo }) => {
   const [error, setError] = useState(null);
   const [days, setDays] = useState("30");
   const [selectedUser, setSelectedUser] = useState(null);
+  const [allUsers, setAllUsers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const usersData = await apiFetch("/api/users");
+        setAllUsers(usersData);
+      } catch (err) {
+        console.error("Failed to fetch users", err);
+      }
+    };
+    fetchUsers();
+  }, []);
   useEffect(() => {
     const fetchAnalytics = async () => {
       setLoading(true);
@@ -1907,9 +1921,46 @@ var AnalyticsDashboard = ({ isAdmin, sessionInfo }) => {
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-6", children: [
       /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border", children: [
-        /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2", children: [
-          /* @__PURE__ */ jsx(Users, { className: "text-plex w-5 h-5" }),
-          " Top Viewers"
+        /* @__PURE__ */ jsxs("div", { className: "flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4", children: [
+          /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text uppercase tracking-wider flex items-center gap-2 whitespace-nowrap", children: [
+            /* @__PURE__ */ jsx(Users, { className: "text-plex w-5 h-5" }),
+            " Top Viewers"
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "relative w-full sm:w-auto flex-grow max-w-[250px] z-50", children: [
+            /* @__PURE__ */ jsx(
+              "input",
+              {
+                type: "text",
+                placeholder: "Search all users...",
+                value: searchQuery,
+                onChange: (e) => {
+                  setSearchQuery(e.target.value);
+                  setIsSearching(e.target.value.length > 0);
+                },
+                onFocus: () => {
+                  if (searchQuery.length > 0) setIsSearching(true);
+                },
+                onBlur: () => setTimeout(() => setIsSearching(false), 200),
+                className: "w-full bg-black/40 border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all placeholder-muted/50"
+              }
+            ),
+            isSearching && searchQuery.length > 0 && /* @__PURE__ */ jsx("div", { className: "absolute top-full left-0 right-0 mt-2 bg-[#1e2329] border border-border rounded-lg shadow-2xl z-[100] max-h-60 overflow-y-auto custom-scrollbar", children: allUsers.filter((u) => u.username.toLowerCase().includes(searchQuery.toLowerCase())).length > 0 ? allUsers.filter((u) => u.username.toLowerCase().includes(searchQuery.toLowerCase())).map((u) => /* @__PURE__ */ jsxs(
+              "div",
+              {
+                className: "px-3 py-2.5 hover:bg-white/10 cursor-pointer flex items-center gap-3 border-b border-white/5 last:border-0 transition-colors",
+                onClick: () => {
+                  setSelectedUser({ id: u.id, username: u.username, thumb: u.thumb || null });
+                  setSearchQuery("");
+                  setIsSearching(false);
+                },
+                children: [
+                  u.thumb ? /* @__PURE__ */ jsx("img", { src: u.thumb.startsWith("http") ? u.thumb : `/api/plex/image?path=${encodeURIComponent(u.thumb)}&width=32&height=32`, className: "w-8 h-8 rounded-full object-cover border border-border flex-shrink-0" }) : /* @__PURE__ */ jsx("div", { className: "w-8 h-8 rounded-full bg-border flex items-center justify-center text-[10px] font-bold border border-border/50 flex-shrink-0", children: u.username.substring(0, 2).toUpperCase() }),
+                  /* @__PURE__ */ jsx("span", { className: "text-sm font-medium text-text truncate", children: u.username })
+                ]
+              },
+              u.id
+            )) : /* @__PURE__ */ jsx("div", { className: "px-4 py-4 text-sm text-muted text-center italic", children: "No users found" }) })
+          ] })
         ] }),
         /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-4", children: topUsers.length === 0 ? /* @__PURE__ */ jsx("p", { className: "text-muted text-sm", children: "No data available." }) : topUsers.map((user, idx) => /* @__PURE__ */ jsxs("div", { onClick: () => setSelectedUser({ id: user.id, username: user.username, thumb: user.thumb }), className: "flex items-center justify-between p-3 bg-black/20 rounded-lg hover:bg-black/40 transition-colors cursor-pointer group hover:ring-1 hover:ring-plex", children: [
           /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-4", children: [
