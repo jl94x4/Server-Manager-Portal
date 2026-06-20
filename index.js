@@ -1774,7 +1774,7 @@ app.get('/api/audit-log', requireAdmin, async (req, res) => {
 
 app.put('/api/users/:id', requireAdmin, async (req, res) => {
     const { id } = req.params;
-    const { expiryDate, exemptFromCleanup } = req.body; 
+    const { expiryDate, exemptFromCleanup, optOutNewsletter } = req.body; 
     let users = await loadFile(USERS_PATH, []);
     const userIndex = users.findIndex(u => u.id === id);
     if (userIndex === -1) return res.status(404).json({ error: 'User not found.' });
@@ -1786,6 +1786,9 @@ app.put('/api/users/:id', requireAdmin, async (req, res) => {
     }
     if (exemptFromCleanup !== undefined) {
         users[userIndex].exemptFromCleanup = !!exemptFromCleanup;
+    }
+    if (optOutNewsletter !== undefined) {
+        users[userIndex].optOutNewsletter = !!optOutNewsletter;
     }
 
     await saveFile(USERS_PATH, users);
@@ -2649,6 +2652,10 @@ const checkAndSendNewsletter = async (config) => {
         
         if (recipients.length === 0) return;
         
+        // Mark as sent immediately to prevent re-sending if the server restarts during the 30-minute window
+        config.lastNewsletterSent = dateStr;
+        await saveFile(CONFIG_PATH, config);
+        
         // Spread the sending out over a 30-minute period (1,800,000 ms) to avoid Gmail rate limits
         const totalDurationMs = 30 * 60 * 1000;
         const delayPerEmailMs = Math.floor(totalDurationMs / recipients.length);
@@ -2673,8 +2680,6 @@ const checkAndSendNewsletter = async (config) => {
         }
         
         log(`Newsletter sent to ${sentCount} users.`);
-        config.lastNewsletterSent = dateStr;
-        await saveFile(CONFIG_PATH, config);
     } catch (e) {
         log(`Failed to generate/send newsletter: ${e.message}`);
     }

@@ -526,23 +526,26 @@ var UserModal = ({ isOpen, onClose, onSave, user }) => {
   const [joiningDate, setJoiningDate] = useState(formatDate((/* @__PURE__ */ new Date()).toISOString()));
   const [expiryDate, setExpiryDate] = useState(formatDate(addMonths(/* @__PURE__ */ new Date(), 1).toISOString()));
   const [exemptFromCleanup, setExemptFromCleanup] = useState(false);
+  const [optOutNewsletter, setOptOutNewsletter] = useState(false);
   useEffect(() => {
     if (user) {
       setUsername(user.username);
       setJoiningDate(formatDate(user.joiningDate));
       setExpiryDate(user.expiryDate ? formatDate(user.expiryDate) : null);
       setExemptFromCleanup(!!user.exemptFromCleanup);
+      setOptOutNewsletter(!!user.optOutNewsletter);
     } else {
       setUsername("");
       setJoiningDate(formatDate((/* @__PURE__ */ new Date()).toISOString()));
       setExpiryDate(formatDate(addMonths(/* @__PURE__ */ new Date(), 1).toISOString()));
       setExemptFromCleanup(false);
+      setOptOutNewsletter(false);
     }
   }, [user, isOpen]);
   if (!isOpen) return null;
   const handleSave = () => {
     if (!user) return;
-    const updatedUser = { ...user, expiryDate, exemptFromCleanup };
+    const updatedUser = { ...user, expiryDate, exemptFromCleanup, optOutNewsletter };
     onSave(updatedUser);
   };
   const handleQuickAction = (action) => {
@@ -590,6 +593,20 @@ var UserModal = ({ isOpen, onClose, onSave, user }) => {
           onClick: () => setExemptFromCleanup(!exemptFromCleanup),
           className: `relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${exemptFromCleanup ? "bg-plex" : "bg-border"}`,
           children: /* @__PURE__ */ jsx("span", { className: `inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${exemptFromCleanup ? "translate-x-6" : "translate-x-1"}` })
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsxs("div", { className: "mb-4 flex items-center justify-between bg-black/10 p-4 rounded-lg border border-border", children: [
+      /* @__PURE__ */ jsxs("div", { children: [
+        /* @__PURE__ */ jsx("label", { className: "font-bold block mb-1", children: "Disable Newsletter" }),
+        /* @__PURE__ */ jsx("span", { className: "text-xs text-muted block", children: "Stop automated emails for this user" })
+      ] }),
+      /* @__PURE__ */ jsx(
+        "button",
+        {
+          onClick: () => setOptOutNewsletter(!optOutNewsletter),
+          className: `relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${optOutNewsletter ? "bg-plex" : "bg-border"}`,
+          children: /* @__PURE__ */ jsx("span", { className: `inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${optOutNewsletter ? "translate-x-6" : "translate-x-1"}` })
         }
       )
     ] }),
@@ -2395,7 +2412,7 @@ var AdminDashboard = ({ onLogout, onViewUserPortal, onViewStatus, onViewDashboar
     try {
       const updatedUser = await apiFetch(`/api/users/${userToSave.id}`, {
         method: "PUT",
-        body: JSON.stringify({ expiryDate: userToSave.expiryDate })
+        body: JSON.stringify({ expiryDate: userToSave.expiryDate, exemptFromCleanup: userToSave.exemptFromCleanup, optOutNewsletter: userToSave.optOutNewsletter })
       });
       setUsers(users.map((u) => u.id === updatedUser.id ? updatedUser : u));
       handleCloseModal();
