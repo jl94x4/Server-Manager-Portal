@@ -667,7 +667,24 @@ const SettingsDashboard: React.FC = () => {
                     <button className="flex-1 px-4 py-2.5 bg-border text-text rounded-lg font-medium text-sm flex items-center justify-center gap-2" onClick={() => setStatusModalOpen(true)}>Manage Status</button>
                     <button className="flex-1 px-4 py-2.5 bg-plex text-background rounded-lg font-bold text-sm flex items-center justify-center gap-2" onClick={() => setBroadcastModalOpen(true)}>Broadcast Email</button>
                 </div>
-                <div className="settings-tabs" style={{ display: 'flex', gap: '2rem', marginTop: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                {/* Mobile Dropdown Category Select */}
+                <div className="block md:hidden mb-6">
+                    <label htmlFor="settings-tab-select" className="text-muted text-xs uppercase tracking-wider font-bold mb-2 block">Settings Category</label>
+                    <CustomSelect
+                        id="settings-tab-select"
+                        value={activeTab}
+                        onChange={val => setActiveTab(val)}
+                        options={[
+                            { label: 'Plex Integration', value: 'plex' },
+                            { label: 'SMTP Alerts', value: 'smtp' },
+                            { label: 'Newsletter', value: 'newsletter' },
+                            { label: 'Media Stack', value: 'mediastack' }
+                        ]}
+                    />
+                </div>
+
+                {/* Desktop Category Tabs */}
+                <div className="hidden md:flex settings-tabs" style={{ gap: '2rem', marginTop: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
                     <button onClick={() => setActiveTab('plex')} style={{ background: 'none', border: 'none', color: activeTab === 'plex' ? 'var(--plex-gold)' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', padding: '0.5rem 0', borderBottom: activeTab === 'plex' ? '2px solid var(--plex-gold)' : '2px solid transparent' }}>Plex Integration</button>
                     <button onClick={() => setActiveTab('smtp')} style={{ background: 'none', border: 'none', color: activeTab === 'smtp' ? 'var(--plex-gold)' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', padding: '0.5rem 0', borderBottom: activeTab === 'smtp' ? '2px solid var(--plex-gold)' : '2px solid transparent' }}>SMTP Alerts</button>
                     <button onClick={() => setActiveTab('newsletter')} style={{ background: 'none', border: 'none', color: activeTab === 'newsletter' ? 'var(--plex-gold)' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', padding: '0.5rem 0', borderBottom: activeTab === 'newsletter' ? '2px solid var(--plex-gold)' : '2px solid transparent' }}>Newsletter</button>

@@ -801,7 +801,24 @@ var SettingsDashboard = () => {
         /* @__PURE__ */ jsx("button", { className: "flex-1 px-4 py-2.5 bg-border text-text rounded-lg font-medium text-sm flex items-center justify-center gap-2", onClick: () => setStatusModalOpen(true), children: "Manage Status" }),
         /* @__PURE__ */ jsx("button", { className: "flex-1 px-4 py-2.5 bg-plex text-background rounded-lg font-bold text-sm flex items-center justify-center gap-2", onClick: () => setBroadcastModalOpen(true), children: "Broadcast Email" })
       ] }),
-      /* @__PURE__ */ jsxs("div", { className: "settings-tabs", style: { display: "flex", gap: "2rem", marginTop: "1rem", marginBottom: "1.5rem", borderBottom: "1px solid var(--border-color)", paddingBottom: "0.5rem" }, children: [
+      /* @__PURE__ */ jsxs("div", { className: "block md:hidden mb-6", children: [
+        /* @__PURE__ */ jsx("label", { htmlFor: "settings-tab-select", className: "text-muted text-xs uppercase tracking-wider font-bold mb-2 block", children: "Settings Category" }),
+        /* @__PURE__ */ jsx(
+          CustomSelect,
+          {
+            id: "settings-tab-select",
+            value: activeTab,
+            onChange: (val) => setActiveTab(val),
+            options: [
+              { label: "Plex Integration", value: "plex" },
+              { label: "SMTP Alerts", value: "smtp" },
+              { label: "Newsletter", value: "newsletter" },
+              { label: "Media Stack", value: "mediastack" }
+            ]
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "hidden md:flex settings-tabs", style: { gap: "2rem", marginTop: "1rem", marginBottom: "1.5rem", borderBottom: "1px solid var(--border-color)", paddingBottom: "0.5rem" }, children: [
         /* @__PURE__ */ jsx("button", { onClick: () => setActiveTab("plex"), style: { background: "none", border: "none", color: activeTab === "plex" ? "var(--plex-gold)" : "var(--text-muted)", cursor: "pointer", fontWeight: "bold", fontSize: "1rem", padding: "0.5rem 0", borderBottom: activeTab === "plex" ? "2px solid var(--plex-gold)" : "2px solid transparent" }, children: "Plex Integration" }),
         /* @__PURE__ */ jsx("button", { onClick: () => setActiveTab("smtp"), style: { background: "none", border: "none", color: activeTab === "smtp" ? "var(--plex-gold)" : "var(--text-muted)", cursor: "pointer", fontWeight: "bold", fontSize: "1rem", padding: "0.5rem 0", borderBottom: activeTab === "smtp" ? "2px solid var(--plex-gold)" : "2px solid transparent" }, children: "SMTP Alerts" }),
         /* @__PURE__ */ jsx("button", { onClick: () => setActiveTab("newsletter"), style: { background: "none", border: "none", color: activeTab === "newsletter" ? "var(--plex-gold)" : "var(--text-muted)", cursor: "pointer", fontWeight: "bold", fontSize: "1rem", padding: "0.5rem 0", borderBottom: activeTab === "newsletter" ? "2px solid var(--plex-gold)" : "2px solid transparent" }, children: "Newsletter" }),
