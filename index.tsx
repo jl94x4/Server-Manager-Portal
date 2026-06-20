@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar } from 'lucide-react';
+import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud } from 'lucide-react';
 
 interface CustomSelectProps {
     id?: string;
@@ -228,12 +228,26 @@ const Loader: React.FC<{ isLoading: boolean }> = ({ isLoading }) => {
 };
 
 const Toast: React.FC<{ message: string; type: 'success' | 'error'; onDismiss: () => void }> = ({ message, type, onDismiss }) => {
+    const [isVisible, setIsVisible] = useState(false);
+
     useEffect(() => {
+        const animTimer = setTimeout(() => setIsVisible(true), 50);
         const timer = setTimeout(onDismiss, 5000);
-        return () => clearTimeout(timer);
+        return () => {
+            clearTimeout(animTimer);
+            clearTimeout(timer);
+        };
     }, [onDismiss]);
 
-    return <div className={`px-8 py-4 rounded-xl text-text font-medium shadow-2xl transition-all duration-300 transform translate-y-5 opacity-0 ${type} show`}>{message}</div>;
+    return (
+        <div 
+            className={`px-8 py-4 rounded-xl text-white font-medium shadow-2xl transition-all duration-300 transform ${
+                isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'
+            } ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}
+        >
+            {message}
+        </div>
+    );
 };
 
 const SettingsIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -512,7 +526,6 @@ const SettingsDashboard: React.FC = () => {
             setRadarrApiKey(initialSettings.radarrApiKey || '');
             setTestRecipient('');
             setServers([]);
-            setActiveTab('plex');
         }
     }, [initialSettings]);
 
@@ -850,7 +863,7 @@ const SettingsDashboard: React.FC = () => {
                     )}
                 </div>
                 <div className="flex justify-end gap-4 mt-8" style={{ marginTop: '2rem' }}>
-                    <button className="px-6 py-3 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2" onClick={handleSave} disabled={!token || !selectedServer}>Save Settings</button>
+                    <button className="px-6 py-3 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2" onClick={handleSave}>Save Settings</button>
                 </div>
             </div>
 
@@ -1253,137 +1266,277 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
     const [data, setData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
+    const [calendarDays, setCalendarDays] = useState<'7' | '14' | '30'>('7');
+
+    const fetchData = useCallback(async () => {
+        try {
+            const res = await apiFetch('/api/media-stack/summary');
+            if (res.error) throw new Error(res.error);
+            setData(res);
+        } catch (err: any) {
+            setError(err.message || 'Failed to load Media Stack data.');
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
-        if (!isAdmin) return;
-        const fetchData = async () => {
-            try {
-                const res = await apiFetch('/api/media-stack/summary');
-                if (res.error) throw new Error(res.error);
-                setData(res);
-            } catch (err: any) {
-                setError(err.message || 'Failed to load Media Stack data.');
-            } finally {
-                setIsLoading(false);
-            }
-        };
         fetchData();
         const interval = setInterval(fetchData, 30000);
         return () => clearInterval(interval);
-    }, [isAdmin]);
+    }, [fetchData]);
 
-    if (!isAdmin) {
-        return (
-            <div className="w-full h-[60vh] flex items-center justify-center">
-                <div className="text-center bg-card p-12 rounded-2xl border border-border shadow-2xl">
-                    <Layers className="w-16 h-16 text-muted mx-auto mb-4" />
-                    <h2 className="text-2xl font-bold text-text mb-2">Access Denied</h2>
-                    <p className="text-muted">Only administrators can view the Media Stack.</p>
-                </div>
-            </div>
-        );
-    }
+    const formatRelativeAirDate = (date: Date) => {
+        const now = new Date();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        const isMidnight = date.getHours() === 0 && date.getMinutes() === 0;
+        const timeStr = isMidnight ? '' : ` at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        
+        const diffDays = Math.ceil((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (date >= today && date < tomorrow) {
+            return `Today${timeStr}`;
+        }
+        const dayAfterTomorrow = new Date(tomorrow);
+        dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+        if (date >= tomorrow && date < dayAfterTomorrow) {
+            return `Tomorrow${timeStr}`;
+        }
+        if (diffDays > 1 && diffDays < 7) {
+            const dayName = date.toLocaleDateString([], { weekday: 'long' });
+            return `${dayName}${timeStr}`;
+        }
+        return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + timeStr;
+    };
+
+    const formatBytes = (bytes: number) => {
+        if (!bytes) return '0.0 GB';
+        const gb = bytes / (1024 * 1024 * 1024);
+        if (gb >= 1) return `${gb.toFixed(1)} GB`;
+        const mb = bytes / (1024 * 1024);
+        return `${mb.toFixed(1)} MB`;
+    };
+
+    const calendarItems = useMemo(() => {
+        if (!data) return [];
+        const items: any[] = [];
+        
+        if (data.sonarr?.calendar) {
+            data.sonarr.calendar.forEach((ep: any) => {
+                items.push({
+                    id: `sonarr-${ep.id || ep.airDateUtc || ep.airDate}-${ep.title}`,
+                    type: 'tv',
+                    service: 'Sonarr',
+                    title: ep.series?.title || 'Unknown Series',
+                    subtitle: `S${String(ep.seasonNumber).padStart(2, '0')}E${String(ep.episodeNumber).padStart(2, '0')} - ${ep.title}`,
+                    date: new Date(ep.airDateUtc || ep.airDate),
+                    hasFile: ep.hasFile,
+                    monitored: ep.monitored
+                });
+            });
+        }
+        
+        if (data.radarr?.calendar) {
+            data.radarr.calendar.forEach((movie: any) => {
+                const releaseDateStr = movie.digitalRelease || movie.physicalRelease || movie.inCinemas || movie.added;
+                if (releaseDateStr) {
+                    items.push({
+                        id: `radarr-${movie.id || releaseDateStr}-${movie.title}`,
+                        type: 'movie',
+                        service: 'Radarr',
+                        title: movie.title,
+                        subtitle: movie.studio || 'Movie Release',
+                        date: new Date(releaseDateStr),
+                        hasFile: movie.hasFile,
+                        monitored: movie.monitored
+                    });
+                }
+            });
+        }
+        
+        return items.sort((a, b) => a.date.getTime() - b.date.getTime());
+    }, [data]);
+
+    const filteredCalendar = useMemo(() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const cutoff = new Date(today);
+        cutoff.setDate(cutoff.getDate() + Number(calendarDays));
+        
+        return calendarItems.filter(item => {
+            const itemDate = item.date;
+            return itemDate >= today && itemDate <= cutoff;
+        });
+    }, [calendarItems, calendarDays]);
+
+    const activeQueue = useMemo(() => {
+        if (!data) return [];
+        const queueItems: any[] = [];
+        if (data.sonarr?.queue?.records) {
+            data.sonarr.queue.records.forEach((item: any) => {
+                queueItems.push({ ...item, service: 'Sonarr' });
+            });
+        }
+        if (data.radarr?.queue?.records) {
+            data.radarr.queue.records.forEach((item: any) => {
+                queueItems.push({ ...item, service: 'Radarr' });
+            });
+        }
+        return queueItems;
+    }, [data]);
+
+    const combinedHistory = useMemo(() => {
+        if (!data) return [];
+        const historyItems: any[] = [];
+        if (data.sonarr?.history?.records) {
+            data.sonarr.history.records.forEach((item: any) => {
+                let cleanTitle = '';
+                if (item.series?.title) {
+                    cleanTitle = item.series.title;
+                    if (item.episode?.seasonNumber !== undefined && item.episode?.episodeNumber !== undefined) {
+                        cleanTitle += ` - S${String(item.episode.seasonNumber).padStart(2, '0')}E${String(item.episode.episodeNumber).padStart(2, '0')}`;
+                        if (item.episode.title) {
+                            cleanTitle += ` - ${item.episode.title}`;
+                        }
+                    }
+                } else {
+                    cleanTitle = item.sourceTitle || 'Unknown TV Show';
+                }
+                historyItems.push({
+                    id: `sonarr-hist-${item.id}`,
+                    service: 'Sonarr',
+                    title: cleanTitle,
+                    date: new Date(item.date),
+                    eventType: item.eventType
+                });
+            });
+        }
+        if (data.radarr?.history?.records) {
+            data.radarr.history.records.forEach((item: any) => {
+                historyItems.push({
+                    id: `radarr-hist-${item.id}`,
+                    service: 'Radarr',
+                    title: item.movie?.title || item.sourceTitle || 'Unknown Movie',
+                    date: new Date(item.date),
+                    eventType: item.eventType
+                });
+            });
+        }
+        return historyItems.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 8);
+    }, [data]);
 
     if (isLoading) return <Loader isLoading={true} />;
     if (error) return <div className="text-center p-8 text-status-expiring">{error}</div>;
     if (!data) return null;
 
-    const renderInstance = (name: string, info: any) => {
+    const getHistoryColor = (type: string) => {
+        if (!type) return 'bg-muted';
+        switch (type.toLowerCase()) {
+            case 'grabbed':
+                return 'bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.5)]';
+            case 'downloadfolderimported':
+            case 'moviefileimported':
+            case 'imported':
+                return 'bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]';
+            case 'downloadfailed':
+            case 'failed':
+                return 'bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]';
+            case 'episodefiledeleted':
+            case 'moviefiledeleted':
+            case 'deleted':
+                return 'bg-zinc-600 shadow-[0_0_6px_rgba(113,113,122,0.5)]';
+            default:
+                return 'bg-plex shadow-[0_0_6px_rgba(229,160,13,0.5)]';
+        }
+    };
+
+    const formatEventType = (type: string) => {
+        if (!type) return '';
+        switch (type.toLowerCase()) {
+            case 'grabbed':
+                return 'Grabbed';
+            case 'downloadfolderimported':
+            case 'moviefileimported':
+            case 'imported':
+                return 'Imported';
+            case 'downloadfailed':
+            case 'failed':
+                return 'Failed';
+            case 'episodefiledeleted':
+            case 'moviefiledeleted':
+            case 'deleted':
+                return 'Deleted';
+            default:
+                return type
+                    .replace(/([A-Z])/g, ' $1')
+                    .replace(/^./, str => str.toUpperCase())
+                    .trim();
+        }
+    };
+
+    const renderStatusCard = (name: string, info: any) => {
         if (!info || !info.configured) {
             return (
-                <div className="bg-card border border-border rounded-xl p-8 text-center shadow-lg">
-                    <h3 className="text-2xl font-bold text-plex mb-2">{name}</h3>
-                    <p className="text-muted mb-4">Not configured. Please add the URL and API Key in Settings.</p>
+                <div className="bg-card border border-border/40 rounded-2xl p-6 shadow-xl flex flex-col justify-between h-44 relative overflow-hidden">
+                    <div className="flex justify-between items-start">
+                        <h3 className="text-lg font-bold text-text/80">{name}</h3>
+                        <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-white/5 text-muted border border-white/5">Unconfigured</span>
+                    </div>
+                    <p className="text-xs text-muted leading-relaxed">Please set the URL and API key in Settings under the Media Stack tab to activate monitoring.</p>
+                    <div className="text-right">
+                        <span className="text-xs font-bold text-plex hover:underline cursor-pointer">Configure in Settings →</span>
+                    </div>
                 </div>
             );
         }
-        
+
         const status = info.status;
-        const disk = info.disk ? info.disk[0] : null; // typically the first one is the main drive
-        const queue = info.queue?.records || [];
-        const history = info.history?.records || [];
+        const disk = info.disk ? info.disk[0] : null;
+        const freeGB = disk ? (disk.freeSpace / 1024 / 1024 / 1024) : 0;
+        const totalGB = disk ? (disk.totalSpace / 1024 / 1024 / 1024) : 1;
+        const freePercent = disk ? (freeGB / totalGB) * 100 : 0;
+        const usedPercent = 100 - freePercent;
 
         return (
-            <div className="flex flex-col gap-6">
-                {/* Header Card */}
-                <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative overflow-hidden backdrop-blur-sm">
-                    <div className="absolute top-0 right-0 p-4 opacity-10">
-                        <HardDrive className="w-24 h-24" />
-                    </div>
-                    <div className="flex items-center gap-4 mb-6">
-                        <div className="w-12 h-12 rounded-xl bg-plex/10 flex items-center justify-center border border-plex/20">
-                            <Layers className="w-6 h-6 text-plex" />
-                        </div>
-                        <div>
-                            <h2 className="text-2xl font-bold text-text tracking-wide">{name}</h2>
-                            <div className="flex items-center gap-2 mt-1">
-                                <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse"></span>
-                                <span className="text-sm font-medium text-green-500 tracking-wider uppercase">Online</span>
-                                {status?.version && <span className="text-xs text-muted ml-2">v{status.version}</span>}
-                            </div>
-                        </div>
-                    </div>
-
-                    {disk && (
-                        <div className="bg-background/50 rounded-xl p-4 border border-white/5">
-                            <div className="flex justify-between items-end mb-2">
-                                <span className="text-sm font-bold text-muted uppercase tracking-wider">Free Space</span>
-                                <span className="font-bold text-text">{(disk.freeSpace / 1024 / 1024 / 1024).toFixed(1)} GB</span>
-                            </div>
-                            <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
-                                <div className="bg-plex h-full rounded-full" style={{ width: `${Math.max(0, 100 - (disk.freeSpace / disk.totalSpace) * 100)}%` }}></div>
-                            </div>
-                        </div>
-                    )}
+            <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative overflow-hidden backdrop-blur-sm group hover:border-white/10 transition-all duration-300">
+                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-all duration-500">
+                    <HardDrive className="w-24 h-24" />
                 </div>
-
-                {/* Queue */}
-                <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative">
-                    <h3 className="text-lg font-bold text-text mb-4 flex items-center gap-2">
-                        <Activity className="w-5 h-5 text-plex" />
-                        Active Downloads ({queue.length})
-                    </h3>
-                    <div className="flex flex-col gap-3">
-                        {queue.length === 0 ? (
-                            <div className="text-center p-6 bg-background/50 rounded-xl border border-white/5 text-muted text-sm">No active downloads</div>
-                        ) : queue.map((item: any) => (
-                            <div key={item.id} className="bg-background/50 rounded-xl p-4 border border-white/5">
-                                <div className="flex justify-between items-start mb-2">
-                                    <span className="font-bold text-sm text-text line-clamp-1">{item.title}</span>
-                                    <span className="text-xs font-bold px-2 py-1 bg-plex/10 text-plex rounded-md whitespace-nowrap">{item.status}</span>
-                                </div>
-                                <div className="flex justify-between items-center text-xs text-muted mb-2">
-                                    <span>{item.timeleft || 'Unknown'} left</span>
-                                    <span>{((item.size - item.sizeleft) / 1024 / 1024 / 1024).toFixed(1)} GB / {(item.size / 1024 / 1024 / 1024).toFixed(1)} GB</span>
-                                </div>
-                                <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
-                                    <div className="bg-plex h-full rounded-full transition-all duration-500" style={{ width: `${((item.size - item.sizeleft) / item.size) * 100}%` }}></div>
-                                </div>
-                            </div>
-                        ))}
+                
+                <div className="flex items-center gap-4 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-plex/10 flex items-center justify-center border border-plex/20">
+                        {name === 'Sonarr' ? <Tv className="w-5 h-5 text-plex" /> : <Film className="w-5 h-5 text-plex" />}
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-text tracking-wide">{name}</h3>
+                        <div className="flex items-center gap-2 mt-0.5">
+                            <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse"></span>
+                            <span className="text-[10px] font-bold text-green-500 tracking-wider uppercase">Online</span>
+                            {status?.version && <span className="text-[10px] text-muted font-bold">v{status.version}</span>}
+                        </div>
                     </div>
                 </div>
 
-                {/* History */}
-                <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative">
-                    <h3 className="text-lg font-bold text-text mb-4 flex items-center gap-2">
-                        <FileText className="w-5 h-5 text-plex" />
-                        Recent History
-                    </h3>
-                    <div className="flex flex-col gap-3">
-                        {history.length === 0 ? (
-                            <div className="text-center p-6 bg-background/50 rounded-xl border border-white/5 text-muted text-sm">No recent history</div>
-                        ) : history.map((item: any) => (
-                            <div key={item.id} className="flex items-center gap-3 bg-background/50 rounded-xl p-3 border border-white/5">
-                                <div className={`w-2 h-full rounded-full ${item.eventType === 'grabbed' ? 'bg-blue-500' : 'bg-green-500'}`}></div>
-                                <div className="flex-grow">
-                                    <div className="font-bold text-sm text-text line-clamp-1">{item.sourceTitle || item.movie?.title || item.series?.title}</div>
-                                    <div className="text-xs text-muted">{new Date(item.date).toLocaleString()} • {item.eventType}</div>
-                                </div>
-                            </div>
-                        ))}
+                {disk && (
+                    <div className="bg-background/40 rounded-xl p-3 border border-white/5 mt-2">
+                        <div className="flex justify-between items-end mb-1">
+                            <span className="text-[10px] font-bold text-muted uppercase tracking-wider">Free Storage</span>
+                            <span className="text-xs font-bold text-text">{freeGB.toFixed(1)} GB free</span>
+                        </div>
+                        <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
+                            <div className="bg-plex h-full rounded-full transition-all duration-500" style={{ width: `${usedPercent}%` }}></div>
+                        </div>
+                        <div className="flex justify-between text-[9px] text-muted/60 mt-1 font-medium">
+                            <span>{usedPercent.toFixed(0)}% Used</span>
+                            <span>{totalGB.toFixed(0)} GB Total</span>
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         );
     };
@@ -1396,13 +1549,185 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                         <Layers className="w-8 h-8 text-plex" />
                         Media Stack
                     </h1>
-                    <p className="text-muted text-sm mt-1">Monitor your Sonarr and Radarr instances</p>
+                    <p className="text-muted text-sm mt-1">Unified monitoring dashboard for TV & movies</p>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {renderInstance('Sonarr', data.sonarr)}
-                {renderInstance('Radarr', data.radarr)}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                <div className="lg:col-span-2 flex flex-col gap-8">
+                    
+                    <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative">
+                        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 border-b border-border/30 pb-4">
+                            <h2 className="text-xl font-bold text-text flex items-center gap-2">
+                                <Calendar className="w-5 h-5 text-plex" />
+                                Upcoming Releases
+                            </h2>
+                            
+                            <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 w-fit self-end">
+                                {['7', '14', '30'].map((d) => (
+                                    <button
+                                        key={d}
+                                        onClick={() => setCalendarDays(d as any)}
+                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                            calendarDays === d
+                                                ? 'bg-plex text-background shadow-lg'
+                                                : 'text-muted hover:text-text'
+                                        }`}
+                                    >
+                                        {d} Days
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {filteredCalendar.length === 0 ? (
+                            <div className="text-center py-12 bg-background/30 rounded-xl border border-white/5 text-muted text-sm">
+                                <Calendar className="w-12 h-12 text-muted/30 mx-auto mb-3" />
+                                No upcoming releases in the next {calendarDays} days
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {filteredCalendar.map((item) => (
+                                    <div 
+                                        key={item.id} 
+                                        className={`bg-background/40 hover:bg-background/60 border border-white/5 hover:border-white/10 transition-all duration-300 rounded-xl p-3.5 flex flex-col gap-2 shadow-lg border-l-4 ${
+                                            item.type === 'tv' ? 'border-l-blue-500/80' : 'border-l-red-500/80'
+                                        }`}
+                                    >
+                                        <div className="flex justify-between items-start gap-3">
+                                            <div className="min-w-0 flex-grow">
+                                                <div className="flex items-center gap-2 mb-1.5">
+                                                    <span className={`text-[8px] uppercase font-black tracking-wider px-1.5 py-0.5 rounded ${
+                                                        item.service === 'Sonarr' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                                    }`}>
+                                                        {item.service}
+                                                    </span>
+                                                    <span className="text-[10px] text-muted flex items-center gap-1 font-medium">
+                                                        <Clock className="w-3.5 h-3.5 text-muted/60" />
+                                                        {formatRelativeAirDate(item.date)}
+                                                    </span>
+                                                </div>
+                                                <h4 className="font-bold text-sm text-text line-clamp-1 leading-tight group-hover:text-plex transition-colors">
+                                                    {item.title}
+                                                </h4>
+                                                <p className="text-[11px] text-muted/75 line-clamp-1 mt-0.5">
+                                                    {item.subtitle}
+                                                </p>
+                                            </div>
+                                            
+                                            <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                                                {item.hasFile ? (
+                                                    <span className="text-[9px] font-bold text-green-500 bg-green-500/10 border border-green-500/20 rounded-md px-1.5 py-0.5 whitespace-nowrap">
+                                                        ✓ Downloaded
+                                                    </span>
+                                                ) : (
+                                                    item.monitored && (
+                                                        <span className="text-[9px] font-bold text-plex bg-plex/10 border border-plex/20 rounded-md px-1.5 py-0.5 flex items-center gap-1 whitespace-nowrap">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-plex animate-pulse"></span>
+                                                            Monitored
+                                                        </span>
+                                                    )
+                                                )}
+                                                <span className="text-[9px] text-muted/50 font-bold uppercase tracking-wider flex items-center gap-1 mt-0.5">
+                                                    {item.type === 'tv' ? <Tv className="w-3 h-3" /> : <Film className="w-3 h-3" />}
+                                                    {item.type === 'tv' ? 'TV' : 'Movie'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative">
+                        <h2 className="text-xl font-bold text-text mb-4 flex items-center gap-2">
+                            <Activity className="w-5 h-5 text-plex" />
+                            Active Downloads ({activeQueue.length})
+                        </h2>
+                        
+                        <div className="flex flex-col gap-3">
+                            {activeQueue.length === 0 ? (
+                                <div className="text-center py-8 bg-background/30 rounded-xl border border-white/5 text-muted text-sm">
+                                    <DownloadCloud className="w-10 h-10 text-muted/30 mx-auto mb-2" />
+                                    No active downloads in the queue
+                                </div>
+                            ) : (
+                                activeQueue.map((item: any) => {
+                                    const downloaded = item.size - item.sizeleft;
+                                    const progress = item.size > 0 ? (downloaded / item.size) * 100 : 0;
+                                    
+                                    return (
+                                        <div key={item.id} className="bg-background/40 hover:bg-background/60 transition-all rounded-xl p-4 border border-white/5 flex flex-col gap-2">
+                                            <div className="flex justify-between items-start gap-4">
+                                                <div className="flex flex-col gap-1 min-w-0">
+                                                    <span className="font-bold text-sm text-text line-clamp-1 leading-snug">{item.title}</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`text-[8px] uppercase font-black tracking-widest px-1.5 py-0.5 rounded ${
+                                                            item.service === 'Sonarr' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                                        }`}>
+                                                            {item.service}
+                                                        </span>
+                                                        <span className="text-[10px] text-muted/60 font-semibold">{item.timeleft || 'Unknown time'} left</span>
+                                                    </div>
+                                                </div>
+                                                <span className="text-[10px] font-bold px-2 py-0.5 bg-plex/10 text-plex rounded-md border border-plex/20 uppercase tracking-wider">{item.status}</span>
+                                            </div>
+                                            <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden mt-1 relative">
+                                                <div className="bg-plex h-full rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                                            </div>
+                                            <div className="flex justify-between text-[10px] text-muted/60 mt-0.5 font-medium">
+                                                <span>{progress.toFixed(1)}% Completed</span>
+                                                <span>{formatBytes(downloaded)} / {formatBytes(item.size)}</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-8">
+                    
+                    <div className="flex flex-col gap-4">
+                        <h2 className="text-xl font-bold text-text flex items-center gap-2 mb-1">
+                            <Layers className="w-5 h-5 text-plex" />
+                            Stack Status
+                        </h2>
+                        {renderStatusCard('Sonarr', data.sonarr)}
+                        {renderStatusCard('Radarr', data.radarr)}
+                    </div>
+
+                    <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative flex-grow flex flex-col">
+                        <h2 className="text-xl font-bold text-text mb-4 flex items-center gap-2">
+                            <FileText className="w-5 h-5 text-plex" />
+                            Recent History
+                        </h2>
+                        
+                        <div className="flex flex-col gap-3 flex-grow justify-start">
+                            {combinedHistory.length === 0 ? (
+                                <div className="text-center py-12 bg-background/30 rounded-xl border border-white/5 text-muted text-sm flex-grow flex flex-col justify-center items-center">
+                                    No recent history records
+                                </div>
+                            ) : (
+                                combinedHistory.map((item: any) => (
+                                    <div key={item.id} className="flex items-center gap-3 bg-background/30 rounded-xl p-3 border border-white/5 hover:bg-background/50 transition-colors">
+                                        <div className={`w-1 h-8 rounded-full flex-shrink-0 ${getHistoryColor(item.eventType)}`}></div>
+                                        <div className="flex-grow min-w-0">
+                                            <div className="font-bold text-xs text-text line-clamp-1 leading-snug">{item.title}</div>
+                                            <div className="text-[10px] text-muted flex justify-between items-center mt-0.5">
+                                                <span>{item.service} • <span>{formatEventType(item.eventType)}</span></span>
+                                                <span>{formatRelativeAirDate(item.date)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
@@ -3109,11 +3434,9 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
                     <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === 'analytics' ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate('analytics'); }}>
                         <BarChart3 className="w-5 h-5 flex-shrink-0" /> Analytics
                     </a>
-                    {isAdmin && (
-                        <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === 'mediastack' ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate('mediastack'); }}>
-                            <Layers className="w-5 h-5 flex-shrink-0" /> Media Stack
-                        </a>
-                    )}
+                    <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === 'mediastack' ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate('mediastack'); }}>
+                        <Layers className="w-5 h-5 flex-shrink-0" /> Media Stack
+                    </a>
                     <a href={requestUrl} target="_blank" rel="noreferrer" className="flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text">
                         <Sparkles className="w-5 h-5 flex-shrink-0" /> Request Content
                     </a>
@@ -3142,12 +3465,10 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
                         <BarChart3 className="w-5 h-5 flex-shrink-0" /> Analytics
                         {currentRoute === 'analytics' && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
                     </a>
-                    {isAdmin && (
-                        <a href="#" className={`relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === 'mediastack' ? 'text-plex font-bold' : 'text-muted hover:text-text'}`} onClick={(e) => { e.preventDefault(); onNavigate('mediastack'); }}>
-                            <Layers className="w-5 h-5 flex-shrink-0" /> Media
-                            {currentRoute === 'mediastack' && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
-                        </a>
-                    )}
+                    <a href="#" className={`relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === 'mediastack' ? 'text-plex font-bold' : 'text-muted hover:text-text'}`} onClick={(e) => { e.preventDefault(); onNavigate('mediastack'); }}>
+                        <Layers className="w-5 h-5 flex-shrink-0" /> Media
+                        {currentRoute === 'mediastack' && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
+                    </a>
                     {isAdmin && (
                         <a href="#" className={`relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === 'settings' ? 'text-plex font-bold' : 'text-muted hover:text-text'}`} onClick={(e) => { e.preventDefault(); onNavigate('settings'); }}>
                             <Settings className="w-5 h-5 flex-shrink-0" /> Settings
@@ -3196,7 +3517,7 @@ const MainApp: React.FC = () => {
             else if (path === '/dashboard') setCurrentRoute('dashboard');
             else if (path === '/settings' && data.session.isAdmin) setCurrentRoute('settings');
             else if (path === '/logs' && data.session.isAdmin) setCurrentRoute('logs');
-            else if (path === '/mediastack' && data.session.isAdmin) setCurrentRoute('mediastack');
+            else if (path === '/mediastack') setCurrentRoute('mediastack');
             else if (path === '/analytics') setCurrentRoute('analytics');
             else if (path === '/settings' && !data.session.isAdmin) setCurrentRoute('user');
             else if (path === '/portal') setCurrentRoute('user');
@@ -3241,7 +3562,7 @@ const MainApp: React.FC = () => {
         if (currentRoute === 'dashboard') return <LibraryDashboard onBack={() => setRoute(isAdmin ? 'admin' : 'user')} />;
         if (currentRoute === 'settings' && isAdmin) return <SettingsDashboard />;
         if (currentRoute === 'logs' && isAdmin) return <LogsDashboard onLogout={handleLogout} />;
-        if (currentRoute === 'mediastack' && isAdmin) return <MediaStackDashboard isAdmin={isAdmin} />;
+        if (currentRoute === 'mediastack') return <MediaStackDashboard isAdmin={isAdmin} />;
         if (currentRoute === 'analytics') return <AnalyticsDashboard isAdmin={isAdmin} sessionInfo={sessionInfo} />;
         if (currentRoute === 'admin') return <AdminDashboard onLogout={handleLogout} onViewUserPortal={() => setRoute('user')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} />;
         return <UserDashboard sessionInfo={sessionInfo} onLogout={handleLogout} refreshSession={checkSession} onViewAdmin={() => setRoute('admin')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} />;

@@ -35,3 +35,8 @@ subzero-health.json
 # Backup directories
 backup/
 unneeded/
+
+# Local database files
+audit-log.json
+deleted-users.json
+email_log.json

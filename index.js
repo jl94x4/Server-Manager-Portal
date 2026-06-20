@@ -1072,8 +1072,19 @@ app.post('/api/config', async (req, res) => {
     const isConfigured = !!(existingConfig && existingConfig.plexToken && existingConfig.serverIdentifier);
     
     if (isConfigured) {
-        if (!req.cookies || req.cookies.session !== 'admin') {
+        const sessionToken = req.cookies && req.cookies.session;
+        if (!sessionToken) {
             return res.status(403).json({ error: 'Forbidden: App is already configured. Please log in as admin to modify settings.' });
+        }
+        try {
+            const decoded = jwt.verify(sessionToken, JWT_SECRET);
+            const adminId = await getAdminId(existingConfig);
+            if (!adminId || decoded.plexId !== adminId) {
+                return res.status(403).json({ error: 'Forbidden: Admins only.' });
+            }
+            req.user = decoded;
+        } catch (e) {
+            return res.status(403).json({ error: 'Forbidden: Invalid or expired session. Please log in again.' });
         }
     }
     const interval = parseInt(checkIntervalMinutes, 10);
@@ -1095,10 +1106,10 @@ app.post('/api/config', async (req, res) => {
         publicDomain: publicDomain || 'https://portal.plexified.co.uk',
         requestUrl: requestUrl || 'https://plexified.co.uk',
         contactUrl: contactUrl || '',
-        sonarrUrl: sonarrUrl || '',
-        sonarrApiKey: sonarrApiKey || '',
-        radarrUrl: radarrUrl || '',
-        radarrApiKey: radarrApiKey || ''
+        sonarrUrl: sonarrUrl !== undefined ? sonarrUrl : (existingConfig.sonarrUrl || ''),
+        sonarrApiKey: sonarrApiKey !== undefined ? sonarrApiKey : (existingConfig.sonarrApiKey || ''),
+        radarrUrl: radarrUrl !== undefined ? radarrUrl : (existingConfig.radarrUrl || ''),
+        radarrApiKey: radarrApiKey !== undefined ? radarrApiKey : (existingConfig.radarrApiKey || '')
     };
     await saveFile(CONFIG_PATH, config);
     log('Configuration saved successfully.');
@@ -2439,7 +2450,7 @@ app.get('/style.css', (req, res) => {
 });
 
 // Serve the main index.html for any other GET request
-app.get(['/', '/portal', '/status', '/admin', '/dashboard', '/settings', '/analytics', '/logs', '/auth/*'], (req, res) => {
+app.get(['/', '/portal', '/status', '/admin', '/dashboard', '/settings', '/analytics', '/logs', '/mediastack', '/auth/*'], (req, res) => {
     res.sendFile(path.join(process.cwd(), 'index.html'));
 });
 
@@ -2622,10 +2633,7 @@ async function runMonitorCycle() {
   saveHealthData();
 }
 
-app.get('/api/media-stack/summary', async (req, res) => {
-    if (!req.cookies || req.cookies.session !== 'admin') {
-        return res.status(403).json({ error: 'Forbidden' });
-    }
+app.get('/api/media-stack/summary', requireAuth, async (req, res) => {
     const config = await loadFile(CONFIG_PATH, {});
     const fetchArr = async (url, key, endpoint) => {
         if (!url || !key) return null;
@@ -2641,15 +2649,22 @@ app.get('/api/media-stack/summary', async (req, res) => {
         }
     };
 
-    const [sonarrStatus, sonarrQueue, sonarrHistory, sonarrDisk, radarrStatus, radarrQueue, radarrHistory, radarrDisk] = await Promise.all([
+    const start = new Date().toISOString().split('T')[0];
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 30);
+    const end = endDate.toISOString().split('T')[0];
+
+    const [sonarrStatus, sonarrQueue, sonarrHistory, sonarrDisk, sonarrCalendar, radarrStatus, radarrQueue, radarrHistory, radarrDisk, radarrCalendar] = await Promise.all([
         fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/system/status'),
         fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/queue'),
-        fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/history?page=1&pageSize=10'),
+        fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/history?page=1&pageSize=10&includeSeries=true&includeEpisode=true'),
         fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/diskspace'),
+        fetchArr(config.sonarrUrl, config.sonarrApiKey, `/api/v3/calendar?start=${start}&end=${end}&includeSeries=true`),
         fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/system/status'),
         fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/queue'),
-        fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/history?page=1&pageSize=10'),
-        fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/diskspace')
+        fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/history?page=1&pageSize=10&includeMovie=true'),
+        fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/diskspace'),
+        fetchArr(config.radarrUrl, config.radarrApiKey, `/api/v3/calendar?start=${start}&end=${end}`)
     ]);
 
     res.json({
@@ -2658,14 +2673,16 @@ app.get('/api/media-stack/summary', async (req, res) => {
             status: sonarrStatus,
             queue: sonarrQueue,
             history: sonarrHistory,
-            disk: sonarrDisk
+            disk: sonarrDisk,
+            calendar: sonarrCalendar || []
         },
         radarr: {
             configured: !!(config.radarrUrl && config.radarrApiKey),
             status: radarrStatus,
             queue: radarrQueue,
             history: radarrHistory,
-            disk: radarrDisk
+            disk: radarrDisk,
+            calendar: radarrCalendar || []
         }
     });
 });

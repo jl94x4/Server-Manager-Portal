@@ -724,6 +724,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   margin-bottom: 0.25rem;
 }
 
+.mb-1\.5 {
+  margin-bottom: 0.375rem;
+}
+
 .mb-10 {
   margin-bottom: 2.5rem;
 }
@@ -758,10 +762,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .ml-1 {
   margin-left: 0.25rem;
-}
-
-.ml-2 {
-  margin-left: 0.5rem;
 }
 
 .ml-auto {
@@ -902,6 +902,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   height: 0.75rem;
 }
 
+.h-3\.5 {
+  height: 0.875rem;
+}
+
 .h-32 {
   height: 8rem;
 }
@@ -914,6 +918,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   height: 10rem;
 }
 
+.h-44 {
+  height: 11rem;
+}
+
 .h-5 {
   height: 1.25rem;
 }
@@ -924,10 +932,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .h-8 {
   height: 2rem;
-}
-
-.h-\[60vh\] {
-  height: 60vh;
 }
 
 .h-full {
@@ -952,6 +956,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .min-h-screen {
   min-height: 100vh;
+}
+
+.w-1 {
+  width: 0.25rem;
 }
 
 .w-1\.5 {
@@ -994,6 +1002,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   width: 0.75rem;
 }
 
+.w-3\.5 {
+  width: 0.875rem;
+}
+
 .w-32 {
   width: 8rem;
 }
@@ -1032,6 +1044,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .w-\[calc\(100\%-8px\)\] {
   width: calc(100% - 8px);
+}
+
+.w-fit {
+  width: -moz-fit-content;
+  width: fit-content;
 }
 
 .w-full {
@@ -1120,6 +1137,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .translate-x-7 {
   --tw-translate-x: 1.75rem;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
+.translate-y-0 {
+  --tw-translate-y: 0px;
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
@@ -1221,6 +1243,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   align-items: baseline;
 }
 
+.justify-start {
+  justify-content: flex-start;
+}
+
 .justify-end {
   justify-content: flex-end;
 }
@@ -1298,6 +1324,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .self-start {
   align-self: flex-start;
+}
+
+.self-end {
+  align-self: flex-end;
 }
 
 .overflow-hidden {
@@ -1412,9 +1442,21 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-color: rgb(211 47 47 / 0.3);
 }
 
+.border-blue-500\/20 {
+  border-color: rgb(59 130 246 / 0.2);
+}
+
 .border-border {
   --tw-border-opacity: 1;
   border-color: rgb(48 54 61 / var(--tw-border-opacity, 1));
+}
+
+.border-border\/30 {
+  border-color: rgb(48 54 61 / 0.3);
+}
+
+.border-border\/40 {
+  border-color: rgb(48 54 61 / 0.4);
 }
 
 .border-green-500\/20 {
@@ -1495,6 +1537,14 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-color: rgb(234 179 8 / 0.3);
 }
 
+.border-l-blue-500\/80 {
+  border-left-color: rgb(59 130 246 / 0.8);
+}
+
+.border-l-red-500\/80 {
+  border-left-color: rgb(239 68 68 / 0.8);
+}
+
 .border-t-plex {
   --tw-border-opacity: 1;
   border-top-color: rgb(229 160 13 / var(--tw-border-opacity, 1));
@@ -1521,6 +1571,14 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 .bg-background {
   --tw-bg-opacity: 1;
   background-color: rgb(13 17 23 / var(--tw-bg-opacity, 1));
+}
+
+.bg-background\/30 {
+  background-color: rgb(13 17 23 / 0.3);
+}
+
+.bg-background\/40 {
+  background-color: rgb(13 17 23 / 0.4);
 }
 
 .bg-background\/50 {
@@ -1550,6 +1608,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 .bg-blue-500 {
   --tw-bg-opacity: 1;
   background-color: rgb(59 130 246 / var(--tw-bg-opacity, 1));
+}
+
+.bg-blue-500\/10 {
+  background-color: rgb(59 130 246 / 0.1);
 }
 
 .bg-border {
@@ -1582,6 +1644,16 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .bg-green-500\/10 {
   background-color: rgb(34 197 94 / 0.1);
+}
+
+.bg-green-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(22 163 74 / var(--tw-bg-opacity, 1));
+}
+
+.bg-muted {
+  --tw-bg-opacity: 1;
+  background-color: rgb(139 148 158 / var(--tw-bg-opacity, 1));
 }
 
 .bg-orange-500\/10 {
@@ -1617,6 +1689,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .bg-red-500\/10 {
   background-color: rgb(239 68 68 / 0.1);
+}
+
+.bg-red-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(220 38 38 / var(--tw-bg-opacity, 1));
 }
 
 .bg-status-active {
@@ -1674,6 +1751,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .bg-yellow-500\/10 {
   background-color: rgb(234 179 8 / 0.1);
+}
+
+.bg-zinc-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(82 82 91 / var(--tw-bg-opacity, 1));
 }
 
 .bg-gradient-to-br {
@@ -1746,16 +1828,16 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   padding: 0.25rem;
 }
 
-.p-12 {
-  padding: 3rem;
-}
-
 .p-2 {
   padding: 0.5rem;
 }
 
 .p-3 {
   padding: 0.75rem;
+}
+
+.p-3\.5 {
+  padding: 0.875rem;
 }
 
 .p-4 {
@@ -1781,6 +1863,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 .px-1 {
   padding-left: 0.25rem;
   padding-right: 0.25rem;
+}
+
+.px-1\.5 {
+  padding-left: 0.375rem;
+  padding-right: 0.375rem;
 }
 
 .px-2 {
@@ -1818,6 +1905,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   padding-right: 2rem;
 }
 
+.py-0\.5 {
+  padding-top: 0.125rem;
+  padding-bottom: 0.125rem;
+}
+
 .py-1 {
   padding-top: 0.25rem;
   padding-bottom: 0.25rem;
@@ -1851,6 +1943,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 .py-4 {
   padding-top: 1rem;
   padding-bottom: 1rem;
+}
+
+.py-8 {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
 }
 
 .\!pb-8 {
@@ -1963,6 +2060,14 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   font-size: 11px;
 }
 
+.text-\[8px\] {
+  font-size: 8px;
+}
+
+.text-\[9px\] {
+  font-size: 9px;
+}
+
 .text-base {
   font-size: 1rem;
   line-height: 1.5rem;
@@ -2068,6 +2173,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   color: rgb(0 0 0 / var(--tw-text-opacity, 1));
 }
 
+.text-blue-400 {
+  --tw-text-opacity: 1;
+  color: rgb(96 165 250 / var(--tw-text-opacity, 1));
+}
+
 .text-green-400 {
   --tw-text-opacity: 1;
   color: rgb(74 222 128 / var(--tw-text-opacity, 1));
@@ -2083,12 +2193,24 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   color: rgb(139 148 158 / var(--tw-text-opacity, 1));
 }
 
+.text-muted\/30 {
+  color: rgb(139 148 158 / 0.3);
+}
+
+.text-muted\/50 {
+  color: rgb(139 148 158 / 0.5);
+}
+
 .text-muted\/60 {
   color: rgb(139 148 158 / 0.6);
 }
 
 .text-muted\/70 {
   color: rgb(139 148 158 / 0.7);
+}
+
+.text-muted\/75 {
+  color: rgb(139 148 158 / 0.75);
 }
 
 .text-orange-400 {
@@ -2166,12 +2288,16 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   opacity: 0;
 }
 
-.opacity-10 {
-  opacity: 0.1;
+.opacity-100 {
+  opacity: 1;
 }
 
 .opacity-20 {
   opacity: 0.2;
+}
+
+.opacity-5 {
+  opacity: 0.05;
 }
 
 .opacity-50 {
@@ -2221,6 +2347,36 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 .shadow-\[0_0_5px_rgba\(229\2c 160\2c 13\2c 0\.8\)\] {
   --tw-shadow: 0 0 5px rgba(229,160,13,0.8);
   --tw-shadow-colored: 0 0 5px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+.shadow-\[0_0_6px_rgba\(113\2c 113\2c 122\2c 0\.5\)\] {
+  --tw-shadow: 0 0 6px rgba(113,113,122,0.5);
+  --tw-shadow-colored: 0 0 6px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+.shadow-\[0_0_6px_rgba\(229\2c 160\2c 13\2c 0\.5\)\] {
+  --tw-shadow: 0 0 6px rgba(229,160,13,0.5);
+  --tw-shadow-colored: 0 0 6px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+.shadow-\[0_0_6px_rgba\(239\2c 68\2c 68\2c 0\.5\)\] {
+  --tw-shadow: 0 0 6px rgba(239,68,68,0.5);
+  --tw-shadow-colored: 0 0 6px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+.shadow-\[0_0_6px_rgba\(34\2c 197\2c 94\2c 0\.5\)\] {
+  --tw-shadow: 0 0 6px rgba(34,197,94,0.5);
+  --tw-shadow-colored: 0 0 6px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+.shadow-\[0_0_6px_rgba\(59\2c 130\2c 246\2c 0\.5\)\] {
+  --tw-shadow: 0 0 6px rgba(59,130,246,0.5);
+  --tw-shadow-colored: 0 0 6px var(--tw-shadow-color);
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
 
@@ -2489,8 +2645,20 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-color: rgb(229 160 13 / 0.5);
 }
 
+.hover\:border-white\/10:hover {
+  border-color: rgb(255 255 255 / 0.1);
+}
+
 .hover\:bg-\[\#25D366\]\/20:hover {
   background-color: rgb(37 211 102 / 0.2);
+}
+
+.hover\:bg-background\/50:hover {
+  background-color: rgb(13 17 23 / 0.5);
+}
+
+.hover\:bg-background\/60:hover {
+  background-color: rgb(13 17 23 / 0.6);
 }
 
 .hover\:bg-black\/40:hover {
@@ -2531,6 +2699,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 .hover\:text-white:hover {
   --tw-text-opacity: 1;
   color: rgb(255 255 255 / var(--tw-text-opacity, 1));
+}
+
+.hover\:underline:hover {
+  text-decoration-line: underline;
 }
 
 .hover\:opacity-100:hover {
@@ -2598,6 +2770,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 .group:hover .group-hover\:text-plex {
   --tw-text-opacity: 1;
   color: rgb(229 160 13 / var(--tw-text-opacity, 1));
+}
+
+.group:hover .group-hover\:opacity-10 {
+  opacity: 0.1;
 }
 
 @media (min-width: 640px) {
@@ -2794,6 +2970,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 }
 
 @media (min-width: 1024px) {
+  .lg\:col-span-2 {
+    grid-column: span 2 / span 2;
+  }
+
   .lg\:w-40 {
     width: 10rem;
   }

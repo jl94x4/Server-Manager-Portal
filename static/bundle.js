@@ -118,17 +118,41 @@ var __iconNode = [
 ];
 var Activity = createLucideIcon("activity", __iconNode);
 
-// node_modules/lucide-react/dist/esm/icons/chart-column.mjs
+// node_modules/lucide-react/dist/esm/icons/calendar.mjs
 var __iconNode2 = [
+  ["path", { d: "M8 2v4", key: "1cmpym" }],
+  ["path", { d: "M16 2v4", key: "4m81vk" }],
+  ["rect", { width: "18", height: "18", x: "3", y: "4", rx: "2", key: "1hopcy" }],
+  ["path", { d: "M3 10h18", key: "8toen8" }]
+];
+var Calendar = createLucideIcon("calendar", __iconNode2);
+
+// node_modules/lucide-react/dist/esm/icons/chart-column.mjs
+var __iconNode3 = [
   ["path", { d: "M3 3v16a2 2 0 0 0 2 2h16", key: "c24i48" }],
   ["path", { d: "M18 17V9", key: "2bz60n" }],
   ["path", { d: "M13 17V5", key: "1frdt8" }],
   ["path", { d: "M8 17v-3", key: "17ska0" }]
 ];
-var ChartColumn = createLucideIcon("chart-column", __iconNode2);
+var ChartColumn = createLucideIcon("chart-column", __iconNode3);
+
+// node_modules/lucide-react/dist/esm/icons/clock.mjs
+var __iconNode4 = [
+  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
+  ["path", { d: "M12 6v6l4 2", key: "mmk7yg" }]
+];
+var Clock = createLucideIcon("clock", __iconNode4);
+
+// node_modules/lucide-react/dist/esm/icons/cloud-download.mjs
+var __iconNode5 = [
+  ["path", { d: "M12 13v8l-4-4", key: "1f5nwf" }],
+  ["path", { d: "m12 21 4-4", key: "1lfcce" }],
+  ["path", { d: "M4.393 15.269A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.436 8.284", key: "ui1hmy" }]
+];
+var CloudDownload = createLucideIcon("cloud-download", __iconNode5);
 
 // node_modules/lucide-react/dist/esm/icons/file-text.mjs
-var __iconNode3 = [
+var __iconNode6 = [
   [
     "path",
     {
@@ -141,10 +165,10 @@ var __iconNode3 = [
   ["path", { d: "M16 13H8", key: "t4e002" }],
   ["path", { d: "M16 17H8", key: "z1uh3a" }]
 ];
-var FileText = createLucideIcon("file-text", __iconNode3);
+var FileText = createLucideIcon("file-text", __iconNode6);
 
 // node_modules/lucide-react/dist/esm/icons/film.mjs
-var __iconNode4 = [
+var __iconNode7 = [
   ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }],
   ["path", { d: "M7 3v18", key: "bbkbws" }],
   ["path", { d: "M3 7.5h4", key: "zfgn84" }],
@@ -154,10 +178,10 @@ var __iconNode4 = [
   ["path", { d: "M17 7.5h4", key: "myr1c1" }],
   ["path", { d: "M17 16.5h4", key: "go4c1d" }]
 ];
-var Film = createLucideIcon("film", __iconNode4);
+var Film = createLucideIcon("film", __iconNode7);
 
 // node_modules/lucide-react/dist/esm/icons/hard-drive.mjs
-var __iconNode5 = [
+var __iconNode8 = [
   ["path", { d: "M10 16h.01", key: "1bzywj" }],
   [
     "path",
@@ -169,10 +193,10 @@ var __iconNode5 = [
   ["path", { d: "M21.946 12.013H2.054", key: "zqlbp7" }],
   ["path", { d: "M6 16h.01", key: "1pmjb7" }]
 ];
-var HardDrive = createLucideIcon("hard-drive", __iconNode5);
+var HardDrive = createLucideIcon("hard-drive", __iconNode8);
 
 // node_modules/lucide-react/dist/esm/icons/house.mjs
-var __iconNode6 = [
+var __iconNode9 = [
   ["path", { d: "M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8", key: "5wwlr5" }],
   [
     "path",
@@ -182,10 +206,10 @@ var __iconNode6 = [
     }
   ]
 ];
-var House = createLucideIcon("house", __iconNode6);
+var House = createLucideIcon("house", __iconNode9);
 
 // node_modules/lucide-react/dist/esm/icons/layers.mjs
-var __iconNode7 = [
+var __iconNode10 = [
   [
     "path",
     {
@@ -208,18 +232,18 @@ var __iconNode7 = [
     }
   ]
 ];
-var Layers = createLucideIcon("layers", __iconNode7);
+var Layers = createLucideIcon("layers", __iconNode10);
 
 // node_modules/lucide-react/dist/esm/icons/log-out.mjs
-var __iconNode8 = [
+var __iconNode11 = [
   ["path", { d: "m16 17 5-5-5-5", key: "1bji2h" }],
   ["path", { d: "M21 12H9", key: "dn1m92" }],
   ["path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4", key: "1uf3rs" }]
 ];
-var LogOut = createLucideIcon("log-out", __iconNode8);
+var LogOut = createLucideIcon("log-out", __iconNode11);
 
 // node_modules/lucide-react/dist/esm/icons/settings.mjs
-var __iconNode9 = [
+var __iconNode12 = [
   [
     "path",
     {
@@ -229,10 +253,10 @@ var __iconNode9 = [
   ],
   ["circle", { cx: "12", cy: "12", r: "3", key: "1v7zrd" }]
 ];
-var Settings = createLucideIcon("settings", __iconNode9);
+var Settings = createLucideIcon("settings", __iconNode12);
 
 // node_modules/lucide-react/dist/esm/icons/sparkles.mjs
-var __iconNode10 = [
+var __iconNode13 = [
   [
     "path",
     {
@@ -244,10 +268,10 @@ var __iconNode10 = [
   ["path", { d: "M22 4h-4", key: "gwowj6" }],
   ["circle", { cx: "4", cy: "20", r: "2", key: "6kqj1y" }]
 ];
-var Sparkles = createLucideIcon("sparkles", __iconNode10);
+var Sparkles = createLucideIcon("sparkles", __iconNode13);
 
 // node_modules/lucide-react/dist/esm/icons/square-play.mjs
-var __iconNode11 = [
+var __iconNode14 = [
   ["rect", { x: "3", y: "3", width: "18", height: "18", rx: "2", key: "h1oib" }],
   [
     "path",
@@ -257,10 +281,10 @@ var __iconNode11 = [
     }
   ]
 ];
-var SquarePlay = createLucideIcon("square-play", __iconNode11);
+var SquarePlay = createLucideIcon("square-play", __iconNode14);
 
 // node_modules/lucide-react/dist/esm/icons/star.mjs
-var __iconNode12 = [
+var __iconNode15 = [
   [
     "path",
     {
@@ -269,30 +293,37 @@ var __iconNode12 = [
     }
   ]
 ];
-var Star = createLucideIcon("star", __iconNode12);
+var Star = createLucideIcon("star", __iconNode15);
 
 // node_modules/lucide-react/dist/esm/icons/trending-up.mjs
-var __iconNode13 = [
+var __iconNode16 = [
   ["path", { d: "M16 7h6v6", key: "box55l" }],
   ["path", { d: "m22 7-8.5 8.5-5-5L2 17", key: "1t1m79" }]
 ];
-var TrendingUp = createLucideIcon("trending-up", __iconNode13);
+var TrendingUp = createLucideIcon("trending-up", __iconNode16);
+
+// node_modules/lucide-react/dist/esm/icons/tv.mjs
+var __iconNode17 = [
+  ["path", { d: "m17 2-5 5-5-5", key: "16satq" }],
+  ["rect", { width: "20", height: "15", x: "2", y: "7", rx: "2", key: "1e6viu" }]
+];
+var Tv = createLucideIcon("tv", __iconNode17);
 
 // node_modules/lucide-react/dist/esm/icons/users.mjs
-var __iconNode14 = [
+var __iconNode18 = [
   ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", key: "1yyitq" }],
   ["path", { d: "M16 3.128a4 4 0 0 1 0 7.744", key: "16gr8j" }],
   ["path", { d: "M22 21v-2a4 4 0 0 0-3-3.87", key: "kshegd" }],
   ["circle", { cx: "9", cy: "7", r: "4", key: "nufk8" }]
 ];
-var Users = createLucideIcon("users", __iconNode14);
+var Users = createLucideIcon("users", __iconNode18);
 
 // node_modules/lucide-react/dist/esm/icons/x.mjs
-var __iconNode15 = [
+var __iconNode19 = [
   ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
   ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
 ];
-var X = createLucideIcon("x", __iconNode15);
+var X = createLucideIcon("x", __iconNode19);
 
 // index.tsx
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
@@ -388,11 +419,22 @@ var Loader = ({ isLoading }) => {
   return /* @__PURE__ */ jsx("div", { className: "fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-[3000]", children: /* @__PURE__ */ jsx("div", { className: "border-4 border-border border-t-plex rounded-full w-12 h-12 animate-spin shadow-[0_0_15px_rgba(229,160,13,0.5)]" }) });
 };
 var Toast = ({ message, type, onDismiss }) => {
+  const [isVisible, setIsVisible] = useState(false);
   useEffect(() => {
+    const animTimer = setTimeout(() => setIsVisible(true), 50);
     const timer = setTimeout(onDismiss, 5e3);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(animTimer);
+      clearTimeout(timer);
+    };
   }, [onDismiss]);
-  return /* @__PURE__ */ jsx("div", { className: `px-8 py-4 rounded-xl text-text font-medium shadow-2xl transition-all duration-300 transform translate-y-5 opacity-0 ${type} show`, children: message });
+  return /* @__PURE__ */ jsx(
+    "div",
+    {
+      className: `px-8 py-4 rounded-xl text-white font-medium shadow-2xl transition-all duration-300 transform ${isVisible ? "translate-y-0 opacity-100" : "translate-y-5 opacity-0"} ${type === "success" ? "bg-green-600" : "bg-red-600"}`,
+      children: message
+    }
+  );
 };
 var UserCard = ({ user, onEdit, onDelete, onRevoke, isConfigured, isSelected, onSelect }) => {
   const { status, statusText, daysRemainingText, pillClass, borderClass } = useMemo2(() => {
@@ -632,7 +674,6 @@ var SettingsDashboard = () => {
       setRadarrApiKey(initialSettings.radarrApiKey || "");
       setTestRecipient("");
       setServers([]);
-      setActiveTab("plex");
     }
   }, [initialSettings]);
   const handleFetchServers = async () => {
@@ -941,7 +982,7 @@ var SettingsDashboard = () => {
           ] })
         ] })
       ] }),
-      /* @__PURE__ */ jsx("div", { className: "flex justify-end gap-4 mt-8", style: { marginTop: "2rem" }, children: /* @__PURE__ */ jsx("button", { className: "px-6 py-3 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2", onClick: handleSave, disabled: !token || !selectedServer, children: "Save Settings" }) })
+      /* @__PURE__ */ jsx("div", { className: "flex justify-end gap-4 mt-8", style: { marginTop: "2rem" }, children: /* @__PURE__ */ jsx("button", { className: "px-6 py-3 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2", onClick: handleSave, children: "Save Settings" }) })
     ] }),
     /* @__PURE__ */ jsx(
       StatusConfigModal,
@@ -1311,115 +1352,248 @@ var MediaStackDashboard = ({ isAdmin }) => {
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [calendarDays, setCalendarDays] = useState("7");
+  const fetchData = useCallback(async () => {
+    try {
+      const res = await apiFetch("/api/media-stack/summary");
+      if (res.error) throw new Error(res.error);
+      setData(res);
+    } catch (err) {
+      setError(err.message || "Failed to load Media Stack data.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
   useEffect(() => {
-    if (!isAdmin) return;
-    const fetchData = async () => {
-      try {
-        const res = await apiFetch("/api/media-stack/summary");
-        if (res.error) throw new Error(res.error);
-        setData(res);
-      } catch (err) {
-        setError(err.message || "Failed to load Media Stack data.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchData();
     const interval = setInterval(fetchData, 3e4);
     return () => clearInterval(interval);
-  }, [isAdmin]);
-  if (!isAdmin) {
-    return /* @__PURE__ */ jsx("div", { className: "w-full h-[60vh] flex items-center justify-center", children: /* @__PURE__ */ jsxs("div", { className: "text-center bg-card p-12 rounded-2xl border border-border shadow-2xl", children: [
-      /* @__PURE__ */ jsx(Layers, { className: "w-16 h-16 text-muted mx-auto mb-4" }),
-      /* @__PURE__ */ jsx("h2", { className: "text-2xl font-bold text-text mb-2", children: "Access Denied" }),
-      /* @__PURE__ */ jsx("p", { className: "text-muted", children: "Only administrators can view the Media Stack." })
-    ] }) });
-  }
+  }, [fetchData]);
+  const formatRelativeAirDate = (date) => {
+    const now = /* @__PURE__ */ new Date();
+    const today = /* @__PURE__ */ new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const isMidnight = date.getHours() === 0 && date.getMinutes() === 0;
+    const timeStr = isMidnight ? "" : ` at ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+    const diffDays = Math.ceil((date.getTime() - today.getTime()) / (1e3 * 60 * 60 * 24));
+    if (date >= today && date < tomorrow) {
+      return `Today${timeStr}`;
+    }
+    const dayAfterTomorrow = new Date(tomorrow);
+    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+    if (date >= tomorrow && date < dayAfterTomorrow) {
+      return `Tomorrow${timeStr}`;
+    }
+    if (diffDays > 1 && diffDays < 7) {
+      const dayName = date.toLocaleDateString([], { weekday: "long" });
+      return `${dayName}${timeStr}`;
+    }
+    return date.toLocaleDateString([], { month: "short", day: "numeric" }) + timeStr;
+  };
+  const formatBytes = (bytes) => {
+    if (!bytes) return "0.0 GB";
+    const gb = bytes / (1024 * 1024 * 1024);
+    if (gb >= 1) return `${gb.toFixed(1)} GB`;
+    const mb = bytes / (1024 * 1024);
+    return `${mb.toFixed(1)} MB`;
+  };
+  const calendarItems = useMemo2(() => {
+    if (!data) return [];
+    const items = [];
+    if (data.sonarr?.calendar) {
+      data.sonarr.calendar.forEach((ep) => {
+        items.push({
+          id: `sonarr-${ep.id || ep.airDateUtc || ep.airDate}-${ep.title}`,
+          type: "tv",
+          service: "Sonarr",
+          title: ep.series?.title || "Unknown Series",
+          subtitle: `S${String(ep.seasonNumber).padStart(2, "0")}E${String(ep.episodeNumber).padStart(2, "0")} - ${ep.title}`,
+          date: new Date(ep.airDateUtc || ep.airDate),
+          hasFile: ep.hasFile,
+          monitored: ep.monitored
+        });
+      });
+    }
+    if (data.radarr?.calendar) {
+      data.radarr.calendar.forEach((movie) => {
+        const releaseDateStr = movie.digitalRelease || movie.physicalRelease || movie.inCinemas || movie.added;
+        if (releaseDateStr) {
+          items.push({
+            id: `radarr-${movie.id || releaseDateStr}-${movie.title}`,
+            type: "movie",
+            service: "Radarr",
+            title: movie.title,
+            subtitle: movie.studio || "Movie Release",
+            date: new Date(releaseDateStr),
+            hasFile: movie.hasFile,
+            monitored: movie.monitored
+          });
+        }
+      });
+    }
+    return items.sort((a, b) => a.date.getTime() - b.date.getTime());
+  }, [data]);
+  const filteredCalendar = useMemo2(() => {
+    const today = /* @__PURE__ */ new Date();
+    today.setHours(0, 0, 0, 0);
+    const cutoff = new Date(today);
+    cutoff.setDate(cutoff.getDate() + Number(calendarDays));
+    return calendarItems.filter((item) => {
+      const itemDate = item.date;
+      return itemDate >= today && itemDate <= cutoff;
+    });
+  }, [calendarItems, calendarDays]);
+  const activeQueue = useMemo2(() => {
+    if (!data) return [];
+    const queueItems = [];
+    if (data.sonarr?.queue?.records) {
+      data.sonarr.queue.records.forEach((item) => {
+        queueItems.push({ ...item, service: "Sonarr" });
+      });
+    }
+    if (data.radarr?.queue?.records) {
+      data.radarr.queue.records.forEach((item) => {
+        queueItems.push({ ...item, service: "Radarr" });
+      });
+    }
+    return queueItems;
+  }, [data]);
+  const combinedHistory = useMemo2(() => {
+    if (!data) return [];
+    const historyItems = [];
+    if (data.sonarr?.history?.records) {
+      data.sonarr.history.records.forEach((item) => {
+        let cleanTitle = "";
+        if (item.series?.title) {
+          cleanTitle = item.series.title;
+          if (item.episode?.seasonNumber !== void 0 && item.episode?.episodeNumber !== void 0) {
+            cleanTitle += ` - S${String(item.episode.seasonNumber).padStart(2, "0")}E${String(item.episode.episodeNumber).padStart(2, "0")}`;
+            if (item.episode.title) {
+              cleanTitle += ` - ${item.episode.title}`;
+            }
+          }
+        } else {
+          cleanTitle = item.sourceTitle || "Unknown TV Show";
+        }
+        historyItems.push({
+          id: `sonarr-hist-${item.id}`,
+          service: "Sonarr",
+          title: cleanTitle,
+          date: new Date(item.date),
+          eventType: item.eventType
+        });
+      });
+    }
+    if (data.radarr?.history?.records) {
+      data.radarr.history.records.forEach((item) => {
+        historyItems.push({
+          id: `radarr-hist-${item.id}`,
+          service: "Radarr",
+          title: item.movie?.title || item.sourceTitle || "Unknown Movie",
+          date: new Date(item.date),
+          eventType: item.eventType
+        });
+      });
+    }
+    return historyItems.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 8);
+  }, [data]);
   if (isLoading) return /* @__PURE__ */ jsx(Loader, { isLoading: true });
   if (error) return /* @__PURE__ */ jsx("div", { className: "text-center p-8 text-status-expiring", children: error });
   if (!data) return null;
-  const renderInstance = (name, info) => {
+  const getHistoryColor = (type) => {
+    if (!type) return "bg-muted";
+    switch (type.toLowerCase()) {
+      case "grabbed":
+        return "bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.5)]";
+      case "downloadfolderimported":
+      case "moviefileimported":
+      case "imported":
+        return "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]";
+      case "downloadfailed":
+      case "failed":
+        return "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]";
+      case "episodefiledeleted":
+      case "moviefiledeleted":
+      case "deleted":
+        return "bg-zinc-600 shadow-[0_0_6px_rgba(113,113,122,0.5)]";
+      default:
+        return "bg-plex shadow-[0_0_6px_rgba(229,160,13,0.5)]";
+    }
+  };
+  const formatEventType = (type) => {
+    if (!type) return "";
+    switch (type.toLowerCase()) {
+      case "grabbed":
+        return "Grabbed";
+      case "downloadfolderimported":
+      case "moviefileimported":
+      case "imported":
+        return "Imported";
+      case "downloadfailed":
+      case "failed":
+        return "Failed";
+      case "episodefiledeleted":
+      case "moviefiledeleted":
+      case "deleted":
+        return "Deleted";
+      default:
+        return type.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase()).trim();
+    }
+  };
+  const renderStatusCard = (name, info) => {
     if (!info || !info.configured) {
-      return /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-xl p-8 text-center shadow-lg", children: [
-        /* @__PURE__ */ jsx("h3", { className: "text-2xl font-bold text-plex mb-2", children: name }),
-        /* @__PURE__ */ jsx("p", { className: "text-muted mb-4", children: "Not configured. Please add the URL and API Key in Settings." })
+      return /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border/40 rounded-2xl p-6 shadow-xl flex flex-col justify-between h-44 relative overflow-hidden", children: [
+        /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-start", children: [
+          /* @__PURE__ */ jsx("h3", { className: "text-lg font-bold text-text/80", children: name }),
+          /* @__PURE__ */ jsx("span", { className: "text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-white/5 text-muted border border-white/5", children: "Unconfigured" })
+        ] }),
+        /* @__PURE__ */ jsx("p", { className: "text-xs text-muted leading-relaxed", children: "Please set the URL and API key in Settings under the Media Stack tab to activate monitoring." }),
+        /* @__PURE__ */ jsx("div", { className: "text-right", children: /* @__PURE__ */ jsx("span", { className: "text-xs font-bold text-plex hover:underline cursor-pointer", children: "Configure in Settings \u2192" }) })
       ] });
     }
     const status = info.status;
     const disk = info.disk ? info.disk[0] : null;
-    const queue = info.queue?.records || [];
-    const history = info.history?.records || [];
-    return /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-6", children: [
-      /* @__PURE__ */ jsxs("div", { className: "bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative overflow-hidden backdrop-blur-sm", children: [
-        /* @__PURE__ */ jsx("div", { className: "absolute top-0 right-0 p-4 opacity-10", children: /* @__PURE__ */ jsx(HardDrive, { className: "w-24 h-24" }) }),
-        /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-4 mb-6", children: [
-          /* @__PURE__ */ jsx("div", { className: "w-12 h-12 rounded-xl bg-plex/10 flex items-center justify-center border border-plex/20", children: /* @__PURE__ */ jsx(Layers, { className: "w-6 h-6 text-plex" }) }),
-          /* @__PURE__ */ jsxs("div", { children: [
-            /* @__PURE__ */ jsx("h2", { className: "text-2xl font-bold text-text tracking-wide", children: name }),
-            /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 mt-1", children: [
-              /* @__PURE__ */ jsx("span", { className: "w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" }),
-              /* @__PURE__ */ jsx("span", { className: "text-sm font-medium text-green-500 tracking-wider uppercase", children: "Online" }),
-              status?.version && /* @__PURE__ */ jsxs("span", { className: "text-xs text-muted ml-2", children: [
-                "v",
-                status.version
-              ] })
+    const freeGB = disk ? disk.freeSpace / 1024 / 1024 / 1024 : 0;
+    const totalGB = disk ? disk.totalSpace / 1024 / 1024 / 1024 : 1;
+    const freePercent = disk ? freeGB / totalGB * 100 : 0;
+    const usedPercent = 100 - freePercent;
+    return /* @__PURE__ */ jsxs("div", { className: "bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative overflow-hidden backdrop-blur-sm group hover:border-white/10 transition-all duration-300", children: [
+      /* @__PURE__ */ jsx("div", { className: "absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-all duration-500", children: /* @__PURE__ */ jsx(HardDrive, { className: "w-24 h-24" }) }),
+      /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-4 mb-4", children: [
+        /* @__PURE__ */ jsx("div", { className: "w-10 h-10 rounded-xl bg-plex/10 flex items-center justify-center border border-plex/20", children: name === "Sonarr" ? /* @__PURE__ */ jsx(Tv, { className: "w-5 h-5 text-plex" }) : /* @__PURE__ */ jsx(Film, { className: "w-5 h-5 text-plex" }) }),
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("h3", { className: "text-lg font-bold text-text tracking-wide", children: name }),
+          /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 mt-0.5", children: [
+            /* @__PURE__ */ jsx("span", { className: "w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" }),
+            /* @__PURE__ */ jsx("span", { className: "text-[10px] font-bold text-green-500 tracking-wider uppercase", children: "Online" }),
+            status?.version && /* @__PURE__ */ jsxs("span", { className: "text-[10px] text-muted font-bold", children: [
+              "v",
+              status.version
             ] })
           ] })
-        ] }),
-        disk && /* @__PURE__ */ jsxs("div", { className: "bg-background/50 rounded-xl p-4 border border-white/5", children: [
-          /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-end mb-2", children: [
-            /* @__PURE__ */ jsx("span", { className: "text-sm font-bold text-muted uppercase tracking-wider", children: "Free Space" }),
-            /* @__PURE__ */ jsxs("span", { className: "font-bold text-text", children: [
-              (disk.freeSpace / 1024 / 1024 / 1024).toFixed(1),
-              " GB"
-            ] })
-          ] }),
-          /* @__PURE__ */ jsx("div", { className: "w-full bg-white/5 rounded-full h-2 overflow-hidden", children: /* @__PURE__ */ jsx("div", { className: "bg-plex h-full rounded-full", style: { width: `${Math.max(0, 100 - disk.freeSpace / disk.totalSpace * 100)}%` } }) })
         ] })
       ] }),
-      /* @__PURE__ */ jsxs("div", { className: "bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative", children: [
-        /* @__PURE__ */ jsxs("h3", { className: "text-lg font-bold text-text mb-4 flex items-center gap-2", children: [
-          /* @__PURE__ */ jsx(Activity, { className: "w-5 h-5 text-plex" }),
-          "Active Downloads (",
-          queue.length,
-          ")"
-        ] }),
-        /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-3", children: queue.length === 0 ? /* @__PURE__ */ jsx("div", { className: "text-center p-6 bg-background/50 rounded-xl border border-white/5 text-muted text-sm", children: "No active downloads" }) : queue.map((item) => /* @__PURE__ */ jsxs("div", { className: "bg-background/50 rounded-xl p-4 border border-white/5", children: [
-          /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-start mb-2", children: [
-            /* @__PURE__ */ jsx("span", { className: "font-bold text-sm text-text line-clamp-1", children: item.title }),
-            /* @__PURE__ */ jsx("span", { className: "text-xs font-bold px-2 py-1 bg-plex/10 text-plex rounded-md whitespace-nowrap", children: item.status })
-          ] }),
-          /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-center text-xs text-muted mb-2", children: [
-            /* @__PURE__ */ jsxs("span", { children: [
-              item.timeleft || "Unknown",
-              " left"
-            ] }),
-            /* @__PURE__ */ jsxs("span", { children: [
-              ((item.size - item.sizeleft) / 1024 / 1024 / 1024).toFixed(1),
-              " GB / ",
-              (item.size / 1024 / 1024 / 1024).toFixed(1),
-              " GB"
-            ] })
-          ] }),
-          /* @__PURE__ */ jsx("div", { className: "w-full bg-white/5 rounded-full h-1.5 overflow-hidden", children: /* @__PURE__ */ jsx("div", { className: "bg-plex h-full rounded-full transition-all duration-500", style: { width: `${(item.size - item.sizeleft) / item.size * 100}%` } }) })
-        ] }, item.id)) })
-      ] }),
-      /* @__PURE__ */ jsxs("div", { className: "bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative", children: [
-        /* @__PURE__ */ jsxs("h3", { className: "text-lg font-bold text-text mb-4 flex items-center gap-2", children: [
-          /* @__PURE__ */ jsx(FileText, { className: "w-5 h-5 text-plex" }),
-          "Recent History"
-        ] }),
-        /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-3", children: history.length === 0 ? /* @__PURE__ */ jsx("div", { className: "text-center p-6 bg-background/50 rounded-xl border border-white/5 text-muted text-sm", children: "No recent history" }) : history.map((item) => /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-3 bg-background/50 rounded-xl p-3 border border-white/5", children: [
-          /* @__PURE__ */ jsx("div", { className: `w-2 h-full rounded-full ${item.eventType === "grabbed" ? "bg-blue-500" : "bg-green-500"}` }),
-          /* @__PURE__ */ jsxs("div", { className: "flex-grow", children: [
-            /* @__PURE__ */ jsx("div", { className: "font-bold text-sm text-text line-clamp-1", children: item.sourceTitle || item.movie?.title || item.series?.title }),
-            /* @__PURE__ */ jsxs("div", { className: "text-xs text-muted", children: [
-              new Date(item.date).toLocaleString(),
-              " \u2022 ",
-              item.eventType
-            ] })
+      disk && /* @__PURE__ */ jsxs("div", { className: "bg-background/40 rounded-xl p-3 border border-white/5 mt-2", children: [
+        /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-end mb-1", children: [
+          /* @__PURE__ */ jsx("span", { className: "text-[10px] font-bold text-muted uppercase tracking-wider", children: "Free Storage" }),
+          /* @__PURE__ */ jsxs("span", { className: "text-xs font-bold text-text", children: [
+            freeGB.toFixed(1),
+            " GB free"
           ] })
-        ] }, item.id)) })
+        ] }),
+        /* @__PURE__ */ jsx("div", { className: "w-full bg-white/5 rounded-full h-2 overflow-hidden", children: /* @__PURE__ */ jsx("div", { className: "bg-plex h-full rounded-full transition-all duration-500", style: { width: `${usedPercent}%` } }) }),
+        /* @__PURE__ */ jsxs("div", { className: "flex justify-between text-[9px] text-muted/60 mt-1 font-medium", children: [
+          /* @__PURE__ */ jsxs("span", { children: [
+            usedPercent.toFixed(0),
+            "% Used"
+          ] }),
+          /* @__PURE__ */ jsxs("span", { children: [
+            totalGB.toFixed(0),
+            " GB Total"
+          ] })
+        ] })
       ] })
     ] });
   };
@@ -1429,11 +1603,138 @@ var MediaStackDashboard = ({ isAdmin }) => {
         /* @__PURE__ */ jsx(Layers, { className: "w-8 h-8 text-plex" }),
         "Media Stack"
       ] }),
-      /* @__PURE__ */ jsx("p", { className: "text-muted text-sm mt-1", children: "Monitor your Sonarr and Radarr instances" })
+      /* @__PURE__ */ jsx("p", { className: "text-muted text-sm mt-1", children: "Unified monitoring dashboard for TV & movies" })
     ] }) }),
-    /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-8", children: [
-      renderInstance("Sonarr", data.sonarr),
-      renderInstance("Radarr", data.radarr)
+    /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-3 gap-8", children: [
+      /* @__PURE__ */ jsxs("div", { className: "lg:col-span-2 flex flex-col gap-8", children: [
+        /* @__PURE__ */ jsxs("div", { className: "bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative", children: [
+          /* @__PURE__ */ jsxs("div", { className: "flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 border-b border-border/30 pb-4", children: [
+            /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text flex items-center gap-2", children: [
+              /* @__PURE__ */ jsx(Calendar, { className: "w-5 h-5 text-plex" }),
+              "Upcoming Releases"
+            ] }),
+            /* @__PURE__ */ jsx("div", { className: "flex bg-white/5 p-1 rounded-xl border border-white/10 w-fit self-end", children: ["7", "14", "30"].map((d) => /* @__PURE__ */ jsxs(
+              "button",
+              {
+                onClick: () => setCalendarDays(d),
+                className: `px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${calendarDays === d ? "bg-plex text-background shadow-lg" : "text-muted hover:text-text"}`,
+                children: [
+                  d,
+                  " Days"
+                ]
+              },
+              d
+            )) })
+          ] }),
+          filteredCalendar.length === 0 ? /* @__PURE__ */ jsxs("div", { className: "text-center py-12 bg-background/30 rounded-xl border border-white/5 text-muted text-sm", children: [
+            /* @__PURE__ */ jsx(Calendar, { className: "w-12 h-12 text-muted/30 mx-auto mb-3" }),
+            "No upcoming releases in the next ",
+            calendarDays,
+            " days"
+          ] }) : /* @__PURE__ */ jsx("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4", children: filteredCalendar.map((item) => /* @__PURE__ */ jsx(
+            "div",
+            {
+              className: `bg-background/40 hover:bg-background/60 border border-white/5 hover:border-white/10 transition-all duration-300 rounded-xl p-3.5 flex flex-col gap-2 shadow-lg border-l-4 ${item.type === "tv" ? "border-l-blue-500/80" : "border-l-red-500/80"}`,
+              children: /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-start gap-3", children: [
+                /* @__PURE__ */ jsxs("div", { className: "min-w-0 flex-grow", children: [
+                  /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 mb-1.5", children: [
+                    /* @__PURE__ */ jsx("span", { className: `text-[8px] uppercase font-black tracking-wider px-1.5 py-0.5 rounded ${item.service === "Sonarr" ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}`, children: item.service }),
+                    /* @__PURE__ */ jsxs("span", { className: "text-[10px] text-muted flex items-center gap-1 font-medium", children: [
+                      /* @__PURE__ */ jsx(Clock, { className: "w-3.5 h-3.5 text-muted/60" }),
+                      formatRelativeAirDate(item.date)
+                    ] })
+                  ] }),
+                  /* @__PURE__ */ jsx("h4", { className: "font-bold text-sm text-text line-clamp-1 leading-tight group-hover:text-plex transition-colors", children: item.title }),
+                  /* @__PURE__ */ jsx("p", { className: "text-[11px] text-muted/75 line-clamp-1 mt-0.5", children: item.subtitle })
+                ] }),
+                /* @__PURE__ */ jsxs("div", { className: "flex flex-col items-end gap-1.5 flex-shrink-0", children: [
+                  item.hasFile ? /* @__PURE__ */ jsx("span", { className: "text-[9px] font-bold text-green-500 bg-green-500/10 border border-green-500/20 rounded-md px-1.5 py-0.5 whitespace-nowrap", children: "\u2713 Downloaded" }) : item.monitored && /* @__PURE__ */ jsxs("span", { className: "text-[9px] font-bold text-plex bg-plex/10 border border-plex/20 rounded-md px-1.5 py-0.5 flex items-center gap-1 whitespace-nowrap", children: [
+                    /* @__PURE__ */ jsx("span", { className: "w-1.5 h-1.5 rounded-full bg-plex animate-pulse" }),
+                    "Monitored"
+                  ] }),
+                  /* @__PURE__ */ jsxs("span", { className: "text-[9px] text-muted/50 font-bold uppercase tracking-wider flex items-center gap-1 mt-0.5", children: [
+                    item.type === "tv" ? /* @__PURE__ */ jsx(Tv, { className: "w-3 h-3" }) : /* @__PURE__ */ jsx(Film, { className: "w-3 h-3" }),
+                    item.type === "tv" ? "TV" : "Movie"
+                  ] })
+                ] })
+              ] })
+            },
+            item.id
+          )) })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative", children: [
+          /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text mb-4 flex items-center gap-2", children: [
+            /* @__PURE__ */ jsx(Activity, { className: "w-5 h-5 text-plex" }),
+            "Active Downloads (",
+            activeQueue.length,
+            ")"
+          ] }),
+          /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-3", children: activeQueue.length === 0 ? /* @__PURE__ */ jsxs("div", { className: "text-center py-8 bg-background/30 rounded-xl border border-white/5 text-muted text-sm", children: [
+            /* @__PURE__ */ jsx(CloudDownload, { className: "w-10 h-10 text-muted/30 mx-auto mb-2" }),
+            "No active downloads in the queue"
+          ] }) : activeQueue.map((item) => {
+            const downloaded = item.size - item.sizeleft;
+            const progress = item.size > 0 ? downloaded / item.size * 100 : 0;
+            return /* @__PURE__ */ jsxs("div", { className: "bg-background/40 hover:bg-background/60 transition-all rounded-xl p-4 border border-white/5 flex flex-col gap-2", children: [
+              /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-start gap-4", children: [
+                /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-1 min-w-0", children: [
+                  /* @__PURE__ */ jsx("span", { className: "font-bold text-sm text-text line-clamp-1 leading-snug", children: item.title }),
+                  /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
+                    /* @__PURE__ */ jsx("span", { className: `text-[8px] uppercase font-black tracking-widest px-1.5 py-0.5 rounded ${item.service === "Sonarr" ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}`, children: item.service }),
+                    /* @__PURE__ */ jsxs("span", { className: "text-[10px] text-muted/60 font-semibold", children: [
+                      item.timeleft || "Unknown time",
+                      " left"
+                    ] })
+                  ] })
+                ] }),
+                /* @__PURE__ */ jsx("span", { className: "text-[10px] font-bold px-2 py-0.5 bg-plex/10 text-plex rounded-md border border-plex/20 uppercase tracking-wider", children: item.status })
+              ] }),
+              /* @__PURE__ */ jsx("div", { className: "w-full bg-white/5 rounded-full h-2 overflow-hidden mt-1 relative", children: /* @__PURE__ */ jsx("div", { className: "bg-plex h-full rounded-full transition-all duration-500", style: { width: `${progress}%` } }) }),
+              /* @__PURE__ */ jsxs("div", { className: "flex justify-between text-[10px] text-muted/60 mt-0.5 font-medium", children: [
+                /* @__PURE__ */ jsxs("span", { children: [
+                  progress.toFixed(1),
+                  "% Completed"
+                ] }),
+                /* @__PURE__ */ jsxs("span", { children: [
+                  formatBytes(downloaded),
+                  " / ",
+                  formatBytes(item.size)
+                ] })
+              ] })
+            ] }, item.id);
+          }) })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-8", children: [
+        /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-4", children: [
+          /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text flex items-center gap-2 mb-1", children: [
+            /* @__PURE__ */ jsx(Layers, { className: "w-5 h-5 text-plex" }),
+            "Stack Status"
+          ] }),
+          renderStatusCard("Sonarr", data.sonarr),
+          renderStatusCard("Radarr", data.radarr)
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative flex-grow flex flex-col", children: [
+          /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text mb-4 flex items-center gap-2", children: [
+            /* @__PURE__ */ jsx(FileText, { className: "w-5 h-5 text-plex" }),
+            "Recent History"
+          ] }),
+          /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-3 flex-grow justify-start", children: combinedHistory.length === 0 ? /* @__PURE__ */ jsx("div", { className: "text-center py-12 bg-background/30 rounded-xl border border-white/5 text-muted text-sm flex-grow flex flex-col justify-center items-center", children: "No recent history records" }) : combinedHistory.map((item) => /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-3 bg-background/30 rounded-xl p-3 border border-white/5 hover:bg-background/50 transition-colors", children: [
+            /* @__PURE__ */ jsx("div", { className: `w-1 h-8 rounded-full flex-shrink-0 ${getHistoryColor(item.eventType)}` }),
+            /* @__PURE__ */ jsxs("div", { className: "flex-grow min-w-0", children: [
+              /* @__PURE__ */ jsx("div", { className: "font-bold text-xs text-text line-clamp-1 leading-snug", children: item.title }),
+              /* @__PURE__ */ jsxs("div", { className: "text-[10px] text-muted flex justify-between items-center mt-0.5", children: [
+                /* @__PURE__ */ jsxs("span", { children: [
+                  item.service,
+                  " \u2022 ",
+                  /* @__PURE__ */ jsx("span", { children: formatEventType(item.eventType) })
+                ] }),
+                /* @__PURE__ */ jsx("span", { children: formatRelativeAirDate(item.date) })
+              ] })
+            ] })
+          ] }, item.id)) })
+        ] })
+      ] })
     ] })
   ] });
 };
@@ -2907,7 +3208,7 @@ var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adm
           /* @__PURE__ */ jsx(ChartColumn, { className: "w-5 h-5 flex-shrink-0" }),
           " Analytics"
         ] }),
-        isAdmin && /* @__PURE__ */ jsxs("a", { href: "#", className: `flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === "mediastack" ? "border-l-4 border-plex rounded-l-none bg-white/5 text-text" : ""}`, onClick: (e) => {
+        /* @__PURE__ */ jsxs("a", { href: "#", className: `flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === "mediastack" ? "border-l-4 border-plex rounded-l-none bg-white/5 text-text" : ""}`, onClick: (e) => {
           e.preventDefault();
           onNavigate("mediastack");
         }, children: [
@@ -2960,7 +3261,7 @@ var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adm
         " Analytics",
         currentRoute === "analytics" && /* @__PURE__ */ jsx("div", { className: "absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" })
       ] }),
-      isAdmin && /* @__PURE__ */ jsxs("a", { href: "#", className: `relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === "mediastack" ? "text-plex font-bold" : "text-muted hover:text-text"}`, onClick: (e) => {
+      /* @__PURE__ */ jsxs("a", { href: "#", className: `relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === "mediastack" ? "text-plex font-bold" : "text-muted hover:text-text"}`, onClick: (e) => {
         e.preventDefault();
         onNavigate("mediastack");
       }, children: [
@@ -3018,7 +3319,7 @@ var MainApp = () => {
       else if (path === "/dashboard") setCurrentRoute("dashboard");
       else if (path === "/settings" && data.session.isAdmin) setCurrentRoute("settings");
       else if (path === "/logs" && data.session.isAdmin) setCurrentRoute("logs");
-      else if (path === "/mediastack" && data.session.isAdmin) setCurrentRoute("mediastack");
+      else if (path === "/mediastack") setCurrentRoute("mediastack");
       else if (path === "/analytics") setCurrentRoute("analytics");
       else if (path === "/settings" && !data.session.isAdmin) setCurrentRoute("user");
       else if (path === "/portal") setCurrentRoute("user");
@@ -3055,7 +3356,7 @@ var MainApp = () => {
     if (currentRoute === "dashboard") return /* @__PURE__ */ jsx(LibraryDashboard, { onBack: () => setRoute(isAdmin ? "admin" : "user") });
     if (currentRoute === "settings" && isAdmin) return /* @__PURE__ */ jsx(SettingsDashboard, {});
     if (currentRoute === "logs" && isAdmin) return /* @__PURE__ */ jsx(LogsDashboard, { onLogout: handleLogout });
-    if (currentRoute === "mediastack" && isAdmin) return /* @__PURE__ */ jsx(MediaStackDashboard, { isAdmin });
+    if (currentRoute === "mediastack") return /* @__PURE__ */ jsx(MediaStackDashboard, { isAdmin });
     if (currentRoute === "analytics") return /* @__PURE__ */ jsx(AnalyticsDashboard, { isAdmin, sessionInfo });
     if (currentRoute === "admin") return /* @__PURE__ */ jsx(AdminDashboard, { onLogout: handleLogout, onViewUserPortal: () => setRoute("user"), onViewStatus: () => setRoute("status"), onViewDashboard: () => setRoute("dashboard") });
     return /* @__PURE__ */ jsx(UserDashboard, { sessionInfo, onLogout: handleLogout, refreshSession: checkSession, onViewAdmin: () => setRoute("admin"), onViewStatus: () => setRoute("status"), onViewDashboard: () => setRoute("dashboard") });
@@ -3150,7 +3451,31 @@ lucide-react/dist/esm/icons/activity.mjs:
    * See the LICENSE file in the root directory of this source tree.
    *)
 
+lucide-react/dist/esm/icons/calendar.mjs:
+  (**
+   * @license lucide-react v1.21.0 - ISC
+   *
+   * This source code is licensed under the ISC license.
+   * See the LICENSE file in the root directory of this source tree.
+   *)
+
 lucide-react/dist/esm/icons/chart-column.mjs:
+  (**
+   * @license lucide-react v1.21.0 - ISC
+   *
+   * This source code is licensed under the ISC license.
+   * See the LICENSE file in the root directory of this source tree.
+   *)
+
+lucide-react/dist/esm/icons/clock.mjs:
+  (**
+   * @license lucide-react v1.21.0 - ISC
+   *
+   * This source code is licensed under the ISC license.
+   * See the LICENSE file in the root directory of this source tree.
+   *)
+
+lucide-react/dist/esm/icons/cloud-download.mjs:
   (**
    * @license lucide-react v1.21.0 - ISC
    *
@@ -3239,6 +3564,14 @@ lucide-react/dist/esm/icons/star.mjs:
    *)
 
 lucide-react/dist/esm/icons/trending-up.mjs:
+  (**
+   * @license lucide-react v1.21.0 - ISC
+   *
+   * This source code is licensed under the ISC license.
+   * See the LICENSE file in the root directory of this source tree.
+   *)
+
+lucide-react/dist/esm/icons/tv.mjs:
   (**
    * @license lucide-react v1.21.0 - ISC
    *
