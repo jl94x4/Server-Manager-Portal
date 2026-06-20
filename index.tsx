@@ -392,7 +392,7 @@ const UserModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (user:
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-[1000]" onClick={onClose}>
-            <div className="bg-card p-8 rounded-2xl w-[90%] max-w-lg shadow-2xl border border-border" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-card p-4 md:p-8 rounded-2xl w-[90%] max-w-lg shadow-2xl border border-border" onClick={(e) => e.stopPropagation()}>
                 <h2 className="text-2xl font-bold text-text">Edit User</h2>
                 <div className="mb-4">
                     <label>Plex Username</label>
@@ -661,7 +661,7 @@ const SettingsDashboard: React.FC = () => {
                 </div>
             </header>
 
-            <div className="bg-card p-8 rounded-2xl w-full flex flex-col shadow-2xl border border-border">
+            <div className="bg-card p-4 md:p-8 rounded-2xl w-full flex flex-col shadow-2xl border border-border">
                 {/* Mobile-only action buttons */}
                 <div className="flex md:hidden gap-3 mb-6">
                     <button className="flex-1 px-4 py-2.5 bg-border text-text rounded-lg font-medium text-sm flex items-center justify-center gap-2" onClick={() => setStatusModalOpen(true)}>Manage Status</button>
@@ -1535,7 +1535,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
     const renderStatusCard = (name: string, info: any) => {
         if (!info || !info.configured) {
             return (
-                <div className="bg-card border border-border/40 rounded-2xl p-6 shadow-xl flex flex-col justify-between h-44 relative overflow-hidden">
+                <div className="bg-card border border-border/40 rounded-2xl p-4 md:p-6 shadow-xl flex flex-col justify-between h-44 relative overflow-hidden">
                     <div className="flex justify-between items-start">
                         <h3 className="text-lg font-bold text-text/80">{name}</h3>
                         <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-white/5 text-muted border border-white/5">Unconfigured</span>
@@ -1556,7 +1556,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
         const usedPercent = 100 - freePercent;
 
         return (
-            <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative overflow-hidden backdrop-blur-sm group hover:border-white/10 transition-all duration-300">
+            <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-4 md:p-6 relative overflow-hidden backdrop-blur-sm group hover:border-white/10 transition-all duration-300">
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-all duration-500">
                     <HardDrive className="w-24 h-24" />
                 </div>
@@ -1610,7 +1610,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                 
                 <div className="lg:col-span-2 flex flex-col gap-8">
                     
-                    <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative">
+                    <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-4 md:p-6 relative">
                         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 border-b border-border/30 pb-4">
                             <h2 className="text-xl font-bold text-text flex items-center gap-2">
                                 <Calendar className="w-5 h-5 text-plex" />
@@ -1694,7 +1694,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                         )}
                     </div>
 
-                    <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative">
+                    <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-4 md:p-6 relative">
                         <h2 className="text-xl font-bold text-text mb-4 flex items-center gap-2">
                             <Activity className="w-5 h-5 text-plex" />
                             Active Downloads ({activeQueue.length})
@@ -1753,7 +1753,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                         {renderStatusCard('Radarr', data.radarr)}
                     </div>
 
-                    <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative flex-grow flex flex-col">
+                    <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-4 md:p-6 relative flex-grow flex flex-col">
                         <h2 className="text-xl font-bold text-text mb-4 flex items-center gap-2">
                             <FileText className="w-5 h-5 text-plex" />
                             Recent History
@@ -1848,7 +1848,7 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
                 {/* Top Users Card */}
-                <div className="bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border">
+                <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border">
                     <h2 className="text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><Users className="text-plex w-5 h-5" /> Top Viewers</h2>
                     <div className="flex flex-col gap-4">
                         {topUsers.length === 0 ? <p className="text-muted text-sm">No data available.</p> : topUsers.map((user, idx) => (
@@ -1869,7 +1869,7 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
                 </div>
 
                 {/* Popular Libraries Card */}
-                <div className="bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border">
+                <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border">
                     <h2 className="text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><PlaySquare className="text-plex w-5 h-5" /> Popular Libraries</h2>
                     <div className="flex flex-col gap-5 mt-2">
                         {topLibraries.length === 0 ? <p className="text-muted text-sm">No data available.</p> : topLibraries.map((lib, idx) => (
@@ -1887,7 +1887,7 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
                 </div>
 
                 {/* Trending Content Card */}
-                <div className="bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border col-span-full">
+                <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border col-span-full">
                     <h2 className="text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><TrendingUp className="text-plex w-5 h-5" /> Trending Content</h2>
                     <div className="flex flex-col gap-4">
                         {topContent.length === 0 ? <p className="text-muted text-sm col-span-full">No data available.</p> : topContent.slice(0, 10).map((item, idx) => (
@@ -2030,7 +2030,7 @@ const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
             </header>
             <main>
                 <div className="flex flex-col gap-6 mb-8">
-                    <section className="bg-card border border-border rounded-xl p-5 shadow-md">
+                    <section className="bg-card border border-border rounded-xl p-4 md:p-5 shadow-md">
                         <div className="flex items-center justify-between gap-4 mb-4">
                             <div>
                                 <h2 className="text-lg font-bold text-text">Deleted User Blocklist</h2>
@@ -2058,7 +2058,7 @@ const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                         </div>
                     </section>
 
-                    <section className="bg-card border border-border rounded-xl p-5 shadow-md">
+                    <section className="bg-card border border-border rounded-xl p-4 md:p-5 shadow-md">
                         <div className="flex items-center justify-between gap-4 mb-4">
                             <div>
                                 <h2 className="text-lg font-bold text-text">Audit Log</h2>
@@ -2088,7 +2088,7 @@ const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                         </div>
                     </section>
 
-                    <section className="bg-card border border-border rounded-xl p-5 shadow-md">
+                    <section className="bg-card border border-border rounded-xl p-4 md:p-5 shadow-md">
                         <div className="flex items-center justify-between gap-4 mb-4">
                             <div>
                                 <h2 className="text-lg font-bold text-text">Email Log</h2>
@@ -2710,7 +2710,7 @@ const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
 
     return (
         <div className="w-full max-w-2xl mx-auto px-4 py-12 md:py-20">
-            <div className="bg-card rounded-2xl shadow-2xl border border-white/10 p-8 md:p-12 relative overflow-hidden">
+            <div className="bg-card rounded-2xl shadow-2xl border border-white/10 p-5 md:p-8 lg:p-12 relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-plex to-[#e5a00d]"></div>
                 <div className="flex flex-col items-center text-center mb-8">
                     <div className="w-16 h-16 bg-plex/10 rounded-full flex items-center justify-center mb-4 border border-plex/20">
@@ -2852,7 +2852,7 @@ const Login: React.FC<{ onLoginSuccess: () => void }> = ({ onLoginSuccess }) => 
         <div className="w-full max-w-6xl mx-auto flex flex-col items-center justify-center min-h-[80vh] px-4 pt-12 md:pt-20">
             <Loader isLoading={isLoading} />
             <div className="w-full max-w-5xl mx-auto bg-card rounded-2xl shadow-2xl border-t-[6px] border-plex flex flex-col-reverse md:flex-row relative z-10 overflow-hidden">
-                <div className="flex-1 p-8 md:p-12 flex flex-col justify-center">
+                <div className="flex-1 p-4 md:p-8 lg:p-12 flex flex-col justify-center">
                     <h1 className="text-3xl md:text-4xl font-bold text-plex mb-4">Welcome to {publicInfo.serverName}</h1>
                     <p className="text-muted text-sm md:text-base leading-relaxed mb-6">The ultimate Plex experience. Get instant access to our entire library with a <strong>3-Day Free Trial</strong>.</p>
 
@@ -2866,7 +2866,7 @@ const Login: React.FC<{ onLoginSuccess: () => void }> = ({ onLoginSuccess }) => 
 
                 <div className="hidden md:block w-px bg-white/5 my-12"></div>
 
-                <div className="flex-1 p-8 md:p-12 flex flex-col justify-center bg-white/[0.02]">
+                <div className="flex-1 p-4 md:p-8 lg:p-12 flex flex-col justify-center bg-white/[0.02]">
                     <div className="text-center">
                         <div className="w-full flex justify-center mb-8">
                             <div className="relative">
@@ -2968,7 +2968,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; onLogout: () => void; refreshS
             {/* Hero card */}
             <div className="relative bg-card border border-border rounded-2xl overflow-hidden shadow-2xl">
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-plex to-transparent opacity-80" />
-                <div className="p-6 md:p-8">
+                <div className="p-4 md:p-8">
 
                     {/* Avatar + greeting */}
                     <div className="flex items-center gap-4 mb-6">
@@ -3058,7 +3058,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; onLogout: () => void; refreshS
 
             {/* Newsletter preferences */}
             {user && !sessionInfo.session.isAdmin && (
-                <div className="bg-card border border-border rounded-2xl p-6 shadow-lg">
+                <div className="bg-card border border-border rounded-2xl p-4 md:p-6 shadow-lg">
                     <p className="text-muted text-xs uppercase tracking-widest font-semibold mb-4">Preferences</p>
                     <div className="flex items-center justify-between gap-4">
                         <div>
@@ -3075,7 +3075,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; onLogout: () => void; refreshS
 
             {/* Support card */}
             {!sessionInfo?.session?.isAdmin && (
-                <div className="bg-card border border-border rounded-2xl p-6 shadow-lg">
+                <div className="bg-card border border-border rounded-2xl p-4 md:p-6 shadow-lg">
                     {user?.isTrial ? (
                         <div className="mb-4">
                             <p className="text-plex font-bold text-base mb-1">🍿 Enjoying your Free Trial?</p>
@@ -3176,7 +3176,7 @@ const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, isPublic
                                 {groupServices.map((service: any) => {
                                     const health = healthData[service.id] || { currentStatus: 'unknown', uptimePercentage: 100, history: [] };
                                     return (
-                                        <div key={service.id} className="bg-card rounded-xl p-6 border border-white/5 shadow-lg flex flex-col gap-4">
+                                        <div key={service.id} className="bg-card rounded-xl p-4 md:p-6 border border-white/5 shadow-lg flex flex-col gap-4">
                                             <div className="flex justify-between items-start mb-2 gap-4">
                                                 <h4 className="font-bold text-text text-lg">{service.name}</h4>
                                                 <span className={`px-3 py-1 rounded-full text-[0.65rem] uppercase tracking-wider font-bold border flex items-center gap-1.5 shadow-lg ${health.currentStatus === 'online' ? 'bg-status-active/10 text-status-active border-status-active/30 shadow-[0_0_10px_rgba(35,134,54,0.3)]' : health.currentStatus === 'offline' ? 'bg-status-expired/10 text-[#D32F2F] border-[#D32F2F]/30 shadow-[0_0_10px_rgba(211,47,47,0.3)] animate-pulse' : 'bg-status-expiring/10 text-status-expiring border-status-expiring/30 shadow-[0_0_10px_rgba(210,153,34,0.3)]'}`}>

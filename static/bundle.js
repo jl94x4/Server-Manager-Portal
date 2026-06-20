@@ -557,7 +557,7 @@ var UserModal = ({ isOpen, onClose, onSave, user }) => {
         break;
     }
   };
-  return /* @__PURE__ */ jsx("div", { className: "fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-[1000]", onClick: onClose, children: /* @__PURE__ */ jsxs("div", { className: "bg-card p-8 rounded-2xl w-[90%] max-w-lg shadow-2xl border border-border", onClick: (e) => e.stopPropagation(), children: [
+  return /* @__PURE__ */ jsx("div", { className: "fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-[1000]", onClick: onClose, children: /* @__PURE__ */ jsxs("div", { className: "bg-card p-4 md:p-8 rounded-2xl w-[90%] max-w-lg shadow-2xl border border-border", onClick: (e) => e.stopPropagation(), children: [
     /* @__PURE__ */ jsx("h2", { className: "text-2xl font-bold text-text", children: "Edit User" }),
     /* @__PURE__ */ jsxs("div", { className: "mb-4", children: [
       /* @__PURE__ */ jsx("label", { children: "Plex Username" }),
@@ -796,7 +796,7 @@ var SettingsDashboard = () => {
         /* @__PURE__ */ jsx("button", { className: "px-4 py-2 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2 text-sm", onClick: () => setBroadcastModalOpen(true), children: "Broadcast Email" })
       ] })
     ] }),
-    /* @__PURE__ */ jsxs("div", { className: "bg-card p-8 rounded-2xl w-full flex flex-col shadow-2xl border border-border", children: [
+    /* @__PURE__ */ jsxs("div", { className: "bg-card p-4 md:p-8 rounded-2xl w-full flex flex-col shadow-2xl border border-border", children: [
       /* @__PURE__ */ jsxs("div", { className: "flex md:hidden gap-3 mb-6", children: [
         /* @__PURE__ */ jsx("button", { className: "flex-1 px-4 py-2.5 bg-border text-text rounded-lg font-medium text-sm flex items-center justify-center gap-2", onClick: () => setStatusModalOpen(true), children: "Manage Status" }),
         /* @__PURE__ */ jsx("button", { className: "flex-1 px-4 py-2.5 bg-plex text-background rounded-lg font-bold text-sm flex items-center justify-center gap-2", onClick: () => setBroadcastModalOpen(true), children: "Broadcast Email" })
@@ -1589,7 +1589,7 @@ var MediaStackDashboard = ({ isAdmin }) => {
   };
   const renderStatusCard = (name, info) => {
     if (!info || !info.configured) {
-      return /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border/40 rounded-2xl p-6 shadow-xl flex flex-col justify-between h-44 relative overflow-hidden", children: [
+      return /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border/40 rounded-2xl p-4 md:p-6 shadow-xl flex flex-col justify-between h-44 relative overflow-hidden", children: [
         /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-start", children: [
           /* @__PURE__ */ jsx("h3", { className: "text-lg font-bold text-text/80", children: name }),
           /* @__PURE__ */ jsx("span", { className: "text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-white/5 text-muted border border-white/5", children: "Unconfigured" })
@@ -1604,7 +1604,7 @@ var MediaStackDashboard = ({ isAdmin }) => {
     const totalGB = disk ? disk.totalSpace / 1024 / 1024 / 1024 : 1;
     const freePercent = disk ? freeGB / totalGB * 100 : 0;
     const usedPercent = 100 - freePercent;
-    return /* @__PURE__ */ jsxs("div", { className: "bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative overflow-hidden backdrop-blur-sm group hover:border-white/10 transition-all duration-300", children: [
+    return /* @__PURE__ */ jsxs("div", { className: "bg-card border border-white/5 shadow-2xl rounded-2xl p-4 md:p-6 relative overflow-hidden backdrop-blur-sm group hover:border-white/10 transition-all duration-300", children: [
       /* @__PURE__ */ jsx("div", { className: "absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-all duration-500", children: /* @__PURE__ */ jsx(HardDrive, { className: "w-24 h-24" }) }),
       /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-4 mb-4", children: [
         /* @__PURE__ */ jsx("div", { className: "w-10 h-10 rounded-xl bg-plex/10 flex items-center justify-center border border-plex/20", children: name === "Sonarr" ? /* @__PURE__ */ jsx(Tv, { className: "w-5 h-5 text-plex" }) : /* @__PURE__ */ jsx(Film, { className: "w-5 h-5 text-plex" }) }),
@@ -1652,7 +1652,7 @@ var MediaStackDashboard = ({ isAdmin }) => {
     ] }) }),
     /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-3 gap-8", children: [
       /* @__PURE__ */ jsxs("div", { className: "lg:col-span-2 flex flex-col gap-8", children: [
-        /* @__PURE__ */ jsxs("div", { className: "bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative", children: [
+        /* @__PURE__ */ jsxs("div", { className: "bg-card border border-white/5 shadow-2xl rounded-2xl p-4 md:p-6 relative", children: [
           /* @__PURE__ */ jsxs("div", { className: "flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 border-b border-border/30 pb-4", children: [
             /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text flex items-center gap-2", children: [
               /* @__PURE__ */ jsx(Calendar, { className: "w-5 h-5 text-plex" }),
@@ -1707,7 +1707,7 @@ var MediaStackDashboard = ({ isAdmin }) => {
             item.id
           )) })
         ] }),
-        /* @__PURE__ */ jsxs("div", { className: "bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative", children: [
+        /* @__PURE__ */ jsxs("div", { className: "bg-card border border-white/5 shadow-2xl rounded-2xl p-4 md:p-6 relative", children: [
           /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text mb-4 flex items-center gap-2", children: [
             /* @__PURE__ */ jsx(Activity, { className: "w-5 h-5 text-plex" }),
             "Active Downloads (",
@@ -1759,7 +1759,7 @@ var MediaStackDashboard = ({ isAdmin }) => {
           renderStatusCard("Sonarr", data.sonarr),
           renderStatusCard("Radarr", data.radarr)
         ] }),
-        /* @__PURE__ */ jsxs("div", { className: "bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative flex-grow flex flex-col", children: [
+        /* @__PURE__ */ jsxs("div", { className: "bg-card border border-white/5 shadow-2xl rounded-2xl p-4 md:p-6 relative flex-grow flex flex-col", children: [
           /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text mb-4 flex items-center gap-2", children: [
             /* @__PURE__ */ jsx(FileText, { className: "w-5 h-5 text-plex" }),
             "Recent History"
@@ -1838,7 +1838,7 @@ var AnalyticsDashboard = ({ isAdmin, sessionInfo }) => {
       ) })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-6", children: [
-      /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border", children: [
+      /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border", children: [
         /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2", children: [
           /* @__PURE__ */ jsx(Users, { className: "text-plex w-5 h-5" }),
           " Top Viewers"
@@ -1862,7 +1862,7 @@ var AnalyticsDashboard = ({ isAdmin, sessionInfo }) => {
           ] })
         ] }, user.id)) })
       ] }),
-      /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border", children: [
+      /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border", children: [
         /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2", children: [
           /* @__PURE__ */ jsx(SquarePlay, { className: "text-plex w-5 h-5" }),
           " Popular Libraries"
@@ -1885,7 +1885,7 @@ var AnalyticsDashboard = ({ isAdmin, sessionInfo }) => {
           /* @__PURE__ */ jsx("div", { className: "h-2 w-full bg-black/40 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx("div", { className: "h-full bg-gradient-to-r from-plex to-[#e5a00d] rounded-full", style: { width: `${lib.plays / maxLibraryPlays * 100}%` } }) })
         ] }, lib.id)) })
       ] }),
-      /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border col-span-full", children: [
+      /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border col-span-full", children: [
         /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2", children: [
           /* @__PURE__ */ jsx(TrendingUp, { className: "text-plex w-5 h-5" }),
           " Trending Content"
@@ -2006,7 +2006,7 @@ var LogsDashboard = ({ onLogout }) => {
     /* @__PURE__ */ jsx("div", { className: "fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] flex flex-col-reverse gap-2 items-center", children: toasts.map((toast) => /* @__PURE__ */ jsx(Toast, { ...toast, onDismiss: () => setToasts((t) => t.filter((item) => item.id !== toast.id)) }, toast.id)) }),
     /* @__PURE__ */ jsx("header", { className: "hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0", children: /* @__PURE__ */ jsx("h1", { className: "text-xl md:text-3xl font-bold text-plex", children: "System Logs" }) }),
     /* @__PURE__ */ jsx("main", { children: /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-6 mb-8", children: [
-      /* @__PURE__ */ jsxs("section", { className: "bg-card border border-border rounded-xl p-5 shadow-md", children: [
+      /* @__PURE__ */ jsxs("section", { className: "bg-card border border-border rounded-xl p-4 md:p-5 shadow-md", children: [
         /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between gap-4 mb-4", children: [
           /* @__PURE__ */ jsxs("div", { children: [
             /* @__PURE__ */ jsx("h2", { className: "text-lg font-bold text-text", children: "Deleted User Blocklist" }),
@@ -2028,7 +2028,7 @@ var LogsDashboard = ({ onLogout }) => {
           /* @__PURE__ */ jsx("button", { className: "px-3 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors text-xs flex-shrink-0", onClick: () => handleUnblockDeletedUser(deletedUser), children: "Unblock" })
         ] }, deletedUser.blockId)) })
       ] }),
-      /* @__PURE__ */ jsxs("section", { className: "bg-card border border-border rounded-xl p-5 shadow-md", children: [
+      /* @__PURE__ */ jsxs("section", { className: "bg-card border border-border rounded-xl p-4 md:p-5 shadow-md", children: [
         /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between gap-4 mb-4", children: [
           /* @__PURE__ */ jsxs("div", { children: [
             /* @__PURE__ */ jsx("h2", { className: "text-lg font-bold text-text", children: "Audit Log" }),
@@ -2048,7 +2048,7 @@ var LogsDashboard = ({ onLogout }) => {
           ] })
         ] }, entry.id)) })
       ] }),
-      /* @__PURE__ */ jsxs("section", { className: "bg-card border border-border rounded-xl p-5 shadow-md", children: [
+      /* @__PURE__ */ jsxs("section", { className: "bg-card border border-border rounded-xl p-4 md:p-5 shadow-md", children: [
         /* @__PURE__ */ jsx("div", { className: "flex items-center justify-between gap-4 mb-4", children: /* @__PURE__ */ jsxs("div", { children: [
           /* @__PURE__ */ jsx("h2", { className: "text-lg font-bold text-text", children: "Email Log" }),
           /* @__PURE__ */ jsx("p", { className: "text-muted text-xs mt-1", children: "Recent system emails sent." })
@@ -2584,7 +2584,7 @@ var SetupWizard = ({ onComplete }) => {
       setIsLoading(false);
     }
   };
-  return /* @__PURE__ */ jsx("div", { className: "w-full max-w-2xl mx-auto px-4 py-12 md:py-20", children: /* @__PURE__ */ jsxs("div", { className: "bg-card rounded-2xl shadow-2xl border border-white/10 p-8 md:p-12 relative overflow-hidden", children: [
+  return /* @__PURE__ */ jsx("div", { className: "w-full max-w-2xl mx-auto px-4 py-12 md:py-20", children: /* @__PURE__ */ jsxs("div", { className: "bg-card rounded-2xl shadow-2xl border border-white/10 p-5 md:p-8 lg:p-12 relative overflow-hidden", children: [
     /* @__PURE__ */ jsx("div", { className: "absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-plex to-[#e5a00d]" }),
     /* @__PURE__ */ jsxs("div", { className: "flex flex-col items-center text-center mb-8", children: [
       /* @__PURE__ */ jsx("div", { className: "w-16 h-16 bg-plex/10 rounded-full flex items-center justify-center mb-4 border border-plex/20", children: /* @__PURE__ */ jsx(Settings, { className: "w-8 h-8 text-plex" }) }),
@@ -2714,7 +2714,7 @@ var Login = ({ onLoginSuccess }) => {
   return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-6xl mx-auto flex flex-col items-center justify-center min-h-[80vh] px-4 pt-12 md:pt-20", children: [
     /* @__PURE__ */ jsx(Loader, { isLoading }),
     /* @__PURE__ */ jsxs("div", { className: "w-full max-w-5xl mx-auto bg-card rounded-2xl shadow-2xl border-t-[6px] border-plex flex flex-col-reverse md:flex-row relative z-10 overflow-hidden", children: [
-      /* @__PURE__ */ jsxs("div", { className: "flex-1 p-8 md:p-12 flex flex-col justify-center", children: [
+      /* @__PURE__ */ jsxs("div", { className: "flex-1 p-4 md:p-8 lg:p-12 flex flex-col justify-center", children: [
         /* @__PURE__ */ jsxs("h1", { className: "text-3xl md:text-4xl font-bold text-plex mb-4", children: [
           "Welcome to ",
           publicInfo.serverName
@@ -2729,7 +2729,7 @@ var Login = ({ onLoginSuccess }) => {
         /* @__PURE__ */ jsx("button", { className: "w-full py-4 bg-plex text-background rounded-lg font-bold text-lg hover:bg-plex-hover transition-colors shadow-lg", onClick: handlePlexLogin, disabled: isLoading, children: "Claim Free Trial" })
       ] }),
       /* @__PURE__ */ jsx("div", { className: "hidden md:block w-px bg-white/5 my-12" }),
-      /* @__PURE__ */ jsx("div", { className: "flex-1 p-8 md:p-12 flex flex-col justify-center bg-white/[0.02]", children: /* @__PURE__ */ jsxs("div", { className: "text-center", children: [
+      /* @__PURE__ */ jsx("div", { className: "flex-1 p-4 md:p-8 lg:p-12 flex flex-col justify-center bg-white/[0.02]", children: /* @__PURE__ */ jsxs("div", { className: "text-center", children: [
         /* @__PURE__ */ jsx("div", { className: "w-full flex justify-center mb-8", children: /* @__PURE__ */ jsxs("div", { className: "relative", children: [
           /* @__PURE__ */ jsx("div", { className: "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-plex rounded-full blur-[50px] opacity-20 pointer-events-none" }),
           publicInfo.thumb ? /* @__PURE__ */ jsx("img", { src: publicInfo.thumb, alt: "Server Logo", className: "w-32 h-32 object-cover rounded-full border-2 border-plex drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10", onError: (e) => {
@@ -2807,7 +2807,7 @@ var UserDashboard = ({ sessionInfo, onLogout, refreshSession, onViewAdmin, onVie
     toast && /* @__PURE__ */ jsx(Toast, { message: toast.message, type: toast.type, onDismiss: () => setToast(null) }),
     /* @__PURE__ */ jsxs("div", { className: "relative bg-card border border-border rounded-2xl overflow-hidden shadow-2xl", children: [
       /* @__PURE__ */ jsx("div", { className: "absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-plex to-transparent opacity-80" }),
-      /* @__PURE__ */ jsxs("div", { className: "p-6 md:p-8", children: [
+      /* @__PURE__ */ jsxs("div", { className: "p-4 md:p-8", children: [
         /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-4 mb-6", children: [
           /* @__PURE__ */ jsx("div", { className: "w-14 h-14 rounded-full bg-gradient-to-br from-plex/40 to-plex/10 border-2 border-plex/60 flex items-center justify-center text-plex font-black text-2xl flex-shrink-0 shadow-lg shadow-plex/20", children: sessionInfo.session.username?.[0]?.toUpperCase() || "?" }),
           /* @__PURE__ */ jsxs("div", { className: "min-w-0", children: [
@@ -2878,7 +2878,7 @@ var UserDashboard = ({ sessionInfo, onLogout, refreshSession, onViewAdmin, onVie
         ] })
       ] })
     ] }),
-    user && !sessionInfo.session.isAdmin && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-lg", children: [
+    user && !sessionInfo.session.isAdmin && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-4 md:p-6 shadow-lg", children: [
       /* @__PURE__ */ jsx("p", { className: "text-muted text-xs uppercase tracking-widest font-semibold mb-4", children: "Preferences" }),
       /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between gap-4", children: [
         /* @__PURE__ */ jsxs("div", { children: [
@@ -2896,7 +2896,7 @@ var UserDashboard = ({ sessionInfo, onLogout, refreshSession, onViewAdmin, onVie
         )
       ] })
     ] }),
-    !sessionInfo?.session?.isAdmin && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-lg", children: [
+    !sessionInfo?.session?.isAdmin && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-4 md:p-6 shadow-lg", children: [
       user?.isTrial ? /* @__PURE__ */ jsxs("div", { className: "mb-4", children: [
         /* @__PURE__ */ jsx("p", { className: "text-plex font-bold text-base mb-1", children: "\u{1F37F} Enjoying your Free Trial?" }),
         /* @__PURE__ */ jsxs("p", { className: "text-muted text-sm leading-relaxed", children: [
@@ -2985,7 +2985,7 @@ var StatusDashboard = ({ onBack, isAdmin, isPublic }) => {
           /* @__PURE__ */ jsx("h3", { className: "text-lg font-bold text-muted uppercase tracking-[2px] mb-6 border-b border-white/10 pb-2", children: group.name }),
           /* @__PURE__ */ jsx("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6", children: groupServices.map((service) => {
             const health = healthData[service.id] || { currentStatus: "unknown", uptimePercentage: 100, history: [] };
-            return /* @__PURE__ */ jsxs("div", { className: "bg-card rounded-xl p-6 border border-white/5 shadow-lg flex flex-col gap-4", children: [
+            return /* @__PURE__ */ jsxs("div", { className: "bg-card rounded-xl p-4 md:p-6 border border-white/5 shadow-lg flex flex-col gap-4", children: [
               /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-start mb-2 gap-4", children: [
                 /* @__PURE__ */ jsx("h4", { className: "font-bold text-text text-lg", children: service.name }),
                 /* @__PURE__ */ jsx("span", { className: `px-3 py-1 rounded-full text-[0.65rem] uppercase tracking-wider font-bold border flex items-center gap-1.5 shadow-lg ${health.currentStatus === "online" ? "bg-status-active/10 text-status-active border-status-active/30 shadow-[0_0_10px_rgba(35,134,54,0.3)]" : health.currentStatus === "offline" ? "bg-status-expired/10 text-[#D32F2F] border-[#D32F2F]/30 shadow-[0_0_10px_rgba(211,47,47,0.3)] animate-pulse" : "bg-status-expiring/10 text-status-expiring border-status-expiring/30 shadow-[0_0_10px_rgba(210,153,34,0.3)]"}`, children: health.currentStatus.toUpperCase() })
