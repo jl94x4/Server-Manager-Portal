@@ -58,6 +58,9 @@ const authRateLimit = (req, res, next) => {
 app.use(express.json({ limit: '50kb' })); // Middleware to parse JSON bodies (with size limit)
 app.use(cookieParser()); // Middleware to parse cookies
 
+// Trust the first proxy (e.g. Nginx/Caddy) so req.secure reflects HTTPS correctly
+app.set('trust proxy', 1);
+
 // --- Configuration and Paths ---
 const CONFIG_PATH = path.join(process.cwd(), 'config.json');
 const USERS_PATH = path.join(process.cwd(), 'users.json');
@@ -970,7 +973,8 @@ app.post('/api/auth/plex/callback', authRateLimit, async (req, res) => {
         }
 
         const token = jwt.sign(sessionUser, JWT_SECRET, { expiresIn: '7d' });
-        res.cookie('session', token, { httpOnly: true, secure: true, sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
+        const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
+        res.cookie('session', token, { httpOnly: true, secure: isHttps, sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
         
         res.json({ message: 'Logged in successfully', user: sessionUser });
     } catch (err) {
