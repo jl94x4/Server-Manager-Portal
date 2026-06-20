@@ -1260,7 +1260,7 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
                 </select>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
                 {/* Top Users Card */}
                 <div className="bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border">
