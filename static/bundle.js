@@ -3076,7 +3076,7 @@ var LibraryDashboard = ({ onBack }) => {
           ] }),
           /* @__PURE__ */ jsxs("div", { className: "p-3 md:p-4 flex flex-col flex-grow min-w-0 justify-center relative", children: [
             /* @__PURE__ */ jsxs("div", { className: "absolute top-3 right-3 flex items-center gap-2 bg-black/50 backdrop-blur-md rounded-full pr-3 p-1 shadow-md border border-white/5", children: [
-              /* @__PURE__ */ jsx("img", { src: session.userThumb ? `/api/plex/image?path=${encodeURIComponent(session.userThumb)}&width=100&height=100` : "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y", alt: session.user, className: "w-5 h-5 rounded-full object-cover", onError: (e) => {
+              /* @__PURE__ */ jsx("img", { src: session.userThumb ? session.userThumb : "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y", alt: session.user, className: "w-5 h-5 rounded-full object-cover", onError: (e) => {
                 e.currentTarget.src = "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
               } }),
               /* @__PURE__ */ jsx("span", { className: "text-[10px] font-bold text-white/90 truncate max-w-[80px] md:max-w-[100px]", children: session.user })
@@ -3122,7 +3122,13 @@ var LibraryDashboard = ({ onBack }) => {
             ] })
           ] })
         ] }),
-        /* @__PURE__ */ jsx("div", { className: "w-full h-1 bg-background/50 relative mt-auto", children: /* @__PURE__ */ jsx("div", { className: "h-full bg-plex absolute top-0 left-0 transition-all duration-1000", style: { width: `${session.progress}%` } }) })
+        /* @__PURE__ */ jsx("div", { className: "w-full h-1.5 bg-background/80 relative mt-auto z-10", children: /* @__PURE__ */ jsx("div", { className: "h-full bg-plex absolute top-0 left-0 transition-all duration-1000", style: { width: `${session.progress}%` }, children: /* @__PURE__ */ jsxs("div", { className: "absolute right-0 bottom-full mb-0.5 translate-x-1/2 flex flex-col items-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]", children: [
+          /* @__PURE__ */ jsxs("div", { className: "bg-plex text-black text-[9px] font-bold px-1 rounded-sm shadow-sm", children: [
+            Math.round(session.progress),
+            "%"
+          ] }),
+          /* @__PURE__ */ jsx("div", { className: "w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-t-[4px] border-t-plex" })
+        ] }) }) })
       ] }, i)) }) : /* @__PURE__ */ jsx("div", { className: "text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full", children: "No active streams" })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "flex justify-end gap-4 items-center mb-8", children: [

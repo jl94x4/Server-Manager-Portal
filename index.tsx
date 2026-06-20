@@ -3283,9 +3283,8 @@ const LibraryDashboard: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                             <img src={`/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=300&height=450`} alt={session.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover drop-shadow-2xl" />
                                         </div>
                                         <div className="p-3 md:p-4 flex flex-col flex-grow min-w-0 justify-center relative">
-                                            {/* User Avatar Badge (Top Right) */}
                                             <div className="absolute top-3 right-3 flex items-center gap-2 bg-black/50 backdrop-blur-md rounded-full pr-3 p-1 shadow-md border border-white/5">
-                                                <img src={session.userThumb ? `/api/plex/image?path=${encodeURIComponent(session.userThumb)}&width=100&height=100` : 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'} alt={session.user} className="w-5 h-5 rounded-full object-cover" onError={(e) => { e.currentTarget.src = 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'; }} />
+                                                <img src={session.userThumb ? session.userThumb : 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'} alt={session.user} className="w-5 h-5 rounded-full object-cover" onError={(e) => { e.currentTarget.src = 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'; }} />
                                                 <span className="text-[10px] font-bold text-white/90 truncate max-w-[80px] md:max-w-[100px]">{session.user}</span>
                                             </div>
 
@@ -3338,8 +3337,15 @@ const LibraryDashboard: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="w-full h-1 bg-background/50 relative mt-auto">
-                                        <div className="h-full bg-plex absolute top-0 left-0 transition-all duration-1000" style={{ width: `${session.progress}%` }}></div>
+                                    {/* Progress Bar with Tooltip Arrow */}
+                                    <div className="w-full h-1.5 bg-background/80 relative mt-auto z-10">
+                                        <div className="h-full bg-plex absolute top-0 left-0 transition-all duration-1000" style={{ width: `${session.progress}%` }}>
+                                            {/* Tooltip with arrow pointing down */}
+                                            <div className="absolute right-0 bottom-full mb-0.5 translate-x-1/2 flex flex-col items-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                                                <div className="bg-plex text-black text-[9px] font-bold px-1 rounded-sm shadow-sm">{Math.round(session.progress)}%</div>
+                                                <div className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-t-[4px] border-t-plex"></div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </a>
                             ))}
