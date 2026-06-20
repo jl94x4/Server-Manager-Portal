@@ -534,7 +534,12 @@ const syncUsers = async (config) => {
     }).filter(Boolean);
 
     for (const localUser of localUsers) {
-        if (localUser.plexAccessStatus === 'pending' && !matchedLocalUserIds.has(localUser.id)) {
+        if (!matchedLocalUserIds.has(localUser.id)) {
+            if (localUser.plexAccessStatus !== 'pending') {
+                // If they are no longer on Plex (e.g., they expired and were removed, or manually removed from Plex), 
+                // keep them in the app but mark their access as revoked so they stay visible until manually deleted.
+                localUser.plexAccessStatus = 'revoked';
+            }
             syncedUsers.push(localUser);
         }
     }
