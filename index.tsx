@@ -1,0 +1,2958 @@
+
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { createRoot } from 'react-dom/client';
+import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X } from 'lucide-react';
+
+interface CustomSelectProps {
+    id?: string;
+    value: string | number;
+    onChange: (value: string) => void;
+    options: { label: string; value: string | number }[];
+    className?: string;
+}
+
+const CustomSelect: React.FC<CustomSelectProps> = ({ id, value, onChange, options, className }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const selectRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (selectRef.current && !selectRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const selectedOption = options.find(opt => String(opt.value) === String(value)) || options[0];
+
+    return (
+        <div className={`relative ${className || ''}`} ref={selectRef} id={id}>
+            <div className={`flex justify-between items-center w-full cursor-pointer h-full px-4 py-3 rounded-lg border bg-background text-text transition-all ${isOpen ? 'border-plex ring-1 ring-plex' : 'border-border hover:border-plex/50'}`} onClick={() => setIsOpen(!isOpen)}>
+                <span className="truncate mr-4 font-medium text-sm">{selectedOption?.label || 'Select...'}</span>
+                <span className={`text-[10px] transition-transform ${isOpen ? 'rotate-180' : ''}`}>▼</span>
+            </div>
+            {isOpen && (
+                <div className="absolute top-[calc(100%+8px)] right-0 w-max min-w-full bg-[#1e2329] border border-border rounded-lg shadow-2xl z-50 overflow-hidden py-1">
+                    {options.map(opt => (
+                        <div
+                            key={String(opt.value)}
+                            className={`px-4 py-2.5 cursor-pointer hover:bg-white/10 transition-colors whitespace-nowrap text-sm ${String(value) === String(opt.value) ? 'bg-plex/10 text-plex font-bold' : 'text-text'}`}
+                            onClick={() => {
+                                onChange(String(opt.value));
+                                setIsOpen(false);
+                            }}
+                        >
+                            {opt.label}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// --- Interfaces ---
+interface User {
+    id: string; // Plex Account ID
+    username: string;
+    email?: string;
+    thumb?: string;
+    joiningDate: string;
+    expiryDate: string | null;
+    plexAccessStatus: 'active' | 'pending' | 'revoked' | 'unknown';
+    isTrial?: boolean;
+}
+
+interface PlexConfig {
+    token: string;
+    serverIdentifier: string;
+    checkIntervalMinutes: number;
+    smtpHost: string;
+    smtpPort: number;
+    smtpUser: string;
+    smtpPass: string;
+    smtpFrom: string;
+    smtpSecure: boolean;
+    emailDaysBefore: number;
+    newsletterFrequency: string;
+    newsletterDay: number;
+    publicDomain: string;
+}
+
+interface AppSettings {
+    token?: string;
+    serverIdentifier?: string;
+    checkIntervalMinutes: number;
+    smtpHost?: string;
+    smtpPort?: number;
+    smtpUser?: string;
+    smtpPass?: string;
+    smtpFrom?: string;
+    smtpSecure?: boolean;
+    emailDaysBefore?: number;
+    newsletterFrequency?: string;
+    newsletterDay?: number;
+    publicDomain?: string;
+}
+
+interface PlexServer {
+    name: string;
+    identifier: string;
+}
+
+interface ToastMessage {
+    id: number;
+    message: string;
+    type: 'success' | 'error';
+}
+
+interface DeletedUser {
+    blockId: string;
+    id?: string;
+    plexId?: string;
+    username?: string;
+    email?: string;
+    deletedAt?: string;
+    deletedBy?: string;
+}
+
+interface AuditEntry {
+    id: string;
+    timestamp: string;
+    event: string;
+    actor?: { username?: string; email?: string; isAdmin?: boolean } | null;
+    target?: { username?: string; email?: string } | null;
+    details?: Record<string, any>;
+}
+
+type UserStatus = 'active' | 'expiring' | 'expired';
+
+// --- Helper Functions ---
+const formatDate = (dateString: string | null): string => {
+    if (!dateString) return 'Never';
+    return dateString.split('T')[0];
+};
+
+const getDaysUntilExpiry = (expiryDate: string | null): number | null => {
+    if (!expiryDate) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const datePart = expiryDate.split('T')[0];
+    const [year, month, day] = datePart.split('-').map(Number);
+    const expiry = new Date(year, month - 1, day);
+    expiry.setHours(0, 0, 0, 0);
+
+    const diffTime = expiry.getTime() - today.getTime();
+    return Math.round(diffTime / (1000 * 60 * 60 * 24));
+};
+
+const addMonths = (date: Date, months: number): Date => {
+    const d = new Date(date);
+    d.setMonth(d.getMonth() + months);
+    return d;
+};
+
+const addYears = (date: Date, years: number): Date => {
+    const d = new Date(date);
+    d.setFullYear(d.getFullYear() + years);
+    return d;
+};
+
+// --- API Helper ---
+const apiFetch = async (url: string, options: RequestInit = {}) => {
+    const response = await fetch(url, {
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            ...options.headers,
+        },
+        ...options,
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'An unknown API error occurred.' }));
+        throw new Error(errorData.error || `Request failed with status ${response.status}`);
+    }
+    if (response.status === 204) return; // Handle No Content response
+    return response.json();
+};
+
+const formatEventName = (event: string): string => {
+    return event.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+};
+
+const formatDateTime = (dateString?: string): string => {
+    if (!dateString) return 'Unknown';
+    return new Date(dateString).toLocaleString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+};
+
+const updateFavicon = (thumbUrl: string | null | undefined) => {
+    let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+    if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        link.type = 'image/png';
+        document.head.appendChild(link);
+    }
+    if (thumbUrl) {
+        link.href = thumbUrl.startsWith('http') ? thumbUrl : `/api/plex/image?path=${encodeURIComponent(thumbUrl)}`;
+    } else {
+        link.href = '/static/logo.png';
+    }
+};
+
+// --- Components ---
+
+const Loader: React.FC<{ isLoading: boolean }> = ({ isLoading }) => {
+    if (!isLoading) return null;
+    return (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-[3000]">
+            <div className="border-4 border-border border-t-plex rounded-full w-12 h-12 animate-spin shadow-[0_0_15px_rgba(229,160,13,0.5)]"></div>
+        </div>
+    );
+};
+
+const Toast: React.FC<{ message: string; type: 'success' | 'error'; onDismiss: () => void }> = ({ message, type, onDismiss }) => {
+    useEffect(() => {
+        const timer = setTimeout(onDismiss, 5000);
+        return () => clearTimeout(timer);
+    }, [onDismiss]);
+
+    return <div className={`px-8 py-4 rounded-xl text-text font-medium shadow-2xl transition-all duration-300 transform translate-y-5 opacity-0 ${type} show`}>{message}</div>;
+};
+
+const SettingsIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
+        <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.44,0.17-0.48,0.41L9.22,5.72C8.63,5.96,8.1,6.29,7.6,6.67L5.21,5.71C4.99,5.62,4.74,5.7,4.62,5.92L2.7,9.24 c-0.11,0.2-0.06,0.47,0.12,0.61L4.85,11c-0.04,0.3-0.06,0.61-0.06,0.94c0,0.32,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.38,2.91 c0.04,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44,0.17,0.48,0.41l0.38-2.91c0.59-0.24,1.12-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z" />
+    </svg>
+);
+
+const UserCard: React.FC<{
+    user: User;
+    onEdit: () => void;
+    onDelete: () => void;
+    onRevoke: () => void;
+    isConfigured: boolean;
+    isSelected: boolean;
+    onSelect: (id: string) => void;
+}> = ({ user, onEdit, onDelete, onRevoke, isConfigured, isSelected, onSelect }) => {
+    const { status, statusText, daysRemainingText, pillClass, borderClass } = useMemo(() => {
+        const days = getDaysUntilExpiry(user.expiryDate);
+        let status: UserStatus = 'active';
+        let statusText = 'Active';
+        let daysRemainingText = '';
+        let pillClass = 'bg-green-500/10 text-green-400 border border-green-500/20';
+        let borderClass = 'border-green-500/50';
+
+        if (days === null) {
+            status = 'active';
+            statusText = 'Active';
+            daysRemainingText = 'Access never expires.';
+        } else if (days < 0) {
+            status = 'expired';
+            statusText = 'Expired';
+            daysRemainingText = `Expired ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ago.`;
+            pillClass = 'bg-red-500/10 text-red-400 border border-red-500/20';
+            borderClass = 'border-red-500/50';
+        } else if (days <= 30) {
+            status = 'expiring';
+            statusText = 'Expiring Soon';
+            daysRemainingText = days === 0 ? 'Expires today.' : `Expires in ${days} day${days === 1 ? '' : 's'}.`;
+            pillClass = 'bg-orange-500/10 text-orange-400 border border-orange-500/20';
+            borderClass = 'border-orange-500/50';
+        } else {
+            daysRemainingText = `Expires in ${days} day${days === 1 ? '' : 's'}.`;
+        }
+
+        return { status, statusText, daysRemainingText, pillClass, borderClass };
+    }, [user.expiryDate]);
+
+    const handleCardClick = () => {
+        onSelect(user.id);
+    }
+
+    return (
+        <div className={`bg-card rounded-xl p-6 shadow-lg border-l-4 ${borderClass} hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 flex flex-col relative cursor-pointer ${isSelected ? 'selected' : ''}`} onClick={handleCardClick}>
+            <div className="flex justify-between items-start mb-4">
+                <div className="flex items-center gap-3 min-w-0">
+                    <input className="w-5 h-5 flex-shrink-0 appearance-none rounded-full border-2 border-muted checked:bg-plex checked:border-plex transition-colors cursor-pointer relative checked:after:content-[''] checked:after:block checked:after:w-2.5 checked:after:h-2.5 checked:after:bg-background checked:after:rounded-full checked:after:absolute checked:after:top-1/2 checked:after:left-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2"
+                        type="checkbox"
+                        checked={isSelected}
+                        readOnly
+                        style={{ borderRadius: '50%' }}
+                    />
+                    {user.thumb ? (
+                        <img src={user.thumb} alt={user.username} className="w-10 h-10 rounded-full object-cover border border-border flex-shrink-0" />
+                    ) : (
+                        <div className="w-10 h-10 rounded-full bg-border flex items-center justify-center text-text font-bold text-sm uppercase flex-shrink-0">
+                            {user.username.substring(0, 2)}
+                        </div>
+                    )}
+                    <div className="flex flex-col min-w-0 pr-2">
+                        <h3 className="text-lg font-bold truncate leading-tight" title={user.username}>{user.username}</h3>
+                        {user.email && <span className="text-xs text-muted truncate mt-0.5" title={user.email}>{user.email}</span>}
+                    </div>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${pillClass}`}>{statusText}</span>
+            </div>
+            <div className="flex flex-col gap-3 mt-4 flex-grow">
+                <div className="flex justify-between items-center text-sm pb-2 border-b border-white/5 last:border-0 last:pb-0">
+                    <span className="text-muted text-xs uppercase tracking-wider font-bold">Joined</span>
+                    <span className="text-text font-medium flex items-center gap-2">{formatDate(user.joiningDate)}</span>
+                </div>
+                <div className="flex justify-between md:items-center items-start text-sm pb-2 border-b border-white/5 last:border-0 last:pb-0 gap-2">
+                    <span className="text-muted text-xs uppercase tracking-wider font-bold flex-shrink-0 pt-1 md:pt-0">Expires</span>
+                    <span className="text-text font-medium flex flex-wrap justify-end md:items-center gap-1"><span className="whitespace-nowrap">{formatDate(user.expiryDate)}</span> <span className="text-[0.7rem] text-muted whitespace-nowrap">({daysRemainingText})</span></span>
+                </div>
+                <div className="flex justify-between items-center text-sm pb-2 border-b border-white/5 last:border-0 last:pb-0">
+                    <span className="text-muted text-xs uppercase tracking-wider font-bold">Plex</span>
+                    <span className="info-value plex-status">
+                        <span className={`plex-status-dot ${user.plexAccessStatus}`}></span>
+                        {user.plexAccessStatus.charAt(0).toUpperCase() + user.plexAccessStatus.slice(1)}
+                    </span>
+                </div>
+            </div>
+            <div className="flex gap-2 mt-auto pt-6" onClick={e => e.stopPropagation()}>
+                <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={onEdit}>Edit</button>
+                <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={onDelete}>Delete</button>
+                {status === 'expired' && user.plexAccessStatus !== 'revoked' && (
+                    <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={onRevoke} disabled={!isConfigured}>Revoke Now</button>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const UserModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (user: User) => void; user: User | null }> = ({ isOpen, onClose, onSave, user }) => {
+    const [username, setUsername] = useState('');
+    const [joiningDate, setJoiningDate] = useState(formatDate(new Date().toISOString()));
+    const [expiryDate, setExpiryDate] = useState<string | null>(formatDate(addMonths(new Date(), 1).toISOString()));
+
+    useEffect(() => {
+        if (user) {
+            setUsername(user.username);
+            setJoiningDate(formatDate(user.joiningDate));
+            setExpiryDate(user.expiryDate ? formatDate(user.expiryDate) : null);
+        } else {
+            // Reset state for new user (if ever implemented)
+            setUsername('');
+            setJoiningDate(formatDate(new Date().toISOString()));
+            setExpiryDate(formatDate(addMonths(new Date(), 1).toISOString()));
+        }
+    }, [user, isOpen]);
+
+    if (!isOpen) return null;
+
+    const handleSave = () => {
+        if (!user) return;
+        const updatedUser: User = { ...user, expiryDate };
+        onSave(updatedUser);
+    };
+
+    const handleQuickAction = (action: 'addMonth' | 'addYear' | 'unlimited') => {
+        const baseDate = expiryDate ? new Date(expiryDate) : new Date();
+        // Adjust for timezone when creating date from YYYY-MM-DD input
+        if (expiryDate) baseDate.setMinutes(baseDate.getMinutes() + baseDate.getTimezoneOffset());
+
+        switch (action) {
+            case 'addMonth': setExpiryDate(formatDate(addMonths(baseDate, 1).toISOString())); break;
+            case 'addYear': setExpiryDate(formatDate(addYears(baseDate, 1).toISOString())); break;
+            case 'unlimited': setExpiryDate(null); break;
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-[1000]" onClick={onClose}>
+            <div className="bg-card p-8 rounded-2xl w-[90%] max-w-lg shadow-2xl border border-border" onClick={(e) => e.stopPropagation()}>
+                <h2 className="text-2xl font-bold text-text">Edit User</h2>
+                <div className="mb-4">
+                    <label>Plex Username</label>
+                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" type="text" value={username} disabled />
+                </div>
+                <div className="mb-4">
+                    <label>Joining Date</label>
+                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" type="date" value={joiningDate} disabled />
+                </div>
+                <div className="mb-4">
+                    <label htmlFor="expiryDate">Expiry Date</label>
+                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="expiryDate" type="date" value={expiryDate ?? ''} onChange={(e) => setExpiryDate(e.target.value)} />
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                        <button className="w-full h-10 px-3 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center text-sm whitespace-nowrap" onClick={() => handleQuickAction('addMonth')}>+1M</button>
+                        <button className="w-full h-10 px-3 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center text-sm whitespace-nowrap" onClick={() => handleQuickAction('addYear')}>+1Y</button>
+                        <button className="w-full h-10 px-3 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center text-sm whitespace-nowrap" onClick={() => handleQuickAction('unlimited')}>Unlimited</button>
+                    </div>
+                </div>
+                <div className="flex justify-end gap-4 mt-8 pt-4 border-t border-border">
+                    <button className="px-6 py-3 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2" onClick={handleSave}>Save</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+const SettingsDashboard: React.FC = () => {
+    const [isLoading, setLoading] = useState(true);
+    const [initialSettings, setInitialSettings] = useState<any>({});
+    const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+    // Admin features moved here
+    const [statusConfig, setStatusConfig] = useState<any>({});
+    const [users, setUsers] = useState<User[]>([]);
+    const [isStatusModalOpen, setStatusModalOpen] = useState(false);
+    const [isBroadcastModalOpen, setBroadcastModalOpen] = useState(false);
+
+    const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+        setToasts(t => [...t, { id: Date.now(), message, type }]);
+    }, []);
+
+    useEffect(() => {
+        const fetchConfig = async () => {
+            setLoading(true);
+            try {
+                const configRes = await fetch('/api/config');
+                const configData = await configRes.json();
+                if (configData.settings) {
+                    setInitialSettings(configData.settings);
+                }
+                const usersData = await apiFetch('/api/users');
+                setUsers(usersData);
+                try {
+                    const sConf = await apiFetch('/api/status/config');
+                    setStatusConfig(sConf);
+                } catch (e) { }
+            } catch (error) {
+                addToast("Failed to load config", "error");
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchConfig();
+    }, [addToast]);
+
+    const handleSaveConfig = async (newConfig: any) => {
+        setLoading(true);
+        try {
+            await apiFetch('/api/config', { method: 'POST', body: JSON.stringify(newConfig) });
+            setInitialSettings(newConfig);
+            addToast('Settings Saved!');
+        } catch (e: any) {
+            addToast(e.message || 'Failed to save config', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+    const [token, setToken] = useState('');
+    const [servers, setServers] = useState<PlexServer[]>([]);
+    const [selectedServer, setSelectedServer] = useState('');
+    const [checkInterval, setCheckInterval] = useState(60);
+    const [activeTab, setActiveTab] = useState('plex');
+
+    // SMTP States
+    const [smtpHost, setSmtpHost] = useState('');
+    const [smtpPort, setSmtpPort] = useState(587);
+    const [smtpUser, setSmtpUser] = useState('');
+    const [smtpPass, setSmtpPass] = useState('');
+    const [smtpFrom, setSmtpFrom] = useState('');
+    const [smtpSecure, setSmtpSecure] = useState(false);
+    const [emailDaysBefore, setEmailDaysBefore] = useState(7);
+    const [testRecipient, setTestRecipient] = useState('');
+    const [isTestingSmtp, setIsTestingSmtp] = useState(false);
+    const [isTestingNewsletter, setIsTestingNewsletter] = useState(false);
+    const [isSendingNewsletter, setIsSendingNewsletter] = useState(false);
+
+    // Newsletter States
+    const [newsletterFrequency, setNewsletterFrequency] = useState('disabled');
+    const [newsletterDay, setNewsletterDay] = useState(0);
+    const [publicDomain, setPublicDomain] = useState('https://plexified.co.uk');
+
+    useEffect(() => {
+        if (initialSettings) {
+            setToken(initialSettings.token || '');
+            setSelectedServer(initialSettings.serverIdentifier || '');
+            setCheckInterval(initialSettings.checkIntervalMinutes || 60);
+            setSmtpHost(initialSettings.smtpHost || '');
+            setSmtpPort(initialSettings.smtpPort || 587);
+            setSmtpUser(initialSettings.smtpUser || '');
+            setSmtpPass(initialSettings.smtpPass || '');
+            setSmtpFrom(initialSettings.smtpFrom || '');
+            setSmtpSecure(!!initialSettings.smtpSecure);
+            setEmailDaysBefore(initialSettings.emailDaysBefore || 7);
+            setNewsletterFrequency(initialSettings.newsletterFrequency || 'disabled');
+            setNewsletterDay(initialSettings.newsletterDay || 0);
+            setPublicDomain(initialSettings.publicDomain || 'https://portal.plexified.co.uk');
+            setTestRecipient('');
+            setServers([]);
+            setActiveTab('plex');
+        }
+    }, [initialSettings]);
+
+    const handleFetchServers = async () => {
+        if (!token) {
+            addToast('Please enter a Plex token.', 'error');
+            return;
+        }
+        setLoading(true);
+        try {
+            const foundServers = await apiFetch('/api/plex/servers', {
+                method: 'POST',
+                body: JSON.stringify({ token })
+            });
+
+            setServers(foundServers);
+
+            if (foundServers.length > 0) {
+                addToast('Successfully fetched servers!', 'success');
+                const currentServerStillExists = foundServers.some(s => s.identifier === selectedServer);
+                if (!currentServerStillExists) {
+                    setSelectedServer(foundServers[0].identifier);
+                }
+            } else {
+                addToast('No owned servers found for this token. Make sure you are the owner of the server.', 'error');
+                setSelectedServer('');
+            }
+        } catch (error) {
+            addToast(error instanceof Error ? error.message : 'An unknown error occurred.', 'error');
+            setServers([]);
+            setSelectedServer('');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSave = async () => {
+        if (!token || !selectedServer) {
+            addToast('Token and server must be selected.', 'error');
+            return;
+        }
+        await handleSaveConfig({
+            token,
+            serverIdentifier: selectedServer,
+            checkIntervalMinutes: checkInterval,
+            smtpHost,
+            smtpPort,
+            smtpUser,
+            smtpPass,
+            smtpFrom,
+            smtpSecure,
+            emailDaysBefore,
+            newsletterFrequency,
+            newsletterDay,
+            publicDomain
+        });
+    };
+
+    const handleTestEmail = async () => {
+        if (!smtpHost || !smtpUser || !smtpPass || !testRecipient) {
+            addToast('Please fill out SMTP Host, User, Password, and Test Recipient.', 'error');
+            return;
+        }
+        setIsTestingSmtp(true);
+        try {
+            const result = await apiFetch('/api/config/test-email', {
+                method: 'POST',
+                body: JSON.stringify({
+                    smtpHost,
+                    smtpPort,
+                    smtpUser,
+                    smtpPass,
+                    smtpFrom,
+                    smtpSecure,
+                    testRecipient
+                })
+            });
+            addToast(result.message || 'Test email sent successfully!', 'success');
+        } catch (error) {
+            addToast(error instanceof Error ? error.message : 'SMTP test failed.', 'error');
+        } finally {
+            setIsTestingSmtp(false);
+        }
+    };
+
+    const handleTestNewsletter = async () => {
+        setIsTestingNewsletter(true);
+        try {
+            const result = await apiFetch('/api/newsletter/test', {
+                method: 'POST'
+            });
+            addToast(result.message || 'Newsletter sent successfully!', 'success');
+        } catch (error) {
+            addToast(error instanceof Error ? error.message : 'Newsletter test failed.', 'error');
+        } finally {
+            setIsTestingNewsletter(false);
+        }
+    };
+
+    const handleSendNewsletterNow = async () => {
+        if (!confirm('Are you sure you want to send the newsletter to ALL configured users immediately? This cannot be undone.')) return;
+        setIsSendingNewsletter(true);
+        try {
+            const result = await apiFetch('/api/newsletter/send-now', {
+                method: 'POST'
+            });
+            addToast(result.message || 'Newsletter dispatch initiated!', 'success');
+        } catch (error) {
+            addToast(error instanceof Error ? error.message : 'Newsletter dispatch failed.', 'error');
+        } finally {
+            setIsSendingNewsletter(false);
+        }
+    };
+
+    return (
+        <div className="w-full max-w-7xl mx-auto flex flex-col">
+            <Loader isLoading={isLoading} />
+            <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] flex flex-col-reverse gap-2 items-center">
+                {toasts.map(toast => <Toast key={toast.id} {...toast} onDismiss={() => setToasts(t => t.filter(item => item.id !== toast.id))} />)}
+            </div>
+
+            <header className="hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0">
+                <h1 className="text-xl md:text-3xl font-bold text-plex">Settings</h1>
+                <div className="flex gap-4">
+                    <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2 text-sm" onClick={() => setStatusModalOpen(true)}>Manage Status</button>
+                    <button className="px-4 py-2 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2 text-sm" onClick={() => setBroadcastModalOpen(true)}>Broadcast Email</button>
+                </div>
+            </header>
+
+            <div className="bg-card p-8 rounded-2xl w-full flex flex-col shadow-2xl border border-border">
+                {/* Mobile-only action buttons */}
+                <div className="flex md:hidden gap-3 mb-6">
+                    <button className="flex-1 px-4 py-2.5 bg-border text-text rounded-lg font-medium text-sm flex items-center justify-center gap-2" onClick={() => setStatusModalOpen(true)}>Manage Status</button>
+                    <button className="flex-1 px-4 py-2.5 bg-plex text-background rounded-lg font-bold text-sm flex items-center justify-center gap-2" onClick={() => setBroadcastModalOpen(true)}>Broadcast Email</button>
+                </div>
+                <div className="settings-tabs" style={{ display: 'flex', gap: '2rem', marginTop: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                    <button onClick={() => setActiveTab('plex')} style={{ background: 'none', border: 'none', color: activeTab === 'plex' ? 'var(--plex-gold)' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', padding: '0.5rem 0', borderBottom: activeTab === 'plex' ? '2px solid var(--plex-gold)' : '2px solid transparent' }}>Plex Integration</button>
+                    <button onClick={() => setActiveTab('smtp')} style={{ background: 'none', border: 'none', color: activeTab === 'smtp' ? 'var(--plex-gold)' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', padding: '0.5rem 0', borderBottom: activeTab === 'smtp' ? '2px solid var(--plex-gold)' : '2px solid transparent' }}>SMTP Alerts</button>
+                    <button onClick={() => setActiveTab('newsletter')} style={{ background: 'none', border: 'none', color: activeTab === 'newsletter' ? 'var(--plex-gold)' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', padding: '0.5rem 0', borderBottom: activeTab === 'newsletter' ? '2px solid var(--plex-gold)' : '2px solid transparent' }}>Newsletter</button>
+                </div>
+                <div className="overflow-y-auto pr-2 flex-grow mb-4 custom-scrollbar">
+                    {activeTab === 'plex' && (
+                        <div className="mb-8">
+                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Plex Integration</h3>
+                            <div className="mb-4">
+                                <label htmlFor="plexToken">Plex Token</label>
+                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="plexToken" type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Enter your X-Plex-Token" />
+                                <small>Needed to fetch users and manage access. <a href="https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/" target="_blank" rel="noopener noreferrer">How to find your token.</a></small>
+                            </div>
+                            <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={handleFetchServers} disabled={!token}>Fetch Servers</button>
+                            {servers.length > 0 && (
+                                <div className="mb-4" style={{ marginTop: '1rem' }}>
+                                    <label htmlFor="serverSelect">Select Server</label>
+                                    <CustomSelect
+                                        id="serverSelect"
+                                        value={selectedServer}
+                                        onChange={val => setSelectedServer(val)}
+                                        options={servers.map(s => ({ label: `${s.name} (${s.identifier})`, value: s.identifier }))}
+                                    />
+                                    {initialSettings.serverIdentifier && (
+                                        <small>
+                                            Currently saved server ID: <strong>{initialSettings.serverIdentifier}</strong>
+                                        </small>
+                                    )}
+                                </div>
+                            )}
+                            <div className="mb-4" style={{ marginTop: '1rem' }}>
+                                <label htmlFor="checkInterval">Check Interval (minutes)</label>
+                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="checkInterval" type="number" value={checkInterval} onChange={e => setCheckInterval(Number(e.target.value))} min="1" />
+                                <small>How often to check for expired users in the background.</small>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'smtp' && (
+                        <div className="mb-8">
+                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">SMTP Email Notifications</h3>
+                            <div className="flex flex-col md:flex-row gap-4 mb-4">
+                                <div className="flex-2">
+                                    <label htmlFor="smtpHost">SMTP Host</label>
+                                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="smtpHost" type="text" value={smtpHost} onChange={e => setSmtpHost(e.target.value)} placeholder="smtp.mailgun.org" />
+                                </div>
+                                <div className="flex-1">
+                                    <label htmlFor="smtpPort">Port</label>
+                                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="smtpPort" type="number" value={smtpPort} onChange={e => setSmtpPort(Number(e.target.value))} placeholder="587" />
+                                </div>
+                            </div>
+                            <div className="flex flex-col md:flex-row gap-4 mb-4">
+                                <div className="flex-1">
+                                    <label htmlFor="smtpUser">SMTP Username</label>
+                                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="smtpUser" type="text" value={smtpUser} onChange={e => setSmtpUser(e.target.value)} placeholder="postmaster@yourdomain.com" />
+                                </div>
+                                <div className="flex-1">
+                                    <label htmlFor="smtpPass">SMTP Password</label>
+                                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="smtpPass" type="password" value={smtpPass} onChange={e => setSmtpPass(e.target.value)} placeholder="••••••••••••" />
+                                </div>
+                            </div>
+                            <div className="flex flex-col md:flex-row gap-4 mb-4">
+                                <div className="flex-2">
+                                    <label htmlFor="smtpFrom">Sender Address (From)</label>
+                                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="smtpFrom" type="text" value={smtpFrom} onChange={e => setSmtpFrom(e.target.value)} placeholder="Plex Manager <noreply@yourdomain.com>" />
+                                </div>
+                                <div className="form-group flex-1 checkbox-group">
+                                    <label htmlFor="smtpSecure" className="flex items-center gap-2 cursor-pointer select-none text-muted hover:text-text transition-colors">
+                                        <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="smtpSecure" type="checkbox" checked={smtpSecure} onChange={e => setSmtpSecure(e.target.checked)} />
+                                        <span>SSL / Secure</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div className="mb-4">
+                                <label htmlFor="emailDaysBefore">Warning Alert Threshold (Days Before Expiry)</label>
+                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="emailDaysBefore" type="number" value={emailDaysBefore} onChange={e => setEmailDaysBefore(Number(e.target.value))} min="0" />
+                                <small>Automated notification email will be sent when user has this many days left.</small>
+                            </div>
+
+                            <div className="bg-background border border-border rounded-xl p-4 mt-6 shadow-inner">
+                                <h4>Test SMTP Settings</h4>
+                                <div className="flex flex-col md:flex-row gap-4 mb-4">
+                                    <input
+                                        type="email"
+                                        value={testRecipient}
+                                        onChange={e => setTestRecipient(e.target.value)}
+                                        placeholder="test-recipient@gmail.com"
+                                        className="flex-grow p-3 rounded-lg border border-border bg-card text-text text-sm outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all"
+                                    />
+                                    <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={handleTestEmail} disabled={isTestingSmtp || !testRecipient}>
+                                        {isTestingSmtp ? 'Sending...' : 'Send Test'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'newsletter' && (
+                        <div className="mb-8">
+                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Automated Newsletter</h3>
+                            <div className="mb-4">
+                                <label htmlFor="newsletterFrequency">Frequency</label>
+                                <CustomSelect
+                                    id="newsletterFrequency"
+                                    value={newsletterFrequency}
+                                    onChange={val => setNewsletterFrequency(val)}
+                                    options={[
+                                        { label: 'Disabled', value: 'disabled' },
+                                        { label: 'Weekly', value: 'weekly' },
+                                        { label: 'Monthly', value: 'monthly' }
+                                    ]}
+                                />
+                                <small>How often should users receive the newsletter.</small>
+                            </div>
+                            {newsletterFrequency !== 'disabled' && (
+                                <>
+                                    <div className="mb-4" style={{ marginTop: '1rem' }}>
+                                        <label htmlFor="newsletterDay">Send Day</label>
+                                        {newsletterFrequency === 'weekly' ? (
+                                            <CustomSelect
+                                                id="newsletterDay"
+                                                value={newsletterDay}
+                                                onChange={val => setNewsletterDay(Number(val))}
+                                                options={[
+                                                    { label: 'Sunday', value: 0 },
+                                                    { label: 'Monday', value: 1 },
+                                                    { label: 'Tuesday', value: 2 },
+                                                    { label: 'Wednesday', value: 3 },
+                                                    { label: 'Thursday', value: 4 },
+                                                    { label: 'Friday', value: 5 },
+                                                    { label: 'Saturday', value: 6 }
+                                                ]}
+                                            />
+                                        ) : (
+                                            <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="newsletterDay" type="number" min="1" max="28" value={newsletterDay} onChange={e => setNewsletterDay(Number(e.target.value))} placeholder="Day of the month (1-28)" />
+                                        )}
+                                    </div>
+                                    <div className="mb-4" style={{ marginTop: '1rem' }}>
+                                        <label htmlFor="publicDomain">Public Domain</label>
+                                        <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="publicDomain" type="text" value={publicDomain} onChange={e => setPublicDomain(e.target.value)} placeholder="https://portal.plexified.co.uk" />
+                                        <small>Your public URL. This is required to host the posters inside the email.</small>
+                                    </div>
+                                </>
+                            )}
+                            <div className="bg-background border border-border rounded-xl p-4 mt-6 shadow-inner" style={{ marginTop: '1rem' }}>
+                                <h4>Test Newsletter</h4>
+                                <div className="flex flex-col md:flex-row gap-4 mb-4">
+                                    <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={handleTestNewsletter} disabled={isTestingNewsletter || isSendingNewsletter}>
+                                        {isTestingNewsletter ? 'Generating & Sending...' : 'Send Test Newsletter To Admin'}
+                                    </button>
+                                    <button className="px-4 py-2 bg-plex text-background rounded-md font-medium hover:bg-plex-hover transition-colors flex items-center justify-center gap-2" onClick={handleSendNewsletterNow} disabled={isTestingNewsletter || isSendingNewsletter}>
+                                        {isSendingNewsletter ? 'Sending To All...' : 'Send Newsletter To ALL NOW'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+                <div className="flex justify-end gap-4 mt-8" style={{ marginTop: '2rem' }}>
+                    <button className="px-6 py-3 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2" onClick={handleSave} disabled={!token || !selectedServer}>Save Settings</button>
+                </div>
+            </div>
+
+            <StatusConfigModal
+                isOpen={isStatusModalOpen}
+                onClose={() => setStatusModalOpen(false)}
+                config={statusConfig}
+                onSave={async (newConfig) => {
+                    try {
+                        await apiFetch('/api/status/config', { method: 'POST', body: JSON.stringify(newConfig) });
+                        setStatusConfig(newConfig);
+                        setStatusModalOpen(false);
+                        addToast('Status Config Saved!');
+                    } catch (e: any) {
+                        addToast('Failed to save status config', 'error');
+                    }
+                }}
+            />
+            <BroadcastModal
+                isOpen={isBroadcastModalOpen}
+                onClose={() => setBroadcastModalOpen(false)}
+                selectedUserIds={[]}
+                users={users}
+            />
+        </div>
+    );
+};
+
+const StatusConfigModal: React.FC<{ isOpen: boolean; onClose: () => void; config: any; onSave: (cfg: any) => void }> = ({ isOpen, onClose, config, onSave }) => {
+    const [cfgText, setCfgText] = useState('');
+
+    useEffect(() => {
+        if (isOpen) setCfgText(JSON.stringify(config, null, 2));
+    }, [isOpen, config]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-[1000]">
+            <div className="modal-content" style={{ maxWidth: '800px', width: '90%' }}>
+                <h2 className="text-2xl font-bold text-text">Manage Status Config</h2>
+                <p>Edit the raw JSON configuration for the status monitor.</p>
+                <textarea
+                    value={cfgText}
+                    onChange={e => setCfgText(e.target.value)}
+                    style={{ width: '100%', height: '400px', fontFamily: 'monospace', backgroundColor: '#1a1a1a', color: '#fff', padding: '1rem' }}
+                />
+                <div className="flex justify-end gap-4 mt-8" style={{ marginTop: '1rem' }}>
+                    <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={onClose}>Cancel</button>
+                    <button className="px-4 py-2 bg-plex text-background rounded-md font-medium hover:bg-plex-hover transition-colors flex items-center justify-center gap-2" onClick={() => {
+                        try {
+                            const parsed = JSON.parse(cfgText);
+                            onSave(parsed);
+                        } catch (e) {
+                            alert('Invalid JSON');
+                        }
+                    }}>Save</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const BroadcastModal: React.FC<{ isOpen: boolean; onClose: () => void; selectedUserIds: string[]; users: User[]; }> = ({ isOpen, onClose, selectedUserIds, users }) => {
+    const [subject, setSubject] = useState('Big updates to the Plex Server! 🚀');
+    const [body, setBody] = useState(`🎬 <b>Hey everyone! Big updates to the Plex Server!</b> 🚀<br><br>If you have any friends or family who want to check out the server, I’m currently offering a <b>3-Day Free Trial</b> with instant access to the entire library! 🍿<br>✅ No bank details needed<br>✅ No purchase required<br>✅ Instant, automated setup<br><br>We also just launched a brand new <b>User Portal</b> (https://plexified.co.uk) packed with awesome features for everyone:<br>🕒 <b>Account Status:</b> Easily check exactly how many days you have left until your account expires.<br>🟢 <b>Server Health:</b> View live 24/7 uptime stats for all server services.<br>📊 <b>Live Library Stats:</b> See exact, live counts of our massive library.<br><br>Feel free to share the link (https://plexified.co.uk) with anyone who might be interested! 👇`);
+    const [recipientFilter, setRecipientFilter] = useState<'all' | 'active' | 'trial' | 'expiring' | 'expired' | 'selected' | 'custom'>('all');
+    const [customSelectedUserIds, setCustomSelectedUserIds] = useState<string[]>([]);
+    const [isSending, setIsSending] = useState(false);
+    const [isPreviewMode, setIsPreviewMode] = useState(false);
+    const [isSendingTest, setIsSendingTest] = useState(false);
+
+    if (!isOpen) return null;
+
+    const handleSend = async () => {
+        setIsSending(true);
+        try {
+            const finalFilter = recipientFilter === 'custom' ? 'selected' : recipientFilter;
+            const finalSelectedIds = recipientFilter === 'custom' ? customSelectedUserIds : selectedUserIds;
+
+            const res = await apiFetch('/api/users/broadcast', {
+                method: 'POST',
+                body: JSON.stringify({ subject, body, recipientFilter: finalFilter, selectedUserIds: finalSelectedIds })
+            });
+            alert(res.message);
+            onClose();
+        } catch (e: any) {
+            alert(e.message || 'Failed to send broadcast');
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    const handleTestSend = async () => {
+        setIsSendingTest(true);
+        try {
+            const res = await apiFetch('/api/users/broadcast/test', {
+                method: 'POST',
+                body: JSON.stringify({ subject, body })
+            });
+            alert(res.message);
+        } catch (e: any) {
+            alert(e.message || 'Failed to send test broadcast');
+        } finally {
+            setIsSendingTest(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-[1000]">
+            <div className="modal-content" style={{ maxWidth: '800px', width: '90%' }}>
+                <h2 className="text-2xl font-bold text-text">Broadcast Email</h2>
+
+                <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Recipients</label>
+                    <CustomSelect
+                        value={recipientFilter}
+                        onChange={val => setRecipientFilter(val as any)}
+                        options={[
+                            { label: 'All Users', value: 'all' },
+                            { label: 'Active Users Only', value: 'active' },
+                            { label: 'Trial Users Only', value: 'trial' },
+                            { label: 'Expiring Soon (Next 7 Days)', value: 'expiring' },
+                            { label: 'Expired Users', value: 'expired' },
+                            ...(selectedUserIds.length > 0 ? [{ label: `Selected Users (${selectedUserIds.length})`, value: 'selected' }] : []),
+                            { label: 'Custom User Selection...', value: 'custom' }
+                        ]}
+                        className="broadcast-select"
+                    />
+                </div>
+
+                {recipientFilter === 'custom' && (
+                    <div style={{ marginBottom: '1rem', padding: '0.75rem', backgroundColor: 'var(--background-dark)', border: '1px solid var(--border-color)', borderRadius: '4px', maxHeight: '200px', overflowY: 'auto' }}>
+                        <div style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>Select Users ({customSelectedUserIds.length} selected):</div>
+                        {users.map(u => (
+                            <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.25rem 0' }}>
+                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all"
+                                    type="checkbox"
+                                    checked={customSelectedUserIds.includes(u.id)}
+                                    onChange={(e) => {
+                                        if (e.target.checked) setCustomSelectedUserIds(prev => [...prev, u.id]);
+                                        else setCustomSelectedUserIds(prev => prev.filter(id => id !== u.id));
+                                    }}
+                                    style={{ accentColor: 'var(--plex-gold)' }}
+                                />
+                                {u.username} ({u.email || 'No email'})
+                            </label>
+                        ))}
+                    </div>
+                )}
+
+                <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Subject</label>
+                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all"
+                        type="text"
+                        value={subject}
+                        onChange={e => setSubject(e.target.value)}
+                        style={{ width: '100%', padding: '0.75rem', borderRadius: '4px', backgroundColor: '#333', color: '#fff', border: '1px solid #444' }}
+                    />
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <label style={{ fontWeight: 'bold', margin: 0 }}>Email Body (HTML supported)</label>
+                        <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={() => setIsPreviewMode(!isPreviewMode)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}>
+                            {isPreviewMode ? 'Edit HTML' : 'Preview Output'}
+                        </button>
+                    </div>
+                    {isPreviewMode ? (
+                        <div
+                            style={{ width: '100%', height: '300px', padding: '1rem', borderRadius: '4px', backgroundColor: '#fff', color: '#000', border: '1px solid #444', overflowY: 'auto' }}
+                            dangerouslySetInnerHTML={{ __html: body }}
+                        />
+                    ) : (
+                        <textarea
+                            value={body}
+                            onChange={e => setBody(e.target.value)}
+                            style={{ width: '100%', height: '300px', padding: '0.75rem', borderRadius: '4px', backgroundColor: '#333', color: '#fff', border: '1px solid #444', fontFamily: 'monospace' }}
+                        />
+                    )}
+                </div>
+
+                <div className="flex justify-end gap-4 mt-8" style={{ marginTop: '1.5rem', justifyContent: 'flex-end', gap: '1rem' }}>
+                    <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={onClose} disabled={isSending || isSendingTest}>Cancel</button>
+                    <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={handleTestSend} disabled={isSending || isSendingTest}>
+                        {isSendingTest ? 'Sending Test...' : 'Send Test To Admin'}
+                    </button>
+                    <button className="px-4 py-2 bg-plex text-background rounded-md font-medium hover:bg-plex-hover transition-colors flex items-center justify-center gap-2" onClick={handleSend} disabled={isSending || isSendingTest} style={{ backgroundColor: 'var(--plex-gold)', color: '#000' }}>
+                        {isSending ? 'Sending...' : 'Send Broadcast'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+const UserAnalyticsModal: React.FC<{ userId: string, username: string, thumb: string | null, days: string, onClose: () => void }> = ({ userId, username, thumb, days, onClose }) => {
+    const [data, setData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        apiFetch(`/api/plex/analytics/user/${userId}?days=${days}`)
+            .then(res => setData(res))
+            .catch(() => { })
+            .finally(() => setLoading(false));
+    }, [userId, days]);
+
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
+            <div className="bg-card/90 border border-border w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                {/* Header */}
+                <div className="p-6 border-b border-border flex items-center justify-between bg-black/20 flex-shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-r from-plex to-[#e5a00d]">
+                            <img src={thumb ? (thumb.startsWith('http') ? thumb : `/api/plex/image?path=${encodeURIComponent(thumb)}`) : '/static/logo.png'} alt={username} className="w-full h-full rounded-full object-cover bg-card" onError={(e) => { (e.target as HTMLImageElement).src = '/static/logo.png'; }} />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-bold text-text">{username}</h2>
+                            <p className="text-muted text-sm">{loading ? 'Loading stats...' : `${data?.totalPlays || 0} total plays (${days === 'all' ? 'All Time' : `Last ${days} Days`})`}</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="text-muted hover:text-white transition-colors bg-white/5 p-2 rounded-full"><X className="w-6 h-6" /></button>
+                </div>
+
+                {/* Content */}
+                <div className="p-6 overflow-y-auto flex-1 min-h-0 flex flex-col gap-8 custom-scrollbar">
+                    {loading ? (
+                        <div className="flex justify-center items-center h-40"><Loader isLoading={true} /></div>
+                    ) : (
+                        <>
+                            {/* Top row */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><PlaySquare className="text-plex w-4 h-4" /> Favorite Libraries</h3>
+                                    <div className="flex flex-col gap-3">
+                                        {data.topLibraries.length === 0 ? <p className="text-muted text-sm">No library data.</p> : data.topLibraries.map((lib: any, i: number) => (
+                                            <div key={lib.id} className="flex justify-between items-center bg-black/20 p-2 rounded border border-white/5">
+                                                <span className="font-bold text-sm text-text"><span className="text-muted mr-2">#{i + 1}</span>{lib.title}</span>
+                                                <span className="text-plex text-xs font-mono">{lib.plays} plays</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><TrendingUp className="text-plex w-4 h-4" /> Top Watched</h3>
+                                    <div className="flex flex-col gap-3">
+                                        {data.topContent.length === 0 ? <p className="text-muted text-sm">No content data.</p> : data.topContent.map((c: any, i: number) => (
+                                            <a key={c.key} href={c.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-black/20 p-2 rounded border border-white/5 hover:bg-white/10 transition-colors">
+                                                <div className="w-8 h-12 bg-black/40 rounded overflow-hidden flex-shrink-0">
+                                                    {c.thumbUrl ? <img src={c.thumbUrl} className="w-full h-full object-cover" /> : <Film className="w-full h-full p-2 opacity-50" />}
+                                                </div>
+                                                <div className="flex flex-col flex-grow overflow-hidden">
+                                                    <span className="font-bold text-sm text-text truncate">{c.title}</span>
+                                                    <span className="text-muted text-[10px] uppercase tracking-wider">{c.type}</span>
+                                                </div>
+                                                <span className="text-plex text-xs font-mono whitespace-nowrap">{c.plays} plays</span>
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Recent History */}
+                            <div>
+                                <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><Activity className="text-plex w-4 h-4" /> Recent Watch History</h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                    {data.recentHistory.length === 0 ? <p className="text-muted text-sm col-span-full">No recent history.</p> : data.recentHistory.map((h: any, i: number) => (
+                                        <a key={i} href={h.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white/5 border border-white/5 p-2 rounded-lg hover:bg-white/10 transition-colors">
+                                            <div className="w-10 h-14 bg-black/40 rounded overflow-hidden flex-shrink-0">
+                                                {h.thumbUrl ? <img src={h.thumbUrl} className="w-full h-full object-cover" /> : <Film className="w-full h-full p-2 opacity-50" />}
+                                            </div>
+                                            <div className="flex flex-col overflow-hidden">
+                                                <span className="font-bold text-sm text-text truncate">{h.title}</span>
+                                                {h.episodeTitle && <span className="text-muted text-xs truncate">{h.episodeTitle}</span>}
+                                                <span className="text-plex font-mono text-[10px] mt-1">{new Date(h.viewedAt * 1000).toLocaleString()}</span>
+                                            </div>
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- Analytics Dashboard Component ---
+const PersonalAnalyticsDashboard: React.FC<{ username: string, thumb: string | null }> = ({ username, thumb }) => {
+    const [data, setData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [days, setDays] = useState<string>('30');
+
+    useEffect(() => {
+        setLoading(true);
+        apiFetch(`/api/plex/analytics/me?days=${days}`)
+            .then(res => setData(res))
+            .catch(() => { })
+            .finally(() => setLoading(false));
+    }, [days]);
+
+    return (
+        <div className="w-full max-w-7xl animate-fade-in flex flex-col gap-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+                <div>
+                    <h1 className="text-3xl font-bold text-text uppercase tracking-widest flex items-center gap-3">
+                        <BarChart3 className="w-8 h-8 text-plex" />
+                        Personal Analytics
+                    </h1>
+                    <p className="text-muted text-sm mt-1">Deep dive into your playback history</p>
+                </div>
+                <select
+                    value={days}
+                    onChange={(e) => setDays(e.target.value)}
+                    className="bg-card text-text border border-border rounded px-4 py-2 text-sm focus:outline-none focus:border-plex"
+                >
+                    <option value="30">Last 30 Days</option>
+                    <option value="60">Last 60 Days</option>
+                    <option value="365">Last 1 Year</option>
+                    <option value="1825">Last 5 Years</option>
+                    <option value="all">All Time</option>
+                </select>
+            </div>
+
+            <div className="bg-card/90 border border-border w-full rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+                <div className="p-6 border-b border-border flex items-center justify-between bg-black/20 flex-shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-r from-plex to-[#e5a00d]">
+                            <img src={thumb ? (thumb.startsWith('http') ? thumb : `/api/plex/image?path=${encodeURIComponent(thumb)}`) : '/static/logo.png'} alt={username} className="w-full h-full rounded-full object-cover bg-card" onError={(e) => { (e.target as HTMLImageElement).src = '/static/logo.png'; }} />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-bold text-text">{username}</h2>
+                            <p className="text-muted text-sm">{loading ? 'Loading stats...' : `${data?.totalPlays || 0} total plays (${days === 'all' ? 'All Time' : `Last ${days} Days`})`}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-6 overflow-y-auto flex-1 min-h-0 flex flex-col gap-8 custom-scrollbar">
+                    {loading ? (
+                        <div className="flex justify-center items-center h-40"><Loader isLoading={true} /></div>
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><PlaySquare className="text-plex w-4 h-4" /> Favorite Libraries</h3>
+                                    <div className="flex flex-col gap-3">
+                                        {data.topLibraries.length === 0 ? <p className="text-muted text-sm">No library data.</p> : data.topLibraries.map((lib: any, i: number) => (
+                                            <div key={lib.id} className="flex justify-between items-center bg-black/20 p-2 rounded border border-white/5">
+                                                <span className="font-bold text-sm text-text"><span className="text-muted mr-2">#{i + 1}</span>{lib.title}</span>
+                                                <span className="text-plex text-xs font-mono">{lib.plays} plays</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><TrendingUp className="text-plex w-4 h-4" /> Top Watched</h3>
+                                    <div className="flex flex-col gap-3">
+                                        {data.topContent.length === 0 ? <p className="text-muted text-sm">No content data.</p> : data.topContent.map((c: any, i: number) => (
+                                            <a key={c.key} href={c.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-black/20 p-2 rounded border border-white/5 hover:bg-white/10 transition-colors">
+                                                <div className="w-8 h-12 bg-black/40 rounded overflow-hidden flex-shrink-0">
+                                                    {c.thumbUrl ? <img src={c.thumbUrl} className="w-full h-full object-cover" /> : <Film className="w-full h-full p-2 opacity-50" />}
+                                                </div>
+                                                <div className="flex flex-col flex-grow overflow-hidden">
+                                                    <span className="font-bold text-sm text-text truncate">{c.title}</span>
+                                                    <span className="text-muted text-[10px] uppercase tracking-wider">{c.type}</span>
+                                                </div>
+                                                <span className="text-plex text-xs font-mono whitespace-nowrap">{c.plays} plays</span>
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><Activity className="text-plex w-4 h-4" /> Recent Watch History</h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                    {data.recentHistory.length === 0 ? <p className="text-muted text-sm col-span-full">No recent history.</p> : data.recentHistory.map((h: any, i: number) => (
+                                        <a key={i} href={h.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white/5 border border-white/5 p-2 rounded-lg hover:bg-white/10 transition-colors">
+                                            <div className="w-10 h-14 bg-black/40 rounded overflow-hidden flex-shrink-0">
+                                                {h.thumbUrl ? <img src={h.thumbUrl} className="w-full h-full object-cover" /> : <Film className="w-full h-full p-2 opacity-50" />}
+                                            </div>
+                                            <div className="flex flex-col overflow-hidden">
+                                                <span className="font-bold text-sm text-text truncate">{h.title}</span>
+                                                {h.episodeTitle && <span className="text-muted text-xs truncate">{h.episodeTitle}</span>}
+                                                <span className="text-plex font-mono text-[10px] mt-1">{new Date(h.viewedAt * 1000).toLocaleString()}</span>
+                                            </div>
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ isAdmin, sessionInfo }) => {
+    if (!isAdmin) {
+        return <PersonalAnalyticsDashboard username={sessionInfo?.session?.username || 'User'} thumb={null} />;
+    }
+    const [analyticsData, setAnalyticsData] = useState<{ topUsers: any[], topLibraries: any[], topContent: any[] } | null>(null);
+    const [isLoading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [days, setDays] = useState<string>('30');
+    const [selectedUser, setSelectedUser] = useState<{ id: string, username: string, thumb: string | null } | null>(null);
+
+    useEffect(() => {
+        const fetchAnalytics = async () => {
+            setLoading(true);
+            try {
+                const data = await apiFetch(`/api/plex/analytics?days=${days}`);
+                setAnalyticsData(data);
+            } catch (err: any) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchAnalytics();
+    }, [days]);
+
+    if (isLoading) return <Loader isLoading={true} />;
+    if (error) return <div className="text-red-500 font-bold p-8 text-center">{error}</div>;
+    if (!analyticsData) return null;
+
+    const { topUsers, topLibraries, topContent } = analyticsData;
+    const maxLibraryPlays = Math.max(...topLibraries.map(l => l.plays), 1);
+
+    return (
+        <div className="w-full max-w-7xl animate-fade-in flex flex-col gap-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+                <div>
+                    <h1 className="text-3xl font-bold text-text uppercase tracking-widest flex items-center gap-3">
+                        <BarChart3 className="w-8 h-8 text-plex" />
+                        Advanced Analytics
+                    </h1>
+                    <p className="text-muted text-sm mt-1">Deep dive into playback history</p>
+                </div>
+                <select
+                    value={days}
+                    onChange={(e) => setDays(e.target.value)}
+                    className="bg-card text-text border border-border rounded px-4 py-2 text-sm focus:outline-none focus:border-plex"
+                >
+                    <option value="30">Last 30 Days</option>
+                    <option value="60">Last 60 Days</option>
+                    <option value="365">Last 1 Year</option>
+                    <option value="1825">Last 5 Years</option>
+                    <option value="all">All Time</option>
+                </select>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+
+                {/* Top Users Card */}
+                <div className="bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border">
+                    <h2 className="text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><Users className="text-plex w-5 h-5" /> Top Viewers</h2>
+                    <div className="flex flex-col gap-4">
+                        {topUsers.length === 0 ? <p className="text-muted text-sm">No data available.</p> : topUsers.map((user, idx) => (
+                            <div key={user.id} onClick={() => setSelectedUser({ id: user.id, username: user.username, thumb: user.thumb })} className="flex items-center justify-between p-3 bg-black/20 rounded-lg hover:bg-black/40 transition-colors cursor-pointer group hover:ring-1 hover:ring-plex">
+                                <div className="flex items-center gap-4">
+                                    <div className="relative">
+                                        <div className="w-10 h-10 rounded-full p-[2px] bg-gradient-to-r from-plex to-[#e5a00d]">
+                                            <img src={user.thumb ? (user.thumb.startsWith('http') ? user.thumb : `/api/plex/image?path=${encodeURIComponent(user.thumb)}`) : '/static/logo.png'} alt={user.username} className="w-full h-full rounded-full object-cover bg-card" onError={(e) => { (e.target as HTMLImageElement).src = '/static/logo.png'; }} />
+                                        </div>
+                                        <div className="absolute -top-2 -right-2 bg-plex text-black font-bold text-[10px] w-5 h-5 rounded-full flex items-center justify-center">#{idx + 1}</div>
+                                    </div>
+                                    <span className="font-bold text-text group-hover:text-plex transition-colors">{user.username}</span>
+                                </div>
+                                <span className="font-mono text-plex font-bold">{user.plays} plays</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Popular Libraries Card */}
+                <div className="bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border">
+                    <h2 className="text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><PlaySquare className="text-plex w-5 h-5" /> Popular Libraries</h2>
+                    <div className="flex flex-col gap-5 mt-2">
+                        {topLibraries.length === 0 ? <p className="text-muted text-sm">No data available.</p> : topLibraries.map((lib, idx) => (
+                            <div key={lib.id} className="flex flex-col gap-2">
+                                <div className="flex justify-between items-end">
+                                    <span className="font-bold text-text flex items-center gap-2"><span className="text-muted text-xs">#{idx + 1}</span> {lib.title}</span>
+                                    <span className="text-xs text-muted font-mono">{lib.plays} plays</span>
+                                </div>
+                                <div className="h-2 w-full bg-black/40 rounded-full overflow-hidden">
+                                    <div className="h-full bg-gradient-to-r from-plex to-[#e5a00d] rounded-full" style={{ width: `${(lib.plays / maxLibraryPlays) * 100}%` }}></div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Trending Content Card */}
+                <div className="bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border lg:col-span-2 xl:col-span-1">
+                    <h2 className="text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><TrendingUp className="text-plex w-5 h-5" /> Trending Content</h2>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-2 gap-4">
+                        {topContent.length === 0 ? <p className="text-muted text-sm col-span-full">No data available.</p> : topContent.slice(0, 6).map((item, idx) => (
+                            <a key={item.key} href={item.plexUrl} target="_blank" rel="noreferrer" className="relative group rounded-lg overflow-hidden aspect-[2/3] bg-black/40 shadow-lg cursor-pointer hover:ring-2 hover:ring-plex block">
+                                {item.thumbUrl ? (
+                                    <img src={item.thumbUrl} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 opacity-80 group-hover:opacity-100" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-muted"><Film className="w-8 h-8 opacity-50" /></div>
+                                )}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent"></div>
+                                <div className="absolute bottom-0 left-0 right-0 p-3">
+                                    <div className="text-plex font-mono text-[10px] font-bold mb-1 tracking-wider uppercase drop-shadow-md">#{idx + 1} &bull; {item.plays} plays</div>
+                                    <div className="font-bold text-sm text-text leading-tight drop-shadow-md line-clamp-2">{item.title}</div>
+                                </div>
+                            </a>
+                        ))}
+                    </div>
+                </div>
+
+            </div>
+            {selectedUser && (
+                <UserAnalyticsModal
+                    userId={selectedUser.id}
+                    username={selectedUser.username}
+                    thumb={selectedUser.thumb}
+                    days={days}
+                    onClose={() => setSelectedUser(null)}
+                />
+            )}
+        </div>
+    );
+};
+
+
+// --- Logs Dashboard Component ---
+const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
+    const [deletedUsers, setDeletedUsers] = useState<any[]>([]);
+    const [auditEntries, setAuditEntries] = useState<any[]>([]);
+    const [isLoading, setLoading] = useState(true);
+    const [toasts, setToasts] = useState<any[]>([]);
+
+    const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+        setToasts(t => [...t, { id: Date.now(), message, type }]);
+    }, []);
+
+    const fetchSecurityData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [deletedUsersData, auditLogData] = await Promise.all([
+                apiFetch('/api/deleted-users'),
+                apiFetch('/api/audit-log')
+            ]);
+            setDeletedUsers(deletedUsersData);
+            setAuditEntries(auditLogData);
+        } catch (error: any) {
+            addToast(error instanceof Error ? error.message : 'Failed to fetch logs.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    }, [addToast]);
+
+    useEffect(() => {
+        fetchSecurityData();
+    }, [fetchSecurityData]);
+
+    const handleUnblockDeletedUser = async (deletedUser: any) => {
+        const label = deletedUser.username || deletedUser.email || 'this user';
+        if (!window.confirm(`Allow ${label} to use the portal again? This does not invite them automatically.`)) return;
+
+        setLoading(true);
+        try {
+            await apiFetch(`/api/deleted-users/${encodeURIComponent(deletedUser.blockId)}`, { method: 'DELETE' });
+            addToast('Deleted user unblocked.');
+            await fetchSecurityData();
+        } catch (error: any) {
+            addToast(error instanceof Error ? error.message : 'Failed to unblock user.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Helper functions
+    const formatDateTime = (dateString: string) => {
+        if (!dateString) return '';
+        const d = new Date(dateString);
+        return `${d.getDate()} ${d.toLocaleString('default', { month: 'short' })}, ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+    };
+
+    const formatEventName = (event: string) => {
+        return event.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    };
+
+    const isConfigured = true;
+
+    const filteredAuditLog = auditEntries.filter(e => e.event !== 'system_email_sent');
+    const emailLogs = auditEntries.filter(e => e.event === 'system_email_sent');
+
+    return (
+        <div className="w-full max-w-7xl mx-auto flex flex-col">
+            <Loader isLoading={isLoading} />
+            <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] flex flex-col-reverse gap-2 items-center">
+                {toasts.map(toast => <Toast key={toast.id} {...toast} onDismiss={() => setToasts(t => t.filter(item => item.id !== toast.id))} />)}
+            </div>
+            <header className="hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0">
+                <h1 className="text-xl md:text-3xl font-bold text-plex">System Logs</h1>
+            </header>
+            <main>
+                <div className="flex flex-col gap-6 mb-8">
+                    <section className="bg-card border border-border rounded-xl p-5 shadow-md">
+                        <div className="flex items-center justify-between gap-4 mb-4">
+                            <div>
+                                <h2 className="text-lg font-bold text-text">Deleted User Blocklist</h2>
+                                <p className="text-muted text-xs mt-1">Deleted users are logged out and blocked from claiming another trial.</p>
+                            </div>
+                            <span className="px-3 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-bold">{deletedUsers.length}</span>
+                        </div>
+                        <div className="flex flex-col gap-3">
+                            {deletedUsers.length === 0 ? (
+                                <p className="text-muted text-sm border border-dashed border-border rounded-lg p-4 text-center">No deleted users are currently blocked.</p>
+                            ) : (
+                                deletedUsers.map(deletedUser => (
+                                    <div key={deletedUser.blockId} className="flex items-center justify-between gap-3 bg-background/60 border border-border rounded-lg p-3">
+                                        <div className="min-w-0">
+                                            <p className="text-text font-semibold text-sm truncate">{deletedUser.username || 'Unknown user'}</p>
+                                            <p className="text-muted text-xs truncate">{deletedUser.email || deletedUser.plexId || deletedUser.id || 'No identifier'}</p>
+                                            <p className="text-muted/70 text-[11px] mt-1">Deleted {formatDateTime(deletedUser.deletedAt)} by {deletedUser.deletedBy || 'admin'}</p>
+                                        </div>
+                                        <button className="px-3 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors text-xs flex-shrink-0" onClick={() => handleUnblockDeletedUser(deletedUser)}>
+                                            Unblock
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </section>
+
+                    <section className="bg-card border border-border rounded-xl p-5 shadow-md">
+                        <div className="flex items-center justify-between gap-4 mb-4">
+                            <div>
+                                <h2 className="text-lg font-bold text-text">Audit Log</h2>
+                                <p className="text-muted text-xs mt-1">Recent invite, deletion, sync, and access events.</p>
+                            </div>
+                            <button className="px-3 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors text-xs" onClick={fetchSecurityData}>
+                                Refresh
+                            </button>
+                        </div>
+                        <div className="flex flex-col gap-3">
+                            {filteredAuditLog.length === 0 ? (
+                                <p className="text-muted text-sm border border-dashed border-border rounded-lg p-4 text-center">No audit events recorded yet.</p>
+                            ) : (
+                                filteredAuditLog.slice(0, 20).map(entry => (
+                                    <div key={entry.id} className="bg-background/60 border border-border rounded-lg p-3">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <p className="text-text font-semibold text-sm">{formatEventName(entry.event)}</p>
+                                            <span className="text-muted text-[11px] whitespace-nowrap">{formatDateTime(entry.timestamp)}</span>
+                                        </div>
+                                        <p className="text-muted text-xs mt-1">
+                                            Target: {entry.target?.username || entry.target?.email || 'System'}
+                                            {entry.actor?.username || entry.actor?.email ? ` · Actor: ${entry.actor.username || entry.actor.email}` : ''}
+                                        </p>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </section>
+
+                    <section className="bg-card border border-border rounded-xl p-5 shadow-md">
+                        <div className="flex items-center justify-between gap-4 mb-4">
+                            <div>
+                                <h2 className="text-lg font-bold text-text">Email Log</h2>
+                                <p className="text-muted text-xs mt-1">Recent system emails sent.</p>
+                            </div>
+                        </div>
+                        <div className="flex flex-col gap-3">
+                            {emailLogs.length === 0 ? (
+                                <p className="text-muted text-sm border border-dashed border-border rounded-lg p-4 text-center">No emails sent yet.</p>
+                            ) : (
+                                emailLogs.slice(0, 20).map(entry => (
+                                    <div key={entry.id} className="bg-background/60 border border-border rounded-lg p-3">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <p className="text-text font-semibold text-sm line-clamp-1">{entry.details?.subject || 'System Email'}</p>
+                                            <span className="text-muted text-[11px] whitespace-nowrap">{formatDateTime(entry.timestamp)}</span>
+                                        </div>
+                                        <p className="text-muted text-xs mt-1">
+                                            To: {entry.target?.username || entry.target?.email || 'Unknown'}
+                                        </p>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </section>
+                </div>
+            </main>
+        </div>
+    );
+};
+
+// --- Admin Dashboard Component ---
+
+const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: () => void, onViewStatus: () => void, onViewDashboard: () => void }> = ({ onLogout, onViewUserPortal, onViewStatus, onViewDashboard }) => {
+    const [users, setUsers] = useState<User[]>([]);
+    const [isConfigured, setConfigured] = useState(false);
+    const [configSettings, setConfigSettings] = useState<AppSettings>({ checkIntervalMinutes: 60 });
+    const [isUserModalOpen, setUserModalOpen] = useState(false);
+    const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
+    const [editingUser, setEditingUser] = useState<User | null>(null);
+    const [isLoading, setLoading] = useState(true);
+    const [toasts, setToasts] = useState<ToastMessage[]>([]);
+    const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+    const [bulkCustomDate, setBulkCustomDate] = useState('');
+    const [deletedUsers, setDeletedUsers] = useState<DeletedUser[]>([]);
+    const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
+
+    // Filters and Sorting States
+    const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'trial' | 'expiring' | 'expired' | 'revoked'>('all');
+    const [sortBy, setSortBy] = useState<'username-asc' | 'username-desc' | 'expiry-asc' | 'expiry-desc' | 'joined-desc'>('username-asc');
+
+    const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+        setToasts(t => [...t, { id: Date.now(), message, type }]);
+    }, []);
+
+    const fetchUsers = useCallback(async () => {
+        try {
+            const usersData = await apiFetch('/api/users');
+            setUsers(usersData);
+        } catch (error) {
+            addToast(error instanceof Error ? error.message : 'Failed to fetch users.', 'error');
+        }
+    }, [addToast]);
+
+    const fetchSecurityData = useCallback(async () => {
+        try {
+            const [deletedUsersData, auditLogData] = await Promise.all([
+                apiFetch('/api/deleted-users'),
+                apiFetch('/api/audit-log')
+            ]);
+            setDeletedUsers(deletedUsersData);
+            setAuditEntries(auditLogData);
+        } catch (error) {
+            addToast(error instanceof Error ? error.message : 'Failed to fetch security data.', 'error');
+        }
+    }, [addToast]);
+
+    useEffect(() => {
+        const checkConfigAndFetchData = async () => {
+            setLoading(true);
+            try {
+                const configStatus = await apiFetch('/api/config');
+                setConfigured(configStatus.configured);
+                setConfigSettings(configStatus.settings); // Always update settings from backend
+
+                if (configStatus.configured) {
+                    await fetchUsers();
+                    await fetchSecurityData();
+                } else {
+                    addToast('Welcome! Please configure your Plex settings to begin.', 'success');
+                    setSettingsModalOpen(true);
+                }
+            } catch (error) {
+                addToast(error instanceof Error ? error.message : 'Could not connect to backend.', 'error');
+            } finally {
+                setLoading(false);
+            }
+        };
+        checkConfigAndFetchData();
+    }, [fetchUsers, fetchSecurityData, addToast]);
+
+
+    const handleSaveConfig = async (config: PlexConfig) => {
+        setLoading(true);
+        try {
+            await apiFetch('/api/config', {
+                method: 'POST',
+                body: JSON.stringify(config)
+            });
+            setConfigured(true);
+            setConfigSettings({
+                token: config.token,
+                serverIdentifier: config.serverIdentifier,
+                checkIntervalMinutes: config.checkIntervalMinutes || 60,
+                smtpHost: config.smtpHost,
+                smtpPort: config.smtpPort,
+                smtpUser: config.smtpUser,
+                smtpPass: config.smtpPass,
+                smtpFrom: config.smtpFrom,
+                smtpSecure: config.smtpSecure,
+                emailDaysBefore: config.emailDaysBefore,
+                newsletterFrequency: config.newsletterFrequency,
+                newsletterDay: config.newsletterDay,
+                publicDomain: config.publicDomain
+            });
+            setSettingsModalOpen(false);
+            addToast('Settings saved successfully!');
+            await fetchUsers();
+        } catch (error) {
+            addToast(error instanceof Error ? error.message : 'Failed to save config.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleImportUsers = async () => {
+        if (!isConfigured) {
+            addToast('Please configure Plex settings first.', 'error');
+            return;
+        }
+        setLoading(true);
+        try {
+            const result = await apiFetch('/api/sync', { method: 'POST' });
+            addToast(result.message || `Synced ${result.count} users from Plex.`);
+            await fetchUsers(); // Refresh user list
+            await fetchSecurityData();
+        } catch (error) {
+            addToast(error instanceof Error ? error.message : 'An unknown error occurred during sync.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const revokePlexAccess = async (userId: string) => {
+        setLoading(true);
+        try {
+            const updatedUser = await apiFetch(`/api/users/${userId}/revoke`, { method: 'POST' });
+            setUsers(currentUsers => currentUsers.map(u => u.id === userId ? updatedUser : u));
+            addToast('Plex access revoked successfully.');
+            await fetchSecurityData();
+        } catch (error) {
+            addToast(error instanceof Error ? error.message : 'Failed to revoke access.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleOpenUserModal = (user: User) => {
+        setEditingUser(user);
+        setUserModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setUserModalOpen(false);
+        setEditingUser(null);
+    };
+
+    const handleSaveUser = async (userToSave: User) => {
+        setLoading(true);
+        try {
+            const updatedUser = await apiFetch(`/api/users/${userToSave.id}`, {
+                method: 'PUT',
+                body: JSON.stringify({ expiryDate: userToSave.expiryDate })
+            });
+            setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+            handleCloseModal();
+            addToast('User updated successfully!');
+            await fetchSecurityData();
+        } catch (error) {
+            addToast(error instanceof Error ? error.message : 'Failed to save user.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeleteUser = async (userId: string) => {
+        if (window.confirm('Are you sure you want to delete this user? This will revoke Plex access first.')) {
+            setLoading(true);
+            try {
+                await apiFetch(`/api/users/${userId}`, { method: 'DELETE' });
+                setUsers(users.filter(u => u.id !== userId));
+                addToast('User removed from manager.');
+                await fetchSecurityData();
+            } catch (error) {
+                addToast(error instanceof Error ? error.message : 'Failed to delete user.', 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
+    const handleToggleSelection = (userId: string) => {
+        setSelectedUserIds(prev =>
+            prev.includes(userId)
+                ? prev.filter(id => id !== userId)
+                : [...prev, userId]
+        );
+    };
+
+    const handleBulkUpdate = async (action: 'addMonth' | 'addYear' | 'unlimited' | 'custom', customDate?: string) => {
+        setLoading(true);
+        try {
+            await apiFetch('/api/users/bulk-update', {
+                method: 'POST',
+                body: JSON.stringify({ userIds: selectedUserIds, action, customDate })
+            });
+            addToast(`Successfully updated ${selectedUserIds.length} users.`);
+            setSelectedUserIds([]);
+            setBulkCustomDate('');
+            await fetchUsers();
+            await fetchSecurityData();
+        } catch (error) {
+            addToast(error instanceof Error ? error.message : 'Bulk update failed.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleUnblockDeletedUser = async (deletedUser: DeletedUser) => {
+        const label = deletedUser.username || deletedUser.email || 'this user';
+        if (!window.confirm(`Allow ${label} to use the portal again? This does not invite them automatically.`)) return;
+
+        setLoading(true);
+        try {
+            await apiFetch(`/api/deleted-users/${encodeURIComponent(deletedUser.blockId)}`, { method: 'DELETE' });
+            addToast('Deleted user unblocked.');
+            await fetchSecurityData();
+        } catch (error) {
+            addToast(error instanceof Error ? error.message : 'Failed to unblock user.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Derived State for Filtering and Sorting
+    const filteredAndSortedUsers = useMemo(() => {
+        return users
+            .filter(user => {
+                const query = searchQuery.toLowerCase().trim();
+                if (query) {
+                    const matchesName = user.username.toLowerCase().includes(query);
+                    const matchesEmail = user.email?.toLowerCase().includes(query) || false;
+                    if (!matchesName && !matchesEmail) return false;
+                }
+
+                if (statusFilter === 'all') return true;
+
+                const days = getDaysUntilExpiry(user.expiryDate);
+                const isRevoked = user.plexAccessStatus === 'revoked';
+                const isTrial = user.isTrial === true;
+
+                if (statusFilter === 'trial') return isTrial;
+                if (statusFilter === 'revoked') return isRevoked;
+                if (isRevoked) return false; // Hide revoked from active/expiring/expired lists
+
+                if (statusFilter === 'active') {
+                    return days === null || days > 30;
+                }
+                if (statusFilter === 'expiring') {
+                    return days !== null && days >= 0 && days <= 30;
+                }
+                if (statusFilter === 'expired') {
+                    return days !== null && days < 0;
+                }
+                return true;
+            })
+            .sort((a, b) => {
+                if (sortBy === 'username-asc') {
+                    return a.username.localeCompare(b.username);
+                }
+                if (sortBy === 'username-desc') {
+                    return b.username.localeCompare(a.username);
+                }
+                if (sortBy === 'joined-desc') {
+                    return new Date(b.joiningDate).getTime() - new Date(a.joiningDate).getTime();
+                }
+                if (sortBy === 'expiry-asc') {
+                    if (a.expiryDate === null) return 1;
+                    if (b.expiryDate === null) return -1;
+                    return new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
+                }
+                if (sortBy === 'expiry-desc') {
+                    if (a.expiryDate === null) return 1;
+                    if (b.expiryDate === null) return -1;
+                    return new Date(b.expiryDate).getTime() - new Date(a.expiryDate).getTime();
+                }
+                return 0;
+            });
+    }, [users, searchQuery, statusFilter, sortBy]);
+
+    const filteredUserIds = useMemo(() => filteredAndSortedUsers.map(u => u.id), [filteredAndSortedUsers]);
+    const allFilteredSelected = filteredUserIds.length > 0 && filteredUserIds.every(id => selectedUserIds.includes(id));
+
+    return (
+        <div className="w-full max-w-7xl mx-auto flex flex-col">
+            <Loader isLoading={isLoading} />
+            <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] flex flex-col-reverse gap-2 items-center">
+                {toasts.map(toast => <Toast key={toast.id} {...toast} onDismiss={() => setToasts(t => t.filter(item => item.id !== toast.id))} />)}
+            </div>
+
+            <header className="hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0">
+                <h1 className="text-xl md:text-3xl font-bold text-plex">Admin Portal</h1>
+            </header>
+            <main>
+                {isConfigured && (
+                    <div className="flex flex-col md:flex-row gap-4 md:items-center mb-8 bg-card border border-border p-4 rounded-xl shadow-md">
+                        <span className="font-bold text-muted uppercase tracking-wider text-sm hidden md:inline-block mr-2">Quick Actions:</span>
+                        <div className="grid grid-cols-2 md:flex md:flex-row gap-3 w-full md:w-auto flex-1">
+                            <button className="col-span-1 px-3 py-2 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2 text-sm md:text-base" onClick={handleImportUsers} disabled={isLoading}>
+                                Sync Plex Users
+                            </button>
+                            <button className="col-span-1 px-3 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2 text-sm md:text-base md:ml-auto" onClick={() => { setEditingUser(null); setUserModalOpen(true); }}>
+                                + Add Custom User
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Search & Filter Controls */}
+                {isConfigured && (
+                    <div className="flex flex-col xl:flex-row justify-between xl:items-center bg-card border border-border p-4 rounded-xl mb-8 gap-4 xl:gap-6 w-full">
+                        <div className="relative w-full xl:w-auto xl:flex-1 min-w-[250px]">
+                            <input
+                                type="text"
+                                placeholder="Search by username or email..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full py-3 pr-10 pl-4 rounded-lg border border-border bg-background text-text text-sm outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all"
+                            />
+                            {searchQuery && (
+                                <button className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-text text-xl" onClick={() => setSearchQuery('')}>×</button>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-3 sm:flex sm:flex-row bg-background p-1 rounded-lg border border-border overflow-x-auto custom-scrollbar w-full xl:w-auto">
+                            {(['all', 'active', 'trial', 'expiring', 'expired', 'revoked'] as const).map((status) => (
+                                <button
+                                    key={status}
+                                    className={`col-span-1 px-2 sm:px-4 py-2 rounded-md font-medium transition-all text-xs sm:text-sm text-center ${statusFilter === status ? 'bg-plex text-background shadow-md font-bold' : 'text-muted hover:bg-white/5 hover:text-text'}`}
+                                    onClick={() => setStatusFilter(status)}
+                                >
+                                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 whitespace-nowrap w-full xl:w-auto xl:ml-auto">
+                            <label htmlFor="sortSelect" className="text-muted font-bold text-sm hidden sm:block">Sort By</label>
+                            <CustomSelect
+                                id="sortSelect"
+                                value={sortBy}
+                                onChange={(val) => setSortBy(val as any)}
+                                className="w-full sm:w-[200px] p-3 sm:p-2.5 rounded-lg border border-border bg-background text-text text-sm outline-none cursor-pointer hover:border-white/20 transition-colors"
+                                options={[
+                                    { label: 'Username (A-Z)', value: 'username-asc' },
+                                    { label: 'Username (Z-A)', value: 'username-desc' },
+                                    { label: 'Expiry (Soonest)', value: 'expiry-asc' },
+                                    { label: 'Expiry (Furthest)', value: 'expiry-desc' },
+                                    { label: 'Joined Date (Newest)', value: 'joined-desc' }
+                                ]}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {selectedUserIds.length > 0 && (
+                    <div className="bg-card border border-border p-4 rounded-xl flex justify-between items-center mb-8 flex-wrap gap-4 w-full">
+                        <div className="flex items-center flex-wrap gap-4 text-sm font-medium">
+                            <span className="text-plex">{selectedUserIds.length} selected</span>
+                            {allFilteredSelected ? (
+                                <button className="text-muted hover:text-text transition-colors underline" onClick={() => setSelectedUserIds(prev => prev.filter(id => !filteredUserIds.includes(id)))}>Unselect Filtered</button>
+                            ) : (
+                                <button className="text-muted hover:text-text transition-colors underline" onClick={() => setSelectedUserIds(prev => Array.from(new Set([...prev, ...filteredUserIds])))}>Select Filtered ({filteredAndSortedUsers.length})</button>
+                            )}
+                            <button className="text-muted hover:text-text transition-colors underline" onClick={() => setSelectedUserIds([])}>Unselect All</button>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={() => handleBulkUpdate('addMonth')}>+1 Month</button>
+                            <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={() => handleBulkUpdate('addYear')}>+1 Year</button>
+                            <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={() => handleBulkUpdate('unlimited')}>Unlimited</button>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="date"
+                                    value={bulkCustomDate}
+                                    onChange={(e) => setBulkCustomDate(e.target.value)}
+                                    className="p-2 rounded-md border border-border bg-background text-text text-sm outline-none focus:border-plex cursor-pointer"
+                                />
+                                <button
+                                    className="px-4 py-2 bg-plex text-background rounded-md font-medium hover:bg-plex-hover transition-colors flex items-center justify-center gap-2"
+                                    onClick={() => {
+                                        if (!bulkCustomDate) {
+                                            addToast('Please select a custom expiry date.', 'error');
+                                            return;
+                                        }
+                                        handleBulkUpdate('custom', bulkCustomDate);
+                                    }}
+                                >
+                                    Set Custom Date
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {isConfigured && filteredAndSortedUsers.length === 0 && !isLoading && (
+                    <p className="text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full">No users found matching your filters. Try syncing or widening filters.</p>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 w-full">
+                    {filteredAndSortedUsers.map((user) => (
+                        <UserCard
+                            key={user.id}
+                            user={user}
+                            onEdit={() => handleOpenUserModal(user)}
+                            onDelete={() => handleDeleteUser(user.id)}
+                            onRevoke={() => revokePlexAccess(user.id)}
+                            isConfigured={isConfigured}
+                            isSelected={selectedUserIds.includes(user.id)}
+                            onSelect={handleToggleSelection}
+                        />
+                    ))}
+                </div>
+            </main>
+            <UserModal
+                isOpen={isUserModalOpen}
+                onClose={handleCloseModal}
+                onSave={handleSaveUser}
+                user={editingUser}
+            />
+        </div>
+    );
+};
+
+// --- User Portal Components ---
+
+const PublicUptimeBanner: React.FC = () => {
+    const [healthData, setHealthData] = useState<Record<string, any>>({});
+    const [config, setConfig] = useState<any>({});
+
+    useEffect(() => {
+        const fetchStatus = async () => {
+            try {
+                const res = await apiFetch('/api/status');
+                setConfig(res.config);
+                setHealthData(res.healthData);
+            } catch (e) { }
+        };
+        fetchStatus();
+        const interval = setInterval(fetchStatus, 15000);
+        return () => clearInterval(interval);
+    }, []);
+
+    if (!config.services || config.services.length === 0) return null;
+
+    return (
+        <div className="w-full flex flex-col items-center mt-2 mb-4">
+            <div className="flex flex-col items-center text-center mb-4">
+                <a href="/status" className="text-plex hover:text-plex-hover font-bold text-[10px] tracking-wider uppercase mb-1 transition-colors">
+                    View Full Status Page &rarr;
+                </a>
+                <h3 className="text-text font-bold uppercase tracking-widest text-sm">Live System Status</h3>
+            </div>
+            <div className="flex flex-wrap justify-center gap-4">
+                {config.services.map((service: any) => {
+                    const health = healthData[service.id];
+                    if (!health) return null;
+                    const isUp = health.currentStatus === 'online';
+                    const colorClass = isUp ? 'border-green-500/30 bg-green-500/10' : 'border-red-500/30 bg-red-500/10';
+                    const dotClass = isUp ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]';
+
+                    return (
+                        <div key={service.id} className={`flex items-center gap-2 px-4 py-2 rounded-full border ${colorClass} backdrop-blur-sm`}>
+                            <span className={`w-2 h-2 rounded-full ${dotClass}`}></span>
+                            <span className="text-sm font-bold text-text">{service.name}</span>
+                            <span className="text-xs font-bold text-muted">{health.uptimePercentage}%</span>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+const LivePlexStats: React.FC = () => {
+    const [stats, setStats] = useState<{ movies: number, shows: number, music: number } | null>(null);
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const res = await apiFetch('/api/plex/stats');
+                if (res && res.movies !== undefined) {
+                    setStats(res);
+                }
+            } catch (e) {
+                // Silently fail if stats are unavailable
+            }
+        };
+        fetchStats();
+    }, []);
+
+    if (!stats) return (
+        <ul className="server-features">
+            <li>🎬 10,000+ Movies & TV Shows</li>
+            <li>🎵 Thousands of Music Albums</li>
+            <li>🔄 Automated Request System</li>
+        </ul>
+    );
+
+    return (
+        <div className="w-full flex flex-col items-center mt-6 mb-8">
+            <div className="bg-plex/10 text-plex text-xs font-bold px-4 py-1.5 rounded-full border border-plex/20 uppercase tracking-wider mb-4">
+                Live Library Stats
+            </div>
+            <div className="grid grid-cols-3 gap-3 w-full">
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm">
+                    <span className="text-xl">🎬</span>
+                    <span className="text-plex font-bold text-xl">{stats.movies.toLocaleString()}</span>
+                    <span className="text-muted text-[10px] uppercase tracking-wider font-bold">Movies</span>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm">
+                    <span className="text-xl">📺</span>
+                    <span className="text-plex font-bold text-xl">{stats.shows.toLocaleString()}</span>
+                    <span className="text-muted text-[10px] uppercase tracking-wider font-bold">TV Shows</span>
+                </div>
+                {stats.music > 0 && (
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm">
+                        <span className="text-xl">🎵</span>
+                        <span className="text-plex font-bold text-xl">{stats.music.toLocaleString()}</span>
+                        <span className="text-muted text-[10px] uppercase tracking-wider font-bold">Artists</span>
+                    </div>
+                )}
+            </div>
+            <div className="w-full mt-3">
+                <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm">
+                    <span className="text-plex font-bold text-lg flex items-center gap-2"><span className="text-orange-500">⚡</span> 30%</span>
+                    <span className="text-muted text-[10px] uppercase tracking-wider font-bold">Available in 4K</span>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
+    const [token, setToken] = useState('');
+    const [serverIdentifier, setServerIdentifier] = useState('');
+    const [servers, setServers] = useState<PlexServer[]>([]);
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleFetchServers = async () => {
+        if (!token) {
+            setError('Please enter a Plex token first.');
+            return;
+        }
+        setIsLoading(true);
+        setError('');
+        try {
+            const foundServers = await apiFetch('/api/plex/servers', {
+                method: 'POST',
+                body: JSON.stringify({ token })
+            });
+
+            setServers(foundServers);
+
+            if (foundServers.length > 0) {
+                setServerIdentifier(foundServers[0].identifier);
+            } else {
+                setError('No owned servers found for this token. Make sure you are the owner.');
+                setServerIdentifier('');
+            }
+        } catch (error) {
+            setError(error instanceof Error ? error.message : 'An unknown error occurred.');
+            setServers([]);
+            setServerIdentifier('');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError('');
+        try {
+            const res = await apiFetch('/api/config', {
+                method: 'POST',
+                body: JSON.stringify({ token, serverIdentifier })
+            });
+            if (res.error) throw new Error(res.error);
+            onComplete();
+        } catch (err: any) {
+            setError(err.message || 'Failed to save configuration');
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="w-full max-w-2xl mx-auto px-4 py-12 md:py-20">
+            <div className="bg-card rounded-2xl shadow-2xl border border-white/10 p-8 md:p-12 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-plex to-[#e5a00d]"></div>
+                <div className="flex flex-col items-center text-center mb-8">
+                    <div className="w-16 h-16 bg-plex/10 rounded-full flex items-center justify-center mb-4 border border-plex/20">
+                        <Settings className="w-8 h-8 text-plex" />
+                    </div>
+                    <h1 className="text-3xl font-bold text-text mb-2">Initial Setup</h1>
+                    <p className="text-muted">Configure your Plex server details to get started.</p>
+                </div>
+
+                {error && <div className="p-4 bg-status-expiring/20 border border-status-expiring/50 rounded-lg text-status-expiring mb-6">{error}</div>}
+
+                <div className="mb-8 p-4 bg-plex/5 border border-plex/20 rounded-xl text-sm text-muted">
+                    <h3 className="text-plex font-bold mb-2 flex items-center gap-2"><Sparkles className="w-4 h-4" /> Need help finding these?</h3>
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li><strong>Plex Token:</strong> Log into Plex Web, view the XML of any library item, and look for <code className="bg-background px-1 rounded">X-Plex-Token=...</code> in the URL.</li>
+                        <li><strong>Server Identifier:</strong> You can automatically fetch this by entering your token and clicking <strong>Fetch Servers</strong>.</li>
+                    </ul>
+                </div>
+
+                <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-muted uppercase tracking-wider">Plex Token</label>
+                        <div className="flex gap-2">
+                            <input type="text" className="w-full p-4 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="Enter your Plex Token" value={token} onChange={e => setToken(e.target.value)} required />
+                            <button type="button" onClick={handleFetchServers} disabled={isLoading || !token} className="px-6 bg-plex/20 text-plex rounded-lg font-bold hover:bg-plex/30 transition-colors whitespace-nowrap">
+                                Fetch Servers
+                            </button>
+                        </div>
+                    </div>
+                    {servers.length > 0 ? (
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-bold text-muted uppercase tracking-wider">Select Server</label>
+                            <select className="w-full p-4 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors appearance-none" value={serverIdentifier} onChange={e => setServerIdentifier(e.target.value)} required>
+                                {servers.map(s => (
+                                    <option key={s.identifier} value={s.identifier}>{s.name} ({s.identifier})</option>
+                                ))}
+                            </select>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-bold text-muted uppercase tracking-wider">Server Identifier</label>
+                            <input type="text" className="w-full p-4 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="Enter your Server Identifier (or Fetch above)" value={serverIdentifier} onChange={e => setServerIdentifier(e.target.value)} required />
+                        </div>
+                    )}
+                    <button type="submit" disabled={isLoading || !token || !serverIdentifier} className="w-full py-4 mt-2 bg-plex text-background rounded-lg font-bold text-lg hover:bg-plex-hover transition-colors disabled:opacity-50">
+                        {isLoading ? 'Saving...' : 'Complete Setup'}
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const Login: React.FC<{ onLoginSuccess: () => void }> = ({ onLoginSuccess }) => {
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [publicInfo, setPublicInfo] = useState<{ thumb: string | null, serverName: string, isConfigured: boolean | null }>({ thumb: null, serverName: 'Plex Server', isConfigured: null });
+
+    const fetchPublicInfo = () => {
+        apiFetch('/api/public/info').then(data => {
+            if (data) {
+                setPublicInfo({
+                    thumb: data.thumb || null,
+                    serverName: data.serverName || 'Plex Server',
+                    isConfigured: data.isConfigured !== false
+                });
+                if (data.thumb) updateFavicon(data.thumb);
+                if (data.serverName) document.title = `${data.serverName} Portal`;
+            }
+        }).catch(() => {
+            setPublicInfo(prev => ({ ...prev, isConfigured: false }));
+        });
+    };
+
+    useEffect(() => {
+        fetchPublicInfo();
+
+        const path = window.location.pathname;
+        if (path.startsWith('/auth/')) {
+            const pinId = path.split('/')[2];
+            setIsLoading(true);
+            window.history.replaceState({}, '', '/'); // clear path
+            apiFetch('/api/auth/plex/callback', {
+                method: 'POST',
+                body: JSON.stringify({ pinId })
+            }).then(() => {
+                onLoginSuccess();
+            }).catch(e => {
+                setError(e.message || 'Login failed');
+                setIsLoading(false);
+            });
+        }
+    }, [onLoginSuccess]);
+
+    const handlePlexLogin = async () => {
+        setIsLoading(true);
+        setError('');
+        try {
+            const data = await apiFetch('/api/auth/plex/login', { method: 'POST' });
+            const forwardUrl = window.location.origin + '/auth/' + data.id;
+            const authUrl = `https://app.plex.tv/auth#?clientID=${data.clientIdentifier}&code=${data.code}&context[device][product]=Plex%20Expiry%20Manager&forwardUrl=${encodeURIComponent(forwardUrl)}`;
+            window.location.href = authUrl;
+        } catch (e) {
+            setError('Failed to initiate Plex login');
+            setIsLoading(false);
+        }
+    };
+
+    if (publicInfo.isConfigured === false) {
+        return <SetupWizard onComplete={fetchPublicInfo} />;
+    }
+
+    if (publicInfo.isConfigured === null) {
+        return <Loader isLoading={true} />;
+    }
+
+    return (
+        <div className="w-full max-w-6xl mx-auto flex flex-col items-center justify-center min-h-[80vh] px-4 pt-12 md:pt-20">
+            <Loader isLoading={isLoading} />
+            <div className="w-full max-w-5xl mx-auto bg-card rounded-2xl shadow-2xl border-t-[6px] border-plex flex flex-col-reverse md:flex-row relative z-10 overflow-hidden">
+                <div className="flex-1 p-8 md:p-12 flex flex-col justify-center">
+                    <h1 className="text-3xl md:text-4xl font-bold text-plex mb-4">Welcome to {publicInfo.serverName}</h1>
+                    <p className="text-muted text-sm md:text-base leading-relaxed mb-6">The ultimate Plex experience. Get instant access to our entire library with a <strong>3-Day Free Trial</strong>.</p>
+
+                    <LivePlexStats />
+
+                    <p className="text-xs text-muted mt-2 mb-4 text-center">You'll need a free Plex account to continue. You can create one securely on the next screen.</p>
+                    <button className="w-full py-4 bg-plex text-background rounded-lg font-bold text-lg hover:bg-plex-hover transition-colors shadow-lg" onClick={handlePlexLogin} disabled={isLoading}>
+                        Claim Free Trial
+                    </button>
+                </div>
+
+                <div className="hidden md:block w-px bg-white/5 my-12"></div>
+
+                <div className="flex-1 p-8 md:p-12 flex flex-col justify-center bg-white/[0.02]">
+                    <div className="text-center">
+                        <div className="w-full flex justify-center mb-8">
+                            <div className="relative">
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-plex rounded-full blur-[50px] opacity-20 pointer-events-none"></div>
+                                {publicInfo.thumb ? (
+                                    <img src={publicInfo.thumb} alt="Server Logo" className="w-32 h-32 object-cover rounded-full border-2 border-plex drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10" onError={(e) => { e.currentTarget.src = '/static/logo.png'; e.currentTarget.className = 'w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10'; }} />
+                                ) : (
+                                    <img src="/static/logo.png" alt="Server Logo" className="w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10" onError={(e) => e.currentTarget.style.display = 'none'} />
+                                )}
+                            </div>
+                        </div>
+                        <h2 className="text-2xl font-bold text-text mb-4">Already on our server?</h2>
+                        <p className="text-muted text-sm mb-8">Manage your existing subscription or re-link your account.</p>
+                        <button className="w-full py-4 bg-border text-text rounded-lg font-bold hover:bg-white/10 transition-colors border border-white/10" onClick={handlePlexLogin} disabled={isLoading}>
+                            Login with Plex
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div className="mt-4 w-full max-w-5xl mx-auto">
+                <PublicUptimeBanner />
+            </div>
+            {error && <div className="error-message" style={{ marginTop: '1rem' }}>{error}</div>}
+        </div>
+    );
+};
+
+const UserDashboard: React.FC<{ sessionInfo: any; onLogout: () => void; refreshSession: () => void; onViewAdmin: () => void; onViewStatus: () => void; onViewDashboard: () => void }> = ({ sessionInfo, onLogout, refreshSession, onViewAdmin, onViewStatus, onViewDashboard }) => {
+    const [isLoading, setIsLoading] = useState(false);
+    const [toast, setToast] = useState<ToastMessage | null>(null);
+
+    const user = sessionInfo.account;
+    const [optOutNewsletter, setOptOutNewsletter] = useState(user?.optOutNewsletter || false);
+
+    const handleToggleNewsletter = async () => {
+        setIsLoading(true);
+        try {
+            const newValue = !optOutNewsletter;
+            await apiFetch('/api/users/preferences', {
+                method: 'POST',
+                body: JSON.stringify({ optOutNewsletter: newValue })
+            });
+            setOptOutNewsletter(newValue);
+            setToast({ id: 3, message: 'Newsletter preferences updated!', type: 'success' });
+            refreshSession();
+        } catch (e: any) {
+            setToast({ id: 3, message: e.message || 'Failed to update preferences', type: 'error' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleRequestInvite = async () => {
+        setIsLoading(true);
+        try {
+            await apiFetch('/api/users/request-invite', { method: 'POST' });
+            setToast({ id: 1, message: 'Invite requested successfully! Check your email.', type: 'success' });
+            refreshSession();
+        } catch (e: any) {
+            setToast({ id: 1, message: e.message || 'Failed to request invite', type: 'error' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Auto-request invite if user is totally new
+    useEffect(() => {
+        if (!user && !isLoading && !sessionInfo.session.isAdmin) {
+            handleRequestInvite();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const handleRelink = async () => {
+        setIsLoading(true);
+        try {
+            await apiFetch('/api/users/relink', { method: 'POST' });
+            setToast({ id: 2, message: 'Account re-linked! Check your email for the invite.', type: 'success' });
+            refreshSession();
+        } catch (e: any) {
+            setToast({ id: 2, message: e.message || 'Failed to re-link account', type: 'error' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const daysLeft = user?.expiryDate ? getDaysUntilExpiry(user.expiryDate) : null;
+    const progressPct = daysLeft !== null ? Math.min(100, Math.max(0, (daysLeft / 365) * 100)) : 100;
+    const isExpiringSoon = daysLeft !== null && daysLeft <= 7;
+    const isRevoked = user?.plexAccessStatus === 'revoked';
+    const isPending = user?.plexAccessStatus?.toLowerCase() === 'pending';
+
+    return (
+        <div className="w-full max-w-2xl mx-auto flex flex-col gap-5">
+            <Loader isLoading={isLoading} />
+            {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
+
+            {/* Hero card */}
+            <div className="relative bg-card border border-border rounded-2xl overflow-hidden shadow-2xl">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-plex to-transparent opacity-80" />
+                <div className="p-6 md:p-8">
+
+                    {/* Avatar + greeting */}
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-plex/40 to-plex/10 border-2 border-plex/60 flex items-center justify-center text-plex font-black text-2xl flex-shrink-0 shadow-lg shadow-plex/20">
+                            {sessionInfo.session.username?.[0]?.toUpperCase() || '?'}
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-muted text-xs uppercase tracking-[3px] font-semibold">Welcome back</p>
+                            <h1 className="text-2xl md:text-3xl font-black text-text leading-tight truncate">{sessionInfo.session.username}</h1>
+                        </div>
+                        {sessionInfo.session.isAdmin && (
+                            <span className="ml-auto px-3 py-1 rounded-full text-[10px] font-black bg-plex/20 text-plex border border-plex/40 uppercase tracking-widest flex-shrink-0">Admin</span>
+                        )}
+                    </div>
+
+                    {sessionInfo.session.isAdmin && (
+                        <div className="bg-plex/5 border border-plex/20 rounded-xl p-4 text-sm text-muted leading-relaxed">
+                            <span className="text-plex font-bold">Server Administrator</span> — You own this server. Use the Admin Panel to manage users and settings.
+                        </div>
+                    )}
+                    {!sessionInfo.session.isAdmin && !user && (
+                        <div className="flex items-center gap-3 text-muted text-sm">
+                            <div className="w-4 h-4 rounded-full border-2 border-plex border-t-transparent animate-spin flex-shrink-0" />
+                            Setting up your 3-Day Free Trial...
+                        </div>
+                    )}
+                    {!sessionInfo.session.isAdmin && user && (
+                        <>
+                            <div className="flex flex-wrap gap-2 mb-5">
+                                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-black border uppercase tracking-wider ${isRevoked ? 'bg-red-500/10 border-red-500/30 text-red-400' : isExpiringSoon ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' : 'bg-green-500/10 border-green-500/30 text-green-400'}`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isRevoked ? 'bg-red-400' : isExpiringSoon ? 'bg-yellow-400' : 'bg-green-400'}`} />
+                                    {user.plexAccessStatus}{user.isTrial && ' · Trial'}
+                                </span>
+                                {user.expiryDate ? (
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold bg-white/5 border border-white/10 text-muted">
+                                        📅 {new Date(user.expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                    </span>
+                                ) : (
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold bg-green-500/10 border border-green-500/30 text-green-400">♾️ Unlimited</span>
+                                )}
+                            </div>
+                            {daysLeft !== null && (
+                                <div className="mb-5 bg-background/50 rounded-xl p-4 border border-border">
+                                    <div className="flex justify-between items-baseline mb-3">
+                                        <span className="text-muted text-xs uppercase tracking-widest font-semibold">Time Remaining</span>
+                                        <span className={`font-black text-3xl leading-none ${isExpiringSoon ? 'text-yellow-400' : 'text-plex'}`}>
+                                            {daysLeft}<span className="text-sm font-semibold text-muted ml-1">{daysLeft === 1 ? 'day' : 'days'}</span>
+                                        </span>
+                                    </div>
+                                    <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+                                        <div className={`h-full rounded-full transition-all duration-1000 ${isExpiringSoon ? 'bg-yellow-400' : 'bg-gradient-to-r from-plex via-yellow-300 to-plex'}`} style={{ width: `${progressPct}%` }} />
+                                    </div>
+                                    {isExpiringSoon && <p className="text-yellow-400/80 text-xs mt-2">⚠️ Expiring soon — contact the admin to renew</p>}
+                                </div>
+                            )}
+                            {isPending && (
+                                <div className="rounded-xl overflow-hidden border-2 border-plex mb-5 shadow-lg shadow-plex/20">
+                                    <div className="bg-plex px-5 py-3 flex items-center gap-2">
+                                        <span className="text-xl">📧</span>
+                                        <strong className="text-background text-sm tracking-wide">TIP - Accept Your Plex Invite</strong>
+                                    </div>
+                                    <div className="bg-plex/10 p-5">
+                                        <p className="text-text text-sm leading-relaxed mb-4">You need to accept the invite in the email before Plex access is active. Your <strong className="text-plex">3-Day Free Trial</strong> remains set on your account.</p>
+                                        <div className="flex flex-col gap-2.5">
+                                            {[{ n: '1', t: '📬 Open the email from Plex — check your inbox AND spam/junk folder' }, { n: '2', t: '✅ Click the "Accept Invite" button inside the email' }, { n: '3', t: '🎉 Log into Plex and enjoy your free trial!' }].map(s => (
+                                                <div key={s.n} className="flex items-start gap-3 bg-black/20 rounded-lg px-3.5 py-2.5">
+                                                    <span className="w-5 h-5 rounded-full bg-plex text-background text-[11px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">{s.n}</span>
+                                                    <span className="text-muted text-sm leading-snug">{s.t}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <p className="text-muted/60 text-xs italic mt-3">⏳ Haven't received the email? Contact the admin below.</p>
+                                    </div>
+                                </div>
+                            )}
+                            {isRevoked && daysLeft !== null && daysLeft >= 0 && (
+                                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mb-5 flex flex-col gap-3">
+                                    <p className="text-yellow-400 font-semibold text-sm">⚠️ Access revoked — but you have {daysLeft} day{daysLeft !== 1 ? 's' : ''} remaining.</p>
+                                    <button className="self-start px-5 py-2.5 bg-plex text-background rounded-lg font-bold hover:bg-plex-hover transition-colors text-sm" onClick={handleRelink}>Re-link Plex Account</button>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+
+            </div>
+
+            {/* Newsletter preferences */}
+            {user && !sessionInfo.session.isAdmin && (
+                <div className="bg-card border border-border rounded-2xl p-6 shadow-lg">
+                    <p className="text-muted text-xs uppercase tracking-widest font-semibold mb-4">Preferences</p>
+                    <div className="flex items-center justify-between gap-4">
+                        <div>
+                            <p className="text-text font-semibold text-sm">Weekly Newsletter</p>
+                            <p className="text-muted text-xs mt-0.5">Automated library updates delivered to your inbox</p>
+                        </div>
+                        <button onClick={handleToggleNewsletter} aria-label="Toggle newsletter"
+                            className={`relative inline-flex items-center w-12 h-6 rounded-full transition-all flex-shrink-0 border ${!optOutNewsletter ? 'bg-plex border-plex' : 'bg-border border-border'}`}>
+                            <span className={`inline-block w-4 h-4 bg-white rounded-full shadow transition-transform duration-300 ${!optOutNewsletter ? 'translate-x-7' : 'translate-x-1'}`} />
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Support card */}
+            {!sessionInfo?.session?.isAdmin && (
+                <div className="bg-card border border-border rounded-2xl p-6 shadow-lg">
+                    {user?.isTrial ? (
+                        <div className="mb-4">
+                            <p className="text-plex font-bold text-base mb-1">🍿 Enjoying your Free Trial?</p>
+                            <p className="text-muted text-sm leading-relaxed">Once your 3-day trial ends, you'll lose access. A full subscription is just <span className="text-plex font-black">£60/year</span>. Get in touch to upgrade!</p>
+                        </div>
+                    ) : (
+                        <div className="mb-4">
+                            <p className="text-text font-bold text-base mb-1">💬 Need Help?</p>
+                            <p className="text-muted text-sm leading-relaxed">Contact the admin to renew your subscription, report an issue, or get support.</p>
+                        </div>
+                    )}
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <a href="https://wa.me/447305697245" target="_blank" rel="noreferrer"
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm transition-all border bg-[#25D366]/10 border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366]/20">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12.031 21.972c-1.63 0-3.21-.42-4.606-1.21l-5.111 1.34 1.36-4.972a9.92 9.92 0 0 1-1.34-4.978C2.334 6.64 6.685 2.28 12.031 2.28c5.344 0 9.697 4.36 9.697 9.872 0 5.512-4.353 9.82-9.697 9.82zm0-18.062c-4.47 0-8.115 3.65-8.115 8.13 0 1.48.39 2.92 1.12 4.19l-1.02 3.73 3.82-1a8.13 8.13 0 0 0 4.195 1.15c4.475 0 8.115-3.65 8.115-8.13s-3.64-8.07-8.115-8.07zm4.332 11.23c-.237-.12-1.405-.69-1.62-.77-.216-.08-.372-.12-.53.12-.158.24-.616.77-.754.93-.138.16-.276.18-.513.06-1.124-.55-2.062-1.28-2.812-2.19-.214-.26-.14-.4.08-.56.12-.08.27-.3.41-.45.14-.15.19-.25.28-.42.1-.17.05-.32 0-.44-.05-.12-.53-1.28-.73-1.75-.19-.46-.38-.4-.53-.41h-.45c-.16 0-.41.06-.63.3-.22.24-.85.83-.85 2.02 0 1.19.87 2.34.99 2.5.12.16 1.7 2.6 4.12 3.64 1.38.59 2.05.65 2.8.55.75-.1 1.4-.57 1.6-1.12.2-.55.2-.102.14-1.12-.06-.1-.22-.16-.46-.28z" /></svg>
+                            WhatsApp
+                        </a>
+                        <a href="mailto:jasonlucas58@gmail.com"
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
+                            Email
+                        </a>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, isPublic?: boolean }> = ({ onBack, isAdmin, isPublic }) => {
+    const [statusData, setStatusData] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    const fetchStatus = useCallback(async () => {
+        try {
+            const data = await apiFetch('/api/status');
+            setStatusData(data);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchStatus();
+        const interval = setInterval(fetchStatus, 15000);
+        return () => clearInterval(interval);
+    }, [fetchStatus]);
+
+    if (isLoading || !statusData) {
+        return (
+            <div className="w-full max-w-4xl mx-auto flex flex-col items-center justify-center">
+                <header className="flex items-center gap-4 w-full mb-8 pb-4 border-b border-border">
+                    {isPublic && (
+                        <button onClick={onBack} className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors flex items-center justify-center text-muted hover:text-text">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                        </button>
+                    )}
+                    <h2 className="text-2xl font-bold text-text">Server Status</h2>
+                </header>
+                <Loader isLoading={true} />
+            </div>
+        );
+    }
+
+    const { config, healthData } = statusData;
+    const services = config?.services || [];
+    const groups = config?.groups || [];
+
+    return (
+        <div className="w-full max-w-6xl mx-auto flex flex-col">
+            <header className="flex items-center gap-4 w-full mb-8 pb-4 border-b border-border">
+                {isPublic && (
+                    <button onClick={onBack} className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors flex items-center justify-center text-muted hover:text-text">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                    </button>
+                )}
+                <h2 className="text-2xl font-bold text-text">Server Status</h2>
+            </header>
+
+            <main className="user-content">
+                {config.announcement && config.announcement.enabled && (
+                    <div className="status-announcement">
+                        {config.announcement.message}
+                    </div>
+                )}
+
+                {groups.length === 0 && <p style={{ textAlign: 'center', marginTop: '2rem' }}>No status monitors configured.</p>}
+
+                {groups.map((group: any) => {
+                    const groupServices = services.filter((s: any) => s.groupId === group.id);
+                    if (groupServices.length === 0) return null;
+                    return (
+                        <div key={group.id} className="mb-8">
+                            <h3 className="text-lg font-bold text-muted uppercase tracking-[2px] mb-6 border-b border-white/10 pb-2">{group.name}</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {groupServices.map((service: any) => {
+                                    const health = healthData[service.id] || { currentStatus: 'unknown', uptimePercentage: 100, history: [] };
+                                    return (
+                                        <div key={service.id} className="bg-card rounded-xl p-6 border border-white/5 shadow-lg flex flex-col gap-4">
+                                            <div className="flex justify-between items-start mb-2 gap-4">
+                                                <h4 className="font-bold text-text text-lg">{service.name}</h4>
+                                                <span className={`px-3 py-1 rounded-full text-[0.65rem] uppercase tracking-wider font-bold border flex items-center gap-1.5 shadow-lg ${health.currentStatus === 'online' ? 'bg-status-active/10 text-status-active border-status-active/30 shadow-[0_0_10px_rgba(35,134,54,0.3)]' : health.currentStatus === 'offline' ? 'bg-status-expired/10 text-[#D32F2F] border-[#D32F2F]/30 shadow-[0_0_10px_rgba(211,47,47,0.3)] animate-pulse' : 'bg-status-expiring/10 text-status-expiring border-status-expiring/30 shadow-[0_0_10px_rgba(210,153,34,0.3)]'}`}>
+                                                    {health.currentStatus.toUpperCase()}
+                                                </span>
+                                            </div>
+                                            <div className="text-sm text-muted font-medium">
+                                                <span>Uptime: {health.uptimePercentage}%</span>
+                                            </div>
+                                            <div className="flex gap-[2px] h-10 mt-auto items-end pt-4">
+                                                {Array.from({ length: 40 }).map((_, i) => {
+                                                    const histIndex = health.history.length - 40 + i;
+                                                    const hist = histIndex >= 0 ? health.history[histIndex] : null;
+                                                    const barClass = hist ? hist.status : 'unknown';
+                                                    return (
+                                                        <div
+                                                            key={i}
+                                                            className={`flex-1 rounded-sm transition-all duration-300 hover:opacity-100 opacity-80 cursor-pointer ${barClass === 'online' ? 'bg-status-active h-full shadow-[0_0_8px_rgba(35,134,54,0.6)]' : barClass === 'offline' ? 'bg-status-expired h-1/4 shadow-[0_0_8px_rgba(218,54,51,0.6)] animate-pulse' : barClass === 'degraded' ? 'bg-status-expiring h-2/3 shadow-[0_0_8px_rgba(210,153,34,0.6)]' : 'bg-border h-1/5'}`}
+                                                            title={hist ? `${hist.status.toUpperCase()} - ${hist.latency}ms` : 'No data'}
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })}
+            </main>
+        </div>
+    );
+};
+
+const LibraryDashboard: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+    const [dashboardData, setDashboardData] = useState<{ activeSessions: any[], recentMovies: any[], recentShows: any[], recentMusic: any[] } | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [recentLimit, setRecentLimit] = useState(25);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const res = await apiFetch(`/api/plex/dashboard?limit=${recentLimit}`);
+                if (res.error) throw new Error(res.error);
+                setDashboardData(res);
+            } catch (err: any) {
+                setError(err.message || 'Failed to load dashboard data');
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+        const interval = setInterval(fetchData, 30000);
+        return () => clearInterval(interval);
+    }, [recentLimit]);
+
+    if (loading && !dashboardData) return <Loader isLoading={true} />;
+
+    const totalStreams = dashboardData?.activeSessions?.length || 0;
+    const transcodingStreams = dashboardData?.activeSessions?.filter(s => s.isTranscoding).length || 0;
+    const directStreams = totalStreams - transcodingStreams;
+    const totalBandwidthKbps = dashboardData?.activeSessions?.reduce((acc, s) => acc + (s.bandwidth || 0), 0) || 0;
+    const totalBandwidthMbps = (totalBandwidthKbps / 1000).toFixed(2);
+
+    return (
+        <div className="w-[calc(100%-8px)] md:w-[95%] max-w-[1400px] mx-auto flex flex-col min-h-screen">
+            <main className="w-full pb-8 mt-4 md:mt-0">
+                {error && <div className="toast error show">{error}</div>}
+
+                {/* SUMMARY CARDS */}
+                {dashboardData && totalStreams > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm">
+                            <span className="text-plex font-bold text-2xl">{totalStreams}</span>
+                            <span className="text-muted text-[10px] uppercase tracking-wider font-bold">Total Streams</span>
+                        </div>
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm">
+                            <span className="text-status-active font-bold text-2xl">{directStreams}</span>
+                            <span className="text-muted text-[10px] uppercase tracking-wider font-bold">Direct Play</span>
+                        </div>
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm">
+                            <span className="text-status-expiring font-bold text-2xl">{transcodingStreams}</span>
+                            <span className="text-muted text-[10px] uppercase tracking-wider font-bold">Transcoding</span>
+                        </div>
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm">
+                            <span className="text-plex font-bold text-2xl">{totalBandwidthMbps} <span className="text-sm">Mbps</span></span>
+                            <span className="text-muted text-[10px] uppercase tracking-wider font-bold">Total Bandwidth</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* ACTIVITY CARDS */}
+                <section className="mb-12 w-full">
+                    <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">ACTIVITY</h2>
+                    {dashboardData && dashboardData.activeSessions && dashboardData.activeSessions.length > 0 ? (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-6">
+                            {dashboardData.activeSessions.map((session, i) => (
+                                <a key={i} href={session.plexUrl} target="_blank" rel="noreferrer" className="bg-card rounded-xl border border-border flex flex-col overflow-hidden shadow-lg hover:border-plex/50 hover:shadow-plex/20 transition-all cursor-pointer" style={{ textDecoration: 'none', color: 'inherit' }}>
+                                    <div className="flex flex-row flex-grow relative">
+                                        <div className="w-28 md:w-32 flex-shrink-0 relative overflow-hidden bg-card">
+                                            <div className="w-full pb-[150%]"></div>
+                                            <img src={`/api/plex/image?path=${encodeURIComponent(session.thumb)}`} alt={session.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover drop-shadow-2xl" />
+                                        </div>
+                                        <div className="p-3 md:p-4 flex flex-col flex-grow min-w-0 justify-center">
+                                            <div className="activity-header mb-1">
+                                                <div className="activity-title-group">
+                                                    <div className="text-base md:text-lg font-bold text-text truncate">{session.grandparentTitle ? session.grandparentTitle : session.title}</div>
+                                                    {session.grandparentTitle && <div className="text-xs md:text-sm text-muted truncate">{session.title}</div>}
+                                                </div>
+                                                <div className="activity-player text-[10px] md:text-xs text-muted truncate mt-0.5">
+                                                    {session.playerProduct}
+                                                </div>
+                                            </div>
+                                            <div className="activity-details flex flex-col gap-1">
+                                                <div className="flex justify-between items-start text-[10px] md:text-xs border-b border-white/5 pb-1">
+                                                    <span className="text-muted uppercase tracking-wider font-bold mt-0.5">PLAYER</span>
+                                                    <span className="detail-value text-right break-words max-w-[130px] md:max-w-[180px]">{session.playerTitle}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-[10px] md:text-xs border-b border-white/5 pb-1">
+                                                    <span className="text-muted uppercase tracking-wider font-bold">STREAM</span>
+                                                    <span className={`font-bold ${session.isTranscoding ? 'text-status-expiring' : 'text-status-active'}`}>
+                                                        {session.isTranscoding ? 'Transcode' : 'Direct Play'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-[10px] md:text-xs border-b border-white/5 pb-1">
+                                                    <span className="text-muted uppercase tracking-wider font-bold">STATE</span>
+                                                    <span className="detail-value">{session.state.charAt(0).toUpperCase() + session.state.slice(1)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-[10px] md:text-xs pb-1">
+                                                    <span className="text-muted uppercase tracking-wider font-bold">BANDWIDTH</span>
+                                                    <span className="detail-value">{(session.bandwidth / 1000).toFixed(1)} Mbps</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="w-full h-1 bg-background/50 relative mt-auto">
+                                        <div className="h-full bg-plex absolute top-0 left-0 transition-all duration-1000" style={{ width: `${session.progress}%` }}></div>
+                                    </div>
+                                </a>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full">No active streams</div>
+                    )}
+                </section>
+
+                <div className="flex justify-end gap-4 items-center mb-8">
+                    <span style={{ fontSize: '0.85rem', color: '#999' }}>RECENTLY ADDED LIMIT</span>
+                    <select className="w-full md:w-32 p-2 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all cursor-pointer text-sm" value={recentLimit} onChange={(e) => setRecentLimit(Number(e.target.value))}>
+                        <option value={10}>10 Items</option>
+                        <option value={25}>25 Items</option>
+                        <option value={50}>50 Items</option>
+                        <option value={100}>100 Items</option>
+                        <option value={150}>150 Items</option>
+                        <option value={200}>200 Items</option>
+                        <option value={250}>250 Items</option>
+                    </select>
+                </div>
+
+                <div className="flex flex-col gap-12 w-full">
+                    {/* RECENT MOVIES */}
+                    <div className="flex flex-col">
+                        <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">RECENTLY ADDED MOVIES</h2>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4">
+                            {dashboardData && dashboardData.recentMovies.slice(0, recentLimit).map((item, i) => (
+                                <a key={i} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
+                                    <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
+                                        <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight">{item.title}</div>
+                                </a>
+                            ))}
+                            {(!dashboardData || dashboardData.recentMovies.length === 0) && <div className="text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full col-span-full">No recent movies</div>}
+                        </div>
+                    </div>
+
+                    {/* RECENT TV SHOWS */}
+                    <div className="flex flex-col">
+                        <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">RECENTLY ADDED TV SHOWS</h2>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4">
+                            {dashboardData && dashboardData.recentShows.slice(0, recentLimit).map((item, i) => (
+                                <a key={i} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
+                                    <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
+                                        <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight">{item.title}</div>
+                                </a>
+                            ))}
+                            {(!dashboardData || dashboardData.recentShows.length === 0) && <div className="text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full col-span-full">No recent TV shows</div>}
+                        </div>
+                    </div>
+
+                    {/* RECENT MUSIC */}
+                    <div className="flex flex-col">
+                        <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">RECENTLY ADDED MUSIC</h2>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4">
+                            {dashboardData && dashboardData.recentMusic.slice(0, recentLimit).map((item, i) => (
+                                <a key={i} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
+                                    <div className="relative aspect-square w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
+                                        <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight">{item.title}</div>
+                                </a>
+                            ))}
+                            {(!dashboardData || dashboardData.recentMusic.length === 0) && <div className="text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full col-span-full">No recent music</div>}
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    );
+};
+
+
+interface NavigationProps {
+    currentRoute: string;
+    onNavigate: (route: 'admin' | 'user' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics') => void;
+    onLogout: () => void;
+    isAdmin: boolean;
+    serverName: string;
+    adminThumb?: string | null;
+}
+
+const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb }) => {
+    useEffect(() => {
+        updateFavicon(adminThumb);
+    }, [adminThumb]);
+
+    return (
+        <>
+
+            {/* Mobile Top Nav */}
+            <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-[#161b22] border-b border-[#30363d] z-50 flex items-center justify-between px-4 shadow-md">
+                <div className="flex items-center gap-3">
+                    <img
+                        src={adminThumb ? (adminThumb.startsWith('http') ? adminThumb : `/api/plex/image?path=${encodeURIComponent(adminThumb)}`) : '/static/logo.png'}
+                        alt="Logo"
+                        className="w-8 h-8 rounded-full object-cover"
+                        onError={(e) => {
+                            (e.target as HTMLImageElement).src = '/static/logo.png';
+                        }}
+                    />
+                    <span className="font-bold text-text uppercase tracking-widest text-sm">{serverName}</span>
+                </div>
+                <div className="flex items-center gap-4">
+                    <button onClick={(e) => { e.preventDefault(); onNavigate('analytics'); }} className={`text-muted hover:text-text transition-colors ${currentRoute === 'analytics' ? 'text-plex' : ''}`}>
+                        <BarChart3 className="w-5 h-5" />
+                    </button>
+                    {isAdmin && (
+                        <>
+                            <button onClick={(e) => { e.preventDefault(); onNavigate('logs'); }} className={`text-muted hover:text-text transition-colors ${currentRoute === 'logs' ? 'text-plex' : ''}`}>
+                                <FileText className="w-5 h-5" />
+                            </button>
+                            <button onClick={(e) => { e.preventDefault(); onNavigate('settings'); }} className={`text-muted hover:text-text transition-colors ${currentRoute === 'settings' ? 'text-plex' : ''}`}>
+                                <Settings className="w-5 h-5" />
+                            </button>
+                        </>
+                    )}
+                </div>
+            </div>
+
+
+            {/* Desktop Sidebar */}
+            <div className="hidden md:flex flex-col w-72 bg-card border-r border-border p-6 sticky top-0 h-screen shadow-2xl">
+                <div className="flex flex-col items-center mb-10">
+                    <h2 className="text-2xl font-bold text-text text-center mb-4">{serverName}</h2>
+                    <div className="relative">
+                        <div className="w-24 h-24 rounded-full p-[2px] bg-gradient-to-r from-plex to-[#e5a00d] shadow-lg shadow-plex/20">
+                            <div className="w-full h-full rounded-full overflow-hidden bg-card">
+                                <img
+                                    src={adminThumb ? (adminThumb.startsWith('http') ? adminThumb : `/api/plex/image?path=${encodeURIComponent(adminThumb)}`) : '/static/logo.png'}
+                                    alt="Admin Profile"
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                        (e.target as HTMLImageElement).src = '/static/logo.png';
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                    <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${['admin', 'user'].includes(currentRoute) ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate(isAdmin ? 'admin' : 'user'); }}>
+                        <Home className="w-5 h-5 flex-shrink-0" /> Home
+                    </a>
+                    <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === 'dashboard' ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate('dashboard'); }}>
+                        <Film className="w-5 h-5 flex-shrink-0" /> Discover
+                    </a>
+                    <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === 'status' ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate('status'); }}>
+                        <Activity className="w-5 h-5 flex-shrink-0" /> Status
+                    </a>
+                    {isAdmin && (
+                        <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === 'settings' ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate('settings'); }}>
+                            <Settings className="w-5 h-5 flex-shrink-0" /> Settings
+                        </a>
+                    )}
+                    {isAdmin && (
+                        <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === 'logs' ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate('logs'); }}>
+                            <FileText className="w-5 h-5 flex-shrink-0" /> Logs
+                        </a>
+                    )}
+                    <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === 'analytics' ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate('analytics'); }}>
+                        <BarChart3 className="w-5 h-5 flex-shrink-0" /> Analytics
+                    </a>
+                    <a href="https://plexified.co.uk" target="_blank" rel="noreferrer" className="flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text">
+                        <Sparkles className="w-5 h-5 flex-shrink-0" /> Request Content
+                    </a>
+                    <a href="#" className="flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text" onClick={(e) => { e.preventDefault(); onLogout(); }}>
+                        <LogOut className="w-5 h-5 flex-shrink-0" /> Logout
+                    </a>
+                </div>
+            </div>
+
+            {/* Mobile Bottom Nav */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 w-full bg-[#161b22] border-t border-[#30363d] z-50 pb-[env(safe-area-inset-bottom)]">
+                <div className="flex justify-around items-center h-16">
+                    <a href="#" className={`relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${['admin', 'user'].includes(currentRoute) ? 'text-plex font-bold' : 'text-muted hover:text-text'}`} onClick={(e) => { e.preventDefault(); onNavigate(isAdmin ? 'admin' : 'user'); }}>
+                        <Home className="w-5 h-5 flex-shrink-0" /> Home
+                        {['admin', 'user'].includes(currentRoute) && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
+                    </a>
+                    <a href="#" className={`relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === 'dashboard' ? 'text-plex font-bold' : 'text-muted hover:text-text'}`} onClick={(e) => { e.preventDefault(); onNavigate('dashboard'); }}>
+                        <Film className="w-5 h-5 flex-shrink-0" /> Discover
+                        {currentRoute === 'dashboard' && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
+                    </a>
+                    <a href="#" className={`relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === 'status' ? 'text-plex font-bold' : 'text-muted hover:text-text'}`} onClick={(e) => { e.preventDefault(); onNavigate('status'); }}>
+                        <Activity className="w-5 h-5 flex-shrink-0" /> Status
+                        {currentRoute === 'status' && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
+                    </a>
+                    <a href="#" className={`relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === 'analytics' ? 'text-plex font-bold' : 'text-muted hover:text-text'}`} onClick={(e) => { e.preventDefault(); onNavigate('analytics'); }}>
+                        <BarChart3 className="w-5 h-5 flex-shrink-0" /> Analytics
+                        {currentRoute === 'analytics' && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
+                    </a>
+                    {isAdmin && (
+                        <a href="#" className={`relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === 'settings' ? 'text-plex font-bold' : 'text-muted hover:text-text'}`} onClick={(e) => { e.preventDefault(); onNavigate('settings'); }}>
+                            <Settings className="w-5 h-5 flex-shrink-0" /> Settings
+                            {currentRoute === 'settings' && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
+                        </a>
+                    )}
+                    <a href="https://plexified.co.uk" target="_blank" rel="noreferrer" className="relative flex flex-col items-center justify-center gap-1 h-full text-muted flex-1 text-center text-[0.65rem] transition-colors hover:text-text">
+                        <Sparkles className="w-5 h-5 flex-shrink-0" /> Request
+                    </a>
+                    <a href="#" className="relative flex flex-col items-center justify-center gap-1 h-full text-muted flex-1 text-center text-[0.65rem] transition-colors hover:text-text" onClick={(e) => { e.preventDefault(); onLogout(); }}>
+                        <LogOut className="w-5 h-5 flex-shrink-0" /> Logout
+                    </a>
+                </div>
+            </div>
+        </>
+    );
+};
+
+const MainApp: React.FC = () => {
+    const [currentRoute, setCurrentRoute] = useState<'login' | 'admin' | 'user' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'loading'>('loading');
+    const [sessionInfo, setSessionInfo] = useState<any>(null);
+
+    const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'loading') => {
+        setCurrentRoute(route);
+        if (route !== 'loading') {
+            let path = '/';
+            if (route === 'admin') path = '/admin';
+            if (route === 'user') path = '/portal';
+            if (route === 'status') path = '/status';
+            if (route === 'dashboard') path = '/dashboard';
+            if (route === 'settings') path = '/settings';
+            if (route === 'logs') path = '/logs';
+            if (route === 'analytics') path = '/analytics';
+            window.history.pushState({}, '', path);
+        }
+    }, []);
+
+    const checkSession = useCallback(async () => {
+        const path = window.location.pathname;
+        try {
+            const data = await apiFetch('/api/users/me');
+            setSessionInfo(data);
+            if (data.serverName) document.title = `${data.serverName} Portal`;
+            if (path === '/status') setCurrentRoute('status');
+            else if (path === '/dashboard') setCurrentRoute('dashboard');
+            else if (path === '/settings' && data.session.isAdmin) setCurrentRoute('settings');
+            else if (path === '/logs' && data.session.isAdmin) setCurrentRoute('logs');
+            else if (path === '/analytics') setCurrentRoute('analytics');
+            else if (path === '/settings' && !data.session.isAdmin) setCurrentRoute('user');
+            else if (path === '/portal') setCurrentRoute('user');
+            else if (path === '/admin') setCurrentRoute('admin');
+            else {
+                // If at root or unknown, push to default route
+                const defaultRoute = data.session.isAdmin ? 'admin' : 'user';
+                window.history.replaceState({}, '', defaultRoute === 'admin' ? '/admin' : '/portal');
+                setCurrentRoute(defaultRoute);
+            }
+        } catch {
+            if (path === '/status') setCurrentRoute('status');
+            else if (path === '/dashboard') setCurrentRoute('dashboard');
+            else setCurrentRoute('login');
+        }
+    }, []);
+
+    useEffect(() => {
+        // Initial session check
+        if (!window.location.hash.startsWith('#auth/')) {
+            checkSession();
+        } else {
+            setRoute('login'); // Login component will handle the hash
+        }
+    }, [checkSession, setRoute]);
+
+    const handleLogout = async () => {
+        await apiFetch('/api/auth/logout', { method: 'POST' });
+        setSessionInfo(null);
+        setRoute('login');
+    };
+
+    if (currentRoute === 'loading') return <Loader isLoading={true} />;
+    if (currentRoute === 'login') return <Login onLoginSuccess={checkSession} />;
+
+    const isAdmin = !!sessionInfo?.session?.isAdmin;
+
+    const isPublicStatus = currentRoute === 'status' && !sessionInfo;
+
+    const renderView = () => {
+        if (currentRoute === 'status') return <StatusDashboard onBack={() => isPublicStatus ? setRoute('login') : setRoute(isAdmin ? 'admin' : 'user')} isAdmin={isAdmin} isPublic={isPublicStatus} />;
+        if (currentRoute === 'dashboard') return <LibraryDashboard onBack={() => setRoute(isAdmin ? 'admin' : 'user')} />;
+        if (currentRoute === 'settings' && isAdmin) return <SettingsDashboard />;
+        if (currentRoute === 'logs' && isAdmin) return <LogsDashboard onLogout={handleLogout} />;
+        if (currentRoute === 'analytics') return <AnalyticsDashboard isAdmin={isAdmin} sessionInfo={sessionInfo} />;
+        if (currentRoute === 'admin') return <AdminDashboard onLogout={handleLogout} onViewUserPortal={() => setRoute('user')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} />;
+        return <UserDashboard sessionInfo={sessionInfo} onLogout={handleLogout} refreshSession={checkSession} onViewAdmin={() => setRoute('admin')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} />;
+    };
+
+    return (
+        <div className="flex w-full min-h-screen bg-background">
+            {!isPublicStatus && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Plex Server'} adminThumb={sessionInfo?.adminThumb} />}
+            <div className={`flex-grow flex flex-col items-center p-[2px] md:p-8 pt-20 pb-[80px] md:pt-8 md:pb-8 w-full overflow-x-hidden ${isPublicStatus ? '!pt-8 !pb-8' : ''}`}>
+                {renderView()}
+            </div>
+        </div>
+    );
+};
+
+const container = document.getElementById('root');
+const root = createRoot(container!);
+root.render(<MainApp />);

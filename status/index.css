@@ -1,0 +1,9 @@
+
+/* SubZero Global Styles */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light dark;
+}

@@ -1,0 +1,7 @@
+{
+  "name": "SubZero Status Manager",
+  "description": "A high-end, real-time status dashboard and collections monitoring suite for home labs and media servers like Plex and Overseerr.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
