@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X } from 'lucide-react';
+import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star } from 'lucide-react';
 
 interface CustomSelectProps {
     id?: string;
@@ -1292,20 +1292,54 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
                 </div>
 
                 {/* Trending Content Card */}
-                <div className="bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border lg:col-span-2 xl:col-span-1">
+                <div className="bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border col-span-full">
                     <h2 className="text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><TrendingUp className="text-plex w-5 h-5" /> Trending Content</h2>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-2 gap-4">
-                        {topContent.length === 0 ? <p className="text-muted text-sm col-span-full">No data available.</p> : topContent.slice(0, 6).map((item, idx) => (
-                            <a key={item.key} href={item.plexUrl} target="_blank" rel="noreferrer" className="relative group rounded-lg overflow-hidden aspect-[2/3] bg-black/40 shadow-lg cursor-pointer hover:ring-2 hover:ring-plex block">
-                                {item.thumbUrl ? (
-                                    <img src={item.thumbUrl} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 opacity-80 group-hover:opacity-100" />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-muted"><Film className="w-8 h-8 opacity-50" /></div>
-                                )}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent"></div>
-                                <div className="absolute bottom-0 left-0 right-0 p-3">
-                                    <div className="text-plex font-mono text-[10px] font-bold mb-1 tracking-wider uppercase drop-shadow-md">#{idx + 1} &bull; {item.plays} plays</div>
-                                    <div className="font-bold text-sm text-text leading-tight drop-shadow-md line-clamp-2">{item.title}</div>
+                    <div className="flex flex-col gap-4">
+                        {topContent.length === 0 ? <p className="text-muted text-sm col-span-full">No data available.</p> : topContent.slice(0, 10).map((item, idx) => (
+                            <a key={item.key} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex flex-col sm:flex-row bg-black/20 rounded-xl overflow-hidden hover:bg-black/40 transition-all cursor-pointer group hover:ring-1 hover:ring-plex shadow-md">
+                                <div className="sm:w-32 lg:w-40 flex-shrink-0 aspect-[2/3] relative">
+                                    {item.thumbUrl ? (
+                                        <img src={item.thumbUrl} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-black/40"><Film className="w-8 h-8 opacity-50 text-muted" /></div>
+                                    )}
+                                    <div className="absolute top-2 left-2 bg-plex text-black font-bold text-xs px-2 py-1 rounded-md shadow-lg drop-shadow-md">#{idx + 1}</div>
+                                </div>
+                                <div className="p-4 sm:p-5 flex flex-col justify-between flex-grow">
+                                    <div>
+                                        <div className="flex items-start justify-between gap-2 mb-2">
+                                            <h3 className="text-lg sm:text-xl font-bold text-text group-hover:text-plex transition-colors line-clamp-1">{item.title}</h3>
+                                            <div className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded-md text-xs font-mono text-plex flex-shrink-0 whitespace-nowrap shadow-sm">
+                                                <PlaySquare className="w-3 h-3" /> {item.plays} plays
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted mb-3 font-medium">
+                                            {item.year && <span>{item.year}</span>}
+                                            {item.year && (item.contentRating || item.rating || item.duration > 0 || (item.genres && item.genres.length > 0)) && <span className="opacity-50">&bull;</span>}
+                                            {item.contentRating && <span>{item.contentRating}</span>}
+                                            {item.contentRating && (item.rating || item.duration > 0 || (item.genres && item.genres.length > 0)) && <span className="opacity-50">&bull;</span>}
+                                            {item.duration > 0 && <span>{Math.round(item.duration / 60000)} min</span>}
+                                            {item.duration > 0 && item.rating && <span className="opacity-50">&bull;</span>}
+                                            {item.rating && (
+                                                <span className="flex items-center gap-1 text-yellow-500">
+                                                    <Star className="w-3 h-3 fill-current" /> {item.rating}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-sm text-text/80 line-clamp-2 sm:line-clamp-3 mb-3 leading-relaxed">
+                                            {item.summary || "No summary available."}
+                                        </p>
+                                    </div>
+                                    {item.genres && item.genres.length > 0 && (
+                                        <div className="flex flex-wrap gap-2 mt-auto">
+                                            {item.genres.slice(0, 4).map((g: string, i: number) => (
+                                                <span key={i} className="text-[10px] uppercase tracking-wider bg-white/5 border border-white/10 text-muted px-2 py-1 rounded-full shadow-sm">{g}</span>
+                                            ))}
+                                            {item.genres.length > 4 && (
+                                                <span className="text-[10px] uppercase tracking-wider bg-white/5 border border-white/10 text-muted px-2 py-1 rounded-full shadow-sm">+{item.genres.length - 4}</span>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </a>
                         ))}
