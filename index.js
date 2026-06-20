@@ -1199,12 +1199,19 @@ const getPlexConnectionUri = async (config) => {
 };
 
 app.get('/api/plex/image', async (req, res) => {
-    const { path } = req.query;
+    const { path, width, height } = req.query;
     if (!path) return res.status(400).send('path required');
     try {
         const config = await loadFile(CONFIG_PATH, {});
         const uri = await getPlexConnectionUri(config);
-        const url = `${uri}${path}?X-Plex-Token=${config.plexToken}`;
+        
+        let url;
+        if (width && height) {
+            url = `${uri}/photo/:/transcode?url=${encodeURIComponent(path)}&width=${width}&height=${height}&minSize=1&X-Plex-Token=${config.plexToken}`;
+        } else {
+            url = `${uri}${path}?X-Plex-Token=${config.plexToken}`;
+        }
+
         const response = await fetch(url);
         if (!response.ok) throw new Error('fetch failed');
         const buffer = Buffer.from(await response.arrayBuffer());
@@ -1963,33 +1970,7 @@ app.post('/api/status/config', requireAuth, requireAdmin, async (req, res) => {
 
 // --- Plex Dashboard & Image Proxy ---
 
-app.get('/api/plex/image', async (req, res) => {
-    try {
-        const { path: imagePath } = req.query;
-        if (!imagePath) return res.status(400).send('Path required');
-
-        const config = await loadFile(CONFIG_PATH, null);
-        if (!config || !config.plexToken || !config.serverIdentifier) {
-            return res.status(503).send('Plex not configured');
-        }
-
-        const uri = await getPlexConnectionUri(config);
-        if (!uri) return res.status(503).send('Cannot connect to Plex');
-
-        const imageUrl = `${uri}${imagePath}?X-Plex-Token=${config.plexToken}`;
-        const imageRes = await fetch(imageUrl);
-
-        if (!imageRes.ok) return res.status(imageRes.status).send('Failed to fetch image');
-
-        const contentType = imageRes.headers.get('content-type');
-        if (contentType) res.setHeader('Content-Type', contentType);
-        
-        imageRes.body.pipe(res);
-    } catch (e) {
-        log(`Error proxying Plex image: ${e.message}`);
-        res.status(500).send('Proxy error');
-    }
-});
+// Note: Duplicate route /api/plex/image handler removed. The primary handler is defined above.
 
 app.get('/api/plex/dashboard', async (req, res) => {
     try {

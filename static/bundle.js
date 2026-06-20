@@ -409,7 +409,7 @@ var updateFavicon = (thumbUrl) => {
     document.head.appendChild(link);
   }
   if (thumbUrl) {
-    link.href = thumbUrl.startsWith("http") ? thumbUrl : `/api/plex/image?path=${encodeURIComponent(thumbUrl)}`;
+    link.href = thumbUrl.startsWith("http") ? thumbUrl : `/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=32&height=32`;
   } else {
     link.href = "/static/logo.png";
   }
@@ -1181,7 +1181,7 @@ var UserAnalyticsModal = ({ userId, username, thumb, days, onClose }) => {
   return /* @__PURE__ */ jsx("div", { className: "fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in", onClick: onClose, children: /* @__PURE__ */ jsxs("div", { className: "bg-card/90 border border-border w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col", onClick: (e) => e.stopPropagation(), children: [
     /* @__PURE__ */ jsxs("div", { className: "p-6 border-b border-border flex items-center justify-between bg-black/20 flex-shrink-0", children: [
       /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-4", children: [
-        /* @__PURE__ */ jsx("div", { className: "w-16 h-16 rounded-full p-[2px] bg-gradient-to-r from-plex to-[#e5a00d]", children: /* @__PURE__ */ jsx("img", { src: thumb ? thumb.startsWith("http") ? thumb : `/api/plex/image?path=${encodeURIComponent(thumb)}` : "/static/logo.png", alt: username, className: "w-full h-full rounded-full object-cover bg-card", onError: (e) => {
+        /* @__PURE__ */ jsx("div", { className: "w-16 h-16 rounded-full p-[2px] bg-gradient-to-r from-plex to-[#e5a00d]", children: /* @__PURE__ */ jsx("img", { src: thumb ? thumb.startsWith("http") ? thumb : `/api/plex/image?path=${encodeURIComponent(thumb)}&width=128&height=128` : "/static/logo.png", alt: username, className: "w-full h-full rounded-full object-cover bg-card", onError: (e) => {
           e.target.src = "/static/logo.png";
         } }) }),
         /* @__PURE__ */ jsxs("div", { children: [
@@ -1283,7 +1283,7 @@ var PersonalAnalyticsDashboard = ({ username, thumb }) => {
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "bg-card/90 border border-border w-full rounded-2xl shadow-2xl overflow-hidden flex flex-col", children: [
       /* @__PURE__ */ jsx("div", { className: "p-6 border-b border-border flex items-center justify-between bg-black/20 flex-shrink-0", children: /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-4", children: [
-        /* @__PURE__ */ jsx("div", { className: "w-16 h-16 rounded-full p-[2px] bg-gradient-to-r from-plex to-[#e5a00d]", children: /* @__PURE__ */ jsx("img", { src: thumb ? thumb.startsWith("http") ? thumb : `/api/plex/image?path=${encodeURIComponent(thumb)}` : "/static/logo.png", alt: username, className: "w-full h-full rounded-full object-cover bg-card", onError: (e) => {
+        /* @__PURE__ */ jsx("div", { className: "w-16 h-16 rounded-full p-[2px] bg-gradient-to-r from-plex to-[#e5a00d]", children: /* @__PURE__ */ jsx("img", { src: thumb ? thumb.startsWith("http") ? thumb : `/api/plex/image?path=${encodeURIComponent(thumb)}&width=128&height=128` : "/static/logo.png", alt: username, className: "w-full h-full rounded-full object-cover bg-card", onError: (e) => {
           e.target.src = "/static/logo.png";
         } }) }),
         /* @__PURE__ */ jsxs("div", { children: [
@@ -1801,7 +1801,7 @@ var AnalyticsDashboard = ({ isAdmin, sessionInfo }) => {
         /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-4", children: topUsers.length === 0 ? /* @__PURE__ */ jsx("p", { className: "text-muted text-sm", children: "No data available." }) : topUsers.map((user, idx) => /* @__PURE__ */ jsxs("div", { onClick: () => setSelectedUser({ id: user.id, username: user.username, thumb: user.thumb }), className: "flex items-center justify-between p-3 bg-black/20 rounded-lg hover:bg-black/40 transition-colors cursor-pointer group hover:ring-1 hover:ring-plex", children: [
           /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-4", children: [
             /* @__PURE__ */ jsxs("div", { className: "relative", children: [
-              /* @__PURE__ */ jsx("div", { className: "w-10 h-10 rounded-full p-[2px] bg-gradient-to-r from-plex to-[#e5a00d]", children: /* @__PURE__ */ jsx("img", { src: user.thumb ? user.thumb.startsWith("http") ? user.thumb : `/api/plex/image?path=${encodeURIComponent(user.thumb)}` : "/static/logo.png", alt: user.username, className: "w-full h-full rounded-full object-cover bg-card", onError: (e) => {
+              /* @__PURE__ */ jsx("div", { className: "w-10 h-10 rounded-full p-[2px] bg-gradient-to-r from-plex to-[#e5a00d]", children: /* @__PURE__ */ jsx("img", { src: user.thumb ? user.thumb.startsWith("http") ? user.thumb : `/api/plex/image?path=${encodeURIComponent(user.thumb)}&width=80&height=80` : "/static/logo.png", alt: user.username, className: "w-full h-full rounded-full object-cover bg-card", onError: (e) => {
                 e.target.src = "/static/logo.png";
               } }) }),
               /* @__PURE__ */ jsxs("div", { className: "absolute -top-2 -right-2 bg-plex text-black font-bold text-[10px] w-5 h-5 rounded-full flex items-center justify-center", children: [
@@ -2999,20 +2999,20 @@ var LibraryDashboard = ({ onBack }) => {
   const totalBandwidthMbps = (totalBandwidthKbps / 1e3).toFixed(2);
   return /* @__PURE__ */ jsx("div", { className: "w-[calc(100%-8px)] md:w-[95%] max-w-[1400px] mx-auto flex flex-col min-h-screen", children: /* @__PURE__ */ jsxs("main", { className: "w-full pb-8 mt-4 md:mt-0", children: [
     error && /* @__PURE__ */ jsx("div", { className: "toast error show", children: error }),
-    dashboardData && totalStreams > 0 && /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-4 mb-8", children: [
-      /* @__PURE__ */ jsxs("div", { className: "bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm", children: [
+    dashboardData && totalStreams > 0 && /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-4 mb-6", children: [
+      /* @__PURE__ */ jsxs("div", { className: "bg-white/5 border border-white/10 rounded-xl py-2 px-3 flex flex-col items-center justify-center gap-0.5 shadow-lg backdrop-blur-sm", children: [
         /* @__PURE__ */ jsx("span", { className: "text-plex font-bold text-2xl", children: totalStreams }),
         /* @__PURE__ */ jsx("span", { className: "text-muted text-[10px] uppercase tracking-wider font-bold", children: "Total Streams" })
       ] }),
-      /* @__PURE__ */ jsxs("div", { className: "bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm", children: [
+      /* @__PURE__ */ jsxs("div", { className: "bg-white/5 border border-white/10 rounded-xl py-2 px-3 flex flex-col items-center justify-center gap-0.5 shadow-lg backdrop-blur-sm", children: [
         /* @__PURE__ */ jsx("span", { className: "text-status-active font-bold text-2xl", children: directStreams }),
         /* @__PURE__ */ jsx("span", { className: "text-muted text-[10px] uppercase tracking-wider font-bold", children: "Direct Play" })
       ] }),
-      /* @__PURE__ */ jsxs("div", { className: "bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm", children: [
+      /* @__PURE__ */ jsxs("div", { className: "bg-white/5 border border-white/10 rounded-xl py-2 px-3 flex flex-col items-center justify-center gap-0.5 shadow-lg backdrop-blur-sm", children: [
         /* @__PURE__ */ jsx("span", { className: "text-status-expiring font-bold text-2xl", children: transcodingStreams }),
         /* @__PURE__ */ jsx("span", { className: "text-muted text-[10px] uppercase tracking-wider font-bold", children: "Transcoding" })
       ] }),
-      /* @__PURE__ */ jsxs("div", { className: "bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm", children: [
+      /* @__PURE__ */ jsxs("div", { className: "bg-white/5 border border-white/10 rounded-xl py-2 px-3 flex flex-col items-center justify-center gap-0.5 shadow-lg backdrop-blur-sm", children: [
         /* @__PURE__ */ jsxs("span", { className: "text-plex font-bold text-2xl", children: [
           totalBandwidthMbps,
           " ",
@@ -3027,7 +3027,7 @@ var LibraryDashboard = ({ onBack }) => {
         /* @__PURE__ */ jsxs("div", { className: "flex flex-row flex-grow relative", children: [
           /* @__PURE__ */ jsxs("div", { className: "w-28 md:w-32 flex-shrink-0 relative overflow-hidden bg-card", children: [
             /* @__PURE__ */ jsx("div", { className: "w-full pb-[150%]" }),
-            /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(session.thumb)}`, alt: session.title, loading: "lazy", className: "absolute inset-0 w-full h-full object-cover drop-shadow-2xl" })
+            /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=300&height=450`, alt: session.title, loading: "lazy", className: "absolute inset-0 w-full h-full object-cover drop-shadow-2xl" })
           ] }),
           /* @__PURE__ */ jsxs("div", { className: "p-3 md:p-4 flex flex-col flex-grow min-w-0 justify-center", children: [
             /* @__PURE__ */ jsxs("div", { className: "activity-header mb-1", children: [
@@ -3080,7 +3080,7 @@ var LibraryDashboard = ({ onBack }) => {
         /* @__PURE__ */ jsx("h2", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "RECENTLY ADDED MOVIES" }),
         /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: [
           dashboardData && dashboardData.recentMovies.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ jsxs("a", { href: item.plexUrl, target: "_blank", rel: "noreferrer", className: "flex flex-col w-full gap-2 group", style: { textDecoration: "none", color: "inherit" }, children: [
-            /* @__PURE__ */ jsx("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }) }),
+            /* @__PURE__ */ jsx("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }) }),
             /* @__PURE__ */ jsx("div", { className: "text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight", children: item.title })
           ] }, i)),
           (!dashboardData || dashboardData.recentMovies.length === 0) && /* @__PURE__ */ jsx("div", { className: "text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full col-span-full", children: "No recent movies" })
@@ -3090,7 +3090,7 @@ var LibraryDashboard = ({ onBack }) => {
         /* @__PURE__ */ jsx("h2", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "RECENTLY ADDED TV SHOWS" }),
         /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: [
           dashboardData && dashboardData.recentShows.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ jsxs("a", { href: item.plexUrl, target: "_blank", rel: "noreferrer", className: "flex flex-col w-full gap-2 group", style: { textDecoration: "none", color: "inherit" }, children: [
-            /* @__PURE__ */ jsx("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }) }),
+            /* @__PURE__ */ jsx("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }) }),
             /* @__PURE__ */ jsx("div", { className: "text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight", children: item.title })
           ] }, i)),
           (!dashboardData || dashboardData.recentShows.length === 0) && /* @__PURE__ */ jsx("div", { className: "text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full col-span-full", children: "No recent TV shows" })
@@ -3100,7 +3100,7 @@ var LibraryDashboard = ({ onBack }) => {
         /* @__PURE__ */ jsx("h2", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "RECENTLY ADDED MUSIC" }),
         /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: [
           dashboardData && dashboardData.recentMusic.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ jsxs("a", { href: item.plexUrl, target: "_blank", rel: "noreferrer", className: "flex flex-col w-full gap-2 group", style: { textDecoration: "none", color: "inherit" }, children: [
-            /* @__PURE__ */ jsx("div", { className: "relative aspect-square w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }) }),
+            /* @__PURE__ */ jsx("div", { className: "relative aspect-square w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=300`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }) }),
             /* @__PURE__ */ jsx("div", { className: "text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight", children: item.title })
           ] }, i)),
           (!dashboardData || dashboardData.recentMusic.length === 0) && /* @__PURE__ */ jsx("div", { className: "text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full col-span-full", children: "No recent music" })
@@ -3119,7 +3119,7 @@ var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adm
         /* @__PURE__ */ jsx(
           "img",
           {
-            src: adminThumb ? adminThumb.startsWith("http") ? adminThumb : `/api/plex/image?path=${encodeURIComponent(adminThumb)}` : "/static/logo.png",
+            src: adminThumb ? adminThumb.startsWith("http") ? adminThumb : `/api/plex/image?path=${encodeURIComponent(adminThumb)}&width=64&height=64` : "/static/logo.png",
             alt: "Logo",
             className: "w-8 h-8 rounded-full object-cover",
             onError: (e) => {
@@ -3156,7 +3156,7 @@ var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adm
         /* @__PURE__ */ jsx("div", { className: "relative", children: /* @__PURE__ */ jsx("div", { className: "w-24 h-24 rounded-full p-[2px] bg-gradient-to-r from-plex to-[#e5a00d] shadow-lg shadow-plex/20", children: /* @__PURE__ */ jsx("div", { className: "w-full h-full rounded-full overflow-hidden bg-card", children: /* @__PURE__ */ jsx(
           "img",
           {
-            src: adminThumb ? adminThumb.startsWith("http") ? adminThumb : `/api/plex/image?path=${encodeURIComponent(adminThumb)}` : "/static/logo.png",
+            src: adminThumb ? adminThumb.startsWith("http") ? adminThumb : `/api/plex/image?path=${encodeURIComponent(adminThumb)}&width=192&height=192` : "/static/logo.png",
             alt: "Admin Profile",
             className: "w-full h-full object-cover",
             onError: (e) => {

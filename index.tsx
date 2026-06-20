@@ -210,7 +210,7 @@ const updateFavicon = (thumbUrl: string | null | undefined) => {
         document.head.appendChild(link);
     }
     if (thumbUrl) {
-        link.href = thumbUrl.startsWith('http') ? thumbUrl : `/api/plex/image?path=${encodeURIComponent(thumbUrl)}`;
+        link.href = thumbUrl.startsWith('http') ? thumbUrl : `/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=32&height=32`;
     } else {
         link.href = '/static/logo.png';
     }
@@ -1077,7 +1077,7 @@ const UserAnalyticsModal: React.FC<{ userId: string, username: string, thumb: st
                 <div className="p-6 border-b border-border flex items-center justify-between bg-black/20 flex-shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-r from-plex to-[#e5a00d]">
-                            <img src={thumb ? (thumb.startsWith('http') ? thumb : `/api/plex/image?path=${encodeURIComponent(thumb)}`) : '/static/logo.png'} alt={username} className="w-full h-full rounded-full object-cover bg-card" onError={(e) => { (e.target as HTMLImageElement).src = '/static/logo.png'; }} />
+                            <img src={thumb ? (thumb.startsWith('http') ? thumb : `/api/plex/image?path=${encodeURIComponent(thumb)}&width=128&height=128`) : '/static/logo.png'} alt={username} className="w-full h-full rounded-full object-cover bg-card" onError={(e) => { (e.target as HTMLImageElement).src = '/static/logo.png'; }} />
                         </div>
                         <div>
                             <h2 className="text-2xl font-bold text-text">{username}</h2>
@@ -1192,7 +1192,7 @@ const PersonalAnalyticsDashboard: React.FC<{ username: string, thumb: string | n
                 <div className="p-6 border-b border-border flex items-center justify-between bg-black/20 flex-shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-r from-plex to-[#e5a00d]">
-                            <img src={thumb ? (thumb.startsWith('http') ? thumb : `/api/plex/image?path=${encodeURIComponent(thumb)}`) : '/static/logo.png'} alt={username} className="w-full h-full rounded-full object-cover bg-card" onError={(e) => { (e.target as HTMLImageElement).src = '/static/logo.png'; }} />
+                            <img src={thumb ? (thumb.startsWith('http') ? thumb : `/api/plex/image?path=${encodeURIComponent(thumb)}&width=128&height=128`) : '/static/logo.png'} alt={username} className="w-full h-full rounded-full object-cover bg-card" onError={(e) => { (e.target as HTMLImageElement).src = '/static/logo.png'; }} />
                         </div>
                         <div>
                             <h2 className="text-2xl font-bold text-text">{username}</h2>
@@ -1803,7 +1803,7 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
                                 <div className="flex items-center gap-4">
                                     <div className="relative">
                                         <div className="w-10 h-10 rounded-full p-[2px] bg-gradient-to-r from-plex to-[#e5a00d]">
-                                            <img src={user.thumb ? (user.thumb.startsWith('http') ? user.thumb : `/api/plex/image?path=${encodeURIComponent(user.thumb)}`) : '/static/logo.png'} alt={user.username} className="w-full h-full rounded-full object-cover bg-card" onError={(e) => { (e.target as HTMLImageElement).src = '/static/logo.png'; }} />
+                                            <img src={user.thumb ? (user.thumb.startsWith('http') ? user.thumb : `/api/plex/image?path=${encodeURIComponent(user.thumb)}&width=80&height=80`) : '/static/logo.png'} alt={user.username} className="w-full h-full rounded-full object-cover bg-card" onError={(e) => { (e.target as HTMLImageElement).src = '/static/logo.png'; }} />
                                         </div>
                                         <div className="absolute -top-2 -right-2 bg-plex text-black font-bold text-[10px] w-5 h-5 rounded-full flex items-center justify-center">#{idx + 1}</div>
                                     </div>
@@ -3197,20 +3197,20 @@ const LibraryDashboard: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
                 {/* SUMMARY CARDS */}
                 {dashboardData && totalStreams > 0 && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div className="bg-white/5 border border-white/10 rounded-xl py-2 px-3 flex flex-col items-center justify-center gap-0.5 shadow-lg backdrop-blur-sm">
                             <span className="text-plex font-bold text-2xl">{totalStreams}</span>
                             <span className="text-muted text-[10px] uppercase tracking-wider font-bold">Total Streams</span>
                         </div>
-                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm">
+                        <div className="bg-white/5 border border-white/10 rounded-xl py-2 px-3 flex flex-col items-center justify-center gap-0.5 shadow-lg backdrop-blur-sm">
                             <span className="text-status-active font-bold text-2xl">{directStreams}</span>
                             <span className="text-muted text-[10px] uppercase tracking-wider font-bold">Direct Play</span>
                         </div>
-                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm">
+                        <div className="bg-white/5 border border-white/10 rounded-xl py-2 px-3 flex flex-col items-center justify-center gap-0.5 shadow-lg backdrop-blur-sm">
                             <span className="text-status-expiring font-bold text-2xl">{transcodingStreams}</span>
                             <span className="text-muted text-[10px] uppercase tracking-wider font-bold">Transcoding</span>
                         </div>
-                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm">
+                        <div className="bg-white/5 border border-white/10 rounded-xl py-2 px-3 flex flex-col items-center justify-center gap-0.5 shadow-lg backdrop-blur-sm">
                             <span className="text-plex font-bold text-2xl">{totalBandwidthMbps} <span className="text-sm">Mbps</span></span>
                             <span className="text-muted text-[10px] uppercase tracking-wider font-bold">Total Bandwidth</span>
                         </div>
@@ -3227,7 +3227,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                     <div className="flex flex-row flex-grow relative">
                                         <div className="w-28 md:w-32 flex-shrink-0 relative overflow-hidden bg-card">
                                             <div className="w-full pb-[150%]"></div>
-                                            <img src={`/api/plex/image?path=${encodeURIComponent(session.thumb)}`} alt={session.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover drop-shadow-2xl" />
+                                            <img src={`/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=300&height=450`} alt={session.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover drop-shadow-2xl" />
                                         </div>
                                         <div className="p-3 md:p-4 flex flex-col flex-grow min-w-0 justify-center">
                                             <div className="activity-header mb-1">
@@ -3293,7 +3293,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                             {dashboardData && dashboardData.recentMovies.slice(0, recentLimit).map((item, i) => (
                                 <a key={i} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                     <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
-                                        <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
+                                        <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
                                     </div>
                                     <div className="text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight">{item.title}</div>
                                 </a>
@@ -3309,7 +3309,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                             {dashboardData && dashboardData.recentShows.slice(0, recentLimit).map((item, i) => (
                                 <a key={i} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                     <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
-                                        <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
+                                        <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
                                     </div>
                                     <div className="text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight">{item.title}</div>
                                 </a>
@@ -3325,7 +3325,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                             {dashboardData && dashboardData.recentMusic.slice(0, recentLimit).map((item, i) => (
                                 <a key={i} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                     <div className="relative aspect-square w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
-                                        <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
+                                        <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=300`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
                                     </div>
                                     <div className="text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight">{item.title}</div>
                                 </a>
@@ -3362,7 +3362,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
             <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-[#161b22] border-b border-[#30363d] z-50 flex items-center justify-between px-4 shadow-md">
                 <div className="flex items-center gap-3">
                     <img
-                        src={adminThumb ? (adminThumb.startsWith('http') ? adminThumb : `/api/plex/image?path=${encodeURIComponent(adminThumb)}`) : '/static/logo.png'}
+                        src={adminThumb ? (adminThumb.startsWith('http') ? adminThumb : `/api/plex/image?path=${encodeURIComponent(adminThumb)}&width=64&height=64`) : '/static/logo.png'}
                         alt="Logo"
                         className="w-8 h-8 rounded-full object-cover"
                         onError={(e) => {
@@ -3400,7 +3400,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
                         <div className="w-24 h-24 rounded-full p-[2px] bg-gradient-to-r from-plex to-[#e5a00d] shadow-lg shadow-plex/20">
                             <div className="w-full h-full rounded-full overflow-hidden bg-card">
                                 <img
-                                    src={adminThumb ? (adminThumb.startsWith('http') ? adminThumb : `/api/plex/image?path=${encodeURIComponent(adminThumb)}`) : '/static/logo.png'}
+                                    src={adminThumb ? (adminThumb.startsWith('http') ? adminThumb : `/api/plex/image?path=${encodeURIComponent(adminThumb)}&width=192&height=192`) : '/static/logo.png'}
                                     alt="Admin Profile"
                                     className="w-full h-full object-cover"
                                     onError={(e) => {

@@ -1263,6 +1263,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   justify-content: space-around;
 }
 
+.gap-0\.5 {
+  gap: 0.125rem;
+}
+
 .gap-1 {
   gap: 0.25rem;
 }
