@@ -4,35 +4,35 @@ A powerful, fully-automated user management and dashboard application for Plex M
 
 Plex Manager serves as a beautiful, public-facing portal for your Plex server, handling everything from user onboarding and free trials to automated access revocation, weekly newsletters, and live session monitoring.
 
-## 🌟 Key Features
+## Key Features
 
-### 🔐 User Onboarding & Management
+### User Onboarding & Management
 - **Plex OAuth Integration**: Users securely log in using their official Plex credentials. No passwords stored, no messy invites.
 - **Automated Free Trials**: Automatically grant new users access to your server for a configurable trial period (e.g., 3 days).
 - **Access Expiry System**: Set hard expiry dates for users. The system automatically removes their server access when their time is up.
 - **Automated Inactive Cleanup**: Automatically purge users who haven't streamed anything in a set number of days (highly configurable, with per-user exemptions).
 
-### 📊 Admin Dashboard
+### Admin Dashboard
 - **Live Active Sessions**: Monitor current streams in real-time. Click on any stream to open a detailed technical modal showing Video/Audio Codecs, Channels, Bitrate, and Transcode reasons.
 - **User Management Table**: Easily extend user access (+1 Month, +1 Year, Unlimited), track their last login, and view their current access status.
 - **Audit Logs**: Keep track of every action taken by the system (user added, access revoked, expiry extended).
 - **Settings UI**: Configure everything directly from the web interface without touching config files.
 
-### 📧 Automated Communications
+### Automated Communications
 - **SMTP Email Alerts**: Automatically send beautiful HTML emails to users when:
   - They join the server (Welcome Email).
   - Their access is expiring soon (Warning Email).
   - Their access has expired or been revoked.
 - **Weekly/Monthly Newsletters**: Automatically generate and send a stunning newsletter detailing recently added Movies, TV Shows, and Music to keep your users engaged.
 
-### 🌐 Public Portals
+### Public Portals
 - **Landing Page**: A sleek, modern login page showing live library statistics (e.g., "10,000+ Movies") to entice new users.
 - **Live System Status**: A public `/status` page displaying the uptime of your Plex server, request systems (Overseerr/Ombi), and download clients.
 - **Media Stack Integration**: Embed Sonarr and Radarr directly into the user portal for seamless requests.
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Node.js (v20.6 or newer recommended for native `.env` support)
@@ -72,7 +72,7 @@ Plex Manager serves as a beautiful, public-facing portal for your Plex server, h
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 - **Backend**: Node.js, Express.js
 - **Frontend**: React (esbuild), Tailwind CSS
@@ -81,7 +81,7 @@ Plex Manager serves as a beautiful, public-facing portal for your Plex server, h
 
 ---
 
-## 🔒 Security
+## Security
 
 - **Strict Access Control**: Admin routes are protected and verified against Plex Server ownership.
 - **Reverse Proxy Ready**: Fully supports running behind Nginx, Caddy, or Cloudflare with dynamic secure cookie handling via `X-Forwarded-Proto`.
@@ -89,6 +89,6 @@ Plex Manager serves as a beautiful, public-facing portal for your Plex server, h
 
 ---
 
-## 📜 License
+## License
 
 This project is open-source and available under the MIT License.
