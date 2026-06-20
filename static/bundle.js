@@ -1863,6 +1863,7 @@ var AnalyticsDashboard = ({ isAdmin, sessionInfo }) => {
   const [allUsers, setAllUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [contentTab, setContentTab] = useState("movies");
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -1891,8 +1892,13 @@ var AnalyticsDashboard = ({ isAdmin, sessionInfo }) => {
   if (isLoading) return /* @__PURE__ */ jsx(Loader, { isLoading: true });
   if (error) return /* @__PURE__ */ jsx("div", { className: "text-red-500 font-bold p-8 text-center", children: error });
   if (!analyticsData) return null;
-  const { topUsers, topLibraries, topContent } = analyticsData;
+  const { topUsers, topLibraries, topMovies, topShows, topMusic, topDevices, peakHours, totalPlaybacks } = analyticsData;
   const maxLibraryPlays = Math.max(...topLibraries.map((l) => l.plays), 1);
+  const maxDevicePlays = Math.max(...topDevices.map((d) => d.plays), 1);
+  const maxPeakHour = Math.max(...peakHours, 1);
+  let activeContent = topMovies;
+  if (contentTab === "shows") activeContent = topShows;
+  else if (contentTab === "music") activeContent = topMusic;
   return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-[1600px] animate-fade-in flex flex-col gap-6", children: [
     /* @__PURE__ */ jsxs("div", { className: "flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2", children: [
       /* @__PURE__ */ jsxs("div", { children: [
@@ -1919,8 +1925,43 @@ var AnalyticsDashboard = ({ isAdmin, sessionInfo }) => {
         }
       ) })
     ] }),
-    /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-6", children: [
-      /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border", children: [
+    /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6", children: [
+      /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border flex items-center gap-4", children: [
+        /* @__PURE__ */ jsx("div", { className: "bg-plex/10 p-4 rounded-full", children: /* @__PURE__ */ jsx(SquarePlay, { className: "text-plex w-8 h-8" }) }),
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("p", { className: "text-muted text-sm uppercase tracking-wider font-bold mb-1", children: "Total Playbacks" }),
+          /* @__PURE__ */ jsx("p", { className: "text-3xl font-black text-text", children: totalPlaybacks.toLocaleString() })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border flex items-center gap-4", children: [
+        /* @__PURE__ */ jsx("div", { className: "bg-plex/10 p-4 rounded-full", children: /* @__PURE__ */ jsx(MonitorSmartphone, { className: "text-plex w-8 h-8" }) }),
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("p", { className: "text-muted text-sm uppercase tracking-wider font-bold mb-1", children: "Top Device" }),
+          /* @__PURE__ */ jsx("p", { className: "text-xl font-bold text-text truncate max-w-[150px]", title: topDevices.length > 0 ? topDevices[0].name : "N/A", children: topDevices.length > 0 ? topDevices[0].name : "N/A" })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsx("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border flex items-center gap-4 col-span-1 sm:col-span-2", children: /* @__PURE__ */ jsxs("div", { className: "w-full h-full flex flex-col justify-center", children: [
+        /* @__PURE__ */ jsxs("p", { className: "text-muted text-sm uppercase tracking-wider font-bold mb-2 flex items-center gap-2", children: [
+          /* @__PURE__ */ jsx(Clock, { className: "w-4 h-4 text-plex" }),
+          " Peak Viewing Hours"
+        ] }),
+        /* @__PURE__ */ jsx("div", { className: "flex items-end gap-1 h-12 w-full mt-auto", children: peakHours.map((val, idx) => /* @__PURE__ */ jsx("div", { className: "flex-1 bg-plex/20 hover:bg-plex/80 transition-colors rounded-t-sm relative group", style: { height: `${Math.max(val / maxPeakHour * 100, 5)}%` }, children: /* @__PURE__ */ jsxs("div", { className: "absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-black/80 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10", children: [
+          idx === 0 ? "12 AM" : idx < 12 ? `${idx} AM` : idx === 12 ? "12 PM" : `${idx - 12} PM`,
+          ": ",
+          val,
+          " plays"
+        ] }) }, idx)) }),
+        /* @__PURE__ */ jsxs("div", { className: "flex justify-between text-[10px] text-muted mt-1 font-mono", children: [
+          /* @__PURE__ */ jsx("span", { children: "12am" }),
+          /* @__PURE__ */ jsx("span", { children: "6am" }),
+          /* @__PURE__ */ jsx("span", { children: "12pm" }),
+          /* @__PURE__ */ jsx("span", { children: "6pm" }),
+          /* @__PURE__ */ jsx("span", { children: "11pm" })
+        ] })
+      ] }) })
+    ] }),
+    /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-3 gap-6", children: [
+      /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border lg:col-span-2", children: [
         /* @__PURE__ */ jsxs("div", { className: "flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4", children: [
           /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text uppercase tracking-wider flex items-center gap-2 whitespace-nowrap", children: [
             /* @__PURE__ */ jsx(Users, { className: "text-plex w-5 h-5" }),
@@ -1981,35 +2022,67 @@ var AnalyticsDashboard = ({ isAdmin, sessionInfo }) => {
           ] })
         ] }, user.id)) })
       ] }),
-      /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border", children: [
-        /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2", children: [
-          /* @__PURE__ */ jsx(SquarePlay, { className: "text-plex w-5 h-5" }),
-          " Popular Libraries"
-        ] }),
-        /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-5 mt-2", children: topLibraries.length === 0 ? /* @__PURE__ */ jsx("p", { className: "text-muted text-sm", children: "No data available." }) : topLibraries.map((lib, idx) => /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-2", children: [
-          /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-end", children: [
-            /* @__PURE__ */ jsxs("span", { className: "font-bold text-text flex items-center gap-2", children: [
-              /* @__PURE__ */ jsxs("span", { className: "text-muted text-xs", children: [
-                "#",
-                idx + 1
-              ] }),
-              " ",
-              lib.title
-            ] }),
-            /* @__PURE__ */ jsxs("span", { className: "text-xs text-muted font-mono", children: [
-              lib.plays,
-              " plays"
-            ] })
+      /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-6 lg:col-span-1", children: [
+        /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border", children: [
+          /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2", children: [
+            /* @__PURE__ */ jsx(SquarePlay, { className: "text-plex w-5 h-5" }),
+            " Popular Libraries"
           ] }),
-          /* @__PURE__ */ jsx("div", { className: "h-2 w-full bg-black/40 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx("div", { className: "h-full bg-gradient-to-r from-plex to-[#e5a00d] rounded-full", style: { width: `${lib.plays / maxLibraryPlays * 100}%` } }) })
-        ] }, lib.id)) })
+          /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-5 mt-2", children: topLibraries.length === 0 ? /* @__PURE__ */ jsx("p", { className: "text-muted text-sm", children: "No data available." }) : topLibraries.map((lib, idx) => /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-2", children: [
+            /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-end", children: [
+              /* @__PURE__ */ jsxs("span", { className: "font-bold text-text flex items-center gap-2", children: [
+                /* @__PURE__ */ jsxs("span", { className: "text-muted text-xs", children: [
+                  "#",
+                  idx + 1
+                ] }),
+                " ",
+                lib.title
+              ] }),
+              /* @__PURE__ */ jsxs("span", { className: "text-xs text-muted font-mono", children: [
+                lib.plays,
+                " plays"
+              ] })
+            ] }),
+            /* @__PURE__ */ jsx("div", { className: "h-2 w-full bg-black/40 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx("div", { className: "h-full bg-gradient-to-r from-plex to-[#e5a00d] rounded-full", style: { width: `${lib.plays / maxLibraryPlays * 100}%` } }) })
+          ] }, lib.id)) })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border", children: [
+          /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2", children: [
+            /* @__PURE__ */ jsx(MonitorSmartphone, { className: "text-plex w-5 h-5" }),
+            " Most Used Devices"
+          ] }),
+          /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-5 mt-2", children: topDevices.length === 0 ? /* @__PURE__ */ jsx("p", { className: "text-muted text-sm", children: "No data available." }) : topDevices.map((dev, idx) => /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-2", children: [
+            /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-end", children: [
+              /* @__PURE__ */ jsxs("span", { className: "font-bold text-text flex items-center gap-2 truncate pr-2", children: [
+                /* @__PURE__ */ jsxs("span", { className: "text-muted text-xs flex-shrink-0", children: [
+                  "#",
+                  idx + 1
+                ] }),
+                " ",
+                /* @__PURE__ */ jsx("span", { className: "truncate", children: dev.name })
+              ] }),
+              /* @__PURE__ */ jsxs("span", { className: "text-xs text-muted font-mono flex-shrink-0", children: [
+                dev.plays,
+                " plays"
+              ] })
+            ] }),
+            /* @__PURE__ */ jsx("div", { className: "h-2 w-full bg-black/40 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx("div", { className: "h-full bg-gradient-to-r from-plex to-[#e5a00d] rounded-full", style: { width: `${dev.plays / maxDevicePlays * 100}%` } }) })
+          ] }, idx)) })
+        ] })
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border col-span-full", children: [
-        /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2", children: [
-          /* @__PURE__ */ jsx(TrendingUp, { className: "text-plex w-5 h-5" }),
-          " Trending Content"
+        /* @__PURE__ */ jsxs("div", { className: "flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4", children: [
+          /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text uppercase tracking-wider flex items-center gap-2", children: [
+            /* @__PURE__ */ jsx(TrendingUp, { className: "text-plex w-5 h-5" }),
+            " Trending Content"
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 bg-black/30 p-1 rounded-lg border border-border", children: [
+            /* @__PURE__ */ jsx("button", { onClick: () => setContentTab("movies"), className: `px-4 py-1.5 rounded-md text-sm font-bold transition-all ${contentTab === "movies" ? "bg-plex text-black shadow-md" : "text-muted hover:text-text hover:bg-white/5"}`, children: "Movies" }),
+            /* @__PURE__ */ jsx("button", { onClick: () => setContentTab("shows"), className: `px-4 py-1.5 rounded-md text-sm font-bold transition-all ${contentTab === "shows" ? "bg-plex text-black shadow-md" : "text-muted hover:text-text hover:bg-white/5"}`, children: "TV Shows" }),
+            /* @__PURE__ */ jsx("button", { onClick: () => setContentTab("music"), className: `px-4 py-1.5 rounded-md text-sm font-bold transition-all ${contentTab === "music" ? "bg-plex text-black shadow-md" : "text-muted hover:text-text hover:bg-white/5"}`, children: "Music" })
+          ] })
         ] }),
-        /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-4", children: topContent.length === 0 ? /* @__PURE__ */ jsx("p", { className: "text-muted text-sm col-span-full", children: "No data available." }) : topContent.slice(0, 10).map((item, idx) => /* @__PURE__ */ jsxs("a", { href: item.plexUrl, target: "_blank", rel: "noreferrer", className: "flex flex-col sm:flex-row bg-black/20 rounded-xl overflow-hidden hover:bg-black/40 transition-all cursor-pointer group hover:ring-1 hover:ring-plex shadow-md", children: [
+        /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-4", children: activeContent.length === 0 ? /* @__PURE__ */ jsx("p", { className: "text-muted text-sm col-span-full", children: "No data available." }) : activeContent.slice(0, 10).map((item, idx) => /* @__PURE__ */ jsxs("a", { href: item.plexUrl, target: "_blank", rel: "noreferrer", className: "flex flex-col sm:flex-row bg-black/20 rounded-xl overflow-hidden hover:bg-black/40 transition-all cursor-pointer group hover:ring-1 hover:ring-plex shadow-md", children: [
           /* @__PURE__ */ jsxs("div", { className: "sm:w-32 lg:w-40 flex-shrink-0 aspect-[2/3] relative", children: [
             item.thumbUrl ? /* @__PURE__ */ jsx("img", { src: item.thumbUrl, alt: item.title, className: "w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" }) : /* @__PURE__ */ jsx("div", { className: "w-full h-full flex items-center justify-center bg-black/40", children: /* @__PURE__ */ jsx(Film, { className: "w-8 h-8 opacity-50 text-muted" }) }),
             /* @__PURE__ */ jsxs("div", { className: "absolute top-2 left-2 bg-plex text-black font-bold text-xs px-2 py-1 rounded-md shadow-lg drop-shadow-md", children: [
@@ -3255,9 +3328,9 @@ var LibraryDashboard = ({ onBack }) => {
         /* @__PURE__ */ jsx("h2", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "ACTIVITY" }),
         dashboardData && dashboardData.activeSessions && dashboardData.activeSessions.length > 0 ? /* @__PURE__ */ jsx("div", { className: "grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-6", children: dashboardData.activeSessions.map((session, i) => /* @__PURE__ */ jsxs("div", { onClick: () => setSelectedSession(session), className: "bg-card rounded-xl border border-border flex flex-col overflow-hidden shadow-lg hover:border-plex/50 hover:shadow-plex/20 transition-all cursor-pointer select-none", children: [
           /* @__PURE__ */ jsxs("div", { className: "flex flex-row flex-grow relative", children: [
-            /* @__PURE__ */ jsxs("div", { className: "w-28 md:w-32 flex-shrink-0 relative overflow-hidden bg-card", children: [
+            /* @__PURE__ */ jsxs("div", { className: "w-36 md:w-44 flex-shrink-0 relative overflow-hidden bg-card", children: [
               /* @__PURE__ */ jsx("div", { className: "w-full pb-[150%]" }),
-              /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=300&height=450`, alt: session.title, loading: "lazy", className: "absolute inset-0 w-full h-full object-cover drop-shadow-2xl" })
+              /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=300&height=500`, alt: session.title, loading: "lazy", className: "absolute inset-0 w-full h-full object-cover drop-shadow-2xl" })
             ] }),
             /* @__PURE__ */ jsxs("div", { className: "p-3 md:p-4 flex flex-col flex-grow min-w-0 justify-center relative", children: [
               /* @__PURE__ */ jsxs("div", { className: "absolute top-3 right-3 flex items-center gap-2 bg-black/50 backdrop-blur-md rounded-full pr-3 p-1 shadow-md border border-white/5", children: [

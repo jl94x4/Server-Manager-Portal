@@ -2185,7 +2185,7 @@ app.get('/api/plex/analytics', requireAdmin, async (req, res) => {
         const users = await loadFile(USERS_PATH, []);
 
         if (!historyRes || !historyRes.MediaContainer || !historyRes.MediaContainer.Metadata) {
-            return res.json({ topUsers: [], topLibraries: [], topContent: [] });
+            return res.json({ topUsers: [], topLibraries: [], topMovies: [], topShows: [], topMusic: [], topDevices: [], peakHours: new Array(24).fill(0), totalPlaybacks: 0 });
         }
 
         const accountsMap = {};
@@ -2208,10 +2208,32 @@ app.get('/api/plex/analytics', requireAdmin, async (req, res) => {
         
         const userCounts = {};
         const libraryCounts = {};
-        const contentCounts = {};
+        
+        const contentCountsMovies = {};
+        const contentCountsShows = {};
+        const contentCountsMusic = {};
+        
+        const deviceCounts = {};
+        const peakHours = new Array(24).fill(0);
+        let totalPlaybacks = 0;
 
         historyRes.MediaContainer.Metadata.forEach(item => {
             if (cutoffDate > 0 && item.viewedAt < cutoffDate) return;
+            totalPlaybacks++;
+
+            // Peak Hours aggregation
+            if (item.viewedAt) {
+                const hour = new Date(item.viewedAt * 1000).getHours();
+                peakHours[hour]++;
+            }
+
+            // Device aggregation
+            let deviceName = 'Unknown Platform';
+            if (item.Player && item.Player.product) deviceName = item.Player.product;
+            else if (item.client) deviceName = item.client; // fallback
+            
+            if (!deviceCounts[deviceName]) deviceCounts[deviceName] = { name: deviceName, plays: 0 };
+            deviceCounts[deviceName].plays++;
 
             // User aggregation
             if (item.accountID) {
@@ -2245,8 +2267,14 @@ app.get('/api/plex/analytics', requireAdmin, async (req, res) => {
             const contentThumb = item.type === 'episode' ? (item.grandparentThumb || item.parentThumb || item.thumb) : item.thumb;
             
             if (contentKey) {
-                if (!contentCounts[contentKey]) {
-                    contentCounts[contentKey] = {
+                let targetDict = null;
+                if (item.type === 'movie') targetDict = contentCountsMovies;
+                else if (item.type === 'episode') targetDict = contentCountsShows;
+                else if (item.type === 'track') targetDict = contentCountsMusic;
+                else targetDict = contentCountsMovies; // fallback
+
+                if (!targetDict[contentKey]) {
+                    targetDict[contentKey] = {
                         key: contentKey,
                         title: contentTitle,
                         type: item.type === 'episode' ? 'show' : item.type,
@@ -2255,21 +2283,18 @@ app.get('/api/plex/analytics', requireAdmin, async (req, res) => {
                         plexUrl: `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent('/library/metadata/' + contentKey.split('/').pop())}`
                     };
                 }
-                contentCounts[contentKey].plays++;
+                targetDict[contentKey].plays++;
             }
         });
 
         const topUsers = Object.values(userCounts).sort((a, b) => b.plays - a.plays).slice(0, 10);
         const topLibraries = Object.values(libraryCounts).sort((a, b) => b.plays - a.plays).slice(0, 10);
-        let topContent = Object.values(contentCounts).sort((a, b) => b.plays - a.plays).slice(0, 10).map(c => {
+        const topDevices = Object.values(deviceCounts).sort((a, b) => b.plays - a.plays).slice(0, 10);
+        
+        const fetchRichMetadata = async (c) => {
             if (c.thumb) {
                 c.thumbUrl = `/api/plex/image?path=${encodeURIComponent(c.thumb)}`;
             }
-            return c;
-        });
-
-        // Fetch rich metadata for top content
-        topContent = await Promise.all(topContent.map(async (c) => {
             try {
                 const metadataId = c.key.split('/').pop();
                 const metaRes = await fetch(`${uri}/library/metadata/${metadataId}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
@@ -2284,9 +2309,13 @@ app.get('/api/plex/analytics', requireAdmin, async (req, res) => {
                 }
             } catch (e) {}
             return c;
-        }));
+        };
 
-        res.json({ topUsers, topLibraries, topContent });
+        const topMovies = await Promise.all(Object.values(contentCountsMovies).sort((a, b) => b.plays - a.plays).slice(0, 10).map(fetchRichMetadata));
+        const topShows = await Promise.all(Object.values(contentCountsShows).sort((a, b) => b.plays - a.plays).slice(0, 10).map(fetchRichMetadata));
+        const topMusic = await Promise.all(Object.values(contentCountsMusic).sort((a, b) => b.plays - a.plays).slice(0, 10).map(fetchRichMetadata));
+
+        res.json({ topUsers, topLibraries, topMovies, topShows, topMusic, topDevices, peakHours, totalPlaybacks });
     } catch (e) {
         log(`Error fetching analytics: ${e.message}`);
         res.status(500).json({ error: 'Analytics error' });
