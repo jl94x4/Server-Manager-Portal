@@ -818,11 +818,39 @@ var SettingsDashboard = () => {
           }
         )
       ] }),
-      /* @__PURE__ */ jsxs("div", { className: "hidden md:flex settings-tabs", style: { gap: "2rem", marginTop: "1rem", marginBottom: "1.5rem", borderBottom: "1px solid var(--border-color)", paddingBottom: "0.5rem" }, children: [
-        /* @__PURE__ */ jsx("button", { onClick: () => setActiveTab("plex"), style: { background: "none", border: "none", color: activeTab === "plex" ? "var(--plex-gold)" : "var(--text-muted)", cursor: "pointer", fontWeight: "bold", fontSize: "1rem", padding: "0.5rem 0", borderBottom: activeTab === "plex" ? "2px solid var(--plex-gold)" : "2px solid transparent" }, children: "Plex Integration" }),
-        /* @__PURE__ */ jsx("button", { onClick: () => setActiveTab("smtp"), style: { background: "none", border: "none", color: activeTab === "smtp" ? "var(--plex-gold)" : "var(--text-muted)", cursor: "pointer", fontWeight: "bold", fontSize: "1rem", padding: "0.5rem 0", borderBottom: activeTab === "smtp" ? "2px solid var(--plex-gold)" : "2px solid transparent" }, children: "SMTP Alerts" }),
-        /* @__PURE__ */ jsx("button", { onClick: () => setActiveTab("newsletter"), style: { background: "none", border: "none", color: activeTab === "newsletter" ? "var(--plex-gold)" : "var(--text-muted)", cursor: "pointer", fontWeight: "bold", fontSize: "1rem", padding: "0.5rem 0", borderBottom: activeTab === "newsletter" ? "2px solid var(--plex-gold)" : "2px solid transparent" }, children: "Newsletter" }),
-        /* @__PURE__ */ jsx("button", { onClick: () => setActiveTab("mediastack"), style: { background: "none", border: "none", color: activeTab === "mediastack" ? "var(--plex-gold)" : "var(--text-muted)", cursor: "pointer", fontWeight: "bold", fontSize: "1rem", padding: "0.5rem 0", borderBottom: activeTab === "mediastack" ? "2px solid var(--plex-gold)" : "2px solid transparent" }, children: "Media Stack" })
+      /* @__PURE__ */ jsxs("div", { className: "hidden md:flex gap-8 mt-4 mb-6 border-b border-border pb-2", children: [
+        /* @__PURE__ */ jsx(
+          "button",
+          {
+            onClick: () => setActiveTab("plex"),
+            className: `bg-none border-none font-bold text-base py-2 px-1 transition-all border-b-2 cursor-pointer ${activeTab === "plex" ? "text-plex border-plex" : "text-muted border-transparent hover:text-text"}`,
+            children: "Plex Integration"
+          }
+        ),
+        /* @__PURE__ */ jsx(
+          "button",
+          {
+            onClick: () => setActiveTab("smtp"),
+            className: `bg-none border-none font-bold text-base py-2 px-1 transition-all border-b-2 cursor-pointer ${activeTab === "smtp" ? "text-plex border-plex" : "text-muted border-transparent hover:text-text"}`,
+            children: "SMTP Alerts"
+          }
+        ),
+        /* @__PURE__ */ jsx(
+          "button",
+          {
+            onClick: () => setActiveTab("newsletter"),
+            className: `bg-none border-none font-bold text-base py-2 px-1 transition-all border-b-2 cursor-pointer ${activeTab === "newsletter" ? "text-plex border-plex" : "text-muted border-transparent hover:text-text"}`,
+            children: "Newsletter"
+          }
+        ),
+        /* @__PURE__ */ jsx(
+          "button",
+          {
+            onClick: () => setActiveTab("mediastack"),
+            className: `bg-none border-none font-bold text-base py-2 px-1 transition-all border-b-2 cursor-pointer ${activeTab === "mediastack" ? "text-plex border-plex" : "text-muted border-transparent hover:text-text"}`,
+            children: "Media Stack"
+          }
+        )
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "overflow-y-auto pr-2 flex-grow mb-4 custom-scrollbar", children: [
         activeTab === "plex" && /* @__PURE__ */ jsxs("div", { className: "mb-8", children: [
