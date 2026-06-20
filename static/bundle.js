@@ -3015,11 +3015,76 @@ var StatusDashboard = ({ onBack, isAdmin, isPublic }) => {
     ] })
   ] });
 };
+var StreamDetailsModal = ({ session, onClose }) => {
+  return /* @__PURE__ */ jsx("div", { className: "fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm", onClick: onClose, children: /* @__PURE__ */ jsxs("div", { className: "bg-card w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl relative flex flex-col md:flex-row", onClick: (e) => e.stopPropagation(), children: [
+    /* @__PURE__ */ jsxs("div", { className: "w-full md:w-1/3 relative bg-black flex-shrink-0", children: [
+      /* @__PURE__ */ jsxs("div", { className: "w-full pb-[150%] md:pb-0 md:h-full relative", children: [
+        /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=400&height=600`, alt: session.title, className: "absolute inset-0 w-full h-full object-cover opacity-80" }),
+        /* @__PURE__ */ jsx("div", { className: "absolute inset-0 bg-gradient-to-t from-card to-transparent md:bg-gradient-to-r" })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "absolute top-4 left-4 flex items-center gap-2 bg-black/60 backdrop-blur-md rounded-full pr-4 p-1.5 shadow-lg border border-white/10 z-10", children: [
+        /* @__PURE__ */ jsx("img", { src: session.userThumb ? session.userThumb : "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y", className: "w-8 h-8 rounded-full object-cover", onError: (e) => {
+          e.currentTarget.src = "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
+        } }),
+        /* @__PURE__ */ jsx("span", { className: "text-xs font-bold text-white truncate max-w-[120px]", children: session.user })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxs("div", { className: "p-6 md:p-8 flex flex-col flex-grow relative", children: [
+      /* @__PURE__ */ jsx("button", { onClick: onClose, className: "absolute top-4 right-4 text-muted hover:text-white transition-colors bg-white/5 rounded-full p-2", children: /* @__PURE__ */ jsx("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24", children: /* @__PURE__ */ jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M6 18L18 6M6 6l12 12" }) }) }),
+      /* @__PURE__ */ jsx("h2", { className: "text-2xl font-bold text-text leading-tight mb-1 pr-10", children: session.grandparentTitle || session.title }),
+      /* @__PURE__ */ jsxs("p", { className: "text-base text-muted mb-4", children: [
+        session.grandparentTitle ? session.title : "",
+        " ",
+        session.type === "episode" && session.season !== void 0 ? `| S${String(session.season).padStart(2, "0")}E${String(session.episode).padStart(2, "0")}` : ""
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "flex flex-wrap gap-2 mb-6", children: [
+        session.resolution && /* @__PURE__ */ jsx("span", { className: "bg-white/10 text-white/90 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border border-white/10", children: session.resolution.includes("p") || session.resolution.includes("k") ? session.resolution : `${session.resolution}p` }),
+        /* @__PURE__ */ jsx("span", { className: `text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border ${session.sessionLocation === "lan" ? "bg-status-active/20 text-status-active border-status-active/30" : "bg-plex/20 text-plex border-plex/30"}`, children: session.sessionLocation === "lan" ? "Local" : "Remote" }),
+        /* @__PURE__ */ jsx("span", { className: `text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border ${session.isTranscoding ? "bg-status-expiring/20 text-status-expiring border-status-expiring/30" : "bg-status-active/20 text-status-active border-status-active/30"}`, children: session.isTranscoding ? "Transcode" : "Direct Play" })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-2 gap-x-6 gap-y-4 mb-8", children: [
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("p", { className: "text-[10px] text-muted uppercase tracking-widest font-bold mb-1", children: "Player" }),
+          /* @__PURE__ */ jsx("p", { className: "text-sm font-medium truncate", title: session.playerTitle, children: session.playerTitle }),
+          /* @__PURE__ */ jsx("p", { className: "text-xs text-muted/80 truncate", title: session.playerProduct, children: session.playerProduct })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("p", { className: "text-[10px] text-muted uppercase tracking-widest font-bold mb-1", children: "Network" }),
+          /* @__PURE__ */ jsx("p", { className: "text-sm font-medium", children: session.playerAddress }),
+          /* @__PURE__ */ jsxs("p", { className: "text-xs text-muted/80", children: [
+            (session.bandwidth / 1e3).toFixed(1),
+            " Mbps"
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("p", { className: "text-[10px] text-muted uppercase tracking-widest font-bold mb-1", children: "Video" }),
+          /* @__PURE__ */ jsxs("p", { className: "text-sm font-medium uppercase", children: [
+            session.videoCodec || "Unknown",
+            " ",
+            session.videoProfile ? `(${session.videoProfile})` : ""
+          ] }),
+          session.transcodeVideoDecision === "transcode" && /* @__PURE__ */ jsx("p", { className: "text-[10px] text-status-expiring font-bold", children: "Transcoding" })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("p", { className: "text-[10px] text-muted uppercase tracking-widest font-bold mb-1", children: "Audio" }),
+          /* @__PURE__ */ jsxs("p", { className: "text-sm font-medium uppercase", children: [
+            session.audioCodec || "Unknown",
+            " ",
+            session.audioChannels ? `(${session.audioChannels}ch)` : ""
+          ] }),
+          session.transcodeAudioDecision === "transcode" && /* @__PURE__ */ jsx("p", { className: "text-[10px] text-status-expiring font-bold", children: "Transcoding" })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsx("div", { className: "mt-auto flex gap-3 pt-4 border-t border-white/5", children: /* @__PURE__ */ jsx("a", { href: session.plexUrl, target: "_blank", rel: "noreferrer", className: "flex-1 bg-plex text-background font-bold text-center py-3 rounded-lg hover:bg-plex-hover transition-colors shadow-lg", children: "Open in Plex" }) })
+    ] })
+  ] }) });
+};
 var LibraryDashboard = ({ onBack }) => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [recentLimit, setRecentLimit] = useState(25);
+  const [selectedSession, setSelectedSession] = useState(null);
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -3042,144 +3107,147 @@ var LibraryDashboard = ({ onBack }) => {
   const directStreams = totalStreams - transcodingStreams;
   const totalBandwidthKbps = dashboardData?.activeSessions?.reduce((acc, s) => acc + (s.bandwidth || 0), 0) || 0;
   const totalBandwidthMbps = (totalBandwidthKbps / 1e3).toFixed(2);
-  return /* @__PURE__ */ jsx("div", { className: "w-[calc(100%-8px)] md:w-[95%] max-w-[1600px] mx-auto flex flex-col min-h-screen", children: /* @__PURE__ */ jsxs("main", { className: "w-full pb-8 mt-4 md:mt-0", children: [
-    error && /* @__PURE__ */ jsx("div", { className: "toast error show", children: error }),
-    dashboardData && totalStreams > 0 && /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-4 mb-6", children: [
-      /* @__PURE__ */ jsxs("div", { className: "bg-white/5 border border-white/10 rounded-xl py-2 px-3 flex flex-col items-center justify-center gap-0.5 shadow-lg backdrop-blur-sm", children: [
-        /* @__PURE__ */ jsx("span", { className: "text-plex font-bold text-2xl", children: totalStreams }),
-        /* @__PURE__ */ jsx("span", { className: "text-muted text-[10px] uppercase tracking-wider font-bold", children: "Total Streams" })
-      ] }),
-      /* @__PURE__ */ jsxs("div", { className: "bg-white/5 border border-white/10 rounded-xl py-2 px-3 flex flex-col items-center justify-center gap-0.5 shadow-lg backdrop-blur-sm", children: [
-        /* @__PURE__ */ jsx("span", { className: "text-status-active font-bold text-2xl", children: directStreams }),
-        /* @__PURE__ */ jsx("span", { className: "text-muted text-[10px] uppercase tracking-wider font-bold", children: "Direct Play" })
-      ] }),
-      /* @__PURE__ */ jsxs("div", { className: "bg-white/5 border border-white/10 rounded-xl py-2 px-3 flex flex-col items-center justify-center gap-0.5 shadow-lg backdrop-blur-sm", children: [
-        /* @__PURE__ */ jsx("span", { className: "text-status-expiring font-bold text-2xl", children: transcodingStreams }),
-        /* @__PURE__ */ jsx("span", { className: "text-muted text-[10px] uppercase tracking-wider font-bold", children: "Transcoding" })
-      ] }),
-      /* @__PURE__ */ jsxs("div", { className: "bg-white/5 border border-white/10 rounded-xl py-2 px-3 flex flex-col items-center justify-center gap-0.5 shadow-lg backdrop-blur-sm", children: [
-        /* @__PURE__ */ jsxs("span", { className: "text-plex font-bold text-2xl", children: [
-          totalBandwidthMbps,
-          " ",
-          /* @__PURE__ */ jsx("span", { className: "text-sm", children: "Mbps" })
+  return /* @__PURE__ */ jsxs("div", { className: "w-[calc(100%-8px)] md:w-[95%] max-w-[1600px] mx-auto flex flex-col min-h-screen", children: [
+    /* @__PURE__ */ jsxs("main", { className: "w-full pb-8 mt-4 md:mt-0", children: [
+      error && /* @__PURE__ */ jsx("div", { className: "toast error show", children: error }),
+      dashboardData && totalStreams > 0 && /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-4 mb-6", children: [
+        /* @__PURE__ */ jsxs("div", { className: "bg-white/5 border border-white/10 rounded-xl py-2 px-3 flex flex-col items-center justify-center gap-0.5 shadow-lg backdrop-blur-sm", children: [
+          /* @__PURE__ */ jsx("span", { className: "text-plex font-bold text-2xl", children: totalStreams }),
+          /* @__PURE__ */ jsx("span", { className: "text-muted text-[10px] uppercase tracking-wider font-bold", children: "Total Streams" })
         ] }),
-        /* @__PURE__ */ jsx("span", { className: "text-muted text-[10px] uppercase tracking-wider font-bold", children: "Total Bandwidth" })
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxs("section", { className: "mb-12 w-full", children: [
-      /* @__PURE__ */ jsx("h2", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "ACTIVITY" }),
-      dashboardData && dashboardData.activeSessions && dashboardData.activeSessions.length > 0 ? /* @__PURE__ */ jsx("div", { className: "grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-6", children: dashboardData.activeSessions.map((session, i) => /* @__PURE__ */ jsxs("a", { href: session.plexUrl, target: "_blank", rel: "noreferrer", className: "bg-card rounded-xl border border-border flex flex-col overflow-hidden shadow-lg hover:border-plex/50 hover:shadow-plex/20 transition-all cursor-pointer", style: { textDecoration: "none", color: "inherit" }, children: [
-        /* @__PURE__ */ jsxs("div", { className: "flex flex-row flex-grow relative", children: [
-          /* @__PURE__ */ jsxs("div", { className: "w-28 md:w-32 flex-shrink-0 relative overflow-hidden bg-card", children: [
-            /* @__PURE__ */ jsx("div", { className: "w-full pb-[150%]" }),
-            /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=300&height=450`, alt: session.title, loading: "lazy", className: "absolute inset-0 w-full h-full object-cover drop-shadow-2xl" })
+        /* @__PURE__ */ jsxs("div", { className: "bg-white/5 border border-white/10 rounded-xl py-2 px-3 flex flex-col items-center justify-center gap-0.5 shadow-lg backdrop-blur-sm", children: [
+          /* @__PURE__ */ jsx("span", { className: "text-status-active font-bold text-2xl", children: directStreams }),
+          /* @__PURE__ */ jsx("span", { className: "text-muted text-[10px] uppercase tracking-wider font-bold", children: "Direct Play" })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "bg-white/5 border border-white/10 rounded-xl py-2 px-3 flex flex-col items-center justify-center gap-0.5 shadow-lg backdrop-blur-sm", children: [
+          /* @__PURE__ */ jsx("span", { className: "text-status-expiring font-bold text-2xl", children: transcodingStreams }),
+          /* @__PURE__ */ jsx("span", { className: "text-muted text-[10px] uppercase tracking-wider font-bold", children: "Transcoding" })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "bg-white/5 border border-white/10 rounded-xl py-2 px-3 flex flex-col items-center justify-center gap-0.5 shadow-lg backdrop-blur-sm", children: [
+          /* @__PURE__ */ jsxs("span", { className: "text-plex font-bold text-2xl", children: [
+            totalBandwidthMbps,
+            " ",
+            /* @__PURE__ */ jsx("span", { className: "text-sm", children: "Mbps" })
           ] }),
-          /* @__PURE__ */ jsxs("div", { className: "p-3 md:p-4 flex flex-col flex-grow min-w-0 justify-center relative", children: [
-            /* @__PURE__ */ jsxs("div", { className: "absolute top-3 right-3 flex items-center gap-2 bg-black/50 backdrop-blur-md rounded-full pr-3 p-1 shadow-md border border-white/5", children: [
-              /* @__PURE__ */ jsx("img", { src: session.userThumb ? session.userThumb : "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y", alt: session.user, className: "w-5 h-5 rounded-full object-cover", onError: (e) => {
-                e.currentTarget.src = "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
-              } }),
-              /* @__PURE__ */ jsx("span", { className: "text-[10px] font-bold text-white/90 truncate max-w-[80px] md:max-w-[100px]", children: session.user })
+          /* @__PURE__ */ jsx("span", { className: "text-muted text-[10px] uppercase tracking-wider font-bold", children: "Total Bandwidth" })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs("section", { className: "mb-12 w-full", children: [
+        /* @__PURE__ */ jsx("h2", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "ACTIVITY" }),
+        dashboardData && dashboardData.activeSessions && dashboardData.activeSessions.length > 0 ? /* @__PURE__ */ jsx("div", { className: "grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-6", children: dashboardData.activeSessions.map((session, i) => /* @__PURE__ */ jsxs("div", { onClick: () => setSelectedSession(session), className: "bg-card rounded-xl border border-border flex flex-col overflow-hidden shadow-lg hover:border-plex/50 hover:shadow-plex/20 transition-all cursor-pointer select-none", children: [
+          /* @__PURE__ */ jsxs("div", { className: "flex flex-row flex-grow relative", children: [
+            /* @__PURE__ */ jsxs("div", { className: "w-28 md:w-32 flex-shrink-0 relative overflow-hidden bg-card", children: [
+              /* @__PURE__ */ jsx("div", { className: "w-full pb-[150%]" }),
+              /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=300&height=450`, alt: session.title, loading: "lazy", className: "absolute inset-0 w-full h-full object-cover drop-shadow-2xl" })
             ] }),
-            /* @__PURE__ */ jsx("div", { className: "activity-header mb-1 pr-24 md:pr-32", children: /* @__PURE__ */ jsxs("div", { className: "activity-title-group", children: [
-              /* @__PURE__ */ jsx("div", { className: "text-sm md:text-base font-bold text-text line-clamp-2 leading-tight", children: session.grandparentTitle ? session.grandparentTitle : session.title }),
-              session.type === "episode" && session.season !== void 0 && session.episode !== void 0 ? /* @__PURE__ */ jsxs("div", { className: "text-[10px] md:text-xs text-muted line-clamp-2 leading-snug mt-0.5", children: [
-                session.title,
-                " | S",
-                String(session.season).padStart(2, "0"),
-                "E",
-                String(session.episode).padStart(2, "0")
-              ] }) : session.grandparentTitle && /* @__PURE__ */ jsx("div", { className: "text-[10px] md:text-xs text-muted line-clamp-2 leading-snug mt-0.5", children: session.title })
-            ] }) }),
-            /* @__PURE__ */ jsxs("div", { className: "flex flex-wrap gap-1.5 mb-3 mt-1", children: [
-              session.resolution && /* @__PURE__ */ jsx("span", { className: "bg-white/10 text-white/90 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide border border-white/10", children: session.resolution.includes("p") || session.resolution.includes("k") ? session.resolution : `${session.resolution}p` }),
-              /* @__PURE__ */ jsx("span", { className: `text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide border ${session.sessionLocation === "lan" ? "bg-status-active/20 text-status-active border-status-active/30" : "bg-plex/20 text-plex border-plex/30"}`, children: session.sessionLocation === "lan" ? "Local" : "Remote" })
-            ] }),
-            /* @__PURE__ */ jsxs("div", { className: "activity-details flex flex-col gap-1 mt-auto", children: [
-              /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-start text-[10px] md:text-xs border-b border-white/5 pb-1", children: [
-                /* @__PURE__ */ jsx("span", { className: "text-muted uppercase tracking-wider font-bold mt-0.5", children: "PLAYER" }),
-                /* @__PURE__ */ jsx("span", { className: "detail-value text-right break-words max-w-[130px] md:max-w-[180px]", children: session.playerTitle })
+            /* @__PURE__ */ jsxs("div", { className: "p-3 md:p-4 flex flex-col flex-grow min-w-0 justify-center relative", children: [
+              /* @__PURE__ */ jsxs("div", { className: "absolute top-3 right-3 flex items-center gap-2 bg-black/50 backdrop-blur-md rounded-full pr-3 p-1 shadow-md border border-white/5", children: [
+                /* @__PURE__ */ jsx("img", { src: session.userThumb ? session.userThumb : "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y", alt: session.user, className: "w-5 h-5 rounded-full object-cover", onError: (e) => {
+                  e.currentTarget.src = "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
+                } }),
+                /* @__PURE__ */ jsx("span", { className: "text-[10px] font-bold text-white/90 truncate max-w-[80px] md:max-w-[100px]", children: session.user })
               ] }),
-              /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-center text-[10px] md:text-xs border-b border-white/5 pb-1", children: [
-                /* @__PURE__ */ jsx("span", { className: "text-muted uppercase tracking-wider font-bold", children: "STREAM" }),
-                /* @__PURE__ */ jsx("span", { className: `font-bold ${session.isTranscoding ? "text-status-expiring" : "text-status-active"}`, children: session.isTranscoding ? "Transcode" : "Direct Play" })
+              /* @__PURE__ */ jsx("div", { className: "activity-header mb-1 pr-24 md:pr-32", children: /* @__PURE__ */ jsxs("div", { className: "activity-title-group", children: [
+                /* @__PURE__ */ jsx("div", { className: "text-sm md:text-base font-bold text-text line-clamp-2 leading-tight", children: session.grandparentTitle ? session.grandparentTitle : session.title }),
+                session.type === "episode" && session.season !== void 0 && session.episode !== void 0 ? /* @__PURE__ */ jsxs("div", { className: "text-[10px] md:text-xs text-muted line-clamp-2 leading-snug mt-0.5", children: [
+                  session.title,
+                  " | S",
+                  String(session.season).padStart(2, "0"),
+                  "E",
+                  String(session.episode).padStart(2, "0")
+                ] }) : session.grandparentTitle && /* @__PURE__ */ jsx("div", { className: "text-[10px] md:text-xs text-muted line-clamp-2 leading-snug mt-0.5", children: session.title })
+              ] }) }),
+              /* @__PURE__ */ jsxs("div", { className: "flex flex-wrap gap-1.5 mb-3 mt-1", children: [
+                session.resolution && /* @__PURE__ */ jsx("span", { className: "bg-white/10 text-white/90 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide border border-white/10", children: session.resolution.includes("p") || session.resolution.includes("k") ? session.resolution : `${session.resolution}p` }),
+                /* @__PURE__ */ jsx("span", { className: `text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide border ${session.sessionLocation === "lan" ? "bg-status-active/20 text-status-active border-status-active/30" : "bg-plex/20 text-plex border-plex/30"}`, children: session.sessionLocation === "lan" ? "Local" : "Remote" })
               ] }),
-              /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-center text-[10px] md:text-xs border-b border-white/5 pb-1", children: [
-                /* @__PURE__ */ jsx("span", { className: "text-muted uppercase tracking-wider font-bold", children: "STATE" }),
-                /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
-                  /* @__PURE__ */ jsx("span", { className: "detail-value font-bold", children: session.state.charAt(0).toUpperCase() + session.state.slice(1) }),
-                  session.timeRemaining > 0 && session.state === "playing" && /* @__PURE__ */ jsxs("span", { className: "text-[9px] text-muted/80", children: [
-                    "(",
-                    Math.floor(session.timeRemaining / 36e5) > 0 ? `${Math.floor(session.timeRemaining / 36e5)}h ` : "",
-                    Math.floor(session.timeRemaining % 36e5 / 6e4),
-                    "m left)"
+              /* @__PURE__ */ jsxs("div", { className: "activity-details flex flex-col gap-1 mt-auto", children: [
+                /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-start text-[10px] md:text-xs border-b border-white/5 pb-1", children: [
+                  /* @__PURE__ */ jsx("span", { className: "text-muted uppercase tracking-wider font-bold mt-0.5", children: "PLAYER" }),
+                  /* @__PURE__ */ jsx("span", { className: "detail-value text-right break-words max-w-[130px] md:max-w-[180px]", children: session.playerTitle })
+                ] }),
+                /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-center text-[10px] md:text-xs border-b border-white/5 pb-1", children: [
+                  /* @__PURE__ */ jsx("span", { className: "text-muted uppercase tracking-wider font-bold", children: "STREAM" }),
+                  /* @__PURE__ */ jsx("span", { className: `font-bold ${session.isTranscoding ? "text-status-expiring" : "text-status-active"}`, children: session.isTranscoding ? "Transcode" : "Direct Play" })
+                ] }),
+                /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-center text-[10px] md:text-xs border-b border-white/5 pb-1", children: [
+                  /* @__PURE__ */ jsx("span", { className: "text-muted uppercase tracking-wider font-bold", children: "STATE" }),
+                  /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
+                    /* @__PURE__ */ jsx("span", { className: "detail-value font-bold", children: session.state.charAt(0).toUpperCase() + session.state.slice(1) }),
+                    session.timeRemaining > 0 && session.state === "playing" && /* @__PURE__ */ jsxs("span", { className: "text-[9px] text-muted/80", children: [
+                      "(",
+                      Math.floor(session.timeRemaining / 36e5) > 0 ? `${Math.floor(session.timeRemaining / 36e5)}h ` : "",
+                      Math.floor(session.timeRemaining % 36e5 / 6e4),
+                      "m left)"
+                    ] })
                   ] })
-                ] })
-              ] }),
-              /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-center text-[10px] md:text-xs pb-1", children: [
-                /* @__PURE__ */ jsx("span", { className: "text-muted uppercase tracking-wider font-bold", children: "BANDWIDTH" }),
-                /* @__PURE__ */ jsxs("span", { className: "detail-value", children: [
-                  (session.bandwidth / 1e3).toFixed(1),
-                  " Mbps"
+                ] }),
+                /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-center text-[10px] md:text-xs pb-1", children: [
+                  /* @__PURE__ */ jsx("span", { className: "text-muted uppercase tracking-wider font-bold", children: "BANDWIDTH" }),
+                  /* @__PURE__ */ jsxs("span", { className: "detail-value", children: [
+                    (session.bandwidth / 1e3).toFixed(1),
+                    " Mbps"
+                  ] })
                 ] })
               ] })
             ] })
+          ] }),
+          /* @__PURE__ */ jsx("div", { className: "w-full h-1.5 bg-background/80 relative mt-auto z-10", children: /* @__PURE__ */ jsx("div", { className: "h-full bg-plex absolute top-0 left-0 transition-all duration-1000", style: { width: `${session.progress}%` }, children: /* @__PURE__ */ jsxs("div", { className: "absolute right-0 bottom-full mb-0.5 translate-x-1/2 flex flex-col items-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]", children: [
+            /* @__PURE__ */ jsxs("div", { className: "bg-plex text-black text-[9px] font-bold px-1 rounded-sm shadow-sm", children: [
+              Math.round(session.progress),
+              "%"
+            ] }),
+            /* @__PURE__ */ jsx("div", { className: "w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-t-[4px] border-t-plex" })
+          ] }) }) })
+        ] }, i)) }) : /* @__PURE__ */ jsx("div", { className: "text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full", children: "No active streams" })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "flex justify-end gap-4 items-center mb-8", children: [
+        /* @__PURE__ */ jsx("span", { style: { fontSize: "0.85rem", color: "#999" }, children: "RECENTLY ADDED LIMIT" }),
+        /* @__PURE__ */ jsxs("select", { className: "w-full md:w-32 p-2 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all cursor-pointer text-sm", value: recentLimit, onChange: (e) => setRecentLimit(Number(e.target.value)), children: [
+          /* @__PURE__ */ jsx("option", { value: 10, children: "10 Items" }),
+          /* @__PURE__ */ jsx("option", { value: 25, children: "25 Items" }),
+          /* @__PURE__ */ jsx("option", { value: 50, children: "50 Items" }),
+          /* @__PURE__ */ jsx("option", { value: 100, children: "100 Items" }),
+          /* @__PURE__ */ jsx("option", { value: 150, children: "150 Items" }),
+          /* @__PURE__ */ jsx("option", { value: 200, children: "200 Items" }),
+          /* @__PURE__ */ jsx("option", { value: 250, children: "250 Items" })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-12 w-full", children: [
+        /* @__PURE__ */ jsxs("div", { className: "flex flex-col", children: [
+          /* @__PURE__ */ jsx("h2", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "RECENTLY ADDED MOVIES" }),
+          /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: [
+            dashboardData && dashboardData.recentMovies.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ jsxs("a", { href: item.plexUrl, target: "_blank", rel: "noreferrer", className: "flex flex-col w-full gap-2 group", style: { textDecoration: "none", color: "inherit" }, children: [
+              /* @__PURE__ */ jsx("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }) }),
+              /* @__PURE__ */ jsx("div", { className: "text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight", children: item.title })
+            ] }, i)),
+            (!dashboardData || dashboardData.recentMovies.length === 0) && /* @__PURE__ */ jsx("div", { className: "text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full col-span-full", children: "No recent movies" })
           ] })
         ] }),
-        /* @__PURE__ */ jsx("div", { className: "w-full h-1.5 bg-background/80 relative mt-auto z-10", children: /* @__PURE__ */ jsx("div", { className: "h-full bg-plex absolute top-0 left-0 transition-all duration-1000", style: { width: `${session.progress}%` }, children: /* @__PURE__ */ jsxs("div", { className: "absolute right-0 bottom-full mb-0.5 translate-x-1/2 flex flex-col items-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]", children: [
-          /* @__PURE__ */ jsxs("div", { className: "bg-plex text-black text-[9px] font-bold px-1 rounded-sm shadow-sm", children: [
-            Math.round(session.progress),
-            "%"
-          ] }),
-          /* @__PURE__ */ jsx("div", { className: "w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-t-[4px] border-t-plex" })
-        ] }) }) })
-      ] }, i)) }) : /* @__PURE__ */ jsx("div", { className: "text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full", children: "No active streams" })
-    ] }),
-    /* @__PURE__ */ jsxs("div", { className: "flex justify-end gap-4 items-center mb-8", children: [
-      /* @__PURE__ */ jsx("span", { style: { fontSize: "0.85rem", color: "#999" }, children: "RECENTLY ADDED LIMIT" }),
-      /* @__PURE__ */ jsxs("select", { className: "w-full md:w-32 p-2 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all cursor-pointer text-sm", value: recentLimit, onChange: (e) => setRecentLimit(Number(e.target.value)), children: [
-        /* @__PURE__ */ jsx("option", { value: 10, children: "10 Items" }),
-        /* @__PURE__ */ jsx("option", { value: 25, children: "25 Items" }),
-        /* @__PURE__ */ jsx("option", { value: 50, children: "50 Items" }),
-        /* @__PURE__ */ jsx("option", { value: 100, children: "100 Items" }),
-        /* @__PURE__ */ jsx("option", { value: 150, children: "150 Items" }),
-        /* @__PURE__ */ jsx("option", { value: 200, children: "200 Items" }),
-        /* @__PURE__ */ jsx("option", { value: 250, children: "250 Items" })
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-12 w-full", children: [
-      /* @__PURE__ */ jsxs("div", { className: "flex flex-col", children: [
-        /* @__PURE__ */ jsx("h2", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "RECENTLY ADDED MOVIES" }),
-        /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: [
-          dashboardData && dashboardData.recentMovies.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ jsxs("a", { href: item.plexUrl, target: "_blank", rel: "noreferrer", className: "flex flex-col w-full gap-2 group", style: { textDecoration: "none", color: "inherit" }, children: [
-            /* @__PURE__ */ jsx("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }) }),
-            /* @__PURE__ */ jsx("div", { className: "text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight", children: item.title })
-          ] }, i)),
-          (!dashboardData || dashboardData.recentMovies.length === 0) && /* @__PURE__ */ jsx("div", { className: "text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full col-span-full", children: "No recent movies" })
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxs("div", { className: "flex flex-col", children: [
-        /* @__PURE__ */ jsx("h2", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "RECENTLY ADDED TV SHOWS" }),
-        /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: [
-          dashboardData && dashboardData.recentShows.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ jsxs("a", { href: item.plexUrl, target: "_blank", rel: "noreferrer", className: "flex flex-col w-full gap-2 group", style: { textDecoration: "none", color: "inherit" }, children: [
-            /* @__PURE__ */ jsx("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }) }),
-            /* @__PURE__ */ jsx("div", { className: "text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight", children: item.title })
-          ] }, i)),
-          (!dashboardData || dashboardData.recentShows.length === 0) && /* @__PURE__ */ jsx("div", { className: "text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full col-span-full", children: "No recent TV shows" })
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxs("div", { className: "flex flex-col", children: [
-        /* @__PURE__ */ jsx("h2", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "RECENTLY ADDED MUSIC" }),
-        /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: [
-          dashboardData && dashboardData.recentMusic.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ jsxs("a", { href: item.plexUrl, target: "_blank", rel: "noreferrer", className: "flex flex-col w-full gap-2 group", style: { textDecoration: "none", color: "inherit" }, children: [
-            /* @__PURE__ */ jsx("div", { className: "relative aspect-square w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=300`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }) }),
-            /* @__PURE__ */ jsx("div", { className: "text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight", children: item.title })
-          ] }, i)),
-          (!dashboardData || dashboardData.recentMusic.length === 0) && /* @__PURE__ */ jsx("div", { className: "text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full col-span-full", children: "No recent music" })
+        /* @__PURE__ */ jsxs("div", { className: "flex flex-col", children: [
+          /* @__PURE__ */ jsx("h2", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "RECENTLY ADDED TV SHOWS" }),
+          /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: [
+            dashboardData && dashboardData.recentShows.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ jsxs("a", { href: item.plexUrl, target: "_blank", rel: "noreferrer", className: "flex flex-col w-full gap-2 group", style: { textDecoration: "none", color: "inherit" }, children: [
+              /* @__PURE__ */ jsx("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }) }),
+              /* @__PURE__ */ jsx("div", { className: "text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight", children: item.title })
+            ] }, i)),
+            (!dashboardData || dashboardData.recentShows.length === 0) && /* @__PURE__ */ jsx("div", { className: "text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full col-span-full", children: "No recent TV shows" })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "flex flex-col", children: [
+          /* @__PURE__ */ jsx("h2", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "RECENTLY ADDED MUSIC" }),
+          /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: [
+            dashboardData && dashboardData.recentMusic.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ jsxs("a", { href: item.plexUrl, target: "_blank", rel: "noreferrer", className: "flex flex-col w-full gap-2 group", style: { textDecoration: "none", color: "inherit" }, children: [
+              /* @__PURE__ */ jsx("div", { className: "relative aspect-square w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=300`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }) }),
+              /* @__PURE__ */ jsx("div", { className: "text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight", children: item.title })
+            ] }, i)),
+            (!dashboardData || dashboardData.recentMusic.length === 0) && /* @__PURE__ */ jsx("div", { className: "text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full col-span-full", children: "No recent music" })
+          ] })
         ] })
       ] })
-    ] })
-  ] }) });
+    ] }),
+    selectedSession && /* @__PURE__ */ jsx(StreamDetailsModal, { session: selectedSession, onClose: () => setSelectedSession(null) })
+  ] });
 };
 var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, requestUrl }) => {
   useEffect(() => {
