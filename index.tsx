@@ -79,6 +79,7 @@ interface PlexConfig {
     newsletterFrequency: string;
     newsletterDay: number;
     publicDomain: string;
+    requestUrl?: string;
 }
 
 interface AppSettings {
@@ -95,6 +96,7 @@ interface AppSettings {
     newsletterFrequency?: string;
     newsletterDay?: number;
     publicDomain?: string;
+    requestUrl?: string;
 }
 
 interface PlexServer {
@@ -472,6 +474,7 @@ const SettingsDashboard: React.FC = () => {
     const [newsletterFrequency, setNewsletterFrequency] = useState('disabled');
     const [newsletterDay, setNewsletterDay] = useState(0);
     const [publicDomain, setPublicDomain] = useState('https://plexified.co.uk');
+    const [requestUrl, setRequestUrl] = useState('https://plexified.co.uk');
 
     useEffect(() => {
         if (initialSettings) {
@@ -488,6 +491,7 @@ const SettingsDashboard: React.FC = () => {
             setNewsletterFrequency(initialSettings.newsletterFrequency || 'disabled');
             setNewsletterDay(initialSettings.newsletterDay || 0);
             setPublicDomain(initialSettings.publicDomain || 'https://portal.plexified.co.uk');
+            setRequestUrl(initialSettings.requestUrl || 'https://plexified.co.uk');
             setTestRecipient('');
             setServers([]);
             setActiveTab('plex');
@@ -545,7 +549,8 @@ const SettingsDashboard: React.FC = () => {
             emailDaysBefore,
             newsletterFrequency,
             newsletterDay,
-            publicDomain
+            publicDomain,
+            requestUrl
         });
     };
 
@@ -661,6 +666,11 @@ const SettingsDashboard: React.FC = () => {
                                 <label htmlFor="checkInterval">Check Interval (minutes)</label>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="checkInterval" type="number" value={checkInterval} onChange={e => setCheckInterval(Number(e.target.value))} min="1" />
                                 <small>How often to check for expired users in the background.</small>
+                            </div>
+                            <div className="mb-4" style={{ marginTop: '1rem' }}>
+                                <label htmlFor="requestUrl">Request URL</label>
+                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="requestUrl" type="text" value={requestUrl} onChange={e => setRequestUrl(e.target.value)} placeholder="https://plexified.co.uk" />
+                                <small>The URL users are redirected to when they click the Request Content button.</small>
                             </div>
                         </div>
                     )}
@@ -2736,9 +2746,10 @@ interface NavigationProps {
     isAdmin: boolean;
     serverName: string;
     adminThumb?: string | null;
+    requestUrl: string;
 }
 
-const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb }) => {
+const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, requestUrl }) => {
     useEffect(() => {
         updateFavicon(adminThumb);
     }, [adminThumb]);
@@ -2819,7 +2830,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
                     <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === 'analytics' ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate('analytics'); }}>
                         <BarChart3 className="w-5 h-5 flex-shrink-0" /> Analytics
                     </a>
-                    <a href="https://plexified.co.uk" target="_blank" rel="noreferrer" className="flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text">
+                    <a href={requestUrl} target="_blank" rel="noreferrer" className="flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text">
                         <Sparkles className="w-5 h-5 flex-shrink-0" /> Request Content
                     </a>
                     <a href="#" className="flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text" onClick={(e) => { e.preventDefault(); onLogout(); }}>
@@ -2853,7 +2864,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
                             {currentRoute === 'settings' && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
                         </a>
                     )}
-                    <a href="https://plexified.co.uk" target="_blank" rel="noreferrer" className="relative flex flex-col items-center justify-center gap-1 h-full text-muted flex-1 text-center text-[0.65rem] transition-colors hover:text-text">
+                    <a href={requestUrl} target="_blank" rel="noreferrer" className="relative flex flex-col items-center justify-center gap-1 h-full text-muted flex-1 text-center text-[0.65rem] transition-colors hover:text-text">
                         <Sparkles className="w-5 h-5 flex-shrink-0" /> Request
                     </a>
                     <a href="#" className="relative flex flex-col items-center justify-center gap-1 h-full text-muted flex-1 text-center text-[0.65rem] transition-colors hover:text-text" onClick={(e) => { e.preventDefault(); onLogout(); }}>
@@ -2945,7 +2956,7 @@ const MainApp: React.FC = () => {
 
     return (
         <div className="flex w-full min-h-screen bg-background">
-            {!isPublicStatus && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Plex Server'} adminThumb={sessionInfo?.adminThumb} />}
+            {!isPublicStatus && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Plex Server'} adminThumb={sessionInfo?.adminThumb} requestUrl={sessionInfo?.requestUrl || 'https://plexified.co.uk'} />}
             <div className={`flex-grow flex flex-col items-center p-[2px] md:p-8 pt-20 pb-[80px] md:pt-8 md:pb-8 w-full overflow-x-hidden ${isPublicStatus ? '!pt-8 !pb-8' : ''}`}>
                 {renderView()}
             </div>
