@@ -1021,7 +1021,11 @@ app.get('/api/config', async (req, res) => {
                 newsletterDay: config.newsletterDay || 0,
                 publicDomain: config.publicDomain || 'https://portal.plexified.co.uk',
                 requestUrl: config.requestUrl || 'https://plexified.co.uk',
-                contactUrl: config.contactUrl || ''
+                contactUrl: config.contactUrl || '',
+                sonarrUrl: config.sonarrUrl || '',
+                sonarrApiKey: config.sonarrApiKey || '',
+                radarrUrl: config.radarrUrl || '',
+                radarrApiKey: config.radarrApiKey || ''
             },
         });
     } else {
@@ -1042,7 +1046,11 @@ app.get('/api/config', async (req, res) => {
                 newsletterDay: 0,
                 publicDomain: 'https://portal.plexified.co.uk',
                 requestUrl: 'https://plexified.co.uk',
-                contactUrl: ''
+                contactUrl: '',
+                sonarrUrl: '',
+                sonarrApiKey: '',
+                radarrUrl: '',
+                radarrApiKey: ''
             },
         });
     }
@@ -1052,7 +1060,8 @@ app.post('/api/config', async (req, res) => {
     const { 
         token, serverIdentifier, checkIntervalMinutes, 
         smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, smtpSecure, emailDaysBefore,
-        newsletterFrequency, newsletterDay, publicDomain, requestUrl, contactUrl
+        newsletterFrequency, newsletterDay, publicDomain, requestUrl, contactUrl,
+        sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey
     } = req.body;
 
     if (!token || !serverIdentifier) {
@@ -1085,7 +1094,11 @@ app.post('/api/config', async (req, res) => {
         newsletterDay: parseInt(newsletterDay, 10) || 0,
         publicDomain: publicDomain || 'https://portal.plexified.co.uk',
         requestUrl: requestUrl || 'https://plexified.co.uk',
-        contactUrl: contactUrl || ''
+        contactUrl: contactUrl || '',
+        sonarrUrl: sonarrUrl || '',
+        sonarrApiKey: sonarrApiKey || '',
+        radarrUrl: radarrUrl || '',
+        radarrApiKey: radarrApiKey || ''
     };
     await saveFile(CONFIG_PATH, config);
     log('Configuration saved successfully.');
@@ -2608,6 +2621,54 @@ async function runMonitorCycle() {
   }
   saveHealthData();
 }
+
+app.get('/api/media-stack/summary', async (req, res) => {
+    if (!req.cookies || req.cookies.session !== 'admin') {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+    const config = await loadFile(CONFIG_PATH, {});
+    const fetchArr = async (url, key, endpoint) => {
+        if (!url || !key) return null;
+        try {
+            const u = new URL(endpoint, url);
+            const response = await fetch(u.toString(), {
+                headers: { 'X-Api-Key': key }
+            });
+            if (!response.ok) return null;
+            return await response.json();
+        } catch (e) {
+            return null;
+        }
+    };
+
+    const [sonarrStatus, sonarrQueue, sonarrHistory, sonarrDisk, radarrStatus, radarrQueue, radarrHistory, radarrDisk] = await Promise.all([
+        fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/system/status'),
+        fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/queue'),
+        fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/history?page=1&pageSize=10'),
+        fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/diskspace'),
+        fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/system/status'),
+        fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/queue'),
+        fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/history?page=1&pageSize=10'),
+        fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/diskspace')
+    ]);
+
+    res.json({
+        sonarr: {
+            configured: !!(config.sonarrUrl && config.sonarrApiKey),
+            status: sonarrStatus,
+            queue: sonarrQueue,
+            history: sonarrHistory,
+            disk: sonarrDisk
+        },
+        radarr: {
+            configured: !!(config.radarrUrl && config.radarrApiKey),
+            status: radarrStatus,
+            queue: radarrQueue,
+            history: radarrHistory,
+            disk: radarrDisk
+        }
+    });
+});
 
 // (Endpoints moved up before wildcard route)
 

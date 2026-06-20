@@ -156,8 +156,23 @@ var __iconNode4 = [
 ];
 var Film = createLucideIcon("film", __iconNode4);
 
-// node_modules/lucide-react/dist/esm/icons/house.mjs
+// node_modules/lucide-react/dist/esm/icons/hard-drive.mjs
 var __iconNode5 = [
+  ["path", { d: "M10 16h.01", key: "1bzywj" }],
+  [
+    "path",
+    {
+      d: "M2.212 11.577a2 2 0 0 0-.212.896V18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5.527a2 2 0 0 0-.212-.896L18.55 5.11A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z",
+      key: "18tbho"
+    }
+  ],
+  ["path", { d: "M21.946 12.013H2.054", key: "zqlbp7" }],
+  ["path", { d: "M6 16h.01", key: "1pmjb7" }]
+];
+var HardDrive = createLucideIcon("hard-drive", __iconNode5);
+
+// node_modules/lucide-react/dist/esm/icons/house.mjs
+var __iconNode6 = [
   ["path", { d: "M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8", key: "5wwlr5" }],
   [
     "path",
@@ -167,18 +182,44 @@ var __iconNode5 = [
     }
   ]
 ];
-var House = createLucideIcon("house", __iconNode5);
+var House = createLucideIcon("house", __iconNode6);
+
+// node_modules/lucide-react/dist/esm/icons/layers.mjs
+var __iconNode7 = [
+  [
+    "path",
+    {
+      d: "M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z",
+      key: "zw3jo"
+    }
+  ],
+  [
+    "path",
+    {
+      d: "M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12",
+      key: "1wduqc"
+    }
+  ],
+  [
+    "path",
+    {
+      d: "M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17",
+      key: "kqbvx6"
+    }
+  ]
+];
+var Layers = createLucideIcon("layers", __iconNode7);
 
 // node_modules/lucide-react/dist/esm/icons/log-out.mjs
-var __iconNode6 = [
+var __iconNode8 = [
   ["path", { d: "m16 17 5-5-5-5", key: "1bji2h" }],
   ["path", { d: "M21 12H9", key: "dn1m92" }],
   ["path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4", key: "1uf3rs" }]
 ];
-var LogOut = createLucideIcon("log-out", __iconNode6);
+var LogOut = createLucideIcon("log-out", __iconNode8);
 
 // node_modules/lucide-react/dist/esm/icons/settings.mjs
-var __iconNode7 = [
+var __iconNode9 = [
   [
     "path",
     {
@@ -188,10 +229,10 @@ var __iconNode7 = [
   ],
   ["circle", { cx: "12", cy: "12", r: "3", key: "1v7zrd" }]
 ];
-var Settings = createLucideIcon("settings", __iconNode7);
+var Settings = createLucideIcon("settings", __iconNode9);
 
 // node_modules/lucide-react/dist/esm/icons/sparkles.mjs
-var __iconNode8 = [
+var __iconNode10 = [
   [
     "path",
     {
@@ -203,10 +244,10 @@ var __iconNode8 = [
   ["path", { d: "M22 4h-4", key: "gwowj6" }],
   ["circle", { cx: "4", cy: "20", r: "2", key: "6kqj1y" }]
 ];
-var Sparkles = createLucideIcon("sparkles", __iconNode8);
+var Sparkles = createLucideIcon("sparkles", __iconNode10);
 
 // node_modules/lucide-react/dist/esm/icons/square-play.mjs
-var __iconNode9 = [
+var __iconNode11 = [
   ["rect", { x: "3", y: "3", width: "18", height: "18", rx: "2", key: "h1oib" }],
   [
     "path",
@@ -216,30 +257,42 @@ var __iconNode9 = [
     }
   ]
 ];
-var SquarePlay = createLucideIcon("square-play", __iconNode9);
+var SquarePlay = createLucideIcon("square-play", __iconNode11);
+
+// node_modules/lucide-react/dist/esm/icons/star.mjs
+var __iconNode12 = [
+  [
+    "path",
+    {
+      d: "M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z",
+      key: "r04s7s"
+    }
+  ]
+];
+var Star = createLucideIcon("star", __iconNode12);
 
 // node_modules/lucide-react/dist/esm/icons/trending-up.mjs
-var __iconNode10 = [
+var __iconNode13 = [
   ["path", { d: "M16 7h6v6", key: "box55l" }],
   ["path", { d: "m22 7-8.5 8.5-5-5L2 17", key: "1t1m79" }]
 ];
-var TrendingUp = createLucideIcon("trending-up", __iconNode10);
+var TrendingUp = createLucideIcon("trending-up", __iconNode13);
 
 // node_modules/lucide-react/dist/esm/icons/users.mjs
-var __iconNode11 = [
+var __iconNode14 = [
   ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", key: "1yyitq" }],
   ["path", { d: "M16 3.128a4 4 0 0 1 0 7.744", key: "16gr8j" }],
   ["path", { d: "M22 21v-2a4 4 0 0 0-3-3.87", key: "kshegd" }],
   ["circle", { cx: "9", cy: "7", r: "4", key: "nufk8" }]
 ];
-var Users = createLucideIcon("users", __iconNode11);
+var Users = createLucideIcon("users", __iconNode14);
 
 // node_modules/lucide-react/dist/esm/icons/x.mjs
-var __iconNode12 = [
+var __iconNode15 = [
   ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
   ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
 ];
-var X = createLucideIcon("x", __iconNode12);
+var X = createLucideIcon("x", __iconNode15);
 
 // index.tsx
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
@@ -550,6 +603,12 @@ var SettingsDashboard = () => {
   const [newsletterFrequency, setNewsletterFrequency] = useState("disabled");
   const [newsletterDay, setNewsletterDay] = useState(0);
   const [publicDomain, setPublicDomain] = useState("https://plexified.co.uk");
+  const [requestUrl, setRequestUrl] = useState("https://plexified.co.uk");
+  const [contactUrl, setContactUrl] = useState("");
+  const [sonarrUrl, setSonarrUrl] = useState("");
+  const [sonarrApiKey, setSonarrApiKey] = useState("");
+  const [radarrUrl, setRadarrUrl] = useState("");
+  const [radarrApiKey, setRadarrApiKey] = useState("");
   useEffect(() => {
     if (initialSettings) {
       setToken(initialSettings.token || "");
@@ -565,6 +624,12 @@ var SettingsDashboard = () => {
       setNewsletterFrequency(initialSettings.newsletterFrequency || "disabled");
       setNewsletterDay(initialSettings.newsletterDay || 0);
       setPublicDomain(initialSettings.publicDomain || "https://portal.plexified.co.uk");
+      setRequestUrl(initialSettings.requestUrl || "https://plexified.co.uk");
+      setContactUrl(initialSettings.contactUrl || "");
+      setSonarrUrl(initialSettings.sonarrUrl || "");
+      setSonarrApiKey(initialSettings.sonarrApiKey || "");
+      setRadarrUrl(initialSettings.radarrUrl || "");
+      setRadarrApiKey(initialSettings.radarrApiKey || "");
       setTestRecipient("");
       setServers([]);
       setActiveTab("plex");
@@ -618,7 +683,13 @@ var SettingsDashboard = () => {
       emailDaysBefore,
       newsletterFrequency,
       newsletterDay,
-      publicDomain
+      publicDomain,
+      requestUrl,
+      contactUrl,
+      sonarrUrl,
+      sonarrApiKey,
+      radarrUrl,
+      radarrApiKey
     });
   };
   const handleTestEmail = async () => {
@@ -692,7 +763,8 @@ var SettingsDashboard = () => {
       /* @__PURE__ */ jsxs("div", { className: "settings-tabs", style: { display: "flex", gap: "2rem", marginTop: "1rem", marginBottom: "1.5rem", borderBottom: "1px solid var(--border-color)", paddingBottom: "0.5rem" }, children: [
         /* @__PURE__ */ jsx("button", { onClick: () => setActiveTab("plex"), style: { background: "none", border: "none", color: activeTab === "plex" ? "var(--plex-gold)" : "var(--text-muted)", cursor: "pointer", fontWeight: "bold", fontSize: "1rem", padding: "0.5rem 0", borderBottom: activeTab === "plex" ? "2px solid var(--plex-gold)" : "2px solid transparent" }, children: "Plex Integration" }),
         /* @__PURE__ */ jsx("button", { onClick: () => setActiveTab("smtp"), style: { background: "none", border: "none", color: activeTab === "smtp" ? "var(--plex-gold)" : "var(--text-muted)", cursor: "pointer", fontWeight: "bold", fontSize: "1rem", padding: "0.5rem 0", borderBottom: activeTab === "smtp" ? "2px solid var(--plex-gold)" : "2px solid transparent" }, children: "SMTP Alerts" }),
-        /* @__PURE__ */ jsx("button", { onClick: () => setActiveTab("newsletter"), style: { background: "none", border: "none", color: activeTab === "newsletter" ? "var(--plex-gold)" : "var(--text-muted)", cursor: "pointer", fontWeight: "bold", fontSize: "1rem", padding: "0.5rem 0", borderBottom: activeTab === "newsletter" ? "2px solid var(--plex-gold)" : "2px solid transparent" }, children: "Newsletter" })
+        /* @__PURE__ */ jsx("button", { onClick: () => setActiveTab("newsletter"), style: { background: "none", border: "none", color: activeTab === "newsletter" ? "var(--plex-gold)" : "var(--text-muted)", cursor: "pointer", fontWeight: "bold", fontSize: "1rem", padding: "0.5rem 0", borderBottom: activeTab === "newsletter" ? "2px solid var(--plex-gold)" : "2px solid transparent" }, children: "Newsletter" }),
+        /* @__PURE__ */ jsx("button", { onClick: () => setActiveTab("mediastack"), style: { background: "none", border: "none", color: activeTab === "mediastack" ? "var(--plex-gold)" : "var(--text-muted)", cursor: "pointer", fontWeight: "bold", fontSize: "1rem", padding: "0.5rem 0", borderBottom: activeTab === "mediastack" ? "2px solid var(--plex-gold)" : "2px solid transparent" }, children: "Media Stack" })
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "overflow-y-auto pr-2 flex-grow mb-4 custom-scrollbar", children: [
         activeTab === "plex" && /* @__PURE__ */ jsxs("div", { className: "mb-8", children: [
@@ -726,6 +798,16 @@ var SettingsDashboard = () => {
             /* @__PURE__ */ jsx("label", { htmlFor: "checkInterval", children: "Check Interval (minutes)" }),
             /* @__PURE__ */ jsx("input", { className: "w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all", id: "checkInterval", type: "number", value: checkInterval, onChange: (e) => setCheckInterval(Number(e.target.value)), min: "1" }),
             /* @__PURE__ */ jsx("small", { children: "How often to check for expired users in the background." })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "mb-4", style: { marginTop: "1rem" }, children: [
+            /* @__PURE__ */ jsx("label", { htmlFor: "requestUrl", children: "Request URL" }),
+            /* @__PURE__ */ jsx("input", { className: "w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all", id: "requestUrl", type: "text", value: requestUrl, onChange: (e) => setRequestUrl(e.target.value), placeholder: "https://plexified.co.uk" }),
+            /* @__PURE__ */ jsx("small", { children: "The URL users are redirected to when they click the Request Content button." })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "mb-4", style: { marginTop: "1rem" }, children: [
+            /* @__PURE__ */ jsx("label", { htmlFor: "contactUrl", children: "Contact URL / Email" }),
+            /* @__PURE__ */ jsx("input", { className: "w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all", id: "contactUrl", type: "text", value: contactUrl, onChange: (e) => setContactUrl(e.target.value), placeholder: "mailto:youremail@example.com OR https://wa.me/123456" }),
+            /* @__PURE__ */ jsx("small", { children: 'Used for the "Request Extension" button in expiry emails. Defaults to sending an email to the SMTP User.' })
           ] })
         ] }),
         activeTab === "smtp" && /* @__PURE__ */ jsxs("div", { className: "mb-8", children: [
@@ -834,6 +916,28 @@ var SettingsDashboard = () => {
               /* @__PURE__ */ jsx("button", { className: "px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2", onClick: handleTestNewsletter, disabled: isTestingNewsletter || isSendingNewsletter, children: isTestingNewsletter ? "Generating & Sending..." : "Send Test Newsletter To Admin" }),
               /* @__PURE__ */ jsx("button", { className: "px-4 py-2 bg-plex text-background rounded-md font-medium hover:bg-plex-hover transition-colors flex items-center justify-center gap-2", onClick: handleSendNewsletterNow, disabled: isTestingNewsletter || isSendingNewsletter, children: isSendingNewsletter ? "Sending To All..." : "Send Newsletter To ALL NOW" })
             ] })
+          ] })
+        ] }),
+        activeTab === "mediastack" && /* @__PURE__ */ jsxs("div", { className: "mb-8 animate-fade-in", children: [
+          /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-plex mb-4 border-b border-border pb-2", children: "Sonarr Integration" }),
+          /* @__PURE__ */ jsxs("div", { className: "mb-4", children: [
+            /* @__PURE__ */ jsx("label", { htmlFor: "sonarrUrl", children: "Sonarr URL" }),
+            /* @__PURE__ */ jsx("input", { className: "w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all", id: "sonarrUrl", type: "text", value: sonarrUrl, onChange: (e) => setSonarrUrl(e.target.value), placeholder: "http://localhost:8989" }),
+            /* @__PURE__ */ jsx("small", { children: "The URL to your Sonarr instance." })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "mb-4", children: [
+            /* @__PURE__ */ jsx("label", { htmlFor: "sonarrApiKey", children: "Sonarr API Key" }),
+            /* @__PURE__ */ jsx("input", { className: "w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all", id: "sonarrApiKey", type: "password", value: sonarrApiKey, onChange: (e) => setSonarrApiKey(e.target.value), placeholder: "API Key from Sonarr Settings -> General" })
+          ] }),
+          /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8", children: "Radarr Integration" }),
+          /* @__PURE__ */ jsxs("div", { className: "mb-4", children: [
+            /* @__PURE__ */ jsx("label", { htmlFor: "radarrUrl", children: "Radarr URL" }),
+            /* @__PURE__ */ jsx("input", { className: "w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all", id: "radarrUrl", type: "text", value: radarrUrl, onChange: (e) => setRadarrUrl(e.target.value), placeholder: "http://localhost:7878" }),
+            /* @__PURE__ */ jsx("small", { children: "The URL to your Radarr instance." })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "mb-4", children: [
+            /* @__PURE__ */ jsx("label", { htmlFor: "radarrApiKey", children: "Radarr API Key" }),
+            /* @__PURE__ */ jsx("input", { className: "w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all", id: "radarrApiKey", type: "password", value: radarrApiKey, onChange: (e) => setRadarrApiKey(e.target.value), placeholder: "API Key from Radarr Settings -> General" })
           ] })
         ] })
       ] }),
@@ -1203,6 +1307,136 @@ var PersonalAnalyticsDashboard = ({ username, thumb }) => {
     ] })
   ] });
 };
+var MediaStackDashboard = ({ isAdmin }) => {
+  const [data, setData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!isAdmin) return;
+    const fetchData = async () => {
+      try {
+        const res = await apiFetch("/api/media-stack/summary");
+        if (res.error) throw new Error(res.error);
+        setData(res);
+      } catch (err) {
+        setError(err.message || "Failed to load Media Stack data.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+    const interval = setInterval(fetchData, 3e4);
+    return () => clearInterval(interval);
+  }, [isAdmin]);
+  if (!isAdmin) {
+    return /* @__PURE__ */ jsx("div", { className: "w-full h-[60vh] flex items-center justify-center", children: /* @__PURE__ */ jsxs("div", { className: "text-center bg-card p-12 rounded-2xl border border-border shadow-2xl", children: [
+      /* @__PURE__ */ jsx(Layers, { className: "w-16 h-16 text-muted mx-auto mb-4" }),
+      /* @__PURE__ */ jsx("h2", { className: "text-2xl font-bold text-text mb-2", children: "Access Denied" }),
+      /* @__PURE__ */ jsx("p", { className: "text-muted", children: "Only administrators can view the Media Stack." })
+    ] }) });
+  }
+  if (isLoading) return /* @__PURE__ */ jsx(Loader, { isLoading: true });
+  if (error) return /* @__PURE__ */ jsx("div", { className: "text-center p-8 text-status-expiring", children: error });
+  if (!data) return null;
+  const renderInstance = (name, info) => {
+    if (!info || !info.configured) {
+      return /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-xl p-8 text-center shadow-lg", children: [
+        /* @__PURE__ */ jsx("h3", { className: "text-2xl font-bold text-plex mb-2", children: name }),
+        /* @__PURE__ */ jsx("p", { className: "text-muted mb-4", children: "Not configured. Please add the URL and API Key in Settings." })
+      ] });
+    }
+    const status = info.status;
+    const disk = info.disk ? info.disk[0] : null;
+    const queue = info.queue?.records || [];
+    const history = info.history?.records || [];
+    return /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-6", children: [
+      /* @__PURE__ */ jsxs("div", { className: "bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative overflow-hidden backdrop-blur-sm", children: [
+        /* @__PURE__ */ jsx("div", { className: "absolute top-0 right-0 p-4 opacity-10", children: /* @__PURE__ */ jsx(HardDrive, { className: "w-24 h-24" }) }),
+        /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-4 mb-6", children: [
+          /* @__PURE__ */ jsx("div", { className: "w-12 h-12 rounded-xl bg-plex/10 flex items-center justify-center border border-plex/20", children: /* @__PURE__ */ jsx(Layers, { className: "w-6 h-6 text-plex" }) }),
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("h2", { className: "text-2xl font-bold text-text tracking-wide", children: name }),
+            /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 mt-1", children: [
+              /* @__PURE__ */ jsx("span", { className: "w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" }),
+              /* @__PURE__ */ jsx("span", { className: "text-sm font-medium text-green-500 tracking-wider uppercase", children: "Online" }),
+              status?.version && /* @__PURE__ */ jsxs("span", { className: "text-xs text-muted ml-2", children: [
+                "v",
+                status.version
+              ] })
+            ] })
+          ] })
+        ] }),
+        disk && /* @__PURE__ */ jsxs("div", { className: "bg-background/50 rounded-xl p-4 border border-white/5", children: [
+          /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-end mb-2", children: [
+            /* @__PURE__ */ jsx("span", { className: "text-sm font-bold text-muted uppercase tracking-wider", children: "Free Space" }),
+            /* @__PURE__ */ jsxs("span", { className: "font-bold text-text", children: [
+              (disk.freeSpace / 1024 / 1024 / 1024).toFixed(1),
+              " GB"
+            ] })
+          ] }),
+          /* @__PURE__ */ jsx("div", { className: "w-full bg-white/5 rounded-full h-2 overflow-hidden", children: /* @__PURE__ */ jsx("div", { className: "bg-plex h-full rounded-full", style: { width: `${Math.max(0, 100 - disk.freeSpace / disk.totalSpace * 100)}%` } }) })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative", children: [
+        /* @__PURE__ */ jsxs("h3", { className: "text-lg font-bold text-text mb-4 flex items-center gap-2", children: [
+          /* @__PURE__ */ jsx(Activity, { className: "w-5 h-5 text-plex" }),
+          "Active Downloads (",
+          queue.length,
+          ")"
+        ] }),
+        /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-3", children: queue.length === 0 ? /* @__PURE__ */ jsx("div", { className: "text-center p-6 bg-background/50 rounded-xl border border-white/5 text-muted text-sm", children: "No active downloads" }) : queue.map((item) => /* @__PURE__ */ jsxs("div", { className: "bg-background/50 rounded-xl p-4 border border-white/5", children: [
+          /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-start mb-2", children: [
+            /* @__PURE__ */ jsx("span", { className: "font-bold text-sm text-text line-clamp-1", children: item.title }),
+            /* @__PURE__ */ jsx("span", { className: "text-xs font-bold px-2 py-1 bg-plex/10 text-plex rounded-md whitespace-nowrap", children: item.status })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-center text-xs text-muted mb-2", children: [
+            /* @__PURE__ */ jsxs("span", { children: [
+              item.timeleft || "Unknown",
+              " left"
+            ] }),
+            /* @__PURE__ */ jsxs("span", { children: [
+              ((item.size - item.sizeleft) / 1024 / 1024 / 1024).toFixed(1),
+              " GB / ",
+              (item.size / 1024 / 1024 / 1024).toFixed(1),
+              " GB"
+            ] })
+          ] }),
+          /* @__PURE__ */ jsx("div", { className: "w-full bg-white/5 rounded-full h-1.5 overflow-hidden", children: /* @__PURE__ */ jsx("div", { className: "bg-plex h-full rounded-full transition-all duration-500", style: { width: `${(item.size - item.sizeleft) / item.size * 100}%` } }) })
+        ] }, item.id)) })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative", children: [
+        /* @__PURE__ */ jsxs("h3", { className: "text-lg font-bold text-text mb-4 flex items-center gap-2", children: [
+          /* @__PURE__ */ jsx(FileText, { className: "w-5 h-5 text-plex" }),
+          "Recent History"
+        ] }),
+        /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-3", children: history.length === 0 ? /* @__PURE__ */ jsx("div", { className: "text-center p-6 bg-background/50 rounded-xl border border-white/5 text-muted text-sm", children: "No recent history" }) : history.map((item) => /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-3 bg-background/50 rounded-xl p-3 border border-white/5", children: [
+          /* @__PURE__ */ jsx("div", { className: `w-2 h-full rounded-full ${item.eventType === "grabbed" ? "bg-blue-500" : "bg-green-500"}` }),
+          /* @__PURE__ */ jsxs("div", { className: "flex-grow", children: [
+            /* @__PURE__ */ jsx("div", { className: "font-bold text-sm text-text line-clamp-1", children: item.sourceTitle || item.movie?.title || item.series?.title }),
+            /* @__PURE__ */ jsxs("div", { className: "text-xs text-muted", children: [
+              new Date(item.date).toLocaleString(),
+              " \u2022 ",
+              item.eventType
+            ] })
+          ] })
+        ] }, item.id)) })
+      ] })
+    ] });
+  };
+  return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-7xl animate-fade-in flex flex-col gap-6", children: [
+    /* @__PURE__ */ jsx("div", { className: "flex items-center justify-between gap-4 mb-2", children: /* @__PURE__ */ jsxs("div", { children: [
+      /* @__PURE__ */ jsxs("h1", { className: "text-3xl font-bold text-text uppercase tracking-widest flex items-center gap-3", children: [
+        /* @__PURE__ */ jsx(Layers, { className: "w-8 h-8 text-plex" }),
+        "Media Stack"
+      ] }),
+      /* @__PURE__ */ jsx("p", { className: "text-muted text-sm mt-1", children: "Monitor your Sonarr and Radarr instances" })
+    ] }) }),
+    /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-8", children: [
+      renderInstance("Sonarr", data.sonarr),
+      renderInstance("Radarr", data.radarr)
+    ] })
+  ] });
+};
 var AnalyticsDashboard = ({ isAdmin, sessionInfo }) => {
   if (!isAdmin) {
     return /* @__PURE__ */ jsx(PersonalAnalyticsDashboard, { username: sessionInfo?.session?.username || "User", thumb: null });
@@ -1240,23 +1474,24 @@ var AnalyticsDashboard = ({ isAdmin, sessionInfo }) => {
         ] }),
         /* @__PURE__ */ jsx("p", { className: "text-muted text-sm mt-1", children: "Deep dive into playback history" })
       ] }),
-      /* @__PURE__ */ jsxs(
-        "select",
+      /* @__PURE__ */ jsx("div", { className: "w-48", children: /* @__PURE__ */ jsx(
+        CustomSelect,
         {
           value: days,
-          onChange: (e) => setDays(e.target.value),
-          className: "bg-card text-text border border-border rounded px-4 py-2 text-sm focus:outline-none focus:border-plex",
-          children: [
-            /* @__PURE__ */ jsx("option", { value: "30", children: "Last 30 Days" }),
-            /* @__PURE__ */ jsx("option", { value: "60", children: "Last 60 Days" }),
-            /* @__PURE__ */ jsx("option", { value: "365", children: "Last 1 Year" }),
-            /* @__PURE__ */ jsx("option", { value: "1825", children: "Last 5 Years" }),
-            /* @__PURE__ */ jsx("option", { value: "all", children: "All Time" })
+          onChange: (val) => setDays(val),
+          options: [
+            { label: "Last 1 Day", value: "1" },
+            { label: "Last 7 Days", value: "7" },
+            { label: "Last 30 Days", value: "30" },
+            { label: "Last 60 Days", value: "60" },
+            { label: "Last 1 Year", value: "365" },
+            { label: "Last 5 Years", value: "1825" },
+            { label: "All Time", value: "all" }
           ]
         }
-      )
+      ) })
     ] }),
-    /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6", children: [
+    /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-6", children: [
       /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border", children: [
         /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2", children: [
           /* @__PURE__ */ jsx(Users, { className: "text-plex w-5 h-5" }),
@@ -1304,23 +1539,55 @@ var AnalyticsDashboard = ({ isAdmin, sessionInfo }) => {
           /* @__PURE__ */ jsx("div", { className: "h-2 w-full bg-black/40 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx("div", { className: "h-full bg-gradient-to-r from-plex to-[#e5a00d] rounded-full", style: { width: `${lib.plays / maxLibraryPlays * 100}%` } }) })
         ] }, lib.id)) })
       ] }),
-      /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border lg:col-span-2 xl:col-span-1", children: [
+      /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border col-span-full", children: [
         /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2", children: [
           /* @__PURE__ */ jsx(TrendingUp, { className: "text-plex w-5 h-5" }),
           " Trending Content"
         ] }),
-        /* @__PURE__ */ jsx("div", { className: "grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-2 gap-4", children: topContent.length === 0 ? /* @__PURE__ */ jsx("p", { className: "text-muted text-sm col-span-full", children: "No data available." }) : topContent.slice(0, 6).map((item, idx) => /* @__PURE__ */ jsxs("a", { href: item.plexUrl, target: "_blank", rel: "noreferrer", className: "relative group rounded-lg overflow-hidden aspect-[2/3] bg-black/40 shadow-lg cursor-pointer hover:ring-2 hover:ring-plex block", children: [
-          item.thumbUrl ? /* @__PURE__ */ jsx("img", { src: item.thumbUrl, alt: item.title, className: "w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 opacity-80 group-hover:opacity-100" }) : /* @__PURE__ */ jsx("div", { className: "w-full h-full flex items-center justify-center text-muted", children: /* @__PURE__ */ jsx(Film, { className: "w-8 h-8 opacity-50" }) }),
-          /* @__PURE__ */ jsx("div", { className: "absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" }),
-          /* @__PURE__ */ jsxs("div", { className: "absolute bottom-0 left-0 right-0 p-3", children: [
-            /* @__PURE__ */ jsxs("div", { className: "text-plex font-mono text-[10px] font-bold mb-1 tracking-wider uppercase drop-shadow-md", children: [
+        /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-4", children: topContent.length === 0 ? /* @__PURE__ */ jsx("p", { className: "text-muted text-sm col-span-full", children: "No data available." }) : topContent.slice(0, 10).map((item, idx) => /* @__PURE__ */ jsxs("a", { href: item.plexUrl, target: "_blank", rel: "noreferrer", className: "flex flex-col sm:flex-row bg-black/20 rounded-xl overflow-hidden hover:bg-black/40 transition-all cursor-pointer group hover:ring-1 hover:ring-plex shadow-md", children: [
+          /* @__PURE__ */ jsxs("div", { className: "sm:w-32 lg:w-40 flex-shrink-0 aspect-[2/3] relative", children: [
+            item.thumbUrl ? /* @__PURE__ */ jsx("img", { src: item.thumbUrl, alt: item.title, className: "w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" }) : /* @__PURE__ */ jsx("div", { className: "w-full h-full flex items-center justify-center bg-black/40", children: /* @__PURE__ */ jsx(Film, { className: "w-8 h-8 opacity-50 text-muted" }) }),
+            /* @__PURE__ */ jsxs("div", { className: "absolute top-2 left-2 bg-plex text-black font-bold text-xs px-2 py-1 rounded-md shadow-lg drop-shadow-md", children: [
               "#",
-              idx + 1,
-              " \u2022 ",
-              item.plays,
-              " plays"
+              idx + 1
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "p-4 sm:p-5 flex flex-col justify-between flex-grow", children: [
+            /* @__PURE__ */ jsxs("div", { children: [
+              /* @__PURE__ */ jsxs("div", { className: "flex items-start justify-between gap-2 mb-2", children: [
+                /* @__PURE__ */ jsx("h3", { className: "text-lg sm:text-xl font-bold text-text group-hover:text-plex transition-colors line-clamp-1", children: item.title }),
+                /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1 bg-white/10 px-2 py-1 rounded-md text-xs font-mono text-plex flex-shrink-0 whitespace-nowrap shadow-sm", children: [
+                  /* @__PURE__ */ jsx(SquarePlay, { className: "w-3 h-3" }),
+                  " ",
+                  item.plays,
+                  " plays"
+                ] })
+              ] }),
+              /* @__PURE__ */ jsxs("div", { className: "flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted mb-3 font-medium", children: [
+                item.year && /* @__PURE__ */ jsx("span", { children: item.year }),
+                item.year && (item.contentRating || item.rating || item.duration > 0 || item.genres && item.genres.length > 0) && /* @__PURE__ */ jsx("span", { className: "opacity-50", children: "\u2022" }),
+                item.contentRating && /* @__PURE__ */ jsx("span", { children: item.contentRating }),
+                item.contentRating && (item.rating || item.duration > 0 || item.genres && item.genres.length > 0) && /* @__PURE__ */ jsx("span", { className: "opacity-50", children: "\u2022" }),
+                item.duration > 0 && /* @__PURE__ */ jsxs("span", { children: [
+                  Math.round(item.duration / 6e4),
+                  " min"
+                ] }),
+                item.duration > 0 && item.rating && /* @__PURE__ */ jsx("span", { className: "opacity-50", children: "\u2022" }),
+                item.rating && /* @__PURE__ */ jsxs("span", { className: "flex items-center gap-1 text-yellow-500", children: [
+                  /* @__PURE__ */ jsx(Star, { className: "w-3 h-3 fill-current" }),
+                  " ",
+                  item.rating
+                ] })
+              ] }),
+              /* @__PURE__ */ jsx("p", { className: "text-sm text-text/80 line-clamp-2 sm:line-clamp-3 mb-3 leading-relaxed", children: item.summary || "No summary available." })
             ] }),
-            /* @__PURE__ */ jsx("div", { className: "font-bold text-sm text-text leading-tight drop-shadow-md line-clamp-2", children: item.title })
+            item.genres && item.genres.length > 0 && /* @__PURE__ */ jsxs("div", { className: "flex flex-wrap gap-2 mt-auto", children: [
+              item.genres.slice(0, 4).map((g, i) => /* @__PURE__ */ jsx("span", { className: "text-[10px] uppercase tracking-wider bg-white/5 border border-white/10 text-muted px-2 py-1 rounded-full shadow-sm", children: g }, i)),
+              item.genres.length > 4 && /* @__PURE__ */ jsxs("span", { className: "text-[10px] uppercase tracking-wider bg-white/5 border border-white/10 text-muted px-2 py-1 rounded-full shadow-sm", children: [
+                "+",
+                item.genres.length - 4
+              ] })
+            ] })
           ] })
         ] }, item.key)) })
       ] })
@@ -1459,6 +1726,7 @@ var AdminDashboard = ({ onLogout, onViewUserPortal, onViewStatus, onViewDashboar
   const [isConfigured, setConfigured] = useState(false);
   const [configSettings, setConfigSettings] = useState({ checkIntervalMinutes: 60 });
   const [isUserModalOpen, setUserModalOpen] = useState(false);
+  const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [isLoading, setLoading] = useState(true);
   const [toasts, setToasts] = useState([]);
@@ -1749,7 +2017,7 @@ var AdminDashboard = ({ onLogout, onViewUserPortal, onViewStatus, onViewDashboar
               id: "sortSelect",
               value: sortBy,
               onChange: (val) => setSortBy(val),
-              className: "w-full sm:w-[200px] p-3 sm:p-2.5 rounded-lg border border-border bg-background text-text text-sm outline-none cursor-pointer hover:border-white/20 transition-colors",
+              className: "w-full sm:w-[200px]",
               options: [
                 { label: "Username (A-Z)", value: "username-asc" },
                 { label: "Username (Z-A)", value: "username-desc" },
@@ -1921,6 +2189,10 @@ var SetupWizard = ({ onComplete }) => {
   const [token, setToken] = useState("");
   const [serverIdentifier, setServerIdentifier] = useState("");
   const [servers, setServers] = useState([]);
+  const [sonarrUrl, setSonarrUrl] = useState("");
+  const [sonarrApiKey, setSonarrApiKey] = useState("");
+  const [radarrUrl, setRadarrUrl] = useState("");
+  const [radarrApiKey, setRadarrApiKey] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const handleFetchServers = async () => {
@@ -1957,7 +2229,7 @@ var SetupWizard = ({ onComplete }) => {
     try {
       const res = await apiFetch("/api/config", {
         method: "POST",
-        body: JSON.stringify({ token, serverIdentifier })
+        body: JSON.stringify({ token, serverIdentifier, sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey })
       });
       if (res.error) throw new Error(res.error);
       onComplete();
@@ -2013,6 +2285,25 @@ var SetupWizard = ({ onComplete }) => {
       ] }) : /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-2", children: [
         /* @__PURE__ */ jsx("label", { className: "text-sm font-bold text-muted uppercase tracking-wider", children: "Server Identifier" }),
         /* @__PURE__ */ jsx("input", { type: "text", className: "w-full p-4 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors", placeholder: "Enter your Server Identifier (or Fetch above)", value: serverIdentifier, onChange: (e) => setServerIdentifier(e.target.value), required: true })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "border-t border-border pt-6 mt-2", children: [
+        /* @__PURE__ */ jsx("h3", { className: "text-lg font-bold text-plex mb-4", children: "Optional: Media Stack Integration" }),
+        /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-4", children: [
+          /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-2", children: [
+            /* @__PURE__ */ jsx("label", { className: "text-sm font-bold text-muted uppercase tracking-wider", children: "Sonarr URL & API Key" }),
+            /* @__PURE__ */ jsxs("div", { className: "flex gap-2", children: [
+              /* @__PURE__ */ jsx("input", { type: "text", className: "w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors", placeholder: "http://localhost:8989", value: sonarrUrl, onChange: (e) => setSonarrUrl(e.target.value) }),
+              /* @__PURE__ */ jsx("input", { type: "password", className: "w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors", placeholder: "Sonarr API Key", value: sonarrApiKey, onChange: (e) => setSonarrApiKey(e.target.value) })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-2", children: [
+            /* @__PURE__ */ jsx("label", { className: "text-sm font-bold text-muted uppercase tracking-wider", children: "Radarr URL & API Key" }),
+            /* @__PURE__ */ jsxs("div", { className: "flex gap-2", children: [
+              /* @__PURE__ */ jsx("input", { type: "text", className: "w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors", placeholder: "http://localhost:7878", value: radarrUrl, onChange: (e) => setRadarrUrl(e.target.value) }),
+              /* @__PURE__ */ jsx("input", { type: "password", className: "w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors", placeholder: "Radarr API Key", value: radarrApiKey, onChange: (e) => setRadarrApiKey(e.target.value) })
+            ] })
+          ] })
+        ] })
       ] }),
       /* @__PURE__ */ jsx("button", { type: "submit", disabled: isLoading || !token || !serverIdentifier, className: "w-full py-4 mt-2 bg-plex text-background rounded-lg font-bold text-lg hover:bg-plex-hover transition-colors disabled:opacity-50", children: isLoading ? "Saving..." : "Complete Setup" })
     ] })
@@ -2517,7 +2808,7 @@ var LibraryDashboard = ({ onBack }) => {
     ] })
   ] }) });
 };
-var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb }) => {
+var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, requestUrl }) => {
   useEffect(() => {
     updateFavicon(adminThumb);
   }, [adminThumb]);
@@ -2543,6 +2834,10 @@ var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adm
           onNavigate("analytics");
         }, className: `text-muted hover:text-text transition-colors ${currentRoute === "analytics" ? "text-plex" : ""}`, children: /* @__PURE__ */ jsx(ChartColumn, { className: "w-5 h-5" }) }),
         isAdmin && /* @__PURE__ */ jsxs(Fragment, { children: [
+          /* @__PURE__ */ jsx("button", { onClick: (e) => {
+            e.preventDefault();
+            onNavigate("mediastack");
+          }, className: `text-muted hover:text-text transition-colors ${currentRoute === "mediastack" ? "text-plex" : ""}`, children: /* @__PURE__ */ jsx(Layers, { className: "w-5 h-5" }) }),
           /* @__PURE__ */ jsx("button", { onClick: (e) => {
             e.preventDefault();
             onNavigate("logs");
@@ -2612,7 +2907,14 @@ var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adm
           /* @__PURE__ */ jsx(ChartColumn, { className: "w-5 h-5 flex-shrink-0" }),
           " Analytics"
         ] }),
-        /* @__PURE__ */ jsxs("a", { href: "https://plexified.co.uk", target: "_blank", rel: "noreferrer", className: "flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text", children: [
+        isAdmin && /* @__PURE__ */ jsxs("a", { href: "#", className: `flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === "mediastack" ? "border-l-4 border-plex rounded-l-none bg-white/5 text-text" : ""}`, onClick: (e) => {
+          e.preventDefault();
+          onNavigate("mediastack");
+        }, children: [
+          /* @__PURE__ */ jsx(Layers, { className: "w-5 h-5 flex-shrink-0" }),
+          " Media Stack"
+        ] }),
+        /* @__PURE__ */ jsxs("a", { href: requestUrl, target: "_blank", rel: "noreferrer", className: "flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text", children: [
           /* @__PURE__ */ jsx(Sparkles, { className: "w-5 h-5 flex-shrink-0" }),
           " Request Content"
         ] }),
@@ -2658,6 +2960,14 @@ var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adm
         " Analytics",
         currentRoute === "analytics" && /* @__PURE__ */ jsx("div", { className: "absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" })
       ] }),
+      isAdmin && /* @__PURE__ */ jsxs("a", { href: "#", className: `relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === "mediastack" ? "text-plex font-bold" : "text-muted hover:text-text"}`, onClick: (e) => {
+        e.preventDefault();
+        onNavigate("mediastack");
+      }, children: [
+        /* @__PURE__ */ jsx(Layers, { className: "w-5 h-5 flex-shrink-0" }),
+        " Media",
+        currentRoute === "mediastack" && /* @__PURE__ */ jsx("div", { className: "absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" })
+      ] }),
       isAdmin && /* @__PURE__ */ jsxs("a", { href: "#", className: `relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === "settings" ? "text-plex font-bold" : "text-muted hover:text-text"}`, onClick: (e) => {
         e.preventDefault();
         onNavigate("settings");
@@ -2666,7 +2976,7 @@ var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adm
         " Settings",
         currentRoute === "settings" && /* @__PURE__ */ jsx("div", { className: "absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" })
       ] }),
-      /* @__PURE__ */ jsxs("a", { href: "https://plexified.co.uk", target: "_blank", rel: "noreferrer", className: "relative flex flex-col items-center justify-center gap-1 h-full text-muted flex-1 text-center text-[0.65rem] transition-colors hover:text-text", children: [
+      /* @__PURE__ */ jsxs("a", { href: requestUrl, target: "_blank", rel: "noreferrer", className: "relative flex flex-col items-center justify-center gap-1 h-full text-muted flex-1 text-center text-[0.65rem] transition-colors hover:text-text", children: [
         /* @__PURE__ */ jsx(Sparkles, { className: "w-5 h-5 flex-shrink-0" }),
         " Request"
       ] }),
@@ -2694,6 +3004,7 @@ var MainApp = () => {
       if (route === "settings") path = "/settings";
       if (route === "logs") path = "/logs";
       if (route === "analytics") path = "/analytics";
+      if (route === "mediastack") path = "/mediastack";
       window.history.pushState({}, "", path);
     }
   }, []);
@@ -2707,6 +3018,7 @@ var MainApp = () => {
       else if (path === "/dashboard") setCurrentRoute("dashboard");
       else if (path === "/settings" && data.session.isAdmin) setCurrentRoute("settings");
       else if (path === "/logs" && data.session.isAdmin) setCurrentRoute("logs");
+      else if (path === "/mediastack" && data.session.isAdmin) setCurrentRoute("mediastack");
       else if (path === "/analytics") setCurrentRoute("analytics");
       else if (path === "/settings" && !data.session.isAdmin) setCurrentRoute("user");
       else if (path === "/portal") setCurrentRoute("user");
@@ -2743,12 +3055,13 @@ var MainApp = () => {
     if (currentRoute === "dashboard") return /* @__PURE__ */ jsx(LibraryDashboard, { onBack: () => setRoute(isAdmin ? "admin" : "user") });
     if (currentRoute === "settings" && isAdmin) return /* @__PURE__ */ jsx(SettingsDashboard, {});
     if (currentRoute === "logs" && isAdmin) return /* @__PURE__ */ jsx(LogsDashboard, { onLogout: handleLogout });
+    if (currentRoute === "mediastack" && isAdmin) return /* @__PURE__ */ jsx(MediaStackDashboard, { isAdmin });
     if (currentRoute === "analytics") return /* @__PURE__ */ jsx(AnalyticsDashboard, { isAdmin, sessionInfo });
     if (currentRoute === "admin") return /* @__PURE__ */ jsx(AdminDashboard, { onLogout: handleLogout, onViewUserPortal: () => setRoute("user"), onViewStatus: () => setRoute("status"), onViewDashboard: () => setRoute("dashboard") });
     return /* @__PURE__ */ jsx(UserDashboard, { sessionInfo, onLogout: handleLogout, refreshSession: checkSession, onViewAdmin: () => setRoute("admin"), onViewStatus: () => setRoute("status"), onViewDashboard: () => setRoute("dashboard") });
   };
   return /* @__PURE__ */ jsxs("div", { className: "flex w-full min-h-screen bg-background", children: [
-    !isPublicStatus && /* @__PURE__ */ jsx(Navigation, { currentRoute, onNavigate: setRoute, onLogout: handleLogout, isAdmin, serverName: sessionInfo?.serverName || "Plex Server", adminThumb: sessionInfo?.adminThumb }),
+    !isPublicStatus && /* @__PURE__ */ jsx(Navigation, { currentRoute, onNavigate: setRoute, onLogout: handleLogout, isAdmin, serverName: sessionInfo?.serverName || "Plex Server", adminThumb: sessionInfo?.adminThumb, requestUrl: sessionInfo?.requestUrl || "https://plexified.co.uk" }),
     /* @__PURE__ */ jsx("div", { className: `flex-grow flex flex-col items-center p-[2px] md:p-8 pt-20 pb-[80px] md:pt-8 md:pb-8 w-full overflow-x-hidden ${isPublicStatus ? "!pt-8 !pb-8" : ""}`, children: renderView() })
   ] });
 };
@@ -2861,7 +3174,23 @@ lucide-react/dist/esm/icons/film.mjs:
    * See the LICENSE file in the root directory of this source tree.
    *)
 
+lucide-react/dist/esm/icons/hard-drive.mjs:
+  (**
+   * @license lucide-react v1.21.0 - ISC
+   *
+   * This source code is licensed under the ISC license.
+   * See the LICENSE file in the root directory of this source tree.
+   *)
+
 lucide-react/dist/esm/icons/house.mjs:
+  (**
+   * @license lucide-react v1.21.0 - ISC
+   *
+   * This source code is licensed under the ISC license.
+   * See the LICENSE file in the root directory of this source tree.
+   *)
+
+lucide-react/dist/esm/icons/layers.mjs:
   (**
    * @license lucide-react v1.21.0 - ISC
    *
@@ -2894,6 +3223,14 @@ lucide-react/dist/esm/icons/sparkles.mjs:
    *)
 
 lucide-react/dist/esm/icons/square-play.mjs:
+  (**
+   * @license lucide-react v1.21.0 - ISC
+   *
+   * This source code is licensed under the ISC license.
+   * See the LICENSE file in the root directory of this source tree.
+   *)
+
+lucide-react/dist/esm/icons/star.mjs:
   (**
    * @license lucide-react v1.21.0 - ISC
    *

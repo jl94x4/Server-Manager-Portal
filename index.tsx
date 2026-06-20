@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star } from 'lucide-react';
+import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar } from 'lucide-react';
 
 interface CustomSelectProps {
     id?: string;
@@ -99,6 +99,10 @@ interface AppSettings {
     publicDomain?: string;
     requestUrl?: string;
     contactUrl?: string;
+    sonarrUrl?: string;
+    sonarrApiKey?: string;
+    radarrUrl?: string;
+    radarrApiKey?: string;
 }
 
 interface PlexServer {
@@ -479,6 +483,12 @@ const SettingsDashboard: React.FC = () => {
     const [requestUrl, setRequestUrl] = useState('https://plexified.co.uk');
     const [contactUrl, setContactUrl] = useState('');
 
+    // Media Stack States
+    const [sonarrUrl, setSonarrUrl] = useState('');
+    const [sonarrApiKey, setSonarrApiKey] = useState('');
+    const [radarrUrl, setRadarrUrl] = useState('');
+    const [radarrApiKey, setRadarrApiKey] = useState('');
+
     useEffect(() => {
         if (initialSettings) {
             setToken(initialSettings.token || '');
@@ -496,6 +506,10 @@ const SettingsDashboard: React.FC = () => {
             setPublicDomain(initialSettings.publicDomain || 'https://portal.plexified.co.uk');
             setRequestUrl(initialSettings.requestUrl || 'https://plexified.co.uk');
             setContactUrl(initialSettings.contactUrl || '');
+            setSonarrUrl(initialSettings.sonarrUrl || '');
+            setSonarrApiKey(initialSettings.sonarrApiKey || '');
+            setRadarrUrl(initialSettings.radarrUrl || '');
+            setRadarrApiKey(initialSettings.radarrApiKey || '');
             setTestRecipient('');
             setServers([]);
             setActiveTab('plex');
@@ -555,7 +569,11 @@ const SettingsDashboard: React.FC = () => {
             newsletterDay,
             publicDomain,
             requestUrl,
-            contactUrl
+            contactUrl,
+            sonarrUrl,
+            sonarrApiKey,
+            radarrUrl,
+            radarrApiKey
         });
     };
 
@@ -640,6 +658,7 @@ const SettingsDashboard: React.FC = () => {
                     <button onClick={() => setActiveTab('plex')} style={{ background: 'none', border: 'none', color: activeTab === 'plex' ? 'var(--plex-gold)' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', padding: '0.5rem 0', borderBottom: activeTab === 'plex' ? '2px solid var(--plex-gold)' : '2px solid transparent' }}>Plex Integration</button>
                     <button onClick={() => setActiveTab('smtp')} style={{ background: 'none', border: 'none', color: activeTab === 'smtp' ? 'var(--plex-gold)' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', padding: '0.5rem 0', borderBottom: activeTab === 'smtp' ? '2px solid var(--plex-gold)' : '2px solid transparent' }}>SMTP Alerts</button>
                     <button onClick={() => setActiveTab('newsletter')} style={{ background: 'none', border: 'none', color: activeTab === 'newsletter' ? 'var(--plex-gold)' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', padding: '0.5rem 0', borderBottom: activeTab === 'newsletter' ? '2px solid var(--plex-gold)' : '2px solid transparent' }}>Newsletter</button>
+                    <button onClick={() => setActiveTab('mediastack')} style={{ background: 'none', border: 'none', color: activeTab === 'mediastack' ? 'var(--plex-gold)' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', padding: '0.5rem 0', borderBottom: activeTab === 'mediastack' ? '2px solid var(--plex-gold)' : '2px solid transparent' }}>Media Stack</button>
                 </div>
                 <div className="overflow-y-auto pr-2 flex-grow mb-4 custom-scrollbar">
                     {activeTab === 'plex' && (
@@ -801,6 +820,31 @@ const SettingsDashboard: React.FC = () => {
                                         {isSendingNewsletter ? 'Sending To All...' : 'Send Newsletter To ALL NOW'}
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+                    )}
+                    {activeTab === 'mediastack' && (
+                        <div className="mb-8 animate-fade-in">
+                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Sonarr Integration</h3>
+                            <div className="mb-4">
+                                <label htmlFor="sonarrUrl">Sonarr URL</label>
+                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="sonarrUrl" type="text" value={sonarrUrl} onChange={(e) => setSonarrUrl(e.target.value)} placeholder="http://localhost:8989" />
+                                <small>The URL to your Sonarr instance.</small>
+                            </div>
+                            <div className="mb-4">
+                                <label htmlFor="sonarrApiKey">Sonarr API Key</label>
+                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="sonarrApiKey" type="password" value={sonarrApiKey} onChange={(e) => setSonarrApiKey(e.target.value)} placeholder="API Key from Sonarr Settings -> General" />
+                            </div>
+
+                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8">Radarr Integration</h3>
+                            <div className="mb-4">
+                                <label htmlFor="radarrUrl">Radarr URL</label>
+                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="radarrUrl" type="text" value={radarrUrl} onChange={(e) => setRadarrUrl(e.target.value)} placeholder="http://localhost:7878" />
+                                <small>The URL to your Radarr instance.</small>
+                            </div>
+                            <div className="mb-4">
+                                <label htmlFor="radarrApiKey">Radarr API Key</label>
+                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="radarrApiKey" type="password" value={radarrApiKey} onChange={(e) => setRadarrApiKey(e.target.value)} placeholder="API Key from Radarr Settings -> General" />
                             </div>
                         </div>
                     )}
@@ -1200,6 +1244,165 @@ const PersonalAnalyticsDashboard: React.FC<{ username: string, thumb: string | n
                         </>
                     )}
                 </div>
+            </div>
+        </div>
+    );
+};
+
+const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
+    const [data, setData] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (!isAdmin) return;
+        const fetchData = async () => {
+            try {
+                const res = await apiFetch('/api/media-stack/summary');
+                if (res.error) throw new Error(res.error);
+                setData(res);
+            } catch (err: any) {
+                setError(err.message || 'Failed to load Media Stack data.');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchData();
+        const interval = setInterval(fetchData, 30000);
+        return () => clearInterval(interval);
+    }, [isAdmin]);
+
+    if (!isAdmin) {
+        return (
+            <div className="w-full h-[60vh] flex items-center justify-center">
+                <div className="text-center bg-card p-12 rounded-2xl border border-border shadow-2xl">
+                    <Layers className="w-16 h-16 text-muted mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold text-text mb-2">Access Denied</h2>
+                    <p className="text-muted">Only administrators can view the Media Stack.</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (isLoading) return <Loader isLoading={true} />;
+    if (error) return <div className="text-center p-8 text-status-expiring">{error}</div>;
+    if (!data) return null;
+
+    const renderInstance = (name: string, info: any) => {
+        if (!info || !info.configured) {
+            return (
+                <div className="bg-card border border-border rounded-xl p-8 text-center shadow-lg">
+                    <h3 className="text-2xl font-bold text-plex mb-2">{name}</h3>
+                    <p className="text-muted mb-4">Not configured. Please add the URL and API Key in Settings.</p>
+                </div>
+            );
+        }
+        
+        const status = info.status;
+        const disk = info.disk ? info.disk[0] : null; // typically the first one is the main drive
+        const queue = info.queue?.records || [];
+        const history = info.history?.records || [];
+
+        return (
+            <div className="flex flex-col gap-6">
+                {/* Header Card */}
+                <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative overflow-hidden backdrop-blur-sm">
+                    <div className="absolute top-0 right-0 p-4 opacity-10">
+                        <HardDrive className="w-24 h-24" />
+                    </div>
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="w-12 h-12 rounded-xl bg-plex/10 flex items-center justify-center border border-plex/20">
+                            <Layers className="w-6 h-6 text-plex" />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-bold text-text tracking-wide">{name}</h2>
+                            <div className="flex items-center gap-2 mt-1">
+                                <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse"></span>
+                                <span className="text-sm font-medium text-green-500 tracking-wider uppercase">Online</span>
+                                {status?.version && <span className="text-xs text-muted ml-2">v{status.version}</span>}
+                            </div>
+                        </div>
+                    </div>
+
+                    {disk && (
+                        <div className="bg-background/50 rounded-xl p-4 border border-white/5">
+                            <div className="flex justify-between items-end mb-2">
+                                <span className="text-sm font-bold text-muted uppercase tracking-wider">Free Space</span>
+                                <span className="font-bold text-text">{(disk.freeSpace / 1024 / 1024 / 1024).toFixed(1)} GB</span>
+                            </div>
+                            <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
+                                <div className="bg-plex h-full rounded-full" style={{ width: `${Math.max(0, 100 - (disk.freeSpace / disk.totalSpace) * 100)}%` }}></div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Queue */}
+                <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative">
+                    <h3 className="text-lg font-bold text-text mb-4 flex items-center gap-2">
+                        <Activity className="w-5 h-5 text-plex" />
+                        Active Downloads ({queue.length})
+                    </h3>
+                    <div className="flex flex-col gap-3">
+                        {queue.length === 0 ? (
+                            <div className="text-center p-6 bg-background/50 rounded-xl border border-white/5 text-muted text-sm">No active downloads</div>
+                        ) : queue.map((item: any) => (
+                            <div key={item.id} className="bg-background/50 rounded-xl p-4 border border-white/5">
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className="font-bold text-sm text-text line-clamp-1">{item.title}</span>
+                                    <span className="text-xs font-bold px-2 py-1 bg-plex/10 text-plex rounded-md whitespace-nowrap">{item.status}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-xs text-muted mb-2">
+                                    <span>{item.timeleft || 'Unknown'} left</span>
+                                    <span>{((item.size - item.sizeleft) / 1024 / 1024 / 1024).toFixed(1)} GB / {(item.size / 1024 / 1024 / 1024).toFixed(1)} GB</span>
+                                </div>
+                                <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
+                                    <div className="bg-plex h-full rounded-full transition-all duration-500" style={{ width: `${((item.size - item.sizeleft) / item.size) * 100}%` }}></div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* History */}
+                <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 relative">
+                    <h3 className="text-lg font-bold text-text mb-4 flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-plex" />
+                        Recent History
+                    </h3>
+                    <div className="flex flex-col gap-3">
+                        {history.length === 0 ? (
+                            <div className="text-center p-6 bg-background/50 rounded-xl border border-white/5 text-muted text-sm">No recent history</div>
+                        ) : history.map((item: any) => (
+                            <div key={item.id} className="flex items-center gap-3 bg-background/50 rounded-xl p-3 border border-white/5">
+                                <div className={`w-2 h-full rounded-full ${item.eventType === 'grabbed' ? 'bg-blue-500' : 'bg-green-500'}`}></div>
+                                <div className="flex-grow">
+                                    <div className="font-bold text-sm text-text line-clamp-1">{item.sourceTitle || item.movie?.title || item.series?.title}</div>
+                                    <div className="text-xs text-muted">{new Date(item.date).toLocaleString()} • {item.eventType}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    return (
+        <div className="w-full max-w-7xl animate-fade-in flex flex-col gap-6">
+            <div className="flex items-center justify-between gap-4 mb-2">
+                <div>
+                    <h1 className="text-3xl font-bold text-text uppercase tracking-widest flex items-center gap-3">
+                        <Layers className="w-8 h-8 text-plex" />
+                        Media Stack
+                    </h1>
+                    <p className="text-muted text-sm mt-1">Monitor your Sonarr and Radarr instances</p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {renderInstance('Sonarr', data.sonarr)}
+                {renderInstance('Radarr', data.radarr)}
             </div>
         </div>
     );
@@ -2073,6 +2276,10 @@ const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
     const [token, setToken] = useState('');
     const [serverIdentifier, setServerIdentifier] = useState('');
     const [servers, setServers] = useState<PlexServer[]>([]);
+    const [sonarrUrl, setSonarrUrl] = useState('');
+    const [sonarrApiKey, setSonarrApiKey] = useState('');
+    const [radarrUrl, setRadarrUrl] = useState('');
+    const [radarrApiKey, setRadarrApiKey] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -2113,7 +2320,7 @@ const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
         try {
             const res = await apiFetch('/api/config', {
                 method: 'POST',
-                body: JSON.stringify({ token, serverIdentifier })
+                body: JSON.stringify({ token, serverIdentifier, sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey })
             });
             if (res.error) throw new Error(res.error);
             onComplete();
@@ -2170,6 +2377,27 @@ const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
                             <input type="text" className="w-full p-4 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="Enter your Server Identifier (or Fetch above)" value={serverIdentifier} onChange={e => setServerIdentifier(e.target.value)} required />
                         </div>
                     )}
+                    
+                    <div className="border-t border-border pt-6 mt-2">
+                        <h3 className="text-lg font-bold text-plex mb-4">Optional: Media Stack Integration</h3>
+                        <div className="flex flex-col gap-4">
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-bold text-muted uppercase tracking-wider">Sonarr URL & API Key</label>
+                                <div className="flex gap-2">
+                                    <input type="text" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="http://localhost:8989" value={sonarrUrl} onChange={e => setSonarrUrl(e.target.value)} />
+                                    <input type="password" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="Sonarr API Key" value={sonarrApiKey} onChange={e => setSonarrApiKey(e.target.value)} />
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-bold text-muted uppercase tracking-wider">Radarr URL & API Key</label>
+                                <div className="flex gap-2">
+                                    <input type="text" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="http://localhost:7878" value={radarrUrl} onChange={e => setRadarrUrl(e.target.value)} />
+                                    <input type="password" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="Radarr API Key" value={radarrApiKey} onChange={e => setRadarrApiKey(e.target.value)} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <button type="submit" disabled={isLoading || !token || !serverIdentifier} className="w-full py-4 mt-2 bg-plex text-background rounded-lg font-bold text-lg hover:bg-plex-hover transition-colors disabled:opacity-50">
                         {isLoading ? 'Saving...' : 'Complete Setup'}
                     </button>
@@ -2789,7 +3017,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
 interface NavigationProps {
     currentRoute: string;
-    onNavigate: (route: 'admin' | 'user' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics') => void;
+    onNavigate: (route: 'admin' | 'user' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack') => void;
     onLogout: () => void;
     isAdmin: boolean;
     serverName: string;
@@ -2824,6 +3052,9 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
                     </button>
                     {isAdmin && (
                         <>
+                            <button onClick={(e) => { e.preventDefault(); onNavigate('mediastack'); }} className={`text-muted hover:text-text transition-colors ${currentRoute === 'mediastack' ? 'text-plex' : ''}`}>
+                                <Layers className="w-5 h-5" />
+                            </button>
                             <button onClick={(e) => { e.preventDefault(); onNavigate('logs'); }} className={`text-muted hover:text-text transition-colors ${currentRoute === 'logs' ? 'text-plex' : ''}`}>
                                 <FileText className="w-5 h-5" />
                             </button>
@@ -2878,6 +3109,11 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
                     <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === 'analytics' ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate('analytics'); }}>
                         <BarChart3 className="w-5 h-5 flex-shrink-0" /> Analytics
                     </a>
+                    {isAdmin && (
+                        <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === 'mediastack' ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate('mediastack'); }}>
+                            <Layers className="w-5 h-5 flex-shrink-0" /> Media Stack
+                        </a>
+                    )}
                     <a href={requestUrl} target="_blank" rel="noreferrer" className="flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text">
                         <Sparkles className="w-5 h-5 flex-shrink-0" /> Request Content
                     </a>
@@ -2907,6 +3143,12 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
                         {currentRoute === 'analytics' && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
                     </a>
                     {isAdmin && (
+                        <a href="#" className={`relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === 'mediastack' ? 'text-plex font-bold' : 'text-muted hover:text-text'}`} onClick={(e) => { e.preventDefault(); onNavigate('mediastack'); }}>
+                            <Layers className="w-5 h-5 flex-shrink-0" /> Media
+                            {currentRoute === 'mediastack' && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
+                        </a>
+                    )}
+                    {isAdmin && (
                         <a href="#" className={`relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === 'settings' ? 'text-plex font-bold' : 'text-muted hover:text-text'}`} onClick={(e) => { e.preventDefault(); onNavigate('settings'); }}>
                             <Settings className="w-5 h-5 flex-shrink-0" /> Settings
                             {currentRoute === 'settings' && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
@@ -2925,10 +3167,10 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
 };
 
 const MainApp: React.FC = () => {
-    const [currentRoute, setCurrentRoute] = useState<'login' | 'admin' | 'user' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'loading'>('loading');
+    const [currentRoute, setCurrentRoute] = useState<'login' | 'admin' | 'user' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'loading'>('loading');
     const [sessionInfo, setSessionInfo] = useState<any>(null);
 
-    const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'loading') => {
+    const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'loading') => {
         setCurrentRoute(route);
         if (route !== 'loading') {
             let path = '/';
@@ -2939,6 +3181,7 @@ const MainApp: React.FC = () => {
             if (route === 'settings') path = '/settings';
             if (route === 'logs') path = '/logs';
             if (route === 'analytics') path = '/analytics';
+            if (route === 'mediastack') path = '/mediastack';
             window.history.pushState({}, '', path);
         }
     }, []);
@@ -2953,6 +3196,7 @@ const MainApp: React.FC = () => {
             else if (path === '/dashboard') setCurrentRoute('dashboard');
             else if (path === '/settings' && data.session.isAdmin) setCurrentRoute('settings');
             else if (path === '/logs' && data.session.isAdmin) setCurrentRoute('logs');
+            else if (path === '/mediastack' && data.session.isAdmin) setCurrentRoute('mediastack');
             else if (path === '/analytics') setCurrentRoute('analytics');
             else if (path === '/settings' && !data.session.isAdmin) setCurrentRoute('user');
             else if (path === '/portal') setCurrentRoute('user');
@@ -2997,6 +3241,7 @@ const MainApp: React.FC = () => {
         if (currentRoute === 'dashboard') return <LibraryDashboard onBack={() => setRoute(isAdmin ? 'admin' : 'user')} />;
         if (currentRoute === 'settings' && isAdmin) return <SettingsDashboard />;
         if (currentRoute === 'logs' && isAdmin) return <LogsDashboard onLogout={handleLogout} />;
+        if (currentRoute === 'mediastack' && isAdmin) return <MediaStackDashboard isAdmin={isAdmin} />;
         if (currentRoute === 'analytics') return <AnalyticsDashboard isAdmin={isAdmin} sessionInfo={sessionInfo} />;
         if (currentRoute === 'admin') return <AdminDashboard onLogout={handleLogout} onViewUserPortal={() => setRoute('user')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} />;
         return <UserDashboard sessionInfo={sessionInfo} onLogout={handleLogout} refreshSession={checkSession} onViewAdmin={() => setRoute('admin')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} />;
