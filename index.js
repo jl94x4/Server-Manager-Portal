@@ -2058,11 +2058,17 @@ app.get('/api/plex/dashboard', requireAuth, async (req, res) => {
                     grandparentTitle: m.grandparentTitle,
                     year: m.year,
                     thumb: m.grandparentThumb || m.parentThumb || m.thumb,
+                    user: m.User ? m.User.title : 'Unknown User',
+                    userThumb: m.User ? m.User.thumb : null,
                     playerProduct: player.product || 'Unknown Device',
                     playerTitle: player.title || 'Unknown Player',
+                    playerAddress: player.address || 'Unknown IP',
+                    sessionLocation: session.location || 'Unknown',
                     state: player.state || 'playing',
                     isTranscoding: !!isTranscoding,
+                    resolution: (m.Media && m.Media[0] && m.Media[0].videoResolution) ? m.Media[0].videoResolution : null,
                     progress: progress,
+                    timeRemaining: Math.max(0, duration - viewOffset),
                     bandwidth: (session && session.bandwidth) || (m.Media && m.Media[0] && m.Media[0].bitrate) || 0,
                     plexUrl: plexUrl
                 };

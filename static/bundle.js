@@ -3074,18 +3074,28 @@ var LibraryDashboard = ({ onBack }) => {
             /* @__PURE__ */ jsx("div", { className: "w-full pb-[150%]" }),
             /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=300&height=450`, alt: session.title, loading: "lazy", className: "absolute inset-0 w-full h-full object-cover drop-shadow-2xl" })
           ] }),
-          /* @__PURE__ */ jsxs("div", { className: "p-3 md:p-4 flex flex-col flex-grow min-w-0 justify-center", children: [
-            /* @__PURE__ */ jsxs("div", { className: "activity-header mb-1", children: [
-              /* @__PURE__ */ jsxs("div", { className: "activity-title-group", children: [
-                /* @__PURE__ */ jsx("div", { className: "text-base md:text-lg font-bold text-text truncate", children: session.grandparentTitle ? session.grandparentTitle : session.title }),
-                session.grandparentTitle && /* @__PURE__ */ jsx("div", { className: "text-xs md:text-sm text-muted truncate", children: session.title })
-              ] }),
-              /* @__PURE__ */ jsx("div", { className: "activity-player text-[10px] md:text-xs text-muted truncate mt-0.5", children: session.playerProduct })
+          /* @__PURE__ */ jsxs("div", { className: "p-3 md:p-4 flex flex-col flex-grow min-w-0 justify-center relative", children: [
+            /* @__PURE__ */ jsxs("div", { className: "absolute top-3 right-3 flex items-center gap-2 bg-black/50 backdrop-blur-md rounded-full pr-3 p-1 shadow-md border border-white/5", children: [
+              /* @__PURE__ */ jsx("img", { src: session.userThumb ? `/api/plex/image?path=${encodeURIComponent(session.userThumb)}&width=100&height=100` : "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y", alt: session.user, className: "w-5 h-5 rounded-full object-cover", onError: (e) => {
+                e.currentTarget.src = "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
+              } }),
+              /* @__PURE__ */ jsx("span", { className: "text-[10px] font-bold text-white/90 truncate max-w-[80px] md:max-w-[100px]", children: session.user })
             ] }),
-            /* @__PURE__ */ jsxs("div", { className: "activity-details flex flex-col gap-1", children: [
+            /* @__PURE__ */ jsx("div", { className: "activity-header mb-1 pr-24 md:pr-32", children: /* @__PURE__ */ jsxs("div", { className: "activity-title-group", children: [
+              /* @__PURE__ */ jsx("div", { className: "text-base md:text-lg font-bold text-text truncate", children: session.grandparentTitle ? session.grandparentTitle : session.title }),
+              session.grandparentTitle && /* @__PURE__ */ jsx("div", { className: "text-xs md:text-sm text-muted truncate", children: session.title })
+            ] }) }),
+            /* @__PURE__ */ jsxs("div", { className: "flex flex-wrap gap-1.5 mb-3 mt-1", children: [
+              session.resolution && /* @__PURE__ */ jsx("span", { className: "bg-white/10 text-white/90 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide border border-white/10", children: session.resolution.includes("p") || session.resolution.includes("k") ? session.resolution : `${session.resolution}p` }),
+              /* @__PURE__ */ jsx("span", { className: `text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide border ${session.sessionLocation === "lan" ? "bg-status-active/20 text-status-active border-status-active/30" : "bg-plex/20 text-plex border-plex/30"}`, children: session.sessionLocation === "lan" ? "Local" : "Remote" })
+            ] }),
+            /* @__PURE__ */ jsxs("div", { className: "activity-details flex flex-col gap-1 mt-auto", children: [
               /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-start text-[10px] md:text-xs border-b border-white/5 pb-1", children: [
                 /* @__PURE__ */ jsx("span", { className: "text-muted uppercase tracking-wider font-bold mt-0.5", children: "PLAYER" }),
-                /* @__PURE__ */ jsx("span", { className: "detail-value text-right break-words max-w-[130px] md:max-w-[180px]", children: session.playerTitle })
+                /* @__PURE__ */ jsxs("div", { className: "flex flex-col items-end text-right break-words max-w-[130px] md:max-w-[180px]", children: [
+                  /* @__PURE__ */ jsx("span", { className: "detail-value", children: session.playerTitle }),
+                  /* @__PURE__ */ jsx("span", { className: "text-[9px] text-muted/70", children: session.playerAddress })
+                ] })
               ] }),
               /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-center text-[10px] md:text-xs border-b border-white/5 pb-1", children: [
                 /* @__PURE__ */ jsx("span", { className: "text-muted uppercase tracking-wider font-bold", children: "STREAM" }),
@@ -3093,7 +3103,14 @@ var LibraryDashboard = ({ onBack }) => {
               ] }),
               /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-center text-[10px] md:text-xs border-b border-white/5 pb-1", children: [
                 /* @__PURE__ */ jsx("span", { className: "text-muted uppercase tracking-wider font-bold", children: "STATE" }),
-                /* @__PURE__ */ jsx("span", { className: "detail-value", children: session.state.charAt(0).toUpperCase() + session.state.slice(1) })
+                /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
+                  session.timeRemaining > 0 && session.state === "playing" && /* @__PURE__ */ jsxs("span", { className: "text-[9px] text-muted/80", children: [
+                    Math.floor(session.timeRemaining / 36e5) > 0 ? `${Math.floor(session.timeRemaining / 36e5)}h ` : "",
+                    Math.floor(session.timeRemaining % 36e5 / 6e4),
+                    "m left"
+                  ] }),
+                  /* @__PURE__ */ jsx("span", { className: "detail-value font-bold", children: session.state.charAt(0).toUpperCase() + session.state.slice(1) })
+                ] })
               ] }),
               /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-center text-[10px] md:text-xs pb-1", children: [
                 /* @__PURE__ */ jsx("span", { className: "text-muted uppercase tracking-wider font-bold", children: "BANDWIDTH" }),

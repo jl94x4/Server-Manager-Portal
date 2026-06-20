@@ -3282,20 +3282,36 @@ const LibraryDashboard: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                             <div className="w-full pb-[150%]"></div>
                                             <img src={`/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=300&height=450`} alt={session.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover drop-shadow-2xl" />
                                         </div>
-                                        <div className="p-3 md:p-4 flex flex-col flex-grow min-w-0 justify-center">
-                                            <div className="activity-header mb-1">
+                                        <div className="p-3 md:p-4 flex flex-col flex-grow min-w-0 justify-center relative">
+                                            {/* User Avatar Badge (Top Right) */}
+                                            <div className="absolute top-3 right-3 flex items-center gap-2 bg-black/50 backdrop-blur-md rounded-full pr-3 p-1 shadow-md border border-white/5">
+                                                <img src={session.userThumb ? `/api/plex/image?path=${encodeURIComponent(session.userThumb)}&width=100&height=100` : 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'} alt={session.user} className="w-5 h-5 rounded-full object-cover" onError={(e) => { e.currentTarget.src = 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'; }} />
+                                                <span className="text-[10px] font-bold text-white/90 truncate max-w-[80px] md:max-w-[100px]">{session.user}</span>
+                                            </div>
+
+                                            <div className="activity-header mb-1 pr-24 md:pr-32">
                                                 <div className="activity-title-group">
                                                     <div className="text-base md:text-lg font-bold text-text truncate">{session.grandparentTitle ? session.grandparentTitle : session.title}</div>
                                                     {session.grandparentTitle && <div className="text-xs md:text-sm text-muted truncate">{session.title}</div>}
                                                 </div>
-                                                <div className="activity-player text-[10px] md:text-xs text-muted truncate mt-0.5">
-                                                    {session.playerProduct}
-                                                </div>
                                             </div>
-                                            <div className="activity-details flex flex-col gap-1">
+                                            
+                                            <div className="flex flex-wrap gap-1.5 mb-3 mt-1">
+                                                {session.resolution && (
+                                                    <span className="bg-white/10 text-white/90 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide border border-white/10">{session.resolution.includes('p') || session.resolution.includes('k') ? session.resolution : `${session.resolution}p`}</span>
+                                                )}
+                                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide border ${session.sessionLocation === 'lan' ? 'bg-status-active/20 text-status-active border-status-active/30' : 'bg-plex/20 text-plex border-plex/30'}`}>
+                                                    {session.sessionLocation === 'lan' ? 'Local' : 'Remote'}
+                                                </span>
+                                            </div>
+
+                                            <div className="activity-details flex flex-col gap-1 mt-auto">
                                                 <div className="flex justify-between items-start text-[10px] md:text-xs border-b border-white/5 pb-1">
                                                     <span className="text-muted uppercase tracking-wider font-bold mt-0.5">PLAYER</span>
-                                                    <span className="detail-value text-right break-words max-w-[130px] md:max-w-[180px]">{session.playerTitle}</span>
+                                                    <div className="flex flex-col items-end text-right break-words max-w-[130px] md:max-w-[180px]">
+                                                        <span className="detail-value">{session.playerTitle}</span>
+                                                        <span className="text-[9px] text-muted/70">{session.playerAddress}</span>
+                                                    </div>
                                                 </div>
                                                 <div className="flex justify-between items-center text-[10px] md:text-xs border-b border-white/5 pb-1">
                                                     <span className="text-muted uppercase tracking-wider font-bold">STREAM</span>
@@ -3305,7 +3321,15 @@ const LibraryDashboard: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                                 </div>
                                                 <div className="flex justify-between items-center text-[10px] md:text-xs border-b border-white/5 pb-1">
                                                     <span className="text-muted uppercase tracking-wider font-bold">STATE</span>
-                                                    <span className="detail-value">{session.state.charAt(0).toUpperCase() + session.state.slice(1)}</span>
+                                                    <div className="flex items-center gap-1.5">
+                                                        {session.timeRemaining > 0 && session.state === 'playing' && (
+                                                            <span className="text-[9px] text-muted/80">
+                                                                {Math.floor(session.timeRemaining / 3600000) > 0 ? `${Math.floor(session.timeRemaining / 3600000)}h ` : ''}
+                                                                {Math.floor((session.timeRemaining % 3600000) / 60000)}m left
+                                                            </span>
+                                                        )}
+                                                        <span className="detail-value font-bold">{session.state.charAt(0).toUpperCase() + session.state.slice(1)}</span>
+                                                    </div>
                                                 </div>
                                                 <div className="flex justify-between items-center text-[10px] md:text-xs pb-1">
                                                     <span className="text-muted uppercase tracking-wider font-bold">BANDWIDTH</span>
