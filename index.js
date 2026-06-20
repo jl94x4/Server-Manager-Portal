@@ -2067,6 +2067,8 @@ app.get('/api/plex/dashboard', requireAuth, async (req, res) => {
                     state: player.state || 'playing',
                     isTranscoding: !!isTranscoding,
                     resolution: (m.Media && m.Media[0] && m.Media[0].videoResolution) ? m.Media[0].videoResolution : null,
+                    season: m.parentIndex,
+                    episode: m.index,
                     progress: progress,
                     timeRemaining: Math.max(0, duration - viewOffset),
                     bandwidth: (session && session.bandwidth) || (m.Media && m.Media[0] && m.Media[0].bitrate) || 0,

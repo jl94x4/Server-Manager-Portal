@@ -3291,7 +3291,13 @@ const LibraryDashboard: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                             <div className="activity-header mb-1 pr-24 md:pr-32">
                                                 <div className="activity-title-group">
                                                     <div className="text-base md:text-lg font-bold text-text truncate">{session.grandparentTitle ? session.grandparentTitle : session.title}</div>
-                                                    {session.grandparentTitle && <div className="text-xs md:text-sm text-muted truncate">{session.title}</div>}
+                                                    {session.type === 'episode' && session.season !== undefined && session.episode !== undefined ? (
+                                                        <div className="text-xs md:text-sm text-muted truncate">
+                                                            {session.title} | S{String(session.season).padStart(2, '0')}E{String(session.episode).padStart(2, '0')}
+                                                        </div>
+                                                    ) : (
+                                                        session.grandparentTitle && <div className="text-xs md:text-sm text-muted truncate">{session.title}</div>
+                                                    )}
                                                 </div>
                                             </div>
                                             
