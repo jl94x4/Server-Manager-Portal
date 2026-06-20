@@ -623,6 +623,34 @@ const revokePlexAccess = async (user, config) => {
     }
 };
 
+const inviteUserToPlex = async (user, config) => {
+    if (!user.email || !config.serverIdentifier) {
+        log(`Error: Cannot invite ${user.username} due to missing email or server ID.`);
+        return false;
+    }
+    log(`Inviting user to Plex: ${user.username} (${user.email})`);
+    try {
+        const inviteRes = await apiFetch(`https://plex.tv/api/servers/${config.serverIdentifier}/shared_servers`, config.plexToken, {
+            method: 'POST',
+            body: JSON.stringify({
+                server_id: config.serverIdentifier,
+                shared_server: { invited_email: user.email }
+            }),
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!inviteRes.ok) {
+            const errText = await inviteRes.text();
+            log(`Note: Plex API returned an error during invite (${inviteRes.status}): ${errText}`);
+            return false;
+        }
+        return true;
+    } catch (error) {
+        log(`An exception occurred while inviting user ${user.username}: ${error.message}`);
+        return false;
+    }
+};
+
 
 const sendExpiryEmail = async (config, user, hasLogo) => {
     if (!user.email) {
@@ -1770,6 +1798,19 @@ app.put('/api/users/:id', requireAdmin, async (req, res) => {
         let hasLogo = false;
         try { await fs.access(logoPath); hasLogo = true; } catch (e) {}
         await sendAdjustmentEmail(config, users[userIndex], hasLogo);
+
+        // Auto re-invite if revoked and new date is in the future
+        if (users[userIndex].plexAccessStatus === 'revoked') {
+            const days = getDaysUntilExpiry(users[userIndex].expiryDate);
+            if (days === null || days >= 0) {
+                const invited = await inviteUserToPlex(users[userIndex], config);
+                if (invited) {
+                    users[userIndex].plexAccessStatus = 'pending';
+                    await saveFile(USERS_PATH, users);
+                    await appendAuditLog('relink_invite_sent', req.user, users[userIndex]);
+                }
+            }
+        }
     }
 
     res.json(users[userIndex]);
@@ -1817,6 +1858,18 @@ app.post('/api/users/bulk-update', requireAdmin, async (req, res) => {
                 updatedCount++;
                 await appendAuditLog('user_bulk_updated', req.user, user, { action, customDate: customDate || null });
                 await sendAdjustmentEmail(config, user, hasLogo);
+
+                // Auto re-invite if revoked and new date is in the future
+                if (user.plexAccessStatus === 'revoked') {
+                    const days = getDaysUntilExpiry(user.expiryDate);
+                    if (days === null || days >= 0) {
+                        const invited = await inviteUserToPlex(user, config);
+                        if (invited) {
+                            user.plexAccessStatus = 'pending';
+                            await appendAuditLog('relink_invite_sent', req.user, user);
+                        }
+                    }
+                }
             }
         }
 
