@@ -242,17 +242,8 @@ var __iconNode11 = [
 ];
 var LogOut = createLucideIcon("log-out", __iconNode11);
 
-// node_modules/lucide-react/dist/esm/icons/monitor-smartphone.mjs
-var __iconNode12 = [
-  ["path", { d: "M18 8V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h8", key: "10dyio" }],
-  ["path", { d: "M10 19v-3.96 3.15", key: "1irgej" }],
-  ["path", { d: "M7 19h5", key: "qswx4l" }],
-  ["rect", { width: "6", height: "10", x: "16", y: "12", rx: "2", key: "1egngj" }]
-];
-var MonitorSmartphone = createLucideIcon("monitor-smartphone", __iconNode12);
-
 // node_modules/lucide-react/dist/esm/icons/settings.mjs
-var __iconNode13 = [
+var __iconNode12 = [
   [
     "path",
     {
@@ -262,10 +253,10 @@ var __iconNode13 = [
   ],
   ["circle", { cx: "12", cy: "12", r: "3", key: "1v7zrd" }]
 ];
-var Settings = createLucideIcon("settings", __iconNode13);
+var Settings = createLucideIcon("settings", __iconNode12);
 
 // node_modules/lucide-react/dist/esm/icons/sparkles.mjs
-var __iconNode14 = [
+var __iconNode13 = [
   [
     "path",
     {
@@ -277,10 +268,10 @@ var __iconNode14 = [
   ["path", { d: "M22 4h-4", key: "gwowj6" }],
   ["circle", { cx: "4", cy: "20", r: "2", key: "6kqj1y" }]
 ];
-var Sparkles = createLucideIcon("sparkles", __iconNode14);
+var Sparkles = createLucideIcon("sparkles", __iconNode13);
 
 // node_modules/lucide-react/dist/esm/icons/square-play.mjs
-var __iconNode15 = [
+var __iconNode14 = [
   ["rect", { x: "3", y: "3", width: "18", height: "18", rx: "2", key: "h1oib" }],
   [
     "path",
@@ -290,10 +281,10 @@ var __iconNode15 = [
     }
   ]
 ];
-var SquarePlay = createLucideIcon("square-play", __iconNode15);
+var SquarePlay = createLucideIcon("square-play", __iconNode14);
 
 // node_modules/lucide-react/dist/esm/icons/star.mjs
-var __iconNode16 = [
+var __iconNode15 = [
   [
     "path",
     {
@@ -302,37 +293,37 @@ var __iconNode16 = [
     }
   ]
 ];
-var Star = createLucideIcon("star", __iconNode16);
+var Star = createLucideIcon("star", __iconNode15);
 
 // node_modules/lucide-react/dist/esm/icons/trending-up.mjs
-var __iconNode17 = [
+var __iconNode16 = [
   ["path", { d: "M16 7h6v6", key: "box55l" }],
   ["path", { d: "m22 7-8.5 8.5-5-5L2 17", key: "1t1m79" }]
 ];
-var TrendingUp = createLucideIcon("trending-up", __iconNode17);
+var TrendingUp = createLucideIcon("trending-up", __iconNode16);
 
 // node_modules/lucide-react/dist/esm/icons/tv.mjs
-var __iconNode18 = [
+var __iconNode17 = [
   ["path", { d: "m17 2-5 5-5-5", key: "16satq" }],
   ["rect", { width: "20", height: "15", x: "2", y: "7", rx: "2", key: "1e6viu" }]
 ];
-var Tv = createLucideIcon("tv", __iconNode18);
+var Tv = createLucideIcon("tv", __iconNode17);
 
 // node_modules/lucide-react/dist/esm/icons/users.mjs
-var __iconNode19 = [
+var __iconNode18 = [
   ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", key: "1yyitq" }],
   ["path", { d: "M16 3.128a4 4 0 0 1 0 7.744", key: "16gr8j" }],
   ["path", { d: "M22 21v-2a4 4 0 0 0-3-3.87", key: "kshegd" }],
   ["circle", { cx: "9", cy: "7", r: "4", key: "nufk8" }]
 ];
-var Users = createLucideIcon("users", __iconNode19);
+var Users = createLucideIcon("users", __iconNode18);
 
 // node_modules/lucide-react/dist/esm/icons/x.mjs
-var __iconNode20 = [
+var __iconNode19 = [
   ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
   ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
 ];
-var X = createLucideIcon("x", __iconNode20);
+var X = createLucideIcon("x", __iconNode19);
 
 // index.tsx
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
@@ -1956,14 +1947,14 @@ var AnalyticsDashboard = ({ isAdmin, sessionInfo }) => {
         /* @__PURE__ */ jsx("div", { className: "bg-plex/10 p-4 rounded-full", children: /* @__PURE__ */ jsx(SquarePlay, { className: "text-plex w-8 h-8" }) }),
         /* @__PURE__ */ jsxs("div", { children: [
           /* @__PURE__ */ jsx("p", { className: "text-muted text-sm uppercase tracking-wider font-bold mb-1", children: "Total Playbacks" }),
-          /* @__PURE__ */ jsx("p", { className: "text-3xl font-black text-text", children: totalPlaybacks.toLocaleString() })
+          /* @__PURE__ */ jsx("p", { className: "text-2xl font-black text-text", children: totalPlaybacks.toLocaleString() })
         ] })
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border flex items-center gap-4", children: [
-        /* @__PURE__ */ jsx("div", { className: "bg-plex/10 p-4 rounded-full", children: /* @__PURE__ */ jsx(MonitorSmartphone, { className: "text-plex w-8 h-8" }) }),
+        /* @__PURE__ */ jsx("div", { className: "bg-plex/10 p-4 rounded-full", children: /* @__PURE__ */ jsx(Users, { className: "text-plex w-8 h-8" }) }),
         /* @__PURE__ */ jsxs("div", { children: [
-          /* @__PURE__ */ jsx("p", { className: "text-muted text-sm uppercase tracking-wider font-bold mb-1", children: "Top Device" }),
-          /* @__PURE__ */ jsx("p", { className: "text-xl font-bold text-text truncate max-w-[150px]", title: topDevices.length > 0 ? topDevices[0].name : "N/A", children: topDevices.length > 0 ? topDevices[0].name : "N/A" })
+          /* @__PURE__ */ jsx("p", { className: "text-muted text-sm uppercase tracking-wider font-bold mb-1", children: "Unique Viewers" }),
+          /* @__PURE__ */ jsx("p", { className: "text-lg font-bold text-text truncate max-w-[150px]", title: String(topUsers.length), children: topUsers.length })
         ] })
       ] }),
       /* @__PURE__ */ jsx("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border flex items-center gap-4 col-span-1 sm:col-span-2", children: /* @__PURE__ */ jsxs("div", { className: "w-full h-full flex flex-col justify-center", children: [
@@ -2048,54 +2039,29 @@ var AnalyticsDashboard = ({ isAdmin, sessionInfo }) => {
           ] })
         ] }, user.id)) })
       ] }),
-      /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-6 lg:col-span-1", children: [
-        /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border", children: [
-          /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2", children: [
-            /* @__PURE__ */ jsx(SquarePlay, { className: "text-plex w-5 h-5" }),
-            " Popular Libraries"
-          ] }),
-          /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-5 mt-2", children: topLibraries.length === 0 ? /* @__PURE__ */ jsx("p", { className: "text-muted text-sm", children: "No data available." }) : topLibraries.map((lib, idx) => /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-2", children: [
-            /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-end", children: [
-              /* @__PURE__ */ jsxs("span", { className: "font-bold text-text flex items-center gap-2", children: [
-                /* @__PURE__ */ jsxs("span", { className: "text-muted text-xs", children: [
-                  "#",
-                  idx + 1
-                ] }),
-                " ",
-                lib.title
-              ] }),
-              /* @__PURE__ */ jsxs("span", { className: "text-xs text-muted font-mono", children: [
-                lib.plays,
-                " plays"
-              ] })
-            ] }),
-            /* @__PURE__ */ jsx("div", { className: "h-2 w-full bg-black/40 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx("div", { className: "h-full bg-gradient-to-r from-plex to-[#e5a00d] rounded-full", style: { width: `${lib.plays / maxLibraryPlays * 100}%` } }) })
-          ] }, lib.id)) })
+      /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-6 lg:col-span-1", children: /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border", children: [
+        /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2", children: [
+          /* @__PURE__ */ jsx(SquarePlay, { className: "text-plex w-5 h-5" }),
+          " Popular Libraries"
         ] }),
-        /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border", children: [
-          /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2", children: [
-            /* @__PURE__ */ jsx(MonitorSmartphone, { className: "text-plex w-5 h-5" }),
-            " Most Used Devices"
-          ] }),
-          /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-5 mt-2", children: topDevices.length === 0 ? /* @__PURE__ */ jsx("p", { className: "text-muted text-sm", children: "No data available." }) : topDevices.map((dev, idx) => /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-2", children: [
-            /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-end", children: [
-              /* @__PURE__ */ jsxs("span", { className: "font-bold text-text flex items-center gap-2 truncate pr-2", children: [
-                /* @__PURE__ */ jsxs("span", { className: "text-muted text-xs flex-shrink-0", children: [
-                  "#",
-                  idx + 1
-                ] }),
-                " ",
-                /* @__PURE__ */ jsx("span", { className: "truncate", children: dev.name })
+        /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-5 mt-2", children: topLibraries.length === 0 ? /* @__PURE__ */ jsx("p", { className: "text-muted text-sm", children: "No data available." }) : topLibraries.map((lib, idx) => /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-2", children: [
+          /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-end", children: [
+            /* @__PURE__ */ jsxs("span", { className: "font-bold text-text flex items-center gap-2", children: [
+              /* @__PURE__ */ jsxs("span", { className: "text-muted text-xs", children: [
+                "#",
+                idx + 1
               ] }),
-              /* @__PURE__ */ jsxs("span", { className: "text-xs text-muted font-mono flex-shrink-0", children: [
-                dev.plays,
-                " plays"
-              ] })
+              " ",
+              lib.title
             ] }),
-            /* @__PURE__ */ jsx("div", { className: "h-2 w-full bg-black/40 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx("div", { className: "h-full bg-gradient-to-r from-plex to-[#e5a00d] rounded-full", style: { width: `${dev.plays / maxDevicePlays * 100}%` } }) })
-          ] }, idx)) })
-        ] })
-      ] }),
+            /* @__PURE__ */ jsxs("span", { className: "text-xs text-muted font-mono", children: [
+              lib.plays,
+              " plays"
+            ] })
+          ] }),
+          /* @__PURE__ */ jsx("div", { className: "h-2 w-full bg-black/40 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx("div", { className: "h-full bg-gradient-to-r from-plex to-[#e5a00d] rounded-full", style: { width: `${lib.plays / maxLibraryPlays * 100}%` } }) })
+        ] }, lib.id)) })
+      ] }) }),
       /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border col-span-full", children: [
         /* @__PURE__ */ jsxs("div", { className: "flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4", children: [
           /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text uppercase tracking-wider flex items-center gap-2", children: [
@@ -3882,14 +3848,6 @@ lucide-react/dist/esm/icons/layers.mjs:
    *)
 
 lucide-react/dist/esm/icons/log-out.mjs:
-  (**
-   * @license lucide-react v1.21.0 - ISC
-   *
-   * This source code is licensed under the ISC license.
-   * See the LICENSE file in the root directory of this source tree.
-   *)
-
-lucide-react/dist/esm/icons/monitor-smartphone.mjs:
   (**
    * @license lucide-react v1.21.0 - ISC
    *

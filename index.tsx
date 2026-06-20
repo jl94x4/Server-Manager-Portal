@@ -1966,16 +1966,16 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
                     </div>
                     <div>
                         <p className="text-muted text-sm uppercase tracking-wider font-bold mb-1">Total Playbacks</p>
-                        <p className="text-3xl font-black text-text">{totalPlaybacks.toLocaleString()}</p>
+                        <p className="text-2xl font-black text-text">{totalPlaybacks.toLocaleString()}</p>
                     </div>
                 </div>
                 <div className="bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border flex items-center gap-4">
                     <div className="bg-plex/10 p-4 rounded-full">
-                        <MonitorSmartphone className="text-plex w-8 h-8" />
+                        <Users className="text-plex w-8 h-8" />
                     </div>
                     <div>
-                        <p className="text-muted text-sm uppercase tracking-wider font-bold mb-1">Top Device</p>
-                        <p className="text-xl font-bold text-text truncate max-w-[150px]" title={topDevices.length > 0 ? topDevices[0].name : 'N/A'}>{topDevices.length > 0 ? topDevices[0].name : 'N/A'}</p>
+                        <p className="text-muted text-sm uppercase tracking-wider font-bold mb-1">Unique Viewers</p>
+                        <p className="text-lg font-bold text-text truncate max-w-[150px]" title={String(topUsers.length)}>{topUsers.length}</p>
                     </div>
                 </div>
                 <div className="bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border flex items-center gap-4 col-span-1 sm:col-span-2">
@@ -2078,24 +2078,6 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
                                     </div>
                                     <div className="h-2 w-full bg-black/40 rounded-full overflow-hidden">
                                         <div className="h-full bg-gradient-to-r from-plex to-[#e5a00d] rounded-full" style={{ width: `${(lib.plays / maxLibraryPlays) * 100}%` }}></div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Top Devices Card */}
-                    <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border">
-                        <h2 className="text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><MonitorSmartphone className="text-plex w-5 h-5" /> Most Used Devices</h2>
-                        <div className="flex flex-col gap-5 mt-2">
-                            {topDevices.length === 0 ? <p className="text-muted text-sm">No data available.</p> : topDevices.map((dev, idx) => (
-                                <div key={idx} className="flex flex-col gap-2">
-                                    <div className="flex justify-between items-end">
-                                        <span className="font-bold text-text flex items-center gap-2 truncate pr-2"><span className="text-muted text-xs flex-shrink-0">#{idx + 1}</span> <span className="truncate">{dev.name}</span></span>
-                                        <span className="text-xs text-muted font-mono flex-shrink-0">{dev.plays} plays</span>
-                                    </div>
-                                    <div className="h-2 w-full bg-black/40 rounded-full overflow-hidden">
-                                        <div className="h-full bg-gradient-to-r from-plex to-[#e5a00d] rounded-full" style={{ width: `${(dev.plays / maxDevicePlays) * 100}%` }}></div>
                                     </div>
                                 </div>
                             ))}
