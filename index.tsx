@@ -1880,7 +1880,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: () => v
                                 id="sortSelect"
                                 value={sortBy}
                                 onChange={(val) => setSortBy(val as any)}
-                                className="w-full sm:w-[200px] p-3 sm:p-2.5 rounded-lg border border-border bg-background text-text text-sm outline-none cursor-pointer hover:border-white/20 transition-colors"
+                                className="w-full sm:w-[200px]"
                                 options={[
                                     { label: 'Username (A-Z)', value: 'username-asc' },
                                     { label: 'Username (Z-A)', value: 'username-desc' },
