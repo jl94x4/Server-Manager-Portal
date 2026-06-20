@@ -242,8 +242,17 @@ var __iconNode11 = [
 ];
 var LogOut = createLucideIcon("log-out", __iconNode11);
 
-// node_modules/lucide-react/dist/esm/icons/settings.mjs
+// node_modules/lucide-react/dist/esm/icons/monitor-smartphone.mjs
 var __iconNode12 = [
+  ["path", { d: "M18 8V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h8", key: "10dyio" }],
+  ["path", { d: "M10 19v-3.96 3.15", key: "1irgej" }],
+  ["path", { d: "M7 19h5", key: "qswx4l" }],
+  ["rect", { width: "6", height: "10", x: "16", y: "12", rx: "2", key: "1egngj" }]
+];
+var MonitorSmartphone = createLucideIcon("monitor-smartphone", __iconNode12);
+
+// node_modules/lucide-react/dist/esm/icons/settings.mjs
+var __iconNode13 = [
   [
     "path",
     {
@@ -253,10 +262,10 @@ var __iconNode12 = [
   ],
   ["circle", { cx: "12", cy: "12", r: "3", key: "1v7zrd" }]
 ];
-var Settings = createLucideIcon("settings", __iconNode12);
+var Settings = createLucideIcon("settings", __iconNode13);
 
 // node_modules/lucide-react/dist/esm/icons/sparkles.mjs
-var __iconNode13 = [
+var __iconNode14 = [
   [
     "path",
     {
@@ -268,10 +277,10 @@ var __iconNode13 = [
   ["path", { d: "M22 4h-4", key: "gwowj6" }],
   ["circle", { cx: "4", cy: "20", r: "2", key: "6kqj1y" }]
 ];
-var Sparkles = createLucideIcon("sparkles", __iconNode13);
+var Sparkles = createLucideIcon("sparkles", __iconNode14);
 
 // node_modules/lucide-react/dist/esm/icons/square-play.mjs
-var __iconNode14 = [
+var __iconNode15 = [
   ["rect", { x: "3", y: "3", width: "18", height: "18", rx: "2", key: "h1oib" }],
   [
     "path",
@@ -281,10 +290,10 @@ var __iconNode14 = [
     }
   ]
 ];
-var SquarePlay = createLucideIcon("square-play", __iconNode14);
+var SquarePlay = createLucideIcon("square-play", __iconNode15);
 
 // node_modules/lucide-react/dist/esm/icons/star.mjs
-var __iconNode15 = [
+var __iconNode16 = [
   [
     "path",
     {
@@ -293,37 +302,37 @@ var __iconNode15 = [
     }
   ]
 ];
-var Star = createLucideIcon("star", __iconNode15);
+var Star = createLucideIcon("star", __iconNode16);
 
 // node_modules/lucide-react/dist/esm/icons/trending-up.mjs
-var __iconNode16 = [
+var __iconNode17 = [
   ["path", { d: "M16 7h6v6", key: "box55l" }],
   ["path", { d: "m22 7-8.5 8.5-5-5L2 17", key: "1t1m79" }]
 ];
-var TrendingUp = createLucideIcon("trending-up", __iconNode16);
+var TrendingUp = createLucideIcon("trending-up", __iconNode17);
 
 // node_modules/lucide-react/dist/esm/icons/tv.mjs
-var __iconNode17 = [
+var __iconNode18 = [
   ["path", { d: "m17 2-5 5-5-5", key: "16satq" }],
   ["rect", { width: "20", height: "15", x: "2", y: "7", rx: "2", key: "1e6viu" }]
 ];
-var Tv = createLucideIcon("tv", __iconNode17);
+var Tv = createLucideIcon("tv", __iconNode18);
 
 // node_modules/lucide-react/dist/esm/icons/users.mjs
-var __iconNode18 = [
+var __iconNode19 = [
   ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", key: "1yyitq" }],
   ["path", { d: "M16 3.128a4 4 0 0 1 0 7.744", key: "16gr8j" }],
   ["path", { d: "M22 21v-2a4 4 0 0 0-3-3.87", key: "kshegd" }],
   ["circle", { cx: "9", cy: "7", r: "4", key: "nufk8" }]
 ];
-var Users = createLucideIcon("users", __iconNode18);
+var Users = createLucideIcon("users", __iconNode19);
 
 // node_modules/lucide-react/dist/esm/icons/x.mjs
-var __iconNode19 = [
+var __iconNode20 = [
   ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
   ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
 ];
-var X = createLucideIcon("x", __iconNode19);
+var X = createLucideIcon("x", __iconNode20);
 
 // index.tsx
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
@@ -3873,6 +3882,14 @@ lucide-react/dist/esm/icons/layers.mjs:
    *)
 
 lucide-react/dist/esm/icons/log-out.mjs:
+  (**
+   * @license lucide-react v1.21.0 - ISC
+   *
+   * This source code is licensed under the ISC license.
+   * See the LICENSE file in the root directory of this source tree.
+   *)
+
+lucide-react/dist/esm/icons/monitor-smartphone.mjs:
   (**
    * @license lucide-react v1.21.0 - ISC
    *
