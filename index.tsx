@@ -360,6 +360,7 @@ const UserModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (user:
     const [joiningDate, setJoiningDate] = useState(formatDate(new Date().toISOString()));
     const [expiryDate, setExpiryDate] = useState<string | null>(formatDate(addMonths(new Date(), 1).toISOString()));
     const [exemptFromCleanup, setExemptFromCleanup] = useState(false);
+    const [optOutNewsletter, setOptOutNewsletter] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -367,12 +368,14 @@ const UserModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (user:
             setJoiningDate(formatDate(user.joiningDate));
             setExpiryDate(user.expiryDate ? formatDate(user.expiryDate) : null);
             setExemptFromCleanup(!!user.exemptFromCleanup);
+            setOptOutNewsletter(!!user.optOutNewsletter);
         } else {
             // Reset state for new user (if ever implemented)
             setUsername('');
             setJoiningDate(formatDate(new Date().toISOString()));
             setExpiryDate(formatDate(addMonths(new Date(), 1).toISOString()));
             setExemptFromCleanup(false);
+            setOptOutNewsletter(false);
         }
     }, [user, isOpen]);
 
@@ -380,7 +383,7 @@ const UserModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (user:
 
     const handleSave = () => {
         if (!user) return;
-        const updatedUser: User = { ...user, expiryDate, exemptFromCleanup };
+        const updatedUser: User = { ...user, expiryDate, exemptFromCleanup, optOutNewsletter };
         onSave(updatedUser);
     };
 
@@ -427,6 +430,18 @@ const UserModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (user:
                         className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${exemptFromCleanup ? 'bg-plex' : 'bg-border'}`}
                     >
                         <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${exemptFromCleanup ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                </div>
+                <div className="mb-4 flex items-center justify-between bg-black/10 p-4 rounded-lg border border-border">
+                    <div>
+                        <label className="font-bold block mb-1">Disable Newsletter</label>
+                        <span className="text-xs text-muted block">Stop automated emails for this user</span>
+                    </div>
+                    <button 
+                        onClick={() => setOptOutNewsletter(!optOutNewsletter)}
+                        className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${optOutNewsletter ? 'bg-plex' : 'bg-border'}`}
+                    >
+                        <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${optOutNewsletter ? 'translate-x-6' : 'translate-x-1'}`} />
                     </button>
                 </div>
                 <div className="flex justify-end gap-4 mt-8 pt-4 border-t border-border">
@@ -2479,7 +2494,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: () => v
         try {
             const updatedUser = await apiFetch(`/api/users/${userToSave.id}`, {
                 method: 'PUT',
-                body: JSON.stringify({ expiryDate: userToSave.expiryDate })
+                body: JSON.stringify({ expiryDate: userToSave.expiryDate, exemptFromCleanup: userToSave.exemptFromCleanup, optOutNewsletter: userToSave.optOutNewsletter })
             });
             setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
             handleCloseModal();
