@@ -2157,12 +2157,30 @@ app.get('/api/plex/analytics', requireAdmin, async (req, res) => {
 
         const topUsers = Object.values(userCounts).sort((a, b) => b.plays - a.plays).slice(0, 10);
         const topLibraries = Object.values(libraryCounts).sort((a, b) => b.plays - a.plays).slice(0, 10);
-        const topContent = Object.values(contentCounts).sort((a, b) => b.plays - a.plays).slice(0, 10).map(c => {
+        let topContent = Object.values(contentCounts).sort((a, b) => b.plays - a.plays).slice(0, 10).map(c => {
             if (c.thumb) {
                 c.thumbUrl = `/api/plex/image?path=${encodeURIComponent(c.thumb)}`;
             }
             return c;
         });
+
+        // Fetch rich metadata for top content
+        topContent = await Promise.all(topContent.map(async (c) => {
+            try {
+                const metadataId = c.key.split('/').pop();
+                const metaRes = await fetch(`${uri}/library/metadata/${metadataId}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+                if (metaRes && metaRes.MediaContainer && metaRes.MediaContainer.Metadata && metaRes.MediaContainer.Metadata.length > 0) {
+                    const meta = metaRes.MediaContainer.Metadata[0];
+                    c.summary = meta.summary || '';
+                    c.year = meta.year || '';
+                    c.rating = meta.rating || meta.audienceRating || '';
+                    c.contentRating = meta.contentRating || '';
+                    c.duration = meta.duration || 0;
+                    c.genres = meta.Genre ? meta.Genre.map(g => g.tag) : [];
+                }
+            } catch (e) {}
+            return c;
+        }));
 
         res.json({ topUsers, topLibraries, topContent });
     } catch (e) {
