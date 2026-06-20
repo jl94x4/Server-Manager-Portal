@@ -212,7 +212,10 @@ const sendEmail = async (config, to, subject, html, customTransporter = null) =>
     try {
         const info = await transporter.sendMail(mailOptions);
         log(`Email sent successfully: ${info.messageId}`);
-        await appendAuditLog('system_email_sent', { username: 'System', email: config.smtpFrom || config.smtpUser }, { username: 'Recipient', email: to }, { subject });
+        const users = await loadFile(USERS_PATH, []);
+        const foundUser = users.find(u => u.email === to);
+        const targetUsername = foundUser ? foundUser.username : 'Recipient';
+        await appendAuditLog('system_email_sent', { username: 'System', email: config.smtpFrom || config.smtpUser }, { username: targetUsername, email: to }, { subject });
         return true;
     } catch (error) {
         log(`Error sending email to ${to}: ${error.message}`);
