@@ -3571,7 +3571,7 @@ const MainApp: React.FC = () => {
     return (
         <div className="flex w-full min-h-screen bg-background">
             {!isPublicStatus && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Plex Server'} adminThumb={sessionInfo?.adminThumb} requestUrl={sessionInfo?.requestUrl || 'https://plexified.co.uk'} />}
-            <div className={`flex-grow flex flex-col items-center p-[2px] md:p-8 pt-20 pb-[80px] md:pt-8 md:pb-8 w-full overflow-x-hidden ${isPublicStatus ? '!pt-8 !pb-8' : ''}`}>
+            <div className={`flex-grow flex flex-col items-center p-4 md:p-8 pt-20 pb-[80px] md:pt-8 md:pb-8 w-full overflow-x-hidden ${isPublicStatus ? '!pt-8 !pb-8' : ''}`}>
                 {renderView()}
             </div>
         </div>

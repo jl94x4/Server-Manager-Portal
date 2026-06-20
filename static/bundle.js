@@ -3363,7 +3363,7 @@ var MainApp = () => {
   };
   return /* @__PURE__ */ jsxs("div", { className: "flex w-full min-h-screen bg-background", children: [
     !isPublicStatus && /* @__PURE__ */ jsx(Navigation, { currentRoute, onNavigate: setRoute, onLogout: handleLogout, isAdmin, serverName: sessionInfo?.serverName || "Plex Server", adminThumb: sessionInfo?.adminThumb, requestUrl: sessionInfo?.requestUrl || "https://plexified.co.uk" }),
-    /* @__PURE__ */ jsx("div", { className: `flex-grow flex flex-col items-center p-[2px] md:p-8 pt-20 pb-[80px] md:pt-8 md:pb-8 w-full overflow-x-hidden ${isPublicStatus ? "!pt-8 !pb-8" : ""}`, children: renderView() })
+    /* @__PURE__ */ jsx("div", { className: `flex-grow flex flex-col items-center p-4 md:p-8 pt-20 pb-[80px] md:pt-8 md:pb-8 w-full overflow-x-hidden ${isPublicStatus ? "!pt-8 !pb-8" : ""}`, children: renderView() })
   ] });
 };
 var container = document.getElementById("root");
