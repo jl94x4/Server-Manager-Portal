@@ -786,7 +786,7 @@ var SettingsDashboard = () => {
       setIsSendingNewsletter(false);
     }
   };
-  return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-7xl mx-auto flex flex-col", children: [
+  return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-[1600px] mx-auto flex flex-col", children: [
     /* @__PURE__ */ jsx(Loader, { isLoading }),
     /* @__PURE__ */ jsx("div", { className: "fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] flex flex-col-reverse gap-2 items-center", children: toasts.map((toast) => /* @__PURE__ */ jsx(Toast, { ...toast, onDismiss: () => setToasts((t) => t.filter((item) => item.id !== toast.id)) }, toast.id)) }),
     /* @__PURE__ */ jsxs("header", { className: "hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0", children: [
@@ -1301,7 +1301,7 @@ var PersonalAnalyticsDashboard = ({ username, thumb }) => {
     apiFetch(`/api/plex/analytics/me?days=${days}`).then((res) => setData(res)).catch(() => {
     }).finally(() => setLoading(false));
   }, [days]);
-  return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-7xl animate-fade-in flex flex-col gap-6", children: [
+  return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-[1600px] animate-fade-in flex flex-col gap-6", children: [
     /* @__PURE__ */ jsxs("div", { className: "flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2", children: [
       /* @__PURE__ */ jsxs("div", { children: [
         /* @__PURE__ */ jsxs("h1", { className: "text-3xl font-bold text-text uppercase tracking-widest flex items-center gap-3", children: [
@@ -1642,7 +1642,7 @@ var MediaStackDashboard = ({ isAdmin }) => {
       ] })
     ] });
   };
-  return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-7xl animate-fade-in flex flex-col gap-6", children: [
+  return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-[1600px] animate-fade-in flex flex-col gap-6", children: [
     /* @__PURE__ */ jsx("div", { className: "flex items-center justify-between gap-4 mb-2", children: /* @__PURE__ */ jsxs("div", { children: [
       /* @__PURE__ */ jsxs("h1", { className: "text-3xl font-bold text-text uppercase tracking-widest flex items-center gap-3", children: [
         /* @__PURE__ */ jsx(Layers, { className: "w-8 h-8 text-plex" }),
@@ -1811,7 +1811,7 @@ var AnalyticsDashboard = ({ isAdmin, sessionInfo }) => {
   if (!analyticsData) return null;
   const { topUsers, topLibraries, topContent } = analyticsData;
   const maxLibraryPlays = Math.max(...topLibraries.map((l) => l.plays), 1);
-  return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-7xl animate-fade-in flex flex-col gap-6", children: [
+  return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-[1600px] animate-fade-in flex flex-col gap-6", children: [
     /* @__PURE__ */ jsxs("div", { className: "flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2", children: [
       /* @__PURE__ */ jsxs("div", { children: [
         /* @__PURE__ */ jsxs("h1", { className: "text-3xl font-bold text-text uppercase tracking-widest flex items-center gap-3", children: [
@@ -2001,7 +2001,7 @@ var LogsDashboard = ({ onLogout }) => {
   const isConfigured = true;
   const filteredAuditLog = auditEntries.filter((e) => e.event !== "system_email_sent");
   const emailLogs = auditEntries.filter((e) => e.event === "system_email_sent");
-  return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-7xl mx-auto flex flex-col", children: [
+  return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-[1600px] mx-auto flex flex-col", children: [
     /* @__PURE__ */ jsx(Loader, { isLoading }),
     /* @__PURE__ */ jsx("div", { className: "fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] flex flex-col-reverse gap-2 items-center", children: toasts.map((toast) => /* @__PURE__ */ jsx(Toast, { ...toast, onDismiss: () => setToasts((t) => t.filter((item) => item.id !== toast.id)) }, toast.id)) }),
     /* @__PURE__ */ jsx("header", { className: "hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0", children: /* @__PURE__ */ jsx("h1", { className: "text-xl md:text-3xl font-bold text-plex", children: "System Logs" }) }),
@@ -2317,7 +2317,7 @@ var AdminDashboard = ({ onLogout, onViewUserPortal, onViewStatus, onViewDashboar
   }, [users, searchQuery, statusFilter, sortBy]);
   const filteredUserIds = useMemo2(() => filteredAndSortedUsers.map((u) => u.id), [filteredAndSortedUsers]);
   const allFilteredSelected = filteredUserIds.length > 0 && filteredUserIds.every((id) => selectedUserIds.includes(id));
-  return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-7xl mx-auto flex flex-col", children: [
+  return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-[1600px] mx-auto flex flex-col", children: [
     /* @__PURE__ */ jsx(Loader, { isLoading }),
     /* @__PURE__ */ jsx("div", { className: "fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] flex flex-col-reverse gap-2 items-center", children: toasts.map((toast) => /* @__PURE__ */ jsx(Toast, { ...toast, onDismiss: () => setToasts((t) => t.filter((item) => item.id !== toast.id)) }, toast.id)) }),
     /* @__PURE__ */ jsx("header", { className: "hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0", children: /* @__PURE__ */ jsx("h1", { className: "text-xl md:text-3xl font-bold text-plex", children: "Admin Portal" }) }),
@@ -2970,7 +2970,7 @@ var StatusDashboard = ({ onBack, isAdmin, isPublic }) => {
   const { config, healthData } = statusData;
   const services = config?.services || [];
   const groups = config?.groups || [];
-  return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-6xl mx-auto flex flex-col", children: [
+  return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-[1600px] mx-auto flex flex-col", children: [
     /* @__PURE__ */ jsxs("header", { className: "flex items-center gap-4 w-full mb-8 pb-4 border-b border-border", children: [
       isPublic && /* @__PURE__ */ jsx("button", { onClick: onBack, className: "p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors flex items-center justify-center text-muted hover:text-text", children: /* @__PURE__ */ jsx("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24", children: /* @__PURE__ */ jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M10 19l-7-7m0 0l7-7m-7 7h18" }) }) }),
       /* @__PURE__ */ jsx("h2", { className: "text-2xl font-bold text-text", children: "Server Status" })
@@ -3042,7 +3042,7 @@ var LibraryDashboard = ({ onBack }) => {
   const directStreams = totalStreams - transcodingStreams;
   const totalBandwidthKbps = dashboardData?.activeSessions?.reduce((acc, s) => acc + (s.bandwidth || 0), 0) || 0;
   const totalBandwidthMbps = (totalBandwidthKbps / 1e3).toFixed(2);
-  return /* @__PURE__ */ jsx("div", { className: "w-[calc(100%-8px)] md:w-[95%] max-w-[1400px] mx-auto flex flex-col min-h-screen", children: /* @__PURE__ */ jsxs("main", { className: "w-full pb-8 mt-4 md:mt-0", children: [
+  return /* @__PURE__ */ jsx("div", { className: "w-[calc(100%-8px)] md:w-[95%] max-w-[1600px] mx-auto flex flex-col min-h-screen", children: /* @__PURE__ */ jsxs("main", { className: "w-full pb-8 mt-4 md:mt-0", children: [
     error && /* @__PURE__ */ jsx("div", { className: "toast error show", children: error }),
     dashboardData && totalStreams > 0 && /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-4 mb-6", children: [
       /* @__PURE__ */ jsxs("div", { className: "bg-white/5 border border-white/10 rounded-xl py-2 px-3 flex flex-col items-center justify-center gap-0.5 shadow-lg backdrop-blur-sm", children: [

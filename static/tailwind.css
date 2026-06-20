@@ -1092,16 +1092,12 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   max-width: 72rem;
 }
 
-.max-w-7xl {
-  max-width: 80rem;
-}
-
 .max-w-\[130px\] {
   max-width: 130px;
 }
 
-.max-w-\[1400px\] {
-  max-width: 1400px;
+.max-w-\[1600px\] {
+  max-width: 1600px;
 }
 
 .max-w-lg {
@@ -1413,6 +1409,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-bottom-width: 1px;
 }
 
+.border-b-2 {
+  border-bottom-width: 2px;
+}
+
 .border-l-4 {
   border-left-width: 4px;
 }
@@ -1431,6 +1431,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .border-dashed {
   border-style: dashed;
+}
+
+.border-none {
+  border-style: none;
 }
 
 .border-\[\#25D366\]\/30 {
@@ -1527,6 +1531,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .border-status-expiring\/50 {
   border-color: rgb(210 153 34 / 0.5);
+}
+
+.border-transparent {
+  border-color: transparent;
 }
 
 .border-white\/10 {
@@ -1768,6 +1776,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .bg-gradient-to-r {
   background-image: linear-gradient(to right, var(--tw-gradient-stops));
+}
+
+.bg-none {
+  background-image: none;
 }
 
 .from-plex {
@@ -2909,12 +2921,16 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     gap: 1.5rem;
   }
 
-  .md\:p-12 {
-    padding: 3rem;
-  }
-
   .md\:p-4 {
     padding: 1rem;
+  }
+
+  .md\:p-5 {
+    padding: 1.25rem;
+  }
+
+  .md\:p-6 {
+    padding: 1.5rem;
   }
 
   .md\:p-8 {
@@ -2992,6 +3008,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .lg\:grid-cols-6 {
     grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .lg\:p-12 {
+    padding: 3rem;
   }
 }
 

@@ -647,7 +647,7 @@ const SettingsDashboard: React.FC = () => {
     };
 
     return (
-        <div className="w-full max-w-7xl mx-auto flex flex-col">
+        <div className="w-full max-w-[1600px] mx-auto flex flex-col">
             <Loader isLoading={isLoading} />
             <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] flex flex-col-reverse gap-2 items-center">
                 {toasts.map(toast => <Toast key={toast.id} {...toast} onDismiss={() => setToasts(t => t.filter(item => item.id !== toast.id))} />)}
@@ -1219,7 +1219,7 @@ const PersonalAnalyticsDashboard: React.FC<{ username: string, thumb: string | n
     }, [days]);
 
     return (
-        <div className="w-full max-w-7xl animate-fade-in flex flex-col gap-6">
+        <div className="w-full max-w-[1600px] animate-fade-in flex flex-col gap-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
                 <div>
                     <h1 className="text-3xl font-bold text-text uppercase tracking-widest flex items-center gap-3">
@@ -1595,7 +1595,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
     };
 
     return (
-        <div className="w-full max-w-7xl animate-fade-in flex flex-col gap-6">
+        <div className="w-full max-w-[1600px] animate-fade-in flex flex-col gap-6">
             <div className="flex items-center justify-between gap-4 mb-2">
                 <div>
                     <h1 className="text-3xl font-bold text-text uppercase tracking-widest flex items-center gap-3">
@@ -1819,7 +1819,7 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
     const maxLibraryPlays = Math.max(...topLibraries.map(l => l.plays), 1);
 
     return (
-        <div className="w-full max-w-7xl animate-fade-in flex flex-col gap-6">
+        <div className="w-full max-w-[1600px] animate-fade-in flex flex-col gap-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
                 <div>
                     <h1 className="text-3xl font-bold text-text uppercase tracking-widest flex items-center gap-3">
@@ -2020,7 +2020,7 @@ const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     const emailLogs = auditEntries.filter(e => e.event === 'system_email_sent');
 
     return (
-        <div className="w-full max-w-7xl mx-auto flex flex-col">
+        <div className="w-full max-w-[1600px] mx-auto flex flex-col">
             <Loader isLoading={isLoading} />
             <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] flex flex-col-reverse gap-2 items-center">
                 {toasts.map(toast => <Toast key={toast.id} {...toast} onDismiss={() => setToasts(t => t.filter(item => item.id !== toast.id))} />)}
@@ -2403,7 +2403,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: () => v
     const allFilteredSelected = filteredUserIds.length > 0 && filteredUserIds.every(id => selectedUserIds.includes(id));
 
     return (
-        <div className="w-full max-w-7xl mx-auto flex flex-col">
+        <div className="w-full max-w-[1600px] mx-auto flex flex-col">
             <Loader isLoading={isLoading} />
             <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] flex flex-col-reverse gap-2 items-center">
                 {toasts.map(toast => <Toast key={toast.id} {...toast} onDismiss={() => setToasts(t => t.filter(item => item.id !== toast.id))} />)}
@@ -3147,7 +3147,7 @@ const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, isPublic
     const groups = config?.groups || [];
 
     return (
-        <div className="w-full max-w-6xl mx-auto flex flex-col">
+        <div className="w-full max-w-[1600px] mx-auto flex flex-col">
             <header className="flex items-center gap-4 w-full mb-8 pb-4 border-b border-border">
                 {isPublic && (
                     <button onClick={onBack} className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors flex items-center justify-center text-muted hover:text-text">
@@ -3244,7 +3244,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     const totalBandwidthMbps = (totalBandwidthKbps / 1000).toFixed(2);
 
     return (
-        <div className="w-[calc(100%-8px)] md:w-[95%] max-w-[1400px] mx-auto flex flex-col min-h-screen">
+        <div className="w-[calc(100%-8px)] md:w-[95%] max-w-[1600px] mx-auto flex flex-col min-h-screen">
             <main className="w-full pb-8 mt-4 md:mt-0">
                 {error && <div className="toast error show">{error}</div>}
 
