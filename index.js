@@ -94,9 +94,14 @@ const getDaysUntilExpiry = (expiryDate) => {
     if (!expiryDate) return null;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const expiry = new Date(expiryDate);
+
+    const datePart = expiryDate.split('T')[0];
+    const [year, month, day] = datePart.split('-').map(Number);
+    const expiry = new Date(year, month - 1, day);
+    expiry.setHours(0, 0, 0, 0);
+
     const diffTime = expiry.getTime() - today.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.round(diffTime / (1000 * 60 * 60 * 24));
 };
 
 const addMonths = (date, months) => {
@@ -2553,11 +2558,16 @@ const checkAndSendNewsletter = async (config) => {
         });
         
         const users = await loadFile(USERS_PATH, []);
+        const recipients = users.filter(user => user.email && !user.optOutNewsletter);
+        
+        if (recipients.length === 0) return;
+        
+        // Spread the sending out over a 30-minute period (1,800,000 ms) to avoid Gmail rate limits
+        const totalDurationMs = 30 * 60 * 1000;
+        const delayPerEmailMs = Math.floor(totalDurationMs / recipients.length);
+        
         let sentCount = 0;
-        for (const user of users) {
-            if (!user.email) continue;
-            if (user.optOutNewsletter) continue;
-            
+        for (const user of recipients) {
             const personalizedHtml = html.replace(/{{USERNAME}}/g, user.username || 'User');
             
             try {
@@ -2569,7 +2579,7 @@ const checkAndSendNewsletter = async (config) => {
                     attachments: attachments
                 });
                 sentCount++;
-                await new Promise(resolve => setTimeout(resolve, 15000)); // 15s delay to avoid Gmail rate limits
+                await new Promise(resolve => setTimeout(resolve, delayPerEmailMs));
             } catch(e) {
                 log(`Failed to send newsletter to ${user.email}: ${e.message}`);
             }
