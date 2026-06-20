@@ -1062,6 +1062,8 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 emailDaysBefore: config.emailDaysBefore || 7,
                 newsletterFrequency: config.newsletterFrequency || 'disabled',
                 newsletterDay: config.newsletterDay || 0,
+                inactiveCleanupEnabled: !!config.inactiveCleanupEnabled,
+                inactiveCleanupDays: config.inactiveCleanupDays || 90,
                 publicDomain: config.publicDomain || 'https://portal.plexified.co.uk',
                 requestUrl: config.requestUrl || 'https://plexified.co.uk',
                 contactUrl: config.contactUrl || '',
@@ -1087,6 +1089,8 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 emailDaysBefore: 7,
                 newsletterFrequency: 'disabled',
                 newsletterDay: 0,
+                inactiveCleanupEnabled: false,
+                inactiveCleanupDays: 90,
                 publicDomain: 'https://portal.plexified.co.uk',
                 requestUrl: 'https://plexified.co.uk',
                 contactUrl: '',
@@ -1104,7 +1108,8 @@ app.post('/api/config', async (req, res) => {
         token, serverIdentifier, checkIntervalMinutes, 
         smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, smtpSecure, emailDaysBefore,
         newsletterFrequency, newsletterDay, publicDomain, requestUrl, contactUrl,
-        sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey
+        sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey,
+        inactiveCleanupEnabled, inactiveCleanupDays
     } = req.body;
 
     if (!token || !serverIdentifier) {
@@ -1146,6 +1151,8 @@ app.post('/api/config', async (req, res) => {
         emailDaysBefore: parseInt(emailDaysBefore, 10) || 7,
         newsletterFrequency: newsletterFrequency || 'disabled',
         newsletterDay: parseInt(newsletterDay, 10) || 0,
+        inactiveCleanupEnabled: !!inactiveCleanupEnabled,
+        inactiveCleanupDays: parseInt(inactiveCleanupDays, 10) || 90,
         publicDomain: publicDomain || 'https://portal.plexified.co.uk',
         requestUrl: requestUrl || 'https://plexified.co.uk',
         contactUrl: contactUrl || '',
@@ -1729,22 +1736,31 @@ app.get('/api/audit-log', requireAdmin, async (req, res) => {
 
 app.put('/api/users/:id', requireAdmin, async (req, res) => {
     const { id } = req.params;
-    const { expiryDate } = req.body; 
+    const { expiryDate, exemptFromCleanup } = req.body; 
     let users = await loadFile(USERS_PATH, []);
     const userIndex = users.findIndex(u => u.id === id);
     if (userIndex === -1) return res.status(404).json({ error: 'User not found.' });
     
     const previousExpiryDate = users[userIndex].expiryDate;
-    users[userIndex].expiryDate = expiryDate;
-    await saveFile(USERS_PATH, users);
-    await appendAuditLog('user_expiry_updated', req.user, users[userIndex], { previousExpiryDate, expiryDate });
+    
+    if (expiryDate !== undefined) {
+        users[userIndex].expiryDate = expiryDate;
+    }
+    if (exemptFromCleanup !== undefined) {
+        users[userIndex].exemptFromCleanup = !!exemptFromCleanup;
+    }
 
-    // Send adjustment email
-    const config = await loadFile(CONFIG_PATH, {});
-    const logoPath = path.join(process.cwd(), 'static', 'logo.png');
-    let hasLogo = false;
-    try { await fs.access(logoPath); hasLogo = true; } catch (e) {}
-    await sendAdjustmentEmail(config, users[userIndex], hasLogo);
+    await saveFile(USERS_PATH, users);
+    
+    if (expiryDate !== undefined && expiryDate !== previousExpiryDate) {
+        await appendAuditLog('user_expiry_updated', req.user, users[userIndex], { previousExpiryDate, expiryDate });
+        // Send adjustment email
+        const config = await loadFile(CONFIG_PATH, {});
+        const logoPath = path.join(process.cwd(), 'static', 'logo.png');
+        let hasLogo = false;
+        try { await fs.access(logoPath); hasLogo = true; } catch (e) {}
+        await sendAdjustmentEmail(config, users[userIndex], hasLogo);
+    }
 
     res.json(users[userIndex]);
 });
@@ -2567,6 +2583,61 @@ const checkAndSendNewsletter = async (config) => {
     }
 };
 
+const checkAndCleanupInactive = async (config) => {
+    if (!config.inactiveCleanupEnabled) return;
+    
+    const thresholdDays = parseInt(config.inactiveCleanupDays) || 90;
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - thresholdDays);
+    const cutoffMs = cutoffDate.getTime();
+
+    log(`Running automated inactive cleanup check (threshold: ${thresholdDays} days)...`);
+    
+    let users = await loadFile(USERS_PATH, []);
+    let usersUpdated = false;
+
+    const uri = await getPlexConnectionUri(config);
+    if (!uri) return;
+
+    for (const user of users) {
+        if (user.isAdmin || user.exemptFromCleanup || !user.id || !user.isLinked) continue;
+
+        try {
+            // Get last session from Plex directly
+            const historyRes = await fetch(`${uri}/status/sessions/history/all?X-Plex-Token=${config.plexToken}&accountID=${user.id}&sort=viewedAt:desc&limit=1`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+            
+            let lastWatchedMs = 0;
+            if (historyRes && historyRes.MediaContainer && historyRes.MediaContainer.Metadata && historyRes.MediaContainer.Metadata.length > 0) {
+                const session = historyRes.MediaContainer.Metadata[0];
+                lastWatchedMs = session.viewedAt * 1000;
+            }
+
+            // Only act if we know they have a lastWatched date AND it's older than cutoff
+            // (If they've literally never watched anything ever, lastWatchedMs is 0. We'll count that as inactive too if they've been on the server long enough)
+            const joinedAtMs = new Date(user.linkedAt || user.createdAt || Date.now()).getTime();
+            
+            if ((lastWatchedMs > 0 && lastWatchedMs < cutoffMs) || (lastWatchedMs === 0 && joinedAtMs < cutoffMs)) {
+                log(`[INACTIVE CLEANUP] User ${user.email} last watched: ${lastWatchedMs > 0 ? new Date(lastWatchedMs).toISOString() : 'Never'}. Removing access.`);
+                
+                // Set expiry date to now so the main revocation loop catches them
+                user.expiryDate = new Date().toISOString();
+                usersUpdated = true;
+                
+                await appendAuditLog('user_inactive_cleanup', { username: 'System', email: 'system@local' }, user, {
+                    reason: `Inactive for > ${thresholdDays} days`,
+                    lastWatched: lastWatchedMs > 0 ? new Date(lastWatchedMs).toISOString() : 'Never'
+                });
+            }
+        } catch (e) {
+            log(`Failed to check history for user ${user.email}: ${e.message}`);
+        }
+    }
+
+    if (usersUpdated) {
+        await saveFile(USERS_PATH, users);
+    }
+};
+
 const startBackgroundService = async () => {
     if (serviceIntervalId) clearInterval(serviceIntervalId);
     
@@ -2580,6 +2651,7 @@ const startBackgroundService = async () => {
     await checkAndSendNotifications(config).catch(e => log(`Error during initial notifications check: ${e.message}`));
     await checkAndRevoke(config).catch(e => log(`Error during initial check: ${e.message}`));
     await checkAndSendNewsletter(config).catch(e => log(`Error during initial newsletter check: ${e.message}`));
+    await checkAndCleanupInactive(config).catch(e => log(`Error during initial inactive cleanup check: ${e.message}`));
 
     const intervalMinutes = config.checkIntervalMinutes || 60;
     const intervalMs = intervalMinutes * 60 * 1000;
@@ -2591,6 +2663,7 @@ const startBackgroundService = async () => {
             await checkAndSendNotifications(currentConfig);
             await checkAndRevoke(currentConfig);
             await checkAndSendNewsletter(currentConfig);
+            await checkAndCleanupInactive(currentConfig);
         } catch (e) {
             log(`Error during hourly check: ${e.message}`);
         }

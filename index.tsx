@@ -62,6 +62,7 @@ interface User {
     joiningDate: string;
     expiryDate: string | null;
     plexAccessStatus: 'active' | 'pending' | 'revoked' | 'unknown';
+    exemptFromCleanup?: boolean;
     isTrial?: boolean;
 }
 
@@ -99,6 +100,8 @@ interface AppSettings {
     publicDomain?: string;
     requestUrl?: string;
     contactUrl?: string;
+    inactiveCleanupEnabled?: boolean;
+    inactiveCleanupDays?: number;
     sonarrUrl?: string;
     sonarrApiKey?: string;
     radarrUrl?: string;
@@ -356,17 +359,20 @@ const UserModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (user:
     const [username, setUsername] = useState('');
     const [joiningDate, setJoiningDate] = useState(formatDate(new Date().toISOString()));
     const [expiryDate, setExpiryDate] = useState<string | null>(formatDate(addMonths(new Date(), 1).toISOString()));
+    const [exemptFromCleanup, setExemptFromCleanup] = useState(false);
 
     useEffect(() => {
         if (user) {
             setUsername(user.username);
             setJoiningDate(formatDate(user.joiningDate));
             setExpiryDate(user.expiryDate ? formatDate(user.expiryDate) : null);
+            setExemptFromCleanup(!!user.exemptFromCleanup);
         } else {
             // Reset state for new user (if ever implemented)
             setUsername('');
             setJoiningDate(formatDate(new Date().toISOString()));
             setExpiryDate(formatDate(addMonths(new Date(), 1).toISOString()));
+            setExemptFromCleanup(false);
         }
     }, [user, isOpen]);
 
@@ -374,7 +380,7 @@ const UserModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (user:
 
     const handleSave = () => {
         if (!user) return;
-        const updatedUser: User = { ...user, expiryDate };
+        const updatedUser: User = { ...user, expiryDate, exemptFromCleanup };
         onSave(updatedUser);
     };
 
@@ -410,6 +416,18 @@ const UserModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (user:
                         <button className="w-full h-10 px-3 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center text-sm whitespace-nowrap" onClick={() => handleQuickAction('addYear')}>+1Y</button>
                         <button className="w-full h-10 px-3 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center text-sm whitespace-nowrap" onClick={() => handleQuickAction('unlimited')}>Unlimited</button>
                     </div>
+                </div>
+                <div className="mb-4 flex items-center justify-between bg-black/10 p-4 rounded-lg border border-border">
+                    <div>
+                        <label className="font-bold block mb-1">Exempt from Cleanup</label>
+                        <span className="text-xs text-muted block">Prevent automated inactive user removal</span>
+                    </div>
+                    <button 
+                        onClick={() => setExemptFromCleanup(!exemptFromCleanup)}
+                        className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${exemptFromCleanup ? 'bg-plex' : 'bg-border'}`}
+                    >
+                        <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${exemptFromCleanup ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
                 </div>
                 <div className="flex justify-end gap-4 mt-8 pt-4 border-t border-border">
                     <button className="px-6 py-3 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2" onClick={handleSave}>Save</button>
@@ -497,6 +515,10 @@ const SettingsDashboard: React.FC = () => {
     const [requestUrl, setRequestUrl] = useState('https://plexified.co.uk');
     const [contactUrl, setContactUrl] = useState('');
 
+    // Cleanup States
+    const [inactiveCleanupEnabled, setInactiveCleanupEnabled] = useState(false);
+    const [inactiveCleanupDays, setInactiveCleanupDays] = useState(90);
+
     // Media Stack States
     const [sonarrUrl, setSonarrUrl] = useState('');
     const [sonarrApiKey, setSonarrApiKey] = useState('');
@@ -517,6 +539,8 @@ const SettingsDashboard: React.FC = () => {
             setEmailDaysBefore(initialSettings.emailDaysBefore || 7);
             setNewsletterFrequency(initialSettings.newsletterFrequency || 'disabled');
             setNewsletterDay(initialSettings.newsletterDay || 0);
+            setInactiveCleanupEnabled(!!initialSettings.inactiveCleanupEnabled);
+            setInactiveCleanupDays(initialSettings.inactiveCleanupDays || 90);
             setPublicDomain(initialSettings.publicDomain || 'https://portal.plexified.co.uk');
             setRequestUrl(initialSettings.requestUrl || 'https://plexified.co.uk');
             setContactUrl(initialSettings.contactUrl || '');
@@ -580,6 +604,8 @@ const SettingsDashboard: React.FC = () => {
             emailDaysBefore,
             newsletterFrequency,
             newsletterDay,
+            inactiveCleanupEnabled,
+            inactiveCleanupDays,
             publicDomain,
             requestUrl,
             contactUrl,
@@ -678,6 +704,7 @@ const SettingsDashboard: React.FC = () => {
                             { label: 'Plex Integration', value: 'plex' },
                             { label: 'SMTP Alerts', value: 'smtp' },
                             { label: 'Newsletter', value: 'newsletter' },
+                            { label: 'Automated Cleanup', value: 'cleanup' },
                             { label: 'Media Stack', value: 'mediastack' }
                         ]}
                     />
@@ -714,6 +741,16 @@ const SettingsDashboard: React.FC = () => {
                         }`}
                     >
                         Newsletter
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('cleanup')}
+                        className={`bg-none border-none font-bold text-base py-2 px-1 transition-all border-b-2 cursor-pointer ${
+                            activeTab === 'cleanup'
+                                ? 'text-plex border-plex'
+                                : 'text-muted border-transparent hover:text-text'
+                        }`}
+                    >
+                        Cleanup
                     </button>
                     <button
                         onClick={() => setActiveTab('mediastack')}
@@ -889,6 +926,44 @@ const SettingsDashboard: React.FC = () => {
                             </div>
                         </div>
                     )}
+                    {activeTab === 'cleanup' && (
+                        <div className="mb-8 animate-fade-in">
+                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Automated User Cleanup</h3>
+                            <div className="mb-6 bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-lg">
+                                <p className="text-sm text-yellow-500 font-bold mb-1">Warning</p>
+                                <p className="text-xs text-muted">When enabled, the server will automatically revoke Plex access for users who have not watched anything for the specified number of days. You can exempt specific users from this rule by editing them in the Users table.</p>
+                            </div>
+                            
+                            <div className="mb-6 flex items-center justify-between bg-black/10 p-4 rounded-lg border border-border">
+                                <div>
+                                    <label className="font-bold block mb-1">Enable Automated Cleanup</label>
+                                    <span className="text-xs text-muted block">Run cleanup job automatically in the background</span>
+                                </div>
+                                <button 
+                                    onClick={() => setInactiveCleanupEnabled(!inactiveCleanupEnabled)}
+                                    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${inactiveCleanupEnabled ? 'bg-plex' : 'bg-border'}`}
+                                >
+                                    <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${inactiveCleanupEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                                </button>
+                            </div>
+
+                            <div className={`transition-all ${!inactiveCleanupEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
+                                <div className="mb-4">
+                                    <label htmlFor="inactiveCleanupDays">Inactivity Threshold (Days)</label>
+                                    <input 
+                                        className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" 
+                                        id="inactiveCleanupDays" 
+                                        type="number" 
+                                        min="1" 
+                                        value={inactiveCleanupDays} 
+                                        onChange={e => setInactiveCleanupDays(Number(e.target.value))} 
+                                    />
+                                    <small>Revoke access if a user has not watched anything in this many days.</small>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {activeTab === 'mediastack' && (
                         <div className="mb-8 animate-fade-in">
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Sonarr Integration</h3>

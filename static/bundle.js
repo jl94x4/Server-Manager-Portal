@@ -525,21 +525,24 @@ var UserModal = ({ isOpen, onClose, onSave, user }) => {
   const [username, setUsername] = useState("");
   const [joiningDate, setJoiningDate] = useState(formatDate((/* @__PURE__ */ new Date()).toISOString()));
   const [expiryDate, setExpiryDate] = useState(formatDate(addMonths(/* @__PURE__ */ new Date(), 1).toISOString()));
+  const [exemptFromCleanup, setExemptFromCleanup] = useState(false);
   useEffect(() => {
     if (user) {
       setUsername(user.username);
       setJoiningDate(formatDate(user.joiningDate));
       setExpiryDate(user.expiryDate ? formatDate(user.expiryDate) : null);
+      setExemptFromCleanup(!!user.exemptFromCleanup);
     } else {
       setUsername("");
       setJoiningDate(formatDate((/* @__PURE__ */ new Date()).toISOString()));
       setExpiryDate(formatDate(addMonths(/* @__PURE__ */ new Date(), 1).toISOString()));
+      setExemptFromCleanup(false);
     }
   }, [user, isOpen]);
   if (!isOpen) return null;
   const handleSave = () => {
     if (!user) return;
-    const updatedUser = { ...user, expiryDate };
+    const updatedUser = { ...user, expiryDate, exemptFromCleanup };
     onSave(updatedUser);
   };
   const handleQuickAction = (action) => {
@@ -575,6 +578,20 @@ var UserModal = ({ isOpen, onClose, onSave, user }) => {
         /* @__PURE__ */ jsx("button", { className: "w-full h-10 px-3 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center text-sm whitespace-nowrap", onClick: () => handleQuickAction("addYear"), children: "+1Y" }),
         /* @__PURE__ */ jsx("button", { className: "w-full h-10 px-3 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center text-sm whitespace-nowrap", onClick: () => handleQuickAction("unlimited"), children: "Unlimited" })
       ] })
+    ] }),
+    /* @__PURE__ */ jsxs("div", { className: "mb-4 flex items-center justify-between bg-black/10 p-4 rounded-lg border border-border", children: [
+      /* @__PURE__ */ jsxs("div", { children: [
+        /* @__PURE__ */ jsx("label", { className: "font-bold block mb-1", children: "Exempt from Cleanup" }),
+        /* @__PURE__ */ jsx("span", { className: "text-xs text-muted block", children: "Prevent automated inactive user removal" })
+      ] }),
+      /* @__PURE__ */ jsx(
+        "button",
+        {
+          onClick: () => setExemptFromCleanup(!exemptFromCleanup),
+          className: `relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${exemptFromCleanup ? "bg-plex" : "bg-border"}`,
+          children: /* @__PURE__ */ jsx("span", { className: `inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${exemptFromCleanup ? "translate-x-6" : "translate-x-1"}` })
+        }
+      )
     ] }),
     /* @__PURE__ */ jsx("div", { className: "flex justify-end gap-4 mt-8 pt-4 border-t border-border", children: /* @__PURE__ */ jsx("button", { className: "px-6 py-3 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2", onClick: handleSave, children: "Save" }) })
   ] }) });
@@ -647,6 +664,8 @@ var SettingsDashboard = () => {
   const [publicDomain, setPublicDomain] = useState("https://plexified.co.uk");
   const [requestUrl, setRequestUrl] = useState("https://plexified.co.uk");
   const [contactUrl, setContactUrl] = useState("");
+  const [inactiveCleanupEnabled, setInactiveCleanupEnabled] = useState(false);
+  const [inactiveCleanupDays, setInactiveCleanupDays] = useState(90);
   const [sonarrUrl, setSonarrUrl] = useState("");
   const [sonarrApiKey, setSonarrApiKey] = useState("");
   const [radarrUrl, setRadarrUrl] = useState("");
@@ -665,6 +684,8 @@ var SettingsDashboard = () => {
       setEmailDaysBefore(initialSettings.emailDaysBefore || 7);
       setNewsletterFrequency(initialSettings.newsletterFrequency || "disabled");
       setNewsletterDay(initialSettings.newsletterDay || 0);
+      setInactiveCleanupEnabled(!!initialSettings.inactiveCleanupEnabled);
+      setInactiveCleanupDays(initialSettings.inactiveCleanupDays || 90);
       setPublicDomain(initialSettings.publicDomain || "https://portal.plexified.co.uk");
       setRequestUrl(initialSettings.requestUrl || "https://plexified.co.uk");
       setContactUrl(initialSettings.contactUrl || "");
@@ -724,6 +745,8 @@ var SettingsDashboard = () => {
       emailDaysBefore,
       newsletterFrequency,
       newsletterDay,
+      inactiveCleanupEnabled,
+      inactiveCleanupDays,
       publicDomain,
       requestUrl,
       contactUrl,
@@ -813,6 +836,7 @@ var SettingsDashboard = () => {
               { label: "Plex Integration", value: "plex" },
               { label: "SMTP Alerts", value: "smtp" },
               { label: "Newsletter", value: "newsletter" },
+              { label: "Automated Cleanup", value: "cleanup" },
               { label: "Media Stack", value: "mediastack" }
             ]
           }
@@ -841,6 +865,14 @@ var SettingsDashboard = () => {
             onClick: () => setActiveTab("newsletter"),
             className: `bg-none border-none font-bold text-base py-2 px-1 transition-all border-b-2 cursor-pointer ${activeTab === "newsletter" ? "text-plex border-plex" : "text-muted border-transparent hover:text-text"}`,
             children: "Newsletter"
+          }
+        ),
+        /* @__PURE__ */ jsx(
+          "button",
+          {
+            onClick: () => setActiveTab("cleanup"),
+            className: `bg-none border-none font-bold text-base py-2 px-1 transition-all border-b-2 cursor-pointer ${activeTab === "cleanup" ? "text-plex border-plex" : "text-muted border-transparent hover:text-text"}`,
+            children: "Cleanup"
           }
         ),
         /* @__PURE__ */ jsx(
@@ -1003,6 +1035,42 @@ var SettingsDashboard = () => {
               /* @__PURE__ */ jsx("button", { className: "px-4 py-2 bg-plex text-background rounded-md font-medium hover:bg-plex-hover transition-colors flex items-center justify-center gap-2", onClick: handleSendNewsletterNow, disabled: isTestingNewsletter || isSendingNewsletter, children: isSendingNewsletter ? "Sending To All..." : "Send Newsletter To ALL NOW" })
             ] })
           ] })
+        ] }),
+        activeTab === "cleanup" && /* @__PURE__ */ jsxs("div", { className: "mb-8 animate-fade-in", children: [
+          /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-plex mb-4 border-b border-border pb-2", children: "Automated User Cleanup" }),
+          /* @__PURE__ */ jsxs("div", { className: "mb-6 bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-lg", children: [
+            /* @__PURE__ */ jsx("p", { className: "text-sm text-yellow-500 font-bold mb-1", children: "Warning" }),
+            /* @__PURE__ */ jsx("p", { className: "text-xs text-muted", children: "When enabled, the server will automatically revoke Plex access for users who have not watched anything for the specified number of days. You can exempt specific users from this rule by editing them in the Users table." })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "mb-6 flex items-center justify-between bg-black/10 p-4 rounded-lg border border-border", children: [
+            /* @__PURE__ */ jsxs("div", { children: [
+              /* @__PURE__ */ jsx("label", { className: "font-bold block mb-1", children: "Enable Automated Cleanup" }),
+              /* @__PURE__ */ jsx("span", { className: "text-xs text-muted block", children: "Run cleanup job automatically in the background" })
+            ] }),
+            /* @__PURE__ */ jsx(
+              "button",
+              {
+                onClick: () => setInactiveCleanupEnabled(!inactiveCleanupEnabled),
+                className: `relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${inactiveCleanupEnabled ? "bg-plex" : "bg-border"}`,
+                children: /* @__PURE__ */ jsx("span", { className: `inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${inactiveCleanupEnabled ? "translate-x-6" : "translate-x-1"}` })
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsx("div", { className: `transition-all ${!inactiveCleanupEnabled ? "opacity-50 pointer-events-none" : ""}`, children: /* @__PURE__ */ jsxs("div", { className: "mb-4", children: [
+            /* @__PURE__ */ jsx("label", { htmlFor: "inactiveCleanupDays", children: "Inactivity Threshold (Days)" }),
+            /* @__PURE__ */ jsx(
+              "input",
+              {
+                className: "w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all",
+                id: "inactiveCleanupDays",
+                type: "number",
+                min: "1",
+                value: inactiveCleanupDays,
+                onChange: (e) => setInactiveCleanupDays(Number(e.target.value))
+              }
+            ),
+            /* @__PURE__ */ jsx("small", { children: "Revoke access if a user has not watched anything in this many days." })
+          ] }) })
         ] }),
         activeTab === "mediastack" && /* @__PURE__ */ jsxs("div", { className: "mb-8 animate-fade-in", children: [
           /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-plex mb-4 border-b border-border pb-2", children: "Sonarr Integration" }),
