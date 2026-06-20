@@ -3082,14 +3082,14 @@ var LibraryDashboard = ({ onBack }) => {
               /* @__PURE__ */ jsx("span", { className: "text-[10px] font-bold text-white/90 truncate max-w-[80px] md:max-w-[100px]", children: session.user })
             ] }),
             /* @__PURE__ */ jsx("div", { className: "activity-header mb-1 pr-24 md:pr-32", children: /* @__PURE__ */ jsxs("div", { className: "activity-title-group", children: [
-              /* @__PURE__ */ jsx("div", { className: "text-base md:text-lg font-bold text-text truncate", children: session.grandparentTitle ? session.grandparentTitle : session.title }),
-              session.type === "episode" && session.season !== void 0 && session.episode !== void 0 ? /* @__PURE__ */ jsxs("div", { className: "text-xs md:text-sm text-muted truncate", children: [
+              /* @__PURE__ */ jsx("div", { className: "text-sm md:text-base font-bold text-text line-clamp-2 leading-tight", children: session.grandparentTitle ? session.grandparentTitle : session.title }),
+              session.type === "episode" && session.season !== void 0 && session.episode !== void 0 ? /* @__PURE__ */ jsxs("div", { className: "text-[10px] md:text-xs text-muted line-clamp-2 leading-snug mt-0.5", children: [
                 session.title,
                 " | S",
                 String(session.season).padStart(2, "0"),
                 "E",
                 String(session.episode).padStart(2, "0")
-              ] }) : session.grandparentTitle && /* @__PURE__ */ jsx("div", { className: "text-xs md:text-sm text-muted truncate", children: session.title })
+              ] }) : session.grandparentTitle && /* @__PURE__ */ jsx("div", { className: "text-[10px] md:text-xs text-muted line-clamp-2 leading-snug mt-0.5", children: session.title })
             ] }) }),
             /* @__PURE__ */ jsxs("div", { className: "flex flex-wrap gap-1.5 mb-3 mt-1", children: [
               session.resolution && /* @__PURE__ */ jsx("span", { className: "bg-white/10 text-white/90 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide border border-white/10", children: session.resolution.includes("p") || session.resolution.includes("k") ? session.resolution : `${session.resolution}p` }),
