@@ -8,7 +8,7 @@
     "build:css": "npx tailwindcss -i ./input.css -o ./static/tailwind.css",
     "build:js": "esbuild index.tsx --bundle --outfile=static/bundle.js --jsx=automatic --format=esm --external:react --external:react-dom/client",
     "build": "npm run build:css && npm run build:js",
-    "start": "npm run build && node index.js"
+    "start": "npm run build && node --env-file=.env index.js"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",
