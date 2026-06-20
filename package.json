@@ -1,0 +1,29 @@
+{
+  "name": "plex-expiry-manager-service",
+  "version": "1.0.0",
+  "description": "A web application to automatically manage Plex user access based on expiry dates.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "build:css": "npx tailwindcss -i ./input.css -o ./static/tailwind.css",
+    "build:js": "esbuild index.tsx --bundle --outfile=static/bundle.js --jsx=automatic --format=esm --external:react --external:react-dom/client",
+    "build": "npm run build:css && npm run build:js",
+    "start": "npm run build && node index.js"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "esbuild": "^0.21.4",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.3",
+    "lucide-react": "^1.21.0",
+    "node-fetch": "^3.3.2",
+    "nodemailer": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^3.4.19"
+  }
+}
