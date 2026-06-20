@@ -1247,17 +1247,21 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
                     </h1>
                     <p className="text-muted text-sm mt-1">Deep dive into playback history</p>
                 </div>
-                <select
-                    value={days}
-                    onChange={(e) => setDays(e.target.value)}
-                    className="bg-card text-text border border-border rounded px-4 py-2 text-sm focus:outline-none focus:border-plex"
-                >
-                    <option value="30">Last 30 Days</option>
-                    <option value="60">Last 60 Days</option>
-                    <option value="365">Last 1 Year</option>
-                    <option value="1825">Last 5 Years</option>
-                    <option value="all">All Time</option>
-                </select>
+                <div className="w-48">
+                    <CustomSelect
+                        value={days}
+                        onChange={(val) => setDays(val as string)}
+                        options={[
+                            { label: 'Last 1 Day', value: '1' },
+                            { label: 'Last 7 Days', value: '7' },
+                            { label: 'Last 30 Days', value: '30' },
+                            { label: 'Last 60 Days', value: '60' },
+                            { label: 'Last 1 Year', value: '365' },
+                            { label: 'Last 5 Years', value: '1825' },
+                            { label: 'All Time', value: 'all' }
+                        ]}
+                    />
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
