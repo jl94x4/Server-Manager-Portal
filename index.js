@@ -1317,7 +1317,7 @@ const fetchPlexStatsInternal = async (config) => {
     return cachedPlexStats;
 };
 
-app.get('/api/plex/stats', requireAuth, async (req, res) => {
+app.get('/api/plex/stats', async (req, res) => {
     const config = await loadFile(CONFIG_PATH, null);
     if (!config || !config.plexToken || !config.serverIdentifier) {
         return res.status(400).json({ error: 'App not configured.' });
