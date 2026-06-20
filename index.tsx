@@ -3307,10 +3307,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                             <div className="activity-details flex flex-col gap-1 mt-auto">
                                                 <div className="flex justify-between items-start text-[10px] md:text-xs border-b border-white/5 pb-1">
                                                     <span className="text-muted uppercase tracking-wider font-bold mt-0.5">PLAYER</span>
-                                                    <div className="flex flex-col items-end text-right break-words max-w-[130px] md:max-w-[180px]">
-                                                        <span className="detail-value">{session.playerTitle}</span>
-                                                        <span className="text-[9px] text-muted/70">{session.playerAddress}</span>
-                                                    </div>
+                                                    <span className="detail-value text-right break-words max-w-[130px] md:max-w-[180px]">{session.playerTitle}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-[10px] md:text-xs border-b border-white/5 pb-1">
                                                     <span className="text-muted uppercase tracking-wider font-bold">STREAM</span>
@@ -3321,13 +3318,13 @@ const LibraryDashboard: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                                 <div className="flex justify-between items-center text-[10px] md:text-xs border-b border-white/5 pb-1">
                                                     <span className="text-muted uppercase tracking-wider font-bold">STATE</span>
                                                     <div className="flex items-center gap-1.5">
+                                                        <span className="detail-value font-bold">{session.state.charAt(0).toUpperCase() + session.state.slice(1)}</span>
                                                         {session.timeRemaining > 0 && session.state === 'playing' && (
                                                             <span className="text-[9px] text-muted/80">
-                                                                {Math.floor(session.timeRemaining / 3600000) > 0 ? `${Math.floor(session.timeRemaining / 3600000)}h ` : ''}
-                                                                {Math.floor((session.timeRemaining % 3600000) / 60000)}m left
+                                                                ({Math.floor(session.timeRemaining / 3600000) > 0 ? `${Math.floor(session.timeRemaining / 3600000)}h ` : ''}
+                                                                {Math.floor((session.timeRemaining % 3600000) / 60000)}m left)
                                                             </span>
                                                         )}
-                                                        <span className="detail-value font-bold">{session.state.charAt(0).toUpperCase() + session.state.slice(1)}</span>
                                                     </div>
                                                 </div>
                                                 <div className="flex justify-between items-center text-[10px] md:text-xs pb-1">
