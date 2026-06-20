@@ -80,6 +80,7 @@ interface PlexConfig {
     newsletterDay: number;
     publicDomain: string;
     requestUrl?: string;
+    contactUrl?: string;
 }
 
 interface AppSettings {
@@ -97,6 +98,7 @@ interface AppSettings {
     newsletterDay?: number;
     publicDomain?: string;
     requestUrl?: string;
+    contactUrl?: string;
 }
 
 interface PlexServer {
@@ -475,6 +477,7 @@ const SettingsDashboard: React.FC = () => {
     const [newsletterDay, setNewsletterDay] = useState(0);
     const [publicDomain, setPublicDomain] = useState('https://plexified.co.uk');
     const [requestUrl, setRequestUrl] = useState('https://plexified.co.uk');
+    const [contactUrl, setContactUrl] = useState('');
 
     useEffect(() => {
         if (initialSettings) {
@@ -492,6 +495,7 @@ const SettingsDashboard: React.FC = () => {
             setNewsletterDay(initialSettings.newsletterDay || 0);
             setPublicDomain(initialSettings.publicDomain || 'https://portal.plexified.co.uk');
             setRequestUrl(initialSettings.requestUrl || 'https://plexified.co.uk');
+            setContactUrl(initialSettings.contactUrl || '');
             setTestRecipient('');
             setServers([]);
             setActiveTab('plex');
@@ -550,7 +554,8 @@ const SettingsDashboard: React.FC = () => {
             newsletterFrequency,
             newsletterDay,
             publicDomain,
-            requestUrl
+            requestUrl,
+            contactUrl
         });
     };
 
@@ -671,6 +676,11 @@ const SettingsDashboard: React.FC = () => {
                                 <label htmlFor="requestUrl">Request URL</label>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="requestUrl" type="text" value={requestUrl} onChange={e => setRequestUrl(e.target.value)} placeholder="https://plexified.co.uk" />
                                 <small>The URL users are redirected to when they click the Request Content button.</small>
+                            </div>
+                            <div className="mb-4" style={{ marginTop: '1rem' }}>
+                                <label htmlFor="contactUrl">Contact URL / Email</label>
+                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="contactUrl" type="text" value={contactUrl} onChange={e => setContactUrl(e.target.value)} placeholder="mailto:youremail@example.com OR https://wa.me/123456" />
+                                <small>Used for the "Request Extension" button in expiry emails. Defaults to sending an email to the SMTP User.</small>
                             </div>
                         </div>
                     )}

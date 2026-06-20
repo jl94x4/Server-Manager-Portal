@@ -282,7 +282,7 @@ const checkAndSendNotifications = async (config) => {
                             <p>To ensure uninterrupted streaming of your favorite movies and shows, please get in touch with the server owner to renew your subscription before the expiry date.</p>
                             
                             <div style="text-align: center; margin: 35px 0 15px 0;">
-                                <a href="mailto:${config.smtpFrom || config.smtpUser}" style="background-color: #e5a00d; color: #ffffff; text-decoration: none; padding: 14px 35px; font-weight: bold; border-radius: 6px; display: inline-block; font-size: 16px; box-shadow: 0 4px 6px rgba(229, 160, 13, 0.2);">Request Extension</a>
+                                <a href="${config.contactUrl || 'mailto:' + (config.smtpFrom || config.smtpUser)}" style="background-color: #e5a00d; color: #ffffff; text-decoration: none; padding: 14px 35px; font-weight: bold; border-radius: 6px; display: inline-block; font-size: 16px; box-shadow: 0 4px 6px rgba(229, 160, 13, 0.2);">Request Extension</a>
                             </div>
                         </div>
                         <div style="background-color: #f7fafc; padding: 20px 30px; border-top: 1px solid #edf2f7; text-align: center; font-size: 12px; color: #a0aec0;">
@@ -1017,7 +1017,8 @@ app.get('/api/config', async (req, res) => {
                 newsletterFrequency: config.newsletterFrequency || 'disabled',
                 newsletterDay: config.newsletterDay || 0,
                 publicDomain: config.publicDomain || 'https://portal.plexified.co.uk',
-                requestUrl: config.requestUrl || 'https://plexified.co.uk'
+                requestUrl: config.requestUrl || 'https://plexified.co.uk',
+                contactUrl: config.contactUrl || ''
             },
         });
     } else {
@@ -1037,7 +1038,8 @@ app.get('/api/config', async (req, res) => {
                 newsletterFrequency: 'disabled',
                 newsletterDay: 0,
                 publicDomain: 'https://portal.plexified.co.uk',
-                requestUrl: 'https://plexified.co.uk'
+                requestUrl: 'https://plexified.co.uk',
+                contactUrl: ''
             },
         });
     }
@@ -1047,7 +1049,7 @@ app.post('/api/config', async (req, res) => {
     const { 
         token, serverIdentifier, checkIntervalMinutes, 
         smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, smtpSecure, emailDaysBefore,
-        newsletterFrequency, newsletterDay, publicDomain, requestUrl
+        newsletterFrequency, newsletterDay, publicDomain, requestUrl, contactUrl
     } = req.body;
 
     if (!token || !serverIdentifier) {
@@ -1079,7 +1081,8 @@ app.post('/api/config', async (req, res) => {
         newsletterFrequency: newsletterFrequency || 'disabled',
         newsletterDay: parseInt(newsletterDay, 10) || 0,
         publicDomain: publicDomain || 'https://portal.plexified.co.uk',
-        requestUrl: requestUrl || 'https://plexified.co.uk'
+        requestUrl: requestUrl || 'https://plexified.co.uk',
+        contactUrl: contactUrl || ''
     };
     await saveFile(CONFIG_PATH, config);
     log('Configuration saved successfully.');
