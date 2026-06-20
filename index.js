@@ -13,10 +13,49 @@ import https from 'https';
 
 const app = express();
 const PORT = 2121;
-const JWT_SECRET = process.env.JWT_SECRET || 'plex-expiry-manager-super-secret-key-12345';
+
+// --- Security: JWT secret must be explicitly set in the environment ---
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET || JWT_SECRET.length < 32) {
+    console.error('FATAL: JWT_SECRET environment variable must be set and at least 32 characters long.');
+    console.error('Set it in a .env file or your process environment before starting the server.');
+    process.exit(1);
+}
+
 const CLIENT_ID = process.env.CLIENT_ID || 'plex-expiry-manager-client-id'; // Ideally should be unique per install
 
-app.use(express.json()); // Middleware to parse JSON bodies
+// --- Security: HTTP Security Headers ---
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    next();
+});
+
+// --- Security: Rate Limiting for Auth Endpoints ---
+const authRateLimitStore = new Map();
+const authRateLimit = (req, res, next) => {
+    const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    const windowMs = 15 * 60 * 1000; // 15 minutes
+    const maxRequests = 20;
+    const record = authRateLimitStore.get(ip) || { count: 0, resetAt: now + windowMs };
+    if (now > record.resetAt) {
+        record.count = 0;
+        record.resetAt = now + windowMs;
+    }
+    record.count++;
+    authRateLimitStore.set(ip, record);
+    if (record.count > maxRequests) {
+        return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+    }
+    next();
+};
+
+app.use(express.json({ limit: '50kb' })); // Middleware to parse JSON bodies (with size limit)
 app.use(cookieParser()); // Middleware to parse cookies
 
 // --- Configuration and Paths ---
@@ -870,7 +909,7 @@ app.post('/api/users/broadcast/test', requireAdmin, async (req, res) => {
 });
 
 // Auth endpoints
-app.post('/api/auth/plex/login', async (req, res) => {
+app.post('/api/auth/plex/login', authRateLimit, async (req, res) => {
     try {
         const response = await fetch('https://plex.tv/api/v2/pins?strong=true', {
             method: 'POST',
@@ -889,7 +928,7 @@ app.post('/api/auth/plex/login', async (req, res) => {
     }
 });
 
-app.post('/api/auth/plex/callback', async (req, res) => {
+app.post('/api/auth/plex/callback', authRateLimit, async (req, res) => {
     const { pinId } = req.body;
     if (!pinId) return res.status(400).json({ error: 'pinId is required' });
 
@@ -931,7 +970,7 @@ app.post('/api/auth/plex/callback', async (req, res) => {
         }
 
         const token = jwt.sign(sessionUser, JWT_SECRET, { expiresIn: '7d' });
-        res.cookie('session', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
+        res.cookie('session', token, { httpOnly: true, secure: true, sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
         
         res.json({ message: 'Logged in successfully', user: sessionUser });
     } catch (err) {
@@ -999,7 +1038,7 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
 });
 
 // Config endpoints
-app.get('/api/config', async (req, res) => {
+app.get('/api/config', requireAdmin, async (req, res) => {
     const config = await loadFile(CONFIG_PATH, {});
     const isConfigured = !!(config && config.plexToken && config.serverIdentifier);
 
@@ -1117,7 +1156,7 @@ app.post('/api/config', async (req, res) => {
     res.json({ message: 'Configuration saved.' });
 });
 
-app.post('/api/config/test-email', async (req, res) => {
+app.post('/api/config/test-email', requireAdmin, async (req, res) => {
     const { smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, smtpSecure, testRecipient } = req.body;
     
     if (!smtpHost || !smtpUser || !smtpPass || !testRecipient) {
@@ -1198,18 +1237,22 @@ const getPlexConnectionUri = async (config) => {
     return cachedPlexConnectionUri;
 };
 
-app.get('/api/plex/image', async (req, res) => {
-    const { path, width, height } = req.query;
-    if (!path) return res.status(400).send('path required');
+app.get('/api/plex/image', requireAuth, async (req, res) => {
+    const { path: thumbPath, width, height } = req.query;
+    if (!thumbPath) return res.status(400).send('path required');
+    // Security: only allow relative Plex paths — block protocol-relative and absolute URLs
+    if (!thumbPath.startsWith('/') || thumbPath.includes('://')) {
+        return res.status(400).send('Invalid path');
+    }
     try {
         const config = await loadFile(CONFIG_PATH, {});
         const uri = await getPlexConnectionUri(config);
         
         let url;
         if (width && height) {
-            url = `${uri}/photo/:/transcode?url=${encodeURIComponent(path)}&width=${width}&height=${height}&minSize=1&X-Plex-Token=${config.plexToken}`;
+            url = `${uri}/photo/:/transcode?url=${encodeURIComponent(thumbPath)}&width=${encodeURIComponent(width)}&height=${encodeURIComponent(height)}&minSize=1&X-Plex-Token=${config.plexToken}`;
         } else {
-            url = `${uri}${path}?X-Plex-Token=${config.plexToken}`;
+            url = `${uri}${thumbPath}?X-Plex-Token=${config.plexToken}`;
         }
 
         const response = await fetch(url);
@@ -1263,7 +1306,7 @@ const fetchPlexStatsInternal = async (config) => {
     return cachedPlexStats;
 };
 
-app.get('/api/plex/stats', async (req, res) => {
+app.get('/api/plex/stats', requireAuth, async (req, res) => {
     const config = await loadFile(CONFIG_PATH, null);
     if (!config || !config.plexToken || !config.serverIdentifier) {
         return res.status(400).json({ error: 'App not configured.' });
@@ -1960,7 +2003,12 @@ app.get('/api/status', (req, res) => res.json({ config: statusConfig, healthData
 app.get('/api/status/config', requireAuth, requireAdmin, (req, res) => res.json(statusConfig));
 app.post('/api/status/config', requireAuth, requireAdmin, async (req, res) => {
     try {
-        statusConfig = req.body;
+        // Security: validate body schema before writing to disk
+        const { services, groups, announcement } = req.body;
+        if (!Array.isArray(services) || !Array.isArray(groups)) {
+            return res.status(400).json({ error: 'Invalid config structure: services and groups must be arrays.' });
+        }
+        statusConfig = { services, groups, announcement: announcement || null };
         await saveFile(STATUS_CONFIG_PATH, statusConfig);
         res.json({ success: true, message: 'Status configuration updated successfully.' });
     } catch (error) {
@@ -1972,7 +2020,7 @@ app.post('/api/status/config', requireAuth, requireAdmin, async (req, res) => {
 
 // Note: Duplicate route /api/plex/image handler removed. The primary handler is defined above.
 
-app.get('/api/plex/dashboard', async (req, res) => {
+app.get('/api/plex/dashboard', requireAuth, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, null);
         if (!config || !config.plexToken || !config.serverIdentifier) {

@@ -40,3 +40,7 @@ unneeded/
 audit-log.json
 deleted-users.json
 email_log.json
+
+# Environment secrets
+.env
+.env.*
