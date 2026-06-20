@@ -975,12 +975,14 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
     
     let serverName = 'Plex Server';
     let adminThumb = null;
+    let requestUrl = 'https://plexified.co.uk';
     try {
         const config = await loadFile(CONFIG_PATH, {});
         if (config && config.plexToken && config.serverIdentifier) {
             const profile = await getAdminProfile(config);
             serverName = profile.serverName || 'Plex Server';
             adminThumb = profile.thumb;
+            requestUrl = config.requestUrl || 'https://plexified.co.uk';
         }
     } catch(e) {}
 
@@ -988,7 +990,8 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
         session: req.user,
         account: localUser || null,
         serverName,
-        adminThumb
+        adminThumb,
+        requestUrl
     });
 });
 
@@ -1013,7 +1016,8 @@ app.get('/api/config', async (req, res) => {
                 emailDaysBefore: config.emailDaysBefore || 7,
                 newsletterFrequency: config.newsletterFrequency || 'disabled',
                 newsletterDay: config.newsletterDay || 0,
-                publicDomain: config.publicDomain || 'https://portal.plexified.co.uk'
+                publicDomain: config.publicDomain || 'https://portal.plexified.co.uk',
+                requestUrl: config.requestUrl || 'https://plexified.co.uk'
             },
         });
     } else {
@@ -1032,7 +1036,8 @@ app.get('/api/config', async (req, res) => {
                 emailDaysBefore: 7,
                 newsletterFrequency: 'disabled',
                 newsletterDay: 0,
-                publicDomain: 'https://portal.plexified.co.uk'
+                publicDomain: 'https://portal.plexified.co.uk',
+                requestUrl: 'https://plexified.co.uk'
             },
         });
     }
@@ -1042,7 +1047,7 @@ app.post('/api/config', async (req, res) => {
     const { 
         token, serverIdentifier, checkIntervalMinutes, 
         smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, smtpSecure, emailDaysBefore,
-        newsletterFrequency, newsletterDay, publicDomain 
+        newsletterFrequency, newsletterDay, publicDomain, requestUrl
     } = req.body;
 
     if (!token || !serverIdentifier) {
@@ -1073,7 +1078,8 @@ app.post('/api/config', async (req, res) => {
         emailDaysBefore: parseInt(emailDaysBefore, 10) || 7,
         newsletterFrequency: newsletterFrequency || 'disabled',
         newsletterDay: parseInt(newsletterDay, 10) || 0,
-        publicDomain: publicDomain || 'https://portal.plexified.co.uk'
+        publicDomain: publicDomain || 'https://portal.plexified.co.uk',
+        requestUrl: requestUrl || 'https://plexified.co.uk'
     };
     await saveFile(CONFIG_PATH, config);
     log('Configuration saved successfully.');
@@ -1906,9 +1912,9 @@ app.get('/api/public/info', async (req, res) => {
         const config = await loadFile(CONFIG_PATH, {});
         const profile = await getAdminProfile(config);
         const isConfigured = !!(config && config.plexToken && config.serverIdentifier);
-        res.json({ ...profile, isConfigured });
+        res.json({ ...profile, isConfigured, requestUrl: config.requestUrl || 'https://plexified.co.uk' });
     } catch (e) {
-        res.json({ thumb: null, serverName: 'Plex Server', isConfigured: false });
+        res.json({ thumb: null, serverName: 'Plex Server', isConfigured: false, requestUrl: 'https://plexified.co.uk' });
     }
 });
 
