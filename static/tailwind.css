@@ -646,6 +646,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   bottom: 1.25rem;
 }
 
+.bottom-full {
+  bottom: 100%;
+}
+
 .left-0 {
   left: 0px;
 }
@@ -658,12 +662,20 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   left: 0.5rem;
 }
 
+.left-4 {
+  left: 1rem;
+}
+
 .right-0 {
   right: 0px;
 }
 
 .right-3 {
   right: 0.75rem;
+}
+
+.right-4 {
+  right: 1rem;
 }
 
 .top-0 {
@@ -678,8 +690,20 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   top: 0.5rem;
 }
 
+.top-3 {
+  top: 0.75rem;
+}
+
+.top-4 {
+  top: 1rem;
+}
+
 .top-\[calc\(100\%\+8px\)\] {
   top: calc(100% + 8px);
+}
+
+.top-full {
+  top: 100%;
 }
 
 .z-10 {
@@ -692,6 +716,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .z-\[1000\] {
   z-index: 1000;
+}
+
+.z-\[100\] {
+  z-index: 100;
 }
 
 .z-\[2000\] {
@@ -718,6 +746,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 .my-12 {
   margin-top: 3rem;
   margin-bottom: 3rem;
+}
+
+.mb-0\.5 {
+  margin-bottom: 0.125rem;
 }
 
 .mb-1 {
@@ -838,6 +870,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   display: inline-flex;
 }
 
+.table {
+  display: table;
+}
+
 .grid {
   display: grid;
 }
@@ -852,6 +888,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .aspect-square {
   aspect-ratio: 1 / 1;
+}
+
+.h-0 {
+  height: 0px;
 }
 
 .h-1 {
@@ -942,6 +982,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   height: 100vh;
 }
 
+.max-h-60 {
+  max-height: 15rem;
+}
+
 .max-h-\[90vh\] {
   max-height: 90vh;
 }
@@ -958,6 +1002,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   min-height: 100vh;
 }
 
+.w-0 {
+  width: 0px;
+}
+
 .w-1 {
   width: 0.25rem;
 }
@@ -972,6 +1020,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .w-10 {
   width: 2.5rem;
+}
+
+.w-11 {
+  width: 2.75rem;
 }
 
 .w-12 {
@@ -994,10 +1046,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   width: 6rem;
 }
 
-.w-28 {
-  width: 7rem;
-}
-
 .w-3 {
   width: 0.75rem;
 }
@@ -1008,6 +1056,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .w-32 {
   width: 8rem;
+}
+
+.w-36 {
+  width: 9rem;
 }
 
 .w-4 {
@@ -1092,12 +1144,28 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   max-width: 72rem;
 }
 
+.max-w-\[120px\] {
+  max-width: 120px;
+}
+
 .max-w-\[130px\] {
   max-width: 130px;
 }
 
+.max-w-\[150px\] {
+  max-width: 150px;
+}
+
 .max-w-\[1600px\] {
   max-width: 1600px;
+}
+
+.max-w-\[250px\] {
+  max-width: 250px;
+}
+
+.max-w-\[80px\] {
+  max-width: 80px;
 }
 
 .max-w-lg {
@@ -1128,6 +1196,16 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .translate-x-1 {
   --tw-translate-x: 0.25rem;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
+.translate-x-1\/2 {
+  --tw-translate-x: 50%;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
+.translate-x-6 {
+  --tw-translate-x: 1.5rem;
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
@@ -1312,8 +1390,17 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
        column-gap: 0.75rem;
 }
 
+.gap-x-6 {
+  -moz-column-gap: 1.5rem;
+       column-gap: 1.5rem;
+}
+
 .gap-y-2 {
   row-gap: 0.5rem;
+}
+
+.gap-y-4 {
+  row-gap: 1rem;
 }
 
 .space-y-2 > :not([hidden]) ~ :not([hidden]) {
@@ -1393,6 +1480,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-bottom-left-radius: 0px;
 }
 
+.rounded-t-sm {
+  border-top-left-radius: 0.125rem;
+  border-top-right-radius: 0.125rem;
+}
+
 .border {
   border-width: 1px;
 }
@@ -1417,12 +1509,24 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-left-width: 4px;
 }
 
+.border-l-\[3px\] {
+  border-left-width: 3px;
+}
+
 .border-r {
   border-right-width: 1px;
 }
 
+.border-r-\[3px\] {
+  border-right-width: 3px;
+}
+
 .border-t {
   border-top-width: 1px;
+}
+
+.border-t-\[4px\] {
+  border-top-width: 4px;
 }
 
 .border-t-\[6px\] {
@@ -1467,6 +1571,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-color: rgb(48 54 61 / 0.4);
 }
 
+.border-border\/50 {
+  border-color: rgb(48 54 61 / 0.5);
+}
+
 .border-green-500\/20 {
   border-color: rgb(34 197 94 / 0.2);
 }
@@ -1499,6 +1607,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .border-plex\/20 {
   border-color: rgb(229 160 13 / 0.2);
+}
+
+.border-plex\/30 {
+  border-color: rgb(229 160 13 / 0.3);
 }
 
 .border-plex\/40 {
@@ -1545,6 +1657,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-color: rgb(255 255 255 / 0.05);
 }
 
+.border-yellow-500\/20 {
+  border-color: rgb(234 179 8 / 0.2);
+}
+
 .border-yellow-500\/30 {
   border-color: rgb(234 179 8 / 0.3);
 }
@@ -1555,6 +1671,14 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .border-l-red-500\/80 {
   border-left-color: rgb(239 68 68 / 0.8);
+}
+
+.border-l-transparent {
+  border-left-color: transparent;
+}
+
+.border-r-transparent {
+  border-right-color: transparent;
 }
 
 .border-t-plex {
@@ -1601,8 +1725,25 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   background-color: rgb(13 17 23 / 0.6);
 }
 
+.bg-background\/80 {
+  background-color: rgb(13 17 23 / 0.8);
+}
+
+.bg-black {
+  --tw-bg-opacity: 1;
+  background-color: rgb(0 0 0 / var(--tw-bg-opacity, 1));
+}
+
+.bg-black\/10 {
+  background-color: rgb(0 0 0 / 0.1);
+}
+
 .bg-black\/20 {
   background-color: rgb(0 0 0 / 0.2);
+}
+
+.bg-black\/30 {
+  background-color: rgb(0 0 0 / 0.3);
 }
 
 .bg-black\/40 {
@@ -1611,6 +1752,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .bg-black\/50 {
   background-color: rgb(0 0 0 / 0.5);
+}
+
+.bg-black\/60 {
+  background-color: rgb(0 0 0 / 0.6);
 }
 
 .bg-black\/80 {
@@ -1717,6 +1862,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   background-color: rgb(35 134 54 / 0.1);
 }
 
+.bg-status-active\/20 {
+  background-color: rgb(35 134 54 / 0.2);
+}
+
 .bg-status-expired {
   --tw-bg-opacity: 1;
   background-color: rgb(218 54 51 / var(--tw-bg-opacity, 1));
@@ -1778,8 +1927,18 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   background-image: linear-gradient(to right, var(--tw-gradient-stops));
 }
 
+.bg-gradient-to-t {
+  background-image: linear-gradient(to top, var(--tw-gradient-stops));
+}
+
 .bg-none {
   background-image: none;
+}
+
+.from-card {
+  --tw-gradient-from: #161b22 var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(22 27 34 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
 }
 
 .from-plex {
@@ -1842,6 +2001,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .p-1 {
   padding: 0.25rem;
+}
+
+.p-1\.5 {
+  padding: 0.375rem;
 }
 
 .p-2 {
@@ -2016,6 +2179,18 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .pr-2 {
   padding-right: 0.5rem;
+}
+
+.pr-24 {
+  padding-right: 6rem;
+}
+
+.pr-3 {
+  padding-right: 0.75rem;
+}
+
+.pr-4 {
+  padding-right: 1rem;
 }
 
 .pt-1 {
@@ -2229,6 +2404,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   color: rgb(139 148 158 / 0.75);
 }
 
+.text-muted\/80 {
+  color: rgb(139 148 158 / 0.8);
+}
+
 .text-orange-400 {
   --tw-text-opacity: 1;
   color: rgb(251 146 60 / var(--tw-text-opacity, 1));
@@ -2278,6 +2457,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   color: rgb(255 255 255 / var(--tw-text-opacity, 1));
 }
 
+.text-white\/90 {
+  color: rgb(255 255 255 / 0.9);
+}
+
 .text-yellow-400 {
   --tw-text-opacity: 1;
   color: rgb(250 204 21 / var(--tw-text-opacity, 1));
@@ -2298,6 +2481,14 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .no-underline {
   text-decoration-line: none;
+}
+
+.placeholder-muted\/50::-moz-placeholder {
+  color: rgb(139 148 158 / 0.5);
+}
+
+.placeholder-muted\/50::placeholder {
+  color: rgb(139 148 158 / 0.5);
 }
 
 .opacity-0 {
@@ -2489,6 +2680,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .drop-shadow-\[0_0_15px_rgba\(229\2c 160\2c 13\2c 0\.25\)\] {
   --tw-drop-shadow: drop-shadow(0 0 15px rgba(229,160,13,0.25));
+  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+
+.drop-shadow-\[0_2px_4px_rgba\(0\2c 0\2c 0\2c 0\.8\)\] {
+  --tw-drop-shadow: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
 }
 
@@ -2690,6 +2886,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   background-color: rgb(229 160 13 / 0.3);
 }
 
+.hover\:bg-plex\/80:hover {
+  background-color: rgb(229 160 13 / 0.8);
+}
+
 .hover\:bg-white\/10:hover {
   background-color: rgb(255 255 255 / 0.1);
 }
@@ -2792,7 +2992,15 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   opacity: 0.1;
 }
 
+.group:hover .group-hover\:opacity-100 {
+  opacity: 1;
+}
+
 @media (min-width: 640px) {
+  .sm\:col-span-2 {
+    grid-column: span 2 / span 2;
+  }
+
   .sm\:line-clamp-3 {
     overflow: hidden;
     display: -webkit-box;
@@ -2814,6 +3022,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .sm\:w-\[200px\] {
     width: 200px;
+  }
+
+  .sm\:w-auto {
+    width: auto;
   }
 
   .sm\:grid-cols-2 {
@@ -2881,8 +3093,20 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     display: none;
   }
 
+  .md\:h-full {
+    height: 100%;
+  }
+
+  .md\:w-1\/3 {
+    width: 33.333333%;
+  }
+
   .md\:w-32 {
     width: 8rem;
+  }
+
+  .md\:w-44 {
+    width: 11rem;
   }
 
   .md\:w-\[95\%\] {
@@ -2891,6 +3115,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .md\:w-auto {
     width: auto;
+  }
+
+  .md\:max-w-\[100px\] {
+    max-width: 100px;
   }
 
   .md\:max-w-\[180px\] {
@@ -2921,6 +3149,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     gap: 1.5rem;
   }
 
+  .md\:bg-gradient-to-r {
+    background-image: linear-gradient(to right, var(--tw-gradient-stops));
+  }
+
   .md\:p-4 {
     padding: 1rem;
   }
@@ -2942,8 +3174,16 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     padding-bottom: 5rem;
   }
 
+  .md\:pb-0 {
+    padding-bottom: 0px;
+  }
+
   .md\:pb-8 {
     padding-bottom: 2rem;
+  }
+
+  .md\:pr-32 {
+    padding-right: 8rem;
   }
 
   .md\:pt-0 {
@@ -2973,16 +3213,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     line-height: 1.5rem;
   }
 
-  .md\:text-lg {
-    font-size: 1.125rem;
-    line-height: 1.75rem;
-  }
-
-  .md\:text-sm {
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-  }
-
   .md\:text-xs {
     font-size: 0.75rem;
     line-height: 1rem;
@@ -2990,6 +3220,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 }
 
 @media (min-width: 1024px) {
+  .lg\:col-span-1 {
+    grid-column: span 1 / span 1;
+  }
+
   .lg\:col-span-2 {
     grid-column: span 2 / span 2;
   }
@@ -3004,6 +3238,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .lg\:grid-cols-3 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .lg\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .lg\:grid-cols-6 {

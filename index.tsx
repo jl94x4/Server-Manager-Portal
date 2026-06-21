@@ -541,6 +541,15 @@ const SettingsDashboard: React.FC = () => {
     const [radarrUrl, setRadarrUrl] = useState('');
     const [radarrApiKey, setRadarrApiKey] = useState('');
 
+    // Branding & UI States
+    const [primaryColor, setPrimaryColor] = useState('#E5A00D');
+    const [customLogoUrl, setCustomLogoUrl] = useState('');
+    const [referralEnabled, setReferralEnabled] = useState(false);
+    const [referralTrialDays, setReferralTrialDays] = useState(3);
+    const [referralRewardDays, setReferralRewardDays] = useState(7);
+    const [announcement, setAnnouncement] = useState('');
+    const [logoFile, setLogoFile] = useState<File | null>(null);
+
     useEffect(() => {
         if (initialSettings) {
             setToken(initialSettings.token || '');
@@ -564,6 +573,12 @@ const SettingsDashboard: React.FC = () => {
             setSonarrApiKey(initialSettings.sonarrApiKey || '');
             setRadarrUrl(initialSettings.radarrUrl || '');
             setRadarrApiKey(initialSettings.radarrApiKey || '');
+            setPrimaryColor(initialSettings.primaryColor || '#E5A00D');
+            setCustomLogoUrl(initialSettings.customLogoUrl || '');
+            setReferralEnabled(!!initialSettings.referralEnabled);
+            setReferralTrialDays(initialSettings.referralTrialDays || 3);
+            setReferralRewardDays(initialSettings.referralRewardDays || 7);
+            setAnnouncement(initialSettings.announcement || '');
             setTestRecipient('');
             setServers([]);
         }
@@ -607,6 +622,15 @@ const SettingsDashboard: React.FC = () => {
             addToast('Token and server must be selected.', 'error');
             return;
         }
+
+        if (logoFile) {
+            try {
+                await fetch('/api/config/logo', { method: 'POST', body: logoFile });
+            } catch (e) {
+                addToast('Failed to upload logo', 'error');
+            }
+        }
+
         await handleSaveConfig({
             token,
             serverIdentifier: selectedServer,
@@ -628,8 +652,15 @@ const SettingsDashboard: React.FC = () => {
             sonarrUrl,
             sonarrApiKey,
             radarrUrl,
-            radarrApiKey
+            radarrApiKey,
+            primaryColor,
+            customLogoUrl,
+            referralEnabled,
+            referralTrialDays,
+            referralRewardDays,
+            announcement
         });
+        document.documentElement.style.setProperty('--color-plex', primaryColor);
     };
 
     const handleTestEmail = async () => {
@@ -721,7 +752,8 @@ const SettingsDashboard: React.FC = () => {
                             { label: 'SMTP Alerts', value: 'smtp' },
                             { label: 'Newsletter', value: 'newsletter' },
                             { label: 'Automated Cleanup', value: 'cleanup' },
-                            { label: 'Media Stack', value: 'mediastack' }
+                            { label: 'Media Stack', value: 'mediastack' },
+                            { label: 'Portal UI', value: 'branding' }
                         ]}
                     />
                 </div>
@@ -777,6 +809,16 @@ const SettingsDashboard: React.FC = () => {
                         }`}
                     >
                         Media Stack
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('branding')}
+                        className={`bg-none border-none font-bold text-base py-2 px-1 transition-all border-b-2 cursor-pointer ${
+                            activeTab === 'branding'
+                                ? 'text-plex border-plex'
+                                : 'text-muted border-transparent hover:text-text'
+                        }`}
+                    >
+                        Portal UI
                     </button>
                 </div>
                 <div className="overflow-y-auto pr-2 flex-grow mb-4 custom-scrollbar">
@@ -1002,6 +1044,58 @@ const SettingsDashboard: React.FC = () => {
                             <div className="mb-4">
                                 <label htmlFor="radarrApiKey">Radarr API Key</label>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="radarrApiKey" type="password" value={radarrApiKey} onChange={(e) => setRadarrApiKey(e.target.value)} placeholder="API Key from Radarr Settings -> General" />
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'branding' && (
+                        <div className="mb-8 animate-fade-in">
+                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Branding & UI</h3>
+                            <div className="mb-4">
+                                <label>Primary Accent Color</label>
+                                <div className="flex gap-4">
+                                    <input type="color" className="w-16 h-12 p-1 rounded-lg border border-border cursor-pointer bg-background" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} />
+                                    <input type="text" className="flex-1 p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all uppercase font-mono" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} />
+                                </div>
+                            </div>
+                            <div className="mb-4">
+                                <label>Custom Logo</label>
+                                <div className="flex flex-col gap-2">
+                                    <input type="url" className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all" value={customLogoUrl} onChange={e => setCustomLogoUrl(e.target.value)} placeholder="https://example.com/logo.png" />
+                                    <span className="text-center text-muted font-bold text-sm">OR</span>
+                                    <input type="file" accept="image/*" className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all" onChange={e => setLogoFile(e.target.files?.[0] || null)} />
+                                </div>
+                                <small>Provide a URL or upload a file. (Max 5MB)</small>
+                            </div>
+
+                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8">Announcements</h3>
+                            <div className="mb-4">
+                                <label>Portal Announcement Banner</label>
+                                <textarea className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all" value={announcement} onChange={e => setAnnouncement(e.target.value)} placeholder="E.g. Server maintenance scheduled for Friday..." rows={3}></textarea>
+                                <small>If provided, this announcement will be prominently displayed to all users.</small>
+                            </div>
+
+                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8">Referral System</h3>
+                            <div className="mb-6 flex items-center justify-between bg-black/10 p-4 rounded-lg border border-border">
+                                <div>
+                                    <label className="font-bold block mb-1">Enable Referrals</label>
+                                    <span className="text-xs text-muted block">Allow users to generate a referral link</span>
+                                </div>
+                                <button onClick={() => setReferralEnabled(!referralEnabled)} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${referralEnabled ? 'bg-plex' : 'bg-border'}`}>
+                                    <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${referralEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                                </button>
+                            </div>
+                            <div className={`transition-all ${!referralEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
+                                <div className="flex gap-4">
+                                    <div className="flex-1">
+                                        <label>Referred User Trial Days</label>
+                                        <input type="number" min="0" className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all" value={referralTrialDays} onChange={e => setReferralTrialDays(Number(e.target.value))} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label>Referrer Reward Days</label>
+                                        <input type="number" min="0" className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all" value={referralRewardDays} onChange={e => setReferralRewardDays(Number(e.target.value))} />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -2991,7 +3085,7 @@ const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
     );
 };
 
-const Login: React.FC<{ onLoginSuccess: () => void }> = ({ onLoginSuccess }) => {
+const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any }> = ({ onLoginSuccess, publicConfig }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [publicInfo, setPublicInfo] = useState<{ thumb: string | null, serverName: string, isConfigured: boolean | null }>({ thumb: null, serverName: 'Plex Server', isConfigured: null });
@@ -3077,8 +3171,8 @@ const Login: React.FC<{ onLoginSuccess: () => void }> = ({ onLoginSuccess }) => 
                         <div className="w-full flex justify-center mb-8">
                             <div className="relative">
                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-plex rounded-full blur-[50px] opacity-20 pointer-events-none"></div>
-                                {publicInfo.thumb ? (
-                                    <img src={publicInfo.thumb} alt="Server Logo" className="w-32 h-32 object-cover rounded-full border-2 border-plex drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10" onError={(e) => { e.currentTarget.src = '/static/logo.png'; e.currentTarget.className = 'w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10'; }} />
+                                {publicConfig?.customLogoUrl || publicInfo.thumb ? (
+                                    <img src={publicConfig?.customLogoUrl || publicInfo.thumb} alt="Server Logo" className="w-32 h-32 object-cover rounded-full border-2 border-plex drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10" onError={(e) => { e.currentTarget.src = '/static/logo.png'; e.currentTarget.className = 'w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10'; }} />
                                 ) : (
                                     <img src="/static/logo.png" alt="Server Logo" className="w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10" onError={(e) => e.currentTarget.style.display = 'none'} />
                                 )}
@@ -3101,7 +3195,7 @@ const Login: React.FC<{ onLoginSuccess: () => void }> = ({ onLoginSuccess }) => 
     );
 };
 
-const UserDashboard: React.FC<{ sessionInfo: any; onLogout: () => void; refreshSession: () => void; onViewAdmin: () => void; onViewStatus: () => void; onViewDashboard: () => void }> = ({ sessionInfo, onLogout, refreshSession, onViewAdmin, onViewStatus, onViewDashboard }) => {
+const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: () => void; refreshSession: () => void; onViewAdmin: () => void; onViewStatus: () => void; onViewDashboard: () => void }> = ({ sessionInfo, publicConfig, onLogout, refreshSession, onViewAdmin, onViewStatus, onViewDashboard }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [toast, setToast] = useState<ToastMessage | null>(null);
 
@@ -3261,6 +3355,31 @@ const UserDashboard: React.FC<{ sessionInfo: any; onLogout: () => void; refreshS
                 </div>
 
             </div>
+
+            {/* Announcement Banner */}
+            {publicConfig?.announcement && (
+                <div className="bg-plex/10 border border-plex/30 rounded-2xl p-4 md:p-6 shadow-lg">
+                    <div className="flex items-start gap-3">
+                        <span className="text-xl mt-0.5">📢</span>
+                        <div>
+                            <h3 className="text-plex font-bold text-sm uppercase tracking-wider mb-1">Server Announcement</h3>
+                            <p className="text-text whitespace-pre-wrap text-sm leading-relaxed">{publicConfig.announcement}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Referral Link */}
+            {publicConfig?.referralEnabled && user && !sessionInfo.session.isAdmin && (
+                <div className="bg-card border border-border rounded-2xl p-4 md:p-6 shadow-lg">
+                    <p className="text-plex font-bold text-base mb-1">🎁 Invite Friends, Get Free Time!</p>
+                    <p className="text-muted text-sm leading-relaxed mb-4">Share this link with your friends. They get a free trial, and you get reward days added to your subscription automatically when they join!</p>
+                    <div className="flex gap-2">
+                        <input type="text" readOnly value={`${window.location.origin}/?ref=${user.id}`} className="flex-1 p-3 rounded-lg border border-border bg-background text-text text-sm outline-none" />
+                        <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/?ref=${user.id}`); setToast({ id: 99, message: 'Copied to clipboard!', type: 'success' }); }} className="px-4 bg-plex text-background rounded-lg font-bold hover:bg-plex-hover transition-colors shadow-md">Copy</button>
+                    </div>
+                </div>
+            )}
 
             {/* Newsletter preferences */}
             {user && !sessionInfo.session.isAdmin && (
@@ -3852,6 +3971,24 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
 const MainApp: React.FC = () => {
     const [currentRoute, setCurrentRoute] = useState<'login' | 'admin' | 'user' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'loading'>('loading');
     const [sessionInfo, setSessionInfo] = useState<any>(null);
+    const [publicConfig, setPublicConfig] = useState<any>({});
+
+    const fetchPublicConfig = useCallback(async () => {
+        try {
+            const data = await apiFetch('/api/config/public');
+            setPublicConfig(data);
+            if (data.primaryColor) {
+                document.documentElement.style.setProperty('--color-plex', data.primaryColor);
+            }
+            if (data.customLogoUrl) {
+                updateFavicon(data.customLogoUrl);
+            }
+        } catch (e) { }
+    }, []);
+
+    useEffect(() => {
+        fetchPublicConfig();
+    }, [fetchPublicConfig]);
 
     const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'loading') => {
         setCurrentRoute(route);
@@ -3913,7 +4050,7 @@ const MainApp: React.FC = () => {
     };
 
     if (currentRoute === 'loading') return <Loader isLoading={true} />;
-    if (currentRoute === 'login') return <Login onLoginSuccess={checkSession} />;
+    if (currentRoute === 'login') return <Login onLoginSuccess={checkSession} publicConfig={publicConfig} />;
 
     const isAdmin = !!sessionInfo?.session?.isAdmin;
 
@@ -3927,7 +4064,7 @@ const MainApp: React.FC = () => {
         if (currentRoute === 'mediastack') return <MediaStackDashboard isAdmin={isAdmin} />;
         if (currentRoute === 'analytics') return <AnalyticsDashboard isAdmin={isAdmin} sessionInfo={sessionInfo} />;
         if (currentRoute === 'admin') return <AdminDashboard onLogout={handleLogout} onViewUserPortal={() => setRoute('user')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} />;
-        return <UserDashboard sessionInfo={sessionInfo} onLogout={handleLogout} refreshSession={checkSession} onViewAdmin={() => setRoute('admin')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} />;
+        return <UserDashboard sessionInfo={sessionInfo} publicConfig={publicConfig} onLogout={handleLogout} refreshSession={checkSession} onViewAdmin={() => setRoute('admin')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} />;
     };
 
     return (
