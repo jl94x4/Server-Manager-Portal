@@ -1858,7 +1858,7 @@ app.post('/api/tasks/run/:taskId', requireAdmin, async (req, res) => {
             case 'syncPlexUsers': await syncUsers(currentConfig); break;
             case 'checkAndSendNotifications': await checkAndSendNotifications(currentConfig); break;
             case 'checkAndRevoke': await checkAndRevoke(currentConfig); break;
-            case 'checkAndSendNewsletter': await checkAndSendNewsletter(currentConfig); break;
+            case 'checkAndSendNewsletter': await checkAndSendNewsletter(currentConfig, true); break;
             case 'checkAndCleanupInactive': await checkAndCleanupInactive(currentConfig); break;
             default: return res.status(400).json({ error: 'Invalid task' });
         }
@@ -2729,25 +2729,27 @@ app.get(['/', '/portal', '/status', '/admin', '/dashboard', '/settings', '/analy
 // --- API Routes ---Service ---
 let serviceIntervalId = null;
 
-const checkAndSendNewsletter = async (config) => {
+const checkAndSendNewsletter = async (config, force = false) => {
     if (!config.newsletterFrequency || config.newsletterFrequency === 'disabled') return;
     if (!config.smtpHost || !config.smtpUser) return;
     
     const now = new Date();
-    const dayOfWeek = now.getDay();
-    const dayOfMonth = now.getDate();
-    
-    let shouldSend = false;
-    if (config.newsletterFrequency === 'weekly' && dayOfWeek === Number(config.newsletterDay)) {
-        shouldSend = true;
-    } else if (config.newsletterFrequency === 'monthly' && dayOfMonth === Number(config.newsletterDay)) {
-        shouldSend = true;
-    }
-    
-    if (!shouldSend) return;
-    
     const dateStr = now.toISOString().split('T')[0];
-    if (config.lastNewsletterSent === dateStr) return;
+
+    if (!force) {
+        const dayOfWeek = now.getDay();
+        const dayOfMonth = now.getDate();
+        
+        let shouldSend = false;
+        if (config.newsletterFrequency === 'weekly' && dayOfWeek === Number(config.newsletterDay)) {
+            shouldSend = true;
+        } else if (config.newsletterFrequency === 'monthly' && dayOfMonth === Number(config.newsletterDay)) {
+            shouldSend = true;
+        }
+        
+        if (!shouldSend) return;
+        if (config.lastNewsletterSent === dateStr) return;
+    }
     
     try {
         log('Generating and sending automated newsletters...');
@@ -2872,9 +2874,41 @@ const startBackgroundService = async () => {
     const intervalMinutes = config.checkIntervalMinutes || 60;
     const intervalMs = intervalMinutes * 60 * 1000;
     
-    const updateNextRun = () => {
+    const updateNextRun = (currentConfig) => {
         const nextRun = new Date(Date.now() + intervalMs).toISOString();
-        tasksInfo.forEach(t => t.nextRun = nextRun);
+        tasksInfo.forEach(t => {
+            if (t.id === 'checkAndSendNewsletter') {
+                if (!currentConfig.newsletterFrequency || currentConfig.newsletterFrequency === 'disabled') {
+                    t.nextRun = null;
+                } else {
+                    const now = new Date();
+                    let nextDate = new Date(now);
+                    const todayStr = now.toISOString().split('T')[0];
+                    
+                    if (currentConfig.newsletterFrequency === 'weekly') {
+                        const targetDay = Number(currentConfig.newsletterDay);
+                        const currentDay = now.getDay();
+                        let daysUntil = targetDay - currentDay;
+                        if (daysUntil < 0 || (daysUntil === 0 && currentConfig.lastNewsletterSent === todayStr)) {
+                            daysUntil += 7;
+                        }
+                        nextDate.setDate(now.getDate() + daysUntil);
+                    } else if (currentConfig.newsletterFrequency === 'monthly') {
+                        const targetDay = Number(currentConfig.newsletterDay);
+                        const currentDay = now.getDate();
+                        if (currentDay > targetDay || (currentDay === targetDay && currentConfig.lastNewsletterSent === todayStr)) {
+                            nextDate.setMonth(now.getMonth() + 1);
+                        }
+                        // Handle end of month edge cases
+                        const daysInMonth = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0).getDate();
+                        nextDate.setDate(Math.min(targetDay, daysInMonth));
+                    }
+                    t.nextRun = nextDate.toISOString();
+                }
+            } else {
+                t.nextRun = nextRun;
+            }
+        });
     };
 
     const runBatch = async (currentConfig) => {
@@ -2894,7 +2928,7 @@ const startBackgroundService = async () => {
         tasksInfo.find(t => t.id === 'checkAndCleanupInactive').lastRun = now;
         await checkAndCleanupInactive(currentConfig).catch(e => log(`Error during inactive cleanup: ${e.message}`));
         
-        updateNextRun();
+        updateNextRun(currentConfig);
     };
 
     log(`Service started successfully. Checks will run every ${intervalMinutes} minute(s).`);
