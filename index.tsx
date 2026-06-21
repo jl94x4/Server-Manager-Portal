@@ -4350,11 +4350,16 @@ const PublicInviteClaim: React.FC<{ code: string }> = ({ code }) => {
     }, [handleClaim]);
 
     const handlePlexLogin = async () => {
+        setIsClaiming(true);
+        setError(null);
         try {
             const data = await apiFetch('/api/auth/plex/login', { method: 'POST' });
-            window.location.href = data.authUrl;
+            const forwardUrl = window.location.origin + '/invite/' + code + '#auth/' + data.id;
+            const authUrl = `https://app.plex.tv/auth#?clientID=${data.clientIdentifier}&code=${data.code}&context[device][product]=Plex%20Expiry%20Manager&forwardUrl=${encodeURIComponent(forwardUrl)}`;
+            window.location.href = authUrl;
         } catch (error) {
             setError('Failed to initiate Plex login');
+            setIsClaiming(false);
         }
     };
 
