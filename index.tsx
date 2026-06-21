@@ -618,7 +618,14 @@ const SettingsDashboard: React.FC = () => {
     const [servers, setServers] = useState<PlexServer[]>([]);
     const [selectedServer, setSelectedServer] = useState('');
     const [checkInterval, setCheckInterval] = useState(60);
-    const [activeTab, setActiveTab] = useState('plex');
+    const [activeTab, setActiveTab] = useState(() => {
+        const hash = window.location.hash.replace('#', '');
+        return ['plex', 'smtp', 'newsletter', 'cleanup', 'mediastack', 'branding', 'invites', 'tasks'].includes(hash) ? hash : 'plex';
+    });
+
+    useEffect(() => {
+        window.location.hash = activeTab;
+    }, [activeTab]);
 
     // SMTP States
     const [smtpHost, setSmtpHost] = useState('');
