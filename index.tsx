@@ -789,77 +789,28 @@ const SettingsDashboard: React.FC = () => {
                 </div>
 
                 {/* Desktop Category Tabs */}
-                <div className="hidden md:flex gap-8 mt-4 mb-6 border-b border-border pb-2">
-                    <button
-                        onClick={() => setActiveTab('plex')}
-                        className={`bg-none border-none font-bold text-base py-2 px-1 transition-all border-b-2 cursor-pointer ${
-                            activeTab === 'plex'
-                                ? 'text-plex border-plex'
-                                : 'text-muted border-transparent hover:text-text'
-                        }`}
-                    >
-                        Plex Integration
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('smtp')}
-                        className={`bg-none border-none font-bold text-base py-2 px-1 transition-all border-b-2 cursor-pointer ${
-                            activeTab === 'smtp'
-                                ? 'text-plex border-plex'
-                                : 'text-muted border-transparent hover:text-text'
-                        }`}
-                    >
-                        SMTP Alerts
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('newsletter')}
-                        className={`bg-none border-none font-bold text-base py-2 px-1 transition-all border-b-2 cursor-pointer ${
-                            activeTab === 'newsletter'
-                                ? 'text-plex border-plex'
-                                : 'text-muted border-transparent hover:text-text'
-                        }`}
-                    >
-                        Newsletter
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('cleanup')}
-                        className={`bg-none border-none font-bold text-base py-2 px-1 transition-all border-b-2 cursor-pointer ${
-                            activeTab === 'cleanup'
-                                ? 'text-plex border-plex'
-                                : 'text-muted border-transparent hover:text-text'
-                        }`}
-                    >
-                        Cleanup
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('mediastack')}
-                        className={`bg-none border-none font-bold text-base py-2 px-1 transition-all border-b-2 cursor-pointer ${
-                            activeTab === 'mediastack'
-                                ? 'text-plex border-plex'
-                                : 'text-muted border-transparent hover:text-text'
-                        }`}
-                    >
-                        Media Stack
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('branding')}
-                        className={`bg-none border-none font-bold text-base py-2 px-1 transition-all border-b-2 cursor-pointer ${
-                            activeTab === 'branding'
-                                ? 'text-plex border-plex'
-                                : 'text-muted border-transparent hover:text-text'
-                        }`}
-                    >
-                        Portal UI
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('tasks')}
-                        className={`bg-none border-none font-bold text-base py-2 px-1 transition-all border-b-2 cursor-pointer ${
-                            activeTab === 'tasks'
-                                ? 'text-plex border-plex'
-                                : 'text-muted border-transparent hover:text-text'
-                        }`}
-                    >
-                        Background Tasks
-                    </button>
+                <div className="hidden md:flex flex-wrap gap-2 mt-4 mb-8 p-1.5 bg-black/20 rounded-xl border border-border w-fit">
+                    {[
+                        { id: 'plex', label: 'Plex Integration' },
+                        { id: 'smtp', label: 'SMTP Alerts' },
+                        { id: 'newsletter', label: 'Newsletter' },
+                        { id: 'cleanup', label: 'Cleanup' },
+                        { id: 'mediastack', label: 'Media Stack' },
+                        { id: 'branding', label: 'Portal UI' },
+                        { id: 'tasks', label: 'Background Tasks' }
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 cursor-pointer border-none outline-none ${
+                                activeTab === tab.id
+                                    ? 'bg-plex text-background shadow-md'
+                                    : 'bg-transparent text-muted hover:text-text hover:bg-white/5'
+                            }`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
                 </div>
                 <div className="overflow-y-auto pr-2 flex-grow mb-4 custom-scrollbar">
                     {activeTab === 'plex' && (
