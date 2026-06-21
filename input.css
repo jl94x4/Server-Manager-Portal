@@ -3,6 +3,10 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-plex: #E5A00D;
+    --color-plex-hover: #f0a810;
+  }
   body {
     @apply bg-background text-text font-sans antialiased;
   }

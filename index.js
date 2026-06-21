@@ -970,7 +970,7 @@ app.post('/api/auth/plex/login', authRateLimit, async (req, res) => {
 });
 
 app.post('/api/auth/plex/callback', authRateLimit, async (req, res) => {
-    const { pinId } = req.body;
+    const { pinId, ref } = req.body;
     if (!pinId) return res.status(400).json({ error: 'pinId is required' });
 
     try {
@@ -1008,6 +1008,46 @@ app.post('/api/auth/plex/callback', authRateLimit, async (req, res) => {
             await appendAuditLog('login_blocked_deleted_user', sessionUser, sessionUser);
             res.clearCookie('session');
             return res.status(403).json({ error: 'Your portal session has expired. Please contact the admin for access.' });
+        }
+
+        if (!isAdmin && config.referralEnabled && ref) {
+            const users = await loadFile(USERS_PATH, []);
+            const isNewUser = !users.find(u => u.id === sessionUser.id || u.plexId === sessionUser.plexId);
+            
+            if (isNewUser) {
+                const referrer = users.find(u => u.id === ref || u.plexId === ref);
+                if (referrer && referrer.plexAccessStatus === 'active') {
+                    const trialDays = config.referralTrialDays || 3;
+                    const rewardDays = config.referralRewardDays || 7;
+                    
+                    // Add new user with trial
+                    const newUserObj = {
+                        id: sessionUser.id,
+                        plexId: sessionUser.plexId,
+                        username: sessionUser.username,
+                        email: sessionUser.email,
+                        joiningDate: new Date().toISOString(),
+                        expiryDate: addDays(new Date(), trialDays).toISOString(),
+                        plexAccessStatus: 'pending',
+                        isTrial: true
+                    };
+                    users.push(newUserObj);
+                    
+                    // Reward referrer
+                    if (referrer.expiryDate) {
+                        referrer.expiryDate = addDays(new Date(referrer.expiryDate), rewardDays).toISOString();
+                    }
+                    
+                    await saveFile(USERS_PATH, users);
+                    
+                    await appendAuditLog('referral_claimed', sessionUser, referrer, { trialDays, rewardDays });
+                    
+                    // Invite new user
+                    if (config.serverIdentifier && config.plexToken) {
+                        inviteUserToPlex(newUserObj, config).catch(e => log('Failed to invite referral: ' + e.message));
+                    }
+                }
+            }
         }
 
         const token = jwt.sign(sessionUser, JWT_SECRET, { expiresIn: '7d' });
@@ -1108,7 +1148,13 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 sonarrUrl: config.sonarrUrl || '',
                 sonarrApiKey: config.sonarrApiKey || '',
                 radarrUrl: config.radarrUrl || '',
-                radarrApiKey: config.radarrApiKey || ''
+                radarrApiKey: config.radarrApiKey || '',
+                primaryColor: config.primaryColor || '#E5A00D',
+                customLogoUrl: config.customLogoUrl || '',
+                referralEnabled: !!config.referralEnabled,
+                referralTrialDays: config.referralTrialDays || 3,
+                referralRewardDays: config.referralRewardDays || 7,
+                announcement: config.announcement || ''
             },
         });
     } else {
@@ -1135,7 +1181,13 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 sonarrUrl: '',
                 sonarrApiKey: '',
                 radarrUrl: '',
-                radarrApiKey: ''
+                radarrApiKey: '',
+                primaryColor: '#E5A00D',
+                customLogoUrl: '',
+                referralEnabled: false,
+                referralTrialDays: 3,
+                referralRewardDays: 7,
+                announcement: ''
             },
         });
     }
@@ -1147,7 +1199,8 @@ app.post('/api/config', async (req, res) => {
         smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, smtpSecure, emailDaysBefore,
         newsletterFrequency, newsletterDay, publicDomain, requestUrl, contactUrl,
         sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey,
-        inactiveCleanupEnabled, inactiveCleanupDays
+        inactiveCleanupEnabled, inactiveCleanupDays,
+        primaryColor, customLogoUrl, referralEnabled, referralTrialDays, referralRewardDays, announcement
     } = req.body;
 
     if (!token || !serverIdentifier) {
@@ -1197,12 +1250,41 @@ app.post('/api/config', async (req, res) => {
         sonarrUrl: sonarrUrl !== undefined ? sonarrUrl : (existingConfig.sonarrUrl || ''),
         sonarrApiKey: sonarrApiKey !== undefined ? sonarrApiKey : (existingConfig.sonarrApiKey || ''),
         radarrUrl: radarrUrl !== undefined ? radarrUrl : (existingConfig.radarrUrl || ''),
-        radarrApiKey: radarrApiKey !== undefined ? radarrApiKey : (existingConfig.radarrApiKey || '')
+        radarrApiKey: radarrApiKey !== undefined ? radarrApiKey : (existingConfig.radarrApiKey || ''),
+        primaryColor: primaryColor || '#E5A00D',
+        customLogoUrl: customLogoUrl || '',
+        referralEnabled: !!referralEnabled,
+        referralTrialDays: parseInt(referralTrialDays, 10) || 3,
+        referralRewardDays: parseInt(referralRewardDays, 10) || 7,
+        announcement: announcement || ''
     };
     await saveFile(CONFIG_PATH, config);
     log('Configuration saved successfully.');
     startBackgroundService(); // (Re)start service with new config
     res.json({ message: 'Configuration saved.' });
+});
+
+app.get('/api/config/public', async (req, res) => {
+    const config = await loadFile(CONFIG_PATH, {});
+    res.json({
+        primaryColor: config.primaryColor || '#E5A00D',
+        customLogoUrl: config.customLogoUrl || '',
+        announcement: config.announcement || '',
+        referralEnabled: !!config.referralEnabled
+    });
+});
+
+app.post('/api/config/logo', requireAdmin, express.raw({ type: 'image/*', limit: '5mb' }), async (req, res) => {
+    try {
+        const logoDir = path.join(process.cwd(), 'static');
+        await fs.mkdir(logoDir, { recursive: true });
+        const logoPath = path.join(logoDir, 'logo.png');
+        await fs.writeFile(logoPath, req.body);
+        res.json({ message: 'Logo uploaded successfully.' });
+    } catch (e) {
+        log('Failed to upload logo: ' + e.message);
+        res.status(500).json({ error: 'Failed to upload logo.' });
+    }
 });
 
 app.post('/api/config/test-email', requireAdmin, async (req, res) => {
@@ -2762,6 +2844,7 @@ const startBackgroundService = async () => {
     serviceIntervalId = setInterval(async () => {
         try {
             const currentConfig = await loadFile(CONFIG_PATH, config);
+            await syncUsers(currentConfig);
             await checkAndSendNotifications(currentConfig);
             await checkAndRevoke(currentConfig);
             await checkAndSendNewsletter(currentConfig);

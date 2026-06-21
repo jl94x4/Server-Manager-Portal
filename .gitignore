@@ -35,6 +35,7 @@ subzero-health.json
 # Backup directories
 backup/
 unneeded/
+v2/
 
 # Local database files
 audit-log.json

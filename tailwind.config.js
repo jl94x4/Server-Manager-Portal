@@ -10,8 +10,8 @@ module.exports = {
         background: '#0d1117', // Very dark slate/navy
         card: '#161b22',       // Slightly lighter card background
         border: '#30363d',     // Subtle border color
-        plex: '#E5A00D',       // Orange accent
-        'plex-hover': '#f0a810',
+        plex: 'var(--color-plex)',       // Orange accent
+        'plex-hover': 'var(--color-plex-hover)',
         text: '#c9d1d9',       // Primary text
         muted: '#8b949e',      // Secondary/muted text
         status: {
