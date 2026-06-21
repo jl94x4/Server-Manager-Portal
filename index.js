@@ -4,7 +4,7 @@ import express from 'express';
 import fs from 'fs/promises';
 import path from 'path';
 import fetch from 'node-fetch';
-import { randomUUID } from 'crypto';
+import { randomUUID, randomBytes } from 'crypto';
 import nodemailer from 'nodemailer';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
@@ -65,6 +65,7 @@ app.set('trust proxy', 1);
 
 // --- Configuration and Paths ---
 const CONFIG_PATH = path.join(process.cwd(), 'config.json');
+const INVITES_PATH = path.join(process.cwd(), 'invites.json');
 const USERS_PATH = path.join(process.cwd(), 'users.json');
 const DELETED_USERS_PATH = path.join(process.cwd(), 'deleted-users.json');
 const AUDIT_LOG_PATH = path.join(process.cwd(), 'audit-log.json');
@@ -1871,6 +1872,117 @@ app.post('/api/sync', requireAdmin, async (req, res) => {
     }
 });
 
+// --- Invites Endpoints ---
+app.get('/api/invites', requireAdmin, async (req, res) => {
+    const invites = await loadFile(INVITES_PATH, []);
+    res.json(invites);
+});
+
+app.post('/api/invites', requireAdmin, async (req, res) => {
+    const { durationDays, maxUses } = req.body;
+    const invites = await loadFile(INVITES_PATH, []);
+    
+    const code = randomBytes(6).toString('hex');
+    const newInvite = {
+        code,
+        durationDays: parseInt(durationDays, 10) || 30,
+        maxUses: maxUses === 'unlimited' ? 'unlimited' : (parseInt(maxUses, 10) || 1),
+        currentUses: 0,
+        createdBy: req.user.username || 'admin',
+        createdAt: new Date().toISOString()
+    };
+    
+    invites.push(newInvite);
+    await saveFile(INVITES_PATH, invites);
+    res.json(newInvite);
+});
+
+app.delete('/api/invites/:code', requireAdmin, async (req, res) => {
+    let invites = await loadFile(INVITES_PATH, []);
+    invites = invites.filter(i => i.code !== req.params.code);
+    await saveFile(INVITES_PATH, invites);
+    res.json({ success: true });
+});
+
+app.get('/api/invites/:code/info', async (req, res) => {
+    const invites = await loadFile(INVITES_PATH, []);
+    const invite = invites.find(i => i.code === req.params.code);
+    if (!invite) return res.status(404).json({ error: 'Invite code not found or revoked.' });
+    if (invite.maxUses !== 'unlimited' && invite.currentUses >= invite.maxUses) {
+        return res.status(400).json({ error: 'Invite code has reached its maximum usage limit.' });
+    }
+    const config = await loadFile(CONFIG_PATH, {});
+    const adminProfile = await getAdminProfile(config);
+    res.json({ 
+        durationDays: invite.durationDays, 
+        serverName: adminProfile.serverName || 'Our Server', 
+        customLogoUrl: config.customLogoUrl,
+        thumb: adminProfile.thumb
+    });
+});
+
+app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
+    const { authToken } = req.body;
+    if (!authToken) return res.status(400).json({ error: 'Auth token is required' });
+
+    let invites = await loadFile(INVITES_PATH, []);
+    const inviteIndex = invites.findIndex(i => i.code === req.params.code);
+    if (inviteIndex === -1) return res.status(404).json({ error: 'Invite code not found or revoked.' });
+    
+    const invite = invites[inviteIndex];
+    if (invite.maxUses !== 'unlimited' && invite.currentUses >= invite.maxUses) {
+        return res.status(400).json({ error: 'Invite code has reached its maximum usage limit.' });
+    }
+
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        // Validate user with Plex
+        const plexRes = await apiFetch('https://plex.tv/api/v2/user', authToken);
+        if (!plexRes.ok) return res.status(401).json({ error: 'Invalid Plex token' });
+        
+        const plexUser = await plexRes.json();
+        const users = await loadFile(USERS_PATH, []);
+        
+        // Check if user already exists
+        if (users.find(u => String(u.plexId) === String(plexUser.id) || u.email === plexUser.email)) {
+            return res.status(400).json({ error: 'You are already a member of this server.' });
+        }
+        
+        // Calculate expiry date
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        today.setDate(today.getDate() + invite.durationDays);
+        const expiryDate = today.toISOString();
+        
+        const newUser = {
+            id: randomUUID(),
+            plexId: plexUser.id,
+            username: plexUser.username,
+            email: plexUser.email,
+            thumb: plexUser.thumb,
+            expiryDate: expiryDate,
+            addedAt: new Date().toISOString()
+        };
+        
+        users.push(newUser);
+        await saveFile(USERS_PATH, users);
+        
+        // Send actual Plex invite
+        await inviteUserToPlex(newUser, config).catch(e => log('Failed to invite claimed user: ' + e.message));
+        
+        // Update invite usage
+        invites[inviteIndex].currentUses += 1;
+        await saveFile(INVITES_PATH, invites);
+        
+        await appendAuditLog('invite_claimed', { username: plexUser.username, id: plexUser.id }, newUser, { code: invite.code });
+        
+        res.json({ success: true, user: newUser });
+    } catch (e) {
+        log(`Error claiming invite: ${e.message}`);
+        res.status(500).json({ error: 'Failed to claim invite. Please try again later.' });
+    }
+});
+
 // User data endpoints
 app.get('/api/users', requireAdmin, async (req, res) => {
     const users = await loadFile(USERS_PATH, []);
@@ -2771,7 +2883,7 @@ app.get('/style.css', (req, res) => {
 });
 
 // Serve the main index.html for any other GET request
-app.get(['/', '/portal', '/status', '/admin', '/dashboard', '/settings', '/analytics', '/logs', '/mediastack', '/auth/*'], (req, res) => {
+app.get(['/', '/portal', '/status', '/admin', '/dashboard', '/settings', '/analytics', '/logs', '/mediastack', '/auth/*', '/invite/*'], (req, res) => {
     res.sendFile(path.join(process.cwd(), 'index.html'));
 });
 

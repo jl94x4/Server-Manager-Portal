@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone } from 'lucide-react';
+import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy } from 'lucide-react';
 
 interface CustomSelectProps {
     id?: string;
@@ -454,6 +454,115 @@ const UserModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (user:
 };
 
 
+const InvitesSettings: React.FC<{ addToast: (msg: string, type: 'success' | 'error') => void }> = ({ addToast }) => {
+    const [invites, setInvites] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [durationDays, setDurationDays] = useState(30);
+    const [maxUses, setMaxUses] = useState<string | number>('unlimited');
+
+    const fetchInvites = useCallback(async () => {
+        try {
+            const data = await apiFetch('/api/invites');
+            setInvites(data);
+        } catch (e) {
+            addToast('Failed to load invites', 'error');
+        } finally {
+            setLoading(false);
+        }
+    }, [addToast]);
+
+    useEffect(() => { fetchInvites(); }, [fetchInvites]);
+
+    const handleCreate = async () => {
+        try {
+            await apiFetch('/api/invites', {
+                method: 'POST',
+                body: JSON.stringify({ durationDays, maxUses })
+            });
+            addToast('Invite link created', 'success');
+            fetchInvites();
+        } catch (e: any) {
+            addToast(e.message || 'Error creating invite', 'error');
+        }
+    };
+
+    const handleDelete = async (code: string) => {
+        if (!confirm('Are you sure you want to delete this invite link?')) return;
+        try {
+            await apiFetch(`/api/invites/${code}`, { method: 'DELETE' });
+            addToast('Invite link deleted', 'success');
+            fetchInvites();
+        } catch (e: any) {
+            addToast(e.message || 'Error deleting invite', 'error');
+        }
+    };
+
+    const handleCopy = (code: string) => {
+        navigator.clipboard.writeText(`${window.location.origin}/invite/${code}`);
+        addToast('Invite link copied to clipboard!', 'success');
+    };
+
+    if (loading) return <div className="text-muted">Loading invites...</div>;
+
+    return (
+        <div className="animate-fade-in mb-8">
+            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Automated Invite Links</h3>
+            <p className="text-sm text-muted mb-6">Generate unique links to automatically invite users to your Plex server.</p>
+            
+            <div className="bg-black/20 p-4 md:p-6 rounded-xl border border-border mb-8 shadow-sm">
+                <h4 className="font-bold mb-4">Create New Invite Link</h4>
+                <div className="flex flex-col md:flex-row gap-4 items-end">
+                    <div className="flex-1 w-full">
+                        <label className="block text-sm mb-1 font-medium">Duration (Days)</label>
+                        <input type="number" min="1" className="w-full p-2.5 rounded-lg bg-background border border-border text-text outline-none focus:border-plex" value={durationDays} onChange={e => setDurationDays(Number(e.target.value))} />
+                    </div>
+                    <div className="flex-1 w-full">
+                        <label className="block text-sm mb-1 font-medium">Max Uses (Number or 'unlimited')</label>
+                        <input type="text" className="w-full p-2.5 rounded-lg bg-background border border-border text-text outline-none focus:border-plex" value={maxUses} onChange={e => setMaxUses(e.target.value)} />
+                    </div>
+                    <button className="w-full md:w-auto px-6 py-2.5 bg-plex text-background font-bold rounded-lg hover:bg-plex-hover transition-colors shadow-lg" onClick={handleCreate}>Generate Link</button>
+                </div>
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[600px]">
+                    <thead>
+                        <tr className="border-b border-border text-muted text-sm uppercase tracking-wider">
+                            <th className="p-3">Invite Link</th>
+                            <th className="p-3">Duration</th>
+                            <th className="p-3">Uses</th>
+                            <th className="p-3">Created</th>
+                            <th className="p-3 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {invites.length === 0 ? (
+                            <tr><td colSpan={5} className="p-8 text-center text-muted">No active invites. Create one above!</td></tr>
+                        ) : invites.map(inv => (
+                            <tr key={inv.code} className="border-b border-border/50 hover:bg-white/5 transition-colors">
+                                <td className="p-3">
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-mono text-sm text-plex select-all">{window.location.origin}/invite/{inv.code}</span>
+                                        <button onClick={() => handleCopy(inv.code)} className="text-muted hover:text-plex transition-colors p-1" title="Copy Link">
+                                            <Copy size={16} />
+                                        </button>
+                                    </div>
+                                </td>
+                                <td className="p-3 font-medium">{inv.durationDays} Days</td>
+                                <td className="p-3">{inv.currentUses} / {inv.maxUses}</td>
+                                <td className="p-3 text-muted text-sm">{new Date(inv.createdAt).toLocaleDateString()}</td>
+                                <td className="p-3 text-right">
+                                    <button onClick={() => handleDelete(inv.code)} className="text-red-500 hover:text-red-400 font-bold border border-red-500/30 px-3 py-1 rounded hover:bg-red-500/10 transition-colors text-xs">Revoke</button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
 const SettingsDashboard: React.FC = () => {
     const [isLoading, setLoading] = useState(true);
     const [initialSettings, setInitialSettings] = useState<any>({});
@@ -783,6 +892,7 @@ const SettingsDashboard: React.FC = () => {
                             { label: 'Automated Cleanup', value: 'cleanup' },
                             { label: 'Media Stack', value: 'mediastack' },
                             { label: 'Portal UI', value: 'branding' },
+                            { label: 'Invites', value: 'invites' },
                             { label: 'Tasks', value: 'tasks' }
                         ]}
                     />
@@ -797,6 +907,7 @@ const SettingsDashboard: React.FC = () => {
                         { id: 'cleanup', label: 'Cleanup' },
                         { id: 'mediastack', label: 'Media Stack' },
                         { id: 'branding', label: 'Portal UI' },
+                        { id: 'invites', label: 'Invites' },
                         { id: 'tasks', label: 'Background Tasks' }
                     ].map(tab => (
                         <button
@@ -1090,6 +1201,8 @@ const SettingsDashboard: React.FC = () => {
                             </div>
                         </div>
                     )}
+
+                    {activeTab === 'invites' && <InvitesSettings addToast={addToast} />}
 
                     {activeTab === 'tasks' && (
                         <div className="mb-8 animate-fade-in">
@@ -4193,8 +4306,107 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
     );
 };
 
+const PublicInviteClaim: React.FC<{ code: string }> = ({ code }) => {
+    const [info, setInfo] = useState<any>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [claimed, setClaimed] = useState(false);
+    const [isClaiming, setIsClaiming] = useState(false);
+
+    useEffect(() => {
+        apiFetch(`/api/invites/${code}/info`).then(setInfo).catch(e => setError(e.message || 'Invalid invite link'));
+    }, [code]);
+
+    const handleClaim = useCallback(async (token: string) => {
+        setIsClaiming(true);
+        try {
+            await apiFetch(`/api/invites/${code}/claim`, {
+                method: 'POST',
+                body: JSON.stringify({ authToken: token })
+            });
+            setClaimed(true);
+        } catch (e: any) {
+            setError(e.message || 'Failed to claim invite');
+        } finally {
+            setIsClaiming(false);
+        }
+    }, [code]);
+
+    useEffect(() => {
+        const hash = window.location.hash;
+        if (hash.startsWith('#auth/')) {
+            const token = hash.split('/')[1];
+            if (token) {
+                window.location.hash = ''; // clear hash
+                handleClaim(token);
+            }
+        }
+    }, [handleClaim]);
+
+    const handlePlexLogin = async () => {
+        try {
+            const data = await apiFetch('/api/auth/plex/login', { method: 'POST' });
+            window.location.href = data.authUrl;
+        } catch (error) {
+            setError('Failed to initiate Plex login');
+        }
+    };
+
+    if (error) return (
+        <div className="flex flex-col items-center justify-center min-h-[50vh] text-center max-w-md w-full animate-fade-in mx-auto px-4 mt-20">
+            <div className="bg-red-500/10 border border-red-500/30 p-8 rounded-2xl w-full">
+                <h2 className="text-2xl font-bold text-red-500 mb-4">Invite Error</h2>
+                <p className="text-text">{error}</p>
+                <a href="/" className="mt-6 inline-block text-plex hover:underline font-bold">Return to Home</a>
+            </div>
+        </div>
+    );
+
+    if (claimed) return (
+        <div className="flex flex-col items-center justify-center min-h-[50vh] text-center max-w-md w-full animate-fade-in mx-auto px-4 mt-20">
+            <div className="bg-green-500/10 border border-green-500/30 p-8 rounded-2xl w-full">
+                <h2 className="text-3xl font-bold text-green-500 mb-4">Success!</h2>
+                <p className="text-text mb-6">You have successfully claimed your invite to <strong className="text-plex">{info?.serverName}</strong>. Check your email or open Plex to accept the shared server invite!</p>
+                <a href="/" className="inline-block px-6 py-3 bg-plex text-background font-bold rounded-lg hover:bg-plex-hover transition-colors shadow-lg">Go to Dashboard</a>
+            </div>
+        </div>
+    );
+
+    if (!info) return <Loader isLoading={true} />;
+
+    return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center max-w-lg w-full animate-fade-in mx-auto px-4 mt-20">
+            <div className="relative mb-8">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-plex rounded-full blur-[50px] opacity-20 pointer-events-none"></div>
+                {info.customLogoUrl || info.thumb ? (
+                    <img src={info.customLogoUrl || info.thumb} alt="Server Logo" className="w-32 h-32 object-cover rounded-full border-2 border-plex drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10" onError={(e) => { e.currentTarget.src = '/static/logo.png'; e.currentTarget.className = 'w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10'; }} />
+                ) : (
+                    <img src="/static/logo.png" alt="Server Logo" className="w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10" onError={(e) => e.currentTarget.style.display = 'none'} />
+                )}
+            </div>
+
+            <h1 className="text-4xl md:text-5xl font-bold text-text mb-4">You've been invited!</h1>
+            <p className="text-xl text-muted mb-8 leading-relaxed">
+                You have been invited to join <strong className="text-plex">{info.serverName}</strong> for a period of <strong className="text-plex">{info.durationDays} days</strong>.
+            </p>
+
+            <div className="w-full mb-8">
+                <LivePlexStats />
+            </div>
+
+            <button 
+                onClick={handlePlexLogin} 
+                disabled={isClaiming}
+                className="w-full max-w-sm px-6 py-4 bg-plex text-background text-lg font-bold rounded-xl hover:bg-plex-hover transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-plex/20 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                {isClaiming ? 'Claiming...' : 'Sign in with Plex to Claim'}
+            </button>
+            <p className="mt-6 text-sm text-muted">You will be redirected to Plex.tv to securely authenticate your account.</p>
+        </div>
+    );
+};
+
 const MainApp: React.FC = () => {
-    const [currentRoute, setCurrentRoute] = useState<'login' | 'admin' | 'user' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'loading'>('loading');
+    const [currentRoute, setCurrentRoute] = useState<'login' | 'admin' | 'user' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'invite' | 'loading'>('loading');
     const [sessionInfo, setSessionInfo] = useState<any>(null);
     const [publicConfig, setPublicConfig] = useState<any>({});
 
@@ -4215,9 +4427,9 @@ const MainApp: React.FC = () => {
         fetchPublicConfig();
     }, [fetchPublicConfig]);
 
-    const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'loading') => {
+    const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'invite' | 'loading') => {
         setCurrentRoute(route);
-        if (route !== 'loading') {
+        if (route !== 'loading' && route !== 'invite') {
             let path = '/';
             if (route === 'admin') path = '/admin';
             if (route === 'user') path = '/portal';
@@ -4233,6 +4445,11 @@ const MainApp: React.FC = () => {
 
     const checkSession = useCallback(async () => {
         const path = window.location.pathname;
+        if (path.startsWith('/invite/')) {
+            setCurrentRoute('invite');
+            return;
+        }
+
         try {
             const data = await apiFetch('/api/users/me');
             setSessionInfo(data);
@@ -4280,8 +4497,14 @@ const MainApp: React.FC = () => {
     const isAdmin = !!sessionInfo?.session?.isAdmin;
 
     const isPublicStatus = currentRoute === 'status' && !sessionInfo;
+    const isPublicInvite = currentRoute === 'invite';
+    const isPublicView = isPublicStatus || isPublicInvite;
 
     const renderView = () => {
+        if (currentRoute === 'invite') {
+            const code = window.location.pathname.split('/')[2];
+            return <PublicInviteClaim code={code} />;
+        }
         if (currentRoute === 'status') return <StatusDashboard onBack={() => isPublicStatus ? setRoute('login') : setRoute(isAdmin ? 'admin' : 'user')} isAdmin={isAdmin} isPublic={isPublicStatus} />;
         if (currentRoute === 'dashboard') return <LibraryDashboard onBack={() => setRoute(isAdmin ? 'admin' : 'user')} />;
         if (currentRoute === 'settings' && isAdmin) return <SettingsDashboard />;
@@ -4294,8 +4517,8 @@ const MainApp: React.FC = () => {
 
     return (
         <div className="flex w-full min-h-screen bg-background">
-            {!isPublicStatus && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Plex Server'} adminThumb={sessionInfo?.adminThumb} requestUrl={sessionInfo?.requestUrl || 'https://plexified.co.uk'} />}
-            <div className={`flex-grow flex flex-col items-center p-4 md:p-8 pt-20 pb-[80px] md:pt-8 md:pb-8 w-full overflow-x-hidden ${isPublicStatus ? '!pt-8 !pb-8' : ''}`}>
+            {!isPublicView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Plex Server'} adminThumb={sessionInfo?.adminThumb} requestUrl={sessionInfo?.requestUrl || 'https://plexified.co.uk'} />}
+            <div className={`flex-grow flex flex-col items-center p-4 md:p-8 pt-20 pb-[80px] md:pt-8 md:pb-8 w-full overflow-x-hidden ${isPublicView ? '!pt-8 !pb-8' : ''}`}>
                 {renderView()}
             </div>
         </div>
