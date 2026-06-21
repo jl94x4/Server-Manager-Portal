@@ -1451,13 +1451,26 @@ app.get('/api/plex/stats', async (req, res) => {
     }
 });
 
-const calculateUptime30Days = (history) => {
-    if (!history || history.length === 0) return 100;
-    const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-    const recentHistory = history.filter(h => h.timestamp >= thirtyDaysAgo);
-    if (recentHistory.length === 0) return 100;
-    const upCount = recentHistory.filter(h => h.status === 'up').length;
-    return (upCount / recentHistory.length) * 100;
+const calculateUptime30Days = (healthDataObj) => {
+    if (!healthDataObj) return 100;
+    
+    let totalUp = 0;
+    let totalChecks = 0;
+    
+    for (const [key, service] of Object.entries(healthDataObj)) {
+        if (key === '_meta' || !service.dailyHistory) continue;
+        
+        const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+        for (const [dateStr, stat] of Object.entries(service.dailyHistory)) {
+            if (new Date(dateStr).getTime() >= thirtyDaysAgo) {
+                totalUp += stat.up || 0;
+                totalChecks += stat.total || 0;
+            }
+        }
+    }
+    
+    if (totalChecks === 0) return 100;
+    return (totalUp / totalChecks) * 100;
 };
 
 const fetchImageBuffer = async (config, thumbPath) => {
@@ -1600,7 +1613,7 @@ const generateNewsletterHtml = async (config) => {
         recentHtml = '<p style="color:#a0aec0; text-align:center;">Failed to load recently added content.</p>';
     }
 
-    const uptimeStr = (healthData && healthData.history && healthData.history.length > 0) ? `${calculateUptime30Days(healthData.history).toFixed(2)}%` : '100%';
+    const uptimeStr = `${calculateUptime30Days(healthData).toFixed(2)}%`;
 
     const htmlContent = `
                         <!-- Header -->
@@ -3013,20 +3026,69 @@ function performSingleProbe(service) {
 
 async function runMonitorCycle() {
   if (!statusConfig.services || statusConfig.services.length === 0) return;
+  
+  const now = Date.now();
+  const todayStr = new Date(now).toISOString().split('T')[0];
+  
+  if (!healthData._meta) {
+      healthData._meta = { lastCheck: now };
+  }
+  
+  const gapMs = now - healthData._meta.lastCheck;
+  const cycleMs = 15000;
+  
+  if (gapMs > 120000) {
+      const missedChecks = Math.floor(gapMs / cycleMs);
+      
+      for (const service of statusConfig.services) {
+          if (!healthData[service.id]) {
+              healthData[service.id] = { serviceId: service.id, currentStatus: 'unknown', lastCheck: 0, dailyHistory: {}, uptimePercentage: 100 };
+          }
+          const record = healthData[service.id];
+          if (!record.dailyHistory) record.dailyHistory = {};
+          if (!record.dailyHistory[todayStr]) record.dailyHistory[todayStr] = { up: 0, down: 0, total: 0 };
+          
+          record.dailyHistory[todayStr].down += missedChecks;
+          record.dailyHistory[todayStr].total += missedChecks;
+      }
+  }
+
   for (const service of statusConfig.services) {
     const result = await performSingleProbe(service);
-    const timestamp = Date.now();
     if (!healthData[service.id]) {
-      healthData[service.id] = { serviceId: service.id, currentStatus: 'unknown', lastCheck: 0, history: [], uptimePercentage: 100 };
+      healthData[service.id] = { serviceId: service.id, currentStatus: 'unknown', lastCheck: 0, dailyHistory: {}, uptimePercentage: 100 };
     }
     const record = healthData[service.id];
+    if (!record.dailyHistory) record.dailyHistory = {};
+    if (!record.dailyHistory[todayStr]) record.dailyHistory[todayStr] = { up: 0, down: 0, total: 0 };
+    
     record.currentStatus = result.status;
-    record.lastCheck = timestamp;
-    record.history.push({ timestamp, ...result });
-    if (record.history.length > 100) record.history.shift(); // keep last 100 checks
-    const onlineCount = record.history.filter(h => h.status === 'online').length;
-    record.uptimePercentage = Math.round((onlineCount / record.history.length) * 100);
+    record.lastCheck = now;
+    
+    if (result.status === 'online') {
+        record.dailyHistory[todayStr].up += 1;
+    } else {
+        record.dailyHistory[todayStr].down += 1;
+    }
+    record.dailyHistory[todayStr].total += 1;
+    
+    const ninetyDaysAgo = now - (90 * 24 * 60 * 60 * 1000);
+    for (const dateStr of Object.keys(record.dailyHistory)) {
+        if (new Date(dateStr).getTime() < ninetyDaysAgo) {
+            delete record.dailyHistory[dateStr];
+        }
+    }
+    
+    let totalUp = 0;
+    let totalChecks = 0;
+    for (const stat of Object.values(record.dailyHistory)) {
+        totalUp += stat.up;
+        totalChecks += stat.total;
+    }
+    record.uptimePercentage = totalChecks > 0 ? Math.round((totalUp / totalChecks) * 100) : 100;
   }
+  
+  healthData._meta.lastCheck = now;
   saveHealthData();
 }
 

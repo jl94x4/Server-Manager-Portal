@@ -3447,9 +3447,48 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
     );
 };
 
+const ServiceCustomSelect = ({ value, onChange, options }: { value: string, onChange: (val: string) => void, options: {id: string, name: string}[] }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const selected = options.find(o => o.id === value);
+    
+    return (
+        <div className="relative flex-1 md:flex-none md:w-64">
+            <button 
+                type="button"
+                className="w-full bg-black/20 border border-border hover:border-white/20 rounded-lg px-4 py-2.5 text-text outline-none flex items-center justify-between transition-colors"
+                onClick={() => setIsOpen(!isOpen)}
+            >
+                <span className="truncate">{selected ? selected.name : '-- Choose a service --'}</span>
+                <svg className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            </button>
+            {isOpen && (
+                <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)}></div>
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1f2e] border border-border rounded-lg shadow-2xl z-50 overflow-hidden max-h-60 overflow-y-auto">
+                        {options.map(option => (
+                            <button
+                                key={option.id}
+                                className={`w-full text-left px-4 py-3 text-sm hover:bg-white/10 transition-colors ${value === option.id ? 'bg-plex/10 text-plex font-bold' : 'text-text'}`}
+                                onClick={() => {
+                                    onChange(option.id);
+                                    setIsOpen(false);
+                                }}
+                            >
+                                {option.name}
+                            </button>
+                        ))}
+                    </div>
+                </>
+            )}
+        </div>
+    );
+};
+
 const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, isPublic?: boolean }> = ({ onBack, isAdmin, isPublic }) => {
     const [statusData, setStatusData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'analytics'>('overview');
+    const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
 
     const fetchStatus = useCallback(async () => {
         try {
@@ -3467,6 +3506,15 @@ const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, isPublic
         const interval = setInterval(fetchStatus, 15000);
         return () => clearInterval(interval);
     }, [fetchStatus]);
+
+    useEffect(() => {
+        if (statusData && !selectedServiceId) {
+            const services = statusData.config?.services || [];
+            if (services.length > 0) {
+                setSelectedServiceId(services[0].id);
+            }
+        }
+    }, [statusData, selectedServiceId]);
 
     if (isLoading || !statusData) {
         return (
@@ -3499,56 +3547,216 @@ const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, isPublic
                 <h2 className="text-2xl font-bold text-text">Server Status</h2>
             </header>
 
+            <div className="flex flex-wrap gap-2 mb-8 p-1.5 bg-black/20 rounded-xl border border-border w-fit mx-auto md:mx-0">
+                {[
+                    { id: 'overview', label: 'Overview' },
+                    { id: 'history', label: 'Detailed History' },
+                    { id: 'analytics', label: 'Analytics' }
+                ].map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id as any)}
+                        className={`px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 cursor-pointer border-none outline-none ${
+                            activeTab === tab.id
+                                ? 'bg-plex text-background shadow-md'
+                                : 'bg-transparent text-muted hover:text-text hover:bg-white/5'
+                        }`}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
             <main className="user-content">
-                {config.announcement && config.announcement.enabled && (
-                    <div className="status-announcement">
-                        {config.announcement.message}
+                {activeTab === 'overview' && (
+                    <>
+                        {config.announcement && config.announcement.enabled && (
+                            <div className="status-announcement">
+                                {config.announcement.message}
+                            </div>
+                        )}
+
+                        {groups.length === 0 && <p style={{ textAlign: 'center', marginTop: '2rem' }}>No status monitors configured.</p>}
+
+                        {groups.map((group: any) => {
+                            const groupServices = services.filter((s: any) => s.groupId === group.id);
+                            if (groupServices.length === 0) return null;
+                            return (
+                                <div key={group.id} className="mb-8">
+                                    <h3 className="text-lg font-bold text-muted uppercase tracking-[2px] mb-6 border-b border-white/10 pb-2">{group.name}</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        {groupServices.map((service: any) => {
+                                            const health = healthData[service.id] || { currentStatus: 'unknown', uptimePercentage: 100, dailyHistory: {} };
+                                            return (
+                                                <div key={service.id} className="bg-card rounded-xl p-4 md:p-6 border border-white/5 shadow-lg flex flex-col gap-4">
+                                                    <div className="flex justify-between items-start mb-2 gap-4">
+                                                        <h4 className="font-bold text-text text-lg">{service.name}</h4>
+                                                        <span className={`px-3 py-1 rounded-full text-[0.65rem] uppercase tracking-wider font-bold border flex items-center gap-1.5 shadow-lg ${health.currentStatus === 'online' ? 'bg-status-active/10 text-status-active border-status-active/30 shadow-[0_0_10px_rgba(35,134,54,0.3)]' : health.currentStatus === 'offline' ? 'bg-status-expired/10 text-[#D32F2F] border-[#D32F2F]/30 shadow-[0_0_10px_rgba(211,47,47,0.3)] animate-pulse' : 'bg-status-expiring/10 text-status-expiring border-status-expiring/30 shadow-[0_0_10px_rgba(210,153,34,0.3)]'}`}>
+                                                            {health.currentStatus.toUpperCase()}
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-sm text-muted font-medium">
+                                                        <span>Uptime: {health.uptimePercentage}%</span>
+                                                    </div>
+                                                    <div className="flex gap-[2px] h-12 mt-auto items-end pt-4 group/bars relative">
+                                                        {Array.from({ length: 90 }).map((_, i) => {
+                                                            const d = new Date();
+                                                            d.setDate(d.getDate() - (89 - i));
+                                                            const dateStr = d.toISOString().split('T')[0];
+                                                            const stat = health.dailyHistory?.[dateStr];
+                                                            
+                                                            let barClass = 'unknown';
+                                                            let title = `${dateStr}: No data`;
+                                                            let hClass = 'h-1/5';
+                                                            
+                                                            if (stat && stat.total > 0) {
+                                                                const pct = (stat.up / stat.total) * 100;
+                                                                title = `${dateStr}: ${pct.toFixed(1)}% uptime`;
+                                                                if (pct >= 99) { barClass = 'online'; hClass = 'h-full'; }
+                                                                else if (pct >= 90) { barClass = 'degraded'; hClass = 'h-2/3'; }
+                                                                else { barClass = 'offline'; hClass = 'h-1/3'; }
+                                                            }
+                                                            
+                                                            return (
+                                                                <div
+                                                                    key={i}
+                                                                    className={`flex-1 rounded-sm transition-all duration-300 hover:opacity-100 opacity-60 hover:opacity-100 cursor-pointer ${barClass === 'online' ? 'bg-status-active hover:shadow-[0_0_8px_rgba(35,134,54,0.6)]' : barClass === 'offline' ? 'bg-status-expired hover:shadow-[0_0_8px_rgba(218,54,51,0.6)]' : barClass === 'degraded' ? 'bg-status-expiring hover:shadow-[0_0_8px_rgba(210,153,34,0.6)]' : 'bg-border'} ${hClass}`}
+                                                                    title={title}
+                                                                />
+                                                            );
+                                                        })}
+                                                    </div>
+                                                    <div className="flex justify-between text-[10px] text-muted font-bold tracking-wider mt-1 opacity-50">
+                                                        <span>90 DAYS AGO</span>
+                                                        <span className="text-center flex-1">{health.uptimePercentage}%</span>
+                                                        <span>TODAY</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </>
+                )}
+
+                {activeTab === 'history' && (
+                    <div className="flex flex-col gap-6 animate-fade-in">
+                        <div className="flex flex-col md:flex-row md:items-center gap-4">
+                            <label className="font-bold text-muted uppercase tracking-widest text-sm">Select Service</label>
+                            <ServiceCustomSelect 
+                                value={selectedServiceId || ''} 
+                                onChange={setSelectedServiceId} 
+                                options={services.map((s: any) => ({ id: s.id, name: s.name }))}
+                            />
+                        </div>
+                        {selectedServiceId && (
+                            <div className="bg-card border border-white/5 shadow-2xl rounded-2xl overflow-hidden mt-4">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="bg-black/40 border-b border-border text-muted text-xs uppercase tracking-wider">
+                                            <tr>
+                                                <th className="px-6 py-4 font-bold whitespace-nowrap">Date</th>
+                                                <th className="px-6 py-4 font-bold whitespace-nowrap">Uptime %</th>
+                                                <th className="px-6 py-4 font-bold whitespace-nowrap">Checks (Up / Total)</th>
+                                                <th className="px-6 py-4 font-bold text-right whitespace-nowrap">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-border/50">
+                                            {Object.entries(healthData[selectedServiceId]?.dailyHistory || {})
+                                                .sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime())
+                                                .map(([dateStr, stat]: [string, any]) => {
+                                                    const pct = stat.total > 0 ? (stat.up / stat.total) * 100 : 0;
+                                                    return (
+                                                        <tr key={dateStr} className="hover:bg-white/5 transition-colors">
+                                                            <td className="px-6 py-4 font-medium whitespace-nowrap text-text">{dateStr}</td>
+                                                            <td className="px-6 py-4 font-mono whitespace-nowrap text-muted">{pct.toFixed(2)}%</td>
+                                                            <td className="px-6 py-4 text-muted text-sm whitespace-nowrap">{stat.up} / {stat.total} checks</td>
+                                                            <td className="px-6 py-4 text-right whitespace-nowrap">
+                                                                <span className={`px-2.5 py-1 rounded-full text-[10px] uppercase font-bold tracking-widest border ${pct >= 99 ? 'bg-status-active/10 text-status-active border-status-active/30' : pct >= 90 ? 'bg-status-expiring/10 text-status-expiring border-status-expiring/30' : 'bg-status-expired/10 text-status-expired border-status-expired/30'}`}>
+                                                                    {pct >= 99 ? 'Healthy' : pct >= 90 ? 'Degraded' : 'Outage'}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
-                {groups.length === 0 && <p style={{ textAlign: 'center', marginTop: '2rem' }}>No status monitors configured.</p>}
-
-                {groups.map((group: any) => {
-                    const groupServices = services.filter((s: any) => s.groupId === group.id);
-                    if (groupServices.length === 0) return null;
-                    return (
-                        <div key={group.id} className="mb-8">
-                            <h3 className="text-lg font-bold text-muted uppercase tracking-[2px] mb-6 border-b border-white/10 pb-2">{group.name}</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {groupServices.map((service: any) => {
-                                    const health = healthData[service.id] || { currentStatus: 'unknown', uptimePercentage: 100, history: [] };
-                                    return (
-                                        <div key={service.id} className="bg-card rounded-xl p-4 md:p-6 border border-white/5 shadow-lg flex flex-col gap-4">
-                                            <div className="flex justify-between items-start mb-2 gap-4">
-                                                <h4 className="font-bold text-text text-lg">{service.name}</h4>
-                                                <span className={`px-3 py-1 rounded-full text-[0.65rem] uppercase tracking-wider font-bold border flex items-center gap-1.5 shadow-lg ${health.currentStatus === 'online' ? 'bg-status-active/10 text-status-active border-status-active/30 shadow-[0_0_10px_rgba(35,134,54,0.3)]' : health.currentStatus === 'offline' ? 'bg-status-expired/10 text-[#D32F2F] border-[#D32F2F]/30 shadow-[0_0_10px_rgba(211,47,47,0.3)] animate-pulse' : 'bg-status-expiring/10 text-status-expiring border-status-expiring/30 shadow-[0_0_10px_rgba(210,153,34,0.3)]'}`}>
-                                                    {health.currentStatus.toUpperCase()}
-                                                </span>
-                                            </div>
-                                            <div className="text-sm text-muted font-medium">
-                                                <span>Uptime: {health.uptimePercentage}%</span>
-                                            </div>
-                                            <div className="flex gap-[2px] h-10 mt-auto items-end pt-4">
-                                                {Array.from({ length: 40 }).map((_, i) => {
-                                                    const histIndex = health.history.length - 40 + i;
-                                                    const hist = histIndex >= 0 ? health.history[histIndex] : null;
-                                                    const barClass = hist ? hist.status : 'unknown';
-                                                    return (
-                                                        <div
-                                                            key={i}
-                                                            className={`flex-1 rounded-sm transition-all duration-300 hover:opacity-100 opacity-80 cursor-pointer ${barClass === 'online' ? 'bg-status-active h-full shadow-[0_0_8px_rgba(35,134,54,0.6)]' : barClass === 'offline' ? 'bg-status-expired h-1/4 shadow-[0_0_8px_rgba(218,54,51,0.6)] animate-pulse' : barClass === 'degraded' ? 'bg-status-expiring h-2/3 shadow-[0_0_8px_rgba(210,153,34,0.6)]' : 'bg-border h-1/5'}`}
-                                                            title={hist ? `${hist.status.toUpperCase()} - ${hist.latency}ms` : 'No data'}
-                                                        />
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                {activeTab === 'analytics' && (
+                    <div className="flex flex-col gap-6 animate-fade-in">
+                        <div className="flex flex-col md:flex-row md:items-center gap-4">
+                            <label className="font-bold text-muted uppercase tracking-widest text-sm">Select Service</label>
+                            <ServiceCustomSelect 
+                                value={selectedServiceId || ''} 
+                                onChange={setSelectedServiceId} 
+                                options={services.map((s: any) => ({ id: s.id, name: s.name }))}
+                            />
                         </div>
-                    );
-                })}
+                        {selectedServiceId && (
+                            <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 md:p-10 mt-4">
+                                <h3 className="text-xl font-bold mb-10 text-center text-muted tracking-widest uppercase">90-Day Uptime Trend</h3>
+                                <div className="relative h-64 md:h-80 flex items-end gap-1 w-full pl-12 pr-4 md:pr-8">
+                                    {/* Grid lines */}
+                                    <div className="absolute inset-0 pl-12 pr-4 md:pr-8 flex flex-col justify-between pointer-events-none pb-8">
+                                        <div className="w-full border-t border-white/5 h-0 relative">
+                                            <span className="absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right">100%</span>
+                                        </div>
+                                        <div className="w-full border-t border-white/5 h-0 relative">
+                                            <span className="absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right">75%</span>
+                                        </div>
+                                        <div className="w-full border-t border-white/5 h-0 relative">
+                                            <span className="absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right">50%</span>
+                                        </div>
+                                        <div className="w-full border-t border-white/5 h-0 relative">
+                                            <span className="absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right">25%</span>
+                                        </div>
+                                        <div className="w-full border-t border-white/20 h-0 relative">
+                                            <span className="absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right">0%</span>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Bars */}
+                                    <div className="w-full h-full flex items-end gap-[2px] pb-8 z-10">
+                                        {Array.from({ length: 90 }).map((_, i) => {
+                                            const d = new Date();
+                                            d.setDate(d.getDate() - (89 - i));
+                                            const dateStr = d.toISOString().split('T')[0];
+                                            const stat = healthData[selectedServiceId]?.dailyHistory?.[dateStr];
+                                            const pct = stat && stat.total > 0 ? (stat.up / stat.total) * 100 : 0;
+                                            
+                                            return (
+                                                <div
+                                                    key={i}
+                                                    className="flex-1 flex flex-col justify-end h-full relative group/chart cursor-crosshair"
+                                                >
+                                                    <div 
+                                                        className={`w-full rounded-t-sm transition-all duration-300 opacity-80 group-hover/chart:opacity-100 ${pct >= 99 ? 'bg-status-active' : pct >= 90 ? 'bg-status-expiring' : stat && stat.total > 0 ? 'bg-status-expired' : 'bg-white/10'}`}
+                                                        style={{ height: `${Math.max(1, pct)}%` }}
+                                                    />
+                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-3 bg-card border border-border shadow-2xl text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/chart:opacity-100 pointer-events-none transition-opacity z-50 flex flex-col items-center">
+                                                        <strong className="text-plex mb-1 tracking-wider uppercase text-[10px]">{dateStr}</strong>
+                                                        <span className="text-lg font-mono font-bold">{stat && stat.total > 0 ? `${pct.toFixed(2)}%` : 'No data'}</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                                <div className="flex justify-between text-[10px] text-muted font-bold tracking-widest mt-2 px-12 uppercase">
+                                    <span>90 days ago</span>
+                                    <span>Today</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
             </main>
         </div>
     );
