@@ -7,6 +7,7 @@ Plex Manager serves as a beautiful, public-facing portal for your Plex server, h
 ## Key Features
 
 ### User Onboarding & Management
+- **Automated Invite Links**: Generate custom invite links with strict use-limits and automated duration tracking. Invited users claim access through a beautiful, dedicated landing page that automatically adds them to your Plex Server.
 - **Plex OAuth Integration**: Users securely log in using their official Plex credentials. No passwords stored, no messy invites.
 - **Automated Free Trials**: Automatically grant new users access to your server for a configurable trial period (e.g., 3 days).
 - **Access Expiry System**: Set hard expiry dates for users. The system automatically removes their server access when their time is up.
@@ -27,7 +28,6 @@ Plex Manager serves as a beautiful, public-facing portal for your Plex server, h
 
 ### Public Portals
 - **Landing Page**: A sleek, modern login page showing live library statistics (e.g., "10,000+ Movies") to entice new users.
-- **Automated Invite Links**: Generate custom invite links with strict use-limits and automated duration tracking. Invited users claim access through a beautiful, dedicated landing page that automatically adds them to your Plex Server.
 - **Live System Status**: A public `/status` page displaying the uptime of your Plex server, request systems (Overseerr/Ombi), and download clients.
 - **Media Stack Integration**: Embed Sonarr and Radarr directly into the user portal for seamless requests.
 
