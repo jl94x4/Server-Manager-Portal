@@ -10,8 +10,10 @@ import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 import http from 'http';
 import https from 'https';
+import compression from 'compression';
 
 const app = express();
+app.use(compression());
 const PORT = 2121;
 
 // --- Security: JWT secret must be explicitly set in the environment ---
@@ -123,6 +125,32 @@ const addDays = (date, days) => {
 };
 
 const normalized = (value) => value ? value.toString().trim().toLowerCase() : '';
+
+// --- In-Memory Cache Utility ---
+const apiCache = new Map();
+
+/**
+ * Wraps an expensive async fetcher function with a TTL cache.
+ * @param {string} key Unique cache key
+ * @param {number} ttlMs Time to live in milliseconds
+ * @param {Function} fetcher Async function returning data to cache
+ */
+const withCache = async (key, ttlMs, fetcher) => {
+    const now = Date.now();
+    if (apiCache.has(key)) {
+        const entry = apiCache.get(key);
+        if (now < entry.expiresAt) {
+            return entry.data;
+        }
+        apiCache.delete(key);
+    }
+    
+    const data = await fetcher();
+    if (data !== null && data !== undefined) {
+        apiCache.set(key, { data, expiresAt: now + ttlMs });
+    }
+    return data;
+};
 
 const isDeletedUser = (deletedUsers, user) => {
     const ids = [
@@ -2243,10 +2271,14 @@ app.get('/api/plex/dashboard', requireAuth, async (req, res) => {
 
         const limit = parseInt(req.query.limit) || 50;
         
-        const sessionsPromise = fetch(`${uri}/status/sessions?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
-        const sectionsPromise = fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
-
-        const [sessionsData, sectionsData] = await Promise.all([sessionsPromise, sectionsPromise]);
+        const cacheKey = `plex_dashboard_data_${limit}`;
+        const cachedData = await withCache(cacheKey, 10000, async () => {
+            const sessionsPromise = fetch(`${uri}/status/sessions?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+            const sectionsPromise = fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+            const [sessionsData, sectionsData] = await Promise.all([sessionsPromise, sectionsPromise]);
+            return { sessionsData, sectionsData };
+        });
+        const { sessionsData, sectionsData } = cachedData;
 
         let activeSessions = [];
         if (sessionsData && sessionsData.MediaContainer && sessionsData.MediaContainer.Metadata) {
@@ -2360,10 +2392,15 @@ app.get('/api/plex/analytics', requireAdmin, async (req, res) => {
         if (!uri) return res.status(503).json({ error: 'Cannot connect to Plex' });
 
         const limit = req.query.days === 'all' ? 999999 : 5000;
-        const historyRes = await fetch(`${uri}/status/sessions/history/all?X-Plex-Token=${config.plexToken}&sort=viewedAt:desc&limit=${limit}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
-        const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
-        const accountsRes = await fetch(`${uri}/accounts?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
-        const users = await loadFile(USERS_PATH, []);
+        const cacheKey = `plex_analytics_data_${limit}`;
+        const cachedData = await withCache(cacheKey, 120000, async () => {
+            const historyRes = await fetch(`${uri}/status/sessions/history/all?X-Plex-Token=${config.plexToken}&sort=viewedAt:desc&limit=${limit}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+            const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+            const accountsRes = await fetch(`${uri}/accounts?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+            const users = await loadFile(USERS_PATH, []);
+            return { historyRes, sectionsRes, accountsRes, users };
+        });
+        const { historyRes, sectionsRes, accountsRes, users } = cachedData;
 
         if (!historyRes || !historyRes.MediaContainer || !historyRes.MediaContainer.Metadata) {
             return res.json({ topUsers: [], topLibraries: [], topMovies: [], topShows: [], topMusic: [], topDevices: [], peakHours: new Array(24).fill(0), totalPlaybacks: 0 });
@@ -3093,57 +3130,64 @@ async function runMonitorCycle() {
 }
 
 app.get('/api/media-stack/summary', requireAuth, async (req, res) => {
-    const config = await loadFile(CONFIG_PATH, {});
-    const fetchArr = async (url, key, endpoint) => {
-        if (!url || !key) return null;
-        try {
-            const u = new URL(endpoint, url);
-            const response = await fetch(u.toString(), {
-                headers: { 'X-Api-Key': key }
-            });
-            if (!response.ok) return null;
-            return await response.json();
-        } catch (e) {
-            return null;
-        }
-    };
+    try {
+        const data = await withCache('media-stack-summary', 60000, async () => {
+            const config = await loadFile(CONFIG_PATH, {});
+            const fetchArr = async (url, key, endpoint) => {
+                if (!url || !key) return null;
+                try {
+                    const u = new URL(endpoint, url);
+                    const response = await fetch(u.toString(), {
+                        headers: { 'X-Api-Key': key }
+                    });
+                    if (!response.ok) return null;
+                    return await response.json();
+                } catch (e) {
+                    return null;
+                }
+            };
 
-    const start = new Date().toISOString().split('T')[0];
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + 30);
-    const end = endDate.toISOString().split('T')[0];
+            const start = new Date().toISOString().split('T')[0];
+            const endDate = new Date();
+            endDate.setDate(endDate.getDate() + 30);
+            const end = endDate.toISOString().split('T')[0];
 
-    const [sonarrStatus, sonarrQueue, sonarrHistory, sonarrDisk, sonarrCalendar, radarrStatus, radarrQueue, radarrHistory, radarrDisk, radarrCalendar] = await Promise.all([
-        fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/system/status'),
-        fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/queue'),
-        fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/history?page=1&pageSize=10&includeSeries=true&includeEpisode=true'),
-        fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/diskspace'),
-        fetchArr(config.sonarrUrl, config.sonarrApiKey, `/api/v3/calendar?start=${start}&end=${end}&includeSeries=true`),
-        fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/system/status'),
-        fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/queue'),
-        fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/history?page=1&pageSize=10&includeMovie=true'),
-        fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/diskspace'),
-        fetchArr(config.radarrUrl, config.radarrApiKey, `/api/v3/calendar?start=${start}&end=${end}`)
-    ]);
+            const [sonarrStatus, sonarrQueue, sonarrHistory, sonarrDisk, sonarrCalendar, radarrStatus, radarrQueue, radarrHistory, radarrDisk, radarrCalendar] = await Promise.all([
+                fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/system/status'),
+                fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/queue'),
+                fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/history?page=1&pageSize=10&includeSeries=true&includeEpisode=true'),
+                fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/diskspace'),
+                fetchArr(config.sonarrUrl, config.sonarrApiKey, `/api/v3/calendar?start=${start}&end=${end}&includeSeries=true`),
+                fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/system/status'),
+                fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/queue'),
+                fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/history?page=1&pageSize=10&includeMovie=true'),
+                fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/diskspace'),
+                fetchArr(config.radarrUrl, config.radarrApiKey, `/api/v3/calendar?start=${start}&end=${end}`)
+            ]);
 
-    res.json({
-        sonarr: {
-            configured: !!(config.sonarrUrl && config.sonarrApiKey),
-            status: sonarrStatus,
-            queue: sonarrQueue,
-            history: sonarrHistory,
-            disk: sonarrDisk,
-            calendar: sonarrCalendar || []
-        },
-        radarr: {
-            configured: !!(config.radarrUrl && config.radarrApiKey),
-            status: radarrStatus,
-            queue: radarrQueue,
-            history: radarrHistory,
-            disk: radarrDisk,
-            calendar: radarrCalendar || []
-        }
-    });
+            return {
+                sonarr: {
+                    configured: !!(config.sonarrUrl && config.sonarrApiKey),
+                    status: sonarrStatus,
+                    queue: sonarrQueue,
+                    history: sonarrHistory,
+                    disk: sonarrDisk,
+                    calendar: sonarrCalendar || []
+                },
+                radarr: {
+                    configured: !!(config.radarrUrl && config.radarrApiKey),
+                    status: radarrStatus,
+                    queue: radarrQueue,
+                    history: radarrHistory,
+                    disk: radarrDisk,
+                    calendar: radarrCalendar || []
+                }
+            };
+        });
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to fetch media stack summary' });
+    }
 });
 
 // (Endpoints moved up before wildcard route)
