@@ -11,6 +11,7 @@
     "start": "npm run build && node --env-file=.env index.js"
   },
   "dependencies": {
+    "compression": "^1.7.4",
     "cookie-parser": "^1.4.7",
     "esbuild": "^0.21.4",
     "express": "^4.19.2",
