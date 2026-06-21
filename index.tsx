@@ -4328,7 +4328,7 @@ const PublicInviteClaim: React.FC<{ code: string }> = ({ code }) => {
         try {
             await apiFetch(`/api/invites/${code}/claim`, {
                 method: 'POST',
-                body: JSON.stringify({ authToken: token })
+                body: JSON.stringify({ pinId: token })
             });
             setClaimed(true);
         } catch (e: any) {

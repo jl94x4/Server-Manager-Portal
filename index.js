@@ -1922,8 +1922,8 @@ app.get('/api/invites/:code/info', async (req, res) => {
 });
 
 app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
-    const { authToken } = req.body;
-    if (!authToken) return res.status(400).json({ error: 'Auth token is required' });
+    const { pinId } = req.body;
+    if (!pinId) return res.status(400).json({ error: 'PIN ID is required' });
 
     let invites = await loadFile(INVITES_PATH, []);
     const inviteIndex = invites.findIndex(i => i.code === req.params.code);
@@ -1935,9 +1935,26 @@ app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
     }
 
     try {
+        const pinRes = await fetch(`https://plex.tv/api/v2/pins/${pinId}`, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Plex-Client-Identifier': CLIENT_ID
+            }
+        });
+        const pinData = await pinRes.json();
+        
+        if (!pinData.authToken) {
+            return res.status(400).json({ error: 'Not authenticated with Plex yet. Please try again.' });
+        }
+
         const config = await loadFile(CONFIG_PATH, {});
         // Validate user with Plex
-        const plexRes = await apiFetch('https://plex.tv/api/v2/user', authToken);
+        const plexRes = await fetch('https://plex.tv/api/v2/user', {
+            headers: {
+                'X-Plex-Token': pinData.authToken,
+                'Accept': 'application/json'
+            }
+        });
         if (!plexRes.ok) return res.status(401).json({ error: 'Invalid Plex token' });
         
         const plexUser = await plexRes.json();
@@ -1975,6 +1992,21 @@ app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
         await saveFile(INVITES_PATH, invites);
         
         await appendAuditLog('invite_claimed', { username: plexUser.username, id: plexUser.id }, newUser, { code: invite.code });
+        
+        // Log user in
+        const adminId = await getAdminId(config);
+        const isAdmin = plexUser.id === adminId;
+        const sessionUser = {
+            id: plexUser.uuid || plexUser.id,
+            plexId: plexUser.id,
+            email: plexUser.email,
+            username: plexUser.username,
+            isAdmin
+        };
+        const jwt = require('jsonwebtoken');
+        const token = jwt.sign(sessionUser, JWT_SECRET, { expiresIn: '7d' });
+        const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
+        res.cookie('session', token, { httpOnly: true, secure: isHttps, sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
         
         res.json({ success: true, user: newUser });
     } catch (e) {
