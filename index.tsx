@@ -4365,7 +4365,6 @@ const LibraryDashboard: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                                     <span className="text-muted uppercase tracking-wider font-bold">STATE</span>
                                                     <div className="flex items-center gap-1.5">
                                                         <span className="detail-value font-bold">{session.state.charAt(0).toUpperCase() + session.state.slice(1)}</span>
-                                                        <span className="text-plex font-bold text-[10px] ml-1">{Math.round(session.progress)}%</span>
                                                         {session.timeRemaining > 0 && session.state === 'playing' && (
                                                             <span className="text-[9px] text-muted/80">
                                                                 ({Math.floor(session.timeRemaining / 3600000) > 0 ? `${Math.floor(session.timeRemaining / 3600000)}h ` : ''}
@@ -4382,8 +4381,14 @@ const LibraryDashboard: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                         </div>
                                     </div>
                                     {/* Progress Bar with Tooltip Arrow */}
-                                    <div className="w-full h-1.5 bg-background/80 relative mt-auto z-10">
-                                        <div className="h-full bg-plex transition-all duration-1000" style={{ width: `${session.progress}%` }}>
+                                    <div className="w-full h-2 bg-background/80 relative mt-auto z-10">
+                                        <div className="h-full bg-plex absolute top-0 left-0 transition-all duration-1000" style={{ width: `${session.progress}%` }}>
+                                            {/* Enhanced Floating Indicator */}
+                                            <div className="absolute right-0 bottom-full mb-1 flex items-center justify-center transform translate-x-1/2">
+                                                <div className="bg-[#1a1a1a] text-plex border border-plex/50 text-[10px] font-bold px-1.5 py-0.5 rounded shadow-[0_2px_8px_rgba(0,0,0,0.8)] whitespace-nowrap">
+                                                    {Math.round(session.progress)}%
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
