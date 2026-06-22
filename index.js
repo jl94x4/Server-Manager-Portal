@@ -24,7 +24,7 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
     process.exit(1);
 }
 
-const CLIENT_ID = process.env.CLIENT_ID || 'plex-expiry-manager-client-id'; // Ideally should be unique per install
+let CLIENT_ID = process.env.CLIENT_ID || 'plex-expiry-manager-client-id'; // Now dynamically generated if missing
 
 // --- Security: HTTP Security Headers ---
 app.use((req, res, next) => {
@@ -3442,6 +3442,17 @@ app.get('/api/media-stack/summary', requireAuth, async (req, res) => {
 
 app.listen(PORT, async () => {
     log(`--- Server Manager Portal Service starting on http://localhost:${PORT} ---`);
+    
+    // Ensure unique CLIENT_ID per installation to avoid Plex Auth blocking
+    const config = await loadFile(CONFIG_PATH, {});
+    if (!config.clientId) {
+        config.clientId = 'smp-' + randomUUID();
+        await saveFile(CONFIG_PATH, config);
+    }
+    if (!process.env.CLIENT_ID) {
+        CLIENT_ID = config.clientId;
+    }
+
     await loadStatusState();
     runMonitorCycle();
     setInterval(runMonitorCycle, 15000);
