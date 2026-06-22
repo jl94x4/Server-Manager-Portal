@@ -1085,6 +1085,16 @@ app.post('/api/auth/plex/callback', authRateLimit, async (req, res) => {
         const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
         res.cookie('session', token, { httpOnly: true, secure: isHttps, sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
         
+        if (!isAdmin) {
+            const users = await loadFile(USERS_PATH, []);
+            const existingUser = users.find(u => u.id === sessionUser.id || u.plexId === sessionUser.plexId);
+            if (existingUser) {
+                existingUser.lastLogin = new Date().toISOString();
+                await saveFile(USERS_PATH, users);
+            }
+        }
+        await appendAuditLog('user_login', sessionUser, sessionUser);
+
         res.json({ message: 'Logged in successfully', user: sessionUser });
     } catch (err) {
         log('Error in plex callback: ' + err.message);
@@ -1107,8 +1117,13 @@ app.post('/api/users/preferences', requireAuth, async (req, res) => {
             return res.status(404).json({error: 'User not found'});
         }
         
+        const oldPref = !!users[userIndex].optOutNewsletter;
         users[userIndex].optOutNewsletter = !!optOutNewsletter;
         await saveFile(USERS_PATH, users);
+        
+        if (oldPref !== !!optOutNewsletter) {
+            await appendAuditLog(optOutNewsletter ? 'newsletter_opt_out' : 'newsletter_opt_in', req.user, req.user);
+        }
         
         res.json({success: true, user: users[userIndex]});
     } catch (e) {

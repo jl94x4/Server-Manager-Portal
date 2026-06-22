@@ -65,6 +65,7 @@ interface User {
     exemptFromCleanup?: boolean;
     isTrial?: boolean;
     optOutNewsletter?: boolean;
+    lastLogin?: string;
 }
 
 interface PlexConfig {
@@ -344,6 +345,12 @@ const UserCard: React.FC<{
                         {(user.plexAccessStatus || 'unknown').charAt(0).toUpperCase() + (user.plexAccessStatus || 'unknown').slice(1)}
                     </span>
                 </div>
+                {user.lastLogin && (
+                    <div className="flex justify-between items-center text-sm pb-2 border-b border-white/5 last:border-0 last:pb-0">
+                        <span className="text-muted text-xs uppercase tracking-wider font-bold">Last Login</span>
+                        <span className="text-text font-medium">{formatDate(user.lastLogin)}</span>
+                    </div>
+                )}
             </div>
             <div className="flex gap-2 mt-auto pt-6" onClick={e => e.stopPropagation()}>
                 <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={onEdit}>Edit</button>
@@ -3456,7 +3463,25 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
 
                     {/* Avatar + greeting */}
                     <div className="flex items-center gap-4 mb-6">
-                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-plex/40 to-plex/10 border-2 border-plex/60 flex items-center justify-center text-plex font-black text-2xl flex-shrink-0 shadow-lg shadow-plex/20">
+                        {(() => {
+                            const thumbUrl = user?.thumb || sessionInfo.session.thumb;
+                            if (thumbUrl) {
+                                return (
+                                    <img 
+                                        src={thumbUrl.startsWith('http') ? thumbUrl : `/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=128&height=128`} 
+                                        alt={sessionInfo.session.username} 
+                                        className="w-14 h-14 rounded-full object-cover border-2 border-plex/60 shadow-lg shadow-plex/20 flex-shrink-0 bg-card" 
+                                        onError={(e) => {
+                                            (e.target as HTMLImageElement).style.display = 'none';
+                                            (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                                            (e.target as HTMLImageElement).nextElementSibling?.classList.add('flex');
+                                        }}
+                                    />
+                                );
+                            }
+                            return null;
+                        })()}
+                        <div className={`w-14 h-14 rounded-full bg-gradient-to-br from-plex/40 to-plex/10 border-2 border-plex/60 items-center justify-center text-plex font-black text-2xl flex-shrink-0 shadow-lg shadow-plex/20 overflow-hidden ${(user?.thumb || sessionInfo.session.thumb) ? 'hidden' : 'flex'}`}>
                             {sessionInfo.session.username?.[0]?.toUpperCase() || '?'}
                         </div>
                         <div className="min-w-0">
