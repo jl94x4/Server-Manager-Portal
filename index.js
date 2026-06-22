@@ -2957,7 +2957,7 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
         });
 
         const topLibraries = Object.values(libraryCounts).sort((a, b) => b.plays - a.plays).slice(0, 5);
-        const topContent = Object.values(contentCounts).sort((a, b) => b.plays - a.plays).slice(0, 6).map(c => {
+        const topContent = Object.values(contentCounts).sort((a, b) => b.plays - a.plays).slice(0, 60).map(c => {
             if (c.thumb) c.thumbUrl = `/api/plex/image?path=${encodeURIComponent(c.thumb)}`;
             return c;
         });

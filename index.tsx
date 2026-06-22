@@ -3669,6 +3669,8 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
     const [serverStats, setServerStats] = useState<any>(null);
     const [dashboardData, setDashboardData] = useState<any>(null);
     const [serverDataLoading, setServerDataLoading] = useState(true);
+    const [topContentPage, setTopContentPage] = useState(0);
+    const TOP_CONTENT_PAGE_SIZE = 6;
 
     const user = sessionInfo.account;
     const [optOutNewsletter, setOptOutNewsletter] = useState(user?.optOutNewsletter || false);
@@ -4094,9 +4096,30 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                                     <h3 className="text-xl font-bold text-text mb-1">Your Most Watched</h3>
                                                     <p className="text-muted text-sm">Based on your {analytics.totalPlays} total plays</p>
                                                 </div>
+                                                {analytics.topContent.length > TOP_CONTENT_PAGE_SIZE && (
+                                                    <div className="flex items-center gap-2">
+                                                        <button 
+                                                            onClick={() => setTopContentPage(p => Math.max(0, p - 1))}
+                                                            disabled={topContentPage === 0}
+                                                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
+                                                        >
+                                                            <ChevronUp className="w-4 h-4 -rotate-90" />
+                                                        </button>
+                                                        <span className="text-xs text-muted font-medium w-8 text-center">
+                                                            {topContentPage + 1} / {Math.ceil(analytics.topContent.length / TOP_CONTENT_PAGE_SIZE)}
+                                                        </span>
+                                                        <button 
+                                                            onClick={() => setTopContentPage(p => Math.min(Math.ceil(analytics.topContent.length / TOP_CONTENT_PAGE_SIZE) - 1, p + 1))}
+                                                            disabled={topContentPage >= Math.ceil(analytics.topContent.length / TOP_CONTENT_PAGE_SIZE) - 1}
+                                                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
+                                                        >
+                                                            <ChevronDown className="w-4 h-4 -rotate-90" />
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                                {analytics.topContent.slice(0, 3).map((item: any) => (
+                                            <div className="grid grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
+                                                {analytics.topContent.slice(topContentPage * TOP_CONTENT_PAGE_SIZE, (topContentPage + 1) * TOP_CONTENT_PAGE_SIZE).map((item: any) => (
                                                     <a key={item.key} href={item.plexUrl} target="_blank" rel="noreferrer" className="group flex flex-col gap-2">
                                                         <div className="relative rounded-xl overflow-hidden aspect-[2/3] bg-background border border-white/5 transition-transform group-hover:scale-105 group-hover:shadow-xl group-hover:border-plex/50">
                                                             {item.thumbUrl ? (
