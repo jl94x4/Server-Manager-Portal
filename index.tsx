@@ -3843,12 +3843,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Column */}
                 <div className="lg:col-span-1 flex flex-col gap-6">
-                    {/* Admin Warning */}
-                    {sessionInfo.session.isAdmin && (
-                        <div className="bg-plex/5 border border-plex/20 rounded-2xl p-6 text-sm text-muted leading-relaxed shadow-lg">
-                            <span className="text-plex font-bold">Server Administrator</span> — You own this server. Use the Admin Panel to manage users and settings. Your personal watch stats will appear below if you switch to a normal user account.
-                        </div>
-                    )}
+
 
                     {/* Subscription Status */}
                     {sessionInfo.session.isAdmin ? (
