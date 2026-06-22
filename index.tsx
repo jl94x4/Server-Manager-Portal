@@ -1172,7 +1172,7 @@ const SettingsDashboard: React.FC = () => {
                                 <div className="flex flex-col gap-2">
                                     <input type="url" className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all" value={customLogoUrl} onChange={e => setCustomLogoUrl(e.target.value)} placeholder="https://example.com/logo.png" />
                                     <span className="text-center text-muted font-bold text-sm">OR</span>
-                                    <input type="file" accept="image/*" className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all" onChange={e => setLogoFile(e.target.files?.[0] || null)} />
+                                    <input type="file" accept="image/*" className="w-full p-2 rounded-lg border border-border bg-background text-muted text-sm outline-none focus:border-plex transition-all file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-text hover:file:bg-white/20 file:cursor-pointer cursor-pointer" onChange={e => setLogoFile(e.target.files?.[0] || null)} />
                                 </div>
                                 <small>Provide a URL or upload a file. (Max 5MB)</small>
                             </div>
