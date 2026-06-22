@@ -4043,7 +4043,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                         </span>
                                         <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
                                             <span className="text-plex">{serverStats.music?.toLocaleString() || 0}</span>
-                                            <span className="text-muted">Tracks</span>
+                                            <span className="text-muted">Albums</span>
                                         </div>
                                     </div>
                                 </div>
