@@ -4144,7 +4144,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
 
             {/* Recently Added Section (Full Width below Grid) */}
             {dashboardData && (
-                <div className="flex flex-col gap-6 w-full mt-4">
+                <div className="flex flex-col gap-6 w-full">
                     {dashboardData.recentMovies?.length > 0 && (
                         <div className="bg-card border border-border rounded-2xl p-6 shadow-xl overflow-hidden w-full">
                             <h3 className="text-xl font-bold text-text mb-4">Recently Added Movies</h3>
