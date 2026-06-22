@@ -2003,7 +2003,6 @@ app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
             username: plexUser.username,
             isAdmin
         };
-        const jwt = require('jsonwebtoken');
         const token = jwt.sign(sessionUser, JWT_SECRET, { expiresIn: '7d' });
         const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
         res.cookie('session', token, { httpOnly: true, secure: isHttps, sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
