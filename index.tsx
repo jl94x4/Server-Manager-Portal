@@ -4248,11 +4248,6 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
                         <Activity className="w-5 h-5 flex-shrink-0" /> Status
                     </a>
                     {isAdmin && (
-                        <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === 'settings' ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate('settings'); }}>
-                            <Settings className="w-5 h-5 flex-shrink-0" /> Settings
-                        </a>
-                    )}
-                    {isAdmin && (
                         <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === 'logs' ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate('logs'); }}>
                             <FileText className="w-5 h-5 flex-shrink-0" /> Logs
                         </a>
@@ -4266,6 +4261,11 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
                     <a href={requestUrl} target="_blank" rel="noreferrer" className="flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text">
                         <Sparkles className="w-5 h-5 flex-shrink-0" /> Request Content
                     </a>
+                    {isAdmin && (
+                        <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === 'settings' ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate('settings'); }}>
+                            <Settings className="w-5 h-5 flex-shrink-0" /> Settings
+                        </a>
+                    )}
                     <a href="#" className="flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text" onClick={(e) => { e.preventDefault(); onLogout(); }}>
                         <LogOut className="w-5 h-5 flex-shrink-0" /> Logout
                     </a>
@@ -4295,15 +4295,15 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
                         <Layers className="w-5 h-5 flex-shrink-0" /> Media
                         {currentRoute === 'mediastack' && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
                     </a>
+                    <a href={requestUrl} target="_blank" rel="noreferrer" className="relative flex flex-col items-center justify-center gap-1 h-full text-muted flex-1 text-center text-[0.65rem] transition-colors hover:text-text">
+                        <Sparkles className="w-5 h-5 flex-shrink-0" /> Request
+                    </a>
                     {isAdmin && (
                         <a href="#" className={`relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === 'settings' ? 'text-plex font-bold' : 'text-muted hover:text-text'}`} onClick={(e) => { e.preventDefault(); onNavigate('settings'); }}>
                             <Settings className="w-5 h-5 flex-shrink-0" /> Settings
                             {currentRoute === 'settings' && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
                         </a>
                     )}
-                    <a href={requestUrl} target="_blank" rel="noreferrer" className="relative flex flex-col items-center justify-center gap-1 h-full text-muted flex-1 text-center text-[0.65rem] transition-colors hover:text-text">
-                        <Sparkles className="w-5 h-5 flex-shrink-0" /> Request
-                    </a>
                     <a href="#" className="relative flex flex-col items-center justify-center gap-1 h-full text-muted flex-1 text-center text-[0.65rem] transition-colors hover:text-text" onClick={(e) => { e.preventDefault(); onLogout(); }}>
                         <LogOut className="w-5 h-5 flex-shrink-0" /> Logout
                     </a>
