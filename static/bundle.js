@@ -4078,6 +4078,10 @@ var LibraryDashboard = ({ onBack }) => {
                   /* @__PURE__ */ jsx("span", { className: "text-muted uppercase tracking-wider font-bold", children: "STATE" }),
                   /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
                     /* @__PURE__ */ jsx("span", { className: "detail-value font-bold", children: session.state.charAt(0).toUpperCase() + session.state.slice(1) }),
+                    /* @__PURE__ */ jsxs("span", { className: "text-plex font-bold text-[10px] ml-1", children: [
+                      Math.round(session.progress),
+                      "%"
+                    ] }),
                     session.timeRemaining > 0 && session.state === "playing" && /* @__PURE__ */ jsxs("span", { className: "text-[9px] text-muted/80", children: [
                       "(",
                       Math.floor(session.timeRemaining / 36e5) > 0 ? `${Math.floor(session.timeRemaining / 36e5)}h ` : "",
@@ -4096,13 +4100,7 @@ var LibraryDashboard = ({ onBack }) => {
               ] })
             ] })
           ] }),
-          /* @__PURE__ */ jsx("div", { className: "w-full h-1.5 bg-background/80 relative mt-auto z-10", children: /* @__PURE__ */ jsx("div", { className: "h-full bg-plex absolute top-0 left-0 transition-all duration-1000", style: { width: `${session.progress}%` }, children: /* @__PURE__ */ jsxs("div", { className: "absolute right-0 bottom-full mb-0.5 translate-x-1/2 flex flex-col items-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]", children: [
-            /* @__PURE__ */ jsxs("div", { className: "bg-plex text-black text-[9px] font-bold px-1 rounded-sm shadow-sm", children: [
-              Math.round(session.progress),
-              "%"
-            ] }),
-            /* @__PURE__ */ jsx("div", { className: "w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-t-[4px] border-t-plex" })
-          ] }) }) })
+          /* @__PURE__ */ jsx("div", { className: "w-full h-1.5 bg-background/80 relative mt-auto z-10", children: /* @__PURE__ */ jsx("div", { className: "h-full bg-plex transition-all duration-1000", style: { width: `${session.progress}%` } }) })
         ] }, i)) }) : /* @__PURE__ */ jsx("div", { className: "text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full", children: "No active streams" })
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "flex justify-end gap-4 items-center mb-8", children: [
