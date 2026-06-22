@@ -3672,7 +3672,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
     const [topContentPage, setTopContentPage] = useState(0);
     const TOP_CONTENT_PAGE_SIZE = 12;
     const [recentHistoryPage, setRecentHistoryPage] = useState(0);
-    const RECENT_HISTORY_PAGE_SIZE = 6;
+    const RECENT_HISTORY_PAGE_SIZE = 5;
     const [analyticsDays, setAnalyticsDays] = useState<number | 'all'>(30);
     const [analyticsDaysOpen, setAnalyticsDaysOpen] = useState(false);
 
@@ -4075,6 +4075,11 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                             <p className="text-muted text-sm uppercase tracking-widest font-semibold mb-6">Server Library Size</p>
                             {serverDataLoading ? (
                                 <div className="flex gap-3 items-center text-muted"><div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin" /> Fetching latest library sizes...</div>
+                            ) : serverStats?.isBuilding ? (
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex gap-3 items-center text-muted"><div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin" /> Building library size cache in background...</div>
+                                    <p className="text-xs text-muted/60">This runs once and may take a few minutes for large libraries. The page will auto-update when ready.</p>
+                                </div>
                             ) : serverStats ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                     <div className="bg-background/60 p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">

@@ -1468,6 +1468,8 @@ let lastPlexStatsFetch = 0;
 
 const PLEX_STATS_CACHE_PATH = path.join(process.cwd(), 'plex-stats.json');
 
+let isBuildingPlexStats = false;
+
 const fetchPlexStatsInternal = async (config) => {
     // Try to load from memory
     if (cachedPlexStats && (Date.now() - lastPlexStatsFetch < 24 * 60 * 60 * 1000)) {
@@ -1482,7 +1484,9 @@ const fetchPlexStatsInternal = async (config) => {
                 cachedPlexStats = diskCache;
                 lastPlexStatsFetch = Date.now(); // pretend we just fetched it so we don't block startup
                 // Fire an async fetch in the background to update it silently
-                setTimeout(() => fetchPlexStatsInternalActual(config).catch(e => log(`Background stats update failed: ${e.message}`)), 1000);
+                if (!isBuildingPlexStats) {
+                    setTimeout(() => fetchPlexStatsInternalActual(config).catch(e => log(`Background stats update failed: ${e.message}`)), 1000);
+                }
                 return cachedPlexStats;
             }
         } catch (e) {
@@ -1490,83 +1494,105 @@ const fetchPlexStatsInternal = async (config) => {
         }
     }
 
-    return await fetchPlexStatsInternalActual(config);
+    // If still no cache, fire build in background and return building status
+    if (!isBuildingPlexStats) {
+        log('No Plex stats cache found. Starting background generation...');
+        setTimeout(() => fetchPlexStatsInternalActual(config).catch(e => log(`Background stats update failed: ${e.message}`)), 0);
+    }
+    
+    return {
+        movies: 0, shows: 0, music: 0,
+        moviesBytes: 0, showsBytes: 0, musicBytes: 0,
+        isBuilding: true
+    };
 };
 
 const fetchPlexStatsInternalActual = async (config) => {
-    const uri = await getPlexConnectionUri(config);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 300000); // 5 minute timeout for huge libraries
-    const sectionsRes = await fetch(`${uri}/library/sections`, {
-        headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' },
-        signal: controller.signal
-    });
-    if (!sectionsRes.ok) throw new Error('Failed to connect to local Plex server.');
-    const sectionsData = await sectionsRes.json();
-    const directories = sectionsData.MediaContainer.Directory || [];
-    let totalMoviesCount = 0; let totalShowsCount = 0; let totalMusicCount = 0;
-    let totalMoviesBytes = 0; let totalShowsBytes = 0; let totalMusicBytes = 0;
-    
-    for (const dir of directories) {
-        try {
-            // Get count
-            const sectionCountRes = await fetch(`${uri}/library/sections/${dir.key}/all?X-Plex-Container-Start=0&X-Plex-Container-Size=0`, {
-                headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' },
-                signal: controller.signal
-            });
-            if (sectionCountRes.ok) {
-                const sectionAllData = await sectionCountRes.json();
-                const count = sectionAllData.MediaContainer.totalSize || sectionAllData.MediaContainer.size || 0;
-                if (dir.type === 'movie') totalMoviesCount += count;
-                else if (dir.type === 'show') totalShowsCount += count;
-                else if (dir.type === 'artist') totalMusicCount += count;
-            }
-
-            // Get bytes
-            let typeParam = '';
-            if (dir.type === 'movie') typeParam = '?type=1';
-            else if (dir.type === 'show') typeParam = '?type=4';
-            else if (dir.type === 'artist') typeParam = '?type=10';
-            
-            if (typeParam) {
-                const sectionItemsRes = await fetch(`${uri}/library/sections/${dir.key}/all${typeParam}`, {
+    isBuildingPlexStats = true;
+    try {
+        const uri = await getPlexConnectionUri(config);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 600000); // 10 minute timeout for huge libraries
+        const sectionsRes = await fetch(`${uri}/library/sections`, {
+            headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' },
+            signal: controller.signal
+        });
+        if (!sectionsRes.ok) throw new Error('Failed to connect to local Plex server.');
+        const sectionsData = await sectionsRes.json();
+        const directories = sectionsData.MediaContainer.Directory || [];
+        let totalMoviesCount = 0; let totalShowsCount = 0; let totalMusicCount = 0;
+        let totalMoviesBytes = 0; let totalShowsBytes = 0; let totalMusicBytes = 0;
+        
+        for (const dir of directories) {
+            try {
+                // Get count
+                const sectionCountRes = await fetch(`${uri}/library/sections/${dir.key}/all?X-Plex-Container-Start=0&X-Plex-Container-Size=0`, {
                     headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' },
                     signal: controller.signal
                 });
-                if (sectionItemsRes.ok) {
-                    const data = await sectionItemsRes.json();
-                    const items = data.MediaContainer.Metadata || [];
+                if (sectionCountRes.ok) {
+                    const sectionAllData = await sectionCountRes.json();
+                    const count = sectionAllData.MediaContainer.totalSize || sectionAllData.MediaContainer.size || 0;
+                    if (dir.type === 'movie') totalMoviesCount += count;
+                    else if (dir.type === 'show') totalShowsCount += count;
+                    else if (dir.type === 'artist') totalMusicCount += count;
+                }
+
+                // Get bytes with pagination to prevent OOM / timeouts
+                let typeParam = '';
+                if (dir.type === 'movie') typeParam = '?type=1';
+                else if (dir.type === 'show') typeParam = '?type=4';
+                else if (dir.type === 'artist') typeParam = '?type=10';
+                
+                if (typeParam) {
+                    let start = 0;
+                    const size = 1000;
                     let bytes = 0;
-                    for (const item of items) {
-                        if (item.Media) {
-                            for (const media of item.Media) {
-                                if (media.Part) {
-                                    for (const part of media.Part) {
-                                        if (part.size) bytes += parseInt(part.size);
+                    while (true) {
+                        const sectionItemsRes = await fetch(`${uri}/library/sections/${dir.key}/all${typeParam}&X-Plex-Container-Start=${start}&X-Plex-Container-Size=${size}`, {
+                            headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' },
+                            signal: controller.signal
+                        });
+                        if (!sectionItemsRes.ok) break;
+                        const data = await sectionItemsRes.json();
+                        const items = data.MediaContainer.Metadata || [];
+                        if (items.length === 0) break;
+                        
+                        for (const item of items) {
+                            if (item.Media) {
+                                for (const media of item.Media) {
+                                    if (media.Part) {
+                                        for (const part of media.Part) {
+                                            if (part.size) bytes += parseInt(part.size);
+                                        }
                                     }
                                 }
                             }
                         }
+                        start += size;
                     }
                     if (dir.type === 'movie') totalMoviesBytes += bytes;
                     else if (dir.type === 'show') totalShowsBytes += bytes;
                     else if (dir.type === 'artist') totalMusicBytes += bytes;
                 }
-            }
-        } catch (e) { log(`Failed to fetch size for section ${dir.title}: ${e.message}`); }
+            } catch (e) { log(`Failed to fetch size for section ${dir.title}: ${e.message}`); }
+        }
+        clearTimeout(timeout);
+        cachedPlexStats = { 
+            movies: totalMoviesCount, shows: totalShowsCount, music: totalMusicCount,
+            moviesBytes: totalMoviesBytes, showsBytes: totalShowsBytes, musicBytes: totalMusicBytes 
+        };
+        lastPlexStatsFetch = Date.now();
+        try {
+            await fs.writeFile(PLEX_STATS_CACHE_PATH, JSON.stringify(cachedPlexStats));
+            log('Successfully generated and saved new plex-stats.json');
+        } catch (e) {
+            log(`Failed to write plex stats cache: ${e.message}`);
+        }
+        return cachedPlexStats;
+    } finally {
+        isBuildingPlexStats = false;
     }
-    clearTimeout(timeout);
-    cachedPlexStats = { 
-        movies: totalMoviesCount, shows: totalShowsCount, music: totalMusicCount,
-        moviesBytes: totalMoviesBytes, showsBytes: totalShowsBytes, musicBytes: totalMusicBytes 
-    };
-    lastPlexStatsFetch = Date.now();
-    try {
-        await fs.writeFile(PLEX_STATS_CACHE_PATH, JSON.stringify(cachedPlexStats));
-    } catch (e) {
-        log(`Failed to write plex stats cache: ${e.message}`);
-    }
-    return cachedPlexStats;
 };
 
 app.get('/api/plex/stats', async (req, res) => {
