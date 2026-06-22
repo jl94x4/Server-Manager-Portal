@@ -3777,13 +3777,24 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
             <div className="relative w-full rounded-2xl overflow-hidden shadow-2xl bg-card border border-border mt-4">
                 {/* Blurred Background */}
                 <div className="absolute inset-0 bg-background overflow-hidden">
-                    {heroBg && (
+                    {dashboardData?.recentMovies?.length > 0 ? (
+                        <div className="absolute -inset-[50%] opacity-[0.15] transform -rotate-12 scale-110 flex gap-4 overflow-hidden pointer-events-none blur-[2px] justify-center">
+                             {[...Array(6)].map((_, colIdx) => (
+                                 <div key={colIdx} className={`flex flex-col gap-4 ${colIdx % 2 === 0 ? 'animate-[scrollVertical_40s_linear_infinite]' : 'animate-[scrollVertical_50s_linear_infinite_reverse]'}`}>
+                                     {[...dashboardData.recentMovies, ...dashboardData.recentMovies].sort(() => 0.5 - Math.random()).map((m: any, i: number) => m.thumb && (
+                                         <img key={`c${colIdx}-${i}`} src={`/api/plex/image?path=${encodeURIComponent(m.thumb)}&width=200&height=300`} className="w-32 md:w-48 rounded-xl object-cover" alt="" />
+                                     ))}
+                                 </div>
+                             ))}
+                        </div>
+                    ) : heroBg && (
                         <div 
                             className="absolute inset-0 bg-cover bg-center opacity-30 blur-2xl scale-110"
                             style={{ backgroundImage: `url(${heroBg})` }}
                         />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-card via-card/40 to-transparent" />
                 </div>
                 
                 <div className="relative pt-24 pb-8 px-6 md:px-10 flex flex-col items-center md:items-start text-center md:text-left z-10">
@@ -3925,6 +3936,55 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                             </div>
                         </div>
                     )}
+
+                    {/* Footer sections: Preferences & Support (Moved to Left Column) */}
+                    <div className="flex flex-col gap-6 mt-2">
+                        {/* Newsletter preferences */}
+                        {user && !sessionInfo.session.isAdmin && (
+                            <div className="bg-card border border-border rounded-2xl p-6 shadow-lg flex flex-col">
+                                <p className="text-muted text-xs uppercase tracking-widest font-semibold mb-4 flex-shrink-0">Preferences</p>
+                                <div className="flex items-center justify-between gap-4">
+                                    <div>
+                                        <p className="text-text font-bold text-sm">Weekly Newsletter</p>
+                                        <p className="text-muted text-xs mt-1 leading-relaxed">Automated library updates delivered to your inbox</p>
+                                    </div>
+                                    <button onClick={handleToggleNewsletter} aria-label="Toggle newsletter"
+                                        className={`relative inline-flex items-center w-14 h-7 rounded-full transition-all flex-shrink-0 border-2 ${!optOutNewsletter ? 'bg-plex border-plex' : 'bg-background border-border'}`}>
+                                        <span className={`inline-block w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-300 ${!optOutNewsletter ? 'translate-x-8' : 'translate-x-1'}`} />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Support card */}
+                        {!sessionInfo?.session?.isAdmin && (
+                            <div className="bg-card border border-border rounded-2xl p-6 shadow-lg flex flex-col">
+                                {user?.isTrial ? (
+                                    <div className="mb-5 flex-shrink-0">
+                                        <p className="text-plex font-bold text-base mb-1">🍿 Enjoying your Free Trial?</p>
+                                        <p className="text-muted text-sm leading-relaxed">Once your 3-day trial ends, you'll lose access. A full subscription is just <span className="text-plex font-black">£60/year</span>. Get in touch to upgrade!</p>
+                                    </div>
+                                ) : (
+                                    <div className="mb-5 flex-shrink-0">
+                                        <p className="text-text font-bold text-base mb-1">💬 Need Help?</p>
+                                        <p className="text-muted text-sm leading-relaxed">Contact the admin to renew your subscription, report an issue, or get support.</p>
+                                    </div>
+                                )}
+                                <div className="flex flex-col gap-3 mt-auto">
+                                    <a href="https://wa.me/447305697245" target="_blank" rel="noreferrer"
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-[#25D366]/10 border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366]/20">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12.031 21.972c-1.63 0-3.21-.42-4.606-1.21l-5.111 1.34 1.36-4.972a9.92 9.92 0 0 1-1.34-4.978C2.334 6.64 6.685 2.28 12.031 2.28c5.344 0 9.697 4.36 9.697 9.872 0 5.512-4.353 9.82-9.697 9.82zm0-18.062c-4.47 0-8.115 3.65-8.115 8.13 0 1.48.39 2.92 1.12 4.19l-1.02 3.73 3.82-1a8.13 8.13 0 0 0 4.195 1.15c4.475 0 8.115-3.65 8.115-8.13s-3.64-8.07-8.115-8.07zm4.332 11.23c-.237-.12-1.405-.69-1.62-.77-.216-.08-.372-.12-.53.12-.158.24-.616.77-.754.93-.138.16-.276.18-.513.06-1.124-.55-2.062-1.28-2.812-2.19-.214-.26-.14-.4.08-.56.12-.08.27-.3.41-.45.14-.15.19-.25.28-.42.1-.17.05-.32 0-.44-.05-.12-.53-1.28-.73-1.75-.19-.46-.38-.4-.53-.41h-.45c-.16 0-.41.06-.63.3-.22.24-.85.83-.85 2.02 0 1.19.87 2.34.99 2.5.12.16 1.7 2.6 4.12 3.64 1.38.59 2.05.65 2.8.55.75-.1 1.4-.57 1.6-1.12.2-.55.2-.102.14-1.12-.06-.1-.22-.16-.46-.28z" /></svg>
+                                        WhatsApp
+                                    </a>
+                                    <a href="mailto:jasonlucas58@gmail.com"
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
+                                        Email
+                                    </a>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Right Column */}
@@ -4097,54 +4157,6 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                 </div>
             )}
 
-            {/* Footer sections: Preferences & Support */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                {/* Newsletter preferences */}
-                {user && !sessionInfo.session.isAdmin && (
-                    <div className="bg-card border border-border rounded-2xl p-6 shadow-lg flex flex-col h-full">
-                        <p className="text-muted text-xs uppercase tracking-widest font-semibold mb-6 flex-shrink-0">Preferences</p>
-                        <div className="flex items-center justify-between gap-4 mt-auto">
-                            <div>
-                                <p className="text-text font-bold text-sm">Weekly Newsletter</p>
-                                <p className="text-muted text-xs mt-1 leading-relaxed">Automated library updates delivered to your inbox</p>
-                            </div>
-                            <button onClick={handleToggleNewsletter} aria-label="Toggle newsletter"
-                                className={`relative inline-flex items-center w-14 h-7 rounded-full transition-all flex-shrink-0 border-2 ${!optOutNewsletter ? 'bg-plex border-plex' : 'bg-background border-border'}`}>
-                                <span className={`inline-block w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-300 ${!optOutNewsletter ? 'translate-x-8' : 'translate-x-1'}`} />
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {/* Support card */}
-                {!sessionInfo?.session?.isAdmin && (
-                    <div className="bg-card border border-border rounded-2xl p-6 shadow-lg flex flex-col h-full">
-                        {user?.isTrial ? (
-                            <div className="mb-5 flex-shrink-0">
-                                <p className="text-plex font-bold text-base mb-1">🍿 Enjoying your Free Trial?</p>
-                                <p className="text-muted text-sm leading-relaxed">Once your 3-day trial ends, you'll lose access. A full subscription is just <span className="text-plex font-black">£60/year</span>. Get in touch to upgrade!</p>
-                            </div>
-                        ) : (
-                            <div className="mb-5 flex-shrink-0">
-                                <p className="text-text font-bold text-base mb-1">💬 Need Help?</p>
-                                <p className="text-muted text-sm leading-relaxed">Contact the admin to renew your subscription, report an issue, or get support.</p>
-                            </div>
-                        )}
-                        <div className="flex gap-3 mt-auto">
-                            <a href="https://wa.me/447305697245" target="_blank" rel="noreferrer"
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-[#25D366]/10 border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366]/20">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12.031 21.972c-1.63 0-3.21-.42-4.606-1.21l-5.111 1.34 1.36-4.972a9.92 9.92 0 0 1-1.34-4.978C2.334 6.64 6.685 2.28 12.031 2.28c5.344 0 9.697 4.36 9.697 9.872 0 5.512-4.353 9.82-9.697 9.82zm0-18.062c-4.47 0-8.115 3.65-8.115 8.13 0 1.48.39 2.92 1.12 4.19l-1.02 3.73 3.82-1a8.13 8.13 0 0 0 4.195 1.15c4.475 0 8.115-3.65 8.115-8.13s-3.64-8.07-8.115-8.07zm4.332 11.23c-.237-.12-1.405-.69-1.62-.77-.216-.08-.372-.12-.53.12-.158.24-.616.77-.754.93-.138.16-.276.18-.513.06-1.124-.55-2.062-1.28-2.812-2.19-.214-.26-.14-.4.08-.56.12-.08.27-.3.41-.45.14-.15.19-.25.28-.42.1-.17.05-.32 0-.44-.05-.12-.53-1.28-.73-1.75-.19-.46-.38-.4-.53-.41h-.45c-.16 0-.41.06-.63.3-.22.24-.85.83-.85 2.02 0 1.19.87 2.34.99 2.5.12.16 1.7 2.6 4.12 3.64 1.38.59 2.05.65 2.8.55.75-.1 1.4-.57 1.6-1.12.2-.55.2-.102.14-1.12-.06-.1-.22-.16-.46-.28z" /></svg>
-                                WhatsApp
-                            </a>
-                            <a href="mailto:jasonlucas58@gmail.com"
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
-                                Email
-                            </a>
-                        </div>
-                    </div>
-                )}
-            </div>
         </div>
     );
 };
