@@ -3714,7 +3714,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
 
     useEffect(() => {
         const fetchAnalytics = async () => {
-            if (sessionInfo?.session?.isAdmin || !user) {
+            if (!sessionInfo?.session?.isAdmin && !user) {
                 setAnalyticsLoading(false);
                 return;
             }
@@ -4057,7 +4057,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                     </div>
 
                     {/* User Analytics Section */}
-                    {!sessionInfo.session.isAdmin && user && (
+                    {(sessionInfo.session.isAdmin || user) && (
                         <>
                             {analyticsLoading ? (
                                 <div className="flex items-center justify-center p-8 bg-card border border-border rounded-2xl shadow-lg">

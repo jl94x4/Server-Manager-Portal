@@ -2878,13 +2878,16 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
         const uri = await getPlexConnectionUri(config);
         if (!uri) return res.status(503).json({ error: 'Cannot connect to Plex' });
 
-        const users = await loadFile(USERS_PATH, []);
-        const localUser = users.find(u => u.email === req.user.email || u.username === req.user.username);
-        if (!localUser || !localUser.id) {
-            return res.json({ totalPlays: 0, topLibraries: [], topContent: [], recentHistory: [] });
+        let accountID = req.user.plexId;
+        if (!accountID) {
+            const users = await loadFile(USERS_PATH, []);
+            const localUser = users.find(u => u.email === req.user.email || u.username === req.user.username);
+            accountID = localUser ? localUser.id : null;
         }
 
-        const accountID = localUser.id;
+        if (!accountID) {
+            return res.json({ totalPlays: 0, topLibraries: [], topContent: [], recentHistory: [] });
+        }
         const limit = req.query.days === 'all' ? 999999 : 5000;
         
         const historyRes = await fetch(`${uri}/status/sessions/history/all?accountID=${accountID}&X-Plex-Token=${config.plexToken}&sort=viewedAt:desc&limit=${limit}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
