@@ -340,8 +340,8 @@ const UserCard: React.FC<{
                 <div className="flex justify-between items-center text-sm pb-2 border-b border-white/5 last:border-0 last:pb-0">
                     <span className="text-muted text-xs uppercase tracking-wider font-bold">Plex</span>
                     <span className="info-value plex-status">
-                        <span className={`plex-status-dot ${user.plexAccessStatus}`}></span>
-                        {user.plexAccessStatus.charAt(0).toUpperCase() + user.plexAccessStatus.slice(1)}
+                        <span className={`plex-status-dot ${user.plexAccessStatus || 'unknown'}`}></span>
+                        {(user.plexAccessStatus || 'unknown').charAt(0).toUpperCase() + (user.plexAccessStatus || 'unknown').slice(1)}
                     </span>
                 </div>
             </div>
