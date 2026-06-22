@@ -649,8 +649,8 @@ const SettingsDashboard: React.FC = () => {
     // Newsletter States
     const [newsletterFrequency, setNewsletterFrequency] = useState('disabled');
     const [newsletterDay, setNewsletterDay] = useState(0);
-    const [publicDomain, setPublicDomain] = useState('https://plexified.co.uk');
-    const [requestUrl, setRequestUrl] = useState('https://plexified.co.uk');
+    const [publicDomain, setPublicDomain] = useState('https://yourdomain.com');
+    const [requestUrl, setRequestUrl] = useState('https://yourdomain.com');
     const [contactUrl, setContactUrl] = useState('');
 
     // Cleanup States
@@ -718,8 +718,8 @@ const SettingsDashboard: React.FC = () => {
             setNewsletterDay(initialSettings.newsletterDay || 0);
             setInactiveCleanupEnabled(!!initialSettings.inactiveCleanupEnabled);
             setInactiveCleanupDays(initialSettings.inactiveCleanupDays || 90);
-            setPublicDomain(initialSettings.publicDomain || 'https://portal.plexified.co.uk');
-            setRequestUrl(initialSettings.requestUrl || 'https://plexified.co.uk');
+            setPublicDomain(initialSettings.publicDomain || 'https://portal.yourdomain.com');
+            setRequestUrl(initialSettings.requestUrl || 'https://yourdomain.com');
             setContactUrl(initialSettings.contactUrl || '');
             setSonarrUrl(initialSettings.sonarrUrl || '');
             setSonarrApiKey(initialSettings.sonarrApiKey || '');
@@ -976,7 +976,7 @@ const SettingsDashboard: React.FC = () => {
                             </div>
                             <div className="mb-4" style={{ marginTop: '1rem' }}>
                                 <label htmlFor="requestUrl">Request URL</label>
-                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="requestUrl" type="text" value={requestUrl} onChange={e => setRequestUrl(e.target.value)} placeholder="https://plexified.co.uk" />
+                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="requestUrl" type="text" value={requestUrl} onChange={e => setRequestUrl(e.target.value)} placeholder="https://yourdomain.com" />
                                 <small>The URL users are redirected to when they click the Request Content button.</small>
                             </div>
                             <div className="mb-4" style={{ marginTop: '1rem' }}>
@@ -1088,7 +1088,7 @@ const SettingsDashboard: React.FC = () => {
                                     </div>
                                     <div className="mb-4" style={{ marginTop: '1rem' }}>
                                         <label htmlFor="publicDomain">Public Domain</label>
-                                        <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="publicDomain" type="text" value={publicDomain} onChange={e => setPublicDomain(e.target.value)} placeholder="https://portal.plexified.co.uk" />
+                                        <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="publicDomain" type="text" value={publicDomain} onChange={e => setPublicDomain(e.target.value)} placeholder="https://portal.yourdomain.com" />
                                         <small>Your public URL. This is required to host the posters inside the email.</small>
                                     </div>
                                 </>
@@ -1483,7 +1483,7 @@ const StatusMonitorSettings: React.FC<{ config: any; onSave: (cfg: any) => void 
 
 const BroadcastModal: React.FC<{ isOpen: boolean; onClose: () => void; selectedUserIds: string[]; users: User[]; }> = ({ isOpen, onClose, selectedUserIds, users }) => {
     const [subject, setSubject] = useState('Big updates to the Plex Server! 🚀');
-    const [body, setBody] = useState(`🎬 <b>Hey everyone! Big updates to the Plex Server!</b> 🚀<br><br>If you have any friends or family who want to check out the server, I’m currently offering a <b>3-Day Free Trial</b> with instant access to the entire library! 🍿<br>✅ No bank details needed<br>✅ No purchase required<br>✅ Instant, automated setup<br><br>We also just launched a brand new <b>User Portal</b> (https://plexified.co.uk) packed with awesome features for everyone:<br>🕒 <b>Account Status:</b> Easily check exactly how many days you have left until your account expires.<br>🟢 <b>Server Health:</b> View live 24/7 uptime stats for all server services.<br>📊 <b>Live Library Stats:</b> See exact, live counts of our massive library.<br><br>Feel free to share the link (https://plexified.co.uk) with anyone who might be interested! 👇`);
+    const [body, setBody] = useState(`🎬 <b>Hey everyone! Big updates to the Plex Server!</b> 🚀<br><br>If you have any friends or family who want to check out the server, I’m currently offering a <b>3-Day Free Trial</b> with instant access to the entire library! 🍿<br>✅ No bank details needed<br>✅ No purchase required<br>✅ Instant, automated setup<br><br>We also just launched a brand new <b>User Portal</b> (https://yourdomain.com) packed with awesome features for everyone:<br>🕒 <b>Account Status:</b> Easily check exactly how many days you have left until your account expires.<br>🟢 <b>Server Health:</b> View live 24/7 uptime stats for all server services.<br>📊 <b>Live Library Stats:</b> See exact, live counts of our massive library.<br><br>Feel free to share the link (https://yourdomain.com) with anyone who might be interested! 👇`);
     const [recipientFilter, setRecipientFilter] = useState<'all' | 'active' | 'trial' | 'expiring' | 'expired' | 'selected' | 'custom'>('all');
     const [customSelectedUserIds, setCustomSelectedUserIds] = useState<string[]>([]);
     const [isSending, setIsSending] = useState(false);
@@ -4744,7 +4744,7 @@ const MainApp: React.FC = () => {
 
     return (
         <div className="flex w-full min-h-screen bg-background">
-            {!isPublicView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Plex Server'} adminThumb={sessionInfo?.adminThumb} requestUrl={sessionInfo?.requestUrl || 'https://plexified.co.uk'} navOrder={sessionInfo?.navOrder || ['home', 'discover', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout']} />}
+            {!isPublicView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Plex Server'} adminThumb={sessionInfo?.adminThumb} requestUrl={sessionInfo?.requestUrl || 'https://yourdomain.com'} navOrder={sessionInfo?.navOrder || ['home', 'discover', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout']} />}
             <div className={`flex-grow flex flex-col items-center p-4 md:p-8 pt-20 pb-[80px] md:pt-8 md:pb-8 w-full overflow-x-hidden ${isPublicView ? '!pt-8 !pb-8' : ''}`}>
                 {renderView()}
             </div>

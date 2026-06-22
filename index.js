@@ -1145,7 +1145,7 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
     
     let serverName = 'Plex Server';
     let adminThumb = null;
-    let requestUrl = 'https://plexified.co.uk';
+    let requestUrl = 'https://yourdomain.com';
     let navOrder = ['home', 'discover', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout'];
     try {
         const config = await loadFile(CONFIG_PATH, {});
@@ -1153,7 +1153,7 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
             const profile = await getAdminProfile(config);
             serverName = profile.serverName || 'Plex Server';
             adminThumb = profile.thumb;
-            requestUrl = config.requestUrl || 'https://plexified.co.uk';
+            requestUrl = config.requestUrl || 'https://yourdomain.com';
             if (config.navOrder) navOrder = config.navOrder;
         }
     } catch(e) {}
@@ -1191,8 +1191,8 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 newsletterDay: config.newsletterDay || 0,
                 inactiveCleanupEnabled: !!config.inactiveCleanupEnabled,
                 inactiveCleanupDays: config.inactiveCleanupDays || 90,
-                publicDomain: config.publicDomain || 'https://portal.plexified.co.uk',
-                requestUrl: config.requestUrl || 'https://plexified.co.uk',
+                publicDomain: config.publicDomain || 'https://portal.yourdomain.com',
+                requestUrl: config.requestUrl || 'https://yourdomain.com',
                 contactUrl: config.contactUrl || '',
                 sonarrUrl: config.sonarrUrl || '',
                 sonarrApiKey: config.sonarrApiKey || '',
@@ -1225,8 +1225,8 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 newsletterDay: 0,
                 inactiveCleanupEnabled: false,
                 inactiveCleanupDays: 90,
-                publicDomain: 'https://portal.plexified.co.uk',
-                requestUrl: 'https://plexified.co.uk',
+                publicDomain: 'https://portal.yourdomain.com',
+                requestUrl: 'https://yourdomain.com',
                 contactUrl: '',
                 sonarrUrl: '',
                 sonarrApiKey: '',
@@ -1295,8 +1295,8 @@ app.post('/api/config', async (req, res) => {
         newsletterDay: parseInt(newsletterDay, 10) || 0,
         inactiveCleanupEnabled: !!inactiveCleanupEnabled,
         inactiveCleanupDays: parseInt(inactiveCleanupDays, 10) || 90,
-        publicDomain: publicDomain || 'https://portal.plexified.co.uk',
-        requestUrl: requestUrl || 'https://plexified.co.uk',
+        publicDomain: publicDomain || 'https://portal.yourdomain.com',
+        requestUrl: requestUrl || 'https://yourdomain.com',
         contactUrl: contactUrl || '',
         sonarrUrl: sonarrUrl !== undefined ? sonarrUrl : (existingConfig.sonarrUrl || ''),
         sonarrApiKey: sonarrApiKey !== undefined ? sonarrApiKey : (existingConfig.sonarrApiKey || ''),
@@ -2399,9 +2399,9 @@ app.get('/api/public/info', async (req, res) => {
         const config = await loadFile(CONFIG_PATH, {});
         const profile = await getAdminProfile(config);
         const isConfigured = !!(config && config.plexToken && config.serverIdentifier);
-        res.json({ ...profile, isConfigured, requestUrl: config.requestUrl || 'https://plexified.co.uk' });
+        res.json({ ...profile, isConfigured, requestUrl: config.requestUrl || 'https://yourdomain.com' });
     } catch (e) {
-        res.json({ thumb: null, serverName: 'Plex Server', isConfigured: false, requestUrl: 'https://plexified.co.uk' });
+        res.json({ thumb: null, serverName: 'Plex Server', isConfigured: false, requestUrl: 'https://yourdomain.com' });
     }
 });
 
