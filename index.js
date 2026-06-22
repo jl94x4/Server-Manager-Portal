@@ -2921,7 +2921,7 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
             if (cutoffDate > 0 && item.viewedAt < cutoffDate) return;
             totalPlays++;
 
-            if (recentHistory.length < 50) {
+            if (recentHistory.length < 200) {
                 recentHistory.push({
                     title: item.type === 'episode' ? (item.grandparentTitle || item.parentTitle || item.title) : item.title,
                     episodeTitle: item.type === 'episode' ? item.title : null,

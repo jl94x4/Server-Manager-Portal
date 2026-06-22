@@ -3671,6 +3671,9 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
     const [serverDataLoading, setServerDataLoading] = useState(true);
     const [topContentPage, setTopContentPage] = useState(0);
     const TOP_CONTENT_PAGE_SIZE = 6;
+    const [recentHistoryPage, setRecentHistoryPage] = useState(0);
+    const RECENT_HISTORY_PAGE_SIZE = 8;
+    const [analyticsDays, setAnalyticsDays] = useState<number | 'all'>(30);
 
     const user = sessionInfo.account;
     const [optOutNewsletter, setOptOutNewsletter] = useState(user?.optOutNewsletter || false);
@@ -3721,8 +3724,11 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                 return;
             }
             try {
-                const res = await apiFetch('/api/plex/analytics/me');
+                setAnalyticsLoading(true);
+                const res = await apiFetch(`/api/plex/analytics/me?days=${analyticsDays}`);
                 setAnalytics(res);
+                setTopContentPage(0);
+                setRecentHistoryPage(0);
             } catch (e) {
                 console.error("Failed to fetch analytics", e);
             } finally {
@@ -3730,7 +3736,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
             }
         };
         fetchAnalytics();
-    }, [user, sessionInfo.session.isAdmin]);
+    }, [user, sessionInfo.session.isAdmin, analyticsDays]);
 
     useEffect(() => {
         const fetchServerData = async () => {
@@ -4077,7 +4083,25 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
 
                     {/* User Analytics Section */}
                     {(sessionInfo.session.isAdmin || user) && (
-                        <>
+                        <div className="flex flex-col gap-4">
+                            <div className="flex items-center justify-between bg-card border border-border rounded-2xl p-4 shadow-sm">
+                                <h2 className="text-lg md:text-xl font-bold text-text flex items-center gap-2">
+                                    <Activity className="w-5 h-5 text-plex" /> Your Analytics
+                                </h2>
+                                <select 
+                                    value={analyticsDays}
+                                    onChange={(e) => setAnalyticsDays(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
+                                    className="bg-background border border-border rounded-lg px-3 py-1.5 text-sm font-medium text-text focus:outline-none focus:border-plex transition-colors cursor-pointer"
+                                >
+                                    <option value={7}>Last 7 Days</option>
+                                    <option value={30}>Last 30 Days</option>
+                                    <option value={60}>Last 60 Days</option>
+                                    <option value={90}>Last 90 Days</option>
+                                    <option value={180}>Last 180 Days</option>
+                                    <option value="all">All Time</option>
+                                </select>
+                            </div>
+                            
                             {analyticsLoading ? (
                                 <div className="flex items-center justify-center p-8 bg-card border border-border rounded-2xl shadow-lg">
                                     <div className="flex flex-col items-center gap-3">
@@ -4143,25 +4167,48 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                     {/* Recent History */}
                                     {analytics.recentHistory && analytics.recentHistory.length > 0 && (
                                         <div className="bg-card border border-border rounded-2xl p-6 shadow-xl">
-                                            <h3 className="text-xl font-bold text-text mb-6">Recently Watched</h3>
-                                            <div className="flex flex-col gap-4">
-                                                {analytics.recentHistory.slice(0, 3).map((item: any, idx: number) => (
-                                                    <a key={idx} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-all group">
-                                                        <div className="w-16 h-16 rounded-lg overflow-hidden bg-background flex-shrink-0 shadow-md">
+                                            <div className="flex items-center justify-between mb-6">
+                                                <h3 className="text-xl font-bold text-text">Recently Watched</h3>
+                                                {analytics.recentHistory.length > RECENT_HISTORY_PAGE_SIZE && (
+                                                    <div className="flex items-center gap-2">
+                                                        <button 
+                                                            onClick={() => setRecentHistoryPage(p => Math.max(0, p - 1))}
+                                                            disabled={recentHistoryPage === 0}
+                                                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
+                                                        >
+                                                            <ChevronUp className="w-4 h-4 -rotate-90" />
+                                                        </button>
+                                                        <span className="text-xs text-muted font-medium w-8 text-center">
+                                                            {recentHistoryPage + 1} / {Math.ceil(analytics.recentHistory.length / RECENT_HISTORY_PAGE_SIZE)}
+                                                        </span>
+                                                        <button 
+                                                            onClick={() => setRecentHistoryPage(p => Math.min(Math.ceil(analytics.recentHistory.length / RECENT_HISTORY_PAGE_SIZE) - 1, p + 1))}
+                                                            disabled={recentHistoryPage >= Math.ceil(analytics.recentHistory.length / RECENT_HISTORY_PAGE_SIZE) - 1}
+                                                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
+                                                        >
+                                                            <ChevronDown className="w-4 h-4 -rotate-90" />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                {analytics.recentHistory.slice(recentHistoryPage * RECENT_HISTORY_PAGE_SIZE, (recentHistoryPage + 1) * RECENT_HISTORY_PAGE_SIZE).map((item: any, idx: number) => (
+                                                    <a key={idx} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-all group">
+                                                        <div className="w-12 h-12 rounded-lg overflow-hidden bg-background flex-shrink-0 shadow-md">
                                                             {item.thumbUrl ? (
                                                                 <img src={item.thumbUrl} alt={item.title} className="w-full h-full object-cover" />
                                                             ) : (
                                                                 <div className="w-full h-full flex items-center justify-center">
-                                                                    <PlaySquare className="w-6 h-6 text-muted/50" />
+                                                                    <PlaySquare className="w-5 h-5 text-muted/50" />
                                                                 </div>
                                                             )}
                                                         </div>
                                                         <div className="flex-1 min-w-0">
                                                             <h4 className="font-bold text-text text-sm truncate group-hover:text-plex transition-colors">{item.title}</h4>
-                                                            {item.episodeTitle && <p className="text-muted text-xs truncate mt-0.5">{item.episodeTitle}</p>}
-                                                            <div className="flex items-center gap-2 mt-2 text-xs font-medium text-muted/70">
-                                                                <Clock size={12} />
-                                                                <span>{new Date(item.viewedAt * 1000).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+                                                            {item.episodeTitle && <p className="text-xs text-muted truncate mt-0.5">{item.episodeTitle}</p>}
+                                                            <div className="flex items-center gap-1 mt-1">
+                                                                <Clock className="w-3 h-3 text-muted" />
+                                                                <p className="text-[10px] text-muted">{new Date(item.viewedAt * 1000).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
                                                             </div>
                                                         </div>
                                                     </a>
@@ -4177,7 +4224,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                     <p className="text-muted text-sm max-w-sm">Once you start watching content on the server, your personal watch stats and history will appear right here!</p>
                                 </div>
                             )}
-                        </>
+                        </div>
                     )}
                 </div>
             </div>
