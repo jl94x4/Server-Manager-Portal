@@ -4537,7 +4537,31 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
 
             {/* Desktop Sidebar */}
             <div className="hidden md:flex flex-col w-72 bg-card border-r border-border p-6 sticky top-0 h-screen shadow-2xl">
-                <div className="flex flex-col items-center mb-10 mt-4 group cursor-default">
+                <div className="flex flex-col gap-2 mt-4">
+                    {navOrder.map((key) => {
+                        const item = navItemsConfig[key];
+                        if (!item) return null;
+                        if (item.adminOnly && !isAdmin) return null;
+
+                        const isCurrent = item.route ? ['admin', 'user'].includes(currentRoute) && key === 'home' ? true : currentRoute === item.route : false;
+
+                        if (item.href) {
+                            return (
+                                <a key={key} href={item.href} target="_blank" rel="noreferrer" className="flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text">
+                                    <item.icon className="w-5 h-5 flex-shrink-0" /> {item.label}
+                                </a>
+                            );
+                        }
+
+                        return (
+                            <a key={key} href="#" className={`flex items-center gap-4 p-3 no-underline rounded-lg transition-all font-medium ${isCurrent ? 'bg-plex/15 text-plex shadow-[0_0_15px_rgba(229,160,13,0.1)]' : 'text-muted hover:bg-white/5 hover:text-text'}`} onClick={(e) => { e.preventDefault(); if (item.onClick) item.onClick(e); else onNavigate(item.route as any); }}>
+                                <item.icon className="w-5 h-5 flex-shrink-0" /> {item.label}
+                            </a>
+                        );
+                    })}
+                </div>
+
+                <div className="flex flex-col items-center mt-auto pt-10 pb-4 group cursor-default">
                     <div className="relative mb-6">
                         {/* Soft ambient background glow */}
                         <div className="absolute inset-0 bg-plex blur-[25px] opacity-20 group-hover:opacity-40 transition-opacity duration-700 rounded-full"></div>
@@ -4570,29 +4594,6 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
                             <div className="h-px w-6 bg-gradient-to-l from-transparent to-plex/50"></div>
                         </div>
                     </div>
-                </div>
-                <div className="flex flex-col gap-2">
-                    {navOrder.map((key) => {
-                        const item = navItemsConfig[key];
-                        if (!item) return null;
-                        if (item.adminOnly && !isAdmin) return null;
-
-                        const isCurrent = item.route ? ['admin', 'user'].includes(currentRoute) && key === 'home' ? true : currentRoute === item.route : false;
-
-                        if (item.href) {
-                            return (
-                                <a key={key} href={item.href} target="_blank" rel="noreferrer" className="flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text">
-                                    <item.icon className="w-5 h-5 flex-shrink-0" /> {item.label}
-                                </a>
-                            );
-                        }
-
-                        return (
-                            <a key={key} href="#" className={`flex items-center gap-4 p-3 no-underline rounded-lg transition-all font-medium ${isCurrent ? 'bg-plex/15 text-plex shadow-[0_0_15px_rgba(229,160,13,0.1)]' : 'text-muted hover:bg-white/5 hover:text-text'}`} onClick={(e) => { e.preventDefault(); if (item.onClick) item.onClick(e); else onNavigate(item.route as any); }}>
-                                <item.icon className="w-5 h-5 flex-shrink-0" /> {item.label}
-                            </a>
-                        );
-                    })}
                 </div>
             </div>
 

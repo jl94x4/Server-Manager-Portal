@@ -4203,7 +4203,29 @@ var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adm
       ] })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "hidden md:flex flex-col w-72 bg-card border-r border-border p-6 sticky top-0 h-screen shadow-2xl", children: [
-      /* @__PURE__ */ jsxs("div", { className: "flex flex-col items-center mb-10 mt-4 group cursor-default", children: [
+      /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-2 mt-4", children: navOrder.map((key) => {
+        const item = navItemsConfig[key];
+        if (!item) return null;
+        if (item.adminOnly && !isAdmin) return null;
+        const isCurrent = item.route ? ["admin", "user"].includes(currentRoute) && key === "home" ? true : currentRoute === item.route : false;
+        if (item.href) {
+          return /* @__PURE__ */ jsxs("a", { href: item.href, target: "_blank", rel: "noreferrer", className: "flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text", children: [
+            /* @__PURE__ */ jsx(item.icon, { className: "w-5 h-5 flex-shrink-0" }),
+            " ",
+            item.label
+          ] }, key);
+        }
+        return /* @__PURE__ */ jsxs("a", { href: "#", className: `flex items-center gap-4 p-3 no-underline rounded-lg transition-all font-medium ${isCurrent ? "bg-plex/15 text-plex shadow-[0_0_15px_rgba(229,160,13,0.1)]" : "text-muted hover:bg-white/5 hover:text-text"}`, onClick: (e) => {
+          e.preventDefault();
+          if (item.onClick) item.onClick(e);
+          else onNavigate(item.route);
+        }, children: [
+          /* @__PURE__ */ jsx(item.icon, { className: "w-5 h-5 flex-shrink-0" }),
+          " ",
+          item.label
+        ] }, key);
+      }) }),
+      /* @__PURE__ */ jsxs("div", { className: "flex flex-col items-center mt-auto pt-10 pb-4 group cursor-default", children: [
         /* @__PURE__ */ jsxs("div", { className: "relative mb-6", children: [
           /* @__PURE__ */ jsx("div", { className: "absolute inset-0 bg-plex blur-[25px] opacity-20 group-hover:opacity-40 transition-opacity duration-700 rounded-full" }),
           /* @__PURE__ */ jsx("div", { className: "absolute -inset-1 rounded-full bg-gradient-to-tr from-plex via-amber-300 to-orange-600 opacity-60 group-hover:opacity-100 group-hover:rotate-180 transition-all duration-1000 ease-out" }),
@@ -4227,29 +4249,7 @@ var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adm
             /* @__PURE__ */ jsx("div", { className: "h-px w-6 bg-gradient-to-l from-transparent to-plex/50" })
           ] })
         ] })
-      ] }),
-      /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-2", children: navOrder.map((key) => {
-        const item = navItemsConfig[key];
-        if (!item) return null;
-        if (item.adminOnly && !isAdmin) return null;
-        const isCurrent = item.route ? ["admin", "user"].includes(currentRoute) && key === "home" ? true : currentRoute === item.route : false;
-        if (item.href) {
-          return /* @__PURE__ */ jsxs("a", { href: item.href, target: "_blank", rel: "noreferrer", className: "flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text", children: [
-            /* @__PURE__ */ jsx(item.icon, { className: "w-5 h-5 flex-shrink-0" }),
-            " ",
-            item.label
-          ] }, key);
-        }
-        return /* @__PURE__ */ jsxs("a", { href: "#", className: `flex items-center gap-4 p-3 no-underline rounded-lg transition-all font-medium ${isCurrent ? "bg-plex/15 text-plex shadow-[0_0_15px_rgba(229,160,13,0.1)]" : "text-muted hover:bg-white/5 hover:text-text"}`, onClick: (e) => {
-          e.preventDefault();
-          if (item.onClick) item.onClick(e);
-          else onNavigate(item.route);
-        }, children: [
-          /* @__PURE__ */ jsx(item.icon, { className: "w-5 h-5 flex-shrink-0" }),
-          " ",
-          item.label
-        ] }, key);
-      }) })
+      ] })
     ] }),
     /* @__PURE__ */ jsx("div", { className: "md:hidden fixed bottom-0 left-0 right-0 w-full bg-[#161b22] border-t border-[#30363d] z-50 pb-[env(safe-area-inset-bottom)]", children: /* @__PURE__ */ jsx("div", { className: "flex justify-around items-center h-16", children: navOrder.map((key) => {
       const item = navItemsConfig[key];
