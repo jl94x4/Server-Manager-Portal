@@ -3648,6 +3648,8 @@ const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any }> = ({ o
 const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: () => void; refreshSession: () => void; onViewAdmin: () => void; onViewStatus: () => void; onViewDashboard: () => void }> = ({ sessionInfo, publicConfig, onLogout, refreshSession, onViewAdmin, onViewStatus, onViewDashboard }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [toast, setToast] = useState<ToastMessage | null>(null);
+    const [analytics, setAnalytics] = useState<any>(null);
+    const [analyticsLoading, setAnalyticsLoading] = useState(true);
 
     const user = sessionInfo.account;
     const [optOutNewsletter, setOptOutNewsletter] = useState(user?.optOutNewsletter || false);
@@ -3691,6 +3693,24 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    useEffect(() => {
+        const fetchAnalytics = async () => {
+            if (sessionInfo?.session?.isAdmin || !user) {
+                setAnalyticsLoading(false);
+                return;
+            }
+            try {
+                const res = await apiFetch('/api/plex/analytics/me');
+                setAnalytics(res);
+            } catch (e) {
+                console.error("Failed to fetch analytics", e);
+            } finally {
+                setAnalyticsLoading(false);
+            }
+        };
+        fetchAnalytics();
+    }, [user, sessionInfo.session.isAdmin]);
+
     const handleRelink = async () => {
         setIsLoading(true);
         try {
@@ -3709,101 +3729,223 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
     const isExpiringSoon = daysLeft !== null && daysLeft <= 7;
     const isRevoked = user?.plexAccessStatus === 'revoked';
     const isPending = user?.plexAccessStatus?.toLowerCase() === 'pending';
+    
+    const heroBg = analytics?.recentHistory?.[0]?.thumbUrl || publicConfig?.customLogoUrl || '';
 
     return (
-        <div className="w-full max-w-2xl mx-auto flex flex-col gap-5">
+        <div className="w-full max-w-4xl mx-auto flex flex-col gap-6">
             <Loader isLoading={isLoading} />
             {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
 
-            {/* Hero card */}
-            <div className="relative bg-card border border-border rounded-2xl overflow-hidden shadow-2xl">
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-plex to-transparent opacity-80" />
-                <div className="p-4 md:p-8">
-
-                    {/* Avatar + greeting */}
-                    <div className="flex items-center gap-4 mb-6">
+            {/* Massive Hero Banner */}
+            <div className="relative w-full rounded-2xl overflow-hidden shadow-2xl bg-card border border-border mt-4">
+                {/* Blurred Background */}
+                <div className="absolute inset-0 bg-background overflow-hidden">
+                    {heroBg && (
+                        <div 
+                            className="absolute inset-0 bg-cover bg-center opacity-30 blur-2xl scale-110"
+                            style={{ backgroundImage: `url(${heroBg})` }}
+                        />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" />
+                </div>
+                
+                <div className="relative pt-24 pb-8 px-6 md:px-10 flex flex-col items-center md:items-start text-center md:text-left z-10">
+                    <div className="flex flex-col md:flex-row items-center md:items-end gap-6">
+                        {/* Avatar */}
                         {(() => {
                             const thumbUrl = user?.thumb || sessionInfo.session.thumb;
                             if (thumbUrl) {
                                 return (
-                                    <img 
-                                        src={thumbUrl.startsWith('http') ? thumbUrl : `/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=128&height=128`} 
-                                        alt={sessionInfo.session.username} 
-                                        className="w-14 h-14 rounded-full object-cover border-2 border-plex/60 shadow-lg shadow-plex/20 flex-shrink-0 bg-card" 
-                                        onError={(e) => {
-                                            (e.target as HTMLImageElement).style.display = 'none';
-                                            (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                                            (e.target as HTMLImageElement).nextElementSibling?.classList.add('flex');
-                                        }}
-                                    />
+                                    <div className="relative">
+                                        <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-plex via-amber-300 to-orange-600 opacity-70 blur-md"></div>
+                                        <img 
+                                            src={thumbUrl.startsWith('http') ? thumbUrl : `/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=256&height=256`} 
+                                            alt={sessionInfo.session.username} 
+                                            className="relative w-28 h-28 md:w-32 md:h-32 rounded-full object-cover border-4 border-card shadow-2xl bg-card" 
+                                            onError={(e) => {
+                                                (e.target as HTMLImageElement).style.display = 'none';
+                                                (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                                                (e.target as HTMLImageElement).nextElementSibling?.classList.add('flex');
+                                            }}
+                                        />
+                                        <div className={`hidden relative w-28 h-28 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-plex/40 to-plex/10 border-4 border-card items-center justify-center text-plex font-black text-5xl shadow-2xl overflow-hidden`}>
+                                            {sessionInfo.session.username?.[0]?.toUpperCase() || '?'}
+                                        </div>
+                                    </div>
                                 );
                             }
-                            return null;
+                            return (
+                                <div className="relative">
+                                    <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-plex via-amber-300 to-orange-600 opacity-70 blur-md"></div>
+                                    <div className={`relative w-28 h-28 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-plex/40 to-plex/10 border-4 border-card items-center justify-center text-plex font-black text-5xl flex shadow-2xl overflow-hidden`}>
+                                        {sessionInfo.session.username?.[0]?.toUpperCase() || '?'}
+                                    </div>
+                                </div>
+                            );
                         })()}
-                        <div className={`w-14 h-14 rounded-full bg-gradient-to-br from-plex/40 to-plex/10 border-2 border-plex/60 items-center justify-center text-plex font-black text-2xl flex-shrink-0 shadow-lg shadow-plex/20 overflow-hidden ${(user?.thumb || sessionInfo.session.thumb) ? 'hidden' : 'flex'}`}>
-                            {sessionInfo.session.username?.[0]?.toUpperCase() || '?'}
+                        
+                        <div className="pb-2">
+                            <p className="text-plex text-sm uppercase tracking-[4px] font-bold mb-1 drop-shadow-md">Welcome Back</p>
+                            <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 leading-tight drop-shadow-lg truncate max-w-[280px] md:max-w-md">
+                                {sessionInfo.session.username}
+                            </h1>
+                            {sessionInfo.session.isAdmin && (
+                                <span className="inline-block mt-3 px-3 py-1 rounded-full text-[10px] font-black bg-plex/20 text-plex border border-plex/40 uppercase tracking-widest">Server Admin</span>
+                            )}
                         </div>
-                        <div className="min-w-0">
-                            <p className="text-muted text-xs uppercase tracking-[3px] font-semibold">Welcome back</p>
-                            <h1 className="text-2xl md:text-3xl font-black text-text leading-tight truncate">{sessionInfo.session.username}</h1>
-                        </div>
-                        {sessionInfo.session.isAdmin && (
-                            <span className="ml-auto px-3 py-1 rounded-full text-[10px] font-black bg-plex/20 text-plex border border-plex/40 uppercase tracking-widest flex-shrink-0">Admin</span>
-                        )}
                     </div>
+                </div>
+            </div>
 
-                    {sessionInfo.session.isAdmin && (
-                        <div className="bg-plex/5 border border-plex/20 rounded-xl p-4 text-sm text-muted leading-relaxed">
-                            <span className="text-plex font-bold">Server Administrator</span> — You own this server. Use the Admin Panel to manage users and settings.
-                        </div>
-                    )}
-                    {!sessionInfo.session.isAdmin && !user && (
-                        <div className="flex items-center gap-3 text-muted text-sm">
-                            <div className="w-4 h-4 rounded-full border-2 border-plex border-t-transparent animate-spin flex-shrink-0" />
-                            Setting up your 3-Day Free Trial...
-                        </div>
-                    )}
-                    {!sessionInfo.session.isAdmin && user && (
-                        <>
-                            <div className="flex flex-wrap gap-2 mb-5">
-                                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-black border uppercase tracking-wider ${isRevoked ? 'bg-red-500/10 border-red-500/30 text-red-400' : isExpiringSoon ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' : 'bg-green-500/10 border-green-500/30 text-green-400'}`}>
-                                    <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isRevoked ? 'bg-red-400' : isExpiringSoon ? 'bg-yellow-400' : 'bg-green-400'}`} />
+            {/* Admin Warning */}
+            {sessionInfo.session.isAdmin && (
+                <div className="bg-plex/5 border border-plex/20 rounded-2xl p-6 text-sm text-muted leading-relaxed shadow-lg">
+                    <span className="text-plex font-bold">Server Administrator</span> — You own this server. Use the Admin Panel to manage users and settings. Your personal watch stats will appear below if you switch to a normal user account.
+                </div>
+            )}
+
+            {/* Trial setup / Subscription Status */}
+            {!sessionInfo.session.isAdmin && !user && (
+                <div className="flex items-center gap-3 text-muted text-sm bg-card p-6 rounded-2xl border border-border shadow-lg">
+                    <div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin flex-shrink-0" />
+                    Setting up your 3-Day Free Trial...
+                </div>
+            )}
+
+            {!sessionInfo.session.isAdmin && user && (
+                <div className="bg-card border border-border rounded-2xl p-6 shadow-xl">
+                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-6">
+                        <div>
+                            <p className="text-muted text-xs uppercase tracking-widest font-semibold mb-3">Subscription Status</p>
+                            <div className="flex flex-wrap items-center gap-3">
+                                <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-black border uppercase tracking-wider shadow-sm ${isRevoked ? 'bg-red-500/10 border-red-500/30 text-red-400' : isExpiringSoon ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' : 'bg-green-500/10 border-green-500/30 text-green-400'}`}>
+                                    <span className={`w-2 h-2 rounded-full animate-pulse ${isRevoked ? 'bg-red-400' : isExpiringSoon ? 'bg-yellow-400' : 'bg-green-400'}`} />
                                     {user.plexAccessStatus}{user.isTrial && ' · Trial'}
                                 </span>
                                 {user.expiryDate ? (
-                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold bg-white/5 border border-white/10 text-muted">
-                                        📅 {new Date(user.expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                    <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-white/5 border border-white/10 text-text shadow-sm">
+                                        <Calendar size={14} className="text-muted" />
+                                        {new Date(user.expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                                     </span>
                                 ) : (
-                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold bg-green-500/10 border border-green-500/30 text-green-400">♾️ Unlimited</span>
+                                    <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-green-500/10 border border-green-500/30 text-green-400 shadow-sm">
+                                        ♾️ Unlimited Access
+                                    </span>
                                 )}
                             </div>
-                            {daysLeft !== null && (
-                                <div className="mb-5 bg-background/50 rounded-xl p-4 border border-border">
-                                    <div className="flex justify-between items-baseline mb-3">
-                                        <span className="text-muted text-xs uppercase tracking-widest font-semibold">Time Remaining</span>
-                                        <span className={`font-black text-3xl leading-none ${isExpiringSoon ? 'text-yellow-400' : 'text-plex'}`}>
-                                            {daysLeft}<span className="text-sm font-semibold text-muted ml-1">{daysLeft === 1 ? 'day' : 'days'}</span>
-                                        </span>
-                                    </div>
-                                    <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
-                                        <div className={`h-full rounded-full transition-all duration-1000 ${isExpiringSoon ? 'bg-yellow-400' : 'bg-gradient-to-r from-plex via-yellow-300 to-plex'}`} style={{ width: `${progressPct}%` }} />
-                                    </div>
-                                    {isExpiringSoon && <p className="text-yellow-400/80 text-xs mt-2">⚠️ Expiring soon — contact the admin to renew</p>}
-                                </div>
-                            )}
+                        </div>
+                        
+                        {isRevoked && daysLeft !== null && daysLeft >= 0 && (
+                            <button className="px-6 py-2.5 bg-plex text-background rounded-xl font-bold hover:bg-plex-hover transition-colors shadow-lg" onClick={handleRelink}>
+                                Re-link Plex Account
+                            </button>
+                        )}
+                    </div>
 
-                            {isRevoked && daysLeft !== null && daysLeft >= 0 && (
-                                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mb-5 flex flex-col gap-3">
-                                    <p className="text-yellow-400 font-semibold text-sm">⚠️ Access revoked — but you have {daysLeft} day{daysLeft !== 1 ? 's' : ''} remaining.</p>
-                                    <button className="self-start px-5 py-2.5 bg-plex text-background rounded-lg font-bold hover:bg-plex-hover transition-colors text-sm" onClick={handleRelink}>Re-link Plex Account</button>
+                    {daysLeft !== null && (
+                        <div className="bg-background/40 rounded-xl p-5 border border-white/5">
+                            <div className="flex justify-between items-baseline mb-3">
+                                <span className="text-muted text-xs uppercase tracking-widest font-semibold">Time Remaining</span>
+                                <span className={`font-black text-3xl md:text-4xl leading-none ${isExpiringSoon ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.3)]' : 'text-plex drop-shadow-[0_0_8px_rgba(229,160,13,0.3)]'}`}>
+                                    {daysLeft}<span className="text-base font-semibold text-muted ml-1.5">{daysLeft === 1 ? 'day' : 'days'}</span>
+                                </span>
+                            </div>
+                            <div className="w-full h-3 bg-black/40 rounded-full overflow-hidden shadow-inner border border-white/5">
+                                <div className={`h-full rounded-full transition-all duration-1000 relative ${isExpiringSoon ? 'bg-yellow-400' : 'bg-gradient-to-r from-plex via-amber-400 to-orange-500'}`} style={{ width: `${progressPct}%` }}>
+                                    <div className="absolute top-0 bottom-0 left-0 right-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[shimmer_1s_linear_infinite]" />
                                 </div>
-                            )}
-                        </>
+                            </div>
+                            {isExpiringSoon && <p className="text-yellow-400/90 text-sm font-medium mt-3 flex items-center gap-2">⚠️ Expiring soon — Please contact the admin to renew</p>}
+                        </div>
                     )}
                 </div>
+            )}
 
-            </div>
+            {/* User Analytics Section */}
+            {!sessionInfo.session.isAdmin && user && (
+                <>
+                    {analyticsLoading ? (
+                        <div className="flex items-center justify-center p-12 bg-card border border-border rounded-2xl shadow-lg">
+                            <div className="flex flex-col items-center gap-3">
+                                <div className="w-6 h-6 rounded-full border-2 border-plex border-t-transparent animate-spin" />
+                                <span className="text-muted text-sm font-medium">Loading your stats...</span>
+                            </div>
+                        </div>
+                    ) : analytics && analytics.totalPlays > 0 ? (
+                        <div className="flex flex-col gap-6">
+                            
+                            {/* Top Content Grid */}
+                            {analytics.topContent && analytics.topContent.length > 0 && (
+                                <div className="bg-card border border-border rounded-2xl p-6 shadow-xl">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <div>
+                                            <h3 className="text-xl font-bold text-text mb-1">Your Most Watched</h3>
+                                            <p className="text-muted text-sm">Based on your {analytics.totalPlays} total plays</p>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                                        {analytics.topContent.slice(0, 6).map((item: any) => (
+                                            <a key={item.key} href={item.plexUrl} target="_blank" rel="noreferrer" className="group relative rounded-xl overflow-hidden aspect-[2/3] bg-background border border-white/5 transition-transform hover:scale-105 hover:shadow-xl hover:border-plex/50">
+                                                {item.thumbUrl ? (
+                                                    <img src={item.thumbUrl} alt={item.title} className="w-full h-full object-cover transition-opacity group-hover:opacity-60" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center p-4 text-center bg-white/5">
+                                                        <span className="text-xs font-bold text-muted line-clamp-3">{item.title}</span>
+                                                    </div>
+                                                )}
+                                                <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 via-black/60 to-transparent">
+                                                    <p className="text-xs font-bold text-white truncate text-shadow-sm">{item.title}</p>
+                                                    <p className="text-[10px] text-plex font-black mt-0.5 uppercase tracking-wider">{item.plays} plays</p>
+                                                </div>
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Recent History */}
+                            {analytics.recentHistory && analytics.recentHistory.length > 0 && (
+                                <div className="bg-card border border-border rounded-2xl p-6 shadow-xl">
+                                    <h3 className="text-xl font-bold text-text mb-6">Recently Watched</h3>
+                                    <div className="flex flex-col gap-4">
+                                        {analytics.recentHistory.slice(0, 5).map((item: any, idx: number) => (
+                                            <a key={idx} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-all group">
+                                                <div className="w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden bg-background flex-shrink-0 shadow-md">
+                                                    {item.thumbUrl ? (
+                                                        <img src={item.thumbUrl} alt={item.title} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center">
+                                                            <Play className="w-6 h-6 text-muted/50" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="font-bold text-text text-sm md:text-base truncate group-hover:text-plex transition-colors">{item.title}</h4>
+                                                    {item.episodeTitle && <p className="text-muted text-xs md:text-sm truncate mt-0.5">{item.episodeTitle}</p>}
+                                                    <div className="flex items-center gap-2 mt-2 text-xs font-medium text-muted/70">
+                                                        <Clock size={12} />
+                                                        <span>{new Date(item.viewedAt * 1000).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Play className="w-4 h-4 text-plex ml-0.5" />
+                                                </div>
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center p-12 bg-card border border-border rounded-2xl shadow-lg text-center">
+                            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 text-2xl">🍿</div>
+                            <h3 className="font-bold text-text mb-2">No watch history yet</h3>
+                            <p className="text-muted text-sm max-w-sm">Once you start watching content on the server, your personal watch stats and history will appear right here!</p>
+                        </div>
+                    )}
+                </>
+            )}
 
             {/* Announcement Banner */}
             {publicConfig?.announcement && (
@@ -3830,51 +3972,54 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                 </div>
             )}
 
-            {/* Newsletter preferences */}
-            {user && !sessionInfo.session.isAdmin && (
-                <div className="bg-card border border-border rounded-2xl p-4 md:p-6 shadow-lg">
-                    <p className="text-muted text-xs uppercase tracking-widest font-semibold mb-4">Preferences</p>
-                    <div className="flex items-center justify-between gap-4">
-                        <div>
-                            <p className="text-text font-semibold text-sm">Weekly Newsletter</p>
-                            <p className="text-muted text-xs mt-0.5">Automated library updates delivered to your inbox</p>
+            {/* Footer sections: Preferences & Support */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                {/* Newsletter preferences */}
+                {user && !sessionInfo.session.isAdmin && (
+                    <div className="bg-card border border-border rounded-2xl p-6 shadow-lg flex flex-col h-full">
+                        <p className="text-muted text-xs uppercase tracking-widest font-semibold mb-6 flex-shrink-0">Preferences</p>
+                        <div className="flex items-center justify-between gap-4 mt-auto">
+                            <div>
+                                <p className="text-text font-bold text-sm">Weekly Newsletter</p>
+                                <p className="text-muted text-xs mt-1 leading-relaxed">Automated library updates delivered to your inbox</p>
+                            </div>
+                            <button onClick={handleToggleNewsletter} aria-label="Toggle newsletter"
+                                className={`relative inline-flex items-center w-14 h-7 rounded-full transition-all flex-shrink-0 border-2 ${!optOutNewsletter ? 'bg-plex border-plex' : 'bg-background border-border'}`}>
+                                <span className={`inline-block w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-300 ${!optOutNewsletter ? 'translate-x-8' : 'translate-x-1'}`} />
+                            </button>
                         </div>
-                        <button onClick={handleToggleNewsletter} aria-label="Toggle newsletter"
-                            className={`relative inline-flex items-center w-12 h-6 rounded-full transition-all flex-shrink-0 border ${!optOutNewsletter ? 'bg-plex border-plex' : 'bg-border border-border'}`}>
-                            <span className={`inline-block w-4 h-4 bg-white rounded-full shadow transition-transform duration-300 ${!optOutNewsletter ? 'translate-x-7' : 'translate-x-1'}`} />
-                        </button>
                     </div>
-                </div>
-            )}
+                )}
 
-            {/* Support card */}
-            {!sessionInfo?.session?.isAdmin && (
-                <div className="bg-card border border-border rounded-2xl p-4 md:p-6 shadow-lg">
-                    {user?.isTrial ? (
-                        <div className="mb-4">
-                            <p className="text-plex font-bold text-base mb-1">🍿 Enjoying your Free Trial?</p>
-                            <p className="text-muted text-sm leading-relaxed">Once your 3-day trial ends, you'll lose access. A full subscription is just <span className="text-plex font-black">£60/year</span>. Get in touch to upgrade!</p>
+                {/* Support card */}
+                {!sessionInfo?.session?.isAdmin && (
+                    <div className="bg-card border border-border rounded-2xl p-6 shadow-lg flex flex-col h-full">
+                        {user?.isTrial ? (
+                            <div className="mb-5 flex-shrink-0">
+                                <p className="text-plex font-bold text-base mb-1">🍿 Enjoying your Free Trial?</p>
+                                <p className="text-muted text-sm leading-relaxed">Once your 3-day trial ends, you'll lose access. A full subscription is just <span className="text-plex font-black">£60/year</span>. Get in touch to upgrade!</p>
+                            </div>
+                        ) : (
+                            <div className="mb-5 flex-shrink-0">
+                                <p className="text-text font-bold text-base mb-1">💬 Need Help?</p>
+                                <p className="text-muted text-sm leading-relaxed">Contact the admin to renew your subscription, report an issue, or get support.</p>
+                            </div>
+                        )}
+                        <div className="flex gap-3 mt-auto">
+                            <a href="https://wa.me/447305697245" target="_blank" rel="noreferrer"
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-[#25D366]/10 border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366]/20">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12.031 21.972c-1.63 0-3.21-.42-4.606-1.21l-5.111 1.34 1.36-4.972a9.92 9.92 0 0 1-1.34-4.978C2.334 6.64 6.685 2.28 12.031 2.28c5.344 0 9.697 4.36 9.697 9.872 0 5.512-4.353 9.82-9.697 9.82zm0-18.062c-4.47 0-8.115 3.65-8.115 8.13 0 1.48.39 2.92 1.12 4.19l-1.02 3.73 3.82-1a8.13 8.13 0 0 0 4.195 1.15c4.475 0 8.115-3.65 8.115-8.13s-3.64-8.07-8.115-8.07zm4.332 11.23c-.237-.12-1.405-.69-1.62-.77-.216-.08-.372-.12-.53.12-.158.24-.616.77-.754.93-.138.16-.276.18-.513.06-1.124-.55-2.062-1.28-2.812-2.19-.214-.26-.14-.4.08-.56.12-.08.27-.3.41-.45.14-.15.19-.25.28-.42.1-.17.05-.32 0-.44-.05-.12-.53-1.28-.73-1.75-.19-.46-.38-.4-.53-.41h-.45c-.16 0-.41.06-.63.3-.22.24-.85.83-.85 2.02 0 1.19.87 2.34.99 2.5.12.16 1.7 2.6 4.12 3.64 1.38.59 2.05.65 2.8.55.75-.1 1.4-.57 1.6-1.12.2-.55.2-.102.14-1.12-.06-.1-.22-.16-.46-.28z" /></svg>
+                                WhatsApp
+                            </a>
+                            <a href="mailto:jasonlucas58@gmail.com"
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
+                                Email
+                            </a>
                         </div>
-                    ) : (
-                        <div className="mb-4">
-                            <p className="text-text font-bold text-base mb-1">💬 Need Help?</p>
-                            <p className="text-muted text-sm leading-relaxed">Contact the admin to renew your subscription, report an issue, or get support.</p>
-                        </div>
-                    )}
-                    <div className="flex flex-col sm:flex-row gap-3">
-                        <a href="https://wa.me/447305697245" target="_blank" rel="noreferrer"
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm transition-all border bg-[#25D366]/10 border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366]/20">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12.031 21.972c-1.63 0-3.21-.42-4.606-1.21l-5.111 1.34 1.36-4.972a9.92 9.92 0 0 1-1.34-4.978C2.334 6.64 6.685 2.28 12.031 2.28c5.344 0 9.697 4.36 9.697 9.872 0 5.512-4.353 9.82-9.697 9.82zm0-18.062c-4.47 0-8.115 3.65-8.115 8.13 0 1.48.39 2.92 1.12 4.19l-1.02 3.73 3.82-1a8.13 8.13 0 0 0 4.195 1.15c4.475 0 8.115-3.65 8.115-8.13s-3.64-8.07-8.115-8.07zm4.332 11.23c-.237-.12-1.405-.69-1.62-.77-.216-.08-.372-.12-.53.12-.158.24-.616.77-.754.93-.138.16-.276.18-.513.06-1.124-.55-2.062-1.28-2.812-2.19-.214-.26-.14-.4.08-.56.12-.08.27-.3.41-.45.14-.15.19-.25.28-.42.1-.17.05-.32 0-.44-.05-.12-.53-1.28-.73-1.75-.19-.46-.38-.4-.53-.41h-.45c-.16 0-.41.06-.63.3-.22.24-.85.83-.85 2.02 0 1.19.87 2.34.99 2.5.12.16 1.7 2.6 4.12 3.64 1.38.59 2.05.65 2.8.55.75-.1 1.4-.57 1.6-1.12.2-.55.2-.102.14-1.12-.06-.1-.22-.16-.46-.28z" /></svg>
-                            WhatsApp
-                        </a>
-                        <a href="mailto:jasonlucas58@gmail.com"
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
-                            Email
-                        </a>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     );
 };
