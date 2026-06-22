@@ -3733,13 +3733,10 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
     useEffect(() => {
         const fetchServerData = async () => {
             try {
-                const statsRes = await apiFetch('/api/plex/stats');
-                setServerStats(statsRes);
+                const p1 = apiFetch('/api/plex/stats').then(res => setServerStats(res)).catch(e => console.error("Failed to fetch server stats", e));
+                const p2 = apiFetch('/api/plex/dashboard?limit=15').then(res => setDashboardData(res)).catch(e => console.error("Failed to fetch dashboard data", e));
                 
-                const dashRes = await apiFetch('/api/plex/dashboard?limit=15');
-                setDashboardData(dashRes);
-            } catch (e) {
-                console.error("Failed to fetch server data", e);
+                await Promise.all([p1, p2]);
             } finally {
                 setServerDataLoading(false);
             }

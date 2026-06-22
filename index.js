@@ -1466,10 +1466,34 @@ app.get('/api/plex/image', requireAuth, async (req, res) => {
 let cachedPlexStats = null;
 let lastPlexStatsFetch = 0;
 
+const PLEX_STATS_CACHE_PATH = path.join(process.cwd(), 'plex-stats.json');
+
 const fetchPlexStatsInternal = async (config) => {
+    // Try to load from memory
     if (cachedPlexStats && (Date.now() - lastPlexStatsFetch < 15 * 60 * 1000)) {
         return cachedPlexStats;
     }
+    
+    // Try to load from disk if memory is empty
+    if (!cachedPlexStats) {
+        try {
+            const diskCache = JSON.parse(await fs.promises.readFile(PLEX_STATS_CACHE_PATH, 'utf8'));
+            if (diskCache && diskCache.moviesBytes !== undefined) {
+                cachedPlexStats = diskCache;
+                lastPlexStatsFetch = Date.now(); // pretend we just fetched it so we don't block startup
+                // Fire an async fetch in the background to update it silently
+                setTimeout(() => fetchPlexStatsInternalActual(config).catch(e => log(`Background stats update failed: ${e.message}`)), 1000);
+                return cachedPlexStats;
+            }
+        } catch (e) {
+            // No valid disk cache
+        }
+    }
+
+    return await fetchPlexStatsInternalActual(config);
+};
+
+const fetchPlexStatsInternalActual = async (config) => {
     const uri = await getPlexConnectionUri(config);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60000);
@@ -1537,6 +1561,11 @@ const fetchPlexStatsInternal = async (config) => {
         moviesBytes: totalMoviesBytes, showsBytes: totalShowsBytes, musicBytes: totalMusicBytes 
     };
     lastPlexStatsFetch = Date.now();
+    try {
+        await fs.promises.writeFile(PLEX_STATS_CACHE_PATH, JSON.stringify(cachedPlexStats));
+    } catch (e) {
+        log(`Failed to write plex stats cache: ${e.message}`);
+    }
     return cachedPlexStats;
 };
 
