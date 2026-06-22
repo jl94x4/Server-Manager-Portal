@@ -1470,7 +1470,7 @@ const PLEX_STATS_CACHE_PATH = path.join(process.cwd(), 'plex-stats.json');
 
 const fetchPlexStatsInternal = async (config) => {
     // Try to load from memory
-    if (cachedPlexStats && (Date.now() - lastPlexStatsFetch < 15 * 60 * 1000)) {
+    if (cachedPlexStats && (Date.now() - lastPlexStatsFetch < 24 * 60 * 60 * 1000)) {
         return cachedPlexStats;
     }
     
