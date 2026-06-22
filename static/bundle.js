@@ -774,6 +774,7 @@ var InvitesSettings = ({ addToast }) => {
   ] });
 };
 var SettingsDashboard = () => {
+  const [statusDraft, setStatusDraft] = useState(null);
   const [isLoading, setLoading] = useState(true);
   const [initialSettings, setInitialSettings] = useState({});
   const [toasts, setToasts] = useState([]);
@@ -964,6 +965,14 @@ var SettingsDashboard = () => {
         await fetch("/api/config/logo", { method: "POST", body: logoFile });
       } catch (e) {
         addToast("Failed to upload logo", "error");
+      }
+    }
+    if (statusDraft) {
+      try {
+        await apiFetch("/api/status/config", { method: "POST", body: JSON.stringify(statusDraft) });
+        setStatusConfig(statusDraft);
+      } catch (e) {
+        addToast("Failed to save status monitor configuration", "error");
       }
     }
     await handleSaveConfig({
@@ -1374,15 +1383,7 @@ var SettingsDashboard = () => {
             StatusMonitorSettings,
             {
               config: statusConfig,
-              onSave: async (newConfig) => {
-                try {
-                  await apiFetch("/api/status/config", { method: "POST", body: JSON.stringify(newConfig) });
-                  setStatusConfig(newConfig);
-                  addToast("Status Config Saved!");
-                } catch (e) {
-                  addToast("Failed to save status config", "error");
-                }
-              },
+              onChange: setStatusDraft,
               appConfirm,
               fetchConfig: fetchStatusConfig,
               addToast
@@ -1476,7 +1477,7 @@ var SettingsDashboard = () => {
     )
   ] });
 };
-var StatusMonitorSettings = ({ config, onSave, appConfirm: appConfirm2, fetchConfig, addToast }) => {
+var StatusMonitorSettings = ({ config, onChange, appConfirm: appConfirm2, fetchConfig, addToast }) => {
   const [localConfig, setLocalConfig] = useState({ groups: [], services: [] });
   useEffect(() => {
     if (config) {
@@ -1488,7 +1489,9 @@ var StatusMonitorSettings = ({ config, onSave, appConfirm: appConfirm2, fetchCon
   }, [config]);
   const addGroup = () => {
     const id = `group-${Date.now()}`;
-    setLocalConfig({ ...localConfig, groups: [...localConfig.groups, { id, name: "New Group", order: localConfig.groups.length }] });
+    const newConfig = { ...localConfig, groups: [...localConfig.groups, { id, name: "New Group", order: localConfig.groups.length }] };
+    setLocalConfig(newConfig);
+    onChange(newConfig);
   };
   const addService = () => {
     const id = `service-${Date.now()}`;
@@ -1502,19 +1505,25 @@ var StatusMonitorSettings = ({ config, onSave, appConfirm: appConfirm2, fetchCon
       isCritical: true,
       description: ""
     };
-    setLocalConfig({ ...localConfig, services: [...localConfig.services, newService] });
+    const newConfig = { ...localConfig, services: [...localConfig.services, newService] };
+    setLocalConfig(newConfig);
+    onChange(newConfig);
   };
   const updateGroup = (id, field, value) => {
-    setLocalConfig({
+    const newConfig = {
       ...localConfig,
       groups: localConfig.groups.map((g) => g.id === id ? { ...g, [field]: value } : g)
-    });
+    };
+    setLocalConfig(newConfig);
+    onChange(newConfig);
   };
   const updateService = (id, field, value) => {
-    setLocalConfig({
+    const newConfig = {
       ...localConfig,
       services: localConfig.services.map((s) => s.id === id ? { ...s, [field]: value } : s)
-    });
+    };
+    setLocalConfig(newConfig);
+    onChange(newConfig);
   };
   const removeGroup = async (id) => {
     appConfirm2(`Remove group ${id}? Services inside it won't be deleted but will lose their group.`, () => {
@@ -1524,7 +1533,7 @@ var StatusMonitorSettings = ({ config, onSave, appConfirm: appConfirm2, fetchCon
         services: localConfig.services.map((s) => s.groupId === id ? { ...s, groupId: null } : s)
       };
       setLocalConfig(newConfig);
-      onSave(newConfig);
+      onChange(newConfig);
     });
   };
   const removeService = async (id) => {
@@ -1534,7 +1543,7 @@ var StatusMonitorSettings = ({ config, onSave, appConfirm: appConfirm2, fetchCon
         services: localConfig.services.filter((s) => s.id !== id)
       };
       setLocalConfig(newConfig);
-      onSave(newConfig);
+      onChange(newConfig);
     });
   };
   return /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-6 w-full", children: [
@@ -1621,11 +1630,7 @@ var StatusMonitorSettings = ({ config, onSave, appConfirm: appConfirm2, fetchCon
         ] })
       ] }, service.id)) }),
       localConfig.services.length === 0 && /* @__PURE__ */ jsx("p", { className: "text-muted text-sm italic p-4 text-center border border-dashed border-border rounded-lg", children: "No services defined. Add some services to monitor." })
-    ] }),
-    /* @__PURE__ */ jsx("div", { className: "flex justify-end pt-4 border-t border-border mt-2", children: /* @__PURE__ */ jsxs("button", { onClick: () => onSave(localConfig), className: "px-6 py-3 bg-plex text-background rounded-lg font-bold hover:bg-plex-hover transition-colors shadow-xl flex items-center gap-2", children: [
-      /* @__PURE__ */ jsx(Activity, { className: "w-5 h-5" }),
-      " Save Status Monitor Configuration"
-    ] }) })
+    ] })
   ] });
 };
 var BroadcastModal = ({ isOpen, onClose, selectedUserIds, users }) => {

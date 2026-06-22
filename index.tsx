@@ -628,6 +628,7 @@ const InvitesSettings: React.FC<{ addToast: (msg: string, type: 'success' | 'err
 };
 
 const SettingsDashboard: React.FC = () => {
+    const [statusDraft, setStatusDraft] = useState<any>(null);
     const [isLoading, setLoading] = useState(true);
     const [initialSettings, setInitialSettings] = useState<any>({});
     const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -843,6 +844,15 @@ const SettingsDashboard: React.FC = () => {
                 await fetch('/api/config/logo', { method: 'POST', body: logoFile });
             } catch (e) {
                 addToast('Failed to upload logo', 'error');
+            }
+        }
+
+        if (statusDraft) {
+            try {
+                await apiFetch('/api/status/config', { method: 'POST', body: JSON.stringify(statusDraft) });
+                setStatusConfig(statusDraft);
+            } catch (e: any) {
+                addToast('Failed to save status monitor configuration', 'error');
             }
         }
 
@@ -1284,15 +1294,7 @@ const SettingsDashboard: React.FC = () => {
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Status Monitor</h3>
                             <StatusMonitorSettings 
                                 config={statusConfig} 
-                                onSave={async (newConfig) => {
-                                    try {
-                                        await apiFetch('/api/status/config', { method: 'POST', body: JSON.stringify(newConfig) });
-                                        setStatusConfig(newConfig);
-                                        addToast('Status Config Saved!');
-                                    } catch (e: any) {
-                                        addToast('Failed to save status config', 'error');
-                                    }
-                                }} 
+                                onChange={setStatusDraft}
                                 appConfirm={appConfirm}
                                 fetchConfig={fetchStatusConfig}
                                 addToast={addToast}
@@ -1396,7 +1398,7 @@ const SettingsDashboard: React.FC = () => {
     );
 };
 
-const StatusMonitorSettings: React.FC<{ config: any; onSave: (cfg: any) => void; appConfirm: (msg: string, cb: () => void) => void; fetchConfig: () => void; addToast: (msg: string, type?: 'success' | 'error') => void }> = ({ config, onSave, appConfirm, fetchConfig, addToast }) => {
+const StatusMonitorSettings: React.FC<{ config: any; onChange: (cfg: any) => void; appConfirm: (msg: string, cb: () => void) => void; fetchConfig: () => void; addToast: (msg: string, type?: 'success' | 'error') => void }> = ({ config, onChange, appConfirm, fetchConfig, addToast }) => {
     const [localConfig, setLocalConfig] = useState<any>({ groups: [], services: [] });
 
     useEffect(() => {
@@ -1410,7 +1412,9 @@ const StatusMonitorSettings: React.FC<{ config: any; onSave: (cfg: any) => void;
 
     const addGroup = () => {
         const id = `group-${Date.now()}`;
-        setLocalConfig({ ...localConfig, groups: [...localConfig.groups, { id, name: 'New Group', order: localConfig.groups.length }] });
+        const newConfig = { ...localConfig, groups: [...localConfig.groups, { id, name: 'New Group', order: localConfig.groups.length }] };
+        setLocalConfig(newConfig);
+        onChange(newConfig);
     };
 
     const addService = () => {
@@ -1425,21 +1429,27 @@ const StatusMonitorSettings: React.FC<{ config: any; onSave: (cfg: any) => void;
             isCritical: true,
             description: ''
         };
-        setLocalConfig({ ...localConfig, services: [...localConfig.services, newService] });
+        const newConfig = { ...localConfig, services: [...localConfig.services, newService] };
+        setLocalConfig(newConfig);
+        onChange(newConfig);
     };
 
     const updateGroup = (id: string, field: string, value: any) => {
-        setLocalConfig({
+        const newConfig = {
             ...localConfig,
             groups: localConfig.groups.map((g: any) => g.id === id ? { ...g, [field]: value } : g)
-        });
+        };
+        setLocalConfig(newConfig);
+        onChange(newConfig);
     };
 
     const updateService = (id: string, field: string, value: any) => {
-        setLocalConfig({
+        const newConfig = {
             ...localConfig,
             services: localConfig.services.map((s: any) => s.id === id ? { ...s, [field]: value } : s)
-        });
+        };
+        setLocalConfig(newConfig);
+        onChange(newConfig);
     };
 
     const removeGroup = async (id: string) => {
@@ -1450,7 +1460,7 @@ const StatusMonitorSettings: React.FC<{ config: any; onSave: (cfg: any) => void;
                 services: localConfig.services.map((s: any) => s.groupId === id ? { ...s, groupId: null } : s)
             };
             setLocalConfig(newConfig);
-            onSave(newConfig);
+            onChange(newConfig);
         });
     };
 
@@ -1461,7 +1471,7 @@ const StatusMonitorSettings: React.FC<{ config: any; onSave: (cfg: any) => void;
                 services: localConfig.services.filter((s: any) => s.id !== id)
             };
             setLocalConfig(newConfig);
-            onSave(newConfig);
+            onChange(newConfig);
         });
     };
 
@@ -1544,12 +1554,6 @@ const StatusMonitorSettings: React.FC<{ config: any; onSave: (cfg: any) => void;
                     ))}
                 </div>
                 {localConfig.services.length === 0 && <p className="text-muted text-sm italic p-4 text-center border border-dashed border-border rounded-lg">No services defined. Add some services to monitor.</p>}
-            </div>
-
-            <div className="flex justify-end pt-4 border-t border-border mt-2">
-                <button onClick={() => onSave(localConfig)} className="px-6 py-3 bg-plex text-background rounded-lg font-bold hover:bg-plex-hover transition-colors shadow-xl flex items-center gap-2">
-                    <Activity className="w-5 h-5" /> Save Status Monitor Configuration
-                </button>
             </div>
         </div>
     );
