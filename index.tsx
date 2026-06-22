@@ -1344,63 +1344,36 @@ const StatusMonitorSettings: React.FC<{ config: any; onSave: (cfg: any) => void 
     }, [config]);
 
     const addGroup = () => {
-        const id = prompt('Group ID (e.g. core-services):');
-        if (!id) return;
-        const name = prompt('Group Name:');
-        if (!name) return;
-        setLocalConfig({ ...localConfig, groups: [...localConfig.groups, { id, name, order: localConfig.groups.length }] });
+        const id = `group-${Date.now()}`;
+        setLocalConfig({ ...localConfig, groups: [...localConfig.groups, { id, name: 'New Group', order: localConfig.groups.length }] });
     };
 
     const addService = () => {
-        const name = prompt('Service Name:');
-        if (!name) return;
-        const url = prompt('Service URL:');
-        if (!url) return;
-        const groupId = prompt('Group ID (optional, leave blank for no group):');
-        
+        const id = `service-${Date.now()}`;
         const newService = {
-            id: name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-            name,
-            url,
+            id,
+            name: 'New Service',
+            url: '',
             category: 'web',
             type: 'http',
-            groupId: groupId || null,
+            groupId: null,
             isCritical: true,
             description: ''
         };
         setLocalConfig({ ...localConfig, services: [...localConfig.services, newService] });
     };
 
-    const editGroup = (id: string) => {
-        const group = localConfig.groups.find((g: any) => g.id === id);
-        if (!group) return;
-        const newName = prompt('Group Name:', group.name);
-        if (!newName) return;
+    const updateGroup = (id: string, field: string, value: any) => {
         setLocalConfig({
             ...localConfig,
-            groups: localConfig.groups.map((g: any) => g.id === id ? { ...g, name: newName } : g)
+            groups: localConfig.groups.map((g: any) => g.id === id ? { ...g, [field]: value } : g)
         });
     };
 
-    const editService = (id: string) => {
-        const service = localConfig.services.find((s: any) => s.id === id);
-        if (!service) return;
-        const newName = prompt('Service Name:', service.name);
-        if (!newName) return;
-        const newUrl = prompt('Service URL:', service.url);
-        if (!newUrl) return;
-        const newGroupId = prompt('Group ID (optional, leave blank for no group):', service.groupId || '');
-        const newIsCritical = confirm('Is this service critical? (Cancel for No, OK for Yes)');
-        
+    const updateService = (id: string, field: string, value: any) => {
         setLocalConfig({
             ...localConfig,
-            services: localConfig.services.map((s: any) => s.id === id ? {
-                ...s,
-                name: newName,
-                url: newUrl,
-                groupId: newGroupId || null,
-                isCritical: newIsCritical
-            } : s)
+            services: localConfig.services.map((s: any) => s.id === id ? { ...s, [field]: value } : s)
         });
     };
 
@@ -1428,14 +1401,24 @@ const StatusMonitorSettings: React.FC<{ config: any; onSave: (cfg: any) => void 
                     <button onClick={addGroup} className="px-4 py-2 bg-white/10 hover:bg-white/20 text-text rounded-md text-sm font-bold transition-colors">Add Group</button>
                 </div>
                 {localConfig.groups.map((group: any) => (
-                    <div key={group.id} className="flex justify-between items-center p-3 mb-2 bg-black/20 rounded-lg border border-border hover:border-plex/50 transition-colors">
-                        <div>
-                            <span className="font-bold text-text">{group.name}</span> <span className="text-xs text-muted ml-2 font-mono bg-black/40 px-2 py-0.5 rounded">{group.id}</span>
+                    <div key={group.id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 mb-3 bg-black/20 rounded-lg border border-border hover:border-plex/50 transition-colors gap-4">
+                        <div className="flex-1 flex flex-col md:flex-row gap-3 w-full">
+                            <input 
+                                type="text" 
+                                value={group.name} 
+                                onChange={(e) => updateGroup(group.id, 'name', e.target.value)} 
+                                className="flex-1 p-2 rounded bg-background border border-border focus:border-plex outline-none text-sm" 
+                                placeholder="Group Name" 
+                            />
+                            <input 
+                                type="text" 
+                                value={group.id} 
+                                onChange={(e) => updateGroup(group.id, 'id', e.target.value)} 
+                                className="flex-1 p-2 rounded bg-background border border-border focus:border-plex outline-none text-sm font-mono" 
+                                placeholder="Group ID" 
+                            />
                         </div>
-                        <div className="flex items-center gap-2">
-                            <button onClick={() => editGroup(group.id)} className="text-plex hover:text-plex-hover text-sm font-medium transition-colors">Edit</button>
-                            <button onClick={() => removeGroup(group.id)} className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors">Remove</button>
-                        </div>
+                        <button onClick={() => removeGroup(group.id)} className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors bg-red-400/10 px-3 py-2 rounded flex-shrink-0">Remove</button>
                     </div>
                 ))}
                 {localConfig.groups.length === 0 && <p className="text-muted text-sm italic p-4 text-center border border-dashed border-border rounded-lg">No groups defined. Create one to organize your services.</p>}
@@ -1446,22 +1429,46 @@ const StatusMonitorSettings: React.FC<{ config: any; onSave: (cfg: any) => void 
                     <h4 className="font-bold text-xl text-text">Monitored Services</h4>
                     <button onClick={addService} className="px-4 py-2 bg-plex text-background hover:bg-plex-hover rounded-md text-sm font-bold transition-colors shadow-lg">Add Service</button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                     {localConfig.services.map((service: any) => (
-                        <div key={service.id} className="flex flex-col p-4 bg-black/20 rounded-xl border border-border hover:border-plex/50 transition-colors gap-2">
-                            <div className="flex justify-between items-start">
-                                <span className="font-bold text-lg text-text flex items-center gap-2">
-                                    <Activity className="w-4 h-4 text-plex" /> {service.name}
-                                </span>
-                                <div className="flex items-center gap-2">
-                                    <button onClick={() => editService(service.id)} className="text-plex hover:text-plex-hover text-sm font-medium transition-colors bg-plex/10 px-2 py-1 rounded">Edit</button>
-                                    <button onClick={() => removeService(service.id)} className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors bg-red-400/10 px-2 py-1 rounded">Remove</button>
+                        <div key={service.id} className="flex flex-col p-4 bg-black/20 rounded-xl border border-border hover:border-plex/50 transition-colors gap-3">
+                            <div className="flex justify-between items-start gap-3">
+                                <div className="flex-1 flex flex-col gap-2">
+                                    <input 
+                                        type="text" 
+                                        value={service.name} 
+                                        onChange={(e) => updateService(service.id, 'name', e.target.value)} 
+                                        className="w-full p-2 rounded bg-background border border-border focus:border-plex outline-none text-sm font-bold" 
+                                        placeholder="Service Name" 
+                                    />
+                                    <input 
+                                        type="text" 
+                                        value={service.url} 
+                                        onChange={(e) => updateService(service.id, 'url', e.target.value)} 
+                                        className="w-full p-2 rounded bg-background border border-border focus:border-plex outline-none text-sm font-mono" 
+                                        placeholder="Service URL (e.g. https://...)" 
+                                    />
                                 </div>
+                                <button onClick={() => removeService(service.id)} className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors bg-red-400/10 px-3 py-2 rounded flex-shrink-0">Remove</button>
                             </div>
-                            <span className="text-sm text-muted break-all font-mono bg-black/40 p-2 rounded border border-border/50">{service.url}</span>
-                            <div className="flex items-center gap-3 mt-2 text-xs">
-                                <span className={`px-2 py-1 rounded font-medium ${service.groupId ? 'bg-plex/20 text-plex' : 'bg-white/10 text-muted'}`}>Group: {service.groupId || 'None'}</span>
-                                <span className={`px-2 py-1 rounded font-medium ${service.isCritical ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-muted'}`}>Critical: {service.isCritical ? 'Yes' : 'No'}</span>
+                            <div className="flex flex-wrap items-center justify-between gap-3 mt-1 text-sm border-t border-border/50 pt-3">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-muted">Group:</span>
+                                    <select 
+                                        value={service.groupId || ''} 
+                                        onChange={(e) => updateService(service.id, 'groupId', e.target.value || null)} 
+                                        className="p-1.5 rounded bg-background border border-border focus:border-plex outline-none text-xs"
+                                    >
+                                        <option value="">None</option>
+                                        {localConfig.groups.map((g: any) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                                    </select>
+                                </div>
+                                <button
+                                    onClick={() => updateService(service.id, 'isCritical', !service.isCritical)}
+                                    className={`px-3 py-1.5 rounded text-xs font-bold transition-colors flex items-center gap-2 ${service.isCritical ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' : 'bg-white/10 text-muted hover:bg-white/20'}`}
+                                >
+                                    Critical: {service.isCritical ? 'Yes' : 'No'}
+                                </button>
                             </div>
                         </div>
                     ))}
