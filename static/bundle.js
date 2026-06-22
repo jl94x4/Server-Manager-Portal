@@ -1044,16 +1044,6 @@ var SettingsDashboard = () => {
   return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-[1600px] mx-auto flex flex-col", children: [
     /* @__PURE__ */ jsx(Loader, { isLoading }),
     /* @__PURE__ */ jsx("div", { className: "fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] flex flex-col-reverse gap-2 items-center", children: toasts.map((toast) => /* @__PURE__ */ jsx(Toast, { ...toast, onDismiss: () => setToasts((t) => t.filter((item) => item.id !== toast.id)) }, toast.id)) }),
-    confirmModal.isOpen && /* @__PURE__ */ jsx("div", { className: "fixed inset-0 bg-black/80 flex items-center justify-center z-[3000] p-4", children: /* @__PURE__ */ jsxs("div", { className: "bg-card p-6 rounded-xl border border-border shadow-2xl max-w-sm w-full", children: [
-      /* @__PURE__ */ jsx("p", { className: "text-text mb-6", children: confirmModal.message }),
-      /* @__PURE__ */ jsxs("div", { className: "flex gap-4", children: [
-        /* @__PURE__ */ jsx("button", { className: "flex-1 px-4 py-2 bg-border text-text rounded-md font-medium", onClick: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })), children: "Cancel" }),
-        /* @__PURE__ */ jsx("button", { className: "flex-1 px-4 py-2 bg-red-600 text-white rounded-md font-bold", onClick: () => {
-          confirmModal.onConfirm();
-          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-        }, children: "Confirm" })
-      ] })
-    ] }) }),
     /* @__PURE__ */ jsxs("header", { className: "hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0", children: [
       /* @__PURE__ */ jsx("h1", { className: "text-xl md:text-3xl font-bold text-plex", children: "Settings" }),
       /* @__PURE__ */ jsxs("div", { className: "flex gap-4", children: [

@@ -942,17 +942,7 @@ const SettingsDashboard: React.FC = () => {
             <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] flex flex-col-reverse gap-2 items-center">
                 {toasts.map(toast => <Toast key={toast.id} {...toast} onDismiss={() => setToasts(t => t.filter(item => item.id !== toast.id))} />)}
             </div>
-            {confirmModal.isOpen && (
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[3000] p-4">
-                    <div className="bg-card p-6 rounded-xl border border-border shadow-2xl max-w-sm w-full">
-                        <p className="text-text mb-6">{confirmModal.message}</p>
-                        <div className="flex gap-4">
-                            <button className="flex-1 px-4 py-2 bg-border text-text rounded-md font-medium" onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}>Cancel</button>
-                            <button className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md font-bold" onClick={() => { confirmModal.onConfirm(); setConfirmModal(prev => ({ ...prev, isOpen: false })); }}>Confirm</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+
 
             <header className="hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0">
                 <h1 className="text-xl md:text-3xl font-bold text-plex">Settings</h1>
