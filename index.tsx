@@ -3998,20 +3998,56 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                 <div className="flex gap-3 items-center text-muted"><div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin" /> Fetching latest library sizes...</div>
                             ) : serverStats ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                    <div className="bg-background/60 p-6 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
-                                        <Film className="w-8 h-8 text-plex mb-3 opacity-80" />
-                                        <span className="text-4xl font-black text-text drop-shadow-md">{serverStats.movies?.toLocaleString() || 0}</span>
-                                        <span className="text-xs text-muted uppercase font-bold tracking-wider mt-2">Movies</span>
+                                    <div className="bg-background/60 p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
+                                        <Film className="w-7 h-7 text-plex mb-2 opacity-80" />
+                                        <span className="text-3xl font-black text-text drop-shadow-md mb-1">
+                                            {serverStats.moviesBytes ? (() => {
+                                                const bytes = serverStats.moviesBytes;
+                                                if (bytes === 0) return '0 B';
+                                                const k = 1024;
+                                                const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+                                                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                                                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                                            })() : '0 B'}
+                                        </span>
+                                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
+                                            <span className="text-plex">{serverStats.movies?.toLocaleString() || 0}</span>
+                                            <span className="text-muted">Movies</span>
+                                        </div>
                                     </div>
-                                    <div className="bg-background/60 p-6 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
-                                        <Tv className="w-8 h-8 text-plex mb-3 opacity-80" />
-                                        <span className="text-4xl font-black text-text drop-shadow-md">{serverStats.shows?.toLocaleString() || 0}</span>
-                                        <span className="text-xs text-muted uppercase font-bold tracking-wider mt-2">Episodes</span>
+                                    <div className="bg-background/60 p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
+                                        <Tv className="w-7 h-7 text-plex mb-2 opacity-80" />
+                                        <span className="text-3xl font-black text-text drop-shadow-md mb-1">
+                                            {serverStats.showsBytes ? (() => {
+                                                const bytes = serverStats.showsBytes;
+                                                if (bytes === 0) return '0 B';
+                                                const k = 1024;
+                                                const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+                                                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                                                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                                            })() : '0 B'}
+                                        </span>
+                                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
+                                            <span className="text-plex">{serverStats.shows?.toLocaleString() || 0}</span>
+                                            <span className="text-muted">Episodes</span>
+                                        </div>
                                     </div>
-                                    <div className="bg-background/60 p-6 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
-                                        <Music className="w-8 h-8 text-plex mb-3 opacity-80" />
-                                        <span className="text-4xl font-black text-text drop-shadow-md">{serverStats.music?.toLocaleString() || 0}</span>
-                                        <span className="text-xs text-muted uppercase font-bold tracking-wider mt-2">Tracks</span>
+                                    <div className="bg-background/60 p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
+                                        <Music className="w-7 h-7 text-plex mb-2 opacity-80" />
+                                        <span className="text-3xl font-black text-text drop-shadow-md mb-1">
+                                            {serverStats.musicBytes ? (() => {
+                                                const bytes = serverStats.musicBytes;
+                                                if (bytes === 0) return '0 B';
+                                                const k = 1024;
+                                                const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+                                                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                                                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                                            })() : '0 B'}
+                                        </span>
+                                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
+                                            <span className="text-plex">{serverStats.music?.toLocaleString() || 0}</span>
+                                            <span className="text-muted">Tracks</span>
+                                        </div>
                                     </div>
                                 </div>
                             ) : (

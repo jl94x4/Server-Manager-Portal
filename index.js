@@ -1472,7 +1472,7 @@ const fetchPlexStatsInternal = async (config) => {
     }
     const uri = await getPlexConnectionUri(config);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+    const timeout = setTimeout(() => controller.abort(), 60000);
     const sectionsRes = await fetch(`${uri}/library/sections`, {
         headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' },
         signal: controller.signal
@@ -1480,24 +1480,62 @@ const fetchPlexStatsInternal = async (config) => {
     if (!sectionsRes.ok) throw new Error('Failed to connect to local Plex server.');
     const sectionsData = await sectionsRes.json();
     const directories = sectionsData.MediaContainer.Directory || [];
-    let totalMovies = 0; let totalShows = 0; let totalMusic = 0;
+    let totalMoviesCount = 0; let totalShowsCount = 0; let totalMusicCount = 0;
+    let totalMoviesBytes = 0; let totalShowsBytes = 0; let totalMusicBytes = 0;
+    
     for (const dir of directories) {
         try {
-            const sectionAllRes = await fetch(`${uri}/library/sections/${dir.key}/all?X-Plex-Container-Start=0&X-Plex-Container-Size=0`, {
+            // Get count
+            const sectionCountRes = await fetch(`${uri}/library/sections/${dir.key}/all?X-Plex-Container-Start=0&X-Plex-Container-Size=0`, {
                 headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' },
                 signal: controller.signal
             });
-            if (sectionAllRes.ok) {
-                const sectionAllData = await sectionAllRes.json();
-                const size = sectionAllData.MediaContainer.totalSize || sectionAllData.MediaContainer.size || 0;
-                if (dir.type === 'movie') totalMovies += size;
-                else if (dir.type === 'show') totalShows += size;
-                else if (dir.type === 'artist') totalMusic += size;
+            if (sectionCountRes.ok) {
+                const sectionAllData = await sectionCountRes.json();
+                const count = sectionAllData.MediaContainer.totalSize || sectionAllData.MediaContainer.size || 0;
+                if (dir.type === 'movie') totalMoviesCount += count;
+                else if (dir.type === 'show') totalShowsCount += count;
+                else if (dir.type === 'artist') totalMusicCount += count;
+            }
+
+            // Get bytes
+            let typeParam = '';
+            if (dir.type === 'movie') typeParam = '?type=1';
+            else if (dir.type === 'show') typeParam = '?type=4';
+            else if (dir.type === 'artist') typeParam = '?type=10';
+            
+            if (typeParam) {
+                const sectionItemsRes = await fetch(`${uri}/library/sections/${dir.key}/all${typeParam}`, {
+                    headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' },
+                    signal: controller.signal
+                });
+                if (sectionItemsRes.ok) {
+                    const data = await sectionItemsRes.json();
+                    const items = data.MediaContainer.Metadata || [];
+                    let bytes = 0;
+                    for (const item of items) {
+                        if (item.Media) {
+                            for (const media of item.Media) {
+                                if (media.Part) {
+                                    for (const part of media.Part) {
+                                        if (part.size) bytes += parseInt(part.size);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (dir.type === 'movie') totalMoviesBytes += bytes;
+                    else if (dir.type === 'show') totalShowsBytes += bytes;
+                    else if (dir.type === 'artist') totalMusicBytes += bytes;
+                }
             }
         } catch (e) { log(`Failed to fetch size for section ${dir.title}`); }
     }
     clearTimeout(timeout);
-    cachedPlexStats = { movies: totalMovies, shows: totalShows, music: totalMusic };
+    cachedPlexStats = { 
+        movies: totalMoviesCount, shows: totalShowsCount, music: totalMusicCount,
+        moviesBytes: totalMoviesBytes, showsBytes: totalShowsBytes, musicBytes: totalMusicBytes 
+    };
     lastPlexStatsFetch = Date.now();
     return cachedPlexStats;
 };
