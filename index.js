@@ -3445,8 +3445,8 @@ app.listen(PORT, async () => {
     
     // Ensure unique CLIENT_ID per installation to avoid Plex Auth blocking
     const config = await loadFile(CONFIG_PATH, {});
-    if (!config.clientId) {
-        config.clientId = 'smp-' + randomUUID();
+    if (!config.clientId || config.clientId.startsWith('smp-')) {
+        config.clientId = randomUUID();
         await saveFile(CONFIG_PATH, config);
     }
     if (!process.env.CLIENT_ID) {
