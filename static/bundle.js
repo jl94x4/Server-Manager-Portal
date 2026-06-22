@@ -377,6 +377,17 @@ var CustomSelect = ({ id, value, onChange, options, className }) => {
 var appConfirm = () => {
   console.warn("appConfirm not initialized");
 };
+var ConfirmModal = ({ isOpen, message, onConfirm, onCancel }) => {
+  if (!isOpen) return null;
+  return /* @__PURE__ */ jsx("div", { className: "fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in", children: /* @__PURE__ */ jsxs("div", { className: "bg-background border border-border rounded-xl shadow-2xl p-6 max-w-sm w-full animate-slide-up", children: [
+    /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold mb-4 text-text", children: "Are you sure?" }),
+    /* @__PURE__ */ jsx("p", { className: "text-muted mb-8 text-sm", children: message }),
+    /* @__PURE__ */ jsxs("div", { className: "flex gap-4 justify-end", children: [
+      /* @__PURE__ */ jsx("button", { className: "px-4 py-2 rounded-lg font-medium bg-black/20 hover:bg-black/40 transition-colors text-text border border-border", onClick: onCancel, children: "Cancel" }),
+      /* @__PURE__ */ jsx("button", { className: "px-4 py-2 rounded-lg font-medium bg-plex hover:bg-plex-hover transition-colors text-background", onClick: onConfirm, children: "Confirm" })
+    ] })
+  ] }) });
+};
 var formatDate = (dateString) => {
   if (!dateString) return "Never";
   return dateString.split("T")[0];
@@ -4347,6 +4358,18 @@ var PublicInviteClaim = ({ code }) => {
   ] });
 };
 var MainApp = () => {
+  const [confirmState, setConfirmState] = useState({ isOpen: false, message: "", onConfirm: () => {
+  } });
+  useEffect(() => {
+    appConfirm = (message, onConfirm) => {
+      setConfirmState({ isOpen: true, message, onConfirm });
+    };
+  }, []);
+  const closeConfirm = () => setConfirmState((s) => ({ ...s, isOpen: false }));
+  const handleConfirm = () => {
+    confirmState.onConfirm();
+    closeConfirm();
+  };
   const [currentRoute, setCurrentRoute] = useState("loading");
   const [sessionInfo, setSessionInfo] = useState(null);
   const [publicConfig, setPublicConfig] = useState({});
@@ -4440,6 +4463,7 @@ var MainApp = () => {
     return /* @__PURE__ */ jsx(UserDashboard, { sessionInfo, publicConfig, onLogout: handleLogout, refreshSession: checkSession, onViewAdmin: () => setRoute("admin"), onViewStatus: () => setRoute("status"), onViewDashboard: () => setRoute("dashboard") });
   };
   return /* @__PURE__ */ jsxs("div", { className: "flex w-full min-h-screen bg-background", children: [
+    /* @__PURE__ */ jsx(ConfirmModal, { isOpen: confirmState.isOpen, message: confirmState.message, onConfirm: handleConfirm, onCancel: closeConfirm }),
     !isPublicView && /* @__PURE__ */ jsx(Navigation, { currentRoute, onNavigate: setRoute, onLogout: handleLogout, isAdmin, serverName: sessionInfo?.serverName || "Plex Server", adminThumb: sessionInfo?.adminThumb, requestUrl: sessionInfo?.requestUrl || "https://yourdomain.com", navOrder: sessionInfo?.navOrder || ["home", "discover", "status", "logs", "analytics", "mediastack", "request", "settings", "logout"] }),
     /* @__PURE__ */ jsx("div", { className: `flex-grow flex flex-col items-center p-4 md:p-8 pt-20 pb-[80px] md:pt-8 md:pb-8 w-full overflow-x-hidden ${isPublicView ? "!pt-8 !pb-8" : ""}`, children: renderView() })
   ] });
