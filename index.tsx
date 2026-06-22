@@ -4158,6 +4158,31 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                             </div>
                         </div>
                     )}
+
+                    {dashboardData.recentMusic?.length > 0 && (
+                        <div className="bg-card border border-border rounded-2xl p-6 shadow-xl overflow-hidden w-full">
+                            <h3 className="text-xl font-bold text-text mb-4">Recently Added Music</h3>
+                            <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth">
+                                {dashboardData.recentMusic.map((item: any, idx: number) => (
+                                    <a key={idx} href={item.plexUrl} target="_blank" rel="noreferrer" className="snap-start shrink-0 w-32 md:w-40 group flex flex-col gap-2">
+                                        <div className="relative rounded-xl overflow-hidden aspect-square bg-background border border-white/5 transition-transform group-hover:scale-105 group-hover:shadow-xl group-hover:border-plex/50">
+                                            {item.thumb ? (
+                                                <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=300`} alt={item.title} className="w-full h-full object-cover transition-opacity group-hover:opacity-80" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center p-4 text-center bg-white/5">
+                                                    <span className="text-xs font-bold text-muted line-clamp-3">{item.title}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-col px-1">
+                                            <p className="text-xs font-bold text-text truncate group-hover:text-plex transition-colors">{item.title}</p>
+                                            {item.parentTitle && <p className="text-[10px] text-muted font-semibold mt-0.5 truncate">{item.parentTitle}</p>}
+                                        </div>
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
