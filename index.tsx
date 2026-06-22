@@ -4571,7 +4571,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
                         }
 
                         return (
-                            <a key={key} href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${isCurrent ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); if (item.onClick) item.onClick(e); else onNavigate(item.route as any); }}>
+                            <a key={key} href="#" className={`flex items-center gap-4 p-3 no-underline rounded-lg transition-all font-medium ${isCurrent ? 'bg-plex/15 text-plex shadow-[0_0_15px_rgba(229,160,13,0.1)]' : 'text-muted hover:bg-white/5 hover:text-text'}`} onClick={(e) => { e.preventDefault(); if (item.onClick) item.onClick(e); else onNavigate(item.route as any); }}>
                                 <item.icon className="w-5 h-5 flex-shrink-0" /> {item.label}
                             </a>
                         );
