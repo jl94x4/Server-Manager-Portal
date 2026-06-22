@@ -987,7 +987,7 @@ app.post('/api/auth/plex/login', authRateLimit, async (req, res) => {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',
-                'X-Plex-Product': 'Plex Expiry Manager',
+                'X-Plex-Product': 'Server Manager Portal',
                 'X-Plex-Client-Identifier': CLIENT_ID
             }
         });
@@ -3361,7 +3361,7 @@ app.get('/api/media-stack/summary', requireAuth, async (req, res) => {
 // (Endpoints moved up before wildcard route)
 
 app.listen(PORT, async () => {
-    log(`--- Plex Expiry Manager Service starting on http://localhost:${PORT} ---`);
+    log(`--- Server Manager Portal Service starting on http://localhost:${PORT} ---`);
     await loadStatusState();
     runMonitorCycle();
     setInterval(runMonitorCycle, 15000);

@@ -1013,7 +1013,7 @@ const SettingsDashboard: React.FC = () => {
                             <div className="flex flex-col md:flex-row gap-4 mb-4">
                                 <div className="flex-2">
                                     <label htmlFor="smtpFrom">Sender Address (From)</label>
-                                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="smtpFrom" type="text" value={smtpFrom} onChange={e => setSmtpFrom(e.target.value)} placeholder="Plex Manager <noreply@yourdomain.com>" />
+                                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="smtpFrom" type="text" value={smtpFrom} onChange={e => setSmtpFrom(e.target.value)} placeholder="Server Manager Portal <noreply@yourdomain.com>" />
                                 </div>
                                 <div className="form-group flex-1 checkbox-group">
                                     <label htmlFor="smtpSecure" className="flex items-center gap-2 cursor-pointer select-none text-muted hover:text-text transition-colors">

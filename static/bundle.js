@@ -136,23 +136,38 @@ var __iconNode3 = [
 ];
 var ChartColumn = createLucideIcon("chart-column", __iconNode3);
 
+// node_modules/lucide-react/dist/esm/icons/chevron-down.mjs
+var __iconNode4 = [["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]];
+var ChevronDown = createLucideIcon("chevron-down", __iconNode4);
+
+// node_modules/lucide-react/dist/esm/icons/chevron-up.mjs
+var __iconNode5 = [["path", { d: "m18 15-6-6-6 6", key: "153udz" }]];
+var ChevronUp = createLucideIcon("chevron-up", __iconNode5);
+
 // node_modules/lucide-react/dist/esm/icons/clock.mjs
-var __iconNode4 = [
+var __iconNode6 = [
   ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
   ["path", { d: "M12 6v6l4 2", key: "mmk7yg" }]
 ];
-var Clock = createLucideIcon("clock", __iconNode4);
+var Clock = createLucideIcon("clock", __iconNode6);
 
 // node_modules/lucide-react/dist/esm/icons/cloud-download.mjs
-var __iconNode5 = [
+var __iconNode7 = [
   ["path", { d: "M12 13v8l-4-4", key: "1f5nwf" }],
   ["path", { d: "m12 21 4-4", key: "1lfcce" }],
   ["path", { d: "M4.393 15.269A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.436 8.284", key: "ui1hmy" }]
 ];
-var CloudDownload = createLucideIcon("cloud-download", __iconNode5);
+var CloudDownload = createLucideIcon("cloud-download", __iconNode7);
+
+// node_modules/lucide-react/dist/esm/icons/copy.mjs
+var __iconNode8 = [
+  ["rect", { width: "14", height: "14", x: "8", y: "8", rx: "2", ry: "2", key: "17jyea" }],
+  ["path", { d: "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2", key: "zix9uf" }]
+];
+var Copy = createLucideIcon("copy", __iconNode8);
 
 // node_modules/lucide-react/dist/esm/icons/file-text.mjs
-var __iconNode6 = [
+var __iconNode9 = [
   [
     "path",
     {
@@ -165,10 +180,10 @@ var __iconNode6 = [
   ["path", { d: "M16 13H8", key: "t4e002" }],
   ["path", { d: "M16 17H8", key: "z1uh3a" }]
 ];
-var FileText = createLucideIcon("file-text", __iconNode6);
+var FileText = createLucideIcon("file-text", __iconNode9);
 
 // node_modules/lucide-react/dist/esm/icons/film.mjs
-var __iconNode7 = [
+var __iconNode10 = [
   ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }],
   ["path", { d: "M7 3v18", key: "bbkbws" }],
   ["path", { d: "M3 7.5h4", key: "zfgn84" }],
@@ -178,10 +193,10 @@ var __iconNode7 = [
   ["path", { d: "M17 7.5h4", key: "myr1c1" }],
   ["path", { d: "M17 16.5h4", key: "go4c1d" }]
 ];
-var Film = createLucideIcon("film", __iconNode7);
+var Film = createLucideIcon("film", __iconNode10);
 
 // node_modules/lucide-react/dist/esm/icons/hard-drive.mjs
-var __iconNode8 = [
+var __iconNode11 = [
   ["path", { d: "M10 16h.01", key: "1bzywj" }],
   [
     "path",
@@ -193,10 +208,10 @@ var __iconNode8 = [
   ["path", { d: "M21.946 12.013H2.054", key: "zqlbp7" }],
   ["path", { d: "M6 16h.01", key: "1pmjb7" }]
 ];
-var HardDrive = createLucideIcon("hard-drive", __iconNode8);
+var HardDrive = createLucideIcon("hard-drive", __iconNode11);
 
 // node_modules/lucide-react/dist/esm/icons/house.mjs
-var __iconNode9 = [
+var __iconNode12 = [
   ["path", { d: "M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8", key: "5wwlr5" }],
   [
     "path",
@@ -206,10 +221,10 @@ var __iconNode9 = [
     }
   ]
 ];
-var House = createLucideIcon("house", __iconNode9);
+var House = createLucideIcon("house", __iconNode12);
 
 // node_modules/lucide-react/dist/esm/icons/layers.mjs
-var __iconNode10 = [
+var __iconNode13 = [
   [
     "path",
     {
@@ -232,18 +247,18 @@ var __iconNode10 = [
     }
   ]
 ];
-var Layers = createLucideIcon("layers", __iconNode10);
+var Layers = createLucideIcon("layers", __iconNode13);
 
 // node_modules/lucide-react/dist/esm/icons/log-out.mjs
-var __iconNode11 = [
+var __iconNode14 = [
   ["path", { d: "m16 17 5-5-5-5", key: "1bji2h" }],
   ["path", { d: "M21 12H9", key: "dn1m92" }],
   ["path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4", key: "1uf3rs" }]
 ];
-var LogOut = createLucideIcon("log-out", __iconNode11);
+var LogOut = createLucideIcon("log-out", __iconNode14);
 
 // node_modules/lucide-react/dist/esm/icons/settings.mjs
-var __iconNode12 = [
+var __iconNode15 = [
   [
     "path",
     {
@@ -253,10 +268,10 @@ var __iconNode12 = [
   ],
   ["circle", { cx: "12", cy: "12", r: "3", key: "1v7zrd" }]
 ];
-var Settings = createLucideIcon("settings", __iconNode12);
+var Settings = createLucideIcon("settings", __iconNode15);
 
 // node_modules/lucide-react/dist/esm/icons/sparkles.mjs
-var __iconNode13 = [
+var __iconNode16 = [
   [
     "path",
     {
@@ -268,10 +283,10 @@ var __iconNode13 = [
   ["path", { d: "M22 4h-4", key: "gwowj6" }],
   ["circle", { cx: "4", cy: "20", r: "2", key: "6kqj1y" }]
 ];
-var Sparkles = createLucideIcon("sparkles", __iconNode13);
+var Sparkles = createLucideIcon("sparkles", __iconNode16);
 
 // node_modules/lucide-react/dist/esm/icons/square-play.mjs
-var __iconNode14 = [
+var __iconNode17 = [
   ["rect", { x: "3", y: "3", width: "18", height: "18", rx: "2", key: "h1oib" }],
   [
     "path",
@@ -281,10 +296,10 @@ var __iconNode14 = [
     }
   ]
 ];
-var SquarePlay = createLucideIcon("square-play", __iconNode14);
+var SquarePlay = createLucideIcon("square-play", __iconNode17);
 
 // node_modules/lucide-react/dist/esm/icons/star.mjs
-var __iconNode15 = [
+var __iconNode18 = [
   [
     "path",
     {
@@ -293,37 +308,37 @@ var __iconNode15 = [
     }
   ]
 ];
-var Star = createLucideIcon("star", __iconNode15);
+var Star = createLucideIcon("star", __iconNode18);
 
 // node_modules/lucide-react/dist/esm/icons/trending-up.mjs
-var __iconNode16 = [
+var __iconNode19 = [
   ["path", { d: "M16 7h6v6", key: "box55l" }],
   ["path", { d: "m22 7-8.5 8.5-5-5L2 17", key: "1t1m79" }]
 ];
-var TrendingUp = createLucideIcon("trending-up", __iconNode16);
+var TrendingUp = createLucideIcon("trending-up", __iconNode19);
 
 // node_modules/lucide-react/dist/esm/icons/tv.mjs
-var __iconNode17 = [
+var __iconNode20 = [
   ["path", { d: "m17 2-5 5-5-5", key: "16satq" }],
   ["rect", { width: "20", height: "15", x: "2", y: "7", rx: "2", key: "1e6viu" }]
 ];
-var Tv = createLucideIcon("tv", __iconNode17);
+var Tv = createLucideIcon("tv", __iconNode20);
 
 // node_modules/lucide-react/dist/esm/icons/users.mjs
-var __iconNode18 = [
+var __iconNode21 = [
   ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", key: "1yyitq" }],
   ["path", { d: "M16 3.128a4 4 0 0 1 0 7.744", key: "16gr8j" }],
   ["path", { d: "M22 21v-2a4 4 0 0 0-3-3.87", key: "kshegd" }],
   ["circle", { cx: "9", cy: "7", r: "4", key: "nufk8" }]
 ];
-var Users = createLucideIcon("users", __iconNode18);
+var Users = createLucideIcon("users", __iconNode21);
 
 // node_modules/lucide-react/dist/esm/icons/x.mjs
-var __iconNode19 = [
+var __iconNode22 = [
   ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
   ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
 ];
-var X = createLucideIcon("x", __iconNode19);
+var X = createLucideIcon("x", __iconNode22);
 
 // index.tsx
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
@@ -509,9 +524,13 @@ var UserCard = ({ user, onEdit, onDelete, onRevoke, isConfigured, isSelected, on
       /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-center text-sm pb-2 border-b border-white/5 last:border-0 last:pb-0", children: [
         /* @__PURE__ */ jsx("span", { className: "text-muted text-xs uppercase tracking-wider font-bold", children: "Plex" }),
         /* @__PURE__ */ jsxs("span", { className: "info-value plex-status", children: [
-          /* @__PURE__ */ jsx("span", { className: `plex-status-dot ${user.plexAccessStatus}` }),
-          user.plexAccessStatus.charAt(0).toUpperCase() + user.plexAccessStatus.slice(1)
+          /* @__PURE__ */ jsx("span", { className: `plex-status-dot ${user.plexAccessStatus || "unknown"}` }),
+          (user.plexAccessStatus || "unknown").charAt(0).toUpperCase() + (user.plexAccessStatus || "unknown").slice(1)
         ] })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-center text-sm pb-2 border-b border-white/5 last:border-0 last:pb-0", children: [
+        /* @__PURE__ */ jsx("span", { className: "text-muted text-xs uppercase tracking-wider font-bold", children: "Last Login" }),
+        /* @__PURE__ */ jsx("span", { className: "text-text font-medium", children: user.lastLogin ? formatDate(user.lastLogin) : "Never" })
       ] })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "flex gap-2 mt-auto pt-6", onClick: (e) => e.stopPropagation(), children: [
@@ -613,6 +632,100 @@ var UserModal = ({ isOpen, onClose, onSave, user }) => {
     /* @__PURE__ */ jsx("div", { className: "flex justify-end gap-4 mt-8 pt-4 border-t border-border", children: /* @__PURE__ */ jsx("button", { className: "px-6 py-3 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2", onClick: handleSave, children: "Save" }) })
   ] }) });
 };
+var InvitesSettings = ({ addToast }) => {
+  const [invites, setInvites] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [durationDays, setDurationDays] = useState(30);
+  const [maxUses, setMaxUses] = useState("unlimited");
+  const fetchInvites = useCallback(async () => {
+    try {
+      const data = await apiFetch("/api/invites");
+      setInvites(data);
+    } catch (e) {
+      addToast("Failed to load invites", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [addToast]);
+  useEffect(() => {
+    fetchInvites();
+  }, [fetchInvites]);
+  const handleCreate = async () => {
+    try {
+      await apiFetch("/api/invites", {
+        method: "POST",
+        body: JSON.stringify({ durationDays, maxUses })
+      });
+      addToast("Invite link created", "success");
+      fetchInvites();
+    } catch (e) {
+      addToast(e.message || "Error creating invite", "error");
+    }
+  };
+  const handleDelete = async (code) => {
+    if (!confirm("Are you sure you want to delete this invite link?")) return;
+    try {
+      await apiFetch(`/api/invites/${code}`, { method: "DELETE" });
+      addToast("Invite link deleted", "success");
+      fetchInvites();
+    } catch (e) {
+      addToast(e.message || "Error deleting invite", "error");
+    }
+  };
+  const handleCopy = (code) => {
+    navigator.clipboard.writeText(`${window.location.origin}/invite/${code}`);
+    addToast("Invite link copied to clipboard!", "success");
+  };
+  if (loading) return /* @__PURE__ */ jsx("div", { className: "text-muted", children: "Loading invites..." });
+  return /* @__PURE__ */ jsxs("div", { className: "animate-fade-in mb-8", children: [
+    /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-plex mb-4 border-b border-border pb-2", children: "Automated Invite Links" }),
+    /* @__PURE__ */ jsx("p", { className: "text-sm text-muted mb-6", children: "Generate unique links to automatically invite users to your Plex server." }),
+    /* @__PURE__ */ jsxs("div", { className: "bg-black/20 p-4 md:p-6 rounded-xl border border-border mb-8 shadow-sm", children: [
+      /* @__PURE__ */ jsx("h4", { className: "font-bold mb-4", children: "Create New Invite Link" }),
+      /* @__PURE__ */ jsxs("div", { className: "flex flex-col md:flex-row gap-4 items-end", children: [
+        /* @__PURE__ */ jsxs("div", { className: "flex-1 w-full", children: [
+          /* @__PURE__ */ jsx("label", { className: "block text-sm mb-1 font-medium", children: "Duration (Days)" }),
+          /* @__PURE__ */ jsx("input", { type: "number", min: "1", className: "w-full p-2.5 rounded-lg bg-background border border-border text-text outline-none focus:border-plex", value: durationDays, onChange: (e) => setDurationDays(Number(e.target.value)) })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "flex-1 w-full", children: [
+          /* @__PURE__ */ jsx("label", { className: "block text-sm mb-1 font-medium", children: "Max Uses (Number or 'unlimited')" }),
+          /* @__PURE__ */ jsx("input", { type: "text", className: "w-full p-2.5 rounded-lg bg-background border border-border text-text outline-none focus:border-plex", value: maxUses, onChange: (e) => setMaxUses(e.target.value) })
+        ] }),
+        /* @__PURE__ */ jsx("button", { className: "w-full md:w-auto px-6 py-2.5 bg-plex text-background font-bold rounded-lg hover:bg-plex-hover transition-colors shadow-lg", onClick: handleCreate, children: "Generate Link" })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsx("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsxs("table", { className: "w-full text-left border-collapse min-w-[600px]", children: [
+      /* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsxs("tr", { className: "border-b border-border text-muted text-sm uppercase tracking-wider", children: [
+        /* @__PURE__ */ jsx("th", { className: "p-3", children: "Invite Link" }),
+        /* @__PURE__ */ jsx("th", { className: "p-3", children: "Duration" }),
+        /* @__PURE__ */ jsx("th", { className: "p-3", children: "Uses" }),
+        /* @__PURE__ */ jsx("th", { className: "p-3", children: "Created" }),
+        /* @__PURE__ */ jsx("th", { className: "p-3 text-right", children: "Actions" })
+      ] }) }),
+      /* @__PURE__ */ jsx("tbody", { children: invites.length === 0 ? /* @__PURE__ */ jsx("tr", { children: /* @__PURE__ */ jsx("td", { colSpan: 5, className: "p-8 text-center text-muted", children: "No active invites. Create one above!" }) }) : invites.map((inv) => /* @__PURE__ */ jsxs("tr", { className: "border-b border-border/50 hover:bg-white/5 transition-colors", children: [
+        /* @__PURE__ */ jsx("td", { className: "p-3", children: /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxs("span", { className: "font-mono text-sm text-plex select-all", children: [
+            window.location.origin,
+            "/invite/",
+            inv.code
+          ] }),
+          /* @__PURE__ */ jsx("button", { onClick: () => handleCopy(inv.code), className: "text-muted hover:text-plex transition-colors p-1", title: "Copy Link", children: /* @__PURE__ */ jsx(Copy, { size: 16 }) })
+        ] }) }),
+        /* @__PURE__ */ jsxs("td", { className: "p-3 font-medium", children: [
+          inv.durationDays,
+          " Days"
+        ] }),
+        /* @__PURE__ */ jsxs("td", { className: "p-3", children: [
+          inv.currentUses,
+          " / ",
+          inv.maxUses
+        ] }),
+        /* @__PURE__ */ jsx("td", { className: "p-3 text-muted text-sm", children: new Date(inv.createdAt).toLocaleDateString() }),
+        /* @__PURE__ */ jsx("td", { className: "p-3 text-right", children: /* @__PURE__ */ jsx("button", { onClick: () => handleDelete(inv.code), className: "text-red-500 hover:text-red-400 font-bold border border-red-500/30 px-3 py-1 rounded hover:bg-red-500/10 transition-colors text-xs", children: "Revoke" }) })
+      ] }, inv.code)) })
+    ] }) })
+  ] });
+};
 var SettingsDashboard = () => {
   const [isLoading, setLoading] = useState(true);
   const [initialSettings, setInitialSettings] = useState({});
@@ -664,7 +777,13 @@ var SettingsDashboard = () => {
   const [servers, setServers] = useState([]);
   const [selectedServer, setSelectedServer] = useState("");
   const [checkInterval, setCheckInterval] = useState(60);
-  const [activeTab, setActiveTab] = useState("plex");
+  const [activeTab, setActiveTab] = useState(() => {
+    const hash = window.location.hash.replace("#", "");
+    return ["plex", "smtp", "newsletter", "cleanup", "mediastack", "branding", "navigation", "status", "invites", "tasks"].includes(hash) ? hash : "plex";
+  });
+  useEffect(() => {
+    window.location.hash = activeTab;
+  }, [activeTab]);
   const [smtpHost, setSmtpHost] = useState("");
   const [smtpPort, setSmtpPort] = useState(587);
   const [smtpUser, setSmtpUser] = useState("");
@@ -687,6 +806,40 @@ var SettingsDashboard = () => {
   const [sonarrApiKey, setSonarrApiKey] = useState("");
   const [radarrUrl, setRadarrUrl] = useState("");
   const [radarrApiKey, setRadarrApiKey] = useState("");
+  const [primaryColor, setPrimaryColor] = useState("#E5A00D");
+  const [customLogoUrl, setCustomLogoUrl] = useState("");
+  const [referralEnabled, setReferralEnabled] = useState(false);
+  const [referralTrialDays, setReferralTrialDays] = useState(3);
+  const [referralRewardDays, setReferralRewardDays] = useState(7);
+  const [announcement, setAnnouncement] = useState("");
+  const [navOrder, setNavOrder] = useState(["home", "discover", "status", "logs", "analytics", "mediastack", "request", "settings", "logout"]);
+  const [logoFile, setLogoFile] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const fetchTasks = async () => {
+    try {
+      const data = await apiFetch("/api/tasks");
+      setTasks(data);
+    } catch (e) {
+      addToast("Failed to load tasks", "error");
+    }
+  };
+  useEffect(() => {
+    if (activeTab === "tasks") {
+      fetchTasks();
+    }
+  }, [activeTab]);
+  const handleRunTask = async (taskId) => {
+    setLoading(true);
+    try {
+      const res = await apiFetch(`/api/tasks/run/${taskId}`, { method: "POST" });
+      addToast(res.message || "Task executed successfully", "success");
+      await fetchTasks();
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : "Task failed", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
   useEffect(() => {
     if (initialSettings) {
       setToken(initialSettings.token || "");
@@ -710,6 +863,13 @@ var SettingsDashboard = () => {
       setSonarrApiKey(initialSettings.sonarrApiKey || "");
       setRadarrUrl(initialSettings.radarrUrl || "");
       setRadarrApiKey(initialSettings.radarrApiKey || "");
+      setPrimaryColor(initialSettings.primaryColor || "#E5A00D");
+      setCustomLogoUrl(initialSettings.customLogoUrl || "");
+      setReferralEnabled(!!initialSettings.referralEnabled);
+      setReferralTrialDays(initialSettings.referralTrialDays || 3);
+      setReferralRewardDays(initialSettings.referralRewardDays || 7);
+      setAnnouncement(initialSettings.announcement || "");
+      if (initialSettings.navOrder) setNavOrder(initialSettings.navOrder);
       setTestRecipient("");
       setServers([]);
     }
@@ -749,6 +909,13 @@ var SettingsDashboard = () => {
       addToast("Token and server must be selected.", "error");
       return;
     }
+    if (logoFile) {
+      try {
+        await fetch("/api/config/logo", { method: "POST", body: logoFile });
+      } catch (e) {
+        addToast("Failed to upload logo", "error");
+      }
+    }
     await handleSaveConfig({
       token,
       serverIdentifier: selectedServer,
@@ -770,8 +937,16 @@ var SettingsDashboard = () => {
       sonarrUrl,
       sonarrApiKey,
       radarrUrl,
-      radarrApiKey
+      radarrApiKey,
+      primaryColor,
+      customLogoUrl,
+      referralEnabled,
+      referralTrialDays,
+      referralRewardDays,
+      announcement,
+      navOrder
     });
+    document.documentElement.style.setProperty("--color-plex", primaryColor);
   };
   const handleTestEmail = async () => {
     if (!smtpHost || !smtpUser || !smtpPass || !testRecipient) {
@@ -854,53 +1029,36 @@ var SettingsDashboard = () => {
               { label: "SMTP Alerts", value: "smtp" },
               { label: "Newsletter", value: "newsletter" },
               { label: "Automated Cleanup", value: "cleanup" },
-              { label: "Media Stack", value: "mediastack" }
+              { label: "Media Stack", value: "mediastack" },
+              { label: "Portal UI", value: "branding" },
+              { label: "Navigation", value: "navigation" },
+              { label: "Status Monitor", value: "status" },
+              { label: "Invites", value: "invites" },
+              { label: "Tasks", value: "tasks" }
             ]
           }
         )
       ] }),
-      /* @__PURE__ */ jsxs("div", { className: "hidden md:flex gap-8 mt-4 mb-6 border-b border-border pb-2", children: [
-        /* @__PURE__ */ jsx(
-          "button",
-          {
-            onClick: () => setActiveTab("plex"),
-            className: `bg-none border-none font-bold text-base py-2 px-1 transition-all border-b-2 cursor-pointer ${activeTab === "plex" ? "text-plex border-plex" : "text-muted border-transparent hover:text-text"}`,
-            children: "Plex Integration"
-          }
-        ),
-        /* @__PURE__ */ jsx(
-          "button",
-          {
-            onClick: () => setActiveTab("smtp"),
-            className: `bg-none border-none font-bold text-base py-2 px-1 transition-all border-b-2 cursor-pointer ${activeTab === "smtp" ? "text-plex border-plex" : "text-muted border-transparent hover:text-text"}`,
-            children: "SMTP Alerts"
-          }
-        ),
-        /* @__PURE__ */ jsx(
-          "button",
-          {
-            onClick: () => setActiveTab("newsletter"),
-            className: `bg-none border-none font-bold text-base py-2 px-1 transition-all border-b-2 cursor-pointer ${activeTab === "newsletter" ? "text-plex border-plex" : "text-muted border-transparent hover:text-text"}`,
-            children: "Newsletter"
-          }
-        ),
-        /* @__PURE__ */ jsx(
-          "button",
-          {
-            onClick: () => setActiveTab("cleanup"),
-            className: `bg-none border-none font-bold text-base py-2 px-1 transition-all border-b-2 cursor-pointer ${activeTab === "cleanup" ? "text-plex border-plex" : "text-muted border-transparent hover:text-text"}`,
-            children: "Cleanup"
-          }
-        ),
-        /* @__PURE__ */ jsx(
-          "button",
-          {
-            onClick: () => setActiveTab("mediastack"),
-            className: `bg-none border-none font-bold text-base py-2 px-1 transition-all border-b-2 cursor-pointer ${activeTab === "mediastack" ? "text-plex border-plex" : "text-muted border-transparent hover:text-text"}`,
-            children: "Media Stack"
-          }
-        )
-      ] }),
+      /* @__PURE__ */ jsx("div", { className: "hidden md:flex flex-wrap gap-2 mt-4 mb-8 p-1.5 bg-black/20 rounded-xl border border-border w-fit", children: [
+        { id: "plex", label: "Plex Integration" },
+        { id: "smtp", label: "SMTP Alerts" },
+        { id: "newsletter", label: "Newsletter" },
+        { id: "cleanup", label: "Cleanup" },
+        { id: "mediastack", label: "Media Stack" },
+        { id: "branding", label: "Portal UI" },
+        { id: "navigation", label: "Navigation" },
+        { id: "status", label: "Status Monitor" },
+        { id: "invites", label: "Invites" },
+        { id: "tasks", label: "Background Tasks" }
+      ].map((tab) => /* @__PURE__ */ jsx(
+        "button",
+        {
+          onClick: () => setActiveTab(tab.id),
+          className: `px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 cursor-pointer border-none outline-none ${activeTab === tab.id ? "bg-plex text-background shadow-md" : "bg-transparent text-muted hover:text-text hover:bg-white/5"}`,
+          children: tab.label
+        },
+        tab.id
+      )) }),
       /* @__PURE__ */ jsxs("div", { className: "overflow-y-auto pr-2 flex-grow mb-4 custom-scrollbar", children: [
         activeTab === "plex" && /* @__PURE__ */ jsxs("div", { className: "mb-8", children: [
           /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-plex mb-4 border-b border-border pb-2", children: "Plex Integration" }),
@@ -970,7 +1128,7 @@ var SettingsDashboard = () => {
           /* @__PURE__ */ jsxs("div", { className: "flex flex-col md:flex-row gap-4 mb-4", children: [
             /* @__PURE__ */ jsxs("div", { className: "flex-2", children: [
               /* @__PURE__ */ jsx("label", { htmlFor: "smtpFrom", children: "Sender Address (From)" }),
-              /* @__PURE__ */ jsx("input", { className: "w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all", id: "smtpFrom", type: "text", value: smtpFrom, onChange: (e) => setSmtpFrom(e.target.value), placeholder: "Plex Manager <noreply@yourdomain.com>" })
+              /* @__PURE__ */ jsx("input", { className: "w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all", id: "smtpFrom", type: "text", value: smtpFrom, onChange: (e) => setSmtpFrom(e.target.value), placeholder: "Server Manager Portal <noreply@yourdomain.com>" })
             ] }),
             /* @__PURE__ */ jsx("div", { className: "form-group flex-1 checkbox-group", children: /* @__PURE__ */ jsxs("label", { htmlFor: "smtpSecure", className: "flex items-center gap-2 cursor-pointer select-none text-muted hover:text-text transition-colors", children: [
               /* @__PURE__ */ jsx("input", { className: "w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all", id: "smtpSecure", type: "checkbox", checked: smtpSecure, onChange: (e) => setSmtpSecure(e.target.checked) }),
@@ -1110,28 +1268,149 @@ var SettingsDashboard = () => {
             /* @__PURE__ */ jsx("label", { htmlFor: "radarrApiKey", children: "Radarr API Key" }),
             /* @__PURE__ */ jsx("input", { className: "w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all", id: "radarrApiKey", type: "password", value: radarrApiKey, onChange: (e) => setRadarrApiKey(e.target.value), placeholder: "API Key from Radarr Settings -> General" })
           ] })
+        ] }),
+        activeTab === "navigation" && /* @__PURE__ */ jsxs("div", { className: "mb-8 animate-fade-in", children: [
+          /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-plex mb-4 border-b border-border pb-2", children: "Navigation Order" }),
+          /* @__PURE__ */ jsx("p", { className: "text-muted text-sm mb-4", children: "Drag and drop or use the arrows to reorder the navigation items on the sidebar." }),
+          /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-2 max-w-md", children: navOrder.map((key, index) => {
+            const labels = {
+              "home": "Home",
+              "discover": "Discover",
+              "status": "Status",
+              "logs": "Logs (Admin Only)",
+              "analytics": "Analytics",
+              "mediastack": "Media Stack",
+              "request": "Request Content",
+              "settings": "Settings (Admin Only)",
+              "logout": "Logout"
+            };
+            return /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between p-3 bg-card border border-border rounded-lg shadow-sm", children: [
+              /* @__PURE__ */ jsx("div", { className: "flex items-center gap-3", children: /* @__PURE__ */ jsx("div", { className: "text-text font-medium", children: labels[key] || key }) }),
+              /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
+                /* @__PURE__ */ jsx(
+                  "button",
+                  {
+                    disabled: index === 0,
+                    onClick: () => {
+                      const newOrder = [...navOrder];
+                      [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+                      setNavOrder(newOrder);
+                    },
+                    className: `p-1 rounded transition-colors ${index === 0 ? "opacity-30 cursor-not-allowed" : "hover:bg-white/10 text-muted hover:text-text"}`,
+                    children: /* @__PURE__ */ jsx(ChevronUp, { className: "w-5 h-5" })
+                  }
+                ),
+                /* @__PURE__ */ jsx(
+                  "button",
+                  {
+                    disabled: index === navOrder.length - 1,
+                    onClick: () => {
+                      const newOrder = [...navOrder];
+                      [newOrder[index + 1], newOrder[index]] = [newOrder[index], newOrder[index + 1]];
+                      setNavOrder(newOrder);
+                    },
+                    className: `p-1 rounded transition-colors ${index === navOrder.length - 1 ? "opacity-30 cursor-not-allowed" : "hover:bg-white/10 text-muted hover:text-text"}`,
+                    children: /* @__PURE__ */ jsx(ChevronDown, { className: "w-5 h-5" })
+                  }
+                )
+              ] })
+            ] }, key);
+          }) })
+        ] }),
+        activeTab === "status" && /* @__PURE__ */ jsxs("div", { className: "mb-8 animate-fade-in", children: [
+          /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-plex mb-4 border-b border-border pb-2", children: "Status Monitor" }),
+          /* @__PURE__ */ jsx(
+            StatusMonitorSettings,
+            {
+              config: statusConfig,
+              onSave: async (newConfig) => {
+                try {
+                  await apiFetch("/api/status/config", { method: "POST", body: JSON.stringify(newConfig) });
+                  setStatusConfig(newConfig);
+                  addToast("Status Config Saved!");
+                } catch (e) {
+                  addToast("Failed to save status config", "error");
+                }
+              }
+            }
+          )
+        ] }),
+        activeTab === "branding" && /* @__PURE__ */ jsxs("div", { className: "mb-8 animate-fade-in", children: [
+          /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-plex mb-4 border-b border-border pb-2", children: "Branding & UI" }),
+          /* @__PURE__ */ jsxs("div", { className: "mb-4", children: [
+            /* @__PURE__ */ jsx("label", { children: "Primary Accent Color" }),
+            /* @__PURE__ */ jsxs("div", { className: "flex gap-4", children: [
+              /* @__PURE__ */ jsx("input", { type: "color", className: "w-16 h-12 p-1 rounded-lg border border-border cursor-pointer bg-background", value: primaryColor, onChange: (e) => setPrimaryColor(e.target.value) }),
+              /* @__PURE__ */ jsx("input", { type: "text", className: "flex-1 p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all uppercase font-mono", value: primaryColor, onChange: (e) => setPrimaryColor(e.target.value) })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "mb-4", children: [
+            /* @__PURE__ */ jsx("label", { children: "Custom Logo" }),
+            /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-2", children: [
+              /* @__PURE__ */ jsx("input", { type: "url", className: "w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all", value: customLogoUrl, onChange: (e) => setCustomLogoUrl(e.target.value), placeholder: "https://example.com/logo.png" }),
+              /* @__PURE__ */ jsx("span", { className: "text-center text-muted font-bold text-sm", children: "OR" }),
+              /* @__PURE__ */ jsx("input", { type: "file", accept: "image/*", className: "w-full p-2 rounded-lg border border-border bg-background text-muted text-sm outline-none focus:border-plex transition-all file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-text hover:file:bg-white/20 file:cursor-pointer cursor-pointer", onChange: (e) => setLogoFile(e.target.files?.[0] || null) })
+            ] }),
+            /* @__PURE__ */ jsx("small", { children: "Provide a URL or upload a file. (Max 5MB)" })
+          ] }),
+          /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8", children: "Announcements" }),
+          /* @__PURE__ */ jsxs("div", { className: "mb-4", children: [
+            /* @__PURE__ */ jsx("label", { children: "Portal Announcement Banner" }),
+            /* @__PURE__ */ jsx("textarea", { className: "w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all", value: announcement, onChange: (e) => setAnnouncement(e.target.value), placeholder: "E.g. Server maintenance scheduled for Friday...", rows: 3 }),
+            /* @__PURE__ */ jsx("small", { children: "If provided, this announcement will be prominently displayed to all users." })
+          ] }),
+          /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8", children: "Referral System" }),
+          /* @__PURE__ */ jsxs("div", { className: "mb-6 flex items-center justify-between bg-black/10 p-4 rounded-lg border border-border", children: [
+            /* @__PURE__ */ jsxs("div", { children: [
+              /* @__PURE__ */ jsx("label", { className: "font-bold block mb-1", children: "Enable Referrals" }),
+              /* @__PURE__ */ jsx("span", { className: "text-xs text-muted block", children: "Allow users to generate a referral link" })
+            ] }),
+            /* @__PURE__ */ jsx("button", { onClick: () => setReferralEnabled(!referralEnabled), className: `relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${referralEnabled ? "bg-plex" : "bg-border"}`, children: /* @__PURE__ */ jsx("span", { className: `inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${referralEnabled ? "translate-x-6" : "translate-x-1"}` }) })
+          ] }),
+          /* @__PURE__ */ jsx("div", { className: `transition-all ${!referralEnabled ? "opacity-50 pointer-events-none" : ""}`, children: /* @__PURE__ */ jsxs("div", { className: "flex gap-4", children: [
+            /* @__PURE__ */ jsxs("div", { className: "flex-1", children: [
+              /* @__PURE__ */ jsx("label", { children: "Referred User Trial Days" }),
+              /* @__PURE__ */ jsx("input", { type: "number", min: "0", className: "w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all", value: referralTrialDays, onChange: (e) => setReferralTrialDays(Number(e.target.value)) })
+            ] }),
+            /* @__PURE__ */ jsxs("div", { className: "flex-1", children: [
+              /* @__PURE__ */ jsx("label", { children: "Referrer Reward Days" }),
+              /* @__PURE__ */ jsx("input", { type: "number", min: "0", className: "w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all", value: referralRewardDays, onChange: (e) => setReferralRewardDays(Number(e.target.value)) })
+            ] })
+          ] }) })
+        ] }),
+        activeTab === "invites" && /* @__PURE__ */ jsx(InvitesSettings, { addToast }),
+        activeTab === "tasks" && /* @__PURE__ */ jsxs("div", { className: "mb-8 animate-fade-in", children: [
+          /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-plex mb-4 border-b border-border pb-2", children: "Background Tasks" }),
+          /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-4", children: tasks.map((task) => /* @__PURE__ */ jsxs("div", { className: "bg-background border border-border rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm", children: [
+            /* @__PURE__ */ jsxs("div", { children: [
+              /* @__PURE__ */ jsx("h4", { className: "font-bold text-lg mb-1", children: task.name }),
+              /* @__PURE__ */ jsx("p", { className: "text-sm text-muted mb-2", children: task.description }),
+              /* @__PURE__ */ jsxs("div", { className: "flex gap-4 text-xs", children: [
+                /* @__PURE__ */ jsxs("span", { className: "bg-black/20 px-2 py-1 rounded", children: [
+                  /* @__PURE__ */ jsx("strong", { children: "Last Run:" }),
+                  " ",
+                  task.lastRun ? new Date(task.lastRun).toLocaleString() : "Never"
+                ] }),
+                /* @__PURE__ */ jsxs("span", { className: "bg-black/20 px-2 py-1 rounded", children: [
+                  /* @__PURE__ */ jsx("strong", { children: "Next Run:" }),
+                  " ",
+                  task.nextRun ? new Date(task.nextRun).toLocaleString() : "Not Scheduled"
+                ] })
+              ] })
+            ] }),
+            /* @__PURE__ */ jsx(
+              "button",
+              {
+                className: "px-4 py-2 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2 whitespace-nowrap",
+                onClick: () => handleRunTask(task.id),
+                children: "Run Now"
+              }
+            )
+          ] }, task.id)) })
         ] })
       ] }),
       /* @__PURE__ */ jsx("div", { className: "flex justify-end gap-4 mt-8", style: { marginTop: "2rem" }, children: /* @__PURE__ */ jsx("button", { className: "px-6 py-3 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2", onClick: handleSave, children: "Save Settings" }) })
     ] }),
-    /* @__PURE__ */ jsx(
-      StatusConfigModal,
-      {
-        isOpen: isStatusModalOpen,
-        onClose: () => setStatusModalOpen(false),
-        config: statusConfig,
-        onSave: async (newConfig) => {
-          try {
-            await apiFetch("/api/status/config", { method: "POST", body: JSON.stringify(newConfig) });
-            setStatusConfig(newConfig);
-            setStatusModalOpen(false);
-            addToast("Status Config Saved!");
-          } catch (e) {
-            addToast("Failed to save status config", "error");
-          }
-        }
-      }
-    ),
     /* @__PURE__ */ jsx(
       BroadcastModal,
       {
@@ -1143,35 +1422,150 @@ var SettingsDashboard = () => {
     )
   ] });
 };
-var StatusConfigModal = ({ isOpen, onClose, config, onSave }) => {
-  const [cfgText, setCfgText] = useState("");
+var StatusMonitorSettings = ({ config, onSave }) => {
+  const [localConfig, setLocalConfig] = useState({ groups: [], services: [] });
   useEffect(() => {
-    if (isOpen) setCfgText(JSON.stringify(config, null, 2));
-  }, [isOpen, config]);
-  if (!isOpen) return null;
-  return /* @__PURE__ */ jsx("div", { className: "fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-[1000]", children: /* @__PURE__ */ jsxs("div", { className: "modal-content", style: { maxWidth: "800px", width: "90%" }, children: [
-    /* @__PURE__ */ jsx("h2", { className: "text-2xl font-bold text-text", children: "Manage Status Config" }),
-    /* @__PURE__ */ jsx("p", { children: "Edit the raw JSON configuration for the status monitor." }),
-    /* @__PURE__ */ jsx(
-      "textarea",
-      {
-        value: cfgText,
-        onChange: (e) => setCfgText(e.target.value),
-        style: { width: "100%", height: "400px", fontFamily: "monospace", backgroundColor: "#1a1a1a", color: "#fff", padding: "1rem" }
-      }
-    ),
-    /* @__PURE__ */ jsxs("div", { className: "flex justify-end gap-4 mt-8", style: { marginTop: "1rem" }, children: [
-      /* @__PURE__ */ jsx("button", { className: "px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2", onClick: onClose, children: "Cancel" }),
-      /* @__PURE__ */ jsx("button", { className: "px-4 py-2 bg-plex text-background rounded-md font-medium hover:bg-plex-hover transition-colors flex items-center justify-center gap-2", onClick: () => {
-        try {
-          const parsed = JSON.parse(cfgText);
-          onSave(parsed);
-        } catch (e) {
-          alert("Invalid JSON");
-        }
-      }, children: "Save" })
-    ] })
-  ] }) });
+    if (config) {
+      setLocalConfig({
+        groups: config.groups || [],
+        services: config.services || []
+      });
+    }
+  }, [config]);
+  const addGroup = () => {
+    const id = `group-${Date.now()}`;
+    setLocalConfig({ ...localConfig, groups: [...localConfig.groups, { id, name: "New Group", order: localConfig.groups.length }] });
+  };
+  const addService = () => {
+    const id = `service-${Date.now()}`;
+    const newService = {
+      id,
+      name: "New Service",
+      url: "",
+      category: "web",
+      type: "http",
+      groupId: null,
+      isCritical: true,
+      description: ""
+    };
+    setLocalConfig({ ...localConfig, services: [...localConfig.services, newService] });
+  };
+  const updateGroup = (id, field, value) => {
+    setLocalConfig({
+      ...localConfig,
+      groups: localConfig.groups.map((g) => g.id === id ? { ...g, [field]: value } : g)
+    });
+  };
+  const updateService = (id, field, value) => {
+    setLocalConfig({
+      ...localConfig,
+      services: localConfig.services.map((s) => s.id === id ? { ...s, [field]: value } : s)
+    });
+  };
+  const removeGroup = (id) => {
+    if (confirm(`Remove group ${id}? Services inside it won't be deleted but will lose their group.`)) {
+      setLocalConfig({
+        ...localConfig,
+        groups: localConfig.groups.filter((g) => g.id !== id),
+        services: localConfig.services.map((s) => s.groupId === id ? { ...s, groupId: null } : s)
+      });
+    }
+  };
+  const removeService = (id) => {
+    if (confirm(`Remove service ${id}?`)) {
+      setLocalConfig({ ...localConfig, services: localConfig.services.filter((s) => s.id !== id) });
+    }
+  };
+  return /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-6 w-full", children: [
+    /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border p-6 rounded-xl shadow-sm", children: [
+      /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-center mb-6 border-b border-border pb-4", children: [
+        /* @__PURE__ */ jsx("h4", { className: "font-bold text-xl text-text", children: "Service Groups" }),
+        /* @__PURE__ */ jsx("button", { onClick: addGroup, className: "px-4 py-2 bg-white/10 hover:bg-white/20 text-text rounded-md text-sm font-bold transition-colors", children: "Add Group" })
+      ] }),
+      localConfig.groups.map((group) => /* @__PURE__ */ jsxs("div", { className: "flex flex-col md:flex-row justify-between items-start md:items-center p-4 mb-3 bg-black/20 rounded-lg border border-border hover:border-plex/50 transition-colors gap-4", children: [
+        /* @__PURE__ */ jsxs("div", { className: "flex-1 flex flex-col md:flex-row gap-3 w-full", children: [
+          /* @__PURE__ */ jsx(
+            "input",
+            {
+              type: "text",
+              value: group.name,
+              onChange: (e) => updateGroup(group.id, "name", e.target.value),
+              className: "flex-1 p-2 rounded bg-background border border-border focus:border-plex outline-none text-sm",
+              placeholder: "Group Name"
+            }
+          ),
+          /* @__PURE__ */ jsx("div", { className: "flex-1 flex items-center px-3 py-2 rounded bg-black/40 border border-border/50 text-sm font-mono text-muted cursor-not-allowed overflow-hidden text-ellipsis whitespace-nowrap", children: group.id })
+        ] }),
+        /* @__PURE__ */ jsx("button", { onClick: () => removeGroup(group.id), className: "text-red-400 hover:text-red-300 text-sm font-medium transition-colors bg-red-400/10 px-3 py-2 rounded flex-shrink-0", children: "Remove" })
+      ] }, group.id)),
+      localConfig.groups.length === 0 && /* @__PURE__ */ jsx("p", { className: "text-muted text-sm italic p-4 text-center border border-dashed border-border rounded-lg", children: "No groups defined. Create one to organize your services." })
+    ] }),
+    /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border p-6 rounded-xl shadow-sm", children: [
+      /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-center mb-6 border-b border-border pb-4", children: [
+        /* @__PURE__ */ jsx("h4", { className: "font-bold text-xl text-text", children: "Monitored Services" }),
+        /* @__PURE__ */ jsx("button", { onClick: addService, className: "px-4 py-2 bg-plex text-background hover:bg-plex-hover rounded-md text-sm font-bold transition-colors shadow-lg", children: "Add Service" })
+      ] }),
+      /* @__PURE__ */ jsx("div", { className: "grid grid-cols-1 xl:grid-cols-2 gap-4", children: localConfig.services.map((service) => /* @__PURE__ */ jsxs("div", { className: "flex flex-col p-4 bg-black/20 rounded-xl border border-border hover:border-plex/50 transition-colors gap-3", children: [
+        /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-start gap-3", children: [
+          /* @__PURE__ */ jsxs("div", { className: "flex-1 flex flex-col gap-2", children: [
+            /* @__PURE__ */ jsx(
+              "input",
+              {
+                type: "text",
+                value: service.name,
+                onChange: (e) => updateService(service.id, "name", e.target.value),
+                className: "w-full p-2 rounded bg-background border border-border focus:border-plex outline-none text-sm font-bold",
+                placeholder: "Service Name"
+              }
+            ),
+            /* @__PURE__ */ jsx(
+              "input",
+              {
+                type: "text",
+                value: service.url,
+                onChange: (e) => updateService(service.id, "url", e.target.value),
+                className: "w-full p-2 rounded bg-background border border-border focus:border-plex outline-none text-sm font-mono",
+                placeholder: "Service URL (e.g. https://...)"
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsx("button", { onClick: () => removeService(service.id), className: "text-red-400 hover:text-red-300 text-sm font-medium transition-colors bg-red-400/10 px-3 py-2 rounded flex-shrink-0", children: "Remove" })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "flex flex-wrap items-center justify-between gap-3 mt-1 text-sm border-t border-border/50 pt-3", children: [
+          /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
+            /* @__PURE__ */ jsx("span", { className: "text-muted", children: "Group:" }),
+            /* @__PURE__ */ jsx("div", { className: "w-48", children: /* @__PURE__ */ jsx(
+              CustomSelect,
+              {
+                value: service.groupId || "",
+                onChange: (val) => updateService(service.id, "groupId", val || null),
+                options: [
+                  { label: "None", value: "" },
+                  ...localConfig.groups.map((g) => ({ label: g.name, value: g.id }))
+                ]
+              }
+            ) })
+          ] }),
+          /* @__PURE__ */ jsxs(
+            "button",
+            {
+              onClick: () => updateService(service.id, "isCritical", !service.isCritical),
+              className: `px-3 py-1.5 rounded text-xs font-bold transition-colors flex items-center gap-2 ${service.isCritical ? "bg-green-500/20 text-green-400 hover:bg-green-500/30" : "bg-white/10 text-muted hover:bg-white/20"}`,
+              children: [
+                "Critical: ",
+                service.isCritical ? "Yes" : "No"
+              ]
+            }
+          )
+        ] })
+      ] }, service.id)) }),
+      localConfig.services.length === 0 && /* @__PURE__ */ jsx("p", { className: "text-muted text-sm italic p-4 text-center border border-dashed border-border rounded-lg", children: "No services defined. Add some services to monitor." })
+    ] }),
+    /* @__PURE__ */ jsx("div", { className: "flex justify-end pt-4 border-t border-border mt-2", children: /* @__PURE__ */ jsxs("button", { onClick: () => onSave(localConfig), className: "px-6 py-3 bg-plex text-background rounded-lg font-bold hover:bg-plex-hover transition-colors shadow-xl flex items-center gap-2", children: [
+      /* @__PURE__ */ jsx(Activity, { className: "w-5 h-5" }),
+      " Save Status Monitor Configuration"
+    ] }) })
+  ] });
 };
 var BroadcastModal = ({ isOpen, onClose, selectedUserIds, users }) => {
   const [subject, setSubject] = useState("Big updates to the Plex Server! \u{1F680}");
@@ -2139,6 +2533,9 @@ var LogsDashboard = ({ onLogout }) => {
   const [auditEntries, setAuditEntries] = useState([]);
   const [isLoading, setLoading] = useState(true);
   const [toasts, setToasts] = useState([]);
+  const [auditPage, setAuditPage] = useState(1);
+  const [emailPage, setEmailPage] = useState(1);
+  const itemsPerPage = 20;
   const addToast = useCallback((message, type = "success") => {
     setToasts((t) => [...t, { id: Date.now(), message, type }]);
   }, []);
@@ -2185,6 +2582,8 @@ var LogsDashboard = ({ onLogout }) => {
   const isConfigured = true;
   const filteredAuditLog = auditEntries.filter((e) => e.event !== "system_email_sent");
   const emailLogs = auditEntries.filter((e) => e.event === "system_email_sent");
+  const totalAuditPages = Math.max(1, Math.ceil(filteredAuditLog.length / itemsPerPage));
+  const totalEmailPages = Math.max(1, Math.ceil(emailLogs.length / itemsPerPage));
   return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-[1600px] mx-auto flex flex-col", children: [
     /* @__PURE__ */ jsx(Loader, { isLoading }),
     /* @__PURE__ */ jsx("div", { className: "fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] flex flex-col-reverse gap-2 items-center", children: toasts.map((toast) => /* @__PURE__ */ jsx(Toast, { ...toast, onDismiss: () => setToasts((t) => t.filter((item) => item.id !== toast.id)) }, toast.id)) }),
@@ -2220,33 +2619,89 @@ var LogsDashboard = ({ onLogout }) => {
           ] }),
           /* @__PURE__ */ jsx("button", { className: "px-3 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors text-xs", onClick: fetchSecurityData, children: "Refresh" })
         ] }),
-        /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-3", children: filteredAuditLog.length === 0 ? /* @__PURE__ */ jsx("p", { className: "text-muted text-sm border border-dashed border-border rounded-lg p-4 text-center", children: "No audit events recorded yet." }) : filteredAuditLog.slice(0, 20).map((entry) => /* @__PURE__ */ jsxs("div", { className: "bg-background/60 border border-border rounded-lg p-3", children: [
-          /* @__PURE__ */ jsxs("div", { className: "flex items-start justify-between gap-3", children: [
-            /* @__PURE__ */ jsx("p", { className: "text-text font-semibold text-sm", children: formatEventName(entry.event) }),
-            /* @__PURE__ */ jsx("span", { className: "text-muted text-[11px] whitespace-nowrap", children: formatDateTime(entry.timestamp) })
-          ] }),
-          /* @__PURE__ */ jsxs("p", { className: "text-muted text-xs mt-1", children: [
-            "Target: ",
-            entry.target?.username || entry.target?.email || "System",
-            entry.actor?.username || entry.actor?.email ? ` \xB7 Actor: ${entry.actor.username || entry.actor.email}` : ""
+        /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-3", children: filteredAuditLog.length === 0 ? /* @__PURE__ */ jsx("p", { className: "text-muted text-sm border border-dashed border-border rounded-lg p-4 text-center", children: "No audit events recorded yet." }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+          filteredAuditLog.slice((auditPage - 1) * itemsPerPage, auditPage * itemsPerPage).map((entry) => /* @__PURE__ */ jsxs("div", { className: "bg-background/60 border border-border rounded-lg p-3", children: [
+            /* @__PURE__ */ jsxs("div", { className: "flex items-start justify-between gap-3", children: [
+              /* @__PURE__ */ jsx("p", { className: "text-text font-semibold text-sm", children: formatEventName(entry.event) }),
+              /* @__PURE__ */ jsx("span", { className: "text-muted text-[11px] whitespace-nowrap", children: formatDateTime(entry.timestamp) })
+            ] }),
+            /* @__PURE__ */ jsxs("p", { className: "text-muted text-xs mt-1", children: [
+              "Target: ",
+              entry.target?.username || entry.target?.email || "System",
+              entry.actor?.username || entry.actor?.email ? ` \xB7 Actor: ${entry.actor.username || entry.actor.email}` : ""
+            ] })
+          ] }, entry.id)),
+          totalAuditPages > 1 && /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between mt-2 pt-2 border-t border-border/50", children: [
+            /* @__PURE__ */ jsx(
+              "button",
+              {
+                className: "px-3 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed",
+                onClick: () => setAuditPage((p) => Math.max(1, p - 1)),
+                disabled: auditPage === 1,
+                children: "Previous"
+              }
+            ),
+            /* @__PURE__ */ jsxs("span", { className: "text-xs text-muted font-semibold", children: [
+              "Page ",
+              auditPage,
+              " of ",
+              totalAuditPages
+            ] }),
+            /* @__PURE__ */ jsx(
+              "button",
+              {
+                className: "px-3 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed",
+                onClick: () => setAuditPage((p) => Math.min(totalAuditPages, p + 1)),
+                disabled: auditPage === totalAuditPages,
+                children: "Next"
+              }
+            )
           ] })
-        ] }, entry.id)) })
+        ] }) })
       ] }),
       /* @__PURE__ */ jsxs("section", { className: "bg-card border border-border rounded-xl p-4 md:p-5 shadow-md", children: [
         /* @__PURE__ */ jsx("div", { className: "flex items-center justify-between gap-4 mb-4", children: /* @__PURE__ */ jsxs("div", { children: [
           /* @__PURE__ */ jsx("h2", { className: "text-lg font-bold text-text", children: "Email Log" }),
           /* @__PURE__ */ jsx("p", { className: "text-muted text-xs mt-1", children: "Recent system emails sent." })
         ] }) }),
-        /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-3", children: emailLogs.length === 0 ? /* @__PURE__ */ jsx("p", { className: "text-muted text-sm border border-dashed border-border rounded-lg p-4 text-center", children: "No emails sent yet." }) : emailLogs.slice(0, 20).map((entry) => /* @__PURE__ */ jsxs("div", { className: "bg-background/60 border border-border rounded-lg p-3", children: [
-          /* @__PURE__ */ jsxs("div", { className: "flex items-start justify-between gap-3", children: [
-            /* @__PURE__ */ jsx("p", { className: "text-text font-semibold text-sm line-clamp-1", children: entry.details?.subject || "System Email" }),
-            /* @__PURE__ */ jsx("span", { className: "text-muted text-[11px] whitespace-nowrap", children: formatDateTime(entry.timestamp) })
-          ] }),
-          /* @__PURE__ */ jsxs("p", { className: "text-muted text-xs mt-1", children: [
-            "To: ",
-            entry.target?.username || entry.target?.email || "Unknown"
+        /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-3", children: emailLogs.length === 0 ? /* @__PURE__ */ jsx("p", { className: "text-muted text-sm border border-dashed border-border rounded-lg p-4 text-center", children: "No emails sent yet." }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+          emailLogs.slice((emailPage - 1) * itemsPerPage, emailPage * itemsPerPage).map((entry) => /* @__PURE__ */ jsxs("div", { className: "bg-background/60 border border-border rounded-lg p-3", children: [
+            /* @__PURE__ */ jsxs("div", { className: "flex items-start justify-between gap-3", children: [
+              /* @__PURE__ */ jsx("p", { className: "text-text font-semibold text-sm line-clamp-1", children: entry.details?.subject || "System Email" }),
+              /* @__PURE__ */ jsx("span", { className: "text-muted text-[11px] whitespace-nowrap", children: formatDateTime(entry.timestamp) })
+            ] }),
+            /* @__PURE__ */ jsxs("p", { className: "text-muted text-xs mt-1", children: [
+              "To: ",
+              entry.target?.username || entry.target?.email || "Unknown"
+            ] })
+          ] }, entry.id)),
+          totalEmailPages > 1 && /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between mt-2 pt-2 border-t border-border/50", children: [
+            /* @__PURE__ */ jsx(
+              "button",
+              {
+                className: "px-3 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed",
+                onClick: () => setEmailPage((p) => Math.max(1, p - 1)),
+                disabled: emailPage === 1,
+                children: "Previous"
+              }
+            ),
+            /* @__PURE__ */ jsxs("span", { className: "text-xs text-muted font-semibold", children: [
+              "Page ",
+              emailPage,
+              " of ",
+              totalEmailPages
+            ] }),
+            /* @__PURE__ */ jsx(
+              "button",
+              {
+                className: "px-3 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed",
+                onClick: () => setEmailPage((p) => Math.min(totalEmailPages, p + 1)),
+                disabled: emailPage === totalEmailPages,
+                children: "Next"
+              }
+            )
           ] })
-        ] }, entry.id)) })
+        ] }) })
       ] })
     ] }) })
   ] });
@@ -2839,7 +3294,7 @@ var SetupWizard = ({ onComplete }) => {
     ] })
   ] }) });
 };
-var Login = ({ onLoginSuccess }) => {
+var Login = ({ onLoginSuccess, publicConfig }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [publicInfo, setPublicInfo] = useState({ thumb: null, serverName: "Plex Server", isConfigured: null });
@@ -2916,7 +3371,7 @@ var Login = ({ onLoginSuccess }) => {
       /* @__PURE__ */ jsx("div", { className: "flex-1 p-4 md:p-8 lg:p-12 flex flex-col justify-center bg-white/[0.02]", children: /* @__PURE__ */ jsxs("div", { className: "text-center", children: [
         /* @__PURE__ */ jsx("div", { className: "w-full flex justify-center mb-8", children: /* @__PURE__ */ jsxs("div", { className: "relative", children: [
           /* @__PURE__ */ jsx("div", { className: "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-plex rounded-full blur-[50px] opacity-20 pointer-events-none" }),
-          publicInfo.thumb ? /* @__PURE__ */ jsx("img", { src: publicInfo.thumb, alt: "Server Logo", className: "w-32 h-32 object-cover rounded-full border-2 border-plex drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10", onError: (e) => {
+          publicConfig?.customLogoUrl || publicInfo.thumb ? /* @__PURE__ */ jsx("img", { src: publicConfig?.customLogoUrl || publicInfo.thumb, alt: "Server Logo", className: "w-32 h-32 object-cover rounded-full border-2 border-plex drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10", onError: (e) => {
             e.currentTarget.src = "/static/logo.png";
             e.currentTarget.className = "w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10";
           } }) : /* @__PURE__ */ jsx("img", { src: "/static/logo.png", alt: "Server Logo", className: "w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10", onError: (e) => e.currentTarget.style.display = "none" })
@@ -2930,7 +3385,7 @@ var Login = ({ onLoginSuccess }) => {
     error && /* @__PURE__ */ jsx("div", { className: "error-message", style: { marginTop: "1rem" }, children: error })
   ] });
 };
-var UserDashboard = ({ sessionInfo, onLogout, refreshSession, onViewAdmin, onViewStatus, onViewDashboard }) => {
+var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onViewAdmin, onViewStatus, onViewDashboard }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState(null);
   const user = sessionInfo.account;
@@ -2993,7 +3448,26 @@ var UserDashboard = ({ sessionInfo, onLogout, refreshSession, onViewAdmin, onVie
       /* @__PURE__ */ jsx("div", { className: "absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-plex to-transparent opacity-80" }),
       /* @__PURE__ */ jsxs("div", { className: "p-4 md:p-8", children: [
         /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-4 mb-6", children: [
-          /* @__PURE__ */ jsx("div", { className: "w-14 h-14 rounded-full bg-gradient-to-br from-plex/40 to-plex/10 border-2 border-plex/60 flex items-center justify-center text-plex font-black text-2xl flex-shrink-0 shadow-lg shadow-plex/20", children: sessionInfo.session.username?.[0]?.toUpperCase() || "?" }),
+          (() => {
+            const thumbUrl = user?.thumb || sessionInfo.session.thumb;
+            if (thumbUrl) {
+              return /* @__PURE__ */ jsx(
+                "img",
+                {
+                  src: thumbUrl.startsWith("http") ? thumbUrl : `/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=128&height=128`,
+                  alt: sessionInfo.session.username,
+                  className: "w-14 h-14 rounded-full object-cover border-2 border-plex/60 shadow-lg shadow-plex/20 flex-shrink-0 bg-card",
+                  onError: (e) => {
+                    e.target.style.display = "none";
+                    e.target.nextElementSibling?.classList.remove("hidden");
+                    e.target.nextElementSibling?.classList.add("flex");
+                  }
+                }
+              );
+            }
+            return null;
+          })(),
+          /* @__PURE__ */ jsx("div", { className: `w-14 h-14 rounded-full bg-gradient-to-br from-plex/40 to-plex/10 border-2 border-plex/60 items-center justify-center text-plex font-black text-2xl flex-shrink-0 shadow-lg shadow-plex/20 overflow-hidden ${user?.thumb || sessionInfo.session.thumb ? "hidden" : "flex"}`, children: sessionInfo.session.username?.[0]?.toUpperCase() || "?" }),
           /* @__PURE__ */ jsxs("div", { className: "min-w-0", children: [
             /* @__PURE__ */ jsx("p", { className: "text-muted text-xs uppercase tracking-[3px] font-semibold", children: "Welcome back" }),
             /* @__PURE__ */ jsx("h1", { className: "text-2xl md:text-3xl font-black text-text leading-tight truncate", children: sessionInfo.session.username })
@@ -3031,24 +3505,6 @@ var UserDashboard = ({ sessionInfo, onLogout, refreshSession, onViewAdmin, onVie
             /* @__PURE__ */ jsx("div", { className: "w-full h-2 bg-white/5 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx("div", { className: `h-full rounded-full transition-all duration-1000 ${isExpiringSoon ? "bg-yellow-400" : "bg-gradient-to-r from-plex via-yellow-300 to-plex"}`, style: { width: `${progressPct}%` } }) }),
             isExpiringSoon && /* @__PURE__ */ jsx("p", { className: "text-yellow-400/80 text-xs mt-2", children: "\u26A0\uFE0F Expiring soon \u2014 contact the admin to renew" })
           ] }),
-          isPending && /* @__PURE__ */ jsxs("div", { className: "rounded-xl overflow-hidden border-2 border-plex mb-5 shadow-lg shadow-plex/20", children: [
-            /* @__PURE__ */ jsxs("div", { className: "bg-plex px-5 py-3 flex items-center gap-2", children: [
-              /* @__PURE__ */ jsx("span", { className: "text-xl", children: "\u{1F4E7}" }),
-              /* @__PURE__ */ jsx("strong", { className: "text-background text-sm tracking-wide", children: "TIP - Accept Your Plex Invite" })
-            ] }),
-            /* @__PURE__ */ jsxs("div", { className: "bg-plex/10 p-5", children: [
-              /* @__PURE__ */ jsxs("p", { className: "text-text text-sm leading-relaxed mb-4", children: [
-                "You need to accept the invite in the email before Plex access is active. Your ",
-                /* @__PURE__ */ jsx("strong", { className: "text-plex", children: "3-Day Free Trial" }),
-                " remains set on your account."
-              ] }),
-              /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-2.5", children: [{ n: "1", t: "\u{1F4EC} Open the email from Plex \u2014 check your inbox AND spam/junk folder" }, { n: "2", t: '\u2705 Click the "Accept Invite" button inside the email' }, { n: "3", t: "\u{1F389} Log into Plex and enjoy your free trial!" }].map((s) => /* @__PURE__ */ jsxs("div", { className: "flex items-start gap-3 bg-black/20 rounded-lg px-3.5 py-2.5", children: [
-                /* @__PURE__ */ jsx("span", { className: "w-5 h-5 rounded-full bg-plex text-background text-[11px] font-black flex items-center justify-center flex-shrink-0 mt-0.5", children: s.n }),
-                /* @__PURE__ */ jsx("span", { className: "text-muted text-sm leading-snug", children: s.t })
-              ] }, s.n)) }),
-              /* @__PURE__ */ jsx("p", { className: "text-muted/60 text-xs italic mt-3", children: "\u23F3 Haven't received the email? Contact the admin below." })
-            ] })
-          ] }),
           isRevoked && daysLeft !== null && daysLeft >= 0 && /* @__PURE__ */ jsxs("div", { className: "bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mb-5 flex flex-col gap-3", children: [
             /* @__PURE__ */ jsxs("p", { className: "text-yellow-400 font-semibold text-sm", children: [
               "\u26A0\uFE0F Access revoked \u2014 but you have ",
@@ -3060,6 +3516,24 @@ var UserDashboard = ({ sessionInfo, onLogout, refreshSession, onViewAdmin, onVie
             /* @__PURE__ */ jsx("button", { className: "self-start px-5 py-2.5 bg-plex text-background rounded-lg font-bold hover:bg-plex-hover transition-colors text-sm", onClick: handleRelink, children: "Re-link Plex Account" })
           ] })
         ] })
+      ] })
+    ] }),
+    publicConfig?.announcement && /* @__PURE__ */ jsx("div", { className: "bg-plex/10 border border-plex/30 rounded-2xl p-4 md:p-6 shadow-lg", children: /* @__PURE__ */ jsxs("div", { className: "flex items-start gap-3", children: [
+      /* @__PURE__ */ jsx("span", { className: "text-xl mt-0.5", children: "\u{1F4E2}" }),
+      /* @__PURE__ */ jsxs("div", { children: [
+        /* @__PURE__ */ jsx("h3", { className: "text-plex font-bold text-sm uppercase tracking-wider mb-1", children: "Server Announcement" }),
+        /* @__PURE__ */ jsx("p", { className: "text-text whitespace-pre-wrap text-sm leading-relaxed", children: publicConfig.announcement })
+      ] })
+    ] }) }),
+    publicConfig?.referralEnabled && user && !sessionInfo.session.isAdmin && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-4 md:p-6 shadow-lg", children: [
+      /* @__PURE__ */ jsx("p", { className: "text-plex font-bold text-base mb-1", children: "\u{1F381} Invite Friends, Get Free Time!" }),
+      /* @__PURE__ */ jsx("p", { className: "text-muted text-sm leading-relaxed mb-4", children: "Share this link with your friends. They get a free trial, and you get reward days added to your subscription automatically when they join!" }),
+      /* @__PURE__ */ jsxs("div", { className: "flex gap-2", children: [
+        /* @__PURE__ */ jsx("input", { type: "text", readOnly: true, value: `${window.location.origin}/?ref=${user.id}`, className: "flex-1 p-3 rounded-lg border border-border bg-background text-text text-sm outline-none" }),
+        /* @__PURE__ */ jsx("button", { onClick: () => {
+          navigator.clipboard.writeText(`${window.location.origin}/?ref=${user.id}`);
+          setToast({ id: 99, message: "Copied to clipboard!", type: "success" });
+        }, className: "px-4 bg-plex text-background rounded-lg font-bold hover:bg-plex-hover transition-colors shadow-md", children: "Copy" })
       ] })
     ] }),
     user && !sessionInfo.session.isAdmin && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-4 md:p-6 shadow-lg", children: [
@@ -3124,9 +3598,44 @@ var UserDashboard = ({ sessionInfo, onLogout, refreshSession, onViewAdmin, onVie
     ] })
   ] });
 };
+var ServiceCustomSelect = ({ value, onChange, options }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const selected = options.find((o) => o.id === value);
+  return /* @__PURE__ */ jsxs("div", { className: "relative flex-1 md:flex-none md:w-64", children: [
+    /* @__PURE__ */ jsxs(
+      "button",
+      {
+        type: "button",
+        className: "w-full bg-black/20 border border-border hover:border-white/20 rounded-lg px-4 py-2.5 text-text outline-none flex items-center justify-between transition-colors",
+        onClick: () => setIsOpen(!isOpen),
+        children: [
+          /* @__PURE__ */ jsx("span", { className: "truncate", children: selected ? selected.name : "-- Choose a service --" }),
+          /* @__PURE__ */ jsx("svg", { className: `w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`, fill: "none", stroke: "currentColor", viewBox: "0 0 24 24", children: /* @__PURE__ */ jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M19 9l-7 7-7-7" }) })
+        ]
+      }
+    ),
+    isOpen && /* @__PURE__ */ jsxs(Fragment, { children: [
+      /* @__PURE__ */ jsx("div", { className: "fixed inset-0 z-40", onClick: () => setIsOpen(false) }),
+      /* @__PURE__ */ jsx("div", { className: "absolute top-full left-0 right-0 mt-2 bg-[#1a1f2e] border border-border rounded-lg shadow-2xl z-50 overflow-hidden max-h-60 overflow-y-auto", children: options.map((option) => /* @__PURE__ */ jsx(
+        "button",
+        {
+          className: `w-full text-left px-4 py-3 text-sm hover:bg-white/10 transition-colors ${value === option.id ? "bg-plex/10 text-plex font-bold" : "text-text"}`,
+          onClick: () => {
+            onChange(option.id);
+            setIsOpen(false);
+          },
+          children: option.name
+        },
+        option.id
+      )) })
+    ] })
+  ] });
+};
 var StatusDashboard = ({ onBack, isAdmin, isPublic }) => {
   const [statusData, setStatusData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [selectedServiceId, setSelectedServiceId] = useState(null);
   const fetchStatus = useCallback(async () => {
     try {
       const data = await apiFetch("/api/status");
@@ -3142,6 +3651,14 @@ var StatusDashboard = ({ onBack, isAdmin, isPublic }) => {
     const interval = setInterval(fetchStatus, 15e3);
     return () => clearInterval(interval);
   }, [fetchStatus]);
+  useEffect(() => {
+    if (statusData && !selectedServiceId) {
+      const services2 = statusData.config?.services || [];
+      if (services2.length > 0) {
+        setSelectedServiceId(services2[0].id);
+      }
+    }
+  }, [statusData, selectedServiceId]);
   if (isLoading || !statusData) {
     return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-4xl mx-auto flex flex-col items-center justify-center", children: [
       /* @__PURE__ */ jsxs("header", { className: "flex items-center gap-4 w-full mb-8 pb-4 border-b border-border", children: [
@@ -3159,43 +3676,178 @@ var StatusDashboard = ({ onBack, isAdmin, isPublic }) => {
       isPublic && /* @__PURE__ */ jsx("button", { onClick: onBack, className: "p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors flex items-center justify-center text-muted hover:text-text", children: /* @__PURE__ */ jsx("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24", children: /* @__PURE__ */ jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M10 19l-7-7m0 0l7-7m-7 7h18" }) }) }),
       /* @__PURE__ */ jsx("h2", { className: "text-2xl font-bold text-text", children: "Server Status" })
     ] }),
+    /* @__PURE__ */ jsx("div", { className: "flex flex-wrap gap-2 mb-8 p-1.5 bg-black/20 rounded-xl border border-border w-fit mx-auto md:mx-0", children: [
+      { id: "overview", label: "Overview" },
+      { id: "history", label: "Detailed History" },
+      { id: "analytics", label: "Analytics" }
+    ].map((tab) => /* @__PURE__ */ jsx(
+      "button",
+      {
+        onClick: () => setActiveTab(tab.id),
+        className: `px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 cursor-pointer border-none outline-none ${activeTab === tab.id ? "bg-plex text-background shadow-md" : "bg-transparent text-muted hover:text-text hover:bg-white/5"}`,
+        children: tab.label
+      },
+      tab.id
+    )) }),
     /* @__PURE__ */ jsxs("main", { className: "user-content", children: [
-      config.announcement && config.announcement.enabled && /* @__PURE__ */ jsx("div", { className: "status-announcement", children: config.announcement.message }),
-      groups.length === 0 && /* @__PURE__ */ jsx("p", { style: { textAlign: "center", marginTop: "2rem" }, children: "No status monitors configured." }),
-      groups.map((group) => {
-        const groupServices = services.filter((s) => s.groupId === group.id);
-        if (groupServices.length === 0) return null;
-        return /* @__PURE__ */ jsxs("div", { className: "mb-8", children: [
-          /* @__PURE__ */ jsx("h3", { className: "text-lg font-bold text-muted uppercase tracking-[2px] mb-6 border-b border-white/10 pb-2", children: group.name }),
-          /* @__PURE__ */ jsx("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6", children: groupServices.map((service) => {
-            const health = healthData[service.id] || { currentStatus: "unknown", uptimePercentage: 100, history: [] };
-            return /* @__PURE__ */ jsxs("div", { className: "bg-card rounded-xl p-4 md:p-6 border border-white/5 shadow-lg flex flex-col gap-4", children: [
-              /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-start mb-2 gap-4", children: [
-                /* @__PURE__ */ jsx("h4", { className: "font-bold text-text text-lg", children: service.name }),
-                /* @__PURE__ */ jsx("span", { className: `px-3 py-1 rounded-full text-[0.65rem] uppercase tracking-wider font-bold border flex items-center gap-1.5 shadow-lg ${health.currentStatus === "online" ? "bg-status-active/10 text-status-active border-status-active/30 shadow-[0_0_10px_rgba(35,134,54,0.3)]" : health.currentStatus === "offline" ? "bg-status-expired/10 text-[#D32F2F] border-[#D32F2F]/30 shadow-[0_0_10px_rgba(211,47,47,0.3)] animate-pulse" : "bg-status-expiring/10 text-status-expiring border-status-expiring/30 shadow-[0_0_10px_rgba(210,153,34,0.3)]"}`, children: health.currentStatus.toUpperCase() })
-              ] }),
-              /* @__PURE__ */ jsx("div", { className: "text-sm text-muted font-medium", children: /* @__PURE__ */ jsxs("span", { children: [
-                "Uptime: ",
-                health.uptimePercentage,
+      activeTab === "overview" && /* @__PURE__ */ jsxs(Fragment, { children: [
+        config.announcement && config.announcement.enabled && /* @__PURE__ */ jsx("div", { className: "status-announcement", children: config.announcement.message }),
+        groups.length === 0 && /* @__PURE__ */ jsx("p", { style: { textAlign: "center", marginTop: "2rem" }, children: "No status monitors configured." }),
+        groups.map((group) => {
+          const groupServices = services.filter((s) => s.groupId === group.id);
+          if (groupServices.length === 0) return null;
+          return /* @__PURE__ */ jsxs("div", { className: "mb-8", children: [
+            /* @__PURE__ */ jsx("h3", { className: "text-lg font-bold text-muted uppercase tracking-[2px] mb-6 border-b border-white/10 pb-2", children: group.name }),
+            /* @__PURE__ */ jsx("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6", children: groupServices.map((service) => {
+              const health = healthData[service.id] || { currentStatus: "unknown", uptimePercentage: 100, dailyHistory: {} };
+              return /* @__PURE__ */ jsxs("div", { className: "bg-card rounded-xl p-4 md:p-6 border border-white/5 shadow-lg flex flex-col gap-4", children: [
+                /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-start mb-2 gap-4", children: [
+                  /* @__PURE__ */ jsx("h4", { className: "font-bold text-text text-lg", children: service.name }),
+                  /* @__PURE__ */ jsx("span", { className: `px-3 py-1 rounded-full text-[0.65rem] uppercase tracking-wider font-bold border flex items-center gap-1.5 shadow-lg ${health.currentStatus === "online" ? "bg-status-active/10 text-status-active border-status-active/30 shadow-[0_0_10px_rgba(35,134,54,0.3)]" : health.currentStatus === "offline" ? "bg-status-expired/10 text-[#D32F2F] border-[#D32F2F]/30 shadow-[0_0_10px_rgba(211,47,47,0.3)] animate-pulse" : "bg-status-expiring/10 text-status-expiring border-status-expiring/30 shadow-[0_0_10px_rgba(210,153,34,0.3)]"}`, children: health.currentStatus.toUpperCase() })
+                ] }),
+                /* @__PURE__ */ jsx("div", { className: "text-sm text-muted font-medium", children: /* @__PURE__ */ jsxs("span", { children: [
+                  "Uptime: ",
+                  health.uptimePercentage,
+                  "%"
+                ] }) }),
+                /* @__PURE__ */ jsx("div", { className: "flex gap-[2px] h-12 mt-auto items-end pt-4 group/bars relative", children: Array.from({ length: 90 }).map((_, i) => {
+                  const d = /* @__PURE__ */ new Date();
+                  d.setDate(d.getDate() - (89 - i));
+                  const dateStr = d.toISOString().split("T")[0];
+                  const stat = health.dailyHistory?.[dateStr];
+                  let barClass = "unknown";
+                  let title = `${dateStr}: No data`;
+                  let hClass = "h-1/5";
+                  if (stat && stat.total > 0) {
+                    const pct = stat.up / stat.total * 100;
+                    title = `${dateStr}: ${pct.toFixed(1)}% uptime`;
+                    if (pct >= 99) {
+                      barClass = "online";
+                      hClass = "h-full";
+                    } else if (pct >= 90) {
+                      barClass = "degraded";
+                      hClass = "h-2/3";
+                    } else {
+                      barClass = "offline";
+                      hClass = "h-1/3";
+                    }
+                  }
+                  return /* @__PURE__ */ jsx(
+                    "div",
+                    {
+                      className: `flex-1 rounded-sm transition-all duration-300 hover:opacity-100 opacity-60 hover:opacity-100 cursor-pointer ${barClass === "online" ? "bg-status-active hover:shadow-[0_0_8px_rgba(35,134,54,0.6)]" : barClass === "offline" ? "bg-status-expired hover:shadow-[0_0_8px_rgba(218,54,51,0.6)]" : barClass === "degraded" ? "bg-status-expiring hover:shadow-[0_0_8px_rgba(210,153,34,0.6)]" : "bg-border"} ${hClass}`,
+                      title
+                    },
+                    i
+                  );
+                }) }),
+                /* @__PURE__ */ jsxs("div", { className: "flex justify-between text-[10px] text-muted font-bold tracking-wider mt-1 opacity-50", children: [
+                  /* @__PURE__ */ jsx("span", { children: "90 DAYS AGO" }),
+                  /* @__PURE__ */ jsxs("span", { className: "text-center flex-1", children: [
+                    health.uptimePercentage,
+                    "%"
+                  ] }),
+                  /* @__PURE__ */ jsx("span", { children: "TODAY" })
+                ] })
+              ] }, service.id);
+            }) })
+          ] }, group.id);
+        })
+      ] }),
+      activeTab === "history" && /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-6 animate-fade-in", children: [
+        /* @__PURE__ */ jsxs("div", { className: "flex flex-col md:flex-row md:items-center gap-4", children: [
+          /* @__PURE__ */ jsx("label", { className: "font-bold text-muted uppercase tracking-widest text-sm", children: "Select Service" }),
+          /* @__PURE__ */ jsx(
+            ServiceCustomSelect,
+            {
+              value: selectedServiceId || "",
+              onChange: setSelectedServiceId,
+              options: services.map((s) => ({ id: s.id, name: s.name }))
+            }
+          )
+        ] }),
+        selectedServiceId && /* @__PURE__ */ jsx("div", { className: "bg-card border border-white/5 shadow-2xl rounded-2xl overflow-hidden mt-4", children: /* @__PURE__ */ jsx("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsxs("table", { className: "w-full text-left border-collapse", children: [
+          /* @__PURE__ */ jsx("thead", { className: "bg-black/40 border-b border-border text-muted text-xs uppercase tracking-wider", children: /* @__PURE__ */ jsxs("tr", { children: [
+            /* @__PURE__ */ jsx("th", { className: "px-6 py-4 font-bold whitespace-nowrap", children: "Date" }),
+            /* @__PURE__ */ jsx("th", { className: "px-6 py-4 font-bold whitespace-nowrap", children: "Uptime %" }),
+            /* @__PURE__ */ jsx("th", { className: "px-6 py-4 font-bold whitespace-nowrap", children: "Checks (Up / Total)" }),
+            /* @__PURE__ */ jsx("th", { className: "px-6 py-4 font-bold text-right whitespace-nowrap", children: "Status" })
+          ] }) }),
+          /* @__PURE__ */ jsx("tbody", { className: "divide-y divide-border/50", children: Object.entries(healthData[selectedServiceId]?.dailyHistory || {}).sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime()).map(([dateStr, stat]) => {
+            const pct = stat.total > 0 ? stat.up / stat.total * 100 : 0;
+            return /* @__PURE__ */ jsxs("tr", { className: "hover:bg-white/5 transition-colors", children: [
+              /* @__PURE__ */ jsx("td", { className: "px-6 py-4 font-medium whitespace-nowrap text-text", children: dateStr }),
+              /* @__PURE__ */ jsxs("td", { className: "px-6 py-4 font-mono whitespace-nowrap text-muted", children: [
+                pct.toFixed(2),
                 "%"
-              ] }) }),
-              /* @__PURE__ */ jsx("div", { className: "flex gap-[2px] h-10 mt-auto items-end pt-4", children: Array.from({ length: 40 }).map((_, i) => {
-                const histIndex = health.history.length - 40 + i;
-                const hist = histIndex >= 0 ? health.history[histIndex] : null;
-                const barClass = hist ? hist.status : "unknown";
-                return /* @__PURE__ */ jsx(
-                  "div",
-                  {
-                    className: `flex-1 rounded-sm transition-all duration-300 hover:opacity-100 opacity-80 cursor-pointer ${barClass === "online" ? "bg-status-active h-full shadow-[0_0_8px_rgba(35,134,54,0.6)]" : barClass === "offline" ? "bg-status-expired h-1/4 shadow-[0_0_8px_rgba(218,54,51,0.6)] animate-pulse" : barClass === "degraded" ? "bg-status-expiring h-2/3 shadow-[0_0_8px_rgba(210,153,34,0.6)]" : "bg-border h-1/5"}`,
-                    title: hist ? `${hist.status.toUpperCase()} - ${hist.latency}ms` : "No data"
-                  },
-                  i
-                );
-              }) })
-            ] }, service.id);
+              ] }),
+              /* @__PURE__ */ jsxs("td", { className: "px-6 py-4 text-muted text-sm whitespace-nowrap", children: [
+                stat.up,
+                " / ",
+                stat.total,
+                " checks"
+              ] }),
+              /* @__PURE__ */ jsx("td", { className: "px-6 py-4 text-right whitespace-nowrap", children: /* @__PURE__ */ jsx("span", { className: `px-2.5 py-1 rounded-full text-[10px] uppercase font-bold tracking-widest border ${pct >= 99 ? "bg-status-active/10 text-status-active border-status-active/30" : pct >= 90 ? "bg-status-expiring/10 text-status-expiring border-status-expiring/30" : "bg-status-expired/10 text-status-expired border-status-expired/30"}`, children: pct >= 99 ? "Healthy" : pct >= 90 ? "Degraded" : "Outage" }) })
+            ] }, dateStr);
           }) })
-        ] }, group.id);
-      })
+        ] }) }) })
+      ] }),
+      activeTab === "analytics" && /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-6 animate-fade-in", children: [
+        /* @__PURE__ */ jsxs("div", { className: "flex flex-col md:flex-row md:items-center gap-4", children: [
+          /* @__PURE__ */ jsx("label", { className: "font-bold text-muted uppercase tracking-widest text-sm", children: "Select Service" }),
+          /* @__PURE__ */ jsx(
+            ServiceCustomSelect,
+            {
+              value: selectedServiceId || "",
+              onChange: setSelectedServiceId,
+              options: services.map((s) => ({ id: s.id, name: s.name }))
+            }
+          )
+        ] }),
+        selectedServiceId && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-white/5 shadow-2xl rounded-2xl p-6 md:p-10 mt-4", children: [
+          /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold mb-10 text-center text-muted tracking-widest uppercase", children: "90-Day Uptime Trend" }),
+          /* @__PURE__ */ jsxs("div", { className: "relative h-64 md:h-80 flex items-end gap-1 w-full pl-12 pr-4 md:pr-8", children: [
+            /* @__PURE__ */ jsxs("div", { className: "absolute inset-0 pl-12 pr-4 md:pr-8 flex flex-col justify-between pointer-events-none pb-8", children: [
+              /* @__PURE__ */ jsx("div", { className: "w-full border-t border-white/5 h-0 relative", children: /* @__PURE__ */ jsx("span", { className: "absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right", children: "100%" }) }),
+              /* @__PURE__ */ jsx("div", { className: "w-full border-t border-white/5 h-0 relative", children: /* @__PURE__ */ jsx("span", { className: "absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right", children: "75%" }) }),
+              /* @__PURE__ */ jsx("div", { className: "w-full border-t border-white/5 h-0 relative", children: /* @__PURE__ */ jsx("span", { className: "absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right", children: "50%" }) }),
+              /* @__PURE__ */ jsx("div", { className: "w-full border-t border-white/5 h-0 relative", children: /* @__PURE__ */ jsx("span", { className: "absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right", children: "25%" }) }),
+              /* @__PURE__ */ jsx("div", { className: "w-full border-t border-white/20 h-0 relative", children: /* @__PURE__ */ jsx("span", { className: "absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right", children: "0%" }) })
+            ] }),
+            /* @__PURE__ */ jsx("div", { className: "w-full h-full flex items-end gap-[2px] pb-8 z-10", children: Array.from({ length: 90 }).map((_, i) => {
+              const d = /* @__PURE__ */ new Date();
+              d.setDate(d.getDate() - (89 - i));
+              const dateStr = d.toISOString().split("T")[0];
+              const stat = healthData[selectedServiceId]?.dailyHistory?.[dateStr];
+              const pct = stat && stat.total > 0 ? stat.up / stat.total * 100 : 0;
+              return /* @__PURE__ */ jsxs(
+                "div",
+                {
+                  className: "flex-1 flex flex-col justify-end h-full relative group/chart cursor-crosshair",
+                  children: [
+                    /* @__PURE__ */ jsx(
+                      "div",
+                      {
+                        className: `w-full rounded-t-sm transition-all duration-300 opacity-80 group-hover/chart:opacity-100 ${pct >= 99 ? "bg-status-active" : pct >= 90 ? "bg-status-expiring" : stat && stat.total > 0 ? "bg-status-expired" : "bg-white/10"}`,
+                        style: { height: `${Math.max(1, pct)}%` }
+                      }
+                    ),
+                    /* @__PURE__ */ jsxs("div", { className: "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-3 bg-card border border-border shadow-2xl text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/chart:opacity-100 pointer-events-none transition-opacity z-50 flex flex-col items-center", children: [
+                      /* @__PURE__ */ jsx("strong", { className: "text-plex mb-1 tracking-wider uppercase text-[10px]", children: dateStr }),
+                      /* @__PURE__ */ jsx("span", { className: "text-lg font-mono font-bold", children: stat && stat.total > 0 ? `${pct.toFixed(2)}%` : "No data" })
+                    ] })
+                  ]
+                },
+                i
+              );
+            }) })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "flex justify-between text-[10px] text-muted font-bold tracking-widest mt-2 px-12 uppercase", children: [
+            /* @__PURE__ */ jsx("span", { children: "90 days ago" }),
+            /* @__PURE__ */ jsx("span", { children: "Today" })
+          ] })
+        ] })
+      ] })
     ] })
   ] });
 };
@@ -3433,10 +4085,21 @@ var LibraryDashboard = ({ onBack }) => {
     selectedSession && /* @__PURE__ */ jsx(StreamDetailsModal, { session: selectedSession, onClose: () => setSelectedSession(null) })
   ] });
 };
-var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, requestUrl }) => {
+var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, requestUrl, navOrder }) => {
   useEffect(() => {
     updateFavicon(adminThumb);
   }, [adminThumb]);
+  const navItemsConfig = {
+    "home": { label: "Home", icon: House, route: isAdmin ? "admin" : "user", adminOnly: false },
+    "discover": { label: "Discover", icon: Film, route: "dashboard", adminOnly: false },
+    "status": { label: "Status", icon: Activity, route: "status", adminOnly: false },
+    "logs": { label: "Logs", icon: FileText, route: "logs", adminOnly: true },
+    "analytics": { label: "Analytics", icon: ChartColumn, route: "analytics", adminOnly: false },
+    "mediastack": { label: "Media Stack", icon: Layers, route: "mediastack", adminOnly: false },
+    "request": { label: "Request Content", icon: Sparkles, route: "", adminOnly: false, href: requestUrl },
+    "settings": { label: "Settings", icon: Settings, route: "settings", adminOnly: true },
+    "logout": { label: "Logout", icon: LogOut, route: "", adminOnly: false, onClick: onLogout }
+  };
   return /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsxs("div", { className: "md:hidden fixed top-0 left-0 right-0 h-16 bg-[#161b22] border-b border-[#30363d] z-50 flex items-center justify-between px-4 shadow-md", children: [
       /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-3", children: [
@@ -3489,138 +4152,170 @@ var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adm
           }
         ) }) }) })
       ] }),
-      /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-2", children: [
-        /* @__PURE__ */ jsxs("a", { href: "#", className: `flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${["admin", "user"].includes(currentRoute) ? "border-l-4 border-plex rounded-l-none bg-white/5 text-text" : ""}`, onClick: (e) => {
+      /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-2", children: navOrder.map((key) => {
+        const item = navItemsConfig[key];
+        if (!item) return null;
+        if (item.adminOnly && !isAdmin) return null;
+        const isCurrent = item.route ? ["admin", "user"].includes(currentRoute) && key === "home" ? true : currentRoute === item.route : false;
+        if (item.href) {
+          return /* @__PURE__ */ jsxs("a", { href: item.href, target: "_blank", rel: "noreferrer", className: "flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text", children: [
+            /* @__PURE__ */ jsx(item.icon, { className: "w-5 h-5 flex-shrink-0" }),
+            " ",
+            item.label
+          ] }, key);
+        }
+        return /* @__PURE__ */ jsxs("a", { href: "#", className: `flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${isCurrent ? "border-l-4 border-plex rounded-l-none bg-white/5 text-text" : ""}`, onClick: (e) => {
           e.preventDefault();
-          onNavigate(isAdmin ? "admin" : "user");
+          if (item.onClick) item.onClick(e);
+          else onNavigate(item.route);
         }, children: [
-          /* @__PURE__ */ jsx(House, { className: "w-5 h-5 flex-shrink-0" }),
-          " Home"
-        ] }),
-        /* @__PURE__ */ jsxs("a", { href: "#", className: `flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === "dashboard" ? "border-l-4 border-plex rounded-l-none bg-white/5 text-text" : ""}`, onClick: (e) => {
-          e.preventDefault();
-          onNavigate("dashboard");
-        }, children: [
-          /* @__PURE__ */ jsx(Film, { className: "w-5 h-5 flex-shrink-0" }),
-          " Discover"
-        ] }),
-        /* @__PURE__ */ jsxs("a", { href: "#", className: `flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === "status" ? "border-l-4 border-plex rounded-l-none bg-white/5 text-text" : ""}`, onClick: (e) => {
-          e.preventDefault();
-          onNavigate("status");
-        }, children: [
-          /* @__PURE__ */ jsx(Activity, { className: "w-5 h-5 flex-shrink-0" }),
-          " Status"
-        ] }),
-        isAdmin && /* @__PURE__ */ jsxs("a", { href: "#", className: `flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === "settings" ? "border-l-4 border-plex rounded-l-none bg-white/5 text-text" : ""}`, onClick: (e) => {
-          e.preventDefault();
-          onNavigate("settings");
-        }, children: [
-          /* @__PURE__ */ jsx(Settings, { className: "w-5 h-5 flex-shrink-0" }),
-          " Settings"
-        ] }),
-        isAdmin && /* @__PURE__ */ jsxs("a", { href: "#", className: `flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === "logs" ? "border-l-4 border-plex rounded-l-none bg-white/5 text-text" : ""}`, onClick: (e) => {
-          e.preventDefault();
-          onNavigate("logs");
-        }, children: [
-          /* @__PURE__ */ jsx(FileText, { className: "w-5 h-5 flex-shrink-0" }),
-          " Logs"
-        ] }),
-        /* @__PURE__ */ jsxs("a", { href: "#", className: `flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === "analytics" ? "border-l-4 border-plex rounded-l-none bg-white/5 text-text" : ""}`, onClick: (e) => {
-          e.preventDefault();
-          onNavigate("analytics");
-        }, children: [
-          /* @__PURE__ */ jsx(ChartColumn, { className: "w-5 h-5 flex-shrink-0" }),
-          " Analytics"
-        ] }),
-        /* @__PURE__ */ jsxs("a", { href: "#", className: `flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === "mediastack" ? "border-l-4 border-plex rounded-l-none bg-white/5 text-text" : ""}`, onClick: (e) => {
-          e.preventDefault();
-          onNavigate("mediastack");
-        }, children: [
-          /* @__PURE__ */ jsx(Layers, { className: "w-5 h-5 flex-shrink-0" }),
-          " Media Stack"
-        ] }),
-        /* @__PURE__ */ jsxs("a", { href: requestUrl, target: "_blank", rel: "noreferrer", className: "flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text", children: [
-          /* @__PURE__ */ jsx(Sparkles, { className: "w-5 h-5 flex-shrink-0" }),
-          " Request Content"
-        ] }),
-        /* @__PURE__ */ jsxs("a", { href: "#", className: "flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text", onClick: (e) => {
-          e.preventDefault();
-          onLogout();
-        }, children: [
-          /* @__PURE__ */ jsx(LogOut, { className: "w-5 h-5 flex-shrink-0" }),
-          " Logout"
-        ] })
-      ] })
+          /* @__PURE__ */ jsx(item.icon, { className: "w-5 h-5 flex-shrink-0" }),
+          " ",
+          item.label
+        ] }, key);
+      }) })
     ] }),
-    /* @__PURE__ */ jsx("div", { className: "md:hidden fixed bottom-0 left-0 right-0 w-full bg-[#161b22] border-t border-[#30363d] z-50 pb-[env(safe-area-inset-bottom)]", children: /* @__PURE__ */ jsxs("div", { className: "flex justify-around items-center h-16", children: [
-      /* @__PURE__ */ jsxs("a", { href: "#", className: `relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${["admin", "user"].includes(currentRoute) ? "text-plex font-bold" : "text-muted hover:text-text"}`, onClick: (e) => {
+    /* @__PURE__ */ jsx("div", { className: "md:hidden fixed bottom-0 left-0 right-0 w-full bg-[#161b22] border-t border-[#30363d] z-50 pb-[env(safe-area-inset-bottom)]", children: /* @__PURE__ */ jsx("div", { className: "flex justify-around items-center h-16", children: navOrder.map((key) => {
+      const item = navItemsConfig[key];
+      if (!item) return null;
+      if (item.adminOnly && !isAdmin) return null;
+      const isCurrent = item.route ? ["admin", "user"].includes(currentRoute) && key === "home" ? true : currentRoute === item.route : false;
+      const labelOverride = key === "mediastack" ? "Media" : key === "request" ? "Request" : item.label;
+      if (item.href) {
+        return /* @__PURE__ */ jsxs("a", { href: item.href, target: "_blank", rel: "noreferrer", className: "relative flex flex-col items-center justify-center gap-1 h-full text-muted flex-1 text-center text-[0.65rem] transition-colors hover:text-text", children: [
+          /* @__PURE__ */ jsx(item.icon, { className: "w-5 h-5 flex-shrink-0" }),
+          " ",
+          labelOverride
+        ] }, key);
+      }
+      return /* @__PURE__ */ jsxs("a", { href: "#", className: `relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${isCurrent ? "text-plex font-bold" : "text-muted hover:text-text"}`, onClick: (e) => {
         e.preventDefault();
-        onNavigate(isAdmin ? "admin" : "user");
+        if (item.onClick) item.onClick(e);
+        else onNavigate(item.route);
       }, children: [
-        /* @__PURE__ */ jsx(House, { className: "w-5 h-5 flex-shrink-0" }),
-        " Home",
-        ["admin", "user"].includes(currentRoute) && /* @__PURE__ */ jsx("div", { className: "absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" })
+        /* @__PURE__ */ jsx(item.icon, { className: "w-5 h-5 flex-shrink-0" }),
+        " ",
+        labelOverride,
+        isCurrent && /* @__PURE__ */ jsx("div", { className: "absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" })
+      ] }, key);
+    }) }) })
+  ] });
+};
+var PublicInviteClaim = ({ code }) => {
+  const [info, setInfo] = useState(null);
+  const [error, setError] = useState(null);
+  const [claimed, setClaimed] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
+  useEffect(() => {
+    apiFetch(`/api/invites/${code}/info`).then(setInfo).catch((e) => setError(e.message || "Invalid invite link"));
+  }, [code]);
+  const handleClaim = useCallback(async (token) => {
+    setIsClaiming(true);
+    try {
+      await apiFetch(`/api/invites/${code}/claim`, {
+        method: "POST",
+        body: JSON.stringify({ pinId: token })
+      });
+      setClaimed(true);
+    } catch (e) {
+      setError(e.message || "Failed to claim invite");
+    } finally {
+      setIsClaiming(false);
+    }
+  }, [code]);
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.startsWith("#auth/")) {
+      const token = hash.split("/")[1];
+      if (token) {
+        window.location.hash = "";
+        handleClaim(token);
+      }
+    }
+  }, [handleClaim]);
+  const handlePlexLogin = async () => {
+    setIsClaiming(true);
+    setError(null);
+    try {
+      const data = await apiFetch("/api/auth/plex/login", { method: "POST" });
+      const forwardUrl = window.location.origin + "/invite/" + code + "#auth/" + data.id;
+      const authUrl = `https://app.plex.tv/auth#?clientID=${data.clientIdentifier}&code=${data.code}&context[device][product]=Plex%20Expiry%20Manager&forwardUrl=${encodeURIComponent(forwardUrl)}`;
+      window.location.href = authUrl;
+    } catch (error2) {
+      setError("Failed to initiate Plex login");
+      setIsClaiming(false);
+    }
+  };
+  if (error) return /* @__PURE__ */ jsx("div", { className: "flex flex-col items-center justify-center min-h-[50vh] text-center max-w-md w-full animate-fade-in mx-auto px-4 mt-20", children: /* @__PURE__ */ jsxs("div", { className: "bg-red-500/10 border border-red-500/30 p-8 rounded-2xl w-full", children: [
+    /* @__PURE__ */ jsx("h2", { className: "text-2xl font-bold text-red-500 mb-4", children: "Invite Error" }),
+    /* @__PURE__ */ jsx("p", { className: "text-text", children: error }),
+    /* @__PURE__ */ jsx("a", { href: "/", className: "mt-6 inline-block text-plex hover:underline font-bold", children: "Return to Home" })
+  ] }) });
+  if (claimed) return /* @__PURE__ */ jsx("div", { className: "flex flex-col items-center justify-center min-h-[50vh] text-center max-w-md w-full animate-fade-in mx-auto px-4 mt-20", children: /* @__PURE__ */ jsxs("div", { className: "bg-green-500/10 border border-green-500/30 p-8 rounded-2xl w-full", children: [
+    /* @__PURE__ */ jsx("h2", { className: "text-3xl font-bold text-green-500 mb-4", children: "Success!" }),
+    /* @__PURE__ */ jsxs("p", { className: "text-text mb-6", children: [
+      "You have successfully claimed your invite to ",
+      /* @__PURE__ */ jsx("strong", { className: "text-plex", children: info?.serverName }),
+      ". Check your email or open Plex to accept the shared server invite!"
+    ] }),
+    /* @__PURE__ */ jsx("a", { href: "/", className: "inline-block px-6 py-3 bg-plex text-background font-bold rounded-lg hover:bg-plex-hover transition-colors shadow-lg", children: "Go to Dashboard" })
+  ] }) });
+  if (!info) return /* @__PURE__ */ jsx(Loader, { isLoading: true });
+  return /* @__PURE__ */ jsxs("div", { className: "flex flex-col items-center justify-center min-h-[60vh] text-center max-w-lg w-full animate-fade-in mx-auto px-4 mt-20", children: [
+    /* @__PURE__ */ jsxs("div", { className: "relative mb-8", children: [
+      /* @__PURE__ */ jsx("div", { className: "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-plex rounded-full blur-[50px] opacity-20 pointer-events-none" }),
+      info.customLogoUrl || info.thumb ? /* @__PURE__ */ jsx("img", { src: info.customLogoUrl || info.thumb, alt: "Server Logo", className: "w-32 h-32 object-cover rounded-full border-2 border-plex drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10", onError: (e) => {
+        e.currentTarget.src = "/static/logo.png";
+        e.currentTarget.className = "w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10";
+      } }) : /* @__PURE__ */ jsx("img", { src: "/static/logo.png", alt: "Server Logo", className: "w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10", onError: (e) => e.currentTarget.style.display = "none" })
+    ] }),
+    /* @__PURE__ */ jsx("h1", { className: "text-4xl md:text-5xl font-bold text-text mb-4", children: "You've been invited!" }),
+    /* @__PURE__ */ jsxs("p", { className: "text-xl text-muted mb-8 leading-relaxed", children: [
+      "You have been invited to join ",
+      /* @__PURE__ */ jsx("strong", { className: "text-plex", children: info.serverName }),
+      " for a period of ",
+      /* @__PURE__ */ jsxs("strong", { className: "text-plex", children: [
+        info.durationDays,
+        " days"
       ] }),
-      /* @__PURE__ */ jsxs("a", { href: "#", className: `relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === "dashboard" ? "text-plex font-bold" : "text-muted hover:text-text"}`, onClick: (e) => {
-        e.preventDefault();
-        onNavigate("dashboard");
-      }, children: [
-        /* @__PURE__ */ jsx(Film, { className: "w-5 h-5 flex-shrink-0" }),
-        " Discover",
-        currentRoute === "dashboard" && /* @__PURE__ */ jsx("div", { className: "absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" })
-      ] }),
-      /* @__PURE__ */ jsxs("a", { href: "#", className: `relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === "status" ? "text-plex font-bold" : "text-muted hover:text-text"}`, onClick: (e) => {
-        e.preventDefault();
-        onNavigate("status");
-      }, children: [
-        /* @__PURE__ */ jsx(Activity, { className: "w-5 h-5 flex-shrink-0" }),
-        " Status",
-        currentRoute === "status" && /* @__PURE__ */ jsx("div", { className: "absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" })
-      ] }),
-      /* @__PURE__ */ jsxs("a", { href: "#", className: `relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === "analytics" ? "text-plex font-bold" : "text-muted hover:text-text"}`, onClick: (e) => {
-        e.preventDefault();
-        onNavigate("analytics");
-      }, children: [
-        /* @__PURE__ */ jsx(ChartColumn, { className: "w-5 h-5 flex-shrink-0" }),
-        " Analytics",
-        currentRoute === "analytics" && /* @__PURE__ */ jsx("div", { className: "absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" })
-      ] }),
-      /* @__PURE__ */ jsxs("a", { href: "#", className: `relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === "mediastack" ? "text-plex font-bold" : "text-muted hover:text-text"}`, onClick: (e) => {
-        e.preventDefault();
-        onNavigate("mediastack");
-      }, children: [
-        /* @__PURE__ */ jsx(Layers, { className: "w-5 h-5 flex-shrink-0" }),
-        " Media",
-        currentRoute === "mediastack" && /* @__PURE__ */ jsx("div", { className: "absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" })
-      ] }),
-      isAdmin && /* @__PURE__ */ jsxs("a", { href: "#", className: `relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === "settings" ? "text-plex font-bold" : "text-muted hover:text-text"}`, onClick: (e) => {
-        e.preventDefault();
-        onNavigate("settings");
-      }, children: [
-        /* @__PURE__ */ jsx(Settings, { className: "w-5 h-5 flex-shrink-0" }),
-        " Settings",
-        currentRoute === "settings" && /* @__PURE__ */ jsx("div", { className: "absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" })
-      ] }),
-      /* @__PURE__ */ jsxs("a", { href: requestUrl, target: "_blank", rel: "noreferrer", className: "relative flex flex-col items-center justify-center gap-1 h-full text-muted flex-1 text-center text-[0.65rem] transition-colors hover:text-text", children: [
-        /* @__PURE__ */ jsx(Sparkles, { className: "w-5 h-5 flex-shrink-0" }),
-        " Request"
-      ] }),
-      /* @__PURE__ */ jsxs("a", { href: "#", className: "relative flex flex-col items-center justify-center gap-1 h-full text-muted flex-1 text-center text-[0.65rem] transition-colors hover:text-text", onClick: (e) => {
-        e.preventDefault();
-        onLogout();
-      }, children: [
-        /* @__PURE__ */ jsx(LogOut, { className: "w-5 h-5 flex-shrink-0" }),
-        " Logout"
-      ] })
-    ] }) })
+      "."
+    ] }),
+    /* @__PURE__ */ jsx("div", { className: "w-full mb-8", children: /* @__PURE__ */ jsx(LivePlexStats, {}) }),
+    /* @__PURE__ */ jsx(
+      "button",
+      {
+        onClick: handlePlexLogin,
+        disabled: isClaiming,
+        className: "w-full max-w-sm px-6 py-4 bg-plex text-background text-lg font-bold rounded-xl hover:bg-plex-hover transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-plex/20 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed",
+        children: isClaiming ? "Claiming..." : "Sign in with Plex to Claim"
+      }
+    ),
+    /* @__PURE__ */ jsx("p", { className: "mt-6 text-sm text-muted", children: "You will be redirected to Plex.tv to securely authenticate your account." })
   ] });
 };
 var MainApp = () => {
   const [currentRoute, setCurrentRoute] = useState("loading");
   const [sessionInfo, setSessionInfo] = useState(null);
+  const [publicConfig, setPublicConfig] = useState({});
+  const fetchPublicConfig = useCallback(async () => {
+    try {
+      const data = await apiFetch("/api/config/public");
+      setPublicConfig(data);
+      if (data.primaryColor) {
+        document.documentElement.style.setProperty("--color-plex", data.primaryColor);
+      }
+      if (data.customLogoUrl) {
+        updateFavicon(data.customLogoUrl);
+      }
+    } catch (e) {
+    }
+  }, []);
+  useEffect(() => {
+    fetchPublicConfig();
+  }, [fetchPublicConfig]);
   const setRoute = useCallback((route) => {
     setCurrentRoute(route);
-    if (route !== "loading") {
+    if (route !== "loading" && route !== "invite") {
       let path = "/";
       if (route === "admin") path = "/admin";
       if (route === "user") path = "/portal";
@@ -3635,6 +4330,10 @@ var MainApp = () => {
   }, []);
   const checkSession = useCallback(async () => {
     const path = window.location.pathname;
+    if (path.startsWith("/invite/")) {
+      setCurrentRoute("invite");
+      return;
+    }
     try {
       const data = await apiFetch("/api/users/me");
       setSessionInfo(data);
@@ -3660,22 +4359,24 @@ var MainApp = () => {
     }
   }, []);
   useEffect(() => {
-    if (!window.location.hash.startsWith("#auth/")) {
-      checkSession();
-    } else {
-      setRoute("login");
-    }
-  }, [checkSession, setRoute]);
+    checkSession();
+  }, [checkSession]);
   const handleLogout = async () => {
     await apiFetch("/api/auth/logout", { method: "POST" });
     setSessionInfo(null);
     setRoute("login");
   };
   if (currentRoute === "loading") return /* @__PURE__ */ jsx(Loader, { isLoading: true });
-  if (currentRoute === "login") return /* @__PURE__ */ jsx(Login, { onLoginSuccess: checkSession });
+  if (currentRoute === "login") return /* @__PURE__ */ jsx(Login, { onLoginSuccess: checkSession, publicConfig });
   const isAdmin = !!sessionInfo?.session?.isAdmin;
   const isPublicStatus = currentRoute === "status" && !sessionInfo;
+  const isPublicInvite = currentRoute === "invite";
+  const isPublicView = isPublicStatus || isPublicInvite;
   const renderView = () => {
+    if (currentRoute === "invite") {
+      const code = window.location.pathname.split("/")[2];
+      return /* @__PURE__ */ jsx(PublicInviteClaim, { code });
+    }
     if (currentRoute === "status") return /* @__PURE__ */ jsx(StatusDashboard, { onBack: () => isPublicStatus ? setRoute("login") : setRoute(isAdmin ? "admin" : "user"), isAdmin, isPublic: isPublicStatus });
     if (currentRoute === "dashboard") return /* @__PURE__ */ jsx(LibraryDashboard, { onBack: () => setRoute(isAdmin ? "admin" : "user") });
     if (currentRoute === "settings" && isAdmin) return /* @__PURE__ */ jsx(SettingsDashboard, {});
@@ -3683,11 +4384,11 @@ var MainApp = () => {
     if (currentRoute === "mediastack") return /* @__PURE__ */ jsx(MediaStackDashboard, { isAdmin });
     if (currentRoute === "analytics") return /* @__PURE__ */ jsx(AnalyticsDashboard, { isAdmin, sessionInfo });
     if (currentRoute === "admin") return /* @__PURE__ */ jsx(AdminDashboard, { onLogout: handleLogout, onViewUserPortal: () => setRoute("user"), onViewStatus: () => setRoute("status"), onViewDashboard: () => setRoute("dashboard") });
-    return /* @__PURE__ */ jsx(UserDashboard, { sessionInfo, onLogout: handleLogout, refreshSession: checkSession, onViewAdmin: () => setRoute("admin"), onViewStatus: () => setRoute("status"), onViewDashboard: () => setRoute("dashboard") });
+    return /* @__PURE__ */ jsx(UserDashboard, { sessionInfo, publicConfig, onLogout: handleLogout, refreshSession: checkSession, onViewAdmin: () => setRoute("admin"), onViewStatus: () => setRoute("status"), onViewDashboard: () => setRoute("dashboard") });
   };
   return /* @__PURE__ */ jsxs("div", { className: "flex w-full min-h-screen bg-background", children: [
-    !isPublicStatus && /* @__PURE__ */ jsx(Navigation, { currentRoute, onNavigate: setRoute, onLogout: handleLogout, isAdmin, serverName: sessionInfo?.serverName || "Plex Server", adminThumb: sessionInfo?.adminThumb, requestUrl: sessionInfo?.requestUrl || "https://plexified.co.uk" }),
-    /* @__PURE__ */ jsx("div", { className: `flex-grow flex flex-col items-center p-4 md:p-8 pt-20 pb-[80px] md:pt-8 md:pb-8 w-full overflow-x-hidden ${isPublicStatus ? "!pt-8 !pb-8" : ""}`, children: renderView() })
+    !isPublicView && /* @__PURE__ */ jsx(Navigation, { currentRoute, onNavigate: setRoute, onLogout: handleLogout, isAdmin, serverName: sessionInfo?.serverName || "Plex Server", adminThumb: sessionInfo?.adminThumb, requestUrl: sessionInfo?.requestUrl || "https://plexified.co.uk", navOrder: sessionInfo?.navOrder || ["home", "discover", "status", "logs", "analytics", "mediastack", "request", "settings", "logout"] }),
+    /* @__PURE__ */ jsx("div", { className: `flex-grow flex flex-col items-center p-4 md:p-8 pt-20 pb-[80px] md:pt-8 md:pb-8 w-full overflow-x-hidden ${isPublicView ? "!pt-8 !pb-8" : ""}`, children: renderView() })
   ] });
 };
 var container = document.getElementById("root");
@@ -3791,6 +4492,22 @@ lucide-react/dist/esm/icons/chart-column.mjs:
    * See the LICENSE file in the root directory of this source tree.
    *)
 
+lucide-react/dist/esm/icons/chevron-down.mjs:
+  (**
+   * @license lucide-react v1.21.0 - ISC
+   *
+   * This source code is licensed under the ISC license.
+   * See the LICENSE file in the root directory of this source tree.
+   *)
+
+lucide-react/dist/esm/icons/chevron-up.mjs:
+  (**
+   * @license lucide-react v1.21.0 - ISC
+   *
+   * This source code is licensed under the ISC license.
+   * See the LICENSE file in the root directory of this source tree.
+   *)
+
 lucide-react/dist/esm/icons/clock.mjs:
   (**
    * @license lucide-react v1.21.0 - ISC
@@ -3800,6 +4517,14 @@ lucide-react/dist/esm/icons/clock.mjs:
    *)
 
 lucide-react/dist/esm/icons/cloud-download.mjs:
+  (**
+   * @license lucide-react v1.21.0 - ISC
+   *
+   * This source code is licensed under the ISC license.
+   * See the LICENSE file in the root directory of this source tree.
+   *)
+
+lucide-react/dist/esm/icons/copy.mjs:
   (**
    * @license lucide-react v1.21.0 - ISC
    *

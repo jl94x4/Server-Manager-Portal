@@ -1,8 +1,8 @@
-# Plex Manager
+# Server Manager Portal
 
 A powerful, fully-automated user management and dashboard application for Plex Media Servers. Built with Node.js, Express, React, and Tailwind CSS.
 
-Plex Manager serves as a beautiful, public-facing portal for your Plex server, handling everything from user onboarding and free trials to automated access revocation, weekly newsletters, and live session monitoring.
+Server Manager Portal serves as a beautiful, public-facing portal for your Plex server, handling everything from user onboarding and free trials to automated access revocation, weekly newsletters, and live session monitoring.
 
 ## Key Features
 
