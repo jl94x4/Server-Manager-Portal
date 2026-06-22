@@ -16,6 +16,7 @@ Plex Manager serves as a beautiful, public-facing portal for your Plex server, h
 ### Admin Dashboard
 - **Live Active Sessions**: Monitor current streams in real-time. Click on any stream to open a detailed technical modal showing Video/Audio Codecs, Channels, Bitrate, and Transcode reasons.
 - **User Management Table**: Easily extend user access (+1 Month, +1 Year, Unlimited), track their last login, and view their current access status.
+- **Customizable Status Monitor**: Define and group various services (core infrastructure, indexers, downloaders) to display their live status to users on a dedicated public page. Directly manage endpoints from the settings UI.
 - **Audit Logs**: Keep track of every action taken by the system (user added, access revoked, expiry extended).
 - **Settings UI**: Configure everything directly from the web interface without touching config files.
 
@@ -89,7 +90,11 @@ Plex Manager serves as a beautiful, public-facing portal for your Plex server, h
 ## Security
 
 - **Strict Access Control**: Admin routes are protected and verified against Plex Server ownership.
-- **Reverse Proxy Ready**: Fully supports running behind Nginx, Caddy, or Cloudflare with dynamic secure cookie handling via `X-Forwarded-Proto`.
+- **Reverse Proxy Ready**: Fully supports running behind Nginx, Caddy, or Cloudflare with dynamic secure cookie handling via `X-Forwarded-Proto` and `X-Forwarded-For`.
+- **Brute Force & DoS Protection**: Authentication endpoints feature strict rate limiting, and global payload limits prevent resource exhaustion attacks.
+- **Session Security**: JWT session cookies are secured with `httpOnly`, `secure`, and `sameSite: strict` flags to prevent XSS and CSRF attacks.
+- **Injection Proof**: Uses a flat-file JSON database system, making SQL injection attacks structurally impossible.
+- **HTTP Security Headers**: Enforces strict security headers globally (HSTS, Content-Type-Options, Frame-Options, XSS-Protection).
 - **No Passwords**: Authentication is handled entirely by Plex.tv. The app only stores email addresses, usernames, and Plex Account IDs.
 
 ---
