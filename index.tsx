@@ -3774,30 +3774,33 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
             {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
 
             {/* Massive Hero Banner */}
-            <div className="relative w-full rounded-2xl overflow-hidden shadow-2xl bg-card border border-border mt-4">
-                {/* Blurred Background */}
-                <div className="absolute inset-0 bg-background overflow-hidden">
-                    {dashboardData?.recentMovies?.length > 0 ? (
-                        <div className="absolute -inset-[50%] opacity-20 transform -rotate-12 scale-110 flex gap-4 overflow-hidden pointer-events-none justify-center">
-                             {[...Array(6)].map((_, colIdx) => (
-                                 <div key={colIdx} className={`flex flex-col gap-4 ${colIdx % 2 === 0 ? 'animate-[scrollVertical_40s_linear_infinite]' : 'animate-[scrollVertical_50s_linear_infinite_reverse]'}`}>
-                                     {[...dashboardData.recentMovies, ...dashboardData.recentMovies].sort(() => 0.5 - Math.random()).map((m: any, i: number) => m.thumb && (
-                                         <img key={`c${colIdx}-${i}`} src={`/api/plex/image?path=${encodeURIComponent(m.thumb)}&width=200&height=300`} className="w-32 md:w-48 rounded-xl object-cover" alt="" />
-                                     ))}
-                                 </div>
-                             ))}
-                        </div>
-                    ) : heroBg && (
-                        <div 
-                            className="absolute inset-0 bg-cover bg-center opacity-30 blur-2xl scale-110"
-                            style={{ backgroundImage: `url(${heroBg})` }}
-                        />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-card via-card/40 to-transparent" />
+            <div className="relative w-full mt-4">
+                {/* Animated Banner Header */}
+                <div className="relative w-full h-48 md:h-64 rounded-2xl overflow-hidden shadow-2xl bg-card border border-border">
+                    <div className="absolute inset-0 bg-background overflow-hidden">
+                        {dashboardData?.recentMovies?.length > 0 ? (
+                            <div className="absolute -inset-[50%] opacity-20 transform -rotate-12 scale-110 flex gap-4 overflow-hidden pointer-events-none justify-center">
+                                 {[...Array(6)].map((_, colIdx) => (
+                                     <div key={colIdx} className={`flex flex-col gap-4 ${colIdx % 2 === 0 ? 'animate-[scrollVertical_40s_linear_infinite]' : 'animate-[scrollVertical_50s_linear_infinite_reverse]'}`}>
+                                         {[...dashboardData.recentMovies, ...dashboardData.recentMovies].sort(() => 0.5 - Math.random()).map((m: any, i: number) => m.thumb && (
+                                             <img key={`c${colIdx}-${i}`} src={`/api/plex/image?path=${encodeURIComponent(m.thumb)}&width=200&height=300`} className="w-32 md:w-48 rounded-xl object-cover" alt="" />
+                                         ))}
+                                     </div>
+                                 ))}
+                            </div>
+                        ) : heroBg && (
+                            <div 
+                                className="absolute inset-0 bg-cover bg-center opacity-30 blur-2xl scale-110"
+                                style={{ backgroundImage: `url(${heroBg})` }}
+                            />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-card via-card/40 to-transparent" />
+                    </div>
                 </div>
                 
-                <div className="relative pt-24 pb-8 px-6 md:px-10 flex flex-col items-center md:items-start text-center md:text-left z-10">
+                {/* Avatar & Welcome Text */}
+                <div className="relative -mt-16 md:-mt-20 px-6 md:px-10 flex flex-col items-center md:items-start text-center md:text-left z-10 mb-8">
                     <div className="flex flex-col md:flex-row items-center md:items-end gap-6">
                         {/* Avatar */}
                         {(() => {
