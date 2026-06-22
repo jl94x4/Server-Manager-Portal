@@ -3778,7 +3778,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                 {/* Blurred Background */}
                 <div className="absolute inset-0 bg-background overflow-hidden">
                     {dashboardData?.recentMovies?.length > 0 ? (
-                        <div className="absolute -inset-[50%] opacity-20 transform -rotate-12 scale-110 flex gap-4 overflow-hidden pointer-events-none justify-center">
+                        <div className="absolute -inset-[50%] opacity-40 transform -rotate-12 scale-110 flex gap-4 overflow-hidden pointer-events-none justify-center">
                              {[...Array(6)].map((_, colIdx) => (
                                  <div key={colIdx} className={`flex flex-col gap-4 ${colIdx % 2 === 0 ? 'animate-[scrollVertical_40s_linear_infinite]' : 'animate-[scrollVertical_50s_linear_infinite_reverse]'}`}>
                                      {[...dashboardData.recentMovies, ...dashboardData.recentMovies].sort(() => 0.5 - Math.random()).map((m: any, i: number) => m.thumb && (
