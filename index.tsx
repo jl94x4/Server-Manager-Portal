@@ -346,12 +346,10 @@ const UserCard: React.FC<{
                         {(user.plexAccessStatus || 'unknown').charAt(0).toUpperCase() + (user.plexAccessStatus || 'unknown').slice(1)}
                     </span>
                 </div>
-                {user.lastLogin && (
-                    <div className="flex justify-between items-center text-sm pb-2 border-b border-white/5 last:border-0 last:pb-0">
-                        <span className="text-muted text-xs uppercase tracking-wider font-bold">Last Login</span>
-                        <span className="text-text font-medium">{formatDate(user.lastLogin)}</span>
-                    </div>
-                )}
+                <div className="flex justify-between items-center text-sm pb-2 border-b border-white/5 last:border-0 last:pb-0">
+                    <span className="text-muted text-xs uppercase tracking-wider font-bold">Last Login</span>
+                    <span className="text-text font-medium">{user.lastLogin ? formatDate(user.lastLogin) : 'Never'}</span>
+                </div>
             </div>
             <div className="flex gap-2 mt-auto pt-6" onClick={e => e.stopPropagation()}>
                 <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={onEdit}>Edit</button>
