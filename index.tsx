@@ -1371,6 +1371,39 @@ const StatusMonitorSettings: React.FC<{ config: any; onSave: (cfg: any) => void 
         setLocalConfig({ ...localConfig, services: [...localConfig.services, newService] });
     };
 
+    const editGroup = (id: string) => {
+        const group = localConfig.groups.find((g: any) => g.id === id);
+        if (!group) return;
+        const newName = prompt('Group Name:', group.name);
+        if (!newName) return;
+        setLocalConfig({
+            ...localConfig,
+            groups: localConfig.groups.map((g: any) => g.id === id ? { ...g, name: newName } : g)
+        });
+    };
+
+    const editService = (id: string) => {
+        const service = localConfig.services.find((s: any) => s.id === id);
+        if (!service) return;
+        const newName = prompt('Service Name:', service.name);
+        if (!newName) return;
+        const newUrl = prompt('Service URL:', service.url);
+        if (!newUrl) return;
+        const newGroupId = prompt('Group ID (optional, leave blank for no group):', service.groupId || '');
+        const newIsCritical = confirm('Is this service critical? (Cancel for No, OK for Yes)');
+        
+        setLocalConfig({
+            ...localConfig,
+            services: localConfig.services.map((s: any) => s.id === id ? {
+                ...s,
+                name: newName,
+                url: newUrl,
+                groupId: newGroupId || null,
+                isCritical: newIsCritical
+            } : s)
+        });
+    };
+
     const removeGroup = (id: string) => {
         if (confirm(`Remove group ${id}? Services inside it won't be deleted but will lose their group.`)) {
             setLocalConfig({
@@ -1388,7 +1421,7 @@ const StatusMonitorSettings: React.FC<{ config: any; onSave: (cfg: any) => void 
     };
 
     return (
-        <div className="flex flex-col gap-6 w-full max-w-4xl">
+        <div className="flex flex-col gap-6 w-full">
             <div className="bg-card border border-border p-6 rounded-xl shadow-sm">
                 <div className="flex justify-between items-center mb-6 border-b border-border pb-4">
                     <h4 className="font-bold text-xl text-text">Service Groups</h4>
@@ -1399,7 +1432,10 @@ const StatusMonitorSettings: React.FC<{ config: any; onSave: (cfg: any) => void 
                         <div>
                             <span className="font-bold text-text">{group.name}</span> <span className="text-xs text-muted ml-2 font-mono bg-black/40 px-2 py-0.5 rounded">{group.id}</span>
                         </div>
-                        <button onClick={() => removeGroup(group.id)} className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors">Remove</button>
+                        <div className="flex items-center gap-2">
+                            <button onClick={() => editGroup(group.id)} className="text-plex hover:text-plex-hover text-sm font-medium transition-colors">Edit</button>
+                            <button onClick={() => removeGroup(group.id)} className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors">Remove</button>
+                        </div>
                     </div>
                 ))}
                 {localConfig.groups.length === 0 && <p className="text-muted text-sm italic p-4 text-center border border-dashed border-border rounded-lg">No groups defined. Create one to organize your services.</p>}
@@ -1417,7 +1453,10 @@ const StatusMonitorSettings: React.FC<{ config: any; onSave: (cfg: any) => void 
                                 <span className="font-bold text-lg text-text flex items-center gap-2">
                                     <Activity className="w-4 h-4 text-plex" /> {service.name}
                                 </span>
-                                <button onClick={() => removeService(service.id)} className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors bg-red-400/10 px-2 py-1 rounded">Remove</button>
+                                <div className="flex items-center gap-2">
+                                    <button onClick={() => editService(service.id)} className="text-plex hover:text-plex-hover text-sm font-medium transition-colors bg-plex/10 px-2 py-1 rounded">Edit</button>
+                                    <button onClick={() => removeService(service.id)} className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors bg-red-400/10 px-2 py-1 rounded">Remove</button>
+                                </div>
                             </div>
                             <span className="text-sm text-muted break-all font-mono bg-black/40 p-2 rounded border border-border/50">{service.url}</span>
                             <div className="flex items-center gap-3 mt-2 text-xs">
