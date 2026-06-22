@@ -4490,12 +4490,8 @@ const MainApp: React.FC = () => {
 
     useEffect(() => {
         // Initial session check
-        if (!window.location.hash.startsWith('#auth/')) {
-            checkSession();
-        } else {
-            setRoute('login'); // Login component will handle the hash
-        }
-    }, [checkSession, setRoute]);
+        checkSession();
+    }, [checkSession]);
 
     const handleLogout = async () => {
         await apiFetch('/api/auth/logout', { method: 'POST' });
