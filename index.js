@@ -1477,7 +1477,7 @@ const fetchPlexStatsInternal = async (config) => {
     // Try to load from disk if memory is empty
     if (!cachedPlexStats) {
         try {
-            const diskCache = JSON.parse(await fs.promises.readFile(PLEX_STATS_CACHE_PATH, 'utf8'));
+            const diskCache = JSON.parse(await fs.readFile(PLEX_STATS_CACHE_PATH, 'utf8'));
             if (diskCache && diskCache.moviesBytes !== undefined) {
                 cachedPlexStats = diskCache;
                 lastPlexStatsFetch = Date.now(); // pretend we just fetched it so we don't block startup
@@ -1496,7 +1496,7 @@ const fetchPlexStatsInternal = async (config) => {
 const fetchPlexStatsInternalActual = async (config) => {
     const uri = await getPlexConnectionUri(config);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60000);
+    const timeout = setTimeout(() => controller.abort(), 300000); // 5 minute timeout for huge libraries
     const sectionsRes = await fetch(`${uri}/library/sections`, {
         headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' },
         signal: controller.signal
@@ -1553,7 +1553,7 @@ const fetchPlexStatsInternalActual = async (config) => {
                     else if (dir.type === 'artist') totalMusicBytes += bytes;
                 }
             }
-        } catch (e) { log(`Failed to fetch size for section ${dir.title}`); }
+        } catch (e) { log(`Failed to fetch size for section ${dir.title}: ${e.message}`); }
     }
     clearTimeout(timeout);
     cachedPlexStats = { 
@@ -1562,7 +1562,7 @@ const fetchPlexStatsInternalActual = async (config) => {
     };
     lastPlexStatsFetch = Date.now();
     try {
-        await fs.promises.writeFile(PLEX_STATS_CACHE_PATH, JSON.stringify(cachedPlexStats));
+        await fs.writeFile(PLEX_STATS_CACHE_PATH, JSON.stringify(cachedPlexStats));
     } catch (e) {
         log(`Failed to write plex stats cache: ${e.message}`);
     }
