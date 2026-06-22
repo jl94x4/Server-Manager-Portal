@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy } from 'lucide-react';
+import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette } from 'lucide-react';
 
 interface CustomSelectProps {
     id?: string;
@@ -108,6 +108,7 @@ interface AppSettings {
     sonarrApiKey?: string;
     radarrUrl?: string;
     radarrApiKey?: string;
+    navOrder?: string[];
 }
 
 interface PlexServer {
@@ -627,7 +628,7 @@ const SettingsDashboard: React.FC = () => {
     const [checkInterval, setCheckInterval] = useState(60);
     const [activeTab, setActiveTab] = useState(() => {
         const hash = window.location.hash.replace('#', '');
-        return ['plex', 'smtp', 'newsletter', 'cleanup', 'mediastack', 'branding', 'invites', 'tasks'].includes(hash) ? hash : 'plex';
+        return ['plex', 'smtp', 'newsletter', 'cleanup', 'mediastack', 'branding', 'navigation', 'status', 'invites', 'tasks'].includes(hash) ? hash : 'plex';
     });
 
     useEffect(() => {
@@ -671,6 +672,7 @@ const SettingsDashboard: React.FC = () => {
     const [referralTrialDays, setReferralTrialDays] = useState(3);
     const [referralRewardDays, setReferralRewardDays] = useState(7);
     const [announcement, setAnnouncement] = useState('');
+    const [navOrder, setNavOrder] = useState<string[]>(['home', 'discover', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout']);
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [tasks, setTasks] = useState<any[]>([]);
 
@@ -731,6 +733,7 @@ const SettingsDashboard: React.FC = () => {
             setReferralTrialDays(initialSettings.referralTrialDays || 3);
             setReferralRewardDays(initialSettings.referralRewardDays || 7);
             setAnnouncement(initialSettings.announcement || '');
+            if (initialSettings.navOrder) setNavOrder(initialSettings.navOrder);
             setTestRecipient('');
             setServers([]);
         }
@@ -810,7 +813,8 @@ const SettingsDashboard: React.FC = () => {
             referralEnabled,
             referralTrialDays,
             referralRewardDays,
-            announcement
+            announcement,
+            navOrder
         });
         document.documentElement.style.setProperty('--color-plex', primaryColor);
     };
@@ -906,6 +910,8 @@ const SettingsDashboard: React.FC = () => {
                             { label: 'Automated Cleanup', value: 'cleanup' },
                             { label: 'Media Stack', value: 'mediastack' },
                             { label: 'Portal UI', value: 'branding' },
+                            { label: 'Navigation', value: 'navigation' },
+                            { label: 'Status Monitor', value: 'status' },
                             { label: 'Invites', value: 'invites' },
                             { label: 'Tasks', value: 'tasks' }
                         ]}
@@ -921,6 +927,8 @@ const SettingsDashboard: React.FC = () => {
                         { id: 'cleanup', label: 'Cleanup' },
                         { id: 'mediastack', label: 'Media Stack' },
                         { id: 'branding', label: 'Portal UI' },
+                        { id: 'navigation', label: 'Navigation' },
+                        { id: 'status', label: 'Status Monitor' },
                         { id: 'invites', label: 'Invites' },
                         { id: 'tasks', label: 'Background Tasks' }
                     ].map(tab => (
@@ -1164,6 +1172,69 @@ const SettingsDashboard: React.FC = () => {
                         </div>
                     )}
 
+                    {activeTab === 'navigation' && (
+                        <div className="mb-8 animate-fade-in">
+                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Navigation Order</h3>
+                            <p className="text-muted text-sm mb-4">Drag and drop or use the arrows to reorder the navigation items on the sidebar.</p>
+                            <div className="flex flex-col gap-2 max-w-md">
+                                {navOrder.map((key, index) => {
+                                    const labels: Record<string, string> = {
+                                        'home': 'Home', 'discover': 'Discover', 'status': 'Status', 'logs': 'Logs (Admin Only)', 'analytics': 'Analytics', 'mediastack': 'Media Stack', 'request': 'Request Content', 'settings': 'Settings (Admin Only)', 'logout': 'Logout'
+                                    };
+                                    return (
+                                        <div key={key} className="flex items-center justify-between p-3 bg-card border border-border rounded-lg shadow-sm">
+                                            <div className="flex items-center gap-3">
+                                                <div className="text-text font-medium">{labels[key] || key}</div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button 
+                                                    disabled={index === 0}
+                                                    onClick={() => {
+                                                        const newOrder = [...navOrder];
+                                                        [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+                                                        setNavOrder(newOrder);
+                                                    }} 
+                                                    className={`p-1 rounded transition-colors ${index === 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/10 text-muted hover:text-text'}`}
+                                                >
+                                                    <ChevronUp className="w-5 h-5" />
+                                                </button>
+                                                <button 
+                                                    disabled={index === navOrder.length - 1}
+                                                    onClick={() => {
+                                                        const newOrder = [...navOrder];
+                                                        [newOrder[index + 1], newOrder[index]] = [newOrder[index], newOrder[index + 1]];
+                                                        setNavOrder(newOrder);
+                                                    }} 
+                                                    className={`p-1 rounded transition-colors ${index === navOrder.length - 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/10 text-muted hover:text-text'}`}
+                                                >
+                                                    <ChevronDown className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'status' && (
+                        <div className="mb-8 animate-fade-in">
+                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Status Monitor</h3>
+                            <StatusMonitorSettings 
+                                config={statusConfig} 
+                                onSave={async (newConfig) => {
+                                    try {
+                                        await apiFetch('/api/status/config', { method: 'POST', body: JSON.stringify(newConfig) });
+                                        setStatusConfig(newConfig);
+                                        addToast('Status Config Saved!');
+                                    } catch (e: any) {
+                                        addToast('Failed to save status config', 'error');
+                                    }
+                                }} 
+                            />
+                        </div>
+                    )}
+
                     {activeTab === 'branding' && (
                         <div className="mb-8 animate-fade-in">
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Branding & UI</h3>
@@ -1249,21 +1320,7 @@ const SettingsDashboard: React.FC = () => {
                 </div>
             </div>
 
-            <StatusConfigModal
-                isOpen={isStatusModalOpen}
-                onClose={() => setStatusModalOpen(false)}
-                config={statusConfig}
-                onSave={async (newConfig) => {
-                    try {
-                        await apiFetch('/api/status/config', { method: 'POST', body: JSON.stringify(newConfig) });
-                        setStatusConfig(newConfig);
-                        setStatusModalOpen(false);
-                        addToast('Status Config Saved!');
-                    } catch (e: any) {
-                        addToast('Failed to save status config', 'error');
-                    }
-                }}
-            />
+
             <BroadcastModal
                 isOpen={isBroadcastModalOpen}
                 onClose={() => setBroadcastModalOpen(false)}
@@ -1274,36 +1331,109 @@ const SettingsDashboard: React.FC = () => {
     );
 };
 
-const StatusConfigModal: React.FC<{ isOpen: boolean; onClose: () => void; config: any; onSave: (cfg: any) => void }> = ({ isOpen, onClose, config, onSave }) => {
-    const [cfgText, setCfgText] = useState('');
+const StatusMonitorSettings: React.FC<{ config: any; onSave: (cfg: any) => void }> = ({ config, onSave }) => {
+    const [localConfig, setLocalConfig] = useState<any>({ groups: [], services: [] });
 
     useEffect(() => {
-        if (isOpen) setCfgText(JSON.stringify(config, null, 2));
-    }, [isOpen, config]);
+        if (config) {
+            setLocalConfig({
+                groups: config.groups || [],
+                services: config.services || []
+            });
+        }
+    }, [config]);
 
-    if (!isOpen) return null;
+    const addGroup = () => {
+        const id = prompt('Group ID (e.g. core-services):');
+        if (!id) return;
+        const name = prompt('Group Name:');
+        if (!name) return;
+        setLocalConfig({ ...localConfig, groups: [...localConfig.groups, { id, name, order: localConfig.groups.length }] });
+    };
+
+    const addService = () => {
+        const name = prompt('Service Name:');
+        if (!name) return;
+        const url = prompt('Service URL:');
+        if (!url) return;
+        const groupId = prompt('Group ID (optional, leave blank for no group):');
+        
+        const newService = {
+            id: name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+            name,
+            url,
+            category: 'web',
+            type: 'http',
+            groupId: groupId || null,
+            isCritical: true,
+            description: ''
+        };
+        setLocalConfig({ ...localConfig, services: [...localConfig.services, newService] });
+    };
+
+    const removeGroup = (id: string) => {
+        if (confirm(`Remove group ${id}? Services inside it won't be deleted but will lose their group.`)) {
+            setLocalConfig({
+                ...localConfig,
+                groups: localConfig.groups.filter((g: any) => g.id !== id),
+                services: localConfig.services.map((s: any) => s.groupId === id ? { ...s, groupId: null } : s)
+            });
+        }
+    };
+
+    const removeService = (id: string) => {
+        if (confirm(`Remove service ${id}?`)) {
+            setLocalConfig({ ...localConfig, services: localConfig.services.filter((s: any) => s.id !== id) });
+        }
+    };
 
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-[1000]">
-            <div className="modal-content" style={{ maxWidth: '800px', width: '90%' }}>
-                <h2 className="text-2xl font-bold text-text">Manage Status Config</h2>
-                <p>Edit the raw JSON configuration for the status monitor.</p>
-                <textarea
-                    value={cfgText}
-                    onChange={e => setCfgText(e.target.value)}
-                    style={{ width: '100%', height: '400px', fontFamily: 'monospace', backgroundColor: '#1a1a1a', color: '#fff', padding: '1rem' }}
-                />
-                <div className="flex justify-end gap-4 mt-8" style={{ marginTop: '1rem' }}>
-                    <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={onClose}>Cancel</button>
-                    <button className="px-4 py-2 bg-plex text-background rounded-md font-medium hover:bg-plex-hover transition-colors flex items-center justify-center gap-2" onClick={() => {
-                        try {
-                            const parsed = JSON.parse(cfgText);
-                            onSave(parsed);
-                        } catch (e) {
-                            alert('Invalid JSON');
-                        }
-                    }}>Save</button>
+        <div className="flex flex-col gap-6 w-full max-w-4xl">
+            <div className="bg-card border border-border p-6 rounded-xl shadow-sm">
+                <div className="flex justify-between items-center mb-6 border-b border-border pb-4">
+                    <h4 className="font-bold text-xl text-text">Service Groups</h4>
+                    <button onClick={addGroup} className="px-4 py-2 bg-white/10 hover:bg-white/20 text-text rounded-md text-sm font-bold transition-colors">Add Group</button>
                 </div>
+                {localConfig.groups.map((group: any) => (
+                    <div key={group.id} className="flex justify-between items-center p-3 mb-2 bg-black/20 rounded-lg border border-border hover:border-plex/50 transition-colors">
+                        <div>
+                            <span className="font-bold text-text">{group.name}</span> <span className="text-xs text-muted ml-2 font-mono bg-black/40 px-2 py-0.5 rounded">{group.id}</span>
+                        </div>
+                        <button onClick={() => removeGroup(group.id)} className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors">Remove</button>
+                    </div>
+                ))}
+                {localConfig.groups.length === 0 && <p className="text-muted text-sm italic p-4 text-center border border-dashed border-border rounded-lg">No groups defined. Create one to organize your services.</p>}
+            </div>
+
+            <div className="bg-card border border-border p-6 rounded-xl shadow-sm">
+                <div className="flex justify-between items-center mb-6 border-b border-border pb-4">
+                    <h4 className="font-bold text-xl text-text">Monitored Services</h4>
+                    <button onClick={addService} className="px-4 py-2 bg-plex text-background hover:bg-plex-hover rounded-md text-sm font-bold transition-colors shadow-lg">Add Service</button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {localConfig.services.map((service: any) => (
+                        <div key={service.id} className="flex flex-col p-4 bg-black/20 rounded-xl border border-border hover:border-plex/50 transition-colors gap-2">
+                            <div className="flex justify-between items-start">
+                                <span className="font-bold text-lg text-text flex items-center gap-2">
+                                    <Activity className="w-4 h-4 text-plex" /> {service.name}
+                                </span>
+                                <button onClick={() => removeService(service.id)} className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors bg-red-400/10 px-2 py-1 rounded">Remove</button>
+                            </div>
+                            <span className="text-sm text-muted break-all font-mono bg-black/40 p-2 rounded border border-border/50">{service.url}</span>
+                            <div className="flex items-center gap-3 mt-2 text-xs">
+                                <span className={`px-2 py-1 rounded font-medium ${service.groupId ? 'bg-plex/20 text-plex' : 'bg-white/10 text-muted'}`}>Group: {service.groupId || 'None'}</span>
+                                <span className={`px-2 py-1 rounded font-medium ${service.isCritical ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-muted'}`}>Critical: {service.isCritical ? 'Yes' : 'No'}</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                {localConfig.services.length === 0 && <p className="text-muted text-sm italic p-4 text-center border border-dashed border-border rounded-lg">No services defined. Add some services to monitor.</p>}
+            </div>
+
+            <div className="flex justify-end pt-4 border-t border-border mt-2">
+                <button onClick={() => onSave(localConfig)} className="px-6 py-3 bg-plex text-background rounded-lg font-bold hover:bg-plex-hover transition-colors shadow-xl flex items-center gap-2">
+                    <Activity className="w-5 h-5" /> Save Status Monitor Configuration
+                </button>
             </div>
         </div>
     );
@@ -4227,12 +4357,25 @@ interface NavigationProps {
     serverName: string;
     adminThumb?: string | null;
     requestUrl: string;
+    navOrder: string[];
 }
 
-const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, requestUrl }) => {
+const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, requestUrl, navOrder }) => {
     useEffect(() => {
         updateFavicon(adminThumb);
     }, [adminThumb]);
+
+    const navItemsConfig: Record<string, { label: string; icon: React.FC<any>; route: string; adminOnly: boolean; href?: string; onClick?: (e: any) => void }> = {
+        'home': { label: 'Home', icon: Home, route: isAdmin ? 'admin' : 'user', adminOnly: false },
+        'discover': { label: 'Discover', icon: Film, route: 'dashboard', adminOnly: false },
+        'status': { label: 'Status', icon: Activity, route: 'status', adminOnly: false },
+        'logs': { label: 'Logs', icon: FileText, route: 'logs', adminOnly: true },
+        'analytics': { label: 'Analytics', icon: BarChart3, route: 'analytics', adminOnly: false },
+        'mediastack': { label: 'Media Stack', icon: Layers, route: 'mediastack', adminOnly: false },
+        'request': { label: 'Request Content', icon: Sparkles, route: '', adminOnly: false, href: requestUrl },
+        'settings': { label: 'Settings', icon: Settings, route: 'settings', adminOnly: true },
+        'logout': { label: 'Logout', icon: LogOut, route: '', adminOnly: false, onClick: onLogout }
+    };
 
     return (
         <>
@@ -4291,75 +4434,56 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
                     </div>
                 </div>
                 <div className="flex flex-col gap-2">
-                    <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${['admin', 'user'].includes(currentRoute) ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate(isAdmin ? 'admin' : 'user'); }}>
-                        <Home className="w-5 h-5 flex-shrink-0" /> Home
-                    </a>
-                    <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === 'dashboard' ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate('dashboard'); }}>
-                        <Film className="w-5 h-5 flex-shrink-0" /> Discover
-                    </a>
-                    <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === 'status' ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate('status'); }}>
-                        <Activity className="w-5 h-5 flex-shrink-0" /> Status
-                    </a>
-                    {isAdmin && (
-                        <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === 'logs' ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate('logs'); }}>
-                            <FileText className="w-5 h-5 flex-shrink-0" /> Logs
-                        </a>
-                    )}
-                    <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === 'analytics' ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate('analytics'); }}>
-                        <BarChart3 className="w-5 h-5 flex-shrink-0" /> Analytics
-                    </a>
-                    <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === 'mediastack' ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate('mediastack'); }}>
-                        <Layers className="w-5 h-5 flex-shrink-0" /> Media Stack
-                    </a>
-                    <a href={requestUrl} target="_blank" rel="noreferrer" className="flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text">
-                        <Sparkles className="w-5 h-5 flex-shrink-0" /> Request Content
-                    </a>
-                    {isAdmin && (
-                        <a href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${currentRoute === 'settings' ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); onNavigate('settings'); }}>
-                            <Settings className="w-5 h-5 flex-shrink-0" /> Settings
-                        </a>
-                    )}
-                    <a href="#" className="flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text" onClick={(e) => { e.preventDefault(); onLogout(); }}>
-                        <LogOut className="w-5 h-5 flex-shrink-0" /> Logout
-                    </a>
+                    {navOrder.map((key) => {
+                        const item = navItemsConfig[key];
+                        if (!item) return null;
+                        if (item.adminOnly && !isAdmin) return null;
+
+                        const isCurrent = item.route ? ['admin', 'user'].includes(currentRoute) && key === 'home' ? true : currentRoute === item.route : false;
+
+                        if (item.href) {
+                            return (
+                                <a key={key} href={item.href} target="_blank" rel="noreferrer" className="flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text">
+                                    <item.icon className="w-5 h-5 flex-shrink-0" /> {item.label}
+                                </a>
+                            );
+                        }
+
+                        return (
+                            <a key={key} href="#" className={`flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text ${isCurrent ? 'border-l-4 border-plex rounded-l-none bg-white/5 text-text' : ''}`} onClick={(e) => { e.preventDefault(); if (item.onClick) item.onClick(e); else onNavigate(item.route as any); }}>
+                                <item.icon className="w-5 h-5 flex-shrink-0" /> {item.label}
+                            </a>
+                        );
+                    })}
                 </div>
             </div>
 
             {/* Mobile Bottom Nav */}
             <div className="md:hidden fixed bottom-0 left-0 right-0 w-full bg-[#161b22] border-t border-[#30363d] z-50 pb-[env(safe-area-inset-bottom)]">
                 <div className="flex justify-around items-center h-16">
-                    <a href="#" className={`relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${['admin', 'user'].includes(currentRoute) ? 'text-plex font-bold' : 'text-muted hover:text-text'}`} onClick={(e) => { e.preventDefault(); onNavigate(isAdmin ? 'admin' : 'user'); }}>
-                        <Home className="w-5 h-5 flex-shrink-0" /> Home
-                        {['admin', 'user'].includes(currentRoute) && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
-                    </a>
-                    <a href="#" className={`relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === 'dashboard' ? 'text-plex font-bold' : 'text-muted hover:text-text'}`} onClick={(e) => { e.preventDefault(); onNavigate('dashboard'); }}>
-                        <Film className="w-5 h-5 flex-shrink-0" /> Discover
-                        {currentRoute === 'dashboard' && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
-                    </a>
-                    <a href="#" className={`relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === 'status' ? 'text-plex font-bold' : 'text-muted hover:text-text'}`} onClick={(e) => { e.preventDefault(); onNavigate('status'); }}>
-                        <Activity className="w-5 h-5 flex-shrink-0" /> Status
-                        {currentRoute === 'status' && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
-                    </a>
-                    <a href="#" className={`relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === 'analytics' ? 'text-plex font-bold' : 'text-muted hover:text-text'}`} onClick={(e) => { e.preventDefault(); onNavigate('analytics'); }}>
-                        <BarChart3 className="w-5 h-5 flex-shrink-0" /> Analytics
-                        {currentRoute === 'analytics' && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
-                    </a>
-                    <a href="#" className={`relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === 'mediastack' ? 'text-plex font-bold' : 'text-muted hover:text-text'}`} onClick={(e) => { e.preventDefault(); onNavigate('mediastack'); }}>
-                        <Layers className="w-5 h-5 flex-shrink-0" /> Media
-                        {currentRoute === 'mediastack' && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
-                    </a>
-                    <a href={requestUrl} target="_blank" rel="noreferrer" className="relative flex flex-col items-center justify-center gap-1 h-full text-muted flex-1 text-center text-[0.65rem] transition-colors hover:text-text">
-                        <Sparkles className="w-5 h-5 flex-shrink-0" /> Request
-                    </a>
-                    {isAdmin && (
-                        <a href="#" className={`relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${currentRoute === 'settings' ? 'text-plex font-bold' : 'text-muted hover:text-text'}`} onClick={(e) => { e.preventDefault(); onNavigate('settings'); }}>
-                            <Settings className="w-5 h-5 flex-shrink-0" /> Settings
-                            {currentRoute === 'settings' && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
-                        </a>
-                    )}
-                    <a href="#" className="relative flex flex-col items-center justify-center gap-1 h-full text-muted flex-1 text-center text-[0.65rem] transition-colors hover:text-text" onClick={(e) => { e.preventDefault(); onLogout(); }}>
-                        <LogOut className="w-5 h-5 flex-shrink-0" /> Logout
-                    </a>
+                    {navOrder.map((key) => {
+                        const item = navItemsConfig[key];
+                        if (!item) return null;
+                        if (item.adminOnly && !isAdmin) return null;
+
+                        const isCurrent = item.route ? ['admin', 'user'].includes(currentRoute) && key === 'home' ? true : currentRoute === item.route : false;
+                        const labelOverride = key === 'mediastack' ? 'Media' : key === 'request' ? 'Request' : item.label;
+
+                        if (item.href) {
+                            return (
+                                <a key={key} href={item.href} target="_blank" rel="noreferrer" className="relative flex flex-col items-center justify-center gap-1 h-full text-muted flex-1 text-center text-[0.65rem] transition-colors hover:text-text">
+                                    <item.icon className="w-5 h-5 flex-shrink-0" /> {labelOverride}
+                                </a>
+                            );
+                        }
+
+                        return (
+                            <a key={key} href="#" className={`relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${isCurrent ? 'text-plex font-bold' : 'text-muted hover:text-text'}`} onClick={(e) => { e.preventDefault(); if (item.onClick) item.onClick(e); else onNavigate(item.route as any); }}>
+                                <item.icon className="w-5 h-5 flex-shrink-0" /> {labelOverride}
+                                {isCurrent && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
+                            </a>
+                        );
+                    })}
                 </div>
             </div>
         </>
@@ -4578,7 +4702,7 @@ const MainApp: React.FC = () => {
 
     return (
         <div className="flex w-full min-h-screen bg-background">
-            {!isPublicView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Plex Server'} adminThumb={sessionInfo?.adminThumb} requestUrl={sessionInfo?.requestUrl || 'https://plexified.co.uk'} />}
+            {!isPublicView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Plex Server'} adminThumb={sessionInfo?.adminThumb} requestUrl={sessionInfo?.requestUrl || 'https://plexified.co.uk'} navOrder={sessionInfo?.navOrder || ['home', 'discover', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout']} />}
             <div className={`flex-grow flex flex-col items-center p-4 md:p-8 pt-20 pb-[80px] md:pt-8 md:pb-8 w-full overflow-x-hidden ${isPublicView ? '!pt-8 !pb-8' : ''}`}>
                 {renderView()}
             </div>

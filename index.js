@@ -1146,6 +1146,7 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
     let serverName = 'Plex Server';
     let adminThumb = null;
     let requestUrl = 'https://plexified.co.uk';
+    let navOrder = ['home', 'discover', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout'];
     try {
         const config = await loadFile(CONFIG_PATH, {});
         if (config && config.plexToken && config.serverIdentifier) {
@@ -1153,6 +1154,7 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
             serverName = profile.serverName || 'Plex Server';
             adminThumb = profile.thumb;
             requestUrl = config.requestUrl || 'https://plexified.co.uk';
+            if (config.navOrder) navOrder = config.navOrder;
         }
     } catch(e) {}
 
@@ -1161,7 +1163,8 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
         account: localUser || null,
         serverName,
         adminThumb,
-        requestUrl
+        requestUrl,
+        navOrder
     });
 });
 
@@ -1200,7 +1203,8 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 referralEnabled: !!config.referralEnabled,
                 referralTrialDays: config.referralTrialDays || 3,
                 referralRewardDays: config.referralRewardDays || 7,
-                announcement: config.announcement || ''
+                announcement: config.announcement || '',
+                navOrder: config.navOrder || ['home', 'discover', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout']
             },
         });
     } else {
@@ -1233,7 +1237,8 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 referralEnabled: false,
                 referralTrialDays: 3,
                 referralRewardDays: 7,
-                announcement: ''
+                announcement: '',
+                navOrder: ['home', 'discover', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout']
             },
         });
     }
@@ -1246,7 +1251,7 @@ app.post('/api/config', async (req, res) => {
         newsletterFrequency, newsletterDay, publicDomain, requestUrl, contactUrl,
         sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey,
         inactiveCleanupEnabled, inactiveCleanupDays,
-        primaryColor, customLogoUrl, referralEnabled, referralTrialDays, referralRewardDays, announcement
+        primaryColor, customLogoUrl, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder
     } = req.body;
 
     if (!token || !serverIdentifier) {
@@ -1302,7 +1307,8 @@ app.post('/api/config', async (req, res) => {
         referralEnabled: !!referralEnabled,
         referralTrialDays: parseInt(referralTrialDays, 10) || 3,
         referralRewardDays: parseInt(referralRewardDays, 10) || 7,
-        announcement: announcement || ''
+        announcement: announcement || '',
+        navOrder: Array.isArray(navOrder) ? navOrder : existingConfig.navOrder || ['home', 'discover', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout']
     };
     await saveFile(CONFIG_PATH, config);
     log('Configuration saved successfully.');
