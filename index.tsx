@@ -2399,6 +2399,9 @@ const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     const [auditEntries, setAuditEntries] = useState<any[]>([]);
     const [isLoading, setLoading] = useState(true);
     const [toasts, setToasts] = useState<any[]>([]);
+    const [auditPage, setAuditPage] = useState(1);
+    const [emailPage, setEmailPage] = useState(1);
+    const itemsPerPage = 20;
 
     const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
         setToasts(t => [...t, { id: Date.now(), message, type }]);
@@ -2455,6 +2458,8 @@ const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 
     const filteredAuditLog = auditEntries.filter(e => e.event !== 'system_email_sent');
     const emailLogs = auditEntries.filter(e => e.event === 'system_email_sent');
+    const totalAuditPages = Math.max(1, Math.ceil(filteredAuditLog.length / itemsPerPage));
+    const totalEmailPages = Math.max(1, Math.ceil(emailLogs.length / itemsPerPage));
 
     return (
         <div className="w-full max-w-[1600px] mx-auto flex flex-col">
@@ -2509,18 +2514,39 @@ const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                             {filteredAuditLog.length === 0 ? (
                                 <p className="text-muted text-sm border border-dashed border-border rounded-lg p-4 text-center">No audit events recorded yet.</p>
                             ) : (
-                                filteredAuditLog.slice(0, 20).map(entry => (
-                                    <div key={entry.id} className="bg-background/60 border border-border rounded-lg p-3">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <p className="text-text font-semibold text-sm">{formatEventName(entry.event)}</p>
-                                            <span className="text-muted text-[11px] whitespace-nowrap">{formatDateTime(entry.timestamp)}</span>
+                                <>
+                                    {filteredAuditLog.slice((auditPage - 1) * itemsPerPage, auditPage * itemsPerPage).map(entry => (
+                                        <div key={entry.id} className="bg-background/60 border border-border rounded-lg p-3">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <p className="text-text font-semibold text-sm">{formatEventName(entry.event)}</p>
+                                                <span className="text-muted text-[11px] whitespace-nowrap">{formatDateTime(entry.timestamp)}</span>
+                                            </div>
+                                            <p className="text-muted text-xs mt-1">
+                                                Target: {entry.target?.username || entry.target?.email || 'System'}
+                                                {entry.actor?.username || entry.actor?.email ? ` · Actor: ${entry.actor.username || entry.actor.email}` : ''}
+                                            </p>
                                         </div>
-                                        <p className="text-muted text-xs mt-1">
-                                            Target: {entry.target?.username || entry.target?.email || 'System'}
-                                            {entry.actor?.username || entry.actor?.email ? ` · Actor: ${entry.actor.username || entry.actor.email}` : ''}
-                                        </p>
-                                    </div>
-                                ))
+                                    ))}
+                                    {totalAuditPages > 1 && (
+                                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
+                                            <button 
+                                                className="px-3 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                                onClick={() => setAuditPage(p => Math.max(1, p - 1))}
+                                                disabled={auditPage === 1}
+                                            >
+                                                Previous
+                                            </button>
+                                            <span className="text-xs text-muted font-semibold">Page {auditPage} of {totalAuditPages}</span>
+                                            <button 
+                                                className="px-3 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                                onClick={() => setAuditPage(p => Math.min(totalAuditPages, p + 1))}
+                                                disabled={auditPage === totalAuditPages}
+                                            >
+                                                Next
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     </section>
@@ -2536,17 +2562,38 @@ const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                             {emailLogs.length === 0 ? (
                                 <p className="text-muted text-sm border border-dashed border-border rounded-lg p-4 text-center">No emails sent yet.</p>
                             ) : (
-                                emailLogs.slice(0, 20).map(entry => (
-                                    <div key={entry.id} className="bg-background/60 border border-border rounded-lg p-3">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <p className="text-text font-semibold text-sm line-clamp-1">{entry.details?.subject || 'System Email'}</p>
-                                            <span className="text-muted text-[11px] whitespace-nowrap">{formatDateTime(entry.timestamp)}</span>
+                                <>
+                                    {emailLogs.slice((emailPage - 1) * itemsPerPage, emailPage * itemsPerPage).map(entry => (
+                                        <div key={entry.id} className="bg-background/60 border border-border rounded-lg p-3">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <p className="text-text font-semibold text-sm line-clamp-1">{entry.details?.subject || 'System Email'}</p>
+                                                <span className="text-muted text-[11px] whitespace-nowrap">{formatDateTime(entry.timestamp)}</span>
+                                            </div>
+                                            <p className="text-muted text-xs mt-1">
+                                                To: {entry.target?.username || entry.target?.email || 'Unknown'}
+                                            </p>
                                         </div>
-                                        <p className="text-muted text-xs mt-1">
-                                            To: {entry.target?.username || entry.target?.email || 'Unknown'}
-                                        </p>
-                                    </div>
-                                ))
+                                    ))}
+                                    {totalEmailPages > 1 && (
+                                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
+                                            <button 
+                                                className="px-3 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                                onClick={() => setEmailPage(p => Math.max(1, p - 1))}
+                                                disabled={emailPage === 1}
+                                            >
+                                                Previous
+                                            </button>
+                                            <span className="text-xs text-muted font-semibold">Page {emailPage} of {totalEmailPages}</span>
+                                            <button 
+                                                className="px-3 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                                onClick={() => setEmailPage(p => Math.min(totalEmailPages, p + 1))}
+                                                disabled={emailPage === totalEmailPages}
+                                            >
+                                                Next
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     </section>
