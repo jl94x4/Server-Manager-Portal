@@ -3805,18 +3805,17 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                             if (thumbUrl) {
                                 return (
                                     <div className="relative">
-                                        <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-plex via-amber-300 to-orange-600 opacity-70 blur-md"></div>
                                         <img 
                                             src={thumbUrl.startsWith('http') ? thumbUrl : `/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=256&height=256`} 
                                             alt={sessionInfo.session.username} 
-                                            className="relative w-28 h-28 md:w-32 md:h-32 rounded-full object-cover border-4 border-card shadow-2xl bg-card" 
+                                            className="relative w-28 h-28 md:w-32 md:h-32 rounded-full object-cover border-4 border-plex shadow-2xl bg-card" 
                                             onError={(e) => {
                                                 (e.target as HTMLImageElement).style.display = 'none';
                                                 (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
                                                 (e.target as HTMLImageElement).nextElementSibling?.classList.add('flex');
                                             }}
                                         />
-                                        <div className={`hidden relative w-28 h-28 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-plex/40 to-plex/10 border-4 border-card items-center justify-center text-plex font-black text-5xl shadow-2xl overflow-hidden`}>
+                                        <div className={`hidden relative w-28 h-28 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-plex/40 to-plex/10 border-4 border-plex items-center justify-center text-plex font-black text-5xl shadow-2xl overflow-hidden`}>
                                             {sessionInfo.session.username?.[0]?.toUpperCase() || '?'}
                                         </div>
                                     </div>
@@ -3824,8 +3823,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                             }
                             return (
                                 <div className="relative">
-                                    <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-plex via-amber-300 to-orange-600 opacity-70 blur-md"></div>
-                                    <div className={`relative w-28 h-28 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-plex/40 to-plex/10 border-4 border-card items-center justify-center text-plex font-black text-5xl flex shadow-2xl overflow-hidden`}>
+                                    <div className={`relative w-28 h-28 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-plex/40 to-plex/10 border-4 border-plex items-center justify-center text-plex font-black text-5xl flex shadow-2xl overflow-hidden`}>
                                         {sessionInfo.session.username?.[0]?.toUpperCase() || '?'}
                                     </div>
                                 </div>
@@ -3990,7 +3988,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                 {/* Right Column */}
                 <div className="lg:col-span-2 flex flex-col gap-6">
                     {/* Server Stats Card */}
-                    <div className="bg-card border border-border rounded-2xl p-6 shadow-xl flex flex-col justify-center relative overflow-hidden h-full min-h-[200px]">
+                    <div className="bg-card border border-border rounded-2xl p-6 shadow-xl flex flex-col justify-center relative overflow-hidden">
                         <div className="absolute -top-10 -right-10 p-8 opacity-5">
                             <Activity className="w-64 h-64 text-plex" />
                         </div>
