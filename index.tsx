@@ -3615,7 +3615,7 @@ const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any }> = ({ o
     }
 
     return (
-        <div className="w-full max-w-6xl mx-auto flex flex-col items-center justify-center min-h-[80vh] px-4 pt-12 md:pt-20">
+        <div className="w-full max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[80vh] px-4 pt-12 md:pt-20">
             <Loader isLoading={isLoading} />
             <div className="w-full max-w-5xl mx-auto bg-card rounded-2xl shadow-2xl border-t-[6px] border-plex flex flex-col-reverse md:flex-row relative z-10 overflow-hidden">
                 <div className="flex-1 p-4 md:p-8 lg:p-12 flex flex-col justify-center">
@@ -3769,7 +3769,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
     const heroBg = analytics?.recentHistory?.[0]?.thumbUrl || publicConfig?.customLogoUrl || '';
 
     return (
-        <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
+        <div className="w-full max-w-4xl mx-auto flex flex-col gap-6">
             <Loader isLoading={isLoading} />
             {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
 
