@@ -3176,7 +3176,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: () => v
             </div>
 
             <header className="hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0">
-                <h1 className="text-xl md:text-3xl font-bold text-plex">Admin Portal</h1>
+                <h1 className="text-xl md:text-3xl font-bold text-plex">Users Management</h1>
             </header>
             <main>
                 {isConfigured && (
@@ -3850,61 +3850,69 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                         </div>
                     )}
 
-                    {/* Trial setup / Subscription Status */}
-                    {!sessionInfo.session.isAdmin && !user && (
-                        <div className="flex items-center gap-3 text-muted text-sm bg-card p-6 rounded-2xl border border-border shadow-lg">
-                            <div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin flex-shrink-0" />
-                            Setting up your 3-Day Free Trial...
-                        </div>
-                    )}
-
-                    {!sessionInfo.session.isAdmin && user && (
-                        <div className="bg-card border border-border rounded-2xl p-6 shadow-xl flex flex-col justify-center md:h-[240px]">
-                            <div className="flex flex-col gap-4">
-                                <div>
-                                    <p className="text-muted text-xs uppercase tracking-widest font-semibold mb-3">Subscription Status</p>
-                                    <div className="flex flex-wrap items-center gap-3">
-                                        <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-black border uppercase tracking-wider shadow-sm ${isRevoked ? 'bg-red-500/10 border-red-500/30 text-red-400' : isExpiringSoon ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' : 'bg-green-500/10 border-green-500/30 text-green-400'}`}>
-                                            <span className={`w-2 h-2 rounded-full animate-pulse ${isRevoked ? 'bg-red-400' : isExpiringSoon ? 'bg-yellow-400' : 'bg-green-400'}`} />
-                                            {user.plexAccessStatus}{user.isTrial && ' · Trial'}
-                                        </span>
-                                        {user.expiryDate ? (
-                                            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-white/5 border border-white/10 text-text shadow-sm">
-                                                <Calendar size={14} className="text-muted" />
-                                                {new Date(user.expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                            </span>
-                                        ) : (
-                                            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-green-500/10 border border-green-500/30 text-green-400 shadow-sm">
-                                                ♾️ Unlimited Access
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                                
-                                {isRevoked && daysLeft !== null && daysLeft >= 0 && (
-                                    <button className="w-full mt-2 px-6 py-2.5 bg-plex text-background rounded-xl font-bold hover:bg-plex-hover transition-colors shadow-lg" onClick={handleRelink}>
-                                        Re-link Plex Account
-                                    </button>
-                                )}
-
-                                {daysLeft !== null && (
-                                    <div className="bg-background/40 rounded-xl p-5 border border-white/5 mt-2">
-                                        <div className="flex justify-between items-baseline mb-3">
-                                            <span className="text-muted text-xs uppercase tracking-widest font-semibold">Time Remaining</span>
-                                            <span className={`font-black text-3xl md:text-4xl leading-none ${isExpiringSoon ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.3)]' : 'text-plex drop-shadow-[0_0_8px_rgba(229,160,13,0.3)]'}`}>
-                                                {daysLeft}<span className="text-base font-semibold text-muted ml-1.5">{daysLeft === 1 ? 'day' : 'days'}</span>
-                                            </span>
-                                        </div>
-                                        <div className="w-full h-3 bg-black/40 rounded-full overflow-hidden shadow-inner border border-white/5">
-                                            <div className={`h-full rounded-full transition-all duration-1000 relative ${isExpiringSoon ? 'bg-yellow-400' : 'bg-gradient-to-r from-plex via-amber-400 to-orange-500'}`} style={{ width: `${progressPct}%` }}>
-                                                <div className="absolute top-0 bottom-0 left-0 right-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[shimmer_1s_linear_infinite]" />
-                                            </div>
-                                        </div>
-                                        {isExpiringSoon && <p className="text-yellow-400/90 text-sm font-medium mt-3 flex items-center gap-2">⚠️ Expiring soon — contact admin</p>}
-                                    </div>
-                                )}
+                    {/* Subscription Status */}
+                    {sessionInfo.session.isAdmin ? (
+                        <div className="bg-card border border-border rounded-2xl p-6 shadow-xl flex flex-col items-center justify-center text-center md:h-[240px]">
+                            <div className="w-16 h-16 bg-plex/10 rounded-full flex items-center justify-center mb-4 border border-plex/30 shadow-[0_0_15px_rgba(229,160,13,0.15)]">
+                                <Shield className="w-8 h-8 text-plex drop-shadow-md" />
                             </div>
+                            <h3 className="text-xl md:text-2xl font-black text-text uppercase tracking-widest mb-1">Server Admin</h3>
+                            <p className="text-xs font-bold text-plex tracking-wider uppercase">Unlimited Access</p>
                         </div>
+                    ) : (
+                        user ? (
+                            <div className="bg-card border border-border rounded-2xl p-6 shadow-xl flex flex-col justify-center md:h-[240px]">
+                                <div className="flex flex-col gap-4">
+                                    <div>
+                                        <p className="text-muted text-xs uppercase tracking-widest font-semibold mb-3">Subscription Status</p>
+                                        <div className="flex flex-wrap items-center gap-3">
+                                            <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-black border uppercase tracking-wider shadow-sm ${isRevoked ? 'bg-red-500/10 border-red-500/30 text-red-400' : isExpiringSoon ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' : 'bg-green-500/10 border-green-500/30 text-green-400'}`}>
+                                                <span className={`w-2 h-2 rounded-full animate-pulse ${isRevoked ? 'bg-red-400' : isExpiringSoon ? 'bg-yellow-400' : 'bg-green-400'}`} />
+                                                {user.plexAccessStatus}{user.isTrial && ' · Trial'}
+                                            </span>
+                                            {user.expiryDate ? (
+                                                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-white/5 border border-white/10 text-text shadow-sm">
+                                                    <Calendar size={14} className="text-muted" />
+                                                    {new Date(user.expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-green-500/10 border border-green-500/30 text-green-400 shadow-sm">
+                                                    ♾️ Unlimited Access
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    
+                                    {isRevoked && daysLeft !== null && daysLeft >= 0 && (
+                                        <button className="w-full mt-2 px-6 py-2.5 bg-plex text-background rounded-xl font-bold hover:bg-plex-hover transition-colors shadow-lg" onClick={handleRelink}>
+                                            Re-link Plex Account
+                                        </button>
+                                    )}
+
+                                    {daysLeft !== null && (
+                                        <div className="bg-background/40 rounded-xl p-5 border border-white/5 mt-2">
+                                            <div className="flex justify-between items-baseline mb-3">
+                                                <span className="text-muted text-xs uppercase tracking-widest font-semibold">Time Remaining</span>
+                                                <span className={`font-black text-3xl md:text-4xl leading-none ${isExpiringSoon ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.3)]' : 'text-plex drop-shadow-[0_0_8px_rgba(229,160,13,0.3)]'}`}>
+                                                    {daysLeft}<span className="text-base font-semibold text-muted ml-1.5">{daysLeft === 1 ? 'day' : 'days'}</span>
+                                                </span>
+                                            </div>
+                                            <div className="w-full h-3 bg-black/40 rounded-full overflow-hidden shadow-inner border border-white/5">
+                                                <div className={`h-full rounded-full transition-all duration-1000 relative ${isExpiringSoon ? 'bg-yellow-400' : 'bg-gradient-to-r from-plex via-amber-400 to-orange-500'}`} style={{ width: `${progressPct}%` }}>
+                                                    <div className="absolute top-0 bottom-0 left-0 right-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[shimmer_1s_linear_infinite]" />
+                                                </div>
+                                            </div>
+                                            {isExpiringSoon && <p className="text-yellow-400/90 text-sm font-medium mt-3 flex items-center gap-2">⚠️ Expiring soon — contact admin</p>}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-3 text-muted text-sm bg-card p-6 rounded-2xl border border-border shadow-lg">
+                                <div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin flex-shrink-0" />
+                                Setting up your 3-Day Free Trial...
+                            </div>
+                        )
                     )}
 
                     {/* Announcement Banner */}
@@ -4840,7 +4848,8 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
     }, [adminThumb]);
 
     const navItemsConfig: Record<string, { label: string; icon: React.FC<any>; route: string; adminOnly: boolean; href?: string; onClick?: (e: any) => void }> = {
-        'home': { label: 'Home', icon: Home, route: isAdmin ? 'admin' : 'user', adminOnly: false },
+        'home': { label: 'Home', icon: Home, route: 'user', adminOnly: false },
+        'users': { label: 'Users', icon: Users, route: 'users', adminOnly: true },
         'discover': { label: 'Discover', icon: Film, route: 'dashboard', adminOnly: false },
         'status': { label: 'Status', icon: Activity, route: 'status', adminOnly: false },
         'logs': { label: 'Logs', icon: FileText, route: 'logs', adminOnly: true },
@@ -5157,12 +5166,12 @@ const MainApp: React.FC = () => {
             else if (path === '/analytics') setCurrentRoute('analytics');
             else if (path === '/settings' && !data.session.isAdmin) setCurrentRoute('user');
             else if (path === '/portal') setCurrentRoute('user');
-            else if (path === '/admin') setCurrentRoute('admin');
+            else if (path === '/admin') setCurrentRoute('users');
+            else if (path === '/users') setCurrentRoute('users');
             else {
                 // If at root or unknown, push to default route
-                const defaultRoute = data.session.isAdmin ? 'admin' : 'user';
-                window.history.replaceState({}, '', defaultRoute === 'admin' ? '/admin' : '/portal');
-                setCurrentRoute(defaultRoute);
+                window.history.replaceState({}, '', '/portal');
+                setCurrentRoute('user');
             }
         } catch {
             if (path === '/status') setCurrentRoute('status');
@@ -5196,14 +5205,14 @@ const MainApp: React.FC = () => {
             const code = window.location.pathname.split('/')[2];
             return <PublicInviteClaim code={code} />;
         }
-        if (currentRoute === 'status') return <StatusDashboard onBack={() => isPublicStatus ? setRoute('login') : setRoute(isAdmin ? 'admin' : 'user')} isAdmin={isAdmin} isPublic={isPublicStatus} />;
-        if (currentRoute === 'dashboard') return <LibraryDashboard onBack={() => setRoute(isAdmin ? 'admin' : 'user')} />;
+        if (currentRoute === 'status') return <StatusDashboard onBack={() => isPublicStatus ? setRoute('login') : setRoute('user')} isAdmin={isAdmin} isPublic={isPublicStatus} />;
+        if (currentRoute === 'dashboard') return <LibraryDashboard onBack={() => setRoute('user')} />;
         if (currentRoute === 'settings' && isAdmin) return <SettingsDashboard />;
         if (currentRoute === 'logs' && isAdmin) return <LogsDashboard onLogout={handleLogout} />;
         if (currentRoute === 'mediastack') return <MediaStackDashboard isAdmin={isAdmin} />;
         if (currentRoute === 'analytics') return <AnalyticsDashboard isAdmin={isAdmin} sessionInfo={sessionInfo} />;
-        if (currentRoute === 'admin') return <AdminDashboard onLogout={handleLogout} onViewUserPortal={() => setRoute('user')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} />;
-        return <UserDashboard sessionInfo={sessionInfo} publicConfig={publicConfig} onLogout={handleLogout} refreshSession={checkSession} onViewAdmin={() => setRoute('admin')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} />;
+        if (currentRoute === 'users' || currentRoute === 'admin') return <AdminDashboard onLogout={handleLogout} onViewUserPortal={() => setRoute('user')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} />;
+        return <UserDashboard sessionInfo={sessionInfo} publicConfig={publicConfig} onLogout={handleLogout} refreshSession={checkSession} onViewAdmin={() => setRoute('users')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} />;
     };
 
     return (

@@ -1148,7 +1148,7 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
     let serverName = 'Plex Server';
     let adminThumb = null;
     let requestUrl = 'https://yourdomain.com';
-    let navOrder = ['home', 'discover', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout'];
+    let navOrder = ['home', 'discover', 'users', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout'];
     try {
         const config = await loadFile(CONFIG_PATH, {});
         if (config && config.plexToken && config.serverIdentifier) {
@@ -1206,7 +1206,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 referralTrialDays: config.referralTrialDays || 3,
                 referralRewardDays: config.referralRewardDays || 7,
                 announcement: config.announcement || '',
-                navOrder: config.navOrder || ['home', 'discover', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout']
+                navOrder: config.navOrder || ['home', 'discover', 'users', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout']
             },
         });
     } else {
@@ -1241,7 +1241,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 referralRewardDays: 7,
                 announcement: '',
                 hideStreamUsers: false,
-                navOrder: ['home', 'discover', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout']
+                navOrder: ['home', 'discover', 'users', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout']
             },
         });
     }
@@ -1312,7 +1312,7 @@ app.post('/api/config', async (req, res) => {
         referralRewardDays: parseInt(referralRewardDays, 10) || 7,
         announcement: announcement || '',
         hideStreamUsers: !!hideStreamUsers,
-        navOrder: Array.isArray(navOrder) ? navOrder : existingConfig.navOrder || ['home', 'discover', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout']
+        navOrder: Array.isArray(navOrder) ? navOrder : existingConfig.navOrder || ['home', 'discover', 'users', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout']
     };
     await saveFile(CONFIG_PATH, config);
     log('Configuration saved successfully.');
