@@ -257,8 +257,16 @@ var __iconNode14 = [
 ];
 var LogOut = createLucideIcon("log-out", __iconNode14);
 
-// node_modules/lucide-react/dist/esm/icons/settings.mjs
+// node_modules/lucide-react/dist/esm/icons/music.mjs
 var __iconNode15 = [
+  ["path", { d: "M9 18V5l12-2v13", key: "1jmyc2" }],
+  ["circle", { cx: "6", cy: "18", r: "3", key: "fqmcym" }],
+  ["circle", { cx: "18", cy: "16", r: "3", key: "1hluhg" }]
+];
+var Music = createLucideIcon("music", __iconNode15);
+
+// node_modules/lucide-react/dist/esm/icons/settings.mjs
+var __iconNode16 = [
   [
     "path",
     {
@@ -268,10 +276,10 @@ var __iconNode15 = [
   ],
   ["circle", { cx: "12", cy: "12", r: "3", key: "1v7zrd" }]
 ];
-var Settings = createLucideIcon("settings", __iconNode15);
+var Settings = createLucideIcon("settings", __iconNode16);
 
 // node_modules/lucide-react/dist/esm/icons/sparkles.mjs
-var __iconNode16 = [
+var __iconNode17 = [
   [
     "path",
     {
@@ -283,10 +291,10 @@ var __iconNode16 = [
   ["path", { d: "M22 4h-4", key: "gwowj6" }],
   ["circle", { cx: "4", cy: "20", r: "2", key: "6kqj1y" }]
 ];
-var Sparkles = createLucideIcon("sparkles", __iconNode16);
+var Sparkles = createLucideIcon("sparkles", __iconNode17);
 
 // node_modules/lucide-react/dist/esm/icons/square-play.mjs
-var __iconNode17 = [
+var __iconNode18 = [
   ["rect", { x: "3", y: "3", width: "18", height: "18", rx: "2", key: "h1oib" }],
   [
     "path",
@@ -296,10 +304,10 @@ var __iconNode17 = [
     }
   ]
 ];
-var SquarePlay = createLucideIcon("square-play", __iconNode17);
+var SquarePlay = createLucideIcon("square-play", __iconNode18);
 
 // node_modules/lucide-react/dist/esm/icons/star.mjs
-var __iconNode18 = [
+var __iconNode19 = [
   [
     "path",
     {
@@ -308,37 +316,37 @@ var __iconNode18 = [
     }
   ]
 ];
-var Star = createLucideIcon("star", __iconNode18);
+var Star = createLucideIcon("star", __iconNode19);
 
 // node_modules/lucide-react/dist/esm/icons/trending-up.mjs
-var __iconNode19 = [
+var __iconNode20 = [
   ["path", { d: "M16 7h6v6", key: "box55l" }],
   ["path", { d: "m22 7-8.5 8.5-5-5L2 17", key: "1t1m79" }]
 ];
-var TrendingUp = createLucideIcon("trending-up", __iconNode19);
+var TrendingUp = createLucideIcon("trending-up", __iconNode20);
 
 // node_modules/lucide-react/dist/esm/icons/tv.mjs
-var __iconNode20 = [
+var __iconNode21 = [
   ["path", { d: "m17 2-5 5-5-5", key: "16satq" }],
   ["rect", { width: "20", height: "15", x: "2", y: "7", rx: "2", key: "1e6viu" }]
 ];
-var Tv = createLucideIcon("tv", __iconNode20);
+var Tv = createLucideIcon("tv", __iconNode21);
 
 // node_modules/lucide-react/dist/esm/icons/users.mjs
-var __iconNode21 = [
+var __iconNode22 = [
   ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", key: "1yyitq" }],
   ["path", { d: "M16 3.128a4 4 0 0 1 0 7.744", key: "16gr8j" }],
   ["path", { d: "M22 21v-2a4 4 0 0 0-3-3.87", key: "kshegd" }],
   ["circle", { cx: "9", cy: "7", r: "4", key: "nufk8" }]
 ];
-var Users = createLucideIcon("users", __iconNode21);
+var Users = createLucideIcon("users", __iconNode22);
 
 // node_modules/lucide-react/dist/esm/icons/x.mjs
-var __iconNode22 = [
+var __iconNode23 = [
   ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
   ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
 ];
-var X = createLucideIcon("x", __iconNode22);
+var X = createLucideIcon("x", __iconNode23);
 
 // index.tsx
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
@@ -3048,7 +3056,7 @@ var AdminDashboard = ({ onLogout, onViewUserPortal, onViewStatus, onViewDashboar
   return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-[1600px] mx-auto flex flex-col", children: [
     /* @__PURE__ */ jsx(Loader, { isLoading }),
     /* @__PURE__ */ jsx("div", { className: "fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] flex flex-col-reverse gap-2 items-center", children: toasts.map((toast) => /* @__PURE__ */ jsx(Toast, { ...toast, onDismiss: () => setToasts((t) => t.filter((item) => item.id !== toast.id)) }, toast.id)) }),
-    /* @__PURE__ */ jsx("header", { className: "hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0", children: /* @__PURE__ */ jsx("h1", { className: "text-xl md:text-3xl font-bold text-plex", children: "Admin Portal" }) }),
+    /* @__PURE__ */ jsx("header", { className: "hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0", children: /* @__PURE__ */ jsx("h1", { className: "text-xl md:text-3xl font-bold text-plex", children: "Users Management" }) }),
     /* @__PURE__ */ jsxs("main", { children: [
       isConfigured && /* @__PURE__ */ jsxs("div", { className: "flex flex-col md:flex-row gap-4 md:items-center mb-8 bg-card border border-border p-4 rounded-xl shadow-md", children: [
         /* @__PURE__ */ jsx("span", { className: "font-bold text-muted uppercase tracking-wider text-sm hidden md:inline-block mr-2", children: "Quick Actions:" }),
@@ -3439,7 +3447,7 @@ var Login = ({ onLoginSuccess, publicConfig }) => {
   if (publicInfo.isConfigured === null) {
     return /* @__PURE__ */ jsx(Loader, { isLoading: true });
   }
-  return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-6xl mx-auto flex flex-col items-center justify-center min-h-[80vh] px-4 pt-12 md:pt-20", children: [
+  return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[80vh] px-4 pt-12 md:pt-20", children: [
     /* @__PURE__ */ jsx(Loader, { isLoading }),
     /* @__PURE__ */ jsxs("div", { className: "w-full max-w-5xl mx-auto bg-card rounded-2xl shadow-2xl border-t-[6px] border-plex flex flex-col-reverse md:flex-row relative z-10 overflow-hidden", children: [
       /* @__PURE__ */ jsxs("div", { className: "flex-1 p-4 md:p-8 lg:p-12 flex flex-col justify-center", children: [
@@ -3479,6 +3487,9 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
   const [toast, setToast] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [serverStats, setServerStats] = useState(null);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [serverDataLoading, setServerDataLoading] = useState(true);
   const user = sessionInfo.account;
   const [optOutNewsletter, setOptOutNewsletter] = useState(user?.optOutNewsletter || false);
   const handleToggleNewsletter = async () => {
@@ -3532,6 +3543,18 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
     };
     fetchAnalytics();
   }, [user, sessionInfo.session.isAdmin]);
+  useEffect(() => {
+    const fetchServerData = async () => {
+      try {
+        const p1 = apiFetch("/api/plex/stats").then((res) => setServerStats(res)).catch((e) => console.error("Failed to fetch server stats", e));
+        const p2 = apiFetch("/api/plex/dashboard?limit=15").then((res) => setDashboardData(res)).catch((e) => console.error("Failed to fetch dashboard data", e));
+        await Promise.all([p1, p2]);
+      } finally {
+        setServerDataLoading(false);
+      }
+    };
+    fetchServerData();
+  }, []);
   const handleRelink = async () => {
     setIsLoading(true);
     try {
@@ -3550,32 +3573,32 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
   const isRevoked = user?.plexAccessStatus === "revoked";
   const isPending = user?.plexAccessStatus?.toLowerCase() === "pending";
   const heroBg = analytics?.recentHistory?.[0]?.thumbUrl || publicConfig?.customLogoUrl || "";
-  return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-4xl mx-auto flex flex-col gap-6", children: [
+  return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-[1600px] mx-auto flex flex-col gap-6", children: [
     /* @__PURE__ */ jsx(Loader, { isLoading }),
     toast && /* @__PURE__ */ jsx(Toast, { message: toast.message, type: toast.type, onDismiss: () => setToast(null) }),
     /* @__PURE__ */ jsxs("div", { className: "relative w-full rounded-2xl overflow-hidden shadow-2xl bg-card border border-border mt-4", children: [
       /* @__PURE__ */ jsxs("div", { className: "absolute inset-0 bg-background overflow-hidden", children: [
-        heroBg && /* @__PURE__ */ jsx(
+        dashboardData?.recentMovies?.length > 0 ? /* @__PURE__ */ jsx("div", { className: "absolute -inset-[50%] opacity-40 transform -rotate-12 scale-110 flex gap-4 overflow-hidden pointer-events-none justify-center", children: [...Array(6)].map((_, colIdx) => /* @__PURE__ */ jsx("div", { className: `flex flex-col gap-4 ${colIdx % 2 === 0 ? "animate-[scrollVertical_40s_linear_infinite]" : "animate-[scrollVertical_50s_linear_infinite_reverse]"}`, children: [...dashboardData.recentMovies, ...dashboardData.recentMovies].sort(() => 0.5 - Math.random()).map((m, i) => m.thumb && /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(m.thumb)}&width=200&height=300`, className: "w-32 md:w-48 rounded-xl object-cover", alt: "" }, `c${colIdx}-${i}`)) }, colIdx)) }) : heroBg && /* @__PURE__ */ jsx(
           "div",
           {
             className: "absolute inset-0 bg-cover bg-center opacity-30 blur-2xl scale-110",
             style: { backgroundImage: `url(${heroBg})` }
           }
         ),
-        /* @__PURE__ */ jsx("div", { className: "absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" })
+        /* @__PURE__ */ jsx("div", { className: "absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" }),
+        /* @__PURE__ */ jsx("div", { className: "absolute inset-0 bg-gradient-to-r from-card via-card/40 to-transparent" })
       ] }),
       /* @__PURE__ */ jsx("div", { className: "relative pt-24 pb-8 px-6 md:px-10 flex flex-col items-center md:items-start text-center md:text-left z-10", children: /* @__PURE__ */ jsxs("div", { className: "flex flex-col md:flex-row items-center md:items-end gap-6", children: [
         (() => {
           const thumbUrl = user?.thumb || sessionInfo.session.thumb;
           if (thumbUrl) {
             return /* @__PURE__ */ jsxs("div", { className: "relative", children: [
-              /* @__PURE__ */ jsx("div", { className: "absolute -inset-1 rounded-full bg-gradient-to-tr from-plex via-amber-300 to-orange-600 opacity-70 blur-md" }),
               /* @__PURE__ */ jsx(
                 "img",
                 {
                   src: thumbUrl.startsWith("http") ? thumbUrl : `/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=256&height=256`,
                   alt: sessionInfo.session.username,
-                  className: "relative w-28 h-28 md:w-32 md:h-32 rounded-full object-cover border-4 border-card shadow-2xl bg-card",
+                  className: "relative w-28 h-28 md:w-32 md:h-32 rounded-full object-cover border-4 border-plex shadow-2xl bg-card",
                   onError: (e) => {
                     e.target.style.display = "none";
                     e.target.nextElementSibling?.classList.remove("hidden");
@@ -3583,13 +3606,10 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
                   }
                 }
               ),
-              /* @__PURE__ */ jsx("div", { className: `hidden relative w-28 h-28 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-plex/40 to-plex/10 border-4 border-card items-center justify-center text-plex font-black text-5xl shadow-2xl overflow-hidden`, children: sessionInfo.session.username?.[0]?.toUpperCase() || "?" })
+              /* @__PURE__ */ jsx("div", { className: `hidden relative w-28 h-28 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-plex/40 to-plex/10 border-4 border-plex items-center justify-center text-plex font-black text-5xl shadow-2xl overflow-hidden`, children: sessionInfo.session.username?.[0]?.toUpperCase() || "?" })
             ] });
           }
-          return /* @__PURE__ */ jsxs("div", { className: "relative", children: [
-            /* @__PURE__ */ jsx("div", { className: "absolute -inset-1 rounded-full bg-gradient-to-tr from-plex via-amber-300 to-orange-600 opacity-70 blur-md" }),
-            /* @__PURE__ */ jsx("div", { className: `relative w-28 h-28 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-plex/40 to-plex/10 border-4 border-card items-center justify-center text-plex font-black text-5xl flex shadow-2xl overflow-hidden`, children: sessionInfo.session.username?.[0]?.toUpperCase() || "?" })
-          ] });
+          return /* @__PURE__ */ jsx("div", { className: "relative", children: /* @__PURE__ */ jsx("div", { className: `relative w-28 h-28 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-plex/40 to-plex/10 border-4 border-plex items-center justify-center text-plex font-black text-5xl flex shadow-2xl overflow-hidden`, children: sessionInfo.session.username?.[0]?.toUpperCase() || "?" }) });
         })(),
         /* @__PURE__ */ jsxs("div", { className: "pb-2", children: [
           /* @__PURE__ */ jsx("p", { className: "text-plex text-sm uppercase tracking-[4px] font-bold mb-1 drop-shadow-md", children: "Welcome Back" }),
@@ -3598,166 +3618,260 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
         ] })
       ] }) })
     ] }),
-    sessionInfo.session.isAdmin && /* @__PURE__ */ jsxs("div", { className: "bg-plex/5 border border-plex/20 rounded-2xl p-6 text-sm text-muted leading-relaxed shadow-lg", children: [
-      /* @__PURE__ */ jsx("span", { className: "text-plex font-bold", children: "Server Administrator" }),
-      " \u2014 You own this server. Use the Admin Panel to manage users and settings. Your personal watch stats will appear below if you switch to a normal user account."
-    ] }),
-    !sessionInfo.session.isAdmin && !user && /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-3 text-muted text-sm bg-card p-6 rounded-2xl border border-border shadow-lg", children: [
-      /* @__PURE__ */ jsx("div", { className: "w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin flex-shrink-0" }),
-      "Setting up your 3-Day Free Trial..."
-    ] }),
-    !sessionInfo.session.isAdmin && user && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-xl", children: [
-      /* @__PURE__ */ jsxs("div", { className: "flex flex-col md:flex-row md:items-end justify-between gap-6 mb-6", children: [
-        /* @__PURE__ */ jsxs("div", { children: [
-          /* @__PURE__ */ jsx("p", { className: "text-muted text-xs uppercase tracking-widest font-semibold mb-3", children: "Subscription Status" }),
-          /* @__PURE__ */ jsxs("div", { className: "flex flex-wrap items-center gap-3", children: [
-            /* @__PURE__ */ jsxs("span", { className: `inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-black border uppercase tracking-wider shadow-sm ${isRevoked ? "bg-red-500/10 border-red-500/30 text-red-400" : isExpiringSoon ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-400" : "bg-green-500/10 border-green-500/30 text-green-400"}`, children: [
-              /* @__PURE__ */ jsx("span", { className: `w-2 h-2 rounded-full animate-pulse ${isRevoked ? "bg-red-400" : isExpiringSoon ? "bg-yellow-400" : "bg-green-400"}` }),
-              user.plexAccessStatus,
-              user.isTrial && " \xB7 Trial"
+    /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-3 gap-6", children: [
+      /* @__PURE__ */ jsxs("div", { className: "lg:col-span-1 flex flex-col gap-6", children: [
+        sessionInfo.session.isAdmin && /* @__PURE__ */ jsxs("div", { className: "bg-plex/5 border border-plex/20 rounded-2xl p-6 text-sm text-muted leading-relaxed shadow-lg", children: [
+          /* @__PURE__ */ jsx("span", { className: "text-plex font-bold", children: "Server Administrator" }),
+          " \u2014 You own this server. Use the Admin Panel to manage users and settings. Your personal watch stats will appear below if you switch to a normal user account."
+        ] }),
+        sessionInfo.session.isAdmin ? /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-xl flex flex-col items-center justify-center text-center md:h-[240px]", children: [
+          /* @__PURE__ */ jsx("div", { className: "w-16 h-16 bg-plex/10 rounded-full flex items-center justify-center mb-4 border border-plex/30 shadow-[0_0_15px_rgba(229,160,13,0.15)]", children: /* @__PURE__ */ jsx(Shield, { className: "w-8 h-8 text-plex drop-shadow-md" }) }),
+          /* @__PURE__ */ jsx("h3", { className: "text-xl md:text-2xl font-black text-text uppercase tracking-widest mb-1", children: "Server Admin" }),
+          /* @__PURE__ */ jsx("p", { className: "text-xs font-bold text-plex tracking-wider uppercase", children: "Unlimited Access" })
+        ] }) : user ? /* @__PURE__ */ jsx("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-xl flex flex-col justify-center md:h-[240px]", children: /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-4", children: [
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("p", { className: "text-muted text-xs uppercase tracking-widest font-semibold mb-3", children: "Subscription Status" }),
+            /* @__PURE__ */ jsxs("div", { className: "flex flex-wrap items-center gap-3", children: [
+              /* @__PURE__ */ jsxs("span", { className: `inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-black border uppercase tracking-wider shadow-sm ${isRevoked ? "bg-red-500/10 border-red-500/30 text-red-400" : isExpiringSoon ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-400" : "bg-green-500/10 border-green-500/30 text-green-400"}`, children: [
+                /* @__PURE__ */ jsx("span", { className: `w-2 h-2 rounded-full animate-pulse ${isRevoked ? "bg-red-400" : isExpiringSoon ? "bg-yellow-400" : "bg-green-400"}` }),
+                user.plexAccessStatus,
+                user.isTrial && " \xB7 Trial"
+              ] }),
+              user.expiryDate ? /* @__PURE__ */ jsxs("span", { className: "inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-white/5 border border-white/10 text-text shadow-sm", children: [
+                /* @__PURE__ */ jsx(Calendar, { size: 14, className: "text-muted" }),
+                new Date(user.expiryDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+              ] }) : /* @__PURE__ */ jsx("span", { className: "inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-green-500/10 border border-green-500/30 text-green-400 shadow-sm", children: "\u267E\uFE0F Unlimited Access" })
+            ] })
+          ] }),
+          isRevoked && daysLeft !== null && daysLeft >= 0 && /* @__PURE__ */ jsx("button", { className: "w-full mt-2 px-6 py-2.5 bg-plex text-background rounded-xl font-bold hover:bg-plex-hover transition-colors shadow-lg", onClick: handleRelink, children: "Re-link Plex Account" }),
+          daysLeft !== null && /* @__PURE__ */ jsxs("div", { className: "bg-background/40 rounded-xl p-5 border border-white/5 mt-2", children: [
+            /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-baseline mb-3", children: [
+              /* @__PURE__ */ jsx("span", { className: "text-muted text-xs uppercase tracking-widest font-semibold", children: "Time Remaining" }),
+              /* @__PURE__ */ jsxs("span", { className: `font-black text-3xl md:text-4xl leading-none ${isExpiringSoon ? "text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.3)]" : "text-plex drop-shadow-[0_0_8px_rgba(229,160,13,0.3)]"}`, children: [
+                daysLeft,
+                /* @__PURE__ */ jsx("span", { className: "text-base font-semibold text-muted ml-1.5", children: daysLeft === 1 ? "day" : "days" })
+              ] })
             ] }),
-            user.expiryDate ? /* @__PURE__ */ jsxs("span", { className: "inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-white/5 border border-white/10 text-text shadow-sm", children: [
-              /* @__PURE__ */ jsx(Calendar, { size: 14, className: "text-muted" }),
-              new Date(user.expiryDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
-            ] }) : /* @__PURE__ */ jsx("span", { className: "inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-green-500/10 border border-green-500/30 text-green-400 shadow-sm", children: "\u267E\uFE0F Unlimited Access" })
+            /* @__PURE__ */ jsx("div", { className: "w-full h-3 bg-black/40 rounded-full overflow-hidden shadow-inner border border-white/5", children: /* @__PURE__ */ jsx("div", { className: `h-full rounded-full transition-all duration-1000 relative ${isExpiringSoon ? "bg-yellow-400" : "bg-gradient-to-r from-plex via-amber-400 to-orange-500"}`, style: { width: `${progressPct}%` }, children: /* @__PURE__ */ jsx("div", { className: "absolute top-0 bottom-0 left-0 right-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[shimmer_1s_linear_infinite]" }) }) }),
+            isExpiringSoon && /* @__PURE__ */ jsx("p", { className: "text-yellow-400/90 text-sm font-medium mt-3 flex items-center gap-2", children: "\u26A0\uFE0F Expiring soon \u2014 contact admin" })
           ] })
+        ] }) }) : /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-3 text-muted text-sm bg-card p-6 rounded-2xl border border-border shadow-lg", children: [
+          /* @__PURE__ */ jsx("div", { className: "w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin flex-shrink-0" }),
+          "Setting up your 3-Day Free Trial..."
         ] }),
-        isRevoked && daysLeft !== null && daysLeft >= 0 && /* @__PURE__ */ jsx("button", { className: "px-6 py-2.5 bg-plex text-background rounded-xl font-bold hover:bg-plex-hover transition-colors shadow-lg", onClick: handleRelink, children: "Re-link Plex Account" })
-      ] }),
-      daysLeft !== null && /* @__PURE__ */ jsxs("div", { className: "bg-background/40 rounded-xl p-5 border border-white/5", children: [
-        /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-baseline mb-3", children: [
-          /* @__PURE__ */ jsx("span", { className: "text-muted text-xs uppercase tracking-widest font-semibold", children: "Time Remaining" }),
-          /* @__PURE__ */ jsxs("span", { className: `font-black text-3xl md:text-4xl leading-none ${isExpiringSoon ? "text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.3)]" : "text-plex drop-shadow-[0_0_8px_rgba(229,160,13,0.3)]"}`, children: [
-            daysLeft,
-            /* @__PURE__ */ jsx("span", { className: "text-base font-semibold text-muted ml-1.5", children: daysLeft === 1 ? "day" : "days" })
-          ] })
-        ] }),
-        /* @__PURE__ */ jsx("div", { className: "w-full h-3 bg-black/40 rounded-full overflow-hidden shadow-inner border border-white/5", children: /* @__PURE__ */ jsx("div", { className: `h-full rounded-full transition-all duration-1000 relative ${isExpiringSoon ? "bg-yellow-400" : "bg-gradient-to-r from-plex via-amber-400 to-orange-500"}`, style: { width: `${progressPct}%` }, children: /* @__PURE__ */ jsx("div", { className: "absolute top-0 bottom-0 left-0 right-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[shimmer_1s_linear_infinite]" }) }) }),
-        isExpiringSoon && /* @__PURE__ */ jsx("p", { className: "text-yellow-400/90 text-sm font-medium mt-3 flex items-center gap-2", children: "\u26A0\uFE0F Expiring soon \u2014 Please contact the admin to renew" })
-      ] })
-    ] }),
-    !sessionInfo.session.isAdmin && user && /* @__PURE__ */ jsx(Fragment, { children: analyticsLoading ? /* @__PURE__ */ jsx("div", { className: "flex items-center justify-center p-12 bg-card border border-border rounded-2xl shadow-lg", children: /* @__PURE__ */ jsxs("div", { className: "flex flex-col items-center gap-3", children: [
-      /* @__PURE__ */ jsx("div", { className: "w-6 h-6 rounded-full border-2 border-plex border-t-transparent animate-spin" }),
-      /* @__PURE__ */ jsx("span", { className: "text-muted text-sm font-medium", children: "Loading your stats..." })
-    ] }) }) : analytics && analytics.totalPlays > 0 ? /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-6", children: [
-      analytics.topContent && analytics.topContent.length > 0 && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-xl", children: [
-        /* @__PURE__ */ jsx("div", { className: "flex items-center justify-between mb-6", children: /* @__PURE__ */ jsxs("div", { children: [
-          /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-text mb-1", children: "Your Most Watched" }),
-          /* @__PURE__ */ jsxs("p", { className: "text-muted text-sm", children: [
-            "Based on your ",
-            analytics.totalPlays,
-            " total plays"
+        publicConfig?.announcement && /* @__PURE__ */ jsx("div", { className: "bg-plex/10 border border-plex/30 rounded-2xl p-4 md:p-6 shadow-lg", children: /* @__PURE__ */ jsxs("div", { className: "flex items-start gap-3", children: [
+          /* @__PURE__ */ jsx("span", { className: "text-xl mt-0.5", children: "\u{1F4E2}" }),
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("h3", { className: "text-plex font-bold text-sm uppercase tracking-wider mb-1", children: "Announcement" }),
+            /* @__PURE__ */ jsx("p", { className: "text-text whitespace-pre-wrap text-sm leading-relaxed", children: publicConfig.announcement })
           ] })
         ] }) }),
-        /* @__PURE__ */ jsx("div", { className: "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4", children: analytics.topContent.slice(0, 6).map((item) => /* @__PURE__ */ jsxs("a", { href: item.plexUrl, target: "_blank", rel: "noreferrer", className: "group relative rounded-xl overflow-hidden aspect-[2/3] bg-background border border-white/5 transition-transform hover:scale-105 hover:shadow-xl hover:border-plex/50", children: [
-          item.thumbUrl ? /* @__PURE__ */ jsx("img", { src: item.thumbUrl, alt: item.title, className: "w-full h-full object-cover transition-opacity group-hover:opacity-60" }) : /* @__PURE__ */ jsx("div", { className: "w-full h-full flex items-center justify-center p-4 text-center bg-white/5", children: /* @__PURE__ */ jsx("span", { className: "text-xs font-bold text-muted line-clamp-3", children: item.title }) }),
-          /* @__PURE__ */ jsxs("div", { className: "absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 via-black/60 to-transparent", children: [
-            /* @__PURE__ */ jsx("p", { className: "text-xs font-bold text-white truncate text-shadow-sm", children: item.title }),
-            /* @__PURE__ */ jsxs("p", { className: "text-[10px] text-plex font-black mt-0.5 uppercase tracking-wider", children: [
-              item.plays,
-              " plays"
-            ] })
+        publicConfig?.referralEnabled && user && !sessionInfo.session.isAdmin && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-4 md:p-6 shadow-lg", children: [
+          /* @__PURE__ */ jsx("p", { className: "text-plex font-bold text-base mb-1", children: "\u{1F381} Invite Friends" }),
+          /* @__PURE__ */ jsx("p", { className: "text-muted text-sm leading-relaxed mb-4", children: "Share this link. They get a free trial, and you get reward days!" }),
+          /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-2", children: [
+            /* @__PURE__ */ jsx("input", { type: "text", readOnly: true, value: `${window.location.origin}/?ref=${user.id}`, className: "w-full p-3 rounded-lg border border-border bg-background text-text text-sm outline-none" }),
+            /* @__PURE__ */ jsx("button", { onClick: () => {
+              navigator.clipboard.writeText(`${window.location.origin}/?ref=${user.id}`);
+              setToast({ id: 99, message: "Copied to clipboard!", type: "success" });
+            }, className: "w-full py-2.5 bg-plex text-background rounded-lg font-bold hover:bg-plex-hover transition-colors shadow-md", children: "Copy Link" })
           ] })
-        ] }, item.key)) })
-      ] }),
-      analytics.recentHistory && analytics.recentHistory.length > 0 && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-xl", children: [
-        /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-text mb-6", children: "Recently Watched" }),
-        /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-4", children: analytics.recentHistory.slice(0, 5).map((item, idx) => /* @__PURE__ */ jsxs("a", { href: item.plexUrl, target: "_blank", rel: "noreferrer", className: "flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-all group", children: [
-          /* @__PURE__ */ jsx("div", { className: "w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden bg-background flex-shrink-0 shadow-md", children: item.thumbUrl ? /* @__PURE__ */ jsx("img", { src: item.thumbUrl, alt: item.title, className: "w-full h-full object-cover" }) : /* @__PURE__ */ jsx("div", { className: "w-full h-full flex items-center justify-center", children: /* @__PURE__ */ jsx(Play, { className: "w-6 h-6 text-muted/50" }) }) }),
-          /* @__PURE__ */ jsxs("div", { className: "flex-1 min-w-0", children: [
-            /* @__PURE__ */ jsx("h4", { className: "font-bold text-text text-sm md:text-base truncate group-hover:text-plex transition-colors", children: item.title }),
-            item.episodeTitle && /* @__PURE__ */ jsx("p", { className: "text-muted text-xs md:text-sm truncate mt-0.5", children: item.episodeTitle }),
-            /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 mt-2 text-xs font-medium text-muted/70", children: [
-              /* @__PURE__ */ jsx(Clock, { size: 12 }),
-              /* @__PURE__ */ jsx("span", { children: new Date(item.viewedAt * 1e3).toLocaleString(void 0, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-6 mt-2", children: [
+          user && !sessionInfo.session.isAdmin && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-lg flex flex-col", children: [
+            /* @__PURE__ */ jsx("p", { className: "text-muted text-xs uppercase tracking-widest font-semibold mb-4 flex-shrink-0", children: "Preferences" }),
+            /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between gap-4", children: [
+              /* @__PURE__ */ jsxs("div", { children: [
+                /* @__PURE__ */ jsx("p", { className: "text-text font-bold text-sm", children: "Weekly Newsletter" }),
+                /* @__PURE__ */ jsx("p", { className: "text-muted text-xs mt-1 leading-relaxed", children: "Automated library updates delivered to your inbox" })
+              ] }),
+              /* @__PURE__ */ jsx(
+                "button",
+                {
+                  onClick: handleToggleNewsletter,
+                  "aria-label": "Toggle newsletter",
+                  className: `relative inline-flex items-center w-14 h-7 rounded-full transition-all flex-shrink-0 border-2 ${!optOutNewsletter ? "bg-plex border-plex" : "bg-background border-border"}`,
+                  children: /* @__PURE__ */ jsx("span", { className: `inline-block w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-300 ${!optOutNewsletter ? "translate-x-8" : "translate-x-1"}` })
+                }
+              )
             ] })
           ] }),
-          /* @__PURE__ */ jsx("div", { className: "hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity", children: /* @__PURE__ */ jsx(Play, { className: "w-4 h-4 text-plex ml-0.5" }) })
-        ] }, idx)) })
-      ] })
-    ] }) : /* @__PURE__ */ jsxs("div", { className: "flex flex-col items-center justify-center p-12 bg-card border border-border rounded-2xl shadow-lg text-center", children: [
-      /* @__PURE__ */ jsx("div", { className: "w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 text-2xl", children: "\u{1F37F}" }),
-      /* @__PURE__ */ jsx("h3", { className: "font-bold text-text mb-2", children: "No watch history yet" }),
-      /* @__PURE__ */ jsx("p", { className: "text-muted text-sm max-w-sm", children: "Once you start watching content on the server, your personal watch stats and history will appear right here!" })
-    ] }) }),
-    publicConfig?.announcement && /* @__PURE__ */ jsx("div", { className: "bg-plex/10 border border-plex/30 rounded-2xl p-4 md:p-6 shadow-lg", children: /* @__PURE__ */ jsxs("div", { className: "flex items-start gap-3", children: [
-      /* @__PURE__ */ jsx("span", { className: "text-xl mt-0.5", children: "\u{1F4E2}" }),
-      /* @__PURE__ */ jsxs("div", { children: [
-        /* @__PURE__ */ jsx("h3", { className: "text-plex font-bold text-sm uppercase tracking-wider mb-1", children: "Server Announcement" }),
-        /* @__PURE__ */ jsx("p", { className: "text-text whitespace-pre-wrap text-sm leading-relaxed", children: publicConfig.announcement })
-      ] })
-    ] }) }),
-    publicConfig?.referralEnabled && user && !sessionInfo.session.isAdmin && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-4 md:p-6 shadow-lg", children: [
-      /* @__PURE__ */ jsx("p", { className: "text-plex font-bold text-base mb-1", children: "\u{1F381} Invite Friends, Get Free Time!" }),
-      /* @__PURE__ */ jsx("p", { className: "text-muted text-sm leading-relaxed mb-4", children: "Share this link with your friends. They get a free trial, and you get reward days added to your subscription automatically when they join!" }),
-      /* @__PURE__ */ jsxs("div", { className: "flex gap-2", children: [
-        /* @__PURE__ */ jsx("input", { type: "text", readOnly: true, value: `${window.location.origin}/?ref=${user.id}`, className: "flex-1 p-3 rounded-lg border border-border bg-background text-text text-sm outline-none" }),
-        /* @__PURE__ */ jsx("button", { onClick: () => {
-          navigator.clipboard.writeText(`${window.location.origin}/?ref=${user.id}`);
-          setToast({ id: 99, message: "Copied to clipboard!", type: "success" });
-        }, className: "px-4 bg-plex text-background rounded-lg font-bold hover:bg-plex-hover transition-colors shadow-md", children: "Copy" })
+          !sessionInfo?.session?.isAdmin && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-lg flex flex-col", children: [
+            user?.isTrial ? /* @__PURE__ */ jsxs("div", { className: "mb-5 flex-shrink-0", children: [
+              /* @__PURE__ */ jsx("p", { className: "text-plex font-bold text-base mb-1", children: "\u{1F37F} Enjoying your Free Trial?" }),
+              /* @__PURE__ */ jsxs("p", { className: "text-muted text-sm leading-relaxed", children: [
+                "Once your 3-day trial ends, you'll lose access. A full subscription is just ",
+                /* @__PURE__ */ jsx("span", { className: "text-plex font-black", children: "\xA360/year" }),
+                ". Get in touch to upgrade!"
+              ] })
+            ] }) : /* @__PURE__ */ jsxs("div", { className: "mb-5 flex-shrink-0", children: [
+              /* @__PURE__ */ jsx("p", { className: "text-text font-bold text-base mb-1", children: "\u{1F4AC} Need Help?" }),
+              /* @__PURE__ */ jsx("p", { className: "text-muted text-sm leading-relaxed", children: "Contact the admin to renew your subscription, report an issue, or get support." })
+            ] }),
+            /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-3 mt-auto", children: [
+              /* @__PURE__ */ jsxs(
+                "a",
+                {
+                  href: "https://wa.me/447305697245",
+                  target: "_blank",
+                  rel: "noreferrer",
+                  className: "w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-[#25D366]/10 border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366]/20",
+                  children: [
+                    /* @__PURE__ */ jsx("svg", { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", width: "16", height: "16", fill: "currentColor", children: /* @__PURE__ */ jsx("path", { d: "M12.031 21.972c-1.63 0-3.21-.42-4.606-1.21l-5.111 1.34 1.36-4.972a9.92 9.92 0 0 1-1.34-4.978C2.334 6.64 6.685 2.28 12.031 2.28c5.344 0 9.697 4.36 9.697 9.872 0 5.512-4.353 9.82-9.697 9.82zm0-18.062c-4.47 0-8.115 3.65-8.115 8.13 0 1.48.39 2.92 1.12 4.19l-1.02 3.73 3.82-1a8.13 8.13 0 0 0 4.195 1.15c4.475 0 8.115-3.65 8.115-8.13s-3.64-8.07-8.115-8.07zm4.332 11.23c-.237-.12-1.405-.69-1.62-.77-.216-.08-.372-.12-.53.12-.158.24-.616.77-.754.93-.138.16-.276.18-.513.06-1.124-.55-2.062-1.28-2.812-2.19-.214-.26-.14-.4.08-.56.12-.08.27-.3.41-.45.14-.15.19-.25.28-.42.1-.17.05-.32 0-.44-.05-.12-.53-1.28-.73-1.75-.19-.46-.38-.4-.53-.41h-.45c-.16 0-.41.06-.63.3-.22.24-.85.83-.85 2.02 0 1.19.87 2.34.99 2.5.12.16 1.7 2.6 4.12 3.64 1.38.59 2.05.65 2.8.55.75-.1 1.4-.57 1.6-1.12.2-.55.2-.102.14-1.12-.06-.1-.22-.16-.46-.28z" }) }),
+                    "WhatsApp"
+                  ]
+                }
+              ),
+              /* @__PURE__ */ jsxs(
+                "a",
+                {
+                  href: "mailto:jasonlucas58@gmail.com",
+                  className: "w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10",
+                  children: [
+                    /* @__PURE__ */ jsxs("svg", { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
+                      /* @__PURE__ */ jsx("rect", { width: "20", height: "16", x: "2", y: "4", rx: "2" }),
+                      /* @__PURE__ */ jsx("path", { d: "m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" })
+                    ] }),
+                    "Email"
+                  ]
+                }
+              )
+            ] })
+          ] })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "lg:col-span-2 flex flex-col gap-6", children: [
+        /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-xl flex flex-col justify-center relative overflow-hidden flex-shrink-0 md:h-[240px]", children: [
+          /* @__PURE__ */ jsx("div", { className: "absolute -top-10 -right-10 p-8 opacity-5", children: /* @__PURE__ */ jsx(Activity, { className: "w-64 h-64 text-plex" }) }),
+          /* @__PURE__ */ jsxs("div", { className: "relative z-10", children: [
+            /* @__PURE__ */ jsx("p", { className: "text-muted text-sm uppercase tracking-widest font-semibold mb-6", children: "Server Library Size" }),
+            serverDataLoading ? /* @__PURE__ */ jsxs("div", { className: "flex gap-3 items-center text-muted", children: [
+              /* @__PURE__ */ jsx("div", { className: "w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin" }),
+              " Fetching latest library sizes..."
+            ] }) : serverStats ? /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-4", children: [
+              /* @__PURE__ */ jsxs("div", { className: "bg-background/60 p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors", children: [
+                /* @__PURE__ */ jsx(Film, { className: "w-7 h-7 text-plex mb-2 opacity-80" }),
+                /* @__PURE__ */ jsx("span", { className: "text-3xl font-black text-text drop-shadow-md mb-1", children: serverStats.moviesBytes ? (() => {
+                  const bytes = serverStats.moviesBytes;
+                  if (bytes === 0) return "0 B";
+                  const k = 1024;
+                  const sizes = ["B", "KB", "MB", "GB", "TB", "PB"];
+                  const i = Math.floor(Math.log(bytes) / Math.log(k));
+                  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+                })() : "0 B" }),
+                /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1", children: [
+                  /* @__PURE__ */ jsx("span", { className: "text-plex", children: serverStats.movies?.toLocaleString() || 0 }),
+                  /* @__PURE__ */ jsx("span", { className: "text-muted", children: "Movies" })
+                ] })
+              ] }),
+              /* @__PURE__ */ jsxs("div", { className: "bg-background/60 p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors", children: [
+                /* @__PURE__ */ jsx(Tv, { className: "w-7 h-7 text-plex mb-2 opacity-80" }),
+                /* @__PURE__ */ jsx("span", { className: "text-3xl font-black text-text drop-shadow-md mb-1", children: serverStats.showsBytes ? (() => {
+                  const bytes = serverStats.showsBytes;
+                  if (bytes === 0) return "0 B";
+                  const k = 1024;
+                  const sizes = ["B", "KB", "MB", "GB", "TB", "PB"];
+                  const i = Math.floor(Math.log(bytes) / Math.log(k));
+                  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+                })() : "0 B" }),
+                /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1", children: [
+                  /* @__PURE__ */ jsx("span", { className: "text-plex", children: serverStats.shows?.toLocaleString() || 0 }),
+                  /* @__PURE__ */ jsx("span", { className: "text-muted", children: "Episodes" })
+                ] })
+              ] }),
+              /* @__PURE__ */ jsxs("div", { className: "bg-background/60 p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors", children: [
+                /* @__PURE__ */ jsx(Music, { className: "w-7 h-7 text-plex mb-2 opacity-80" }),
+                /* @__PURE__ */ jsx("span", { className: "text-3xl font-black text-text drop-shadow-md mb-1", children: serverStats.musicBytes ? (() => {
+                  const bytes = serverStats.musicBytes;
+                  if (bytes === 0) return "0 B";
+                  const k = 1024;
+                  const sizes = ["B", "KB", "MB", "GB", "TB", "PB"];
+                  const i = Math.floor(Math.log(bytes) / Math.log(k));
+                  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+                })() : "0 B" }),
+                /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1", children: [
+                  /* @__PURE__ */ jsx("span", { className: "text-plex", children: serverStats.music?.toLocaleString() || 0 }),
+                  /* @__PURE__ */ jsx("span", { className: "text-muted", children: "Albums" })
+                ] })
+              ] })
+            ] }) : /* @__PURE__ */ jsx("div", { className: "text-muted text-sm bg-background/50 p-4 rounded-xl border border-white/5", children: "Could not load server statistics at this time." })
+          ] })
+        ] }),
+        !sessionInfo.session.isAdmin && user && /* @__PURE__ */ jsx(Fragment, { children: analyticsLoading ? /* @__PURE__ */ jsx("div", { className: "flex items-center justify-center p-8 bg-card border border-border rounded-2xl shadow-lg", children: /* @__PURE__ */ jsxs("div", { className: "flex flex-col items-center gap-3", children: [
+          /* @__PURE__ */ jsx("div", { className: "w-6 h-6 rounded-full border-2 border-plex border-t-transparent animate-spin" }),
+          /* @__PURE__ */ jsx("span", { className: "text-muted text-sm font-medium", children: "Loading your stats..." })
+        ] }) }) : analytics && analytics.totalPlays > 0 ? /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-6", children: [
+          analytics.topContent && analytics.topContent.length > 0 && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-xl", children: [
+            /* @__PURE__ */ jsx("div", { className: "flex items-center justify-between mb-6", children: /* @__PURE__ */ jsxs("div", { children: [
+              /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-text mb-1", children: "Your Most Watched" }),
+              /* @__PURE__ */ jsxs("p", { className: "text-muted text-sm", children: [
+                "Based on your ",
+                analytics.totalPlays,
+                " total plays"
+              ] })
+            ] }) }),
+            /* @__PURE__ */ jsx("div", { className: "grid grid-cols-2 md:grid-cols-3 gap-4", children: analytics.topContent.slice(0, 3).map((item) => /* @__PURE__ */ jsxs("a", { href: item.plexUrl, target: "_blank", rel: "noreferrer", className: "group flex flex-col gap-2", children: [
+              /* @__PURE__ */ jsx("div", { className: "relative rounded-xl overflow-hidden aspect-[2/3] bg-background border border-white/5 transition-transform group-hover:scale-105 group-hover:shadow-xl group-hover:border-plex/50", children: item.thumbUrl ? /* @__PURE__ */ jsx("img", { src: item.thumbUrl, alt: item.title, className: "w-full h-full object-cover transition-opacity group-hover:opacity-80" }) : /* @__PURE__ */ jsx("div", { className: "w-full h-full flex items-center justify-center p-4 text-center bg-white/5", children: /* @__PURE__ */ jsx("span", { className: "text-xs font-bold text-muted line-clamp-3", children: item.title }) }) }),
+              /* @__PURE__ */ jsxs("div", { className: "flex flex-col px-1", children: [
+                /* @__PURE__ */ jsx("p", { className: "text-xs font-bold text-text truncate group-hover:text-plex transition-colors", children: item.title }),
+                /* @__PURE__ */ jsxs("p", { className: "text-[10px] text-plex font-black mt-0.5 uppercase tracking-wider", children: [
+                  item.plays,
+                  " plays"
+                ] })
+              ] })
+            ] }, item.key)) })
+          ] }),
+          analytics.recentHistory && analytics.recentHistory.length > 0 && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-xl", children: [
+            /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-text mb-6", children: "Recently Watched" }),
+            /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-4", children: analytics.recentHistory.slice(0, 3).map((item, idx) => /* @__PURE__ */ jsxs("a", { href: item.plexUrl, target: "_blank", rel: "noreferrer", className: "flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-all group", children: [
+              /* @__PURE__ */ jsx("div", { className: "w-16 h-16 rounded-lg overflow-hidden bg-background flex-shrink-0 shadow-md", children: item.thumbUrl ? /* @__PURE__ */ jsx("img", { src: item.thumbUrl, alt: item.title, className: "w-full h-full object-cover" }) : /* @__PURE__ */ jsx("div", { className: "w-full h-full flex items-center justify-center", children: /* @__PURE__ */ jsx(SquarePlay, { className: "w-6 h-6 text-muted/50" }) }) }),
+              /* @__PURE__ */ jsxs("div", { className: "flex-1 min-w-0", children: [
+                /* @__PURE__ */ jsx("h4", { className: "font-bold text-text text-sm truncate group-hover:text-plex transition-colors", children: item.title }),
+                item.episodeTitle && /* @__PURE__ */ jsx("p", { className: "text-muted text-xs truncate mt-0.5", children: item.episodeTitle }),
+                /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 mt-2 text-xs font-medium text-muted/70", children: [
+                  /* @__PURE__ */ jsx(Clock, { size: 12 }),
+                  /* @__PURE__ */ jsx("span", { children: new Date(item.viewedAt * 1e3).toLocaleString(void 0, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) })
+                ] })
+              ] })
+            ] }, idx)) })
+          ] })
+        ] }) : /* @__PURE__ */ jsxs("div", { className: "flex flex-col items-center justify-center p-10 bg-card border border-border rounded-2xl shadow-lg text-center flex-1 min-h-[200px]", children: [
+          /* @__PURE__ */ jsx("div", { className: "w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 text-2xl shadow-inner", children: "\u{1F37F}" }),
+          /* @__PURE__ */ jsx("h3", { className: "font-bold text-text mb-2", children: "No watch history yet" }),
+          /* @__PURE__ */ jsx("p", { className: "text-muted text-sm max-w-sm", children: "Once you start watching content on the server, your personal watch stats and history will appear right here!" })
+        ] }) })
       ] })
     ] }),
-    /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-6 mt-4", children: [
-      user && !sessionInfo.session.isAdmin && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-lg flex flex-col h-full", children: [
-        /* @__PURE__ */ jsx("p", { className: "text-muted text-xs uppercase tracking-widest font-semibold mb-6 flex-shrink-0", children: "Preferences" }),
-        /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between gap-4 mt-auto", children: [
-          /* @__PURE__ */ jsxs("div", { children: [
-            /* @__PURE__ */ jsx("p", { className: "text-text font-bold text-sm", children: "Weekly Newsletter" }),
-            /* @__PURE__ */ jsx("p", { className: "text-muted text-xs mt-1 leading-relaxed", children: "Automated library updates delivered to your inbox" })
-          ] }),
-          /* @__PURE__ */ jsx(
-            "button",
-            {
-              onClick: handleToggleNewsletter,
-              "aria-label": "Toggle newsletter",
-              className: `relative inline-flex items-center w-14 h-7 rounded-full transition-all flex-shrink-0 border-2 ${!optOutNewsletter ? "bg-plex border-plex" : "bg-background border-border"}`,
-              children: /* @__PURE__ */ jsx("span", { className: `inline-block w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-300 ${!optOutNewsletter ? "translate-x-8" : "translate-x-1"}` })
-            }
-          )
-        ] })
-      ] }),
-      !sessionInfo?.session?.isAdmin && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-lg flex flex-col h-full", children: [
-        user?.isTrial ? /* @__PURE__ */ jsxs("div", { className: "mb-5 flex-shrink-0", children: [
-          /* @__PURE__ */ jsx("p", { className: "text-plex font-bold text-base mb-1", children: "\u{1F37F} Enjoying your Free Trial?" }),
-          /* @__PURE__ */ jsxs("p", { className: "text-muted text-sm leading-relaxed", children: [
-            "Once your 3-day trial ends, you'll lose access. A full subscription is just ",
-            /* @__PURE__ */ jsx("span", { className: "text-plex font-black", children: "\xA360/year" }),
-            ". Get in touch to upgrade!"
+    dashboardData && /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-6 w-full mt-4", children: [
+      dashboardData.recentMovies?.length > 0 && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-xl overflow-hidden w-full", children: [
+        /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-text mb-4", children: "Recently Added Movies" }),
+        /* @__PURE__ */ jsx("div", { className: "flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth", children: dashboardData.recentMovies.map((item, idx) => /* @__PURE__ */ jsxs("a", { href: item.plexUrl, target: "_blank", rel: "noreferrer", className: "snap-start shrink-0 w-32 md:w-40 group flex flex-col gap-2", children: [
+          /* @__PURE__ */ jsx("div", { className: "relative rounded-xl overflow-hidden aspect-[2/3] bg-background border border-white/5 transition-transform group-hover:scale-105 group-hover:shadow-xl group-hover:border-plex/50", children: item.thumb ? /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, className: "w-full h-full object-cover transition-opacity group-hover:opacity-80" }) : /* @__PURE__ */ jsx("div", { className: "w-full h-full flex items-center justify-center p-4 text-center bg-white/5", children: /* @__PURE__ */ jsx("span", { className: "text-xs font-bold text-muted line-clamp-3", children: item.title }) }) }),
+          /* @__PURE__ */ jsxs("div", { className: "flex flex-col px-1", children: [
+            /* @__PURE__ */ jsx("p", { className: "text-xs font-bold text-text truncate group-hover:text-plex transition-colors", children: item.title }),
+            item.year && /* @__PURE__ */ jsx("p", { className: "text-[10px] text-muted font-semibold mt-0.5", children: item.year })
           ] })
-        ] }) : /* @__PURE__ */ jsxs("div", { className: "mb-5 flex-shrink-0", children: [
-          /* @__PURE__ */ jsx("p", { className: "text-text font-bold text-base mb-1", children: "\u{1F4AC} Need Help?" }),
-          /* @__PURE__ */ jsx("p", { className: "text-muted text-sm leading-relaxed", children: "Contact the admin to renew your subscription, report an issue, or get support." })
-        ] }),
-        /* @__PURE__ */ jsxs("div", { className: "flex gap-3 mt-auto", children: [
-          /* @__PURE__ */ jsxs(
-            "a",
-            {
-              href: "https://wa.me/447305697245",
-              target: "_blank",
-              rel: "noreferrer",
-              className: "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-[#25D366]/10 border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366]/20",
-              children: [
-                /* @__PURE__ */ jsx("svg", { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", width: "16", height: "16", fill: "currentColor", children: /* @__PURE__ */ jsx("path", { d: "M12.031 21.972c-1.63 0-3.21-.42-4.606-1.21l-5.111 1.34 1.36-4.972a9.92 9.92 0 0 1-1.34-4.978C2.334 6.64 6.685 2.28 12.031 2.28c5.344 0 9.697 4.36 9.697 9.872 0 5.512-4.353 9.82-9.697 9.82zm0-18.062c-4.47 0-8.115 3.65-8.115 8.13 0 1.48.39 2.92 1.12 4.19l-1.02 3.73 3.82-1a8.13 8.13 0 0 0 4.195 1.15c4.475 0 8.115-3.65 8.115-8.13s-3.64-8.07-8.115-8.07zm4.332 11.23c-.237-.12-1.405-.69-1.62-.77-.216-.08-.372-.12-.53.12-.158.24-.616.77-.754.93-.138.16-.276.18-.513.06-1.124-.55-2.062-1.28-2.812-2.19-.214-.26-.14-.4.08-.56.12-.08.27-.3.41-.45.14-.15.19-.25.28-.42.1-.17.05-.32 0-.44-.05-.12-.53-1.28-.73-1.75-.19-.46-.38-.4-.53-.41h-.45c-.16 0-.41.06-.63.3-.22.24-.85.83-.85 2.02 0 1.19.87 2.34.99 2.5.12.16 1.7 2.6 4.12 3.64 1.38.59 2.05.65 2.8.55.75-.1 1.4-.57 1.6-1.12.2-.55.2-.102.14-1.12-.06-.1-.22-.16-.46-.28z" }) }),
-                "WhatsApp"
-              ]
-            }
-          ),
-          /* @__PURE__ */ jsxs(
-            "a",
-            {
-              href: "mailto:jasonlucas58@gmail.com",
-              className: "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10",
-              children: [
-                /* @__PURE__ */ jsxs("svg", { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
-                  /* @__PURE__ */ jsx("rect", { width: "20", height: "16", x: "2", y: "4", rx: "2" }),
-                  /* @__PURE__ */ jsx("path", { d: "m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" })
-                ] }),
-                "Email"
-              ]
-            }
-          )
-        ] })
+        ] }, idx)) })
+      ] }),
+      dashboardData.recentShows?.length > 0 && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-xl overflow-hidden w-full", children: [
+        /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-text mb-4", children: "Recently Added TV Shows" }),
+        /* @__PURE__ */ jsx("div", { className: "flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth", children: dashboardData.recentShows.map((item, idx) => /* @__PURE__ */ jsxs("a", { href: item.plexUrl, target: "_blank", rel: "noreferrer", className: "snap-start shrink-0 w-32 md:w-40 group flex flex-col gap-2", children: [
+          /* @__PURE__ */ jsx("div", { className: "relative rounded-xl overflow-hidden aspect-[2/3] bg-background border border-white/5 transition-transform group-hover:scale-105 group-hover:shadow-xl group-hover:border-plex/50", children: item.thumb ? /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, className: "w-full h-full object-cover transition-opacity group-hover:opacity-80" }) : /* @__PURE__ */ jsx("div", { className: "w-full h-full flex items-center justify-center p-4 text-center bg-white/5", children: /* @__PURE__ */ jsx("span", { className: "text-xs font-bold text-muted line-clamp-3", children: item.title }) }) }),
+          /* @__PURE__ */ jsxs("div", { className: "flex flex-col px-1", children: [
+            /* @__PURE__ */ jsx("p", { className: "text-xs font-bold text-text truncate group-hover:text-plex transition-colors", children: item.title }),
+            item.year && /* @__PURE__ */ jsx("p", { className: "text-[10px] text-muted font-semibold mt-0.5", children: item.year })
+          ] })
+        ] }, idx)) })
+      ] }),
+      dashboardData.recentMusic?.length > 0 && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-xl overflow-hidden w-full", children: [
+        /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-text mb-4", children: "Recently Added Music" }),
+        /* @__PURE__ */ jsx("div", { className: "flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth", children: dashboardData.recentMusic.map((item, idx) => /* @__PURE__ */ jsxs("a", { href: item.plexUrl, target: "_blank", rel: "noreferrer", className: "snap-start shrink-0 w-32 md:w-40 group flex flex-col gap-2", children: [
+          /* @__PURE__ */ jsx("div", { className: "relative rounded-xl overflow-hidden aspect-square bg-background border border-white/5 transition-transform group-hover:scale-105 group-hover:shadow-xl group-hover:border-plex/50", children: item.thumb ? /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=300`, alt: item.title, className: "w-full h-full object-cover transition-opacity group-hover:opacity-80" }) : /* @__PURE__ */ jsx("div", { className: "w-full h-full flex items-center justify-center p-4 text-center bg-white/5", children: /* @__PURE__ */ jsx("span", { className: "text-xs font-bold text-muted line-clamp-3", children: item.title }) }) }),
+          /* @__PURE__ */ jsxs("div", { className: "flex flex-col px-1", children: [
+            /* @__PURE__ */ jsx("p", { className: "text-xs font-bold text-text truncate group-hover:text-plex transition-colors", children: item.title }),
+            item.parentTitle && /* @__PURE__ */ jsx("p", { className: "text-[10px] text-muted font-semibold mt-0.5 truncate", children: item.parentTitle })
+          ] })
+        ] }, idx)) })
       ] })
     ] })
   ] });
@@ -4251,7 +4365,8 @@ var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adm
     updateFavicon(adminThumb);
   }, [adminThumb]);
   const navItemsConfig = {
-    "home": { label: "Home", icon: House, route: isAdmin ? "admin" : "user", adminOnly: false },
+    "home": { label: "Home", icon: House, route: "user", adminOnly: false },
+    "users": { label: "Users", icon: Users, route: "users", adminOnly: true },
     "discover": { label: "Discover", icon: Film, route: "dashboard", adminOnly: false },
     "status": { label: "Status", icon: Activity, route: "status", adminOnly: false },
     "logs": { label: "Logs", icon: FileText, route: "logs", adminOnly: true },
@@ -4530,11 +4645,11 @@ var MainApp = () => {
       else if (path === "/analytics") setCurrentRoute("analytics");
       else if (path === "/settings" && !data.session.isAdmin) setCurrentRoute("user");
       else if (path === "/portal") setCurrentRoute("user");
-      else if (path === "/admin") setCurrentRoute("admin");
+      else if (path === "/admin") setCurrentRoute("users");
+      else if (path === "/users") setCurrentRoute("users");
       else {
-        const defaultRoute = data.session.isAdmin ? "admin" : "user";
-        window.history.replaceState({}, "", defaultRoute === "admin" ? "/admin" : "/portal");
-        setCurrentRoute(defaultRoute);
+        window.history.replaceState({}, "", "/portal");
+        setCurrentRoute("user");
       }
     } catch {
       if (path === "/status") setCurrentRoute("status");
@@ -4561,14 +4676,14 @@ var MainApp = () => {
       const code = window.location.pathname.split("/")[2];
       return /* @__PURE__ */ jsx(PublicInviteClaim, { code });
     }
-    if (currentRoute === "status") return /* @__PURE__ */ jsx(StatusDashboard, { onBack: () => isPublicStatus ? setRoute("login") : setRoute(isAdmin ? "admin" : "user"), isAdmin, isPublic: isPublicStatus });
-    if (currentRoute === "dashboard") return /* @__PURE__ */ jsx(LibraryDashboard, { onBack: () => setRoute(isAdmin ? "admin" : "user") });
+    if (currentRoute === "status") return /* @__PURE__ */ jsx(StatusDashboard, { onBack: () => isPublicStatus ? setRoute("login") : setRoute("user"), isAdmin, isPublic: isPublicStatus });
+    if (currentRoute === "dashboard") return /* @__PURE__ */ jsx(LibraryDashboard, { onBack: () => setRoute("user") });
     if (currentRoute === "settings" && isAdmin) return /* @__PURE__ */ jsx(SettingsDashboard, {});
     if (currentRoute === "logs" && isAdmin) return /* @__PURE__ */ jsx(LogsDashboard, { onLogout: handleLogout });
     if (currentRoute === "mediastack") return /* @__PURE__ */ jsx(MediaStackDashboard, { isAdmin });
     if (currentRoute === "analytics") return /* @__PURE__ */ jsx(AnalyticsDashboard, { isAdmin, sessionInfo });
-    if (currentRoute === "admin") return /* @__PURE__ */ jsx(AdminDashboard, { onLogout: handleLogout, onViewUserPortal: () => setRoute("user"), onViewStatus: () => setRoute("status"), onViewDashboard: () => setRoute("dashboard") });
-    return /* @__PURE__ */ jsx(UserDashboard, { sessionInfo, publicConfig, onLogout: handleLogout, refreshSession: checkSession, onViewAdmin: () => setRoute("admin"), onViewStatus: () => setRoute("status"), onViewDashboard: () => setRoute("dashboard") });
+    if (currentRoute === "users" || currentRoute === "admin") return /* @__PURE__ */ jsx(AdminDashboard, { onLogout: handleLogout, onViewUserPortal: () => setRoute("user"), onViewStatus: () => setRoute("status"), onViewDashboard: () => setRoute("dashboard") });
+    return /* @__PURE__ */ jsx(UserDashboard, { sessionInfo, publicConfig, onLogout: handleLogout, refreshSession: checkSession, onViewAdmin: () => setRoute("users"), onViewStatus: () => setRoute("status"), onViewDashboard: () => setRoute("dashboard") });
   };
   return /* @__PURE__ */ jsxs("div", { className: "flex w-full min-h-screen bg-background", children: [
     /* @__PURE__ */ jsx(ConfirmModal, { isOpen: confirmState.isOpen, message: confirmState.message, onConfirm: handleConfirm, onCancel: closeConfirm }),
@@ -4761,6 +4876,14 @@ lucide-react/dist/esm/icons/layers.mjs:
    *)
 
 lucide-react/dist/esm/icons/log-out.mjs:
+  (**
+   * @license lucide-react v1.21.0 - ISC
+   *
+   * This source code is licensed under the ISC license.
+   * See the LICENSE file in the root directory of this source tree.
+   *)
+
+lucide-react/dist/esm/icons/music.mjs:
   (**
    * @license lucide-react v1.21.0 - ISC
    *
