@@ -53,6 +53,24 @@ const CustomSelect: React.FC<CustomSelectProps> = ({ id, value, onChange, option
     );
 };
 
+export let appConfirm: (message: string, onConfirm: () => void) => void = () => { console.warn('appConfirm not initialized'); };
+
+const ConfirmModal: React.FC<{ isOpen: boolean; message: string; onConfirm: () => void; onCancel: () => void; }> = ({ isOpen, message, onConfirm, onCancel }) => {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-background border border-border rounded-xl shadow-2xl p-6 max-w-sm w-full animate-slide-up">
+                <h3 className="text-xl font-bold mb-4 text-text">Are you sure?</h3>
+                <p className="text-muted mb-8 text-sm">{message}</p>
+                <div className="flex gap-4 justify-end">
+                    <button className="px-4 py-2 rounded-lg font-medium bg-black/20 hover:bg-black/40 transition-colors text-text border border-border" onClick={onCancel}>Cancel</button>
+                    <button className="px-4 py-2 rounded-lg font-medium bg-plex hover:bg-plex-hover transition-colors text-background" onClick={onConfirm}>Confirm</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // --- Interfaces ---
 interface User {
     id: string; // Plex Account ID
@@ -513,14 +531,15 @@ const InvitesSettings: React.FC<{ addToast: (msg: string, type: 'success' | 'err
     };
 
     const handleDelete = async (code: string) => {
-        if (!confirm('Are you sure you want to delete this invite link?')) return;
-        try {
-            await apiFetch(`/api/invites/${code}`, { method: 'DELETE' });
-            addToast('Invite link deleted', 'success');
-            fetchInvites();
-        } catch (e: any) {
-            addToast(e.message || 'Error deleting invite', 'error');
-        }
+        appConfirm('Are you sure you want to delete this invite link?', async () => {
+            try {
+                await apiFetch(`/api/invites/${code}`, { method: 'DELETE' });
+                addToast('Invite link deleted', 'success');
+                fetchInvites();
+            } catch (e: any) {
+                addToast(e.message || 'Error deleting invite', 'error');
+            }
+        });
     };
 
     const handleCopy = (code: string) => {
@@ -898,18 +917,19 @@ const SettingsDashboard: React.FC = () => {
     };
 
     const handleSendNewsletterNow = async () => {
-        if (!confirm('Are you sure you want to send the newsletter to ALL configured users immediately? This cannot be undone.')) return;
-        setIsSendingNewsletter(true);
-        try {
-            const result = await apiFetch('/api/newsletter/send-now', {
-                method: 'POST'
-            });
-            addToast(result.message || 'Newsletter dispatch initiated!', 'success');
-        } catch (error) {
-            addToast(error instanceof Error ? error.message : 'Newsletter dispatch failed.', 'error');
-        } finally {
-            setIsSendingNewsletter(false);
-        }
+        appConfirm('Are you sure you want to send the newsletter to ALL configured users immediately? This cannot be undone.', async () => {
+            setIsSendingNewsletter(true);
+            try {
+                const result = await apiFetch('/api/newsletter/send-now', {
+                    method: 'POST'
+                });
+                addToast(result.message || 'Newsletter dispatch initiated!', 'success');
+            } catch (error) {
+                addToast(error instanceof Error ? error.message : 'Newsletter dispatch failed.', 'error');
+            } finally {
+                setIsSendingNewsletter(false);
+            }
+        });
     };
 
     return (
@@ -918,6 +938,17 @@ const SettingsDashboard: React.FC = () => {
             <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] flex flex-col-reverse gap-2 items-center">
                 {toasts.map(toast => <Toast key={toast.id} {...toast} onDismiss={() => setToasts(t => t.filter(item => item.id !== toast.id))} />)}
             </div>
+            {confirmModal.isOpen && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[3000] p-4">
+                    <div className="bg-card p-6 rounded-xl border border-border shadow-2xl max-w-sm w-full">
+                        <p className="text-text mb-6">{confirmModal.message}</p>
+                        <div className="flex gap-4">
+                            <button className="flex-1 px-4 py-2 bg-border text-text rounded-md font-medium" onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}>Cancel</button>
+                            <button className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md font-bold" onClick={() => { confirmModal.onConfirm(); setConfirmModal(prev => ({ ...prev, isOpen: false })); }}>Confirm</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <header className="hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0">
                 <h1 className="text-xl md:text-3xl font-bold text-plex">Settings</h1>
@@ -1268,6 +1299,9 @@ const SettingsDashboard: React.FC = () => {
                                         addToast('Failed to save status config', 'error');
                                     }
                                 }} 
+                                appConfirm={appConfirm}
+                                fetchConfig={fetchStatusConfig}
+                                addToast={addToast}
                             />
                         </div>
                     )}
@@ -1368,7 +1402,7 @@ const SettingsDashboard: React.FC = () => {
     );
 };
 
-const StatusMonitorSettings: React.FC<{ config: any; onSave: (cfg: any) => void }> = ({ config, onSave }) => {
+const StatusMonitorSettings: React.FC<{ config: any; onSave: (cfg: any) => void; appConfirm: (msg: string, cb: () => void) => void; fetchConfig: () => void; addToast: (msg: string, type?: 'success' | 'error') => void }> = ({ config, onSave, appConfirm, fetchConfig, addToast }) => {
     const [localConfig, setLocalConfig] = useState<any>({ groups: [], services: [] });
 
     useEffect(() => {
@@ -1414,20 +1448,28 @@ const StatusMonitorSettings: React.FC<{ config: any; onSave: (cfg: any) => void 
         });
     };
 
-    const removeGroup = (id: string) => {
-        if (confirm(`Remove group ${id}? Services inside it won't be deleted but will lose their group.`)) {
-            setLocalConfig({
-                ...localConfig,
-                groups: localConfig.groups.filter((g: any) => g.id !== id),
-                services: localConfig.services.map((s: any) => s.groupId === id ? { ...s, groupId: null } : s)
-            });
-        }
+    const removeGroup = async (id: string) => {
+        appConfirm(`Remove group ${id}? Services inside it won't be deleted but will lose their group.`, async () => {
+            try {
+                await apiFetch(`/api/status/groups/${id}`, { method: 'DELETE' });
+                await fetchConfig();
+                addToast(`Group ${id} removed.`, 'success');
+            } catch (e: any) {
+                addToast(e.message, 'error');
+            }
+        });
     };
 
-    const removeService = (id: string) => {
-        if (confirm(`Remove service ${id}?`)) {
-            setLocalConfig({ ...localConfig, services: localConfig.services.filter((s: any) => s.id !== id) });
-        }
+    const removeService = async (id: string) => {
+        appConfirm(`Remove service ${id}?`, async () => {
+            try {
+                await apiFetch(`/api/status/config/${id}`, { method: 'DELETE' });
+                await fetchConfig();
+                addToast(`Service ${id} removed.`, 'success');
+            } catch (e: any) {
+                addToast(e.message, 'error');
+            }
+        });
     };
 
     return (
@@ -2647,18 +2689,18 @@ const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 
     const handleUnblockDeletedUser = async (deletedUser: any) => {
         const label = deletedUser.username || deletedUser.email || 'this user';
-        if (!window.confirm(`Allow ${label} to use the portal again? This does not invite them automatically.`)) return;
-
-        setLoading(true);
-        try {
-            await apiFetch(`/api/deleted-users/${encodeURIComponent(deletedUser.blockId)}`, { method: 'DELETE' });
-            addToast('Deleted user unblocked.');
-            await fetchSecurityData();
-        } catch (error: any) {
-            addToast(error instanceof Error ? error.message : 'Failed to unblock user.', 'error');
-        } finally {
-            setLoading(false);
-        }
+        appConfirm(`Allow ${label} to use the portal again? This does not invite them automatically.`, async () => {
+            setLoading(true);
+            try {
+                await apiFetch(`/api/deleted-users/${encodeURIComponent(deletedUser.blockId)}`, { method: 'DELETE' });
+                addToast('Deleted user unblocked.');
+                await fetchSecurityData();
+            } catch (error: any) {
+                addToast(error instanceof Error ? error.message : 'Failed to unblock user.', 'error');
+            } finally {
+                setLoading(false);
+            }
+        });
     };
 
     // Helper functions
@@ -2987,7 +3029,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: () => v
     };
 
     const handleDeleteUser = async (userId: string) => {
-        if (window.confirm('Are you sure you want to delete this user? This will revoke Plex access first.')) {
+        appConfirm('Are you sure you want to delete this user? This will revoke Plex access first.', async () => {
             setLoading(true);
             try {
                 await apiFetch(`/api/users/${userId}`, { method: 'DELETE' });
@@ -2999,7 +3041,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: () => v
             } finally {
                 setLoading(false);
             }
-        }
+        });
     };
 
     const handleToggleSelection = (userId: string) => {
@@ -3031,18 +3073,18 @@ const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: () => v
 
     const handleUnblockDeletedUser = async (deletedUser: DeletedUser) => {
         const label = deletedUser.username || deletedUser.email || 'this user';
-        if (!window.confirm(`Allow ${label} to use the portal again? This does not invite them automatically.`)) return;
-
-        setLoading(true);
-        try {
-            await apiFetch(`/api/deleted-users/${encodeURIComponent(deletedUser.blockId)}`, { method: 'DELETE' });
-            addToast('Deleted user unblocked.');
-            await fetchSecurityData();
-        } catch (error) {
-            addToast(error instanceof Error ? error.message : 'Failed to unblock user.', 'error');
-        } finally {
-            setLoading(false);
-        }
+        appConfirm(`Allow ${label} to use the portal again? This does not invite them automatically.`, async () => {
+            setLoading(true);
+            try {
+                await apiFetch(`/api/deleted-users/${encodeURIComponent(deletedUser.blockId)}`, { method: 'DELETE' });
+                addToast('Deleted user unblocked.');
+                await fetchSecurityData();
+            } catch (error) {
+                addToast(error instanceof Error ? error.message : 'Failed to unblock user.', 'error');
+            } finally {
+                setLoading(false);
+            }
+        });
     };
 
     // Derived State for Filtering and Sorting

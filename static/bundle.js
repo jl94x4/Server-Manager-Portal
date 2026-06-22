@@ -374,6 +374,9 @@ var CustomSelect = ({ id, value, onChange, options, className }) => {
     )) })
   ] });
 };
+var appConfirm = () => {
+  console.warn("appConfirm not initialized");
+};
 var formatDate = (dateString) => {
   if (!dateString) return "Never";
   return dateString.split("T")[0];
@@ -682,14 +685,15 @@ var InvitesSettings = ({ addToast }) => {
     }
   };
   const handleDelete = async (code) => {
-    if (!confirm("Are you sure you want to delete this invite link?")) return;
-    try {
-      await apiFetch(`/api/invites/${code}`, { method: "DELETE" });
-      addToast("Invite link deleted", "success");
-      fetchInvites();
-    } catch (e) {
-      addToast(e.message || "Error deleting invite", "error");
-    }
+    appConfirm("Are you sure you want to delete this invite link?", async () => {
+      try {
+        await apiFetch(`/api/invites/${code}`, { method: "DELETE" });
+        addToast("Invite link deleted", "success");
+        fetchInvites();
+      } catch (e) {
+        addToast(e.message || "Error deleting invite", "error");
+      }
+    });
   };
   const handleCopy = (code) => {
     navigator.clipboard.writeText(`${window.location.origin}/invite/${code}`);
@@ -1020,22 +1024,33 @@ var SettingsDashboard = () => {
     }
   };
   const handleSendNewsletterNow = async () => {
-    if (!confirm("Are you sure you want to send the newsletter to ALL configured users immediately? This cannot be undone.")) return;
-    setIsSendingNewsletter(true);
-    try {
-      const result = await apiFetch("/api/newsletter/send-now", {
-        method: "POST"
-      });
-      addToast(result.message || "Newsletter dispatch initiated!", "success");
-    } catch (error) {
-      addToast(error instanceof Error ? error.message : "Newsletter dispatch failed.", "error");
-    } finally {
-      setIsSendingNewsletter(false);
-    }
+    appConfirm("Are you sure you want to send the newsletter to ALL configured users immediately? This cannot be undone.", async () => {
+      setIsSendingNewsletter(true);
+      try {
+        const result = await apiFetch("/api/newsletter/send-now", {
+          method: "POST"
+        });
+        addToast(result.message || "Newsletter dispatch initiated!", "success");
+      } catch (error) {
+        addToast(error instanceof Error ? error.message : "Newsletter dispatch failed.", "error");
+      } finally {
+        setIsSendingNewsletter(false);
+      }
+    });
   };
   return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-[1600px] mx-auto flex flex-col", children: [
     /* @__PURE__ */ jsx(Loader, { isLoading }),
     /* @__PURE__ */ jsx("div", { className: "fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] flex flex-col-reverse gap-2 items-center", children: toasts.map((toast) => /* @__PURE__ */ jsx(Toast, { ...toast, onDismiss: () => setToasts((t) => t.filter((item) => item.id !== toast.id)) }, toast.id)) }),
+    confirmModal.isOpen && /* @__PURE__ */ jsx("div", { className: "fixed inset-0 bg-black/80 flex items-center justify-center z-[3000] p-4", children: /* @__PURE__ */ jsxs("div", { className: "bg-card p-6 rounded-xl border border-border shadow-2xl max-w-sm w-full", children: [
+      /* @__PURE__ */ jsx("p", { className: "text-text mb-6", children: confirmModal.message }),
+      /* @__PURE__ */ jsxs("div", { className: "flex gap-4", children: [
+        /* @__PURE__ */ jsx("button", { className: "flex-1 px-4 py-2 bg-border text-text rounded-md font-medium", onClick: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })), children: "Cancel" }),
+        /* @__PURE__ */ jsx("button", { className: "flex-1 px-4 py-2 bg-red-600 text-white rounded-md font-bold", onClick: () => {
+          confirmModal.onConfirm();
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }, children: "Confirm" })
+      ] })
+    ] }) }),
     /* @__PURE__ */ jsxs("header", { className: "hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0", children: [
       /* @__PURE__ */ jsx("h1", { className: "text-xl md:text-3xl font-bold text-plex", children: "Settings" }),
       /* @__PURE__ */ jsxs("div", { className: "flex gap-4", children: [
@@ -1363,7 +1378,10 @@ var SettingsDashboard = () => {
                 } catch (e) {
                   addToast("Failed to save status config", "error");
                 }
-              }
+              },
+              appConfirm,
+              fetchConfig: fetchStatusConfig,
+              addToast
             }
           )
         ] }),
@@ -1454,7 +1472,7 @@ var SettingsDashboard = () => {
     )
   ] });
 };
-var StatusMonitorSettings = ({ config, onSave }) => {
+var StatusMonitorSettings = ({ config, onSave, appConfirm: appConfirm2, fetchConfig, addToast }) => {
   const [localConfig, setLocalConfig] = useState({ groups: [], services: [] });
   useEffect(() => {
     if (config) {
@@ -1494,19 +1512,27 @@ var StatusMonitorSettings = ({ config, onSave }) => {
       services: localConfig.services.map((s) => s.id === id ? { ...s, [field]: value } : s)
     });
   };
-  const removeGroup = (id) => {
-    if (confirm(`Remove group ${id}? Services inside it won't be deleted but will lose their group.`)) {
-      setLocalConfig({
-        ...localConfig,
-        groups: localConfig.groups.filter((g) => g.id !== id),
-        services: localConfig.services.map((s) => s.groupId === id ? { ...s, groupId: null } : s)
-      });
-    }
+  const removeGroup = async (id) => {
+    appConfirm2(`Remove group ${id}? Services inside it won't be deleted but will lose their group.`, async () => {
+      try {
+        await apiFetch(`/api/status/groups/${id}`, { method: "DELETE" });
+        await fetchConfig();
+        addToast(`Group ${id} removed.`, "success");
+      } catch (e) {
+        addToast(e.message, "error");
+      }
+    });
   };
-  const removeService = (id) => {
-    if (confirm(`Remove service ${id}?`)) {
-      setLocalConfig({ ...localConfig, services: localConfig.services.filter((s) => s.id !== id) });
-    }
+  const removeService = async (id) => {
+    appConfirm2(`Remove service ${id}?`, async () => {
+      try {
+        await apiFetch(`/api/status/config/${id}`, { method: "DELETE" });
+        await fetchConfig();
+        addToast(`Service ${id} removed.`, "success");
+      } catch (e) {
+        addToast(e.message, "error");
+      }
+    });
   };
   return /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-6 w-full", children: [
     /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border p-6 rounded-xl shadow-sm", children: [
@@ -2591,17 +2617,18 @@ var LogsDashboard = ({ onLogout }) => {
   }, [fetchSecurityData]);
   const handleUnblockDeletedUser = async (deletedUser) => {
     const label = deletedUser.username || deletedUser.email || "this user";
-    if (!window.confirm(`Allow ${label} to use the portal again? This does not invite them automatically.`)) return;
-    setLoading(true);
-    try {
-      await apiFetch(`/api/deleted-users/${encodeURIComponent(deletedUser.blockId)}`, { method: "DELETE" });
-      addToast("Deleted user unblocked.");
-      await fetchSecurityData();
-    } catch (error) {
-      addToast(error instanceof Error ? error.message : "Failed to unblock user.", "error");
-    } finally {
-      setLoading(false);
-    }
+    appConfirm(`Allow ${label} to use the portal again? This does not invite them automatically.`, async () => {
+      setLoading(true);
+      try {
+        await apiFetch(`/api/deleted-users/${encodeURIComponent(deletedUser.blockId)}`, { method: "DELETE" });
+        addToast("Deleted user unblocked.");
+        await fetchSecurityData();
+      } catch (error) {
+        addToast(error instanceof Error ? error.message : "Failed to unblock user.", "error");
+      } finally {
+        setLoading(false);
+      }
+    });
   };
   const formatDateTime = (dateString) => {
     if (!dateString) return "";
@@ -2887,7 +2914,7 @@ var AdminDashboard = ({ onLogout, onViewUserPortal, onViewStatus, onViewDashboar
     }
   };
   const handleDeleteUser = async (userId) => {
-    if (window.confirm("Are you sure you want to delete this user? This will revoke Plex access first.")) {
+    appConfirm("Are you sure you want to delete this user? This will revoke Plex access first.", async () => {
       setLoading(true);
       try {
         await apiFetch(`/api/users/${userId}`, { method: "DELETE" });
@@ -2899,7 +2926,7 @@ var AdminDashboard = ({ onLogout, onViewUserPortal, onViewStatus, onViewDashboar
       } finally {
         setLoading(false);
       }
-    }
+    });
   };
   const handleToggleSelection = (userId) => {
     setSelectedUserIds(
@@ -2926,17 +2953,18 @@ var AdminDashboard = ({ onLogout, onViewUserPortal, onViewStatus, onViewDashboar
   };
   const handleUnblockDeletedUser = async (deletedUser) => {
     const label = deletedUser.username || deletedUser.email || "this user";
-    if (!window.confirm(`Allow ${label} to use the portal again? This does not invite them automatically.`)) return;
-    setLoading(true);
-    try {
-      await apiFetch(`/api/deleted-users/${encodeURIComponent(deletedUser.blockId)}`, { method: "DELETE" });
-      addToast("Deleted user unblocked.");
-      await fetchSecurityData();
-    } catch (error) {
-      addToast(error instanceof Error ? error.message : "Failed to unblock user.", "error");
-    } finally {
-      setLoading(false);
-    }
+    appConfirm(`Allow ${label} to use the portal again? This does not invite them automatically.`, async () => {
+      setLoading(true);
+      try {
+        await apiFetch(`/api/deleted-users/${encodeURIComponent(deletedUser.blockId)}`, { method: "DELETE" });
+        addToast("Deleted user unblocked.");
+        await fetchSecurityData();
+      } catch (error) {
+        addToast(error instanceof Error ? error.message : "Failed to unblock user.", "error");
+      } finally {
+        setLoading(false);
+      }
+    });
   };
   const filteredAndSortedUsers = useMemo2(() => {
     return users.filter((user) => {
@@ -4426,6 +4454,9 @@ var MainApp = () => {
 var container = document.getElementById("root");
 var root = createRoot(container);
 root.render(/* @__PURE__ */ jsx(MainApp, {}));
+export {
+  appConfirm
+};
 /*! Bundled license information:
 
 lucide-react/dist/esm/shared/src/utils/mergeClasses.mjs:
