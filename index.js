@@ -524,7 +524,8 @@ const syncUsers = async (config) => {
 
     const localUsers = await loadFile(USERS_PATH, []);
     const deletedUsers = await loadFile(DELETED_USERS_PATH, []);
-    const existingUserMap = new Map(localUsers.map(u => [u.id, u]));
+    const existingUserMap = new Map(localUsers.map(u => [String(u.id), u]));
+    const plexIdUserMap = new Map(localUsers.filter(u => u.plexId).map(u => [String(u.plexId), u]));
     const emailUserMap = new Map(localUsers.filter(u => u.email).map(u => [u.email.toLowerCase(), u]));
     const usernameUserMap = new Map(localUsers.filter(u => u.username).map(u => [u.username.toLowerCase(), u]));
     const matchedLocalUserIds = new Set();
@@ -536,7 +537,8 @@ const syncUsers = async (config) => {
         }
 
         const existingUser =
-            existingUserMap.get(pUser.id) ||
+            existingUserMap.get(String(pUser.id)) ||
+            plexIdUserMap.get(String(pUser.id)) ||
             (pUser.email ? emailUserMap.get(pUser.email.toLowerCase()) : null) ||
             (pUser.username ? usernameUserMap.get(pUser.username.toLowerCase()) : null);
 
@@ -1978,7 +1980,9 @@ app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
             email: plexUser.email,
             thumb: plexUser.thumb,
             expiryDate: expiryDate,
-            addedAt: new Date().toISOString()
+            joiningDate: new Date().toISOString(),
+            plexAccessStatus: 'pending',
+            isTrial: false
         };
         
         users.push(newUser);
