@@ -3670,9 +3670,9 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
     const [dashboardData, setDashboardData] = useState<any>(null);
     const [serverDataLoading, setServerDataLoading] = useState(true);
     const [topContentPage, setTopContentPage] = useState(0);
-    const TOP_CONTENT_PAGE_SIZE = 6;
+    const TOP_CONTENT_PAGE_SIZE = 12;
     const [recentHistoryPage, setRecentHistoryPage] = useState(0);
-    const RECENT_HISTORY_PAGE_SIZE = 8;
+    const RECENT_HISTORY_PAGE_SIZE = 6;
     const [analyticsDays, setAnalyticsDays] = useState<number | 'all'>(30);
     const [analyticsDaysOpen, setAnalyticsDaysOpen] = useState(false);
 
@@ -4008,6 +4008,59 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                 </div>
                             </div>
                         )}
+
+                        {/* Recent History (Moved to Left Column) */}
+                        {(sessionInfo.session.isAdmin || user) && !analyticsLoading && analytics?.recentHistory && analytics.recentHistory.length > 0 && (
+                            <div className="bg-card border border-border rounded-2xl p-6 shadow-xl mt-2">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h3 className="text-xl font-bold text-text">Recently Watched</h3>
+                                    {analytics.recentHistory.length > RECENT_HISTORY_PAGE_SIZE && (
+                                        <div className="flex items-center gap-2">
+                                            <button 
+                                                onClick={() => setRecentHistoryPage(p => Math.max(0, p - 1))}
+                                                disabled={recentHistoryPage === 0}
+                                                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
+                                            >
+                                                <ChevronUp className="w-4 h-4 -rotate-90" />
+                                            </button>
+                                            <span className="text-xs text-muted font-medium w-8 text-center">
+                                                {recentHistoryPage + 1} / {Math.ceil(analytics.recentHistory.length / RECENT_HISTORY_PAGE_SIZE)}
+                                            </span>
+                                            <button 
+                                                onClick={() => setRecentHistoryPage(p => Math.min(Math.ceil(analytics.recentHistory.length / RECENT_HISTORY_PAGE_SIZE) - 1, p + 1))}
+                                                disabled={recentHistoryPage >= Math.ceil(analytics.recentHistory.length / RECENT_HISTORY_PAGE_SIZE) - 1}
+                                                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
+                                            >
+                                                <ChevronDown className="w-4 h-4 -rotate-90" />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex flex-col gap-3">
+                                    {analytics.recentHistory.slice(recentHistoryPage * RECENT_HISTORY_PAGE_SIZE, (recentHistoryPage + 1) * RECENT_HISTORY_PAGE_SIZE).map((item: any, idx: number) => (
+                                        <a key={idx} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-all group">
+                                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-background flex-shrink-0 shadow-md">
+                                                {item.thumbUrl ? (
+                                                    <img src={item.thumbUrl} alt={item.title} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center">
+                                                        <PlaySquare className="w-5 h-5 text-muted/50" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-bold text-text text-sm truncate group-hover:text-plex transition-colors">{item.title}</h4>
+                                                {item.episodeTitle && <p className="text-xs text-muted truncate mt-0.5">{item.episodeTitle}</p>}
+                                                <div className="flex items-center gap-1 mt-1">
+                                                    <Clock className="w-3 h-3 text-muted" />
+                                                    <p className="text-[10px] text-muted">{new Date(item.viewedAt * 1000).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
+                                                </div>
+                                            </div>
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -4189,59 +4242,6 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                                         <div className="flex flex-col px-1">
                                                             <p className="text-xs font-bold text-text truncate group-hover:text-plex transition-colors">{item.title}</p>
                                                             <p className="text-[10px] text-plex font-black mt-0.5 uppercase tracking-wider">{item.plays} plays</p>
-                                                        </div>
-                                                    </a>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Recent History */}
-                                    {analytics.recentHistory && analytics.recentHistory.length > 0 && (
-                                        <div className="bg-card border border-border rounded-2xl p-6 shadow-xl">
-                                            <div className="flex items-center justify-between mb-6">
-                                                <h3 className="text-xl font-bold text-text">Recently Watched</h3>
-                                                {analytics.recentHistory.length > RECENT_HISTORY_PAGE_SIZE && (
-                                                    <div className="flex items-center gap-2">
-                                                        <button 
-                                                            onClick={() => setRecentHistoryPage(p => Math.max(0, p - 1))}
-                                                            disabled={recentHistoryPage === 0}
-                                                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
-                                                        >
-                                                            <ChevronUp className="w-4 h-4 -rotate-90" />
-                                                        </button>
-                                                        <span className="text-xs text-muted font-medium w-8 text-center">
-                                                            {recentHistoryPage + 1} / {Math.ceil(analytics.recentHistory.length / RECENT_HISTORY_PAGE_SIZE)}
-                                                        </span>
-                                                        <button 
-                                                            onClick={() => setRecentHistoryPage(p => Math.min(Math.ceil(analytics.recentHistory.length / RECENT_HISTORY_PAGE_SIZE) - 1, p + 1))}
-                                                            disabled={recentHistoryPage >= Math.ceil(analytics.recentHistory.length / RECENT_HISTORY_PAGE_SIZE) - 1}
-                                                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
-                                                        >
-                                                            <ChevronDown className="w-4 h-4 -rotate-90" />
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                {analytics.recentHistory.slice(recentHistoryPage * RECENT_HISTORY_PAGE_SIZE, (recentHistoryPage + 1) * RECENT_HISTORY_PAGE_SIZE).map((item: any, idx: number) => (
-                                                    <a key={idx} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-all group">
-                                                        <div className="w-12 h-12 rounded-lg overflow-hidden bg-background flex-shrink-0 shadow-md">
-                                                            {item.thumbUrl ? (
-                                                                <img src={item.thumbUrl} alt={item.title} className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                <div className="w-full h-full flex items-center justify-center">
-                                                                    <PlaySquare className="w-5 h-5 text-muted/50" />
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <h4 className="font-bold text-text text-sm truncate group-hover:text-plex transition-colors">{item.title}</h4>
-                                                            {item.episodeTitle && <p className="text-xs text-muted truncate mt-0.5">{item.episodeTitle}</p>}
-                                                            <div className="flex items-center gap-1 mt-1">
-                                                                <Clock className="w-3 h-3 text-muted" />
-                                                                <p className="text-[10px] text-muted">{new Date(item.viewedAt * 1000).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
-                                                            </div>
                                                         </div>
                                                     </a>
                                                 ))}
