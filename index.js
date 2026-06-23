@@ -3171,7 +3171,7 @@ app.get('/style.css', (req, res) => {
 });
 
 // Serve the main index.html for any other GET request
-app.get(['/', '/portal', '/status', '/admin', '/dashboard', '/settings', '/analytics', '/logs', '/mediastack', '/auth/*', '/invite/*'], (req, res) => {
+app.get(['/', '/portal', '/status', '/admin', '/users', '/dashboard', '/settings', '/analytics', '/logs', '/mediastack', '/auth/*', '/invite/*'], (req, res) => {
     res.sendFile(path.join(process.cwd(), 'index.html'));
 });
 
