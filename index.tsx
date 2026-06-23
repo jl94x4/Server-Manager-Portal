@@ -5104,6 +5104,9 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
                             </button>
                         </>
                     )}
+                    <button onClick={(e) => { e.preventDefault(); onLogout(); }} className="text-muted hover:text-red-500 transition-colors ml-1">
+                        <LogOut className="w-5 h-5" />
+                    </button>
                 </div>
             </div>
 
@@ -5177,6 +5180,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
                         const item = navItemsConfig[key];
                         if (!item) return null;
                         if (item.adminOnly && !isAdmin) return null;
+                        if (key === 'logs' || key === 'logout') return null;
 
                         const isCurrent = item.route ? ['admin', 'user'].includes(currentRoute) && key === 'home' ? true : currentRoute === item.route : false;
                         const labelOverride = key === 'mediastack' ? 'Media' : key === 'request' ? 'Request' : item.label;

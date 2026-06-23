@@ -4662,7 +4662,11 @@ var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adm
             e.preventDefault();
             onNavigate("settings");
           }, className: `text-muted hover:text-text transition-colors ${currentRoute === "settings" ? "text-plex" : ""}`, children: /* @__PURE__ */ jsx(Settings, { className: "w-5 h-5" }) })
-        ] })
+        ] }),
+        /* @__PURE__ */ jsx("button", { onClick: (e) => {
+          e.preventDefault();
+          onLogout();
+        }, className: "text-muted hover:text-red-500 transition-colors ml-1", children: /* @__PURE__ */ jsx(LogOut, { className: "w-5 h-5" }) })
       ] })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "hidden md:flex flex-col w-72 bg-card border-r border-border p-6 sticky top-0 h-screen shadow-2xl", children: [
@@ -4718,6 +4722,7 @@ var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adm
       const item = navItemsConfig[key];
       if (!item) return null;
       if (item.adminOnly && !isAdmin) return null;
+      if (key === "logs" || key === "logout") return null;
       const isCurrent = item.route ? ["admin", "user"].includes(currentRoute) && key === "home" ? true : currentRoute === item.route : false;
       const labelOverride = key === "mediastack" ? "Media" : key === "request" ? "Request" : item.label;
       if (item.href) {
