@@ -4957,7 +4957,7 @@ var MainApp = () => {
   };
   return /* @__PURE__ */ jsxs("div", { className: "flex w-full min-h-screen bg-background", children: [
     /* @__PURE__ */ jsx(ConfirmModal, { isOpen: confirmState.isOpen, message: confirmState.message, onConfirm: handleConfirm, onCancel: closeConfirm }),
-    !isPublicView && /* @__PURE__ */ jsx(Navigation, { currentRoute, onNavigate: setRoute, onLogout: handleLogout, isAdmin, serverName: sessionInfo?.serverName || "Plex Server", adminThumb: sessionInfo?.adminThumb, requestUrl: sessionInfo?.requestUrl || "https://yourdomain.com", navOrder: sessionInfo?.navOrder || ["home", "discover", "status", "logs", "analytics", "mediastack", "request", "settings", "logout"] }),
+    !isPublicView && /* @__PURE__ */ jsx(Navigation, { currentRoute, onNavigate: setRoute, onLogout: handleLogout, isAdmin, serverName: sessionInfo?.serverName || "Plex Server", adminThumb: sessionInfo?.adminThumb, requestUrl: sessionInfo?.requestUrl || "https://yourdomain.com", navOrder: sessionInfo?.navOrder || ["home", "discover", "status", "logs", "analytics", "mediastack", "request", "settings", "logout"], appVersion: publicConfig.appVersion }),
     /* @__PURE__ */ jsx("div", { className: `flex-grow flex flex-col items-center p-4 md:p-8 pt-20 pb-[80px] md:pt-8 md:pb-8 w-full overflow-x-hidden ${isPublicView ? "!pt-8 !pb-8" : ""}`, children: renderView() })
   ] });
 };
