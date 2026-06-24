@@ -4,5 +4,7 @@ try {
     const hash = execSync('git rev-parse --short HEAD', { stdio: 'pipe' }).toString().trim();
     fs.writeFileSync('version.txt', 'v1.0.0-' + hash);
 } catch (e) {
-    fs.writeFileSync('version.txt', 'v1.0.0');
+    if (!fs.existsSync('version.txt')) {
+        fs.writeFileSync('version.txt', 'v1.0.0');
+    }
 }
