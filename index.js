@@ -11,6 +11,13 @@ import jwt from 'jsonwebtoken';
 import http from 'http';
 import https from 'https';
 import compression from 'compression';
+import { execSync } from 'child_process';
+
+let appVersion = 'v1.0.0';
+try {
+    const gitHash = execSync('git rev-parse --short HEAD').toString().trim();
+    appVersion = `v1.0.0-${gitHash}`;
+} catch (e) {}
 
 const app = express();
 app.use(compression());
@@ -1328,14 +1335,16 @@ app.get('/api/config/public', async (req, res) => {
             primaryColor: config.primaryColor || '#E5A00D',
             customLogoUrl: config.customLogoUrl || '',
             announcement: config.announcement || '',
-            referralEnabled: !!config.referralEnabled
+            referralEnabled: !!config.referralEnabled,
+            appVersion: appVersion
         });
     } catch (error) {
         res.json({
             primaryColor: '#E5A00D',
             customLogoUrl: '',
             announcement: '',
-            referralEnabled: false
+            referralEnabled: false,
+            appVersion: appVersion
         });
     }
 });

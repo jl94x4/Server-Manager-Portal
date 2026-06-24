@@ -5189,6 +5189,11 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
                             </span>
                             <div className="h-px w-6 bg-gradient-to-l from-transparent to-plex/50"></div>
                         </div>
+                        {publicConfig.appVersion && (
+                            <div className="mt-2 text-[9px] text-muted/50 font-mono tracking-wider opacity-60 hover:opacity-100 transition-opacity">
+                                {publicConfig.appVersion}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
