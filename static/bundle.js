@@ -3438,7 +3438,7 @@ var SetupWizard = ({ onComplete }) => {
     ] })
   ] }) });
 };
-var Login = ({ onLoginSuccess, publicConfig: publicConfig2 }) => {
+var Login = ({ onLoginSuccess, publicConfig }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [publicInfo, setPublicInfo] = useState({ thumb: null, serverName: "Plex Server", isConfigured: null });
@@ -3515,7 +3515,7 @@ var Login = ({ onLoginSuccess, publicConfig: publicConfig2 }) => {
       /* @__PURE__ */ jsx("div", { className: "flex-1 p-4 md:p-8 lg:p-12 flex flex-col justify-center bg-white/[0.02]", children: /* @__PURE__ */ jsxs("div", { className: "text-center", children: [
         /* @__PURE__ */ jsx("div", { className: "w-full flex justify-center mb-8", children: /* @__PURE__ */ jsxs("div", { className: "relative", children: [
           /* @__PURE__ */ jsx("div", { className: "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-plex rounded-full blur-[50px] opacity-20 pointer-events-none" }),
-          publicConfig2?.customLogoUrl || publicInfo.thumb ? /* @__PURE__ */ jsx("img", { src: publicConfig2?.customLogoUrl || publicInfo.thumb, alt: "Server Logo", className: "w-32 h-32 object-cover rounded-full border-2 border-plex drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10", onError: (e) => {
+          publicConfig?.customLogoUrl || publicInfo.thumb ? /* @__PURE__ */ jsx("img", { src: publicConfig?.customLogoUrl || publicInfo.thumb, alt: "Server Logo", className: "w-32 h-32 object-cover rounded-full border-2 border-plex drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10", onError: (e) => {
             e.currentTarget.src = "/static/logo.png";
             e.currentTarget.className = "w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10";
           } }) : /* @__PURE__ */ jsx("img", { src: "/static/logo.png", alt: "Server Logo", className: "w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10", onError: (e) => e.currentTarget.style.display = "none" })
@@ -3601,7 +3601,7 @@ var RebuildLibraryCacheButton = () => {
     ] })
   ] });
 };
-var UserDashboard = ({ sessionInfo, publicConfig: publicConfig2, onLogout, refreshSession, onViewAdmin, onViewStatus, onViewDashboard }) => {
+var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onViewAdmin, onViewStatus, onViewDashboard }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState(null);
   const [analytics, setAnalytics] = useState(null);
@@ -3716,7 +3716,7 @@ var UserDashboard = ({ sessionInfo, publicConfig: publicConfig2, onLogout, refre
   const isExpiringSoon = daysLeft !== null && daysLeft <= 7;
   const isRevoked = user?.plexAccessStatus === "revoked";
   const isPending = user?.plexAccessStatus?.toLowerCase() === "pending";
-  const heroBg = analytics?.recentHistory?.[0]?.thumbUrl || publicConfig2?.customLogoUrl || "";
+  const heroBg = analytics?.recentHistory?.[0]?.thumbUrl || publicConfig?.customLogoUrl || "";
   return /* @__PURE__ */ jsxs("div", { className: "w-full max-w-[1600px] mx-auto flex flex-col gap-6", children: [
     /* @__PURE__ */ jsx(Loader, { isLoading }),
     toast && /* @__PURE__ */ jsx(Toast, { message: toast.message, type: toast.type, onDismiss: () => setToast(null) }),
@@ -3818,14 +3818,14 @@ var UserDashboard = ({ sessionInfo, publicConfig: publicConfig2, onLogout, refre
           /* @__PURE__ */ jsx("div", { className: "w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin flex-shrink-0" }),
           "Setting up your 3-Day Free Trial..."
         ] }),
-        publicConfig2?.announcement && /* @__PURE__ */ jsx("div", { className: "bg-plex/10 border border-plex/30 rounded-2xl p-4 md:p-6 shadow-lg", children: /* @__PURE__ */ jsxs("div", { className: "flex items-start gap-3", children: [
+        publicConfig?.announcement && /* @__PURE__ */ jsx("div", { className: "bg-plex/10 border border-plex/30 rounded-2xl p-4 md:p-6 shadow-lg", children: /* @__PURE__ */ jsxs("div", { className: "flex items-start gap-3", children: [
           /* @__PURE__ */ jsx("span", { className: "text-xl mt-0.5", children: "\u{1F4E2}" }),
           /* @__PURE__ */ jsxs("div", { children: [
             /* @__PURE__ */ jsx("h3", { className: "text-plex font-bold text-sm uppercase tracking-wider mb-1", children: "Announcement" }),
-            /* @__PURE__ */ jsx("p", { className: "text-text whitespace-pre-wrap text-sm leading-relaxed", children: publicConfig2.announcement })
+            /* @__PURE__ */ jsx("p", { className: "text-text whitespace-pre-wrap text-sm leading-relaxed", children: publicConfig.announcement })
           ] })
         ] }) }),
-        publicConfig2?.referralEnabled && user && !sessionInfo.session.isAdmin && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-4 md:p-6 shadow-lg", children: [
+        publicConfig?.referralEnabled && user && !sessionInfo.session.isAdmin && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-4 md:p-6 shadow-lg", children: [
           /* @__PURE__ */ jsx("p", { className: "text-plex font-bold text-base mb-1", children: "\u{1F381} Invite Friends" }),
           /* @__PURE__ */ jsx("p", { className: "text-muted text-sm leading-relaxed mb-4", children: "Share this link. They get a free trial, and you get reward days!" }),
           /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-2", children: [
@@ -4623,7 +4623,7 @@ var LibraryDashboard = ({ onBack }) => {
     selectedSession && /* @__PURE__ */ jsx(StreamDetailsModal, { session: selectedSession, onClose: () => setSelectedSession(null) })
   ] });
 };
-var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, requestUrl, navOrder }) => {
+var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, requestUrl, navOrder, appVersion }) => {
   useEffect(() => {
     updateFavicon(adminThumb);
   }, [adminThumb]);
@@ -4726,7 +4726,7 @@ var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adm
             /* @__PURE__ */ jsx("span", { className: "text-[10px] uppercase tracking-[0.3em] text-plex font-bold drop-shadow-[0_0_8px_rgba(229,160,13,0.5)]", children: "Portal" }),
             /* @__PURE__ */ jsx("div", { className: "h-px w-6 bg-gradient-to-l from-transparent to-plex/50" })
           ] }),
-          publicConfig.appVersion && /* @__PURE__ */ jsx("div", { className: "mt-2 text-[9px] text-muted/50 font-mono tracking-wider opacity-60 hover:opacity-100 transition-opacity", children: publicConfig.appVersion })
+          appVersion && /* @__PURE__ */ jsx("div", { className: "mt-2 text-[9px] text-muted/50 font-mono tracking-wider opacity-60 hover:opacity-100 transition-opacity", children: appVersion })
         ] })
       ] })
     ] }),
@@ -4864,7 +4864,7 @@ var MainApp = () => {
   };
   const [currentRoute, setCurrentRoute] = useState("loading");
   const [sessionInfo, setSessionInfo] = useState(null);
-  const [publicConfig2, setPublicConfig] = useState({});
+  const [publicConfig, setPublicConfig] = useState({});
   const fetchPublicConfig = useCallback(async () => {
     try {
       const data = await apiFetch("/api/config/public");
@@ -4936,7 +4936,7 @@ var MainApp = () => {
     setRoute("login");
   };
   if (currentRoute === "loading") return /* @__PURE__ */ jsx(Loader, { isLoading: true });
-  if (currentRoute === "login") return /* @__PURE__ */ jsx(Login, { onLoginSuccess: checkSession, publicConfig: publicConfig2 });
+  if (currentRoute === "login") return /* @__PURE__ */ jsx(Login, { onLoginSuccess: checkSession, publicConfig });
   const isAdmin = !!sessionInfo?.session?.isAdmin;
   const isPublicStatus = currentRoute === "status" && !sessionInfo;
   const isPublicInvite = currentRoute === "invite";
@@ -4953,7 +4953,7 @@ var MainApp = () => {
     if (currentRoute === "mediastack") return /* @__PURE__ */ jsx(MediaStackDashboard, { isAdmin });
     if (currentRoute === "analytics") return /* @__PURE__ */ jsx(AnalyticsDashboard, { isAdmin, sessionInfo });
     if (currentRoute === "admin" || currentRoute === "users") return /* @__PURE__ */ jsx(AdminDashboard, { onLogout: handleLogout, onViewUserPortal: () => setRoute("user"), onViewStatus: () => setRoute("status"), onViewDashboard: () => setRoute("dashboard") });
-    return /* @__PURE__ */ jsx(UserDashboard, { sessionInfo, publicConfig: publicConfig2, onLogout: handleLogout, refreshSession: checkSession, onViewAdmin: () => setRoute("users"), onViewStatus: () => setRoute("status"), onViewDashboard: () => setRoute("dashboard") });
+    return /* @__PURE__ */ jsx(UserDashboard, { sessionInfo, publicConfig, onLogout: handleLogout, refreshSession: checkSession, onViewAdmin: () => setRoute("users"), onViewStatus: () => setRoute("status"), onViewDashboard: () => setRoute("dashboard") });
   };
   return /* @__PURE__ */ jsxs("div", { className: "flex w-full min-h-screen bg-background", children: [
     /* @__PURE__ */ jsx(ConfirmModal, { isOpen: confirmState.isOpen, message: confirmState.message, onConfirm: handleConfirm, onCancel: closeConfirm }),

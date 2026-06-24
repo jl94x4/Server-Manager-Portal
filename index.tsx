@@ -5071,9 +5071,10 @@ interface NavigationProps {
     adminThumb?: string | null;
     requestUrl: string;
     navOrder: string[];
+    appVersion?: string;
 }
 
-const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, requestUrl, navOrder }) => {
+const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, requestUrl, navOrder, appVersion }) => {
     useEffect(() => {
         updateFavicon(adminThumb);
     }, [adminThumb]);
@@ -5189,9 +5190,9 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
                             </span>
                             <div className="h-px w-6 bg-gradient-to-l from-transparent to-plex/50"></div>
                         </div>
-                        {publicConfig.appVersion && (
+                        {appVersion && (
                             <div className="mt-2 text-[9px] text-muted/50 font-mono tracking-wider opacity-60 hover:opacity-100 transition-opacity">
-                                {publicConfig.appVersion}
+                                {appVersion}
                             </div>
                         )}
                     </div>
