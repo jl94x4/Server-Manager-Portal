@@ -273,10 +273,9 @@ const Toast: React.FC<{ message: string; type: 'success' | 'error'; onDismiss: (
     }, [onDismiss]);
 
     return (
-        <div 
-            className={`px-8 py-4 rounded-xl text-white font-medium shadow-2xl transition-all duration-300 transform ${
-                isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'
-            } ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}
+        <div
+            className={`px-8 py-4 rounded-xl text-white font-medium shadow-2xl transition-all duration-300 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'
+                } ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}
         >
             {message}
         </div>
@@ -459,7 +458,7 @@ const UserModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (user:
                         <label className="font-bold block mb-1">Exempt from Cleanup</label>
                         <span className="text-xs text-muted block">Prevent automated inactive user removal</span>
                     </div>
-                    <button 
+                    <button
                         onClick={() => setExemptFromCleanup(!exemptFromCleanup)}
                         className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${exemptFromCleanup ? 'bg-plex' : 'bg-border'}`}
                     >
@@ -471,7 +470,7 @@ const UserModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (user:
                         <label className="font-bold block mb-1">Disable Newsletter</label>
                         <span className="text-xs text-muted block">Stop automated emails for this user</span>
                     </div>
-                    <button 
+                    <button
                         onClick={() => setOptOutNewsletter(!optOutNewsletter)}
                         className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${optOutNewsletter ? 'bg-plex' : 'bg-border'}`}
                     >
@@ -562,7 +561,7 @@ const InvitesSettings: React.FC<{ addToast: (msg: string, type: 'success' | 'err
         <div className="animate-fade-in mb-8">
             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Automated Invite Links</h3>
             <p className="text-sm text-muted mb-6">Generate unique links to automatically invite users to your Plex server.</p>
-            
+
             <div className="bg-black/20 p-4 md:p-6 rounded-xl border border-border mb-8 shadow-sm">
                 <h4 className="font-bold mb-4">Create New Invite Link</h4>
                 <div className="flex flex-col md:flex-row gap-4 items-end mb-6">
@@ -576,7 +575,7 @@ const InvitesSettings: React.FC<{ addToast: (msg: string, type: 'success' | 'err
                     </div>
                     <button className="w-full md:w-auto px-6 py-2.5 bg-plex text-background font-bold rounded-lg hover:bg-plex-hover transition-colors shadow-lg" onClick={handleCreate}>Generate Link</button>
                 </div>
-                
+
                 <div className="border-t border-border/50 pt-6">
                     <h4 className="font-bold mb-4">Direct Email Invite</h4>
                     <p className="text-sm text-muted mb-4">Send a 1-time use invite directly to a user's email address (uses the Duration defined above).</p>
@@ -1028,11 +1027,10 @@ const SettingsDashboard: React.FC = () => {
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 cursor-pointer border-none outline-none ${
-                                activeTab === tab.id
+                            className={`px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 cursor-pointer border-none outline-none ${activeTab === tab.id
                                     ? 'bg-plex text-background shadow-md'
                                     : 'bg-transparent text-muted hover:text-text hover:bg-white/5'
-                            }`}
+                                }`}
                         >
                             {tab.label}
                         </button>
@@ -1069,7 +1067,7 @@ const SettingsDashboard: React.FC = () => {
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="checkInterval" type="number" value={checkInterval} onChange={e => setCheckInterval(Number(e.target.value))} min="1" />
                                 <small>How often to check for expired users in the background.</small>
                             </div>
-                            
+
                             <div className="mb-4" style={{ marginTop: '1rem' }}>
                                 <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-background">
                                     <div>
@@ -1228,13 +1226,13 @@ const SettingsDashboard: React.FC = () => {
                                 <p className="text-sm text-yellow-500 font-bold mb-1">Warning</p>
                                 <p className="text-xs text-muted">When enabled, the server will automatically revoke Plex access for users who have not watched anything for the specified number of days. You can exempt specific users from this rule by editing them in the Users table.</p>
                             </div>
-                            
+
                             <div className="mb-6 flex items-center justify-between bg-black/10 p-4 rounded-lg border border-border">
                                 <div>
                                     <label className="font-bold block mb-1">Enable Automated Cleanup</label>
                                     <span className="text-xs text-muted block">Run cleanup job automatically in the background</span>
                                 </div>
-                                <button 
+                                <button
                                     onClick={() => setInactiveCleanupEnabled(!inactiveCleanupEnabled)}
                                     className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${inactiveCleanupEnabled ? 'bg-plex' : 'bg-border'}`}
                                 >
@@ -1245,13 +1243,13 @@ const SettingsDashboard: React.FC = () => {
                             <div className={`transition-all ${!inactiveCleanupEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
                                 <div className="mb-4">
                                     <label htmlFor="inactiveCleanupDays">Inactivity Threshold (Days)</label>
-                                    <input 
-                                        className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" 
-                                        id="inactiveCleanupDays" 
-                                        type="number" 
-                                        min="1" 
-                                        value={inactiveCleanupDays} 
-                                        onChange={e => setInactiveCleanupDays(Number(e.target.value))} 
+                                    <input
+                                        className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all"
+                                        id="inactiveCleanupDays"
+                                        type="number"
+                                        min="1"
+                                        value={inactiveCleanupDays}
+                                        onChange={e => setInactiveCleanupDays(Number(e.target.value))}
                                     />
                                     <small>Revoke access if a user has not watched anything in this many days.</small>
                                 </div>
@@ -1300,24 +1298,24 @@ const SettingsDashboard: React.FC = () => {
                                                 <div className="text-text font-medium">{labels[key] || key}</div>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <button 
+                                                <button
                                                     disabled={index === 0}
                                                     onClick={() => {
                                                         const newOrder = [...navOrder];
                                                         [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
                                                         setNavOrder(newOrder);
-                                                    }} 
+                                                    }}
                                                     className={`p-1 rounded transition-colors ${index === 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/10 text-muted hover:text-text'}`}
                                                 >
                                                     <ChevronUp className="w-5 h-5" />
                                                 </button>
-                                                <button 
+                                                <button
                                                     disabled={index === navOrder.length - 1}
                                                     onClick={() => {
                                                         const newOrder = [...navOrder];
                                                         [newOrder[index + 1], newOrder[index]] = [newOrder[index], newOrder[index + 1]];
                                                         setNavOrder(newOrder);
-                                                    }} 
+                                                    }}
                                                     className={`p-1 rounded transition-colors ${index === navOrder.length - 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/10 text-muted hover:text-text'}`}
                                                 >
                                                     <ChevronDown className="w-5 h-5" />
@@ -1333,8 +1331,8 @@ const SettingsDashboard: React.FC = () => {
                     {activeTab === 'status' && (
                         <div className="mb-8 animate-fade-in">
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Status Monitor</h3>
-                            <StatusMonitorSettings 
-                                config={statusConfig} 
+                            <StatusMonitorSettings
+                                config={statusConfig}
                                 onChange={setStatusDraft}
                                 appConfirm={appConfirm}
                                 fetchConfig={fetchStatusConfig}
@@ -1411,7 +1409,7 @@ const SettingsDashboard: React.FC = () => {
                                                 <span className="bg-black/20 px-2 py-1 rounded"><strong>Next Run:</strong> {task.nextRun ? new Date(task.nextRun).toLocaleString() : 'Not Scheduled'}</span>
                                             </div>
                                         </div>
-                                        <button 
+                                        <button
                                             className="px-4 py-2 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
                                             onClick={() => handleRunTask(task.id)}
                                         >
@@ -1526,12 +1524,12 @@ const StatusMonitorSettings: React.FC<{ config: any; onChange: (cfg: any) => voi
                 {localConfig.groups.map((group: any) => (
                     <div key={group.id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 mb-3 bg-black/20 rounded-lg border border-border hover:border-plex/50 transition-colors gap-4">
                         <div className="flex-1 flex flex-col md:flex-row gap-3 w-full">
-                            <input 
-                                type="text" 
-                                value={group.name} 
-                                onChange={(e) => updateGroup(group.id, 'name', e.target.value)} 
-                                className="flex-1 p-2 rounded bg-background border border-border focus:border-plex outline-none text-sm" 
-                                placeholder="Group Name" 
+                            <input
+                                type="text"
+                                value={group.name}
+                                onChange={(e) => updateGroup(group.id, 'name', e.target.value)}
+                                className="flex-1 p-2 rounded bg-background border border-border focus:border-plex outline-none text-sm"
+                                placeholder="Group Name"
                             />
                             <div className="flex-1 flex items-center px-3 py-2 rounded bg-black/40 border border-border/50 text-sm font-mono text-muted cursor-not-allowed overflow-hidden text-ellipsis whitespace-nowrap">
                                 {group.id}
@@ -1553,19 +1551,19 @@ const StatusMonitorSettings: React.FC<{ config: any; onChange: (cfg: any) => voi
                         <div key={service.id} className="flex flex-col p-4 bg-black/20 rounded-xl border border-border hover:border-plex/50 transition-colors gap-3">
                             <div className="flex justify-between items-start gap-3">
                                 <div className="flex-1 flex flex-col gap-2">
-                                    <input 
-                                        type="text" 
-                                        value={service.name} 
-                                        onChange={(e) => updateService(service.id, 'name', e.target.value)} 
-                                        className="w-full p-2 rounded bg-background border border-border focus:border-plex outline-none text-sm font-bold" 
-                                        placeholder="Service Name" 
+                                    <input
+                                        type="text"
+                                        value={service.name}
+                                        onChange={(e) => updateService(service.id, 'name', e.target.value)}
+                                        className="w-full p-2 rounded bg-background border border-border focus:border-plex outline-none text-sm font-bold"
+                                        placeholder="Service Name"
                                     />
-                                    <input 
-                                        type="text" 
-                                        value={service.url} 
-                                        onChange={(e) => updateService(service.id, 'url', e.target.value)} 
-                                        className="w-full p-2 rounded bg-background border border-border focus:border-plex outline-none text-sm font-mono" 
-                                        placeholder="Service URL (e.g. https://...)" 
+                                    <input
+                                        type="text"
+                                        value={service.url}
+                                        onChange={(e) => updateService(service.id, 'url', e.target.value)}
+                                        className="w-full p-2 rounded bg-background border border-border focus:border-plex outline-none text-sm font-mono"
+                                        placeholder="Service URL (e.g. https://...)"
                                     />
                                 </div>
                                 <button onClick={() => removeService(service.id)} className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors bg-red-400/10 px-3 py-2 rounded flex-shrink-0">Remove</button>
@@ -1574,9 +1572,9 @@ const StatusMonitorSettings: React.FC<{ config: any; onChange: (cfg: any) => voi
                                 <div className="flex items-center gap-2">
                                     <span className="text-muted">Group:</span>
                                     <div className="w-48">
-                                        <CustomSelect 
-                                            value={service.groupId || ''} 
-                                            onChange={(val) => updateService(service.id, 'groupId', val || null)} 
+                                        <CustomSelect
+                                            value={service.groupId || ''}
+                                            onChange={(val) => updateService(service.id, 'groupId', val || null)}
                                             options={[
                                                 { label: 'None', value: '' },
                                                 ...localConfig.groups.map((g: any) => ({ label: g.name, value: g.id }))
@@ -1965,12 +1963,12 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
         today.setHours(0, 0, 0, 0);
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
-        
+
         const isMidnight = date.getHours() === 0 && date.getMinutes() === 0;
         const timeStr = isMidnight ? '' : ` at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-        
+
         const diffDays = Math.ceil((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        
+
         if (date >= today && date < tomorrow) {
             return `Today${timeStr}`;
         }
@@ -1997,7 +1995,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
     const calendarItems = useMemo(() => {
         if (!data) return [];
         const items: any[] = [];
-        
+
         if (data.sonarr?.calendar) {
             data.sonarr.calendar.forEach((ep: any) => {
                 items.push({
@@ -2012,7 +2010,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                 });
             });
         }
-        
+
         if (data.radarr?.calendar) {
             data.radarr.calendar.forEach((movie: any) => {
                 const releaseDateStr = movie.digitalRelease || movie.physicalRelease || movie.inCinemas || movie.added;
@@ -2030,17 +2028,17 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                 }
             });
         }
-        
+
         return items.sort((a, b) => a.date.getTime() - b.date.getTime());
     }, [data]);
 
     const filteredCalendar = useMemo(() => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
+
         const cutoff = new Date(today);
         cutoff.setDate(cutoff.getDate() + Number(calendarDays));
-        
+
         return calendarItems.filter(item => {
             const itemDate = item.date;
             return itemDate >= today && itemDate <= cutoff;
@@ -2180,7 +2178,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-all duration-500">
                     <HardDrive className="w-24 h-24" />
                 </div>
-                
+
                 <div className="flex items-center gap-4 mb-4">
                     <div className="w-10 h-10 rounded-xl bg-plex/10 flex items-center justify-center border border-plex/20">
                         {name === 'Sonarr' ? <Tv className="w-5 h-5 text-plex" /> : <Film className="w-5 h-5 text-plex" />}
@@ -2227,26 +2225,25 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                
+
                 <div className="lg:col-span-2 flex flex-col gap-8">
-                    
+
                     <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-4 md:p-6 relative">
                         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 border-b border-border/30 pb-4">
                             <h2 className="text-xl font-bold text-text flex items-center gap-2">
                                 <Calendar className="w-5 h-5 text-plex" />
                                 Upcoming Releases
                             </h2>
-                            
+
                             <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 w-fit self-end">
                                 {['7', '14', '30'].map((d) => (
                                     <button
                                         key={d}
                                         onClick={() => setCalendarDays(d as any)}
-                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                                            calendarDays === d
+                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${calendarDays === d
                                                 ? 'bg-plex text-background shadow-lg'
                                                 : 'text-muted hover:text-text'
-                                        }`}
+                                            }`}
                                     >
                                         {d} Days
                                     </button>
@@ -2262,18 +2259,16 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {filteredCalendar.map((item) => (
-                                    <div 
-                                        key={item.id} 
-                                        className={`bg-background/40 hover:bg-background/60 border border-white/5 hover:border-white/10 transition-all duration-300 rounded-xl p-3.5 flex flex-col gap-2 shadow-lg border-l-4 ${
-                                            item.type === 'tv' ? 'border-l-blue-500/80' : 'border-l-red-500/80'
-                                        }`}
+                                    <div
+                                        key={item.id}
+                                        className={`bg-background/40 hover:bg-background/60 border border-white/5 hover:border-white/10 transition-all duration-300 rounded-xl p-3.5 flex flex-col gap-2 shadow-lg border-l-4 ${item.type === 'tv' ? 'border-l-blue-500/80' : 'border-l-red-500/80'
+                                            }`}
                                     >
                                         <div className="flex justify-between items-start gap-3">
                                             <div className="min-w-0 flex-grow">
                                                 <div className="flex items-center gap-2 mb-1.5">
-                                                    <span className={`text-[8px] uppercase font-black tracking-wider px-1.5 py-0.5 rounded ${
-                                                        item.service === 'Sonarr' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                                                    }`}>
+                                                    <span className={`text-[8px] uppercase font-black tracking-wider px-1.5 py-0.5 rounded ${item.service === 'Sonarr' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                                        }`}>
                                                         {item.service}
                                                     </span>
                                                     <span className="text-[10px] text-muted flex items-center gap-1 font-medium">
@@ -2288,7 +2283,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                                                     {item.subtitle}
                                                 </p>
                                             </div>
-                                            
+
                                             <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                                                 {item.hasFile ? (
                                                     <span className="text-[9px] font-bold text-green-500 bg-green-500/10 border border-green-500/20 rounded-md px-1.5 py-0.5 whitespace-nowrap">
@@ -2319,7 +2314,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                             <Activity className="w-5 h-5 text-plex" />
                             Active Downloads ({activeQueue.length})
                         </h2>
-                        
+
                         <div className="flex flex-col gap-3">
                             {activeQueue.length === 0 ? (
                                 <div className="text-center py-8 bg-background/30 rounded-xl border border-white/5 text-muted text-sm">
@@ -2330,16 +2325,15 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                                 activeQueue.map((item: any) => {
                                     const downloaded = item.size - item.sizeleft;
                                     const progress = item.size > 0 ? (downloaded / item.size) * 100 : 0;
-                                    
+
                                     return (
                                         <div key={item.id} className="bg-background/40 hover:bg-background/60 transition-all rounded-xl p-4 border border-white/5 flex flex-col gap-2">
                                             <div className="flex justify-between items-start gap-4">
                                                 <div className="flex flex-col gap-1 min-w-0">
                                                     <span className="font-bold text-sm text-text line-clamp-1 leading-snug">{item.title}</span>
                                                     <div className="flex items-center gap-2">
-                                                        <span className={`text-[8px] uppercase font-black tracking-widest px-1.5 py-0.5 rounded ${
-                                                            item.service === 'Sonarr' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                                                        }`}>
+                                                        <span className={`text-[8px] uppercase font-black tracking-widest px-1.5 py-0.5 rounded ${item.service === 'Sonarr' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                                            }`}>
                                                             {item.service}
                                                         </span>
                                                         <span className="text-[10px] text-muted/60 font-semibold">{item.timeleft || 'Unknown time'} left</span>
@@ -2363,7 +2357,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                 </div>
 
                 <div className="flex flex-col gap-8">
-                    
+
                     <div className="flex flex-col gap-4">
                         <h2 className="text-xl font-bold text-text flex items-center gap-2 mb-1">
                             <Layers className="w-5 h-5 text-plex" />
@@ -2378,7 +2372,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                             <FileText className="w-5 h-5 text-plex" />
                             Recent History
                         </h2>
-                        
+
                         <div className="flex flex-col gap-3 flex-grow justify-start">
                             {combinedHistory.length === 0 ? (
                                 <div className="text-center py-12 bg-background/30 rounded-xl border border-white/5 text-muted text-sm flex-grow flex flex-col justify-center items-center">
@@ -2455,7 +2449,7 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
     const maxLibraryPlays = Math.max(...topLibraries.map(l => l.plays), 1);
     const maxDevicePlays = Math.max(...topDevices.map(d => d.plays), 1);
     const maxPeakHour = Math.max(...peakHours, 1);
-    
+
     let activeContent = topMovies;
     if (contentTab === 'shows') activeContent = topShows;
     else if (contentTab === 'music') activeContent = topMusic;
@@ -2509,8 +2503,8 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
                 </div>
                 <div className="bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border flex items-center gap-4 col-span-1 sm:col-span-2">
                     <div className="w-full h-full flex flex-col justify-center">
-                         <p className="text-muted text-sm uppercase tracking-wider font-bold mb-2 flex items-center gap-2"><Clock className="w-4 h-4 text-plex"/> Peak Viewing Hours</p>
-                         <div className="flex items-end gap-1 h-12 w-full mt-auto">
+                        <p className="text-muted text-sm uppercase tracking-wider font-bold mb-2 flex items-center gap-2"><Clock className="w-4 h-4 text-plex" /> Peak Viewing Hours</p>
+                        <div className="flex items-end gap-1 h-12 w-full mt-auto">
                             {peakHours.map((val, idx) => (
                                 <div key={idx} className="flex-1 bg-plex opacity-20 hover:opacity-80 transition-opacity rounded-t-sm relative group" style={{ height: `${Math.max((val / maxPeakHour) * 100, 5)}%` }}>
                                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-black/80 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
@@ -2518,10 +2512,10 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
                                     </div>
                                 </div>
                             ))}
-                         </div>
-                         <div className="flex justify-between text-[10px] text-muted mt-1 font-mono">
-                             <span>12am</span><span>6am</span><span>12pm</span><span>6pm</span><span>11pm</span>
-                         </div>
+                        </div>
+                        <div className="flex justify-between text-[10px] text-muted mt-1 font-mono">
+                            <span>12am</span><span>6am</span><span>12pm</span><span>6pm</span><span>11pm</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2551,8 +2545,8 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
                                 <div className="absolute top-full left-0 right-0 mt-2 bg-[#1e2329] border border-border rounded-lg shadow-2xl z-[100] max-h-60 overflow-y-auto custom-scrollbar">
                                     {allUsers.filter(u => u.username.toLowerCase().includes(searchQuery.toLowerCase())).length > 0 ? (
                                         allUsers.filter(u => u.username.toLowerCase().includes(searchQuery.toLowerCase())).map(u => (
-                                            <div 
-                                                key={u.id} 
+                                            <div
+                                                key={u.id}
                                                 className="px-3 py-2.5 hover:bg-white/10 cursor-pointer flex items-center gap-3 border-b border-white/5 last:border-0 transition-colors"
                                                 onClick={() => {
                                                     setSelectedUser({ id: u.id, username: u.username, thumb: u.thumb || null });
@@ -2827,7 +2821,7 @@ const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                                     ))}
                                     {totalAuditPages > 1 && (
                                         <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
-                                            <button 
+                                            <button
                                                 className="px-3 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                                                 onClick={() => setAuditPage(p => Math.max(1, p - 1))}
                                                 disabled={auditPage === 1}
@@ -2835,7 +2829,7 @@ const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                                                 Previous
                                             </button>
                                             <span className="text-xs text-muted font-semibold">Page {auditPage} of {totalAuditPages}</span>
-                                            <button 
+                                            <button
                                                 className="px-3 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                                                 onClick={() => setAuditPage(p => Math.min(totalAuditPages, p + 1))}
                                                 disabled={auditPage === totalAuditPages}
@@ -2874,7 +2868,7 @@ const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                                     ))}
                                     {totalEmailPages > 1 && (
                                         <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
-                                            <button 
+                                            <button
                                                 className="px-3 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                                                 onClick={() => setEmailPage(p => Math.max(1, p - 1))}
                                                 disabled={emailPage === 1}
@@ -2882,7 +2876,7 @@ const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                                                 Previous
                                             </button>
                                             <span className="text-xs text-muted font-semibold">Page {emailPage} of {totalEmailPages}</span>
-                                            <button 
+                                            <button
                                                 className="px-3 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                                                 onClick={() => setEmailPage(p => Math.min(totalEmailPages, p + 1))}
                                                 disabled={emailPage === totalEmailPages}
@@ -3537,7 +3531,7 @@ const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
                             <input type="text" className="w-full p-4 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="Enter your Server Identifier (or Fetch above)" value={serverIdentifier} onChange={e => setServerIdentifier(e.target.value)} required />
                         </div>
                     )}
-                    
+
                     <div className="border-t border-border pt-6 mt-2">
                         <h3 className="text-lg font-bold text-plex mb-4">Optional: Media Stack Integration</h3>
                         <div className="flex flex-col gap-4">
@@ -3686,7 +3680,7 @@ const RebuildLibraryCacheButton: React.FC = () => {
         apiFetch('/api/plex/stats/status').then((s: any) => {
             if (s.lastGeneratedAt) setLastBuilt(s.lastGeneratedAt);
             if (s.isBuilding) startPolling();
-        }).catch(() => {});
+        }).catch(() => { });
         return () => { if (pollRef.current) clearInterval(pollRef.current); };
     }, []);
 
@@ -3725,9 +3719,9 @@ const RebuildLibraryCacheButton: React.FC = () => {
                 disabled={isRunning}
                 className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border
                     ${status === 'done' ? 'bg-green-500/10 border-green-500/30 text-green-400' :
-                      status === 'error' ? 'bg-red-500/10 border-red-500/30 text-red-400' :
-                      isRunning ? 'bg-white/5 border-white/10 text-muted cursor-not-allowed' :
-                      'bg-white/5 border-white/10 text-text hover:bg-white/10'}`}
+                        status === 'error' ? 'bg-red-500/10 border-red-500/30 text-red-400' :
+                            isRunning ? 'bg-white/5 border-white/10 text-muted cursor-not-allowed' :
+                                'bg-white/5 border-white/10 text-text hover:bg-white/10'}`}
             >
                 {isRunning ? (
                     <><div className="w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin" /> Building Cache...</>
@@ -3829,7 +3823,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
     useEffect(() => {
         let pollTimer: any = null;
         let isMounted = true;
-        
+
         const fetchServerData = async () => {
             if (!isMounted) return;
             try {
@@ -3841,20 +3835,20 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                         }
                     }
                 }).catch(e => console.error("Failed to fetch server stats", e));
-                
+
                 const p2 = dashboardData ? Promise.resolve() : apiFetch('/api/plex/dashboard?limit=15').then(res => {
                     if (isMounted) setDashboardData(res);
                 }).catch(e => console.error("Failed to fetch dashboard data", e));
-                
+
                 await Promise.all([p1, p2]);
             } finally {
                 if (isMounted) setServerDataLoading(false);
             }
         };
         fetchServerData();
-        return () => { 
+        return () => {
             isMounted = false;
-            if (pollTimer) clearTimeout(pollTimer); 
+            if (pollTimer) clearTimeout(pollTimer);
         };
     }, [dashboardData]);
 
@@ -3876,7 +3870,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
     const isExpiringSoon = daysLeft !== null && daysLeft <= 7;
     const isRevoked = user?.plexAccessStatus === 'revoked';
     const isPending = user?.plexAccessStatus?.toLowerCase() === 'pending';
-    
+
     const heroBg = analytics?.recentHistory?.[0]?.thumbUrl || publicConfig?.customLogoUrl || '';
 
     return (
@@ -3890,16 +3884,16 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                 <div className="absolute inset-0 bg-background overflow-hidden">
                     {dashboardData?.recentMovies?.length > 0 ? (
                         <div className="absolute -inset-[50%] opacity-40 transform -rotate-12 scale-110 flex gap-4 overflow-hidden pointer-events-none justify-center">
-                             {[...Array(6)].map((_, colIdx) => (
-                                 <div key={colIdx} className={`flex flex-col gap-4 ${colIdx % 2 === 0 ? 'animate-[scrollVertical_40s_linear_infinite]' : 'animate-[scrollVertical_50s_linear_infinite_reverse]'}`}>
-                                     {[...dashboardData.recentMovies, ...dashboardData.recentMovies].sort(() => 0.5 - Math.random()).map((m: any, i: number) => m.thumb && (
-                                         <img key={`c${colIdx}-${i}`} src={`/api/plex/image?path=${encodeURIComponent(m.thumb)}&width=200&height=300`} className="w-32 md:w-48 rounded-xl object-cover" alt="" />
-                                     ))}
-                                 </div>
-                             ))}
+                            {[...Array(6)].map((_, colIdx) => (
+                                <div key={colIdx} className={`flex flex-col gap-4 ${colIdx % 2 === 0 ? 'animate-[scrollVertical_40s_linear_infinite]' : 'animate-[scrollVertical_50s_linear_infinite_reverse]'}`}>
+                                    {[...dashboardData.recentMovies, ...dashboardData.recentMovies].sort(() => 0.5 - Math.random()).map((m: any, i: number) => m.thumb && (
+                                        <img key={`c${colIdx}-${i}`} src={`/api/plex/image?path=${encodeURIComponent(m.thumb)}&width=200&height=300`} className="w-32 md:w-48 rounded-xl object-cover" alt="" />
+                                    ))}
+                                </div>
+                            ))}
                         </div>
                     ) : heroBg && (
-                        <div 
+                        <div
                             className="absolute inset-0 bg-cover bg-center opacity-30 blur-2xl scale-110"
                             style={{ backgroundImage: `url(${heroBg})` }}
                         />
@@ -3907,7 +3901,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                     <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" />
                     <div className="absolute inset-0 bg-gradient-to-r from-card via-card/40 to-transparent" />
                 </div>
-                
+
                 <div className="relative pt-24 pb-8 px-6 md:px-10 flex flex-col items-center md:items-start text-center md:text-left z-10">
                     <div className="flex flex-col md:flex-row items-center md:items-end gap-6">
                         {/* Avatar */}
@@ -3916,10 +3910,10 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                             if (thumbUrl) {
                                 return (
                                     <div className="relative">
-                                        <img 
-                                            src={thumbUrl.startsWith('http') ? thumbUrl : `/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=256&height=256`} 
-                                            alt={sessionInfo.session.username} 
-                                            className="relative w-28 h-28 md:w-32 md:h-32 rounded-full object-cover border-4 border-plex shadow-2xl bg-card" 
+                                        <img
+                                            src={thumbUrl.startsWith('http') ? thumbUrl : `/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=256&height=256`}
+                                            alt={sessionInfo.session.username}
+                                            className="relative w-28 h-28 md:w-32 md:h-32 rounded-full object-cover border-4 border-plex shadow-2xl bg-card"
                                             onError={(e) => {
                                                 (e.target as HTMLImageElement).style.display = 'none';
                                                 (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
@@ -3940,7 +3934,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                 </div>
                             );
                         })()}
-                        
+
                         <div className="pb-2">
                             <p className="text-plex text-sm uppercase tracking-[4px] font-bold mb-1 drop-shadow-md">Welcome Back</p>
                             <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 leading-tight drop-shadow-lg truncate max-w-[280px] md:max-w-md">
@@ -3954,7 +3948,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                 </div>
             </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                 {/* Left Column */}
                 <div className="lg:col-span-1 flex flex-col gap-6">
 
@@ -3969,7 +3963,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                 <h3 className="text-xl md:text-2xl font-black text-text uppercase tracking-widest mb-1">Server Admin</h3>
                                 <p className="text-xs font-bold text-plex tracking-wider uppercase">Unlimited Access</p>
                             </div>
-                            
+
                             <div className="bg-card border border-border rounded-2xl p-6 shadow-xl flex flex-col">
                                 <p className="text-muted text-xs uppercase tracking-widest font-semibold mb-4">Quick Actions</p>
                                 <div className="flex flex-col gap-3 mt-auto">
@@ -4008,7 +4002,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                             )}
                                         </div>
                                     </div>
-                                    
+
                                     {isRevoked && daysLeft !== null && daysLeft >= 0 && (
                                         <button className="w-full mt-2 px-6 py-2.5 bg-plex text-background rounded-xl font-bold hover:bg-plex-hover transition-colors shadow-lg" onClick={handleRelink}>
                                             Re-link Plex Account
@@ -4121,7 +4115,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                     <h3 className="text-xl font-bold text-text">Recently Watched</h3>
                                     {analytics.recentHistory.length > RECENT_HISTORY_PAGE_SIZE && (
                                         <div className="flex items-center gap-2">
-                                            <button 
+                                            <button
                                                 onClick={() => setRecentHistoryPage(p => Math.max(0, p - 1))}
                                                 disabled={recentHistoryPage === 0}
                                                 className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
@@ -4131,7 +4125,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                             <span className="text-xs text-muted font-medium w-8 text-center">
                                                 {recentHistoryPage + 1} / {Math.ceil(analytics.recentHistory.length / RECENT_HISTORY_PAGE_SIZE)}
                                             </span>
-                                            <button 
+                                            <button
                                                 onClick={() => setRecentHistoryPage(p => Math.min(Math.ceil(analytics.recentHistory.length / RECENT_HISTORY_PAGE_SIZE) - 1, p + 1))}
                                                 disabled={recentHistoryPage >= Math.ceil(analytics.recentHistory.length / RECENT_HISTORY_PAGE_SIZE) - 1}
                                                 className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
@@ -4221,7 +4215,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                         </span>
                                         <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
                                             <span className="text-plex">{serverStats.shows?.toLocaleString() || 0}</span>
-                                            <span className="text-muted">Episodes</span>
+                                            <span className="text-muted">Shows</span>
                                         </div>
                                     </div>
                                     <div className="bg-background/60 p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
@@ -4256,21 +4250,21 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                     <Activity className="w-5 h-5 text-plex" /> Your Analytics
                                 </h2>
                                 <div className="relative">
-                                    <button 
+                                    <button
                                         onClick={() => setAnalyticsDaysOpen(!analyticsDaysOpen)}
                                         className="flex items-center gap-2 bg-background border border-border rounded-lg px-3 py-1.5 text-sm font-medium text-text focus:outline-none focus:border-plex hover:border-plex/50 transition-colors cursor-pointer"
                                     >
                                         <span>
-                                            {analyticsDays === 7 ? 'Last 7 Days' : 
-                                             analyticsDays === 30 ? 'Last 30 Days' : 
-                                             analyticsDays === 60 ? 'Last 60 Days' : 
-                                             analyticsDays === 90 ? 'Last 90 Days' : 
-                                             analyticsDays === 180 ? 'Last 180 Days' : 
-                                             'All Time'}
+                                            {analyticsDays === 7 ? 'Last 7 Days' :
+                                                analyticsDays === 30 ? 'Last 30 Days' :
+                                                    analyticsDays === 60 ? 'Last 60 Days' :
+                                                        analyticsDays === 90 ? 'Last 90 Days' :
+                                                            analyticsDays === 180 ? 'Last 180 Days' :
+                                                                'All Time'}
                                         </span>
                                         <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${analyticsDaysOpen ? 'rotate-180 text-plex' : 'text-muted'}`} />
                                     </button>
-                                    
+
                                     {analyticsDaysOpen && (
                                         <>
                                             <div className="fixed inset-0 z-40" onClick={() => setAnalyticsDaysOpen(false)} />
@@ -4299,7 +4293,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                     )}
                                 </div>
                             </div>
-                            
+
                             {analyticsLoading ? (
                                 <div className="flex items-center justify-center p-8 bg-card border border-border rounded-2xl shadow-lg">
                                     <div className="flex flex-col items-center gap-3">
@@ -4309,7 +4303,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                 </div>
                             ) : analytics && analytics.totalPlays > 0 ? (
                                 <div className="flex flex-col gap-6">
-                                    
+
                                     {/* Top Content Grid */}
                                     {analytics.topContent && analytics.topContent.length > 0 && (
                                         <div className="bg-card border border-border rounded-2xl p-6 shadow-xl">
@@ -4320,7 +4314,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                                 </div>
                                                 {analytics.topContent.length > TOP_CONTENT_PAGE_SIZE && (
                                                     <div className="flex items-center gap-2">
-                                                        <button 
+                                                        <button
                                                             onClick={() => setTopContentPage(p => Math.max(0, p - 1))}
                                                             disabled={topContentPage === 0}
                                                             className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
@@ -4330,7 +4324,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                                         <span className="text-xs text-muted font-medium w-8 text-center">
                                                             {topContentPage + 1} / {Math.ceil(analytics.topContent.length / TOP_CONTENT_PAGE_SIZE)}
                                                         </span>
-                                                        <button 
+                                                        <button
                                                             onClick={() => setTopContentPage(p => Math.min(Math.ceil(analytics.topContent.length / TOP_CONTENT_PAGE_SIZE) - 1, p + 1))}
                                                             disabled={topContentPage >= Math.ceil(analytics.topContent.length / TOP_CONTENT_PAGE_SIZE) - 1}
                                                             className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
@@ -4458,13 +4452,13 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
     );
 };
 
-const ServiceCustomSelect = ({ value, onChange, options }: { value: string, onChange: (val: string) => void, options: {id: string, name: string}[] }) => {
+const ServiceCustomSelect = ({ value, onChange, options }: { value: string, onChange: (val: string) => void, options: { id: string, name: string }[] }) => {
     const [isOpen, setIsOpen] = useState(false);
     const selected = options.find(o => o.id === value);
-    
+
     return (
         <div className="relative flex-1 md:flex-none md:w-64">
-            <button 
+            <button
                 type="button"
                 className="w-full bg-black/20 border border-border hover:border-white/20 rounded-lg px-4 py-2.5 text-text outline-none flex items-center justify-between transition-colors"
                 onClick={() => setIsOpen(!isOpen)}
@@ -4567,11 +4561,10 @@ const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, isPublic
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)}
-                        className={`px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 cursor-pointer border-none outline-none ${
-                            activeTab === tab.id
+                        className={`px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 cursor-pointer border-none outline-none ${activeTab === tab.id
                                 ? 'bg-plex text-background shadow-md'
                                 : 'bg-transparent text-muted hover:text-text hover:bg-white/5'
-                        }`}
+                            }`}
                     >
                         {tab.label}
                     </button>
@@ -4615,11 +4608,11 @@ const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, isPublic
                                                             d.setDate(d.getDate() - (89 - i));
                                                             const dateStr = d.toISOString().split('T')[0];
                                                             const stat = health.dailyHistory?.[dateStr];
-                                                            
+
                                                             let barClass = 'unknown';
                                                             let title = `${dateStr}: No data`;
                                                             let hClass = 'h-1/5';
-                                                            
+
                                                             if (stat && stat.total > 0) {
                                                                 const pct = (stat.up / stat.total) * 100;
                                                                 title = `${dateStr}: ${pct.toFixed(1)}% uptime`;
@@ -4627,7 +4620,7 @@ const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, isPublic
                                                                 else if (pct >= 90) { barClass = 'degraded'; hClass = 'h-2/3'; }
                                                                 else { barClass = 'offline'; hClass = 'h-1/3'; }
                                                             }
-                                                            
+
                                                             return (
                                                                 <div
                                                                     key={i}
@@ -4656,9 +4649,9 @@ const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, isPublic
                     <div className="flex flex-col gap-6 animate-fade-in">
                         <div className="flex flex-col md:flex-row md:items-center gap-4">
                             <label className="font-bold text-muted uppercase tracking-widest text-sm">Select Service</label>
-                            <ServiceCustomSelect 
-                                value={selectedServiceId || ''} 
-                                onChange={setSelectedServiceId} 
+                            <ServiceCustomSelect
+                                value={selectedServiceId || ''}
+                                onChange={setSelectedServiceId}
                                 options={services.map((s: any) => ({ id: s.id, name: s.name }))}
                             />
                         </div>
@@ -4704,9 +4697,9 @@ const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, isPublic
                     <div className="flex flex-col gap-6 animate-fade-in">
                         <div className="flex flex-col md:flex-row md:items-center gap-4">
                             <label className="font-bold text-muted uppercase tracking-widest text-sm">Select Service</label>
-                            <ServiceCustomSelect 
-                                value={selectedServiceId || ''} 
-                                onChange={setSelectedServiceId} 
+                            <ServiceCustomSelect
+                                value={selectedServiceId || ''}
+                                onChange={setSelectedServiceId}
                                 options={services.map((s: any) => ({ id: s.id, name: s.name }))}
                             />
                         </div>
@@ -4732,7 +4725,7 @@ const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, isPublic
                                             <span className="absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right">0%</span>
                                         </div>
                                     </div>
-                                    
+
                                     {/* Bars */}
                                     <div className="w-full h-full flex items-end gap-[2px] pb-8 z-10">
                                         {Array.from({ length: 90 }).map((_, i) => {
@@ -4741,13 +4734,13 @@ const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, isPublic
                                             const dateStr = d.toISOString().split('T')[0];
                                             const stat = healthData[selectedServiceId]?.dailyHistory?.[dateStr];
                                             const pct = stat && stat.total > 0 ? (stat.up / stat.total) * 100 : 0;
-                                            
+
                                             return (
                                                 <div
                                                     key={i}
                                                     className="flex-1 flex flex-col justify-end h-full relative group/chart cursor-crosshair"
                                                 >
-                                                    <div 
+                                                    <div
                                                         className={`w-full rounded-t-sm transition-all duration-300 opacity-80 group-hover/chart:opacity-100 ${pct >= 99 ? 'bg-status-active' : pct >= 90 ? 'bg-status-expiring' : stat && stat.total > 0 ? 'bg-status-expired' : 'bg-white/10'}`}
                                                         style={{ height: `${Math.max(1, pct)}%` }}
                                                     />
@@ -4799,7 +4792,7 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void }> = ({ s
 
                     <h2 className="text-2xl font-bold text-text leading-tight mb-1 pr-10">{session.grandparentTitle || session.title}</h2>
                     <p className="text-base text-muted mb-4">{session.grandparentTitle ? session.title : ''} {session.type === 'episode' && session.season !== undefined ? `| S${String(session.season).padStart(2, '0')}E${String(session.episode).padStart(2, '0')}` : ''}</p>
-                    
+
                     <div className="flex flex-wrap gap-2 mb-6">
                         {session.resolution && <span className="bg-white/10 text-white/90 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border border-white/10">{session.resolution.includes('p') || session.resolution.includes('k') ? session.resolution : `${session.resolution}p`}</span>}
                         <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border ${session.sessionLocation === 'lan' ? 'bg-status-active/20 text-status-active border-status-active/30' : 'bg-plex/20 text-plex border-plex/30'}`}>{session.sessionLocation === 'lan' ? 'Local' : 'Remote'}</span>
@@ -4817,7 +4810,7 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void }> = ({ s
                             <p className="text-sm font-medium">{session.playerAddress}</p>
                             <p className="text-xs text-muted/80">{(session.bandwidth / 1000).toFixed(1)} Mbps</p>
                         </div>
-                        
+
                         <div>
                             <p className="text-[10px] text-muted uppercase tracking-widest font-bold mb-1">Video</p>
                             <p className="text-sm font-medium uppercase">{session.videoCodec || 'Unknown'} {session.videoProfile ? `(${session.videoProfile})` : ''}</p>
@@ -4932,7 +4925,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                                     )}
                                                 </div>
                                             </div>
-                                            
+
                                             <div className="flex flex-wrap gap-1.5 mb-3 mt-1">
                                                 {session.resolution && (
                                                     <span className="bg-white/10 text-white/90 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide border border-white/10">{session.resolution.includes('p') || session.resolution.includes('k') ? session.resolution : `${session.resolution}p`}</span>
@@ -5054,7 +5047,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     </div>
                 </div>
             </main>
-            
+
             {/* Stream Details Modal */}
             {selectedSession && <StreamDetailsModal session={selectedSession} onClose={() => setSelectedSession(null)} />}
         </div>
@@ -5178,7 +5171,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
                             </div>
                         </div>
                     </div>
-                    
+
                     <div className="flex flex-col items-center text-center px-2">
                         <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-gray-100 to-gray-400 drop-shadow-md tracking-tight leading-tight line-clamp-2">
                             {serverName}
@@ -5324,8 +5317,8 @@ const PublicInviteClaim: React.FC<{ code: string }> = ({ code }) => {
                 <LivePlexStats />
             </div>
 
-            <button 
-                onClick={handlePlexLogin} 
+            <button
+                onClick={handlePlexLogin}
                 disabled={isClaiming}
                 className="w-full max-w-sm px-6 py-4 bg-plex text-background text-lg font-bold rounded-xl hover:bg-plex-hover transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-plex/20 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -5337,7 +5330,7 @@ const PublicInviteClaim: React.FC<{ code: string }> = ({ code }) => {
 };
 
 const MainApp: React.FC = () => {
-    const [confirmState, setConfirmState] = useState<{isOpen: boolean, message: string, onConfirm: () => void}>({isOpen: false, message: '', onConfirm: () => {}});
+    const [confirmState, setConfirmState] = useState<{ isOpen: boolean, message: string, onConfirm: () => void }>({ isOpen: false, message: '', onConfirm: () => { } });
 
     useEffect(() => {
         appConfirm = (message, onConfirm) => {

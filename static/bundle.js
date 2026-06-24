@@ -3985,7 +3985,7 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
                 })() : "0 B" }),
                 /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1", children: [
                   /* @__PURE__ */ jsx("span", { className: "text-plex", children: serverStats.shows?.toLocaleString() || 0 }),
-                  /* @__PURE__ */ jsx("span", { className: "text-muted", children: "Episodes" })
+                  /* @__PURE__ */ jsx("span", { className: "text-muted", children: "Shows" })
                 ] })
               ] }),
               /* @__PURE__ */ jsxs("div", { className: "bg-background/60 p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors", children: [
