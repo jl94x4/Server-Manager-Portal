@@ -1543,7 +1543,8 @@ const buildPlexStatsCache = async () => {
 
         let totalMoviesCount = 0, totalShowsCount = 0, totalMusicCount = 0;
         let totalMoviesBytes = 0, totalShowsBytes = 0, totalMusicBytes = 0;
-        let total4kCount = 0, totalVideoItems = 0;
+        let total4kMovies = 0;
+        const fourKShows = new Set();
 
         for (const dir of directories) {
             try {
@@ -1575,7 +1576,6 @@ const buildPlexStatsCache = async () => {
                     const { MediaContainer: { Metadata: items = [] } } = await pageRes.json();
                     if (items.length === 0) break;
                     for (const item of items) {
-                        if (dir.type === 'movie' || dir.type === 'show') totalVideoItems++;
                         let is4k = false;
                         for (const media of item.Media || []) {
                             if (media.videoResolution === '4k') is4k = true;
@@ -1583,7 +1583,10 @@ const buildPlexStatsCache = async () => {
                                 if (part.size) bytes += parseInt(part.size);
                             }
                         }
-                        if (is4k) total4kCount++;
+                        if (is4k) {
+                            if (dir.type === 'movie') total4kMovies++;
+                            else if (dir.type === 'show') fourKShows.add(item.grandparentRatingKey || item.parentRatingKey || item.title);
+                        }
                     }
                     start += PAGE;
                 }
@@ -1596,10 +1599,12 @@ const buildPlexStatsCache = async () => {
         }
         clearTimeout(timer);
 
+        const totalVideoTitles = totalMoviesCount + totalShowsCount;
+        const total4kTitles = total4kMovies + fourKShows.size;
         const stats = {
             movies: totalMoviesCount, shows: totalShowsCount, music: totalMusicCount,
             moviesBytes: totalMoviesBytes, showsBytes: totalShowsBytes, musicBytes: totalMusicBytes,
-            fourKPercent: totalVideoItems > 0 ? Math.round((total4kCount / totalVideoItems) * 100) : 0,
+            fourKPercent: totalVideoTitles > 0 ? Math.round((total4kTitles / totalVideoTitles) * 100) : 0,
             generatedAt: Date.now()
         };
         cachedPlexStats = stats;
