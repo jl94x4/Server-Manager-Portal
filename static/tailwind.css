@@ -4124,6 +4124,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .xl\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
   .xl\:grid-cols-7 {
     grid-template-columns: repeat(7, minmax(0, 1fr));
   }
@@ -4142,6 +4146,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 }
 
 @media (min-width: 1536px) {
+  .\32xl\:grid-cols-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
   .\32xl\:grid-cols-8 {
     grid-template-columns: repeat(8, minmax(0, 1fr));
   }

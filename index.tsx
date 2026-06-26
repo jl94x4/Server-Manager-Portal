@@ -2313,9 +2313,9 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="flex flex-col gap-8 w-full">
 
-                <div className="lg:col-span-2 flex flex-col gap-8">
+                <div className="w-full">
 
                     <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-4 md:p-6 relative">
                         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 border-b border-border/30 pb-4">
@@ -2381,7 +2381,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                                 </div>
 
                                 {/* Right Side: Vertical List */}
-                                <div className="flex-1 min-w-0 flex flex-col gap-6 md:gap-8 pb-4">
+                                <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 md:gap-8 pb-4">
                                     {Object.entries(groupedCalendar).map(([dateStr, items]) => (
                                         <div key={dateStr} className="flex flex-col gap-2 md:gap-3">
                                             <div className="sticky top-0 bg-card/95 backdrop-blur-md z-10 py-1 md:py-3 border-b border-white/10 md:mb-2">
@@ -2435,55 +2435,56 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                             </div>
                         )}
                     </div>
-
-                    <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-4 md:p-6 relative">
-                        <h2 className="text-xl font-bold text-text mb-4 flex items-center gap-2">
-                            <Activity className="w-5 h-5 text-plex" />
-                            Active Downloads ({activeQueue.length})
-                        </h2>
-
-                        <div className="flex flex-col gap-3">
-                            {activeQueue.length === 0 ? (
-                                <div className="text-center py-8 bg-background/30 rounded-xl border border-white/5 text-muted text-sm">
-                                    <DownloadCloud className="w-10 h-10 text-muted/30 mx-auto mb-2" />
-                                    No active downloads in the queue
-                                </div>
-                            ) : (
-                                activeQueue.map((item: any) => {
-                                    const downloaded = item.size - item.sizeleft;
-                                    const progress = item.size > 0 ? (downloaded / item.size) * 100 : 0;
-
-                                    return (
-                                        <div key={item.id} className="bg-background/40 hover:bg-background/60 transition-all rounded-xl p-4 border border-white/5 flex flex-col gap-2">
-                                            <div className="flex justify-between items-start gap-4">
-                                                <div className="flex flex-col gap-1 min-w-0">
-                                                    <span className="font-bold text-sm text-text line-clamp-1 leading-snug">{item.title}</span>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className={`text-[8px] uppercase font-black tracking-widest px-1.5 py-0.5 rounded ${item.service === 'Sonarr' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                                                            }`}>
-                                                            {item.service}
-                                                        </span>
-                                                        <span className="text-[10px] text-muted/60 font-semibold">{item.timeleft || 'Unknown time'} left</span>
-                                                    </div>
-                                                </div>
-                                                <span className="text-[10px] font-bold px-2 py-0.5 bg-plex/10 text-plex rounded-md border border-plex/20 uppercase tracking-wider">{item.status}</span>
-                                            </div>
-                                            <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden mt-1 relative">
-                                                <div className="bg-plex h-full rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
-                                            </div>
-                                            <div className="flex justify-between text-[10px] text-muted/60 mt-0.5 font-medium">
-                                                <span>{progress.toFixed(1)}% Completed</span>
-                                                <span>{formatBytes(downloaded)} / {formatBytes(item.size)}</span>
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            )}
-                        </div>
-                    </div>
                 </div>
 
-                <div className="flex flex-col gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="flex flex-col gap-8">
+                        <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-4 md:p-6 relative flex-grow flex flex-col">
+                            <h2 className="text-xl font-bold text-text mb-4 flex items-center gap-2">
+                                <Activity className="w-5 h-5 text-plex" />
+                                Active Downloads ({activeQueue.length})
+                            </h2>
+
+                            <div className="flex flex-col gap-3 flex-grow justify-start">
+                                {activeQueue.length === 0 ? (
+                                    <div className="text-center py-8 bg-background/30 rounded-xl border border-white/5 text-muted text-sm flex-grow flex flex-col justify-center items-center">
+                                        <DownloadCloud className="w-10 h-10 text-muted/30 mx-auto mb-2" />
+                                        No active downloads
+                                    </div>
+                                ) : (
+                                    activeQueue.map((item: any) => {
+                                        const downloaded = item.size - item.sizeleft;
+                                        const progress = item.size > 0 ? (downloaded / item.size) * 100 : 0;
+
+                                        return (
+                                            <div key={item.id} className="bg-background/40 hover:bg-background/60 transition-all rounded-xl p-4 border border-white/5 flex flex-col gap-2">
+                                                <div className="flex justify-between items-start gap-4">
+                                                    <div className="flex flex-col gap-1 min-w-0">
+                                                        <span className="font-bold text-sm text-text line-clamp-1 leading-snug">{item.title}</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={`text-[8px] uppercase font-black tracking-widest px-1.5 py-0.5 rounded ${item.service === 'Sonarr' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                                                }`}>
+                                                                {item.service}
+                                                            </span>
+                                                            <span className="text-[10px] text-muted/60 font-semibold">{item.timeleft || 'Unknown time'} left</span>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-[10px] font-bold px-2 py-0.5 bg-plex/10 text-plex rounded-md border border-plex/20 uppercase tracking-wider">{item.status}</span>
+                                                </div>
+                                                <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden mt-1 relative">
+                                                    <div className="bg-plex h-full rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                                                </div>
+                                                <div className="flex justify-between text-[10px] text-muted/60 mt-0.5 font-medium">
+                                                    <span>{progress.toFixed(1)}%</span>
+                                                    <span>{formatBytes(downloaded)} / {formatBytes(item.size)}</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
+                    </div>
 
                     <div className="flex flex-col gap-4">
                         <h2 className="text-xl font-bold text-text flex items-center gap-2 mb-1">
