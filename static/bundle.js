@@ -2364,7 +2364,7 @@ var MediaStackDashboard = ({ isAdmin }) => {
           /* @__PURE__ */ jsx(Calendar, { className: "w-12 h-12 text-muted/30 mx-auto mb-3" }),
           "No upcoming releases for this month"
         ] }) : /* @__PURE__ */ jsxs("div", { className: "flex items-start gap-3 md:gap-8 w-full", children: [
-          /* @__PURE__ */ jsx("div", { className: "sticky top-6 w-[100px] sm:w-[140px] md:w-[320px] flex-shrink-0", children: /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-4", children: /* @__PURE__ */ jsxs("div", { className: "relative aspect-[2/3] rounded-lg md:rounded-2xl overflow-hidden shadow-2xl border border-white/10 group bg-card", children: [
+          /* @__PURE__ */ jsx("div", { className: "sticky top-6 w-[100px] sm:w-[140px] md:w-[320px] flex-shrink-0 mt-8 md:mt-[58px]", children: /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-4", children: /* @__PURE__ */ jsxs("div", { className: "relative aspect-[2/3] rounded-lg md:rounded-2xl overflow-hidden shadow-2xl border border-white/10 group bg-card", children: [
             activeCalendarItem?.imageUrl ? /* @__PURE__ */ jsx("img", { src: activeCalendarItem.imageUrl, alt: activeCalendarItem.title, className: "w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" }) : /* @__PURE__ */ jsxs("div", { className: "w-full h-full flex flex-col items-center justify-center opacity-30", children: [
               activeCalendarItem?.type === "tv" ? /* @__PURE__ */ jsx(Tv, { className: "w-10 h-10 md:w-20 md:h-20 mb-2 md:mb-4" }) : /* @__PURE__ */ jsx(Film, { className: "w-10 h-10 md:w-20 md:h-20 mb-2 md:mb-4" }),
               /* @__PURE__ */ jsx("span", { className: "font-bold uppercase tracking-widest text-[8px] md:text-sm", children: "No Poster" })

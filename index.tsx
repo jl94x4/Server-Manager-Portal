@@ -2336,7 +2336,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                         ) : (
                             <div className="flex items-start gap-3 md:gap-8 w-full">
                                 {/* Left Sticky Poster */}
-                                <div className="sticky top-6 w-[100px] sm:w-[140px] md:w-[320px] flex-shrink-0">
+                                <div className="sticky top-6 w-[100px] sm:w-[140px] md:w-[320px] flex-shrink-0 mt-8 md:mt-[58px]">
                                     <div className="flex flex-col gap-4">
                                         <div className="relative aspect-[2/3] rounded-lg md:rounded-2xl overflow-hidden shadow-2xl border border-white/10 group bg-card">
                                             {activeCalendarItem?.imageUrl ? (

@@ -3711,6 +3711,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     margin-top: 0.25rem;
   }
 
+  .md\:mt-\[58px\] {
+    margin-top: 58px;
+  }
+
   .md\:line-clamp-3 {
     overflow: hidden;
     display: -webkit-box;
