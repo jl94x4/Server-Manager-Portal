@@ -1854,6 +1854,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-left-color: rgb(59 130 246 / 0.8);
 }
 
+.border-l-green-500\/80 {
+  border-left-color: rgb(34 197 94 / 0.8);
+}
+
 .border-l-red-500\/80 {
   border-left-color: rgb(239 68 68 / 0.8);
 }

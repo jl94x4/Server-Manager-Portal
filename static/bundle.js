@@ -2378,7 +2378,7 @@ var MediaStackDashboard = ({ isAdmin }) => {
               {
                 onMouseEnter: () => setActiveCalendarItem(item),
                 onClick: () => setActiveCalendarItem(item),
-                className: `bg-background/40 hover:bg-background/80 transition-all duration-300 rounded-lg md:rounded-xl p-2.5 md:p-4 flex flex-col gap-2 md:gap-3 shadow-md border-l-4 cursor-pointer group ${item.type === "tv" ? "border-l-blue-500/80" : "border-l-red-500/80"} ${activeCalendarItem?.id === item.id ? "bg-white/10 border border-white/30 scale-[1.01] md:scale-[1.02]" : "border border-white/5 hover:border-white/20"}`,
+                className: `bg-background/40 hover:bg-background/80 transition-all duration-300 rounded-lg md:rounded-xl p-2.5 md:p-4 flex flex-col gap-2 md:gap-3 shadow-md border-l-4 cursor-pointer group ${item.hasFile ? "border-l-green-500/80" : item.monitored ? "border-l-red-500/80" : "border-l-blue-500/80"} ${activeCalendarItem?.id === item.id ? "bg-white/10 border border-white/30 scale-[1.01] md:scale-[1.02]" : "border border-white/5 hover:border-white/20"}`,
                 children: /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-start gap-2 md:gap-3", children: [
                   /* @__PURE__ */ jsxs("div", { className: "min-w-0 flex-grow", children: [
                     /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5 md:gap-2 mb-1 md:mb-2", children: [
