@@ -727,8 +727,8 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   top: 1rem;
 }
 
-.top-6 {
-  top: 1.5rem;
+.top-\[80px\] {
+  top: 80px;
 }
 
 .top-\[calc\(100\%\+8px\)\] {
@@ -1170,8 +1170,8 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   width: 2rem;
 }
 
-.w-\[100px\] {
-  width: 100px;
+.w-\[120px\] {
+  width: 120px;
 }
 
 .w-\[90\%\] {
@@ -3624,8 +3624,8 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     width: 8rem;
   }
 
-  .sm\:w-\[140px\] {
-    width: 140px;
+  .sm\:w-\[160px\] {
+    width: 160px;
   }
 
   .sm\:w-\[200px\] {
@@ -3686,6 +3686,14 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 }
 
 @media (min-width: 768px) {
+  .md\:top-0 {
+    top: 0px;
+  }
+
+  .md\:top-6 {
+    top: 1.5rem;
+  }
+
   .md\:mx-0 {
     margin-left: 0px;
     margin-right: 0px;

@@ -2364,7 +2364,7 @@ var MediaStackDashboard = ({ isAdmin }) => {
           /* @__PURE__ */ jsx(Calendar, { className: "w-12 h-12 text-muted/30 mx-auto mb-3" }),
           "No upcoming releases for this month"
         ] }) : /* @__PURE__ */ jsxs("div", { className: "flex items-start gap-3 md:gap-8 w-full", children: [
-          /* @__PURE__ */ jsx("div", { className: "sticky top-6 w-[100px] sm:w-[140px] md:w-[320px] flex-shrink-0 mt-8 md:mt-[58px]", children: /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-4", children: /* @__PURE__ */ jsxs("div", { className: "relative aspect-[2/3] rounded-lg md:rounded-2xl overflow-hidden shadow-2xl border border-white/10 group bg-card", children: [
+          /* @__PURE__ */ jsx("div", { className: "sticky top-[80px] md:top-6 w-[120px] sm:w-[160px] md:w-[320px] flex-shrink-0 mt-8 md:mt-[58px]", children: /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-4", children: /* @__PURE__ */ jsxs("div", { className: "relative aspect-[2/3] rounded-lg md:rounded-2xl overflow-hidden shadow-2xl border border-white/10 group bg-card", children: [
             activeCalendarItem?.imageUrl ? /* @__PURE__ */ jsx("img", { src: activeCalendarItem.imageUrl, alt: activeCalendarItem.title, className: "w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" }) : /* @__PURE__ */ jsxs("div", { className: "w-full h-full flex flex-col items-center justify-center opacity-30", children: [
               activeCalendarItem?.type === "tv" ? /* @__PURE__ */ jsx(Tv, { className: "w-10 h-10 md:w-20 md:h-20 mb-2 md:mb-4" }) : /* @__PURE__ */ jsx(Film, { className: "w-10 h-10 md:w-20 md:h-20 mb-2 md:mb-4" }),
               /* @__PURE__ */ jsx("span", { className: "font-bold uppercase tracking-widest text-[8px] md:text-sm", children: "No Poster" })
@@ -2372,7 +2372,7 @@ var MediaStackDashboard = ({ isAdmin }) => {
             /* @__PURE__ */ jsx("div", { className: "absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-transparent flex flex-col justify-start p-2 md:p-4", children: activeCalendarItem?.network && /* @__PURE__ */ jsx("span", { className: "hidden md:block text-sm text-white/90 uppercase tracking-widest font-bold text-left drop-shadow-lg", children: activeCalendarItem.network }) })
           ] }) }) }),
           /* @__PURE__ */ jsx("div", { className: "flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 md:gap-8 pb-4", children: Object.entries(groupedCalendar).map(([dateStr, items]) => /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-2 md:gap-3", children: [
-            /* @__PURE__ */ jsx("div", { className: "sticky top-0 bg-card/95 backdrop-blur-md z-10 py-1 md:py-3 border-b border-white/10 md:mb-2", children: /* @__PURE__ */ jsx("h3", { className: "text-sm md:text-xl font-black text-plex md:text-text tracking-tight uppercase", children: dateStr }) }),
+            /* @__PURE__ */ jsx("div", { className: "sticky top-[80px] md:top-0 bg-card/95 backdrop-blur-md z-10 py-1 md:py-3 border-b border-white/10 md:mb-2", children: /* @__PURE__ */ jsx("h3", { className: "text-sm md:text-xl font-black text-plex md:text-text tracking-tight uppercase", children: dateStr }) }),
             items.map((item) => /* @__PURE__ */ jsx(
               "div",
               {
