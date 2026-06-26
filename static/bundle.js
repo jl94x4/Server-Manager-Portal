@@ -955,9 +955,26 @@ var SettingsDashboard = () => {
   const [referralTrialDays, setReferralTrialDays] = useState(3);
   const [referralRewardDays, setReferralRewardDays] = useState(7);
   const [announcement, setAnnouncement] = useState("");
+  const [isPushingAnnouncement, setIsPushingAnnouncement] = useState(false);
   const [navOrder, setNavOrder] = useState(["home", "discover", "status", "logs", "analytics", "mediastack", "request", "settings", "logout"]);
   const [logoFile, setLogoFile] = useState(null);
   const [tasks, setTasks] = useState([]);
+  const handlePushAnnouncement = async () => {
+    setIsPushingAnnouncement(true);
+    try {
+      const res = await apiFetch("/api/announcements/push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: announcement, sendEmail: true })
+      });
+      if (res.error) throw new Error(res.error);
+      addToast("Announcement saved and email push started (staggered over 30 mins).");
+    } catch (e) {
+      addToast(e.message || "Failed to push announcement", "error");
+    } finally {
+      setIsPushingAnnouncement(false);
+    }
+  };
   const fetchTasks = async () => {
     try {
       const data = await apiFetch("/api/tasks");
@@ -1545,7 +1562,18 @@ var SettingsDashboard = () => {
           /* @__PURE__ */ jsxs("div", { className: "mb-4", children: [
             /* @__PURE__ */ jsx("label", { children: "Portal Announcement Banner" }),
             /* @__PURE__ */ jsx("textarea", { className: "w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all", value: announcement, onChange: (e) => setAnnouncement(e.target.value), placeholder: "E.g. Server maintenance scheduled for Friday...", rows: 3 }),
-            /* @__PURE__ */ jsx("small", { children: "If provided, this announcement will be prominently displayed to all users." })
+            /* @__PURE__ */ jsxs("div", { className: "flex flex-col sm:flex-row justify-between sm:items-center gap-2 mt-2", children: [
+              /* @__PURE__ */ jsx("small", { children: "If provided, this announcement will be prominently displayed to all users." }),
+              /* @__PURE__ */ jsx(
+                "button",
+                {
+                  onClick: handlePushAnnouncement,
+                  disabled: isPushingAnnouncement || !announcement,
+                  className: "bg-plex hover:bg-plex-hover disabled:opacity-50 text-background font-bold py-1.5 px-4 rounded-lg transition-colors text-sm whitespace-nowrap",
+                  children: isPushingAnnouncement ? "Pushing..." : "Save & Send Email Blast"
+                }
+              )
+            ] })
           ] }),
           /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8", children: "Referral System" }),
           /* @__PURE__ */ jsxs("div", { className: "mb-6 flex items-center justify-between bg-black/10 p-4 rounded-lg border border-border", children: [
@@ -4467,7 +4495,30 @@ var StatusDashboard = ({ onBack, isAdmin, isPublic }) => {
     ] })
   ] });
 };
-var StreamDetailsModal = ({ session, onClose }) => {
+var StreamDetailsModal = ({ session, onClose, isAdmin, onKilled }) => {
+  const [killReason, setKillReason] = useState("");
+  const [isKilling, setIsKilling] = useState(false);
+  const [showKillConfirm, setShowKillConfirm] = useState(false);
+  const handleKill = async () => {
+    setIsKilling(true);
+    try {
+      const res = await apiFetch("/api/streams/kill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: session.sessionId, reason: killReason })
+      });
+      if (res.error) {
+        alert(res.error);
+      } else {
+        onClose();
+        if (onKilled) onKilled();
+      }
+    } catch (e) {
+      alert("Failed to kill stream");
+    } finally {
+      setIsKilling(false);
+    }
+  };
   return /* @__PURE__ */ jsx("div", { className: "fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm", onClick: onClose, children: /* @__PURE__ */ jsxs("div", { className: "bg-card w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl relative flex flex-col md:flex-row", onClick: (e) => e.stopPropagation(), children: [
     /* @__PURE__ */ jsxs("div", { className: "w-full md:w-1/3 relative bg-black flex-shrink-0", children: [
       /* @__PURE__ */ jsxs("div", { className: "w-full pb-[150%] md:pb-0 md:h-full relative", children: [
@@ -4527,28 +4578,40 @@ var StreamDetailsModal = ({ session, onClose }) => {
           session.transcodeAudioDecision === "transcode" && /* @__PURE__ */ jsx("p", { className: "text-[10px] text-status-expiring font-bold", children: "Transcoding" })
         ] })
       ] }),
-      /* @__PURE__ */ jsx("div", { className: "mt-auto flex gap-3 pt-4 border-t border-white/5", children: /* @__PURE__ */ jsx("a", { href: session.plexUrl, target: "_blank", rel: "noreferrer", className: "flex-1 bg-plex text-background font-bold text-center py-3 rounded-lg hover:bg-plex-hover transition-colors shadow-lg", children: "Open in Plex" }) })
+      /* @__PURE__ */ jsxs("div", { className: "mt-auto flex flex-col gap-3 pt-4 border-t border-white/5", children: [
+        isAdmin && session.sessionId && (showKillConfirm ? /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-2 bg-red-500/10 border border-red-500/20 p-3 rounded-lg", children: [
+          /* @__PURE__ */ jsx("input", { type: "text", placeholder: "Reason (Optional)", value: killReason, onChange: (e) => setKillReason(e.target.value), className: "w-full bg-black/30 border border-red-500/30 rounded px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:border-red-500" }),
+          /* @__PURE__ */ jsxs("div", { className: "flex gap-2", children: [
+            /* @__PURE__ */ jsx("button", { onClick: handleKill, disabled: isKilling, className: "flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2 rounded transition-colors text-sm", children: isKilling ? "Killing..." : "Confirm Kill" }),
+            /* @__PURE__ */ jsx("button", { onClick: () => setShowKillConfirm(false), className: "px-4 bg-white/10 hover:bg-white/20 text-white font-bold py-2 rounded transition-colors text-sm", children: "Cancel" })
+          ] })
+        ] }) : /* @__PURE__ */ jsxs("button", { onClick: () => setShowKillConfirm(true), className: "w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 font-bold py-2.5 rounded-lg transition-colors text-sm flex items-center justify-center gap-2", children: [
+          /* @__PURE__ */ jsx(X, { className: "w-4 h-4" }),
+          " Terminate Stream"
+        ] })),
+        /* @__PURE__ */ jsx("a", { href: session.plexUrl, target: "_blank", rel: "noreferrer", className: "flex-1 bg-plex text-background font-bold text-center py-3 rounded-lg hover:bg-plex-hover transition-colors shadow-lg", children: "Open in Plex" })
+      ] })
     ] })
   ] }) });
 };
-var LibraryDashboard = ({ onBack }) => {
+var LibraryDashboard = ({ onBack, isAdmin }) => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [recentLimit, setRecentLimit] = useState(25);
   const [selectedSession, setSelectedSession] = useState(null);
+  const fetchData = useCallback(async () => {
+    try {
+      const res = await apiFetch(`/api/plex/dashboard?limit=${recentLimit}`);
+      if (res.error) throw new Error(res.error);
+      setDashboardData(res);
+    } catch (err) {
+      setError(err.message || "Failed to load dashboard data");
+    } finally {
+      setLoading(false);
+    }
+  }, [recentLimit]);
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await apiFetch(`/api/plex/dashboard?limit=${recentLimit}`);
-        if (res.error) throw new Error(res.error);
-        setDashboardData(res);
-      } catch (err) {
-        setError(err.message || "Failed to load dashboard data");
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
     const interval = setInterval(fetchData, 3e4);
     return () => clearInterval(interval);
@@ -4695,7 +4758,7 @@ var LibraryDashboard = ({ onBack }) => {
         ] })
       ] })
     ] }),
-    selectedSession && /* @__PURE__ */ jsx(StreamDetailsModal, { session: selectedSession, onClose: () => setSelectedSession(null) })
+    selectedSession && /* @__PURE__ */ jsx(StreamDetailsModal, { session: selectedSession, onClose: () => setSelectedSession(null), isAdmin, onKilled: fetchData })
   ] });
 };
 var Navigation = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, requestUrl, navOrder, appVersion }) => {
@@ -5022,7 +5085,7 @@ var MainApp = () => {
       return /* @__PURE__ */ jsx(PublicInviteClaim, { code });
     }
     if (currentRoute === "status") return /* @__PURE__ */ jsx(StatusDashboard, { onBack: () => isPublicStatus ? setRoute("login") : setRoute("user"), isAdmin, isPublic: isPublicStatus });
-    if (currentRoute === "dashboard") return /* @__PURE__ */ jsx(LibraryDashboard, { onBack: () => setRoute("user") });
+    if (currentRoute === "dashboard") return /* @__PURE__ */ jsx(LibraryDashboard, { onBack: () => setRoute("user"), isAdmin });
     if (currentRoute === "settings" && isAdmin) return /* @__PURE__ */ jsx(SettingsDashboard, {});
     if (currentRoute === "logs" && isAdmin) return /* @__PURE__ */ jsx(LogsDashboard, { onLogout: handleLogout });
     if (currentRoute === "mediastack") return /* @__PURE__ */ jsx(MediaStackDashboard, { isAdmin });

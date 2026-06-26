@@ -2723,6 +2723,7 @@ app.get('/api/plex/dashboard', requireAuth, async (req, res) => {
                 const isHidden = !req.user.isAdmin && (hideConfig === 'anonymous' || hideConfig === 'hidden');
                 
                 return {
+                    sessionId: session.id || m.sessionKey,
                     title: m.title,
                     type: m.type,
                     grandparentTitle: m.grandparentTitle,
@@ -2810,7 +2811,86 @@ app.get('/api/plex/dashboard', requireAuth, async (req, res) => {
         res.json({ activeSessions, recentMovies, recentShows, recentMusic });
     } catch (e) {
         log(`Error fetching Plex dashboard: ${e.message}`);
-        res.status(500).json({ error: 'Dashboard error' });
+        res.status(500).json({ error: 'Failed to fetch dashboard data' });
+    }
+});
+
+app.post('/api/streams/kill', authenticateToken, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    const { sessionId, reason } = req.body;
+    try {
+        const config = await readConfig();
+        const uri = config.plexAddress;
+        
+        const response = await fetch(`${uri}/status/sessions/terminate?sessionId=${encodeURIComponent(sessionId)}&reason=${encodeURIComponent(reason || 'Admin terminated session')}&X-Plex-Token=${config.plexToken}`, { 
+            method: 'GET', 
+            headers: { 'Accept': 'application/json' } 
+        });
+        
+        if (response.ok) {
+            res.json({ success: true });
+        } else {
+            res.status(500).json({ error: 'Failed to terminate session' });
+        }
+    } catch (e) {
+        console.error('Error terminating stream:', e);
+        res.status(500).json({ error: 'Failed to communicate with Plex' });
+    }
+});
+
+app.post('/api/announcements/push', authenticateToken, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    const { text, sendEmail: shouldSendEmail } = req.body;
+    
+    try {
+        const config = await readConfig();
+        config.announcement = text || '';
+        await saveFile(CONFIG_PATH, config);
+        
+        if (shouldSendEmail && text) {
+            const users = await readUsers();
+            const activeUsers = users.filter(u => u.status === 'active' && u.email);
+            if (activeUsers.length > 0) {
+                // Email sending staggered over half an hour
+                const totalDuration = 30 * 60 * 1000; // 30 minutes in ms
+                const delayPerUser = Math.floor(totalDuration / activeUsers.length);
+                
+                // Background task
+                (async () => {
+                    log(`Starting staggered announcement email push to ${activeUsers.length} users over 30 minutes.`);
+                    let sentCount = 0;
+                    for (let i = 0; i < activeUsers.length; i++) {
+                        const user = activeUsers[i];
+                        const html = `
+                            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #1a1b26; color: #a9b1d6; padding: 20px; border-radius: 10px;">
+                                <h2 style="color: #E5A00D; text-align: center; text-transform: uppercase; letter-spacing: 2px;">Server Announcement</h2>
+                                <div style="background-color: #24283b; padding: 20px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #E5A00D;">
+                                    <p style="white-space: pre-wrap; font-size: 16px; line-height: 1.6; color: #c0caf5; margin: 0;">${text}</p>
+                                </div>
+                                <p style="text-align: center; margin-top: 30px; font-size: 12px; color: #565f89;">
+                                    You are receiving this message because you are an active user on ${config.serverIdentifier || 'our Plex Server'}.
+                                </p>
+                            </div>
+                        `;
+                        try {
+                            await sendEmail(config, user.email, `Server Announcement - ${config.serverIdentifier || 'Plex'}`, html);
+                            sentCount++;
+                        } catch (emailErr) {
+                            log(`Failed to send announcement email to ${user.email}`);
+                        }
+                        
+                        if (i < activeUsers.length - 1) {
+                            await new Promise(resolve => setTimeout(resolve, delayPerUser));
+                        }
+                    }
+                    log(`Completed staggered announcement email push. Sent ${sentCount} emails.`);
+                })();
+            }
+        }
+        res.json({ success: true, message: 'Announcement updated' });
+    } catch (e) {
+        log(`Error pushing announcement: ${e.message}`);
+        res.status(500).json({ error: 'Failed to update announcement' });
     }
 });
 

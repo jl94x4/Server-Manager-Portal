@@ -2061,6 +2061,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   background-color: rgb(239 68 68 / 0.1);
 }
 
+.bg-red-500\/20 {
+  background-color: rgb(239 68 68 / 0.2);
+}
+
 .bg-red-600 {
   --tw-bg-opacity: 1;
   background-color: rgb(220 38 38 / var(--tw-bg-opacity, 1));
@@ -2857,6 +2861,14 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   color: rgb(139 148 158 / 0.5);
 }
 
+.placeholder-white\/40::-moz-placeholder {
+  color: rgb(255 255 255 / 0.4);
+}
+
+.placeholder-white\/40::placeholder {
+  color: rgb(255 255 255 / 0.4);
+}
+
 .accent-plex {
   accent-color: rgb(var(--color-plex) / 1);
 }
@@ -3416,6 +3428,15 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   background-color: rgb(239 68 68 / 0.1);
 }
 
+.hover\:bg-red-500\/30:hover {
+  background-color: rgb(239 68 68 / 0.3);
+}
+
+.hover\:bg-red-600:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(220 38 38 / var(--tw-bg-opacity, 1));
+}
+
 .hover\:bg-white\/10:hover {
   background-color: rgb(255 255 255 / 0.1);
 }
@@ -3526,6 +3547,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 .focus\:border-plex:focus {
   --tw-border-opacity: 1;
   border-color: rgb(var(--color-plex) / var(--tw-border-opacity, 1));
+}
+
+.focus\:border-red-500:focus {
+  --tw-border-opacity: 1;
+  border-color: rgb(239 68 68 / var(--tw-border-opacity, 1));
 }
 
 .focus\:outline-none:focus {
