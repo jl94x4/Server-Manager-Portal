@@ -2608,7 +2608,7 @@ let cachedAdminProfile = null;
 let lastAdminProfileFetch = 0;
 
 async function getAdminProfile(config) {
-    if (!config || !config.plexToken) return { thumb: null, serverName: 'Plex Server' };
+    if (!config || !config.plexToken) return { thumb: null, serverName: 'Server Portal' };
     
     if (cachedAdminProfile && Date.now() - lastAdminProfileFetch < 3600000) {
          return cachedAdminProfile;
@@ -2617,7 +2617,7 @@ async function getAdminProfile(config) {
     try {
         const userRes = await fetch('https://plex.tv/api/v2/user', { headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' } }).then(r => r.json());
         
-        let serverName = 'Plex Server';
+        let serverName = 'Server Portal';
         const uri = await getPlexConnectionUri(config);
         if (uri) {
             const serverRes = await fetch(`${uri}/?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
@@ -2630,7 +2630,7 @@ async function getAdminProfile(config) {
         lastAdminProfileFetch = Date.now();
         return cachedAdminProfile;
     } catch (e) {
-        return { thumb: null, serverName: 'Plex Server' };
+        return { thumb: null, serverName: 'Server Portal' };
     }
 }
 
@@ -2641,7 +2641,7 @@ app.get('/api/public/info', async (req, res) => {
         const isConfigured = !!(config && config.plexToken && config.serverIdentifier);
         res.json({ ...profile, isConfigured, requestUrl: config.requestUrl || 'https://yourdomain.com' });
     } catch (e) {
-        res.json({ thumb: null, serverName: 'Plex Server', isConfigured: false, requestUrl: 'https://yourdomain.com' });
+        res.json({ thumb: null, serverName: 'Server Portal', isConfigured: false, requestUrl: 'https://yourdomain.com' });
     }
 });
 

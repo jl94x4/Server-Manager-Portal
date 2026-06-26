@@ -3564,14 +3564,14 @@ const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
 const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any }> = ({ onLoginSuccess, publicConfig }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
-    const [publicInfo, setPublicInfo] = useState<{ thumb: string | null, serverName: string, isConfigured: boolean | null }>({ thumb: null, serverName: 'Plex Server', isConfigured: null });
+    const [publicInfo, setPublicInfo] = useState<{ thumb: string | null, serverName: string, isConfigured: boolean | null }>({ thumb: null, serverName: 'Server Portal', isConfigured: null });
 
     const fetchPublicInfo = () => {
         apiFetch('/api/public/info').then(data => {
             if (data) {
                 setPublicInfo({
                     thumb: data.thumb || null,
-                    serverName: data.serverName || 'Plex Server',
+                    serverName: data.serverName || 'Server Portal',
                     isConfigured: data.isConfigured !== false
                 });
                 if (data.thumb) updateFavicon(data.thumb);
@@ -5453,7 +5453,7 @@ const MainApp: React.FC = () => {
     return (
         <div className="flex w-full min-h-screen bg-background">
             <ConfirmModal isOpen={confirmState.isOpen} message={confirmState.message} onConfirm={handleConfirm} onCancel={closeConfirm} />
-            {!isPublicView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Plex Server'} adminThumb={sessionInfo?.adminThumb} requestUrl={sessionInfo?.requestUrl || 'https://yourdomain.com'} navOrder={sessionInfo?.navOrder || ['home', 'discover', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout']} appVersion={publicConfig.appVersion} />}
+            {!isPublicView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Server Portal'} adminThumb={sessionInfo?.adminThumb} requestUrl={sessionInfo?.requestUrl || 'https://yourdomain.com'} navOrder={sessionInfo?.navOrder || ['home', 'discover', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout']} appVersion={publicConfig.appVersion} />}
             <div className={`flex-grow flex flex-col items-center p-4 md:p-8 pt-20 pb-[80px] md:pt-8 md:pb-8 w-full overflow-x-hidden ${isPublicView ? '!pt-8 !pb-8' : ''}`}>
                 {renderView()}
             </div>
