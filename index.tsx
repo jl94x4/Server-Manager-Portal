@@ -5010,7 +5010,7 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
 
 const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, publicConfig?: any }> = ({ onBack, isAdmin, publicConfig }) => {
     const [dashboardData, setDashboardData] = useState<{ activeSessions: any[], recentMovies: any[], recentShows: any[], recentMusic: any[] } | null>(null);
-    const [trendingStats, setTrendingStats] = useState<{ trending7Days: any[], movies30Days: any[], shows30Days: any[], top365Days: any[] } | null>(null);
+    const [trendingStats, setTrendingStats] = useState<{ trending7Days: any[], movies30Days: any[], shows30Days: any[], top365Days: any[], allTime: any[] } | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [recentLimit, setRecentLimit] = useState(25);
@@ -5240,9 +5240,9 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                         {trendingStats.trending7Days?.length > 0 && (
                             <div className="flex flex-col">
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">🔥 Trending This Week</h3>
-                                <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth">
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4">
                                     {trendingStats.trending7Days.map((item, i) => (
-                                        <div key={i} className="snap-start shrink-0 w-32 md:w-40 flex flex-col gap-2 group">
+                                        <div key={i} className="flex flex-col w-full gap-2 group">
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
                                                 <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
                                                 <div className="absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30">
@@ -5260,9 +5260,9 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                         {trendingStats.movies30Days?.length > 0 && (
                             <div className="flex flex-col">
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">🍿 Most Watched Movies (This Month)</h3>
-                                <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth">
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4">
                                     {trendingStats.movies30Days.map((item, i) => (
-                                        <div key={i} className="snap-start shrink-0 w-32 md:w-40 flex flex-col gap-2 group">
+                                        <div key={i} className="flex flex-col w-full gap-2 group">
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
                                                 <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
                                                 <div className="absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30">
@@ -5280,9 +5280,9 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                         {trendingStats.shows30Days?.length > 0 && (
                             <div className="flex flex-col">
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">📺 Most Watched Shows (This Month)</h3>
-                                <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth">
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4">
                                     {trendingStats.shows30Days.map((item, i) => (
-                                        <div key={i} className="snap-start shrink-0 w-32 md:w-40 flex flex-col gap-2 group">
+                                        <div key={i} className="flex flex-col w-full gap-2 group">
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
                                                 <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
                                                 <div className="absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30">
@@ -5300,9 +5300,29 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                         {trendingStats.top365Days?.length > 0 && (
                             <div className="flex flex-col">
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">🏆 Top of the Year</h3>
-                                <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth">
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4">
                                     {trendingStats.top365Days.map((item, i) => (
-                                        <div key={i} className="snap-start shrink-0 w-32 md:w-40 flex flex-col gap-2 group">
+                                        <div key={i} className="flex flex-col w-full gap-2 group">
+                                            <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
+                                                <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
+                                                <div className="absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30">
+                                                    {item.views} Views
+                                                </div>
+                                            </div>
+                                            <div className="text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight">{item.title}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* All Time Favorites */}
+                        {trendingStats.allTime?.length > 0 && (
+                            <div className="flex flex-col">
+                                <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">🌟 All Time Favorites</h3>
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4">
+                                    {trendingStats.allTime.map((item, i) => (
+                                        <div key={i} className="flex flex-col w-full gap-2 group">
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
                                                 <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
                                                 <div className="absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30">

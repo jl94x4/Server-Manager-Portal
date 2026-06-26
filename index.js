@@ -3749,7 +3749,8 @@ async function calculateTrendingStats() {
             trending7Days: {}, 
             movies30Days: {}, 
             shows30Days: {}, 
-            top365Days: {} 
+            top365Days: {},
+            allTime: {}
         };
 
         history.forEach(item => {
@@ -3773,6 +3774,8 @@ async function calculateTrendingStats() {
                 obj[groupKey].views++;
             };
 
+            increment(counts.allTime); // All time gets incremented for every view
+            
             if (viewedAt >= days7) increment(counts.trending7Days);
             if (viewedAt >= days365) increment(counts.top365Days);
             
@@ -3790,6 +3793,7 @@ async function calculateTrendingStats() {
             movies30Days: getTop(counts.movies30Days),
             shows30Days: getTop(counts.shows30Days),
             top365Days: getTop(counts.top365Days),
+            allTime: getTop(counts.allTime),
             lastUpdated: Date.now()
         };
 
@@ -3806,7 +3810,8 @@ app.get('/api/plex/stats/trending', requireAuth, async (req, res) => {
             trending7Days: [], 
             movies30Days: [], 
             shows30Days: [], 
-            top365Days: [] 
+            top365Days: [],
+            allTime: []
         });
         res.json(stats);
     } catch (e) {

@@ -4821,6 +4821,19 @@ var LibraryDashboard = ({ onBack, isAdmin, publicConfig }) => {
             ] }),
             /* @__PURE__ */ jsx("div", { className: "text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight", children: item.title })
           ] }, i)) })
+        ] }),
+        trendingStats.allTime?.length > 0 && /* @__PURE__ */ jsxs("div", { className: "flex flex-col", children: [
+          /* @__PURE__ */ jsx("h3", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "\u{1F31F} All Time Favorites" }),
+          /* @__PURE__ */ jsx("div", { className: "flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth", children: trendingStats.allTime.map((item, i) => /* @__PURE__ */ jsxs("div", { className: "snap-start shrink-0 w-32 md:w-40 flex flex-col gap-2 group", children: [
+            /* @__PURE__ */ jsxs("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: [
+              /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }),
+              /* @__PURE__ */ jsxs("div", { className: "absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30", children: [
+                item.views,
+                " Views"
+              ] })
+            ] }),
+            /* @__PURE__ */ jsx("div", { className: "text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight", children: item.title })
+          ] }, i)) })
         ] })
       ] })
     ] }),

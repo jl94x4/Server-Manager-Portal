@@ -46,3 +46,6 @@ email_log.json
 # Environment secrets
 .env
 .env.*
+
+test*.js
+test*.cjs
