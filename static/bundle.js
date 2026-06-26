@@ -2372,7 +2372,7 @@ var MediaStackDashboard = ({ isAdmin }) => {
             /* @__PURE__ */ jsx("div", { className: "absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-transparent flex flex-col justify-start p-2 md:p-4", children: activeCalendarItem?.network && /* @__PURE__ */ jsx("span", { className: "hidden md:block text-sm text-white/90 uppercase tracking-widest font-bold text-left drop-shadow-lg", children: activeCalendarItem.network }) })
           ] }) }) }),
           /* @__PURE__ */ jsx("div", { className: "flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 md:gap-8 pb-4", children: Object.entries(groupedCalendar).map(([dateStr, items]) => /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-2 md:gap-3", children: [
-            /* @__PURE__ */ jsx("div", { className: "sticky top-[80px] md:top-0 bg-card/95 backdrop-blur-md z-10 py-1 md:py-3 border-b border-white/10 md:mb-2", children: /* @__PURE__ */ jsx("h3", { className: "text-sm md:text-xl font-black text-plex md:text-text tracking-tight uppercase", children: dateStr }) }),
+            /* @__PURE__ */ jsx("div", { className: "sticky top-[80px] md:top-0 bg-card z-20 py-1 md:py-3 border-b border-white/10 md:mb-2 -mx-4 px-4 md:mx-0 md:px-0 shadow-[0_10px_20px_-10px_rgba(0,0,0,0.5)]", children: /* @__PURE__ */ jsx("h3", { className: "text-sm md:text-xl font-black text-plex md:text-text tracking-tight uppercase", children: dateStr }) }),
             items.map((item) => /* @__PURE__ */ jsx(
               "div",
               {

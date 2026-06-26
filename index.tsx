@@ -2360,7 +2360,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                                 <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 md:gap-8 pb-4">
                                     {Object.entries(groupedCalendar).map(([dateStr, items]) => (
                                         <div key={dateStr} className="flex flex-col gap-2 md:gap-3">
-                                            <div className="sticky top-[80px] md:top-0 bg-card/95 backdrop-blur-md z-10 py-1 md:py-3 border-b border-white/10 md:mb-2">
+                                            <div className="sticky top-[80px] md:top-0 bg-card z-20 py-1 md:py-3 border-b border-white/10 md:mb-2 -mx-4 px-4 md:mx-0 md:px-0 shadow-[0_10px_20px_-10px_rgba(0,0,0,0.5)]">
                                                 <h3 className="text-sm md:text-xl font-black text-plex md:text-text tracking-tight uppercase">{dateStr}</h3>
                                             </div>
                                             {items.map(item => (

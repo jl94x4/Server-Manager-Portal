@@ -743,6 +743,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   z-index: 10;
 }
 
+.z-20 {
+  z-index: 20;
+}
+
 .z-40 {
   z-index: 40;
 }
@@ -773,6 +777,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .col-span-full {
   grid-column: 1 / -1;
+}
+
+.-mx-4 {
+  margin-left: -1rem;
+  margin-right: -1rem;
 }
 
 .mx-auto {
@@ -1985,10 +1994,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   background-color: rgb(22 27 34 / 0.9);
 }
 
-.bg-card\/95 {
-  background-color: rgb(22 27 34 / 0.95);
-}
-
 .bg-green-400 {
   --tw-bg-opacity: 1;
   background-color: rgb(74 222 128 / var(--tw-bg-opacity, 1));
@@ -2978,6 +2983,12 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
 
+.shadow-\[0_10px_20px_-10px_rgba\(0\2c 0\2c 0\2c 0\.5\)\] {
+  --tw-shadow: 0 10px 20px -10px rgba(0,0,0,0.5);
+  --tw-shadow-colored: 0 10px 20px -10px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
 .shadow-\[0_2px_8px_rgba\(0\2c 0\2c 0\2c 0\.8\)\] {
   --tw-shadow: 0 2px 8px rgba(0,0,0,0.8);
   --tw-shadow-colored: 0 2px 8px var(--tw-shadow-color);
@@ -3934,6 +3945,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .md\:p-8 {
     padding: 2rem;
+  }
+
+  .md\:px-0 {
+    padding-left: 0px;
+    padding-right: 0px;
   }
 
   .md\:px-10 {
