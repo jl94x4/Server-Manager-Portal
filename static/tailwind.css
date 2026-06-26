@@ -663,10 +663,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   top: -0.625rem;
 }
 
-.-top-5 {
-  top: -1.25rem;
-}
-
 .bottom-0 {
   bottom: 0px;
 }
@@ -701,10 +697,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .right-0 {
   right: 0px;
-}
-
-.right-2 {
-  right: 0.5rem;
 }
 
 .right-3 {

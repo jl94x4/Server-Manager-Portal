@@ -5255,11 +5255,6 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
 
             {/* Mobile Bottom Nav */}
             <div className="md:hidden fixed bottom-0 left-0 right-0 w-full bg-[#161b22] border-t border-[#30363d] z-50 pb-[env(safe-area-inset-bottom)]">
-                {appVersion && (
-                    <div className="absolute -top-5 right-2 text-[9px] text-white/30 font-mono tracking-widest pointer-events-none">
-                        {appVersion}
-                    </div>
-                )}
                 <div className="flex justify-around items-center h-16">
                     {navOrder.map((key) => {
                         const item = navItemsConfig[key];
@@ -5522,6 +5517,13 @@ const MainApp: React.FC = () => {
             {!isPublicView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Server Portal'} adminThumb={sessionInfo?.adminThumb} requestUrl={sessionInfo?.requestUrl || 'https://yourdomain.com'} navOrder={sessionInfo?.navOrder || ['home', 'discover', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout']} appVersion={publicConfig.appVersion} />}
             <div className={`flex-grow flex flex-col items-center p-4 md:p-8 pt-20 pb-[80px] md:pt-8 md:pb-8 w-full overflow-x-hidden ${isPublicView ? '!pt-8 !pb-8' : ''}`}>
                 {renderView()}
+                
+                {/* Mobile Bottom Version */}
+                {!isPublicView && publicConfig?.appVersion && (
+                    <div className="md:hidden mt-auto pt-12 pb-4 w-full text-center text-[10px] text-white/30 font-mono tracking-widest pointer-events-none">
+                        {publicConfig.appVersion}
+                    </div>
+                )}
             </div>
         </div>
     );
