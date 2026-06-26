@@ -5013,7 +5013,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
     const [trendingStats, setTrendingStats] = useState<{ trending7Days: any[], movies30Days: any[], shows30Days: any[], top365Days: any[], allTime: any[] } | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [recentLimit, setRecentLimit] = useState(25);
+    const [recentLimit, setRecentLimit] = useState(10);
     const [selectedSession, setSelectedSession] = useState<any | null>(null);
 
     const fetchData = useCallback(async () => {

@@ -4599,7 +4599,7 @@ var LibraryDashboard = ({ onBack, isAdmin, publicConfig }) => {
   const [trendingStats, setTrendingStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [recentLimit, setRecentLimit] = useState(25);
+  const [recentLimit, setRecentLimit] = useState(10);
   const [selectedSession, setSelectedSession] = useState(null);
   const fetchData = useCallback(async () => {
     try {
@@ -4772,7 +4772,7 @@ var LibraryDashboard = ({ onBack, isAdmin, publicConfig }) => {
         ] }),
         trendingStats.trending7Days?.length > 0 && /* @__PURE__ */ jsxs("div", { className: "flex flex-col", children: [
           /* @__PURE__ */ jsx("h3", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "\u{1F525} Trending This Week" }),
-          /* @__PURE__ */ jsx("div", { className: "flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth", children: trendingStats.trending7Days.map((item, i) => /* @__PURE__ */ jsxs("div", { className: "snap-start shrink-0 w-32 md:w-40 flex flex-col gap-2 group", children: [
+          /* @__PURE__ */ jsx("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.trending7Days.map((item, i) => /* @__PURE__ */ jsxs("div", { className: "flex flex-col w-full gap-2 group", children: [
             /* @__PURE__ */ jsxs("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: [
               /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }),
               /* @__PURE__ */ jsxs("div", { className: "absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30", children: [
@@ -4785,7 +4785,7 @@ var LibraryDashboard = ({ onBack, isAdmin, publicConfig }) => {
         ] }),
         trendingStats.movies30Days?.length > 0 && /* @__PURE__ */ jsxs("div", { className: "flex flex-col", children: [
           /* @__PURE__ */ jsx("h3", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "\u{1F37F} Most Watched Movies (This Month)" }),
-          /* @__PURE__ */ jsx("div", { className: "flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth", children: trendingStats.movies30Days.map((item, i) => /* @__PURE__ */ jsxs("div", { className: "snap-start shrink-0 w-32 md:w-40 flex flex-col gap-2 group", children: [
+          /* @__PURE__ */ jsx("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.movies30Days.map((item, i) => /* @__PURE__ */ jsxs("div", { className: "flex flex-col w-full gap-2 group", children: [
             /* @__PURE__ */ jsxs("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: [
               /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }),
               /* @__PURE__ */ jsxs("div", { className: "absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30", children: [
@@ -4798,7 +4798,7 @@ var LibraryDashboard = ({ onBack, isAdmin, publicConfig }) => {
         ] }),
         trendingStats.shows30Days?.length > 0 && /* @__PURE__ */ jsxs("div", { className: "flex flex-col", children: [
           /* @__PURE__ */ jsx("h3", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "\u{1F4FA} Most Watched Shows (This Month)" }),
-          /* @__PURE__ */ jsx("div", { className: "flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth", children: trendingStats.shows30Days.map((item, i) => /* @__PURE__ */ jsxs("div", { className: "snap-start shrink-0 w-32 md:w-40 flex flex-col gap-2 group", children: [
+          /* @__PURE__ */ jsx("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.shows30Days.map((item, i) => /* @__PURE__ */ jsxs("div", { className: "flex flex-col w-full gap-2 group", children: [
             /* @__PURE__ */ jsxs("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: [
               /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }),
               /* @__PURE__ */ jsxs("div", { className: "absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30", children: [
@@ -4811,7 +4811,7 @@ var LibraryDashboard = ({ onBack, isAdmin, publicConfig }) => {
         ] }),
         trendingStats.top365Days?.length > 0 && /* @__PURE__ */ jsxs("div", { className: "flex flex-col", children: [
           /* @__PURE__ */ jsx("h3", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "\u{1F3C6} Top of the Year" }),
-          /* @__PURE__ */ jsx("div", { className: "flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth", children: trendingStats.top365Days.map((item, i) => /* @__PURE__ */ jsxs("div", { className: "snap-start shrink-0 w-32 md:w-40 flex flex-col gap-2 group", children: [
+          /* @__PURE__ */ jsx("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.top365Days.map((item, i) => /* @__PURE__ */ jsxs("div", { className: "flex flex-col w-full gap-2 group", children: [
             /* @__PURE__ */ jsxs("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: [
               /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }),
               /* @__PURE__ */ jsxs("div", { className: "absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30", children: [
@@ -4824,7 +4824,7 @@ var LibraryDashboard = ({ onBack, isAdmin, publicConfig }) => {
         ] }),
         trendingStats.allTime?.length > 0 && /* @__PURE__ */ jsxs("div", { className: "flex flex-col", children: [
           /* @__PURE__ */ jsx("h3", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "\u{1F31F} All Time Favorites" }),
-          /* @__PURE__ */ jsx("div", { className: "flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth", children: trendingStats.allTime.map((item, i) => /* @__PURE__ */ jsxs("div", { className: "snap-start shrink-0 w-32 md:w-40 flex flex-col gap-2 group", children: [
+          /* @__PURE__ */ jsx("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.allTime.map((item, i) => /* @__PURE__ */ jsxs("div", { className: "flex flex-col w-full gap-2 group", children: [
             /* @__PURE__ */ jsxs("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: [
               /* @__PURE__ */ jsx("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }),
               /* @__PURE__ */ jsxs("div", { className: "absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30", children: [
