@@ -2815,8 +2815,7 @@ app.get('/api/plex/dashboard', requireAuth, async (req, res) => {
     }
 });
 
-app.post('/api/streams/kill', authenticateToken, async (req, res) => {
-    if (!req.user.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+app.post('/api/streams/kill', requireAdmin, async (req, res) => {
     const { sessionId, reason } = req.body;
     try {
         const config = await readConfig();
@@ -2838,8 +2837,7 @@ app.post('/api/streams/kill', authenticateToken, async (req, res) => {
     }
 });
 
-app.post('/api/announcements/push', authenticateToken, async (req, res) => {
-    if (!req.user.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+app.post('/api/announcements/push', requireAdmin, async (req, res) => {
     const { text, sendEmail: shouldSendEmail } = req.body;
     
     try {
