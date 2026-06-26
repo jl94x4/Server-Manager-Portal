@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface CustomSelectProps {
     id?: string;
@@ -1998,12 +1998,12 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
     const [data, setData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
-    const [calendarDays, setCalendarDays] = useState<'7' | '14' | '30'>('7');
+    const [monthOffset, setMonthOffset] = useState(0);
     const [activeCalendarItem, setActiveCalendarItem] = useState<any>(null);
 
     const fetchData = useCallback(async () => {
         try {
-            const res = await apiFetch('/api/media-stack/summary');
+            const res = await apiFetch('/api/media-stack/summary?monthOffset=' + monthOffset);
             if (res.error) throw new Error(res.error);
             setData(res);
         } catch (err: any) {
@@ -2011,7 +2011,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [monthOffset]);
 
     useEffect(() => {
         fetchData();
@@ -2101,17 +2101,8 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
     }, [data]);
 
     const filteredCalendar = useMemo(() => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const cutoff = new Date(today);
-        cutoff.setDate(cutoff.getDate() + Number(calendarDays));
-
-        return calendarItems.filter(item => {
-            const itemDate = item.date;
-            return itemDate >= today && itemDate <= cutoff;
-        });
-    }, [calendarItems, calendarDays]);
+        return calendarItems;
+    }, [calendarItems]);
 
     const groupedCalendar = useMemo(() => {
         const groups: { [dateStr: string]: typeof filteredCalendar } = {};
@@ -2324,26 +2315,23 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                                 Upcoming Releases
                             </h2>
 
-                            <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 w-fit self-end">
-                                {['7', '14', '30'].map((d) => (
-                                    <button
-                                        key={d}
-                                        onClick={() => setCalendarDays(d as any)}
-                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${calendarDays === d
-                                                ? 'bg-plex text-background shadow-lg'
-                                                : 'text-muted hover:text-text'
-                                            }`}
-                                    >
-                                        {d} Days
-                                    </button>
-                                ))}
+                            <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 w-fit self-end items-center gap-2">
+                                <button onClick={() => setMonthOffset(m => m - 1)} className="p-1.5 hover:bg-white/10 rounded-lg text-muted hover:text-text transition-colors">
+                                    <ChevronLeft className="w-4 h-4" />
+                                </button>
+                                <span className="text-xs font-bold px-2 w-28 text-center text-text uppercase tracking-wider">
+                                    {new Date(new Date().setFullYear(new Date().getFullYear(), new Date().getMonth() + monthOffset, 1)).toLocaleDateString('default', { month: 'short', year: 'numeric' })}
+                                </span>
+                                <button onClick={() => setMonthOffset(m => m + 1)} className="p-1.5 hover:bg-white/10 rounded-lg text-muted hover:text-text transition-colors">
+                                    <ChevronRight className="w-4 h-4" />
+                                </button>
                             </div>
                         </div>
 
                         {filteredCalendar.length === 0 ? (
                             <div className="text-center py-12 bg-background/30 rounded-xl border border-white/5 text-muted text-sm">
                                 <Calendar className="w-12 h-12 text-muted/30 mx-auto mb-3" />
-                                No upcoming releases in the next {calendarDays} days
+                                No upcoming releases for this month
                             </div>
                         ) : (
                             <div className="flex items-start gap-3 md:gap-8 w-full">

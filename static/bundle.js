@@ -140,49 +140,57 @@ var ChartColumn = createLucideIcon("chart-column", __iconNode3);
 var __iconNode4 = [["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]];
 var ChevronDown = createLucideIcon("chevron-down", __iconNode4);
 
+// node_modules/lucide-react/dist/esm/icons/chevron-left.mjs
+var __iconNode5 = [["path", { d: "m15 18-6-6 6-6", key: "1wnfg3" }]];
+var ChevronLeft = createLucideIcon("chevron-left", __iconNode5);
+
+// node_modules/lucide-react/dist/esm/icons/chevron-right.mjs
+var __iconNode6 = [["path", { d: "m9 18 6-6-6-6", key: "mthhwq" }]];
+var ChevronRight = createLucideIcon("chevron-right", __iconNode6);
+
 // node_modules/lucide-react/dist/esm/icons/chevron-up.mjs
-var __iconNode5 = [["path", { d: "m18 15-6-6-6 6", key: "153udz" }]];
-var ChevronUp = createLucideIcon("chevron-up", __iconNode5);
+var __iconNode7 = [["path", { d: "m18 15-6-6-6 6", key: "153udz" }]];
+var ChevronUp = createLucideIcon("chevron-up", __iconNode7);
 
 // node_modules/lucide-react/dist/esm/icons/circle-alert.mjs
-var __iconNode6 = [
+var __iconNode8 = [
   ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
   ["line", { x1: "12", x2: "12", y1: "8", y2: "12", key: "1pkeuh" }],
   ["line", { x1: "12", x2: "12.01", y1: "16", y2: "16", key: "4dfq90" }]
 ];
-var CircleAlert = createLucideIcon("circle-alert", __iconNode6);
+var CircleAlert = createLucideIcon("circle-alert", __iconNode8);
 
 // node_modules/lucide-react/dist/esm/icons/circle-check-big.mjs
-var __iconNode7 = [
+var __iconNode9 = [
   ["path", { d: "M21.801 10A10 10 0 1 1 17 3.335", key: "yps3ct" }],
   ["path", { d: "m9 11 3 3L22 4", key: "1pflzl" }]
 ];
-var CircleCheckBig = createLucideIcon("circle-check-big", __iconNode7);
+var CircleCheckBig = createLucideIcon("circle-check-big", __iconNode9);
 
 // node_modules/lucide-react/dist/esm/icons/clock.mjs
-var __iconNode8 = [
+var __iconNode10 = [
   ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
   ["path", { d: "M12 6v6l4 2", key: "mmk7yg" }]
 ];
-var Clock = createLucideIcon("clock", __iconNode8);
+var Clock = createLucideIcon("clock", __iconNode10);
 
 // node_modules/lucide-react/dist/esm/icons/cloud-download.mjs
-var __iconNode9 = [
+var __iconNode11 = [
   ["path", { d: "M12 13v8l-4-4", key: "1f5nwf" }],
   ["path", { d: "m12 21 4-4", key: "1lfcce" }],
   ["path", { d: "M4.393 15.269A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.436 8.284", key: "ui1hmy" }]
 ];
-var CloudDownload = createLucideIcon("cloud-download", __iconNode9);
+var CloudDownload = createLucideIcon("cloud-download", __iconNode11);
 
 // node_modules/lucide-react/dist/esm/icons/copy.mjs
-var __iconNode10 = [
+var __iconNode12 = [
   ["rect", { width: "14", height: "14", x: "8", y: "8", rx: "2", ry: "2", key: "17jyea" }],
   ["path", { d: "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2", key: "zix9uf" }]
 ];
-var Copy = createLucideIcon("copy", __iconNode10);
+var Copy = createLucideIcon("copy", __iconNode12);
 
 // node_modules/lucide-react/dist/esm/icons/file-text.mjs
-var __iconNode11 = [
+var __iconNode13 = [
   [
     "path",
     {
@@ -195,10 +203,10 @@ var __iconNode11 = [
   ["path", { d: "M16 13H8", key: "t4e002" }],
   ["path", { d: "M16 17H8", key: "z1uh3a" }]
 ];
-var FileText = createLucideIcon("file-text", __iconNode11);
+var FileText = createLucideIcon("file-text", __iconNode13);
 
 // node_modules/lucide-react/dist/esm/icons/film.mjs
-var __iconNode12 = [
+var __iconNode14 = [
   ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }],
   ["path", { d: "M7 3v18", key: "bbkbws" }],
   ["path", { d: "M3 7.5h4", key: "zfgn84" }],
@@ -208,10 +216,10 @@ var __iconNode12 = [
   ["path", { d: "M17 7.5h4", key: "myr1c1" }],
   ["path", { d: "M17 16.5h4", key: "go4c1d" }]
 ];
-var Film = createLucideIcon("film", __iconNode12);
+var Film = createLucideIcon("film", __iconNode14);
 
 // node_modules/lucide-react/dist/esm/icons/hard-drive.mjs
-var __iconNode13 = [
+var __iconNode15 = [
   ["path", { d: "M10 16h.01", key: "1bzywj" }],
   [
     "path",
@@ -223,10 +231,10 @@ var __iconNode13 = [
   ["path", { d: "M21.946 12.013H2.054", key: "zqlbp7" }],
   ["path", { d: "M6 16h.01", key: "1pmjb7" }]
 ];
-var HardDrive = createLucideIcon("hard-drive", __iconNode13);
+var HardDrive = createLucideIcon("hard-drive", __iconNode15);
 
 // node_modules/lucide-react/dist/esm/icons/house.mjs
-var __iconNode14 = [
+var __iconNode16 = [
   ["path", { d: "M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8", key: "5wwlr5" }],
   [
     "path",
@@ -236,10 +244,10 @@ var __iconNode14 = [
     }
   ]
 ];
-var House = createLucideIcon("house", __iconNode14);
+var House = createLucideIcon("house", __iconNode16);
 
 // node_modules/lucide-react/dist/esm/icons/layers.mjs
-var __iconNode15 = [
+var __iconNode17 = [
   [
     "path",
     {
@@ -262,35 +270,35 @@ var __iconNode15 = [
     }
   ]
 ];
-var Layers = createLucideIcon("layers", __iconNode15);
+var Layers = createLucideIcon("layers", __iconNode17);
 
 // node_modules/lucide-react/dist/esm/icons/log-out.mjs
-var __iconNode16 = [
+var __iconNode18 = [
   ["path", { d: "m16 17 5-5-5-5", key: "1bji2h" }],
   ["path", { d: "M21 12H9", key: "dn1m92" }],
   ["path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4", key: "1uf3rs" }]
 ];
-var LogOut = createLucideIcon("log-out", __iconNode16);
+var LogOut = createLucideIcon("log-out", __iconNode18);
 
 // node_modules/lucide-react/dist/esm/icons/music.mjs
-var __iconNode17 = [
+var __iconNode19 = [
   ["path", { d: "M9 18V5l12-2v13", key: "1jmyc2" }],
   ["circle", { cx: "6", cy: "18", r: "3", key: "fqmcym" }],
   ["circle", { cx: "18", cy: "16", r: "3", key: "1hluhg" }]
 ];
-var Music = createLucideIcon("music", __iconNode17);
+var Music = createLucideIcon("music", __iconNode19);
 
 // node_modules/lucide-react/dist/esm/icons/refresh-cw.mjs
-var __iconNode18 = [
+var __iconNode20 = [
   ["path", { d: "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8", key: "v9h5vc" }],
   ["path", { d: "M21 3v5h-5", key: "1q7to0" }],
   ["path", { d: "M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16", key: "3uifl3" }],
   ["path", { d: "M8 16H3v5", key: "1cv678" }]
 ];
-var RefreshCw = createLucideIcon("refresh-cw", __iconNode18);
+var RefreshCw = createLucideIcon("refresh-cw", __iconNode20);
 
 // node_modules/lucide-react/dist/esm/icons/settings.mjs
-var __iconNode19 = [
+var __iconNode21 = [
   [
     "path",
     {
@@ -300,10 +308,10 @@ var __iconNode19 = [
   ],
   ["circle", { cx: "12", cy: "12", r: "3", key: "1v7zrd" }]
 ];
-var Settings = createLucideIcon("settings", __iconNode19);
+var Settings = createLucideIcon("settings", __iconNode21);
 
 // node_modules/lucide-react/dist/esm/icons/shield.mjs
-var __iconNode20 = [
+var __iconNode22 = [
   [
     "path",
     {
@@ -312,10 +320,10 @@ var __iconNode20 = [
     }
   ]
 ];
-var Shield = createLucideIcon("shield", __iconNode20);
+var Shield = createLucideIcon("shield", __iconNode22);
 
 // node_modules/lucide-react/dist/esm/icons/sparkles.mjs
-var __iconNode21 = [
+var __iconNode23 = [
   [
     "path",
     {
@@ -327,10 +335,10 @@ var __iconNode21 = [
   ["path", { d: "M22 4h-4", key: "gwowj6" }],
   ["circle", { cx: "4", cy: "20", r: "2", key: "6kqj1y" }]
 ];
-var Sparkles = createLucideIcon("sparkles", __iconNode21);
+var Sparkles = createLucideIcon("sparkles", __iconNode23);
 
 // node_modules/lucide-react/dist/esm/icons/square-play.mjs
-var __iconNode22 = [
+var __iconNode24 = [
   ["rect", { x: "3", y: "3", width: "18", height: "18", rx: "2", key: "h1oib" }],
   [
     "path",
@@ -340,10 +348,10 @@ var __iconNode22 = [
     }
   ]
 ];
-var SquarePlay = createLucideIcon("square-play", __iconNode22);
+var SquarePlay = createLucideIcon("square-play", __iconNode24);
 
 // node_modules/lucide-react/dist/esm/icons/star.mjs
-var __iconNode23 = [
+var __iconNode25 = [
   [
     "path",
     {
@@ -352,37 +360,37 @@ var __iconNode23 = [
     }
   ]
 ];
-var Star = createLucideIcon("star", __iconNode23);
+var Star = createLucideIcon("star", __iconNode25);
 
 // node_modules/lucide-react/dist/esm/icons/trending-up.mjs
-var __iconNode24 = [
+var __iconNode26 = [
   ["path", { d: "M16 7h6v6", key: "box55l" }],
   ["path", { d: "m22 7-8.5 8.5-5-5L2 17", key: "1t1m79" }]
 ];
-var TrendingUp = createLucideIcon("trending-up", __iconNode24);
+var TrendingUp = createLucideIcon("trending-up", __iconNode26);
 
 // node_modules/lucide-react/dist/esm/icons/tv.mjs
-var __iconNode25 = [
+var __iconNode27 = [
   ["path", { d: "m17 2-5 5-5-5", key: "16satq" }],
   ["rect", { width: "20", height: "15", x: "2", y: "7", rx: "2", key: "1e6viu" }]
 ];
-var Tv = createLucideIcon("tv", __iconNode25);
+var Tv = createLucideIcon("tv", __iconNode27);
 
 // node_modules/lucide-react/dist/esm/icons/users.mjs
-var __iconNode26 = [
+var __iconNode28 = [
   ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", key: "1yyitq" }],
   ["path", { d: "M16 3.128a4 4 0 0 1 0 7.744", key: "16gr8j" }],
   ["path", { d: "M22 21v-2a4 4 0 0 0-3-3.87", key: "kshegd" }],
   ["circle", { cx: "9", cy: "7", r: "4", key: "nufk8" }]
 ];
-var Users = createLucideIcon("users", __iconNode26);
+var Users = createLucideIcon("users", __iconNode28);
 
 // node_modules/lucide-react/dist/esm/icons/x.mjs
-var __iconNode27 = [
+var __iconNode29 = [
   ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
   ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
 ];
-var X = createLucideIcon("x", __iconNode27);
+var X = createLucideIcon("x", __iconNode29);
 
 // index.tsx
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
@@ -2067,11 +2075,11 @@ var MediaStackDashboard = ({ isAdmin }) => {
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [calendarDays, setCalendarDays] = useState("7");
+  const [monthOffset, setMonthOffset] = useState(0);
   const [activeCalendarItem, setActiveCalendarItem] = useState(null);
   const fetchData = useCallback(async () => {
     try {
-      const res = await apiFetch("/api/media-stack/summary");
+      const res = await apiFetch("/api/media-stack/summary?monthOffset=" + monthOffset);
       if (res.error) throw new Error(res.error);
       setData(res);
     } catch (err) {
@@ -2079,7 +2087,7 @@ var MediaStackDashboard = ({ isAdmin }) => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [monthOffset]);
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 3e4);
@@ -2158,15 +2166,8 @@ var MediaStackDashboard = ({ isAdmin }) => {
     return items.sort((a, b) => a.date.getTime() - b.date.getTime());
   }, [data]);
   const filteredCalendar = useMemo2(() => {
-    const today = /* @__PURE__ */ new Date();
-    today.setHours(0, 0, 0, 0);
-    const cutoff = new Date(today);
-    cutoff.setDate(cutoff.getDate() + Number(calendarDays));
-    return calendarItems.filter((item) => {
-      const itemDate = item.date;
-      return itemDate >= today && itemDate <= cutoff;
-    });
-  }, [calendarItems, calendarDays]);
+    return calendarItems;
+  }, [calendarItems]);
   const groupedCalendar = useMemo2(() => {
     const groups = {};
     filteredCalendar.forEach((item) => {
@@ -2353,24 +2354,15 @@ var MediaStackDashboard = ({ isAdmin }) => {
             /* @__PURE__ */ jsx(Calendar, { className: "w-5 h-5 text-plex" }),
             "Upcoming Releases"
           ] }),
-          /* @__PURE__ */ jsx("div", { className: "flex bg-white/5 p-1 rounded-xl border border-white/10 w-fit self-end", children: ["7", "14", "30"].map((d) => /* @__PURE__ */ jsxs(
-            "button",
-            {
-              onClick: () => setCalendarDays(d),
-              className: `px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${calendarDays === d ? "bg-plex text-background shadow-lg" : "text-muted hover:text-text"}`,
-              children: [
-                d,
-                " Days"
-              ]
-            },
-            d
-          )) })
+          /* @__PURE__ */ jsxs("div", { className: "flex bg-white/5 p-1 rounded-xl border border-white/10 w-fit self-end items-center gap-2", children: [
+            /* @__PURE__ */ jsx("button", { onClick: () => setMonthOffset((m) => m - 1), className: "p-1.5 hover:bg-white/10 rounded-lg text-muted hover:text-text transition-colors", children: /* @__PURE__ */ jsx(ChevronLeft, { className: "w-4 h-4" }) }),
+            /* @__PURE__ */ jsx("span", { className: "text-xs font-bold px-2 w-28 text-center text-text uppercase tracking-wider", children: new Date((/* @__PURE__ */ new Date()).setFullYear((/* @__PURE__ */ new Date()).getFullYear(), (/* @__PURE__ */ new Date()).getMonth() + monthOffset, 1)).toLocaleDateString("default", { month: "short", year: "numeric" }) }),
+            /* @__PURE__ */ jsx("button", { onClick: () => setMonthOffset((m) => m + 1), className: "p-1.5 hover:bg-white/10 rounded-lg text-muted hover:text-text transition-colors", children: /* @__PURE__ */ jsx(ChevronRight, { className: "w-4 h-4" }) })
+          ] })
         ] }),
         filteredCalendar.length === 0 ? /* @__PURE__ */ jsxs("div", { className: "text-center py-12 bg-background/30 rounded-xl border border-white/5 text-muted text-sm", children: [
           /* @__PURE__ */ jsx(Calendar, { className: "w-12 h-12 text-muted/30 mx-auto mb-3" }),
-          "No upcoming releases in the next ",
-          calendarDays,
-          " days"
+          "No upcoming releases for this month"
         ] }) : /* @__PURE__ */ jsxs("div", { className: "flex items-start gap-3 md:gap-8 w-full", children: [
           /* @__PURE__ */ jsx("div", { className: "sticky top-6 w-[100px] sm:w-[140px] md:w-[320px] flex-shrink-0", children: /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-4", children: /* @__PURE__ */ jsxs("div", { className: "relative aspect-[2/3] rounded-lg md:rounded-2xl overflow-hidden shadow-2xl border border-white/10 group bg-card", children: [
             activeCalendarItem?.imageUrl ? /* @__PURE__ */ jsx("img", { src: activeCalendarItem.imageUrl, alt: activeCalendarItem.title, className: "w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" }) : /* @__PURE__ */ jsxs("div", { className: "w-full h-full flex flex-col items-center justify-center opacity-30", children: [
@@ -5160,6 +5152,22 @@ lucide-react/dist/esm/icons/chart-column.mjs:
    *)
 
 lucide-react/dist/esm/icons/chevron-down.mjs:
+  (**
+   * @license lucide-react v1.21.0 - ISC
+   *
+   * This source code is licensed under the ISC license.
+   * See the LICENSE file in the root directory of this source tree.
+   *)
+
+lucide-react/dist/esm/icons/chevron-left.mjs:
+  (**
+   * @license lucide-react v1.21.0 - ISC
+   *
+   * This source code is licensed under the ISC license.
+   * See the LICENSE file in the root directory of this source tree.
+   *)
+
+lucide-react/dist/esm/icons/chevron-right.mjs:
   (**
    * @license lucide-react v1.21.0 - ISC
    *

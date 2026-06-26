@@ -3567,7 +3567,9 @@ async function runMonitorCycle() {
 
 app.get('/api/media-stack/summary', requireAuth, async (req, res) => {
     try {
-        const data = await withCache('media-stack-summary', 60000, async () => {
+        const monthOffset = parseInt(req.query.monthOffset) || 0;
+        const cacheKey = `media-stack-summary-offset-${monthOffset}`;
+        const data = await withCache(cacheKey, 60000, async () => {
             const config = await loadFile(CONFIG_PATH, {});
             const fetchArr = async (url, key, endpoint) => {
                 if (!url || !key) return null;
@@ -3583,10 +3585,14 @@ app.get('/api/media-stack/summary', requireAuth, async (req, res) => {
                 }
             };
 
-            const start = new Date().toISOString().split('T')[0];
-            const endDate = new Date();
-            endDate.setDate(endDate.getDate() + 30);
-            const end = endDate.toISOString().split('T')[0];
+            const targetDate = new Date();
+            targetDate.setMonth(targetDate.getMonth() + monthOffset);
+            
+            const firstDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+            const lastDay = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
+
+            const start = firstDay.toISOString().split('T')[0];
+            const end = lastDay.toISOString().split('T')[0];
 
             const [sonarrStatus, sonarrQueue, sonarrHistory, sonarrDisk, sonarrCalendar, radarrStatus, radarrQueue, radarrHistory, radarrDisk, radarrCalendar] = await Promise.all([
                 fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/system/status'),
