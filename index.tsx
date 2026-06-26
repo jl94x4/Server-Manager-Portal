@@ -2309,21 +2309,21 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                 <div className="w-full">
 
                     <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-4 md:p-6 relative">
-                        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 border-b border-border/30 pb-4">
-                            <h2 className="text-xl font-bold text-text flex items-center gap-2">
-                                <Calendar className="w-5 h-5 text-plex" />
-                                Upcoming Releases
+                        <div className="flex flex-row justify-between items-center mb-4 md:mb-6 border-b border-border/30 pb-3 md:pb-4 gap-2">
+                            <h2 className="text-base sm:text-xl font-bold text-text flex items-center gap-1.5 md:gap-2 truncate">
+                                <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-plex flex-shrink-0" />
+                                <span className="truncate">Upcoming Releases</span>
                             </h2>
 
-                            <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 w-fit self-end items-center gap-2">
-                                <button onClick={() => setMonthOffset(m => m - 1)} className="p-1.5 hover:bg-white/10 rounded-lg text-muted hover:text-text transition-colors">
-                                    <ChevronLeft className="w-4 h-4" />
+                            <div className="flex bg-white/5 p-0.5 md:p-1 rounded-lg md:rounded-xl border border-white/10 w-fit flex-shrink-0 items-center gap-1 md:gap-2">
+                                <button onClick={() => setMonthOffset(m => m - 1)} className="p-1 md:p-1.5 hover:bg-white/10 rounded-md md:rounded-lg text-muted hover:text-text transition-colors">
+                                    <ChevronLeft className="w-3 h-3 md:w-4 md:h-4" />
                                 </button>
-                                <span className="text-xs font-bold px-2 w-28 text-center text-text uppercase tracking-wider">
+                                <span className="text-[10px] md:text-xs font-bold px-1 w-16 md:w-28 text-center text-text uppercase tracking-wider">
                                     {new Date(new Date().setFullYear(new Date().getFullYear(), new Date().getMonth() + monthOffset, 1)).toLocaleDateString('default', { month: 'short', year: 'numeric' })}
                                 </span>
-                                <button onClick={() => setMonthOffset(m => m + 1)} className="p-1.5 hover:bg-white/10 rounded-lg text-muted hover:text-text transition-colors">
-                                    <ChevronRight className="w-4 h-4" />
+                                <button onClick={() => setMonthOffset(m => m + 1)} className="p-1 md:p-1.5 hover:bg-white/10 rounded-md md:rounded-lg text-muted hover:text-text transition-colors">
+                                    <ChevronRight className="w-3 h-3 md:w-4 md:h-4" />
                                 </button>
                             </div>
                         </div>
@@ -2336,7 +2336,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                         ) : (
                             <div className="flex items-start gap-3 md:gap-8 w-full">
                                 {/* Left Sticky Poster */}
-                                <div className="sticky top-[80px] md:top-6 w-[120px] sm:w-[160px] md:w-[320px] flex-shrink-0 mt-8 md:mt-[58px]">
+                                <div className="sticky top-[64px] md:top-6 w-[120px] sm:w-[160px] md:w-[320px] flex-shrink-0 mt-8 md:mt-[58px]">
                                     <div className="flex flex-col gap-4">
                                         <div className="relative aspect-[2/3] rounded-lg md:rounded-2xl overflow-hidden shadow-2xl border border-white/10 group bg-card">
                                             {activeCalendarItem?.imageUrl ? (
@@ -2360,7 +2360,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                                 <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 md:gap-8 pb-4">
                                     {Object.entries(groupedCalendar).map(([dateStr, items]) => (
                                         <div key={dateStr} className="flex flex-col gap-2 md:gap-3">
-                                            <div className="sticky top-[80px] md:top-0 bg-card z-20 py-1 md:py-3 border-b border-white/10 md:mb-2 -mx-4 px-4 md:mx-0 md:px-0 shadow-[0_10px_20px_-10px_rgba(0,0,0,0.5)]">
+                                            <div className="sticky top-[64px] md:top-0 bg-card z-20 py-1 md:py-3 border-b border-white/10 md:mb-2 -mx-4 px-4 md:mx-0 md:px-0 shadow-[0_10px_20px_-10px_rgba(0,0,0,0.5)]">
                                                 <h3 className="text-sm md:text-xl font-black text-plex md:text-text tracking-tight uppercase">{dateStr}</h3>
                                             </div>
                                             {items.map(item => (

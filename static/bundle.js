@@ -2349,22 +2349,22 @@ var MediaStackDashboard = ({ isAdmin }) => {
     ] }) }),
     /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-8 w-full", children: [
       /* @__PURE__ */ jsx("div", { className: "w-full", children: /* @__PURE__ */ jsxs("div", { className: "bg-card border border-white/5 shadow-2xl rounded-2xl p-4 md:p-6 relative", children: [
-        /* @__PURE__ */ jsxs("div", { className: "flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 border-b border-border/30 pb-4", children: [
-          /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text flex items-center gap-2", children: [
-            /* @__PURE__ */ jsx(Calendar, { className: "w-5 h-5 text-plex" }),
-            "Upcoming Releases"
+        /* @__PURE__ */ jsxs("div", { className: "flex flex-row justify-between items-center mb-4 md:mb-6 border-b border-border/30 pb-3 md:pb-4 gap-2", children: [
+          /* @__PURE__ */ jsxs("h2", { className: "text-base sm:text-xl font-bold text-text flex items-center gap-1.5 md:gap-2 truncate", children: [
+            /* @__PURE__ */ jsx(Calendar, { className: "w-4 h-4 sm:w-5 sm:h-5 text-plex flex-shrink-0" }),
+            /* @__PURE__ */ jsx("span", { className: "truncate", children: "Upcoming Releases" })
           ] }),
-          /* @__PURE__ */ jsxs("div", { className: "flex bg-white/5 p-1 rounded-xl border border-white/10 w-fit self-end items-center gap-2", children: [
-            /* @__PURE__ */ jsx("button", { onClick: () => setMonthOffset((m) => m - 1), className: "p-1.5 hover:bg-white/10 rounded-lg text-muted hover:text-text transition-colors", children: /* @__PURE__ */ jsx(ChevronLeft, { className: "w-4 h-4" }) }),
-            /* @__PURE__ */ jsx("span", { className: "text-xs font-bold px-2 w-28 text-center text-text uppercase tracking-wider", children: new Date((/* @__PURE__ */ new Date()).setFullYear((/* @__PURE__ */ new Date()).getFullYear(), (/* @__PURE__ */ new Date()).getMonth() + monthOffset, 1)).toLocaleDateString("default", { month: "short", year: "numeric" }) }),
-            /* @__PURE__ */ jsx("button", { onClick: () => setMonthOffset((m) => m + 1), className: "p-1.5 hover:bg-white/10 rounded-lg text-muted hover:text-text transition-colors", children: /* @__PURE__ */ jsx(ChevronRight, { className: "w-4 h-4" }) })
+          /* @__PURE__ */ jsxs("div", { className: "flex bg-white/5 p-0.5 md:p-1 rounded-lg md:rounded-xl border border-white/10 w-fit flex-shrink-0 items-center gap-1 md:gap-2", children: [
+            /* @__PURE__ */ jsx("button", { onClick: () => setMonthOffset((m) => m - 1), className: "p-1 md:p-1.5 hover:bg-white/10 rounded-md md:rounded-lg text-muted hover:text-text transition-colors", children: /* @__PURE__ */ jsx(ChevronLeft, { className: "w-3 h-3 md:w-4 md:h-4" }) }),
+            /* @__PURE__ */ jsx("span", { className: "text-[10px] md:text-xs font-bold px-1 w-16 md:w-28 text-center text-text uppercase tracking-wider", children: new Date((/* @__PURE__ */ new Date()).setFullYear((/* @__PURE__ */ new Date()).getFullYear(), (/* @__PURE__ */ new Date()).getMonth() + monthOffset, 1)).toLocaleDateString("default", { month: "short", year: "numeric" }) }),
+            /* @__PURE__ */ jsx("button", { onClick: () => setMonthOffset((m) => m + 1), className: "p-1 md:p-1.5 hover:bg-white/10 rounded-md md:rounded-lg text-muted hover:text-text transition-colors", children: /* @__PURE__ */ jsx(ChevronRight, { className: "w-3 h-3 md:w-4 md:h-4" }) })
           ] })
         ] }),
         filteredCalendar.length === 0 ? /* @__PURE__ */ jsxs("div", { className: "text-center py-12 bg-background/30 rounded-xl border border-white/5 text-muted text-sm", children: [
           /* @__PURE__ */ jsx(Calendar, { className: "w-12 h-12 text-muted/30 mx-auto mb-3" }),
           "No upcoming releases for this month"
         ] }) : /* @__PURE__ */ jsxs("div", { className: "flex items-start gap-3 md:gap-8 w-full", children: [
-          /* @__PURE__ */ jsx("div", { className: "sticky top-[80px] md:top-6 w-[120px] sm:w-[160px] md:w-[320px] flex-shrink-0 mt-8 md:mt-[58px]", children: /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-4", children: /* @__PURE__ */ jsxs("div", { className: "relative aspect-[2/3] rounded-lg md:rounded-2xl overflow-hidden shadow-2xl border border-white/10 group bg-card", children: [
+          /* @__PURE__ */ jsx("div", { className: "sticky top-[64px] md:top-6 w-[120px] sm:w-[160px] md:w-[320px] flex-shrink-0 mt-8 md:mt-[58px]", children: /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-4", children: /* @__PURE__ */ jsxs("div", { className: "relative aspect-[2/3] rounded-lg md:rounded-2xl overflow-hidden shadow-2xl border border-white/10 group bg-card", children: [
             activeCalendarItem?.imageUrl ? /* @__PURE__ */ jsx("img", { src: activeCalendarItem.imageUrl, alt: activeCalendarItem.title, className: "w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" }) : /* @__PURE__ */ jsxs("div", { className: "w-full h-full flex flex-col items-center justify-center opacity-30", children: [
               activeCalendarItem?.type === "tv" ? /* @__PURE__ */ jsx(Tv, { className: "w-10 h-10 md:w-20 md:h-20 mb-2 md:mb-4" }) : /* @__PURE__ */ jsx(Film, { className: "w-10 h-10 md:w-20 md:h-20 mb-2 md:mb-4" }),
               /* @__PURE__ */ jsx("span", { className: "font-bold uppercase tracking-widest text-[8px] md:text-sm", children: "No Poster" })
@@ -2372,7 +2372,7 @@ var MediaStackDashboard = ({ isAdmin }) => {
             /* @__PURE__ */ jsx("div", { className: "absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-transparent flex flex-col justify-start p-2 md:p-4", children: activeCalendarItem?.network && /* @__PURE__ */ jsx("span", { className: "hidden md:block text-sm text-white/90 uppercase tracking-widest font-bold text-left drop-shadow-lg", children: activeCalendarItem.network }) })
           ] }) }) }),
           /* @__PURE__ */ jsx("div", { className: "flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 md:gap-8 pb-4", children: Object.entries(groupedCalendar).map(([dateStr, items]) => /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-2 md:gap-3", children: [
-            /* @__PURE__ */ jsx("div", { className: "sticky top-[80px] md:top-0 bg-card z-20 py-1 md:py-3 border-b border-white/10 md:mb-2 -mx-4 px-4 md:mx-0 md:px-0 shadow-[0_10px_20px_-10px_rgba(0,0,0,0.5)]", children: /* @__PURE__ */ jsx("h3", { className: "text-sm md:text-xl font-black text-plex md:text-text tracking-tight uppercase", children: dateStr }) }),
+            /* @__PURE__ */ jsx("div", { className: "sticky top-[64px] md:top-0 bg-card z-20 py-1 md:py-3 border-b border-white/10 md:mb-2 -mx-4 px-4 md:mx-0 md:px-0 shadow-[0_10px_20px_-10px_rgba(0,0,0,0.5)]", children: /* @__PURE__ */ jsx("h3", { className: "text-sm md:text-xl font-black text-plex md:text-text tracking-tight uppercase", children: dateStr }) }),
             items.map((item) => /* @__PURE__ */ jsx(
               "div",
               {
