@@ -2347,9 +2347,9 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                                                     <span className="font-bold uppercase tracking-widest text-[8px] md:text-sm">No Poster</span>
                                                 </div>
                                             )}
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-2 md:p-4">
+                                            <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-transparent flex flex-col justify-start p-2 md:p-4">
                                                 {activeCalendarItem?.network && (
-                                                    <span className="hidden md:block text-sm text-white/90 uppercase tracking-widest font-bold text-center drop-shadow-lg">{activeCalendarItem.network}</span>
+                                                    <span className="hidden md:block text-sm text-white/90 uppercase tracking-widest font-bold text-left drop-shadow-lg">{activeCalendarItem.network}</span>
                                                 )}
                                             </div>
                                         </div>
