@@ -3429,7 +3429,7 @@ const PublicUptimeBanner: React.FC = () => {
 };
 
 const LivePlexStats: React.FC = () => {
-    const [stats, setStats] = useState<{ movies: number, shows: number, music: number } | null>(null);
+    const [stats, setStats] = useState<{ movies: number, shows: number, music: number, fourKPercent?: number } | null>(null);
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -3479,7 +3479,7 @@ const LivePlexStats: React.FC = () => {
             </div>
             <div className="w-full mt-3">
                 <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm">
-                    <span className="text-plex font-bold text-lg flex items-center gap-2"><span className="text-orange-500">⚡</span> 30%</span>
+                    <span className="text-plex font-bold text-lg flex items-center gap-2"><span className="text-orange-500">⚡</span> {stats.fourKPercent !== undefined ? stats.fourKPercent : 30}%</span>
                     <span className="text-muted text-[10px] uppercase tracking-wider font-bold">Available in 4K</span>
                 </div>
             </div>
@@ -3686,9 +3686,9 @@ const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any }> = ({ o
     }
 
     return (
-        <div className="w-full max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[80vh] px-4 pt-12 md:pt-20">
+        <div className="w-full max-w-6xl mx-auto flex flex-col items-center justify-center min-h-[80vh] px-4 pt-12 md:pt-20">
             <Loader isLoading={isLoading} />
-            <div className="w-full max-w-5xl mx-auto bg-card rounded-2xl shadow-2xl border-t-[6px] border-plex flex flex-col-reverse md:flex-row relative z-10 overflow-hidden">
+            <div className="w-full max-w-6xl mx-auto bg-card rounded-2xl shadow-2xl border-t-[6px] border-plex flex flex-col-reverse md:flex-row relative z-10 overflow-hidden">
                 <div className="flex-1 p-4 md:p-8 lg:p-12 flex flex-col justify-center">
                     <h1 className="text-3xl md:text-4xl font-bold text-plex mb-4">Welcome to {publicInfo.serverName}</h1>
                     <p className="text-muted text-sm md:text-base leading-relaxed mb-6">The ultimate Plex experience. Get instant access to our entire library with a <strong>3-Day Free Trial</strong>.</p>

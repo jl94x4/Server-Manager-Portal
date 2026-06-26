@@ -1543,6 +1543,7 @@ const buildPlexStatsCache = async () => {
 
         let totalMoviesCount = 0, totalShowsCount = 0, totalMusicCount = 0;
         let totalMoviesBytes = 0, totalShowsBytes = 0, totalMusicBytes = 0;
+        let total4kCount = 0, totalVideoItems = 0;
 
         for (const dir of directories) {
             try {
@@ -1574,11 +1575,15 @@ const buildPlexStatsCache = async () => {
                     const { MediaContainer: { Metadata: items = [] } } = await pageRes.json();
                     if (items.length === 0) break;
                     for (const item of items) {
+                        if (dir.type === 'movie' || dir.type === 'show') totalVideoItems++;
+                        let is4k = false;
                         for (const media of item.Media || []) {
+                            if (media.videoResolution === '4k') is4k = true;
                             for (const part of media.Part || []) {
                                 if (part.size) bytes += parseInt(part.size);
                             }
                         }
+                        if (is4k) total4kCount++;
                     }
                     start += PAGE;
                 }
@@ -1594,6 +1599,7 @@ const buildPlexStatsCache = async () => {
         const stats = {
             movies: totalMoviesCount, shows: totalShowsCount, music: totalMusicCount,
             moviesBytes: totalMoviesBytes, showsBytes: totalShowsBytes, musicBytes: totalMusicBytes,
+            fourKPercent: totalVideoItems > 0 ? Math.round((total4kCount / totalVideoItems) * 100) : 0,
             generatedAt: Date.now()
         };
         cachedPlexStats = stats;

@@ -1232,6 +1232,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   max-width: 64rem;
 }
 
+.max-w-6xl {
+  max-width: 72rem;
+}
+
 .max-w-\[120px\] {
   max-width: 120px;
 }
