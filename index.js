@@ -2916,10 +2916,11 @@ app.get('/api/plex/analytics', requireAdmin, async (req, res) => {
             const historyRes = await fetch(`${uri}/status/sessions/history/all?X-Plex-Token=${config.plexToken}&sort=viewedAt:desc&limit=${limit}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
             const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
             const accountsRes = await fetch(`${uri}/accounts?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+            const devicesRes = await fetch(`${uri}/devices?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
             const users = await loadFile(USERS_PATH, []);
-            return { historyRes, sectionsRes, accountsRes, users };
+            return { historyRes, sectionsRes, accountsRes, devicesRes, users };
         });
-        const { historyRes, sectionsRes, accountsRes, users } = cachedData;
+        const { historyRes, sectionsRes, accountsRes, devicesRes, users } = cachedData;
 
         if (!historyRes || !historyRes.MediaContainer || !historyRes.MediaContainer.Metadata) {
             return res.json({ topUsers: [], topLibraries: [], topMovies: [], topShows: [], topMusic: [], topDevices: [], peakHours: new Array(24).fill(0), totalPlaybacks: 0 });
@@ -2933,6 +2934,11 @@ app.get('/api/plex/analytics', requireAdmin, async (req, res) => {
         const sectionsMap = {};
         if (sectionsRes && sectionsRes.MediaContainer && sectionsRes.MediaContainer.Directory) {
             sectionsRes.MediaContainer.Directory.forEach(s => sectionsMap[s.key] = s.title);
+        }
+
+        const devicesMap = {};
+        if (devicesRes && devicesRes.MediaContainer && devicesRes.MediaContainer.Device) {
+            devicesRes.MediaContainer.Device.forEach(d => devicesMap[d.id] = d.name || d.platform || 'Unknown Device');
         }
 
         let cutoffDate = 0;
@@ -2966,7 +2972,8 @@ app.get('/api/plex/analytics', requireAdmin, async (req, res) => {
 
             // Device aggregation
             let deviceName = 'Unknown Platform';
-            if (item.Player && item.Player.product) deviceName = item.Player.product;
+            if (item.deviceID && devicesMap[item.deviceID]) deviceName = devicesMap[item.deviceID];
+            else if (item.Player && item.Player.product) deviceName = item.Player.product;
             else if (item.client) deviceName = item.client; // fallback
             
             if (!deviceCounts[deviceName]) deviceCounts[deviceName] = { name: deviceName, plays: 0 };
