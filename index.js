@@ -3750,7 +3750,11 @@ async function calculateTrendingStats() {
             movies30Days: {}, 
             shows30Days: {}, 
             top365Days: {},
-            allTime: {}
+            allTime: {},
+            weekendWarriors: {},
+            nightOwls: {},
+            retroHits: {},
+            cultClassics: {}
         };
 
         history.forEach(item => {
@@ -3770,23 +3774,59 @@ async function calculateTrendingStats() {
             };
 
             const increment = (obj) => {
-                if (!obj[groupKey]) obj[groupKey] = { ...baseItem, views: 0 };
+                if (!obj[groupKey]) {
+                    obj[groupKey] = { ...baseItem, views: 0, users: new Set() };
+                }
                 obj[groupKey].views++;
+                obj[groupKey].users.add(item.accountID);
             };
 
             increment(counts.allTime); // All time gets incremented for every view
             
+            // Time-based stats
             if (viewedAt >= days7) increment(counts.trending7Days);
             if (viewedAt >= days365) increment(counts.top365Days);
             
+            // Movie / Show 30 days
             if (viewedAt >= days30) {
-                if (isMovie) increment(counts.movies30Days);
-                else if (isEpisode) increment(counts.shows30Days);
+                if (item.type === 'movie') increment(counts.movies30Days);
+                if (item.type === 'episode') increment(counts.shows30Days);
             }
+
+            // Wacky Stats Logic
+            const date = new Date(viewedAt * 1000);
+            const dayOfWeek = date.getDay(); // 0 is Sunday, 5 is Friday, 6 is Saturday
+            const hourOfDay = date.getHours(); // 0 to 23
+
+            // Weekend Warriors (Friday, Saturday, Sunday)
+            if (dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6) {
+                increment(counts.weekendWarriors);
+            }
+
+            // Night Owl Club (Midnight to 5am)
+            if (hourOfDay >= 0 && hourOfDay < 5) {
+                increment(counts.nightOwls);
+            }
+
+            // Blast from the Past (Retro Hits - released before 2000)
+            if (item.originallyAvailableAt && item.originallyAvailableAt.startsWith('19')) {
+                increment(counts.retroHits);
+            }
+
+            // Cult Classics (Track all-time for density later)
+            increment(counts.cultClassics);
         });
 
         // Sort and slice top 20
         const getTop = (obj) => Object.values(obj).sort((a, b) => b.views - a.views).slice(0, 20);
+
+        // Cult Classics requires custom sorting: high views, low unique users
+        const getCultClassics = (obj) => {
+            return Object.values(obj)
+                .filter(a => a.views > 10 && a.users.size <= 2) // Must have some decent views but very few users
+                .sort((a, b) => (b.views / b.users.size) - (a.views / a.users.size))
+                .slice(0, 20);
+        };
 
         const stats = {
             trending7Days: getTop(counts.trending7Days),
@@ -3794,6 +3834,10 @@ async function calculateTrendingStats() {
             shows30Days: getTop(counts.shows30Days),
             top365Days: getTop(counts.top365Days),
             allTime: getTop(counts.allTime),
+            weekendWarriors: getTop(counts.weekendWarriors),
+            nightOwls: getTop(counts.nightOwls),
+            retroHits: getTop(counts.retroHits),
+            cultClassics: getCultClassics(counts.cultClassics),
             lastUpdated: Date.now()
         };
 
@@ -3811,7 +3855,11 @@ app.get('/api/plex/stats/trending', requireAuth, async (req, res) => {
             movies30Days: [], 
             shows30Days: [], 
             top365Days: [],
-            allTime: []
+            allTime: [],
+            weekendWarriors: [],
+            nightOwls: [],
+            retroHits: [],
+            cultClassics: []
         });
         res.json(stats);
     } catch (e) {
