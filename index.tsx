@@ -4335,7 +4335,7 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; onClose: () => voi
                             <div className="w-full mt-2">
                                 <p className="text-left text-xs uppercase tracking-widest font-bold text-muted mb-3 border-b border-white/10 pb-2">Top Obsessions</p>
                                 <div className="flex flex-col gap-2">
-                                    {analytics.topContent.filter((c: any) => c.plays > 1).slice(0, 3).map((item: any, i: number) => (
+                                    {analytics.topContent.filter((c: any) => c.plays > 1).slice(0, 5).map((item: any, i: number) => (
                                         <div key={i} className="flex items-center justify-between bg-white/5 border border-white/5 rounded-lg p-2 hover:bg-white/10 transition-colors">
                                             <div className="flex items-center gap-3">
                                                 <span className="text-gray-500 font-bold w-4 text-right">{i + 1}</span>
