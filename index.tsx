@@ -4513,8 +4513,8 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                             <div className="relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center">
                                 <Trophy className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
                                 <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">Server Rank</p>
-                                <p className="text-2xl font-black text-white drop-shadow-lg">{analytics.leaderboardRank ? <><span className="text-plex text-xl mr-0.5">#</span><CountUp end={analytics.leaderboardRank} /></> : 'Unranked'}</p>
-                                {analytics.totalActiveUsers > 0 && <p className="text-[10px] text-gray-400 mt-1">out of {analytics.totalActiveUsers} users</p>}
+                                <p className="text-2xl font-black text-white drop-shadow-lg leading-none mb-1">{analytics.leaderboardRank ? <><span className="text-plex text-xl mr-0.5">#</span><CountUp end={analytics.leaderboardRank} /></> : 'Unranked'}</p>
+                                {analytics.totalActiveUsers > 0 && <p className="text-[10px] text-gray-400 font-bold tracking-wider">Top {Math.max(1, Math.round((analytics.leaderboardRank / analytics.totalActiveUsers) * 100))}% of users</p>}
                             </div>
                         </div>
 
@@ -4524,7 +4524,12 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                             <div className="relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center">
                                 <PlayCircle className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
                                 <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">Total Streams</p>
-                                <p className="text-2xl font-black text-white drop-shadow-lg"><CountUp end={analytics.totalPlays || 0} /></p>
+                                <p className="text-2xl font-black text-white drop-shadow-lg leading-none mb-1"><CountUp end={analytics.totalPlays || 0} /></p>
+                                <p className="text-[10px] text-gray-400 font-bold tracking-wider flex gap-2">
+                                    <span>🎬 {analytics.moviesCount || 0}</span>
+                                    <span>📺 {analytics.showsCount || 0}</span>
+                                    {analytics.musicCount > 0 && <span>🎵 {analytics.musicCount}</span>}
+                                </p>
                             </div>
                         </div>
 
@@ -4534,7 +4539,8 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                             <div className="relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center">
                                 <Tv className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
                                 <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">Top Binge</p>
-                                <p className="text-sm font-bold text-white drop-shadow-lg line-clamp-2">{analytics.topBinge?.title || 'Nothing yet'}</p>
+                                <p className="text-sm font-bold text-white drop-shadow-lg line-clamp-2 leading-tight mb-1">{analytics.topBinge?.title || 'Nothing yet'}</p>
+                                <p className="text-[10px] text-plex font-bold tracking-wider">{analytics.topBinge?.plays || 0} episodes</p>
                             </div>
                         </div>
 
@@ -4544,7 +4550,8 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                             <div className="relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center">
                                 <Clapperboard className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
                                 <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">Top Movie</p>
-                                <p className="text-sm font-bold text-white drop-shadow-lg line-clamp-2">{analytics.topMovie?.title || 'Nothing yet'}</p>
+                                <p className="text-sm font-bold text-white drop-shadow-lg line-clamp-2 leading-tight mb-1">{analytics.topMovie?.title || 'Nothing yet'}</p>
+                                <p className="text-[10px] text-plex font-bold tracking-wider">{analytics.topMovie?.plays || 0} plays</p>
                             </div>
                         </div>
 
@@ -4554,7 +4561,8 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                             <div className="relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center">
                                 <Clock className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
                                 <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">Time of Day</p>
-                                <p className="text-sm font-bold text-white drop-shadow-lg">{analytics.timeOfDay || 'Unknown'}</p>
+                                <p className="text-sm font-bold text-white drop-shadow-lg leading-tight mb-1">{analytics.timeOfDay || 'Unknown'}</p>
+                                <p className="text-[10px] text-gray-400 font-bold tracking-wider">Avg Time: {analytics.avgHour ? Math.round(analytics.avgHour) + ':00' : 'Unknown'}</p>
                             </div>
                         </div>
 
@@ -4564,7 +4572,8 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                             <div className="relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center">
                                 <Calendar className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
                                 <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">Top Day</p>
-                                <p className="text-sm font-bold text-white drop-shadow-lg">{analytics.popularDay || 'Unknown'}</p>
+                                <p className="text-sm font-bold text-white drop-shadow-lg leading-tight mb-1">{analytics.popularDay || 'Unknown'}</p>
+                                <p className="text-[10px] text-gray-400 font-bold tracking-wider">{analytics.dayOfWeekCounts ? Math.max(...Object.values(analytics.dayOfWeekCounts) as number[]) : 0} streams</p>
                             </div>
                         </div>
 
@@ -4574,7 +4583,8 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                             <div className="relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center">
                                 <Layers className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
                                 <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">Top Library</p>
-                                <p className="text-sm font-bold text-white drop-shadow-lg line-clamp-2">{analytics.favoriteLibrary || 'None'}</p>
+                                <p className="text-sm font-bold text-white drop-shadow-lg line-clamp-2 leading-tight mb-1">{analytics.favoriteLibrary || 'None'}</p>
+                                <p className="text-[10px] text-gray-400 font-bold tracking-wider">{analytics.topLibraries?.[0]?.plays || 0} plays</p>
                             </div>
                         </div>
 
@@ -4584,7 +4594,8 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                             <div className="relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center">
                                 <PieChart className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
                                 <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">Media Profile</p>
-                                <p className="text-sm font-bold text-white drop-shadow-lg">{analytics.mediaPreference || 'Mixed Bag'}</p>
+                                <p className="text-sm font-bold text-white drop-shadow-lg leading-tight mb-1">{analytics.mediaPreference || 'Mixed Bag'}</p>
+                                <p className="text-[10px] text-gray-400 font-bold tracking-wider">Prefers {analytics.moviesCount > analytics.showsCount ? 'Movies' : 'TV Shows'}</p>
                             </div>
                         </div>
 
@@ -4594,7 +4605,8 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                             <div className="relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center">
                                 <Compass className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
                                 <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">Watch Style</p>
-                                <p className="text-sm font-bold text-white drop-shadow-lg">{analytics.watchStyle || 'Unknown'}</p>
+                                <p className="text-sm font-bold text-white drop-shadow-lg leading-tight mb-1">{analytics.watchStyle || 'Unknown'}</p>
+                                <p className="text-[10px] text-gray-400 font-bold tracking-wider">{analytics.uniqueTitles || 0} unique titles</p>
                             </div>
                         </div>
 
@@ -4604,7 +4616,8 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                             <div className="relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center">
                                 <Coffee className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
                                 <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">Streaming Habit</p>
-                                <p className="text-sm font-bold text-white drop-shadow-lg">{analytics.streamingHabit || 'Unknown'}</p>
+                                <p className="text-sm font-bold text-white drop-shadow-lg leading-tight mb-1">{analytics.streamingHabit || 'Unknown'}</p>
+                                <p className="text-[10px] text-gray-400 font-bold tracking-wider">{analytics.weekdayPlays || 0} WD • {analytics.weekendPlays || 0} WE</p>
                             </div>
                         </div>
                     </div>

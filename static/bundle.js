@@ -4305,14 +4305,14 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
           /* @__PURE__ */ jsxs("div", { className: "relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center", children: [
             /* @__PURE__ */ jsx(Trophy, { className: "w-6 h-6 text-plex mb-2 drop-shadow-md" }),
             /* @__PURE__ */ jsx("p", { className: "text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md", children: "Server Rank" }),
-            /* @__PURE__ */ jsx("p", { className: "text-2xl font-black text-white drop-shadow-lg", children: analytics.leaderboardRank ? /* @__PURE__ */ jsxs(Fragment, { children: [
+            /* @__PURE__ */ jsx("p", { className: "text-2xl font-black text-white drop-shadow-lg leading-none mb-1", children: analytics.leaderboardRank ? /* @__PURE__ */ jsxs(Fragment, { children: [
               /* @__PURE__ */ jsx("span", { className: "text-plex text-xl mr-0.5", children: "#" }),
               /* @__PURE__ */ jsx(CountUp, { end: analytics.leaderboardRank })
             ] }) : "Unranked" }),
-            analytics.totalActiveUsers > 0 && /* @__PURE__ */ jsxs("p", { className: "text-[10px] text-gray-400 mt-1", children: [
-              "out of ",
-              analytics.totalActiveUsers,
-              " users"
+            analytics.totalActiveUsers > 0 && /* @__PURE__ */ jsxs("p", { className: "text-[10px] text-gray-400 font-bold tracking-wider", children: [
+              "Top ",
+              Math.max(1, Math.round(analytics.leaderboardRank / analytics.totalActiveUsers * 100)),
+              "% of users"
             ] })
           ] })
         ] }),
@@ -4322,7 +4322,21 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
           /* @__PURE__ */ jsxs("div", { className: "relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center", children: [
             /* @__PURE__ */ jsx(CirclePlay, { className: "w-6 h-6 text-plex mb-2 drop-shadow-md" }),
             /* @__PURE__ */ jsx("p", { className: "text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md", children: "Total Streams" }),
-            /* @__PURE__ */ jsx("p", { className: "text-2xl font-black text-white drop-shadow-lg", children: /* @__PURE__ */ jsx(CountUp, { end: analytics.totalPlays || 0 }) })
+            /* @__PURE__ */ jsx("p", { className: "text-2xl font-black text-white drop-shadow-lg leading-none mb-1", children: /* @__PURE__ */ jsx(CountUp, { end: analytics.totalPlays || 0 }) }),
+            /* @__PURE__ */ jsxs("p", { className: "text-[10px] text-gray-400 font-bold tracking-wider flex gap-2", children: [
+              /* @__PURE__ */ jsxs("span", { children: [
+                "\u{1F3AC} ",
+                analytics.moviesCount || 0
+              ] }),
+              /* @__PURE__ */ jsxs("span", { children: [
+                "\u{1F4FA} ",
+                analytics.showsCount || 0
+              ] }),
+              analytics.musicCount > 0 && /* @__PURE__ */ jsxs("span", { children: [
+                "\u{1F3B5} ",
+                analytics.musicCount
+              ] })
+            ] })
           ] })
         ] }),
         /* @__PURE__ */ jsxs("div", { onClick: () => setSelectedMetric("Top Binge"), className: "rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all", style: { minHeight: "130px" }, children: [
@@ -4331,7 +4345,11 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
           /* @__PURE__ */ jsxs("div", { className: "relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center", children: [
             /* @__PURE__ */ jsx(Tv, { className: "w-6 h-6 text-plex mb-2 drop-shadow-md" }),
             /* @__PURE__ */ jsx("p", { className: "text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md", children: "Top Binge" }),
-            /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-white drop-shadow-lg line-clamp-2", children: analytics.topBinge?.title || "Nothing yet" })
+            /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-white drop-shadow-lg line-clamp-2 leading-tight mb-1", children: analytics.topBinge?.title || "Nothing yet" }),
+            /* @__PURE__ */ jsxs("p", { className: "text-[10px] text-plex font-bold tracking-wider", children: [
+              analytics.topBinge?.plays || 0,
+              " episodes"
+            ] })
           ] })
         ] }),
         /* @__PURE__ */ jsxs("div", { onClick: () => setSelectedMetric("Top Movie"), className: "rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all", style: { minHeight: "130px" }, children: [
@@ -4340,7 +4358,11 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
           /* @__PURE__ */ jsxs("div", { className: "relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center", children: [
             /* @__PURE__ */ jsx(Clapperboard, { className: "w-6 h-6 text-plex mb-2 drop-shadow-md" }),
             /* @__PURE__ */ jsx("p", { className: "text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md", children: "Top Movie" }),
-            /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-white drop-shadow-lg line-clamp-2", children: analytics.topMovie?.title || "Nothing yet" })
+            /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-white drop-shadow-lg line-clamp-2 leading-tight mb-1", children: analytics.topMovie?.title || "Nothing yet" }),
+            /* @__PURE__ */ jsxs("p", { className: "text-[10px] text-plex font-bold tracking-wider", children: [
+              analytics.topMovie?.plays || 0,
+              " plays"
+            ] })
           ] })
         ] }),
         /* @__PURE__ */ jsxs("div", { onClick: () => setSelectedMetric("Time of Day"), className: "rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all", style: { minHeight: "130px" }, children: [
@@ -4349,7 +4371,11 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
           /* @__PURE__ */ jsxs("div", { className: "relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center", children: [
             /* @__PURE__ */ jsx(Clock, { className: "w-6 h-6 text-plex mb-2 drop-shadow-md" }),
             /* @__PURE__ */ jsx("p", { className: "text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md", children: "Time of Day" }),
-            /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-white drop-shadow-lg", children: analytics.timeOfDay || "Unknown" })
+            /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-white drop-shadow-lg leading-tight mb-1", children: analytics.timeOfDay || "Unknown" }),
+            /* @__PURE__ */ jsxs("p", { className: "text-[10px] text-gray-400 font-bold tracking-wider", children: [
+              "Avg Time: ",
+              analytics.avgHour ? Math.round(analytics.avgHour) + ":00" : "Unknown"
+            ] })
           ] })
         ] }),
         /* @__PURE__ */ jsxs("div", { onClick: () => setSelectedMetric("Top Day"), className: "rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all", style: { minHeight: "130px" }, children: [
@@ -4358,7 +4384,11 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
           /* @__PURE__ */ jsxs("div", { className: "relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center", children: [
             /* @__PURE__ */ jsx(Calendar, { className: "w-6 h-6 text-plex mb-2 drop-shadow-md" }),
             /* @__PURE__ */ jsx("p", { className: "text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md", children: "Top Day" }),
-            /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-white drop-shadow-lg", children: analytics.popularDay || "Unknown" })
+            /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-white drop-shadow-lg leading-tight mb-1", children: analytics.popularDay || "Unknown" }),
+            /* @__PURE__ */ jsxs("p", { className: "text-[10px] text-gray-400 font-bold tracking-wider", children: [
+              analytics.dayOfWeekCounts ? Math.max(...Object.values(analytics.dayOfWeekCounts)) : 0,
+              " streams"
+            ] })
           ] })
         ] }),
         /* @__PURE__ */ jsxs("div", { onClick: () => setSelectedMetric("Media Profile"), className: "rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all", style: { minHeight: "130px" }, children: [
@@ -4367,7 +4397,11 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
           /* @__PURE__ */ jsxs("div", { className: "relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center", children: [
             /* @__PURE__ */ jsx(Layers, { className: "w-6 h-6 text-plex mb-2 drop-shadow-md" }),
             /* @__PURE__ */ jsx("p", { className: "text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md", children: "Top Library" }),
-            /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-white drop-shadow-lg line-clamp-2", children: analytics.favoriteLibrary || "None" })
+            /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-white drop-shadow-lg line-clamp-2 leading-tight mb-1", children: analytics.favoriteLibrary || "None" }),
+            /* @__PURE__ */ jsxs("p", { className: "text-[10px] text-gray-400 font-bold tracking-wider", children: [
+              analytics.topLibraries?.[0]?.plays || 0,
+              " plays"
+            ] })
           ] })
         ] }),
         /* @__PURE__ */ jsxs("div", { onClick: () => setSelectedMetric("Top Library"), className: "rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all", style: { minHeight: "130px" }, children: [
@@ -4376,7 +4410,11 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
           /* @__PURE__ */ jsxs("div", { className: "relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center", children: [
             /* @__PURE__ */ jsx(ChartPie, { className: "w-6 h-6 text-plex mb-2 drop-shadow-md" }),
             /* @__PURE__ */ jsx("p", { className: "text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md", children: "Media Profile" }),
-            /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-white drop-shadow-lg", children: analytics.mediaPreference || "Mixed Bag" })
+            /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-white drop-shadow-lg leading-tight mb-1", children: analytics.mediaPreference || "Mixed Bag" }),
+            /* @__PURE__ */ jsxs("p", { className: "text-[10px] text-gray-400 font-bold tracking-wider", children: [
+              "Prefers ",
+              analytics.moviesCount > analytics.showsCount ? "Movies" : "TV Shows"
+            ] })
           ] })
         ] }),
         /* @__PURE__ */ jsxs("div", { onClick: () => setSelectedMetric("Watch Style"), className: "rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all", style: { minHeight: "130px" }, children: [
@@ -4385,7 +4423,11 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
           /* @__PURE__ */ jsxs("div", { className: "relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center", children: [
             /* @__PURE__ */ jsx(Compass, { className: "w-6 h-6 text-plex mb-2 drop-shadow-md" }),
             /* @__PURE__ */ jsx("p", { className: "text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md", children: "Watch Style" }),
-            /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-white drop-shadow-lg", children: analytics.watchStyle || "Unknown" })
+            /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-white drop-shadow-lg leading-tight mb-1", children: analytics.watchStyle || "Unknown" }),
+            /* @__PURE__ */ jsxs("p", { className: "text-[10px] text-gray-400 font-bold tracking-wider", children: [
+              analytics.uniqueTitles || 0,
+              " unique titles"
+            ] })
           ] })
         ] }),
         /* @__PURE__ */ jsxs("div", { onClick: () => setSelectedMetric("Streaming Habit"), className: "rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all", style: { minHeight: "130px" }, children: [
@@ -4394,7 +4436,13 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
           /* @__PURE__ */ jsxs("div", { className: "relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center", children: [
             /* @__PURE__ */ jsx(Coffee, { className: "w-6 h-6 text-plex mb-2 drop-shadow-md" }),
             /* @__PURE__ */ jsx("p", { className: "text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md", children: "Streaming Habit" }),
-            /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-white drop-shadow-lg", children: analytics.streamingHabit || "Unknown" })
+            /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-white drop-shadow-lg leading-tight mb-1", children: analytics.streamingHabit || "Unknown" }),
+            /* @__PURE__ */ jsxs("p", { className: "text-[10px] text-gray-400 font-bold tracking-wider", children: [
+              analytics.weekdayPlays || 0,
+              " WD \u2022 ",
+              analytics.weekendPlays || 0,
+              " WE"
+            ] })
           ] })
         ] })
       ] })
