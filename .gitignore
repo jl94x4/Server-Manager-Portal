@@ -49,3 +49,8 @@ email_log.json
 
 test*.js
 test*.cjs
+
+# Runtime cache files
+plex-stats.json
+trending-cache.json
+patch.cjs
