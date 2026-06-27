@@ -2896,7 +2896,7 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
                         <BarChart3 className="w-8 h-8 text-plex" />
                         Advanced Analytics
                     </h1>
-                        <div className="flex bg-black/40 rounded-lg p-1 border border-white/5 w-fit">
+                        <div className="flex bg-black/40 rounded-lg p-1 border border-white/5 w-fit mt-4">
                             <button onClick={() => setViewTab('overview')} className={`px-4 py-2 rounded-md text-sm font-bold uppercase tracking-wider transition-colors flex items-center gap-2 ${viewTab === 'overview' ? 'bg-plex text-white shadow-lg' : 'text-muted hover:text-white'}`}>
                                 <Activity className="w-4 h-4" /> Overview
                             </button>

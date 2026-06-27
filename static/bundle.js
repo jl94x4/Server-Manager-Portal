@@ -51221,7 +51221,7 @@ var AnalyticsDashboard = ({ isAdmin, sessionInfo }) => {
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartColumn, { className: "w-8 h-8 text-plex" }),
           "Advanced Analytics"
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex bg-black/40 rounded-lg p-1 border border-white/5 w-fit", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex bg-black/40 rounded-lg p-1 border border-white/5 w-fit mt-4", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => setViewTab("overview"), className: `px-4 py-2 rounded-md text-sm font-bold uppercase tracking-wider transition-colors flex items-center gap-2 ${viewTab === "overview" ? "bg-plex text-white shadow-lg" : "text-muted hover:text-white"}`, children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Activity, { className: "w-4 h-4" }),
             " Overview"
