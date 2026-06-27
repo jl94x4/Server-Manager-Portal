@@ -203,6 +203,17 @@ const addYears = (date: Date, years: number): Date => {
 };
 
 // --- API Helper ---
+
+const formatTime = (date) => {
+    try {
+        const is24 = typeof window !== 'undefined' && window.localStorage.getItem('use24Hour') === 'true';
+        const str = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: !is24 });
+        return is24 ? str : str.replace(/^0:/, '12:');
+    } catch (e) {
+        return formatTime(date);
+    }
+};
+
 const apiFetch = async (url: string, options: RequestInit = {}) => {
     const response = await fetch(url, {
         headers: {
@@ -2054,7 +2065,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
         tomorrow.setDate(tomorrow.getDate() + 1);
 
         const isMidnight = date.getHours() === 0 && date.getMinutes() === 0;
-        const timeStr = isMidnight ? '' : ` at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        const timeStr = isMidnight ? '' : ` at ${formatTime(date)}`;
 
         const diffDays = Math.ceil((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -2402,7 +2413,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                                                             <div className="flex items-center gap-1.5 md:gap-2 mb-1 md:mb-2">
                                                                 <span className="text-[9px] md:text-[11px] text-plex flex items-center gap-1 md:gap-1.5 font-bold tracking-wide">
                                                                     <Clock className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                                                                    {item.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).replace(/^0:/, '12:')}
+                                                                    {item.formatTime(date).replace(/^0:/, '12:')}
                                                                 </span>
                                                                 <span className={`md:hidden text-[8px] font-black tracking-widest uppercase px-1 rounded ${item.service === 'Sonarr' ? 'text-blue-400' : 'text-red-400'}`}>
                                                                     {item.service}
@@ -5222,15 +5233,12 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                                             </div>
                                         </div>
                                     </div>
-                                    {/* Progress Bar with Tooltip Arrow */}
-                                    <div className="w-full h-2 bg-background/80 relative mt-auto z-10">
-                                        <div className="h-full bg-plex absolute top-0 left-0 transition-all duration-1000" style={{ width: `${session.progress}%` }}>
-                                            {/* Enhanced Floating Indicator */}
-                                            <div className="absolute right-0 bottom-full mb-1 flex items-center justify-center transform translate-x-1/2">
-                                                <div className="bg-[#1a1a1a] text-plex border border-plex/50 text-[10px] font-bold px-1.5 py-0.5 rounded shadow-[0_2px_8px_rgba(0,0,0,0.8)] whitespace-nowrap">
-                                                    {Math.round(session.progress)}%
-                                                </div>
-                                            </div>
+                                    {/* Progress Bar with embedded text */}
+                                    <div className="w-full h-5 bg-background/80 relative mt-auto z-10">
+                                        <div className="h-full bg-plex absolute top-0 left-0 transition-all duration-1000" style={{ width: `${session.progress}%` }}></div>
+                                        <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,1)] z-20 pointer-events-none whitespace-nowrap">
+                                            {Math.round(session.progress)}%
+                                            {session.timeRemaining > 0 && session.state === 'playing' ? ` • ETA ${formatTime(new Date(Date.now() + session.timeRemaining))}` : ''}
                                         </div>
                                     </div>
                                 </div>

@@ -487,15 +487,24 @@ var getDaysUntilExpiry = (expiryDate) => {
   const diffTime = expiry.getTime() - today.getTime();
   return Math.round(diffTime / (1e3 * 60 * 60 * 24));
 };
-var addMonths = (date, months) => {
-  const d = new Date(date);
+var addMonths = (date2, months) => {
+  const d = new Date(date2);
   d.setMonth(d.getMonth() + months);
   return d;
 };
-var addYears = (date, years) => {
-  const d = new Date(date);
+var addYears = (date2, years) => {
+  const d = new Date(date2);
   d.setFullYear(d.getFullYear() + years);
   return d;
+};
+var formatTime = (date2) => {
+  try {
+    const is24 = typeof window !== "undefined" && window.localStorage.getItem("use24Hour") === "true";
+    const str = date2.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: !is24 });
+    return is24 ? str : str.replace(/^0:/, "12:");
+  } catch (e) {
+    return formatTime(date2);
+  }
 };
 var apiFetch = async (url, options = {}) => {
   const response = await fetch(url, {
@@ -2145,28 +2154,28 @@ var MediaStackDashboard = ({ isAdmin }) => {
     const interval = setInterval(fetchData, 3e4);
     return () => clearInterval(interval);
   }, [fetchData]);
-  const formatRelativeAirDate = (date) => {
+  const formatRelativeAirDate = (date2) => {
     const now = /* @__PURE__ */ new Date();
     const today = /* @__PURE__ */ new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const isMidnight = date.getHours() === 0 && date.getMinutes() === 0;
-    const timeStr = isMidnight ? "" : ` at ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-    const diffDays = Math.ceil((date.getTime() - today.getTime()) / (1e3 * 60 * 60 * 24));
-    if (date >= today && date < tomorrow) {
+    const isMidnight = date2.getHours() === 0 && date2.getMinutes() === 0;
+    const timeStr = isMidnight ? "" : ` at ${formatTime(date2)}`;
+    const diffDays = Math.ceil((date2.getTime() - today.getTime()) / (1e3 * 60 * 60 * 24));
+    if (date2 >= today && date2 < tomorrow) {
       return `Today${timeStr}`;
     }
     const dayAfterTomorrow = new Date(tomorrow);
     dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
-    if (date >= tomorrow && date < dayAfterTomorrow) {
+    if (date2 >= tomorrow && date2 < dayAfterTomorrow) {
       return `Tomorrow${timeStr}`;
     }
     if (diffDays > 1 && diffDays < 7) {
-      const dayName = date.toLocaleDateString([], { weekday: "long" });
+      const dayName = date2.toLocaleDateString([], { weekday: "long" });
       return `${dayName}${timeStr}`;
     }
-    return date.toLocaleDateString([], { month: "short", day: "numeric" }) + timeStr;
+    return date2.toLocaleDateString([], { month: "short", day: "numeric" }) + timeStr;
   };
   const formatBytes = (bytes) => {
     if (!bytes) return "0.0 GB";
@@ -2436,7 +2445,7 @@ var MediaStackDashboard = ({ isAdmin }) => {
                     /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5 md:gap-2 mb-1 md:mb-2", children: [
                       /* @__PURE__ */ jsxs("span", { className: "text-[9px] md:text-[11px] text-plex flex items-center gap-1 md:gap-1.5 font-bold tracking-wide", children: [
                         /* @__PURE__ */ jsx(Clock, { className: "w-3 h-3 md:w-3.5 md:h-3.5" }),
-                        item.date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }).replace(/^0:/, "12:")
+                        item.formatTime(date).replace(/^0:/, "12:")
                       ] }),
                       /* @__PURE__ */ jsx("span", { className: `md:hidden text-[8px] font-black tracking-widest uppercase px-1 rounded ${item.service === "Sonarr" ? "text-blue-400" : "text-red-400"}`, children: item.service })
                     ] }),
@@ -4804,10 +4813,14 @@ var LibraryDashboard = ({ onBack, isAdmin, publicConfig }) => {
               ] })
             ] })
           ] }),
-          /* @__PURE__ */ jsx("div", { className: "w-full h-2 bg-background/80 relative mt-auto z-10", children: /* @__PURE__ */ jsx("div", { className: "h-full bg-plex absolute top-0 left-0 transition-all duration-1000", style: { width: `${session.progress}%` }, children: /* @__PURE__ */ jsx("div", { className: "absolute right-0 bottom-full mb-1 flex items-center justify-center transform translate-x-1/2", children: /* @__PURE__ */ jsxs("div", { className: "bg-[#1a1a1a] text-plex border border-plex/50 text-[10px] font-bold px-1.5 py-0.5 rounded shadow-[0_2px_8px_rgba(0,0,0,0.8)] whitespace-nowrap", children: [
-            Math.round(session.progress),
-            "%"
-          ] }) }) }) })
+          /* @__PURE__ */ jsxs("div", { className: "w-full h-5 bg-background/80 relative mt-auto z-10", children: [
+            /* @__PURE__ */ jsx("div", { className: "h-full bg-plex absolute top-0 left-0 transition-all duration-1000", style: { width: `${session.progress}%` } }),
+            /* @__PURE__ */ jsxs("div", { className: "absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,1)] z-20 pointer-events-none whitespace-nowrap", children: [
+              Math.round(session.progress),
+              "%",
+              session.timeRemaining > 0 && session.state === "playing" ? ` \u2022 ETA ${formatTime(new Date(Date.now() + session.timeRemaining))}` : ""
+            ] })
+          ] })
         ] }, i)) }) : /* @__PURE__ */ jsx("div", { className: "text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full", children: "No active streams" })
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "flex justify-end gap-4 items-center mb-8", children: [
