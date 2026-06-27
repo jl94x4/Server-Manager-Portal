@@ -4061,7 +4061,7 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; onClose: () => voi
                 return (
                     <div className="flex flex-col items-center justify-center text-center p-6 relative">
                         {analytics.topBinge?.artUrl || analytics.topBinge?.thumbUrl ? (
-                            <div className="w-full h-40 bg-cover bg-center rounded-xl shadow-lg mb-6 border border-white/10 relative overflow-hidden" style={{ backgroundImage: `url('${analytics.topBinge.artUrl || analytics.topBinge.thumbUrl}')` }}>
+                            <div className="w-full h-40 bg-cover bg-center rounded-xl shadow-lg mb-6 border border-white/10 relative overflow-hidden" style={{ backgroundImage: `url('${analytics.topBinge.artUrl || 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?auto=format&fit=crop&q=80&w=600'}')` }}>
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
                                 <div className="absolute bottom-4 left-0 right-0 px-4 flex flex-col items-center">
                                     <h2 className="text-2xl font-black text-white mb-1 line-clamp-1 drop-shadow-md">{analytics.topBinge?.title || 'Nothing yet'}</h2>
@@ -4095,7 +4095,7 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; onClose: () => voi
                 return (
                     <div className="flex flex-col items-center justify-center text-center p-6 relative">
                         {analytics.topMovie?.artUrl || analytics.topMovie?.thumbUrl ? (
-                            <div className="w-full h-40 bg-cover bg-center rounded-xl shadow-lg mb-6 border border-white/10 relative overflow-hidden" style={{ backgroundImage: `url('${analytics.topMovie.artUrl || analytics.topMovie.thumbUrl}')` }}>
+                            <div className="w-full h-40 bg-cover bg-center rounded-xl shadow-lg mb-6 border border-white/10 relative overflow-hidden" style={{ backgroundImage: `url('${analytics.topMovie.artUrl || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=600'}')` }}>
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
                                 <div className="absolute bottom-4 left-0 right-0 px-4 flex flex-col items-center">
                                     <h2 className="text-2xl font-black text-white mb-1 line-clamp-1 drop-shadow-md">{analytics.topMovie?.title || 'Nothing yet'}</h2>
@@ -4630,7 +4630,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                         </div>
 
                         <div onClick={() => setSelectedMetric('Top Binge')} className="rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all" style={{ minHeight: '130px' }}>
-                            <div className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-700 group-hover:scale-110 opacity-60" style={{ backgroundImage: `url('${analytics.topBinge?.artUrl || analytics.topBinge?.thumbUrl || 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?auto=format&fit=crop&q=80&w=600'}')` }} />
+                            <div className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-700 group-hover:scale-110 opacity-60" style={{ backgroundImage: `url('${analytics.topBinge?.artUrl || 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?auto=format&fit=crop&q=80&w=600'}')` }} />
                             <div className="absolute inset-0 bg-black/60 z-10" />
                             <div className="relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center">
                                 <Tv className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
@@ -4641,7 +4641,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                         </div>
 
                         <div onClick={() => setSelectedMetric('Top Movie')} className="rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all" style={{ minHeight: '130px' }}>
-                            <div className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-700 group-hover:scale-110 opacity-60" style={{ backgroundImage: `url('${analytics.topMovie?.artUrl || analytics.topMovie?.thumbUrl || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=600'}')` }} />
+                            <div className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-700 group-hover:scale-110 opacity-60" style={{ backgroundImage: `url('${analytics.topMovie?.artUrl || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=600'}')` }} />
                             <div className="absolute inset-0 bg-black/60 z-10" />
                             <div className="relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center">
                                 <Clapperboard className="w-6 h-6 text-plex mb-2 drop-shadow-md" />

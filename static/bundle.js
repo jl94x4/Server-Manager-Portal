@@ -3952,7 +3952,7 @@ var WrapUpModal = ({ metric, analytics, onClose }) => {
         ] });
       case "Top Binge":
         return /* @__PURE__ */ jsxs("div", { className: "flex flex-col items-center justify-center text-center p-6 relative", children: [
-          analytics.topBinge?.artUrl || analytics.topBinge?.thumbUrl ? /* @__PURE__ */ jsxs("div", { className: "w-full h-40 bg-cover bg-center rounded-xl shadow-lg mb-6 border border-white/10 relative overflow-hidden", style: { backgroundImage: `url('${analytics.topBinge.artUrl || analytics.topBinge.thumbUrl}')` }, children: [
+          analytics.topBinge?.artUrl || analytics.topBinge?.thumbUrl ? /* @__PURE__ */ jsxs("div", { className: "w-full h-40 bg-cover bg-center rounded-xl shadow-lg mb-6 border border-white/10 relative overflow-hidden", style: { backgroundImage: `url('${analytics.topBinge.artUrl || "https://images.unsplash.com/photo-1594909122845-11baa439b7bf?auto=format&fit=crop&q=80&w=600"}')` }, children: [
             /* @__PURE__ */ jsx("div", { className: "absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" }),
             /* @__PURE__ */ jsxs("div", { className: "absolute bottom-4 left-0 right-0 px-4 flex flex-col items-center", children: [
               /* @__PURE__ */ jsx("h2", { className: "text-2xl font-black text-white mb-1 line-clamp-1 drop-shadow-md", children: analytics.topBinge?.title || "Nothing yet" }),
@@ -3979,7 +3979,7 @@ var WrapUpModal = ({ metric, analytics, onClose }) => {
         ] });
       case "Top Movie":
         return /* @__PURE__ */ jsxs("div", { className: "flex flex-col items-center justify-center text-center p-6 relative", children: [
-          analytics.topMovie?.artUrl || analytics.topMovie?.thumbUrl ? /* @__PURE__ */ jsxs("div", { className: "w-full h-40 bg-cover bg-center rounded-xl shadow-lg mb-6 border border-white/10 relative overflow-hidden", style: { backgroundImage: `url('${analytics.topMovie.artUrl || analytics.topMovie.thumbUrl}')` }, children: [
+          analytics.topMovie?.artUrl || analytics.topMovie?.thumbUrl ? /* @__PURE__ */ jsxs("div", { className: "w-full h-40 bg-cover bg-center rounded-xl shadow-lg mb-6 border border-white/10 relative overflow-hidden", style: { backgroundImage: `url('${analytics.topMovie.artUrl || "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=600"}')` }, children: [
             /* @__PURE__ */ jsx("div", { className: "absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" }),
             /* @__PURE__ */ jsxs("div", { className: "absolute bottom-4 left-0 right-0 px-4 flex flex-col items-center", children: [
               /* @__PURE__ */ jsx("h2", { className: "text-2xl font-black text-white mb-1 line-clamp-1 drop-shadow-md", children: analytics.topMovie?.title || "Nothing yet" }),
@@ -4439,7 +4439,7 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
           ] })
         ] }),
         /* @__PURE__ */ jsxs("div", { onClick: () => setSelectedMetric("Top Binge"), className: "rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all", style: { minHeight: "130px" }, children: [
-          /* @__PURE__ */ jsx("div", { className: "absolute inset-0 bg-cover bg-center z-0 transition-transform duration-700 group-hover:scale-110 opacity-60", style: { backgroundImage: `url('${analytics.topBinge?.artUrl || analytics.topBinge?.thumbUrl || "https://images.unsplash.com/photo-1594909122845-11baa439b7bf?auto=format&fit=crop&q=80&w=600"}')` } }),
+          /* @__PURE__ */ jsx("div", { className: "absolute inset-0 bg-cover bg-center z-0 transition-transform duration-700 group-hover:scale-110 opacity-60", style: { backgroundImage: `url('${analytics.topBinge?.artUrl || "https://images.unsplash.com/photo-1594909122845-11baa439b7bf?auto=format&fit=crop&q=80&w=600"}')` } }),
           /* @__PURE__ */ jsx("div", { className: "absolute inset-0 bg-black/60 z-10" }),
           /* @__PURE__ */ jsxs("div", { className: "relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center", children: [
             /* @__PURE__ */ jsx(Tv, { className: "w-6 h-6 text-plex mb-2 drop-shadow-md" }),
@@ -4452,7 +4452,7 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
           ] })
         ] }),
         /* @__PURE__ */ jsxs("div", { onClick: () => setSelectedMetric("Top Movie"), className: "rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all", style: { minHeight: "130px" }, children: [
-          /* @__PURE__ */ jsx("div", { className: "absolute inset-0 bg-cover bg-center z-0 transition-transform duration-700 group-hover:scale-110 opacity-60", style: { backgroundImage: `url('${analytics.topMovie?.artUrl || analytics.topMovie?.thumbUrl || "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=600"}')` } }),
+          /* @__PURE__ */ jsx("div", { className: "absolute inset-0 bg-cover bg-center z-0 transition-transform duration-700 group-hover:scale-110 opacity-60", style: { backgroundImage: `url('${analytics.topMovie?.artUrl || "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=600"}')` } }),
           /* @__PURE__ */ jsx("div", { className: "absolute inset-0 bg-black/60 z-10" }),
           /* @__PURE__ */ jsxs("div", { className: "relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center", children: [
             /* @__PURE__ */ jsx(Clapperboard, { className: "w-6 h-6 text-plex mb-2 drop-shadow-md" }),
