@@ -2863,6 +2863,10 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
                                         <div className="h-full bg-gradient-to-r from-plex to-[#e5a00d] rounded-full" style={{ width: `${(lib.plays / maxLibraryPlays) * 100}%` }}></div>
                                     </div>
                                 </div>
+                            ))}
+                        </div>
+                    </div>
+
                     {/* Top Devices Card */}
                     {topDevices && topDevices.length > 0 && (
                         <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border mt-6">

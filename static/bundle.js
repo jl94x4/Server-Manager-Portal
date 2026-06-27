@@ -259,27 +259,8 @@ var __iconNode18 = [
 ];
 var Copy = createLucideIcon("copy", __iconNode18);
 
-// node_modules/lucide-react/dist/esm/icons/cpu.mjs
-var __iconNode19 = [
-  ["path", { d: "M12 20v2", key: "1lh1kg" }],
-  ["path", { d: "M12 2v2", key: "tus03m" }],
-  ["path", { d: "M17 20v2", key: "1rnc9c" }],
-  ["path", { d: "M17 2v2", key: "11trls" }],
-  ["path", { d: "M2 12h2", key: "1t8f8n" }],
-  ["path", { d: "M2 17h2", key: "7oei6x" }],
-  ["path", { d: "M2 7h2", key: "asdhe0" }],
-  ["path", { d: "M20 12h2", key: "1q8mjw" }],
-  ["path", { d: "M20 17h2", key: "1fpfkl" }],
-  ["path", { d: "M20 7h2", key: "1o8tra" }],
-  ["path", { d: "M7 20v2", key: "4gnj0m" }],
-  ["path", { d: "M7 2v2", key: "1i4yhu" }],
-  ["rect", { x: "4", y: "4", width: "16", height: "16", rx: "2", key: "1vbyd7" }],
-  ["rect", { x: "8", y: "8", width: "8", height: "8", rx: "1", key: "z9xiuo" }]
-];
-var Cpu = createLucideIcon("cpu", __iconNode19);
-
 // node_modules/lucide-react/dist/esm/icons/file-text.mjs
-var __iconNode20 = [
+var __iconNode19 = [
   [
     "path",
     {
@@ -292,10 +273,10 @@ var __iconNode20 = [
   ["path", { d: "M16 13H8", key: "t4e002" }],
   ["path", { d: "M16 17H8", key: "z1uh3a" }]
 ];
-var FileText = createLucideIcon("file-text", __iconNode20);
+var FileText = createLucideIcon("file-text", __iconNode19);
 
 // node_modules/lucide-react/dist/esm/icons/film.mjs
-var __iconNode21 = [
+var __iconNode20 = [
   ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }],
   ["path", { d: "M7 3v18", key: "bbkbws" }],
   ["path", { d: "M3 7.5h4", key: "zfgn84" }],
@@ -305,10 +286,10 @@ var __iconNode21 = [
   ["path", { d: "M17 7.5h4", key: "myr1c1" }],
   ["path", { d: "M17 16.5h4", key: "go4c1d" }]
 ];
-var Film = createLucideIcon("film", __iconNode21);
+var Film = createLucideIcon("film", __iconNode20);
 
 // node_modules/lucide-react/dist/esm/icons/hard-drive.mjs
-var __iconNode22 = [
+var __iconNode21 = [
   ["path", { d: "M10 16h.01", key: "1bzywj" }],
   [
     "path",
@@ -320,10 +301,10 @@ var __iconNode22 = [
   ["path", { d: "M21.946 12.013H2.054", key: "zqlbp7" }],
   ["path", { d: "M6 16h.01", key: "1pmjb7" }]
 ];
-var HardDrive = createLucideIcon("hard-drive", __iconNode22);
+var HardDrive = createLucideIcon("hard-drive", __iconNode21);
 
 // node_modules/lucide-react/dist/esm/icons/house.mjs
-var __iconNode23 = [
+var __iconNode22 = [
   ["path", { d: "M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8", key: "5wwlr5" }],
   [
     "path",
@@ -333,10 +314,10 @@ var __iconNode23 = [
     }
   ]
 ];
-var House = createLucideIcon("house", __iconNode23);
+var House = createLucideIcon("house", __iconNode22);
 
 // node_modules/lucide-react/dist/esm/icons/layers.mjs
-var __iconNode24 = [
+var __iconNode23 = [
   [
     "path",
     {
@@ -359,15 +340,24 @@ var __iconNode24 = [
     }
   ]
 ];
-var Layers = createLucideIcon("layers", __iconNode24);
+var Layers = createLucideIcon("layers", __iconNode23);
 
 // node_modules/lucide-react/dist/esm/icons/log-out.mjs
-var __iconNode25 = [
+var __iconNode24 = [
   ["path", { d: "m16 17 5-5-5-5", key: "1bji2h" }],
   ["path", { d: "M21 12H9", key: "dn1m92" }],
   ["path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4", key: "1uf3rs" }]
 ];
-var LogOut = createLucideIcon("log-out", __iconNode25);
+var LogOut = createLucideIcon("log-out", __iconNode24);
+
+// node_modules/lucide-react/dist/esm/icons/monitor-smartphone.mjs
+var __iconNode25 = [
+  ["path", { d: "M18 8V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h8", key: "10dyio" }],
+  ["path", { d: "M10 19v-3.96 3.15", key: "1irgej" }],
+  ["path", { d: "M7 19h5", key: "qswx4l" }],
+  ["rect", { width: "6", height: "10", x: "16", y: "12", rx: "2", key: "1egngj" }]
+];
+var MonitorSmartphone = createLucideIcon("monitor-smartphone", __iconNode25);
 
 // node_modules/lucide-react/dist/esm/icons/music.mjs
 var __iconNode26 = [
@@ -377,29 +367,17 @@ var __iconNode26 = [
 ];
 var Music = createLucideIcon("music", __iconNode26);
 
-// node_modules/lucide-react/dist/esm/icons/play.mjs
-var __iconNode27 = [
-  [
-    "path",
-    {
-      d: "M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z",
-      key: "10ikf1"
-    }
-  ]
-];
-var Play = createLucideIcon("play", __iconNode27);
-
 // node_modules/lucide-react/dist/esm/icons/refresh-cw.mjs
-var __iconNode28 = [
+var __iconNode27 = [
   ["path", { d: "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8", key: "v9h5vc" }],
   ["path", { d: "M21 3v5h-5", key: "1q7to0" }],
   ["path", { d: "M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16", key: "3uifl3" }],
   ["path", { d: "M8 16H3v5", key: "1cv678" }]
 ];
-var RefreshCw = createLucideIcon("refresh-cw", __iconNode28);
+var RefreshCw = createLucideIcon("refresh-cw", __iconNode27);
 
 // node_modules/lucide-react/dist/esm/icons/settings.mjs
-var __iconNode29 = [
+var __iconNode28 = [
   [
     "path",
     {
@@ -409,10 +387,10 @@ var __iconNode29 = [
   ],
   ["circle", { cx: "12", cy: "12", r: "3", key: "1v7zrd" }]
 ];
-var Settings = createLucideIcon("settings", __iconNode29);
+var Settings = createLucideIcon("settings", __iconNode28);
 
 // node_modules/lucide-react/dist/esm/icons/shield.mjs
-var __iconNode30 = [
+var __iconNode29 = [
   [
     "path",
     {
@@ -421,10 +399,10 @@ var __iconNode30 = [
     }
   ]
 ];
-var Shield = createLucideIcon("shield", __iconNode30);
+var Shield = createLucideIcon("shield", __iconNode29);
 
 // node_modules/lucide-react/dist/esm/icons/sparkles.mjs
-var __iconNode31 = [
+var __iconNode30 = [
   [
     "path",
     {
@@ -436,10 +414,10 @@ var __iconNode31 = [
   ["path", { d: "M22 4h-4", key: "gwowj6" }],
   ["circle", { cx: "4", cy: "20", r: "2", key: "6kqj1y" }]
 ];
-var Sparkles = createLucideIcon("sparkles", __iconNode31);
+var Sparkles = createLucideIcon("sparkles", __iconNode30);
 
 // node_modules/lucide-react/dist/esm/icons/square-play.mjs
-var __iconNode32 = [
+var __iconNode31 = [
   ["rect", { x: "3", y: "3", width: "18", height: "18", rx: "2", key: "h1oib" }],
   [
     "path",
@@ -449,10 +427,10 @@ var __iconNode32 = [
     }
   ]
 ];
-var SquarePlay = createLucideIcon("square-play", __iconNode32);
+var SquarePlay = createLucideIcon("square-play", __iconNode31);
 
 // node_modules/lucide-react/dist/esm/icons/star.mjs
-var __iconNode33 = [
+var __iconNode32 = [
   [
     "path",
     {
@@ -461,10 +439,10 @@ var __iconNode33 = [
     }
   ]
 ];
-var Star = createLucideIcon("star", __iconNode33);
+var Star = createLucideIcon("star", __iconNode32);
 
 // node_modules/lucide-react/dist/esm/icons/triangle-alert.mjs
-var __iconNode34 = [
+var __iconNode33 = [
   [
     "path",
     {
@@ -475,17 +453,17 @@ var __iconNode34 = [
   ["path", { d: "M12 9v4", key: "juzpu7" }],
   ["path", { d: "M12 17h.01", key: "p32p05" }]
 ];
-var TriangleAlert = createLucideIcon("triangle-alert", __iconNode34);
+var TriangleAlert = createLucideIcon("triangle-alert", __iconNode33);
 
 // node_modules/lucide-react/dist/esm/icons/trending-up.mjs
-var __iconNode35 = [
+var __iconNode34 = [
   ["path", { d: "M16 7h6v6", key: "box55l" }],
   ["path", { d: "m22 7-8.5 8.5-5-5L2 17", key: "1t1m79" }]
 ];
-var TrendingUp = createLucideIcon("trending-up", __iconNode35);
+var TrendingUp = createLucideIcon("trending-up", __iconNode34);
 
 // node_modules/lucide-react/dist/esm/icons/trophy.mjs
-var __iconNode36 = [
+var __iconNode35 = [
   ["path", { d: "M10 14.66v1.626a2 2 0 0 1-.976 1.696A5 5 0 0 0 7 21.978", key: "1n3hpd" }],
   ["path", { d: "M14 14.66v1.626a2 2 0 0 0 .976 1.696A5 5 0 0 1 17 21.978", key: "rfe1zi" }],
   ["path", { d: "M18 9h1.5a1 1 0 0 0 0-5H18", key: "7xy6bh" }],
@@ -493,30 +471,30 @@ var __iconNode36 = [
   ["path", { d: "M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z", key: "1mhfuq" }],
   ["path", { d: "M6 9H4.5a1 1 0 0 1 0-5H6", key: "tex48p" }]
 ];
-var Trophy = createLucideIcon("trophy", __iconNode36);
+var Trophy = createLucideIcon("trophy", __iconNode35);
 
 // node_modules/lucide-react/dist/esm/icons/tv.mjs
-var __iconNode37 = [
+var __iconNode36 = [
   ["path", { d: "m17 2-5 5-5-5", key: "16satq" }],
   ["rect", { width: "20", height: "15", x: "2", y: "7", rx: "2", key: "1e6viu" }]
 ];
-var Tv = createLucideIcon("tv", __iconNode37);
+var Tv = createLucideIcon("tv", __iconNode36);
 
 // node_modules/lucide-react/dist/esm/icons/users.mjs
-var __iconNode38 = [
+var __iconNode37 = [
   ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", key: "1yyitq" }],
   ["path", { d: "M16 3.128a4 4 0 0 1 0 7.744", key: "16gr8j" }],
   ["path", { d: "M22 21v-2a4 4 0 0 0-3-3.87", key: "kshegd" }],
   ["circle", { cx: "9", cy: "7", r: "4", key: "nufk8" }]
 ];
-var Users = createLucideIcon("users", __iconNode38);
+var Users = createLucideIcon("users", __iconNode37);
 
 // node_modules/lucide-react/dist/esm/icons/x.mjs
-var __iconNode39 = [
+var __iconNode38 = [
   ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
   ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
 ];
-var X = createLucideIcon("x", __iconNode39);
+var X = createLucideIcon("x", __iconNode38);
 
 // index.tsx
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
@@ -2920,34 +2898,28 @@ var AnalyticsDashboard = ({ isAdmin, sessionInfo }) => {
             /* @__PURE__ */ jsx("div", { className: "h-2 w-full bg-black/40 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx("div", { className: "h-full bg-gradient-to-r from-plex to-[#e5a00d] rounded-full", style: { width: `${lib.plays / maxLibraryPlays * 100}%` } }) })
           ] }, lib.id)) })
         ] }),
-        /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border mt-6", children: [
+        topDevices && topDevices.length > 0 && /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border mt-6", children: [
           /* @__PURE__ */ jsxs("h2", { className: "text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2", children: [
-            /* @__PURE__ */ jsx(Activity, { className: "text-plex w-5 h-5" }),
-            " All-Time Highs"
+            /* @__PURE__ */ jsx(MonitorSmartphone, { className: "text-plex w-5 h-5" }),
+            " Top Devices"
           ] }),
-          /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-4", children: [
-            /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between p-3 bg-black/20 rounded-lg hover:bg-black/40 transition-colors border border-white/5", children: [
-              /* @__PURE__ */ jsxs("span", { className: "font-bold text-text flex items-center gap-2", children: [
-                /* @__PURE__ */ jsx(Users, { className: "w-4 h-4 text-plex" }),
-                " Concurrent Streams"
+          /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-4", children: topDevices.slice(0, 5).map((device, idx) => /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-1.5", children: [
+            /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-end", children: [
+              /* @__PURE__ */ jsxs("span", { className: "font-bold text-sm text-text truncate pr-2 flex items-center gap-2", children: [
+                /* @__PURE__ */ jsxs("span", { className: "text-muted text-xs", children: [
+                  "#",
+                  idx + 1
+                ] }),
+                " ",
+                device.name || "Unknown Device"
               ] }),
-              /* @__PURE__ */ jsx("span", { className: "font-mono font-black text-plex text-lg", children: maxConcurrentStreams || 0 })
+              /* @__PURE__ */ jsxs("span", { className: "text-xs text-muted font-mono flex-shrink-0", children: [
+                device.plays,
+                " plays"
+              ] })
             ] }),
-            /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between p-3 bg-black/20 rounded-lg hover:bg-black/40 transition-colors border border-white/5", children: [
-              /* @__PURE__ */ jsxs("span", { className: "font-bold text-text flex items-center gap-2", children: [
-                /* @__PURE__ */ jsx(Play, { className: "w-4 h-4 text-blue-400" }),
-                " Direct Plays"
-              ] }),
-              /* @__PURE__ */ jsx("span", { className: "font-mono font-black text-blue-400 text-lg", children: maxDirectPlays || 0 })
-            ] }),
-            /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between p-3 bg-black/20 rounded-lg hover:bg-black/40 transition-colors border border-white/5", children: [
-              /* @__PURE__ */ jsxs("span", { className: "font-bold text-text flex items-center gap-2", children: [
-                /* @__PURE__ */ jsx(Cpu, { className: "w-4 h-4 text-orange-400" }),
-                " Transcodes"
-              ] }),
-              /* @__PURE__ */ jsx("span", { className: "font-mono font-black text-orange-400 text-lg", children: maxTranscodes || 0 })
-            ] })
-          ] })
+            /* @__PURE__ */ jsx("div", { className: "h-1.5 w-full bg-black/40 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx("div", { className: "h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)] transition-all duration-1000", style: { width: `${device.plays / Math.max(maxDevicePlays, 1) * 100}%` } }) })
+          ] }, idx)) })
         ] })
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border col-span-full", children: [
@@ -6459,14 +6431,6 @@ lucide-react/dist/esm/icons/copy.mjs:
    * See the LICENSE file in the root directory of this source tree.
    *)
 
-lucide-react/dist/esm/icons/cpu.mjs:
-  (**
-   * @license lucide-react v1.21.0 - ISC
-   *
-   * This source code is licensed under the ISC license.
-   * See the LICENSE file in the root directory of this source tree.
-   *)
-
 lucide-react/dist/esm/icons/file-text.mjs:
   (**
    * @license lucide-react v1.21.0 - ISC
@@ -6515,7 +6479,7 @@ lucide-react/dist/esm/icons/log-out.mjs:
    * See the LICENSE file in the root directory of this source tree.
    *)
 
-lucide-react/dist/esm/icons/music.mjs:
+lucide-react/dist/esm/icons/monitor-smartphone.mjs:
   (**
    * @license lucide-react v1.21.0 - ISC
    *
@@ -6523,7 +6487,7 @@ lucide-react/dist/esm/icons/music.mjs:
    * See the LICENSE file in the root directory of this source tree.
    *)
 
-lucide-react/dist/esm/icons/play.mjs:
+lucide-react/dist/esm/icons/music.mjs:
   (**
    * @license lucide-react v1.21.0 - ISC
    *
