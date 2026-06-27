@@ -3763,6 +3763,8 @@ const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
     const [sonarrApiKey, setSonarrApiKey] = useState('');
     const [radarrUrl, setRadarrUrl] = useState('');
     const [radarrApiKey, setRadarrApiKey] = useState('');
+    const [tautulliUrl, setTautulliUrl] = useState('');
+    const [tautulliApiKey, setTautulliApiKey] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -3803,7 +3805,7 @@ const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
         try {
             const res = await apiFetch('/api/config', {
                 method: 'POST',
-                body: JSON.stringify({ token, serverIdentifier, sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey })
+                body: JSON.stringify({ token, serverIdentifier, sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, tautulliUrl, tautulliApiKey })
             });
             if (res.error) throw new Error(res.error);
             onComplete();

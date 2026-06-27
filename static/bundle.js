@@ -1072,8 +1072,8 @@ var SettingsDashboard = () => {
   const [sonarrApiKey, setSonarrApiKey] = useState("");
   const [radarrUrl, setRadarrUrl] = useState("");
   const [radarrApiKey, setRadarrApiKey] = useState("");
-  const [tautulliUrl2, setTautulliUrl2] = useState("");
-  const [tautulliApiKey2, setTautulliApiKey2] = useState("");
+  const [tautulliUrl, setTautulliUrl] = useState("");
+  const [tautulliApiKey, setTautulliApiKey] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#E5A00D");
   const [customLogoUrl, setCustomLogoUrl] = useState("");
   const [referralEnabled, setReferralEnabled] = useState(false);
@@ -1605,11 +1605,11 @@ var SettingsDashboard = () => {
           /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8", children: "Tautulli Integration (Optional)" }),
           /* @__PURE__ */ jsxs("div", { className: "mb-4", children: [
             /* @__PURE__ */ jsx("label", { htmlFor: "tautulliUrl", children: "Tautulli URL" }),
-            /* @__PURE__ */ jsx("input", { className: "w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all", id: "tautulliUrl", type: "text", value: tautulliUrl2, onChange: (e) => setTautulliUrl2(e.target.value), placeholder: "http://localhost:8181" })
+            /* @__PURE__ */ jsx("input", { className: "w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all", id: "tautulliUrl", type: "text", value: tautulliUrl, onChange: (e) => setTautulliUrl(e.target.value), placeholder: "http://localhost:8181" })
           ] }),
           /* @__PURE__ */ jsxs("div", { className: "mb-8", children: [
             /* @__PURE__ */ jsx("label", { htmlFor: "tautulliApiKey", children: "Tautulli API Key" }),
-            /* @__PURE__ */ jsx("input", { className: "w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all", id: "tautulliApiKey", type: "password", value: tautulliApiKey2, onChange: (e) => setTautulliApiKey2(e.target.value), placeholder: "Enter Tautulli API Key" })
+            /* @__PURE__ */ jsx("input", { className: "w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all", id: "tautulliApiKey", type: "password", value: tautulliApiKey, onChange: (e) => setTautulliApiKey(e.target.value), placeholder: "Enter Tautulli API Key" })
           ] })
         ] }),
         activeTab === "navigation" && /* @__PURE__ */ jsxs("div", { className: "mb-8 animate-fade-in", children: [
@@ -3708,6 +3708,8 @@ var SetupWizard = ({ onComplete }) => {
   const [sonarrApiKey, setSonarrApiKey] = useState("");
   const [radarrUrl, setRadarrUrl] = useState("");
   const [radarrApiKey, setRadarrApiKey] = useState("");
+  const [tautulliUrl, setTautulliUrl] = useState("");
+  const [tautulliApiKey, setTautulliApiKey] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const handleFetchServers = async () => {
@@ -3744,7 +3746,7 @@ var SetupWizard = ({ onComplete }) => {
     try {
       const res = await apiFetch("/api/config", {
         method: "POST",
-        body: JSON.stringify({ token, serverIdentifier, sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey })
+        body: JSON.stringify({ token, serverIdentifier, sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, tautulliUrl, tautulliApiKey })
       });
       if (res.error) throw new Error(res.error);
       onComplete();
