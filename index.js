@@ -2984,7 +2984,14 @@ app.get('/api/tautulli/graphs', requireAdmin, async (req, res) => {
         const tUrl = config.tautulliUrl.replace(/\/+$/, '');
         const days = req.query.days || 30;
 
-        const endpoints = ['get_plays_by_date', 'get_plays_by_dayofweek', 'get_plays_by_hourofday'];
+        const endpoints = [
+            'get_plays_by_date', 
+            'get_plays_by_dayofweek', 
+            'get_plays_by_hourofday', 
+            'get_plays_by_stream_type', 
+            'get_plays_by_stream_resolution', 
+            'get_plays_by_top_10_platforms'
+        ];
         const results = await Promise.all(
             endpoints.map(cmd =>
                 fetch(`${tUrl}/api/v2?apikey=${config.tautulliApiKey}&cmd=${cmd}&time_range=${days}`, { headers: { 'Accept': 'application/json' } })

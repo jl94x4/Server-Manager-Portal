@@ -2679,6 +2679,19 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
     );
 };
 
+const GRAPH_COLORS = [
+    '#3b82f6', // blue
+    '#10b981', // green
+    '#f59e0b', // amber
+    '#ef4444', // red
+    '#8b5cf6', // purple
+    '#ec4899', // pink
+    '#06b6d4', // cyan
+    '#14b8a6', // teal
+    '#f97316', // orange
+    '#a855f7'  // violet
+];
+
 const TautulliGraphsTab: React.FC = () => {
     const [graphs, setGraphs] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -2720,7 +2733,14 @@ const TautulliGraphsTab: React.FC = () => {
         return null;
     }
 
-    const { get_plays_by_date, get_plays_by_dayofweek, get_plays_by_hourofday } = graphs;
+    const { 
+        get_plays_by_date, 
+        get_plays_by_dayofweek, 
+        get_plays_by_hourofday, 
+        get_plays_by_stream_type, 
+        get_plays_by_stream_resolution, 
+        get_plays_by_top_10_platforms 
+    } = graphs;
 
     const parseDateData = (data: any) => {
         if (!data || !data.categories || !data.series) return [];
@@ -2733,9 +2753,23 @@ const TautulliGraphsTab: React.FC = () => {
         });
     };
 
+    const getSeriesKeys = (data: any) => {
+        if (!data || !data.series) return [];
+        return data.series.map((s: any) => s.name);
+    };
+
     const dailyData = parseDateData(get_plays_by_date);
     const dayOfWeekData = parseDateData(get_plays_by_dayofweek);
     const hourOfDayData = parseDateData(get_plays_by_hourofday);
+    
+    const streamTypeData = parseDateData(get_plays_by_stream_type);
+    const streamTypeKeys = getSeriesKeys(get_plays_by_stream_type);
+
+    const resolutionData = parseDateData(get_plays_by_stream_resolution);
+    const resolutionKeys = getSeriesKeys(get_plays_by_stream_resolution);
+
+    const platformData = parseDateData(get_plays_by_top_10_platforms);
+    const platformKeys = getSeriesKeys(get_plays_by_top_10_platforms);
 
     return (
         <div className="space-y-6 mt-6">
@@ -2818,6 +2852,69 @@ const TautulliGraphsTab: React.FC = () => {
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
+                </div>
+
+                {/* Play count by stream type */}
+                <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden">
+                    <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
+                        <Activity className="w-5 h-5 text-sky-400" /> Stream Type Breakdown
+                    </h3>
+                    <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={streamTypeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                                <XAxis dataKey="date" stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
+                                <YAxis stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
+                                <RechartsTooltip cursor={{ fill: '#ffffff10' }} contentStyle={{ backgroundColor: '#1e2329', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
+                                <Legend />
+                                {streamTypeKeys.map((key: string, idx: number) => (
+                                    <Bar key={key} dataKey={key} stackId="a" fill={GRAPH_COLORS[idx % GRAPH_COLORS.length]} />
+                                ))}
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Play count by stream resolution */}
+                <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden">
+                    <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
+                        <MonitorSmartphone className="w-5 h-5 text-purple-400" /> Stream Resolution
+                    </h3>
+                    <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={resolutionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                                <XAxis dataKey="date" stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
+                                <YAxis stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
+                                <RechartsTooltip cursor={{ fill: '#ffffff10' }} contentStyle={{ backgroundColor: '#1e2329', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
+                                <Legend />
+                                {resolutionKeys.map((key: string, idx: number) => (
+                                    <Bar key={key} dataKey={key} stackId="a" fill={GRAPH_COLORS[idx % GRAPH_COLORS.length]} />
+                                ))}
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            </div>
+
+            {/* Play count by platform */}
+            <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden">
+                <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
+                    <Users className="w-5 h-5 text-teal-400" /> Top 10 Streaming Platforms
+                </h3>
+                <div className="h-72 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={platformData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                            <XAxis dataKey="date" stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
+                            <YAxis stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
+                            <RechartsTooltip cursor={{ fill: '#ffffff10' }} contentStyle={{ backgroundColor: '#1e2329', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
+                            <Legend />
+                            {platformKeys.map((key: string, idx: number) => (
+                                <Bar key={key} dataKey={key} stackId="a" fill={GRAPH_COLORS[idx % GRAPH_COLORS.length]} />
+                            ))}
+                        </BarChart>
+                    </ResponsiveContainer>
                 </div>
             </div>
         </div>
