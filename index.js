@@ -2992,7 +2992,9 @@ app.get('/api/tautulli/graphs', requireAdmin, async (req, res) => {
             'get_plays_by_stream_type', 
             'get_plays_by_stream_resolution', 
             'get_plays_by_top_10_platforms',
-            'get_concurrent_streams_by_stream_type'
+            'get_concurrent_streams_by_stream_type',
+            'get_plays_by_source_resolution',
+            'get_plays_by_top_10_users'
         ];
         const results = await Promise.all(
             endpoints.map(cmd => {

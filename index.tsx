@@ -2741,7 +2741,9 @@ const TautulliGraphsTab: React.FC = () => {
         get_plays_by_stream_type, 
         get_plays_by_stream_resolution, 
         get_plays_by_top_10_platforms,
-        get_concurrent_streams_by_stream_type
+        get_concurrent_streams_by_stream_type,
+        get_plays_by_source_resolution,
+        get_plays_by_top_10_users
     } = graphs;
 
     const parseDateData = (data: any) => {
@@ -2797,6 +2799,12 @@ const TautulliGraphsTab: React.FC = () => {
 
     const platformData = parseDateData(get_plays_by_top_10_platforms);
     const platformKeys = getSeriesKeys(get_plays_by_top_10_platforms);
+
+    const sourceResolutionData = parseDateData(get_plays_by_source_resolution);
+    const sourceResolutionKeys = getSeriesKeys(get_plays_by_source_resolution);
+
+    const topUsersData = parseDateData(get_plays_by_top_10_users);
+    const topUsersKeys = getSeriesKeys(get_plays_by_top_10_users);
 
     return (
         <div className="space-y-6 mt-6">
@@ -2971,6 +2979,52 @@ const TautulliGraphsTab: React.FC = () => {
                                     <RechartsTooltip cursor={{ fill: '#ffffff10' }} contentStyle={{ backgroundColor: '#1e2329', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
                                     <Legend />
                                     {platformKeys.map((key: string, idx: number) => (
+                                        <Bar key={key} dataKey={key} stackId="a" fill={GRAPH_COLORS[idx % GRAPH_COLORS.length]} />
+                                    ))}
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Play count by source resolution */}
+                <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden">
+                    <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
+                        <Layers className="w-5 h-5 text-indigo-400" /> {yAxis === 'plays' ? 'Source File Resolution Breakdown' : 'Source File Resolution Duration Breakdown (Hours)'}
+                    </h3>
+                    <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={sourceResolutionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                                <XAxis dataKey="date" stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
+                                <YAxis stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
+                                <RechartsTooltip cursor={{ fill: '#ffffff10' }} contentStyle={{ backgroundColor: '#1e2329', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
+                                <Legend />
+                                {sourceResolutionKeys.map((key: string, idx: number) => (
+                                    <Bar key={key} dataKey={key} stackId="a" fill={GRAPH_COLORS[idx % GRAPH_COLORS.length]} />
+                                ))}
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Play count by top 10 users */}
+                <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden flex flex-col justify-between">
+                    <div>
+                        <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
+                            <Trophy className="w-5 h-5 text-amber-400" /> {yAxis === 'plays' ? 'Top 10 Active Users Breakdown' : 'Top 10 Users by Watch Duration (Hours)'}
+                        </h3>
+                        <div className="h-64 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={topUsersData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                                    <XAxis dataKey="date" stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
+                                    <YAxis stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
+                                    <RechartsTooltip cursor={{ fill: '#ffffff10' }} contentStyle={{ backgroundColor: '#1e2329', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
+                                    <Legend />
+                                    {topUsersKeys.map((key: string, idx: number) => (
                                         <Bar key={key} dataKey={key} stackId="a" fill={GRAPH_COLORS[idx % GRAPH_COLORS.length]} />
                                     ))}
                                 </BarChart>

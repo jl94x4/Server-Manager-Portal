@@ -51106,7 +51106,9 @@ var TautulliGraphsTab = () => {
     get_plays_by_stream_type,
     get_plays_by_stream_resolution,
     get_plays_by_top_10_platforms,
-    get_concurrent_streams_by_stream_type
+    get_concurrent_streams_by_stream_type,
+    get_plays_by_source_resolution,
+    get_plays_by_top_10_users
   } = graphs;
   const parseDateData = (data) => {
     if (!data || !data.categories || !data.series) return [];
@@ -51152,6 +51154,10 @@ var TautulliGraphsTab = () => {
   const resolutionKeys = getSeriesKeys(get_plays_by_stream_resolution);
   const platformData = parseDateData(get_plays_by_top_10_platforms);
   const platformKeys = getSeriesKeys(get_plays_by_top_10_platforms);
+  const sourceResolutionData = parseDateData(get_plays_by_source_resolution);
+  const sourceResolutionKeys = getSeriesKeys(get_plays_by_source_resolution);
+  const topUsersData = parseDateData(get_plays_by_top_10_users);
+  const topUsersKeys = getSeriesKeys(get_plays_by_top_10_users);
   return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "space-y-6 mt-6", children: [
     /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-col sm:flex-row justify-between items-end sm:items-center gap-4", children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex bg-black/40 rounded-lg p-1 border border-white/5 w-fit", children: [
@@ -51285,6 +51291,38 @@ var TautulliGraphsTab = () => {
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tooltip, { cursor: { fill: "#ffffff10" }, contentStyle: { backgroundColor: "#1e2329", borderColor: "#333", borderRadius: "8px" }, itemStyle: { color: "#fff" } }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Legend, {}),
           platformKeys.map((key, idx) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, { dataKey: key, stackId: "a", fill: GRAPH_COLORS[idx % GRAPH_COLORS.length] }, key))
+        ] }) }) })
+      ] }) })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-6", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", { className: "text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Layers, { className: "w-5 h-5 text-indigo-400" }),
+          " ",
+          yAxis === "plays" ? "Source File Resolution Breakdown" : "Source File Resolution Duration Breakdown (Hours)"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "h-64 w-full", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ResponsiveContainer, { width: "100%", height: "100%", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(BarChart, { data: sourceResolutionData, margin: { top: 10, right: 10, left: -20, bottom: 0 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CartesianGrid, { strokeDasharray: "3 3", stroke: "#333", vertical: false }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, { dataKey: "date", stroke: "#666", tick: { fill: "#888", fontSize: 12 } }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, { stroke: "#666", tick: { fill: "#888", fontSize: 12 } }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tooltip, { cursor: { fill: "#ffffff10" }, contentStyle: { backgroundColor: "#1e2329", borderColor: "#333", borderRadius: "8px" }, itemStyle: { color: "#fff" } }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Legend, {}),
+          sourceResolutionKeys.map((key, idx) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, { dataKey: key, stackId: "a", fill: GRAPH_COLORS[idx % GRAPH_COLORS.length] }, key))
+        ] }) }) })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden flex flex-col justify-between", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", { className: "text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Trophy, { className: "w-5 h-5 text-amber-400" }),
+          " ",
+          yAxis === "plays" ? "Top 10 Active Users Breakdown" : "Top 10 Users by Watch Duration (Hours)"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "h-64 w-full", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ResponsiveContainer, { width: "100%", height: "100%", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(BarChart, { data: topUsersData, margin: { top: 10, right: 10, left: -20, bottom: 0 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CartesianGrid, { strokeDasharray: "3 3", stroke: "#333", vertical: false }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, { dataKey: "date", stroke: "#666", tick: { fill: "#888", fontSize: 12 } }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, { stroke: "#666", tick: { fill: "#888", fontSize: 12 } }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tooltip, { cursor: { fill: "#ffffff10" }, contentStyle: { backgroundColor: "#1e2329", borderColor: "#333", borderRadius: "8px" }, itemStyle: { color: "#fff" } }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Legend, {}),
+          topUsersKeys.map((key, idx) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, { dataKey: key, stackId: "a", fill: GRAPH_COLORS[idx % GRAPH_COLORS.length] }, key))
         ] }) }) })
       ] }) })
     ] })
