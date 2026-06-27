@@ -1149,20 +1149,24 @@ const SettingsDashboard: React.FC = () => {
                                     <label className="block mb-2 font-medium">Default Trial/Automated Libraries</label>
                                     <small className="block mb-2 text-muted">Libraries to share automatically when users request a trial or link their account. Leave empty to share ALL libraries.</small>
                                     <div className="flex flex-wrap gap-3 p-4 bg-black/10 rounded-lg border border-border">
-                                        {libraries.map(lib => (
-                                            <label key={lib.id} className="flex items-center gap-2 cursor-pointer hover:text-plex transition-colors">
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={defaultLibraryIds.includes(lib.id)} 
-                                                    onChange={(e) => {
-                                                        if (e.target.checked) setDefaultLibraryIds([...defaultLibraryIds, lib.id]);
-                                                        else setDefaultLibraryIds(defaultLibraryIds.filter(id => id !== lib.id));
-                                                    }}
-                                                    className="accent-plex"
-                                                />
-                                                <span className="text-sm font-medium">{lib.title}</span>
-                                            </label>
-                                        ))}
+                                        {libraries.map(lib => {
+                                            const isSelected = defaultLibraryIds.includes(lib.id);
+                                            return (
+                                                <label key={lib.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-all border shadow-sm select-none ${isSelected ? 'bg-plex/10 border-plex text-plex font-bold' : 'bg-background border-border/50 text-muted hover:border-white/20 hover:text-text font-medium'}`}>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={isSelected} 
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) setDefaultLibraryIds([...defaultLibraryIds, lib.id]);
+                                                            else setDefaultLibraryIds(defaultLibraryIds.filter(id => id !== lib.id));
+                                                        }}
+                                                        className="hidden"
+                                                    />
+                                                    {isSelected && <Check className="w-3.5 h-3.5" />}
+                                                    <span className="text-sm">{lib.title}</span>
+                                                </label>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )}

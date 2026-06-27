@@ -1375,21 +1375,25 @@ var SettingsDashboard = () => {
           libraries.length > 0 && /* @__PURE__ */ jsxs("div", { className: "mb-4 mt-4", children: [
             /* @__PURE__ */ jsx("label", { className: "block mb-2 font-medium", children: "Default Trial/Automated Libraries" }),
             /* @__PURE__ */ jsx("small", { className: "block mb-2 text-muted", children: "Libraries to share automatically when users request a trial or link their account. Leave empty to share ALL libraries." }),
-            /* @__PURE__ */ jsx("div", { className: "flex flex-wrap gap-3 p-4 bg-black/10 rounded-lg border border-border", children: libraries.map((lib) => /* @__PURE__ */ jsxs("label", { className: "flex items-center gap-2 cursor-pointer hover:text-plex transition-colors", children: [
-              /* @__PURE__ */ jsx(
-                "input",
-                {
-                  type: "checkbox",
-                  checked: defaultLibraryIds.includes(lib.id),
-                  onChange: (e) => {
-                    if (e.target.checked) setDefaultLibraryIds([...defaultLibraryIds, lib.id]);
-                    else setDefaultLibraryIds(defaultLibraryIds.filter((id) => id !== lib.id));
-                  },
-                  className: "accent-plex"
-                }
-              ),
-              /* @__PURE__ */ jsx("span", { className: "text-sm font-medium", children: lib.title })
-            ] }, lib.id)) })
+            /* @__PURE__ */ jsx("div", { className: "flex flex-wrap gap-3 p-4 bg-black/10 rounded-lg border border-border", children: libraries.map((lib) => {
+              const isSelected = defaultLibraryIds.includes(lib.id);
+              return /* @__PURE__ */ jsxs("label", { className: `flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-all border shadow-sm select-none ${isSelected ? "bg-plex/10 border-plex text-plex font-bold" : "bg-background border-border/50 text-muted hover:border-white/20 hover:text-text font-medium"}`, children: [
+                /* @__PURE__ */ jsx(
+                  "input",
+                  {
+                    type: "checkbox",
+                    checked: isSelected,
+                    onChange: (e) => {
+                      if (e.target.checked) setDefaultLibraryIds([...defaultLibraryIds, lib.id]);
+                      else setDefaultLibraryIds(defaultLibraryIds.filter((id) => id !== lib.id));
+                    },
+                    className: "hidden"
+                  }
+                ),
+                isSelected && /* @__PURE__ */ jsx(Check, { className: "w-3.5 h-3.5" }),
+                /* @__PURE__ */ jsx("span", { className: "text-sm", children: lib.title })
+              ] }, lib.id);
+            }) })
           ] }),
           /* @__PURE__ */ jsx("div", { className: "mb-4", style: { marginTop: "1rem" }, children: /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between p-4 border border-border rounded-lg bg-background", children: [
             /* @__PURE__ */ jsxs("div", { children: [
