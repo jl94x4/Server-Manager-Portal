@@ -2975,6 +2975,37 @@ app.get('/api/tautulli/stats', requireAdmin, async (req, res) => {
     }
 });
 
+app.get('/api/tautulli/graphs', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, null);
+        if (!config || !config.tautulliUrl || !config.tautulliApiKey) {
+            return res.status(404).json({ error: 'Tautulli is not configured.' });
+        }
+        const tUrl = config.tautulliUrl.replace(/\/+$/, '');
+        const days = req.query.days || 30;
+
+        const endpoints = ['get_plays_by_date', 'get_plays_by_dayofweek', 'get_plays_by_hourofday'];
+        const results = await Promise.all(
+            endpoints.map(cmd =>
+                fetch(`${tUrl}/api/v2?apikey=${config.tautulliApiKey}&cmd=${cmd}&time_range=${days}`, { headers: { 'Accept': 'application/json' } })
+                    .then(r => r.json())
+                    .then(j => ({ cmd, data: j?.response?.data || {} }))
+                    .catch(e => ({ cmd, data: {} }))
+            )
+        );
+
+        const payload = {};
+        results.forEach(r => {
+            payload[r.cmd] = r.data;
+        });
+
+        return res.json(payload);
+    } catch (e) {
+        log(`Tautulli Graphs Error: ${e.message}`);
+        res.status(500).json({ error: 'Failed to fetch graphs from Tautulli' });
+    }
+});
+
 app.get('/api/plex/analytics', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, null);

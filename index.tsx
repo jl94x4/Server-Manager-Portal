@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor } from 'lucide-react';
+import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart } from 'lucide-react';
+import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend } from 'recharts';
 
 declare global {
     interface Window {
@@ -2678,6 +2679,151 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
     );
 };
 
+const TautulliGraphsTab: React.FC = () => {
+    const [graphs, setGraphs] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [days, setDays] = useState('30');
+
+    useEffect(() => {
+        setIsLoading(true);
+        setError('');
+        apiFetch(`/api/tautulli/graphs?days=${days}`)
+            .then(data => {
+                setGraphs(data);
+                setIsLoading(false);
+            })
+            .catch(err => {
+                setError(err.message || 'Failed to load graphs');
+                setIsLoading(false);
+            });
+    }, [days]);
+
+    if (isLoading) {
+        return (
+            <div className="flex justify-center items-center h-64 bg-card/50 backdrop-blur-md rounded-xl border border-border mt-6">
+                <RefreshCw className="w-8 h-8 text-plex animate-spin" />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="bg-red-500/10 border border-red-500 text-red-500 p-4 rounded-xl mt-6 flex items-center gap-3">
+                <AlertCircle className="w-6 h-6" />
+                <span>{error}</span>
+            </div>
+        );
+    }
+
+    if (!graphs || Object.keys(graphs).length === 0) {
+        return null;
+    }
+
+    const { get_plays_by_date, get_plays_by_dayofweek, get_plays_by_hourofday } = graphs;
+
+    const parseDateData = (data: any) => {
+        if (!data || !data.categories || !data.series) return [];
+        return data.categories.map((date: string, i: number) => {
+            const obj: any = { date };
+            data.series.forEach((s: any) => {
+                obj[s.name] = s.data[i] || 0;
+            });
+            return obj;
+        });
+    };
+
+    const dailyData = parseDateData(get_plays_by_date);
+    const dayOfWeekData = parseDateData(get_plays_by_dayofweek);
+    const hourOfDayData = parseDateData(get_plays_by_hourofday);
+
+    return (
+        <div className="space-y-6 mt-6">
+            <div className="flex justify-end">
+                <div className="w-48">
+                    <CustomSelect
+                        value={days}
+                        onChange={setDays}
+                        options={[
+                            { label: 'Last 7 Days', value: '7' },
+                            { label: 'Last 30 Days', value: '30' },
+                            { label: 'Last 90 Days', value: '90' },
+                            { label: 'Last 365 Days', value: '365' },
+                            { label: 'All Time', value: '0' }
+                        ]}
+                    />
+                </div>
+            </div>
+
+            {/* Daily Play Count by Media Type */}
+            <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden">
+                <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
+                    <LucideLineChart className="w-5 h-5 text-[#3b82f6]" /> Daily Play Count by Media Type
+                </h3>
+                <div className="h-72 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={dailyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                            <XAxis dataKey="date" stroke="#666" tick={{ fill: '#888', fontSize: 12 }} tickMargin={10} minTickGap={20} />
+                            <YAxis stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
+                            <RechartsTooltip contentStyle={{ backgroundColor: '#1e2329', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
+                            <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                            <Line type="monotone" dataKey="TV" stroke="#eab308" strokeWidth={2} dot={false} />
+                            <Line type="monotone" dataKey="Movies" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                            <Line type="monotone" dataKey="Music" stroke="#ef4444" strokeWidth={2} dot={false} />
+                            <Line type="monotone" dataKey="Total" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Play count by day of week */}
+                <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden">
+                    <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
+                        <Calendar className="w-5 h-5 text-green-400" /> Play Count by Day of Week
+                    </h3>
+                    <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={dayOfWeekData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                                <XAxis dataKey="date" stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
+                                <YAxis stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
+                                <RechartsTooltip cursor={{ fill: '#ffffff10' }} contentStyle={{ backgroundColor: '#1e2329', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
+                                <Legend />
+                                <Bar dataKey="TV" stackId="a" fill="#eab308" />
+                                <Bar dataKey="Movies" stackId="a" fill="#3b82f6" />
+                                <Bar dataKey="Music" stackId="a" fill="#ef4444" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Play count by hour of day */}
+                <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden">
+                    <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
+                        <Clock className="w-5 h-5 text-orange-400" /> Play Count by Hour of Day
+                    </h3>
+                    <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={hourOfDayData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                                <XAxis dataKey="date" stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
+                                <YAxis stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
+                                <RechartsTooltip cursor={{ fill: '#ffffff10' }} contentStyle={{ backgroundColor: '#1e2329', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
+                                <Legend />
+                                <Bar dataKey="TV" stackId="a" fill="#eab308" />
+                                <Bar dataKey="Movies" stackId="a" fill="#3b82f6" />
+                                <Bar dataKey="Music" stackId="a" fill="#ef4444" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ isAdmin, sessionInfo }) => {
     if (!isAdmin) {
         return <PersonalAnalyticsDashboard username={sessionInfo?.session?.username || 'User'} thumb={null} />;
@@ -2692,6 +2838,7 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     const [contentTab, setContentTab] = useState<'movies' | 'shows' | 'music'>('movies');
+    const [viewTab, setViewTab] = useState<'overview' | 'graphs'>('overview');
 
     useEffect(() => {
         const fetchUsers = async () => {
@@ -2749,26 +2896,39 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
                         <BarChart3 className="w-8 h-8 text-plex" />
                         Advanced Analytics
                     </h1>
-                    <p className="text-muted text-sm mt-1">Deep dive into playback history</p>
+                        <div className="flex bg-black/40 rounded-lg p-1 border border-white/5 w-fit">
+                            <button onClick={() => setViewTab('overview')} className={`px-4 py-2 rounded-md text-sm font-bold uppercase tracking-wider transition-colors flex items-center gap-2 ${viewTab === 'overview' ? 'bg-plex text-white shadow-lg' : 'text-muted hover:text-white'}`}>
+                                <Activity className="w-4 h-4" /> Overview
+                            </button>
+                            <button onClick={() => setViewTab('graphs')} className={`px-4 py-2 rounded-md text-sm font-bold uppercase tracking-wider transition-colors flex items-center gap-2 ${viewTab === 'graphs' ? 'bg-plex text-white shadow-lg' : 'text-muted hover:text-white'}`}>
+                                <LucideLineChart className="w-4 h-4" /> Graphs
+                            </button>
+                        </div>
+                    </div>
+                    {viewTab === 'overview' && (
+                        <div className="w-48">
+                            <CustomSelect
+                                value={days}
+                                onChange={(val) => setDays(val as string)}
+                                options={[
+                                    { label: 'Last 1 Day', value: '1' },
+                                    { label: 'Last 7 Days', value: '7' },
+                                    { label: 'Last 30 Days', value: '30' },
+                                    { label: 'Last 60 Days', value: '60' },
+                                    { label: 'Last 1 Year', value: '365' },
+                                    { label: 'Last 5 Years', value: '1825' },
+                                    { label: 'All Time', value: 'all' }
+                                ]}
+                            />
+                        </div>
+                    )}
                 </div>
-                <div className="w-48">
-                    <CustomSelect
-                        value={days}
-                        onChange={(val) => setDays(val as string)}
-                        options={[
-                            { label: 'Last 1 Day', value: '1' },
-                            { label: 'Last 7 Days', value: '7' },
-                            { label: 'Last 30 Days', value: '30' },
-                            { label: 'Last 60 Days', value: '60' },
-                            { label: 'Last 1 Year', value: '365' },
-                            { label: 'Last 5 Years', value: '1825' },
-                            { label: 'All Time', value: 'all' }
-                        ]}
-                    />
-                </div>
-            </div>
 
-            {/* High Level Stats Overview */}
+                {viewTab === 'graphs' && <TautulliGraphsTab />}
+                
+                {viewTab === 'overview' && (
+                    <>
+                        {/* High Level Stats Overview */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border flex items-center gap-4">
                     <div className="bg-plex/10 p-4 rounded-full">
@@ -3021,8 +3181,9 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
                             </a>
                         ))}
                     </div>
-                </div>
-
+                        </div>
+                    </>
+                )}
             </div>
             {selectedUser && (
                 <UserAnalyticsModal

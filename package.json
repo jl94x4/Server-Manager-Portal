@@ -19,7 +19,8 @@
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.21.0",
     "node-fetch": "^3.3.2",
-    "nodemailer": "^9.0.1"
+    "nodemailer": "^9.0.1",
+    "recharts": "^3.9.0"
   },
   "devDependencies": {
     "@types/node": "^26.0.0",
