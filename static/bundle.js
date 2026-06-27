@@ -3893,7 +3893,7 @@ var RebuildLibraryCacheButton = () => {
     ] })
   ] });
 };
-var WrapUpModal = ({ metric, analytics, onClose }) => {
+var WrapUpModal = ({ metric, analytics, days, onClose }) => {
   useEffect(() => {
     const handleEsc = (e) => {
       if (e.key === "Escape") onClose();
@@ -3994,29 +3994,92 @@ var WrapUpModal = ({ metric, analytics, onClose }) => {
           ] })
         ] });
       }
-      case "Total Streams":
+      case "Total Streams": {
+        const total = analytics.totalPlays || 0;
+        const movies = analytics.moviesCount || 0;
+        const episodes = analytics.showsCount || 0;
+        const tracks = analytics.musicCount || 0;
+        const moviePct = total > 0 ? Math.round(movies / total * 100) : 0;
+        const episodePct = total > 0 ? Math.round(episodes / total * 100) : 0;
+        const trackPct = total > 0 ? Math.round(tracks / total * 100) : 0;
+        const filterDays = days === "all" || !days ? 365 : parseInt(String(days)) || 30;
+        const dailyAvg = filterDays > 0 ? (total / filterDays).toFixed(1) : "\u2014";
+        const recentItems = (analytics.recentHistory || []).slice(0, 5);
         return /* @__PURE__ */ jsxs("div", { className: "flex flex-col items-center justify-center text-center p-6", children: [
-          /* @__PURE__ */ jsx(CirclePlay, { className: "w-16 h-16 text-plex mb-4 drop-shadow-lg" }),
-          /* @__PURE__ */ jsx("h2", { className: "text-4xl font-black text-white mb-2", children: analytics.totalPlays || 0 }),
-          /* @__PURE__ */ jsx("p", { className: "text-muted uppercase tracking-widest text-xs font-bold mb-6", children: "Total Streams" }),
-          /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-3 gap-4 w-full", children: [
-            /* @__PURE__ */ jsxs("div", { className: "bg-gradient-to-b from-white/10 to-white/5 border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center shadow-lg", children: [
-              /* @__PURE__ */ jsx("span", { className: "text-2xl mb-1 drop-shadow", children: "\u{1F3AC}" }),
-              /* @__PURE__ */ jsx("span", { className: "text-white font-bold text-lg", children: analytics.moviesCount || 0 }),
-              /* @__PURE__ */ jsx("span", { className: "text-[9px] text-muted uppercase tracking-widest font-bold", children: "Movies" })
+          /* @__PURE__ */ jsx(CirclePlay, { className: "w-14 h-14 text-plex mb-3 drop-shadow-lg" }),
+          /* @__PURE__ */ jsx("h2", { className: "text-5xl font-black text-white mb-1", children: total }),
+          /* @__PURE__ */ jsx("p", { className: "text-muted uppercase tracking-widest text-xs font-bold mb-5", children: "Total Streams" }),
+          /* @__PURE__ */ jsxs("div", { className: "w-full flex flex-col gap-3 mb-5", children: [
+            /* @__PURE__ */ jsxs("div", { children: [
+              /* @__PURE__ */ jsxs("div", { className: "flex justify-between text-xs font-bold mb-1", children: [
+                /* @__PURE__ */ jsx("span", { className: "text-blue-400", children: "\u{1F3AC} Movies" }),
+                /* @__PURE__ */ jsxs("span", { className: "text-gray-300", children: [
+                  movies,
+                  " ",
+                  /* @__PURE__ */ jsxs("span", { className: "text-gray-500", children: [
+                    "(",
+                    moviePct,
+                    "%)"
+                  ] })
+                ] })
+              ] }),
+              /* @__PURE__ */ jsx("div", { className: "w-full h-2 bg-black/50 rounded-full overflow-hidden border border-white/5", children: /* @__PURE__ */ jsx("div", { className: "h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full transition-all duration-1000", style: { width: `${moviePct}%` } }) })
             ] }),
-            /* @__PURE__ */ jsxs("div", { className: "bg-gradient-to-b from-white/10 to-white/5 border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center shadow-lg", children: [
-              /* @__PURE__ */ jsx("span", { className: "text-2xl mb-1 drop-shadow", children: "\u{1F4FA}" }),
-              /* @__PURE__ */ jsx("span", { className: "text-white font-bold text-lg", children: analytics.showsCount || 0 }),
-              /* @__PURE__ */ jsx("span", { className: "text-[9px] text-muted uppercase tracking-widest font-bold", children: "Episodes" })
+            /* @__PURE__ */ jsxs("div", { children: [
+              /* @__PURE__ */ jsxs("div", { className: "flex justify-between text-xs font-bold mb-1", children: [
+                /* @__PURE__ */ jsx("span", { className: "text-green-400", children: "\u{1F4FA} Episodes" }),
+                /* @__PURE__ */ jsxs("span", { className: "text-gray-300", children: [
+                  episodes,
+                  " ",
+                  /* @__PURE__ */ jsxs("span", { className: "text-gray-500", children: [
+                    "(",
+                    episodePct,
+                    "%)"
+                  ] })
+                ] })
+              ] }),
+              /* @__PURE__ */ jsx("div", { className: "w-full h-2 bg-black/50 rounded-full overflow-hidden border border-white/5", children: /* @__PURE__ */ jsx("div", { className: "h-full bg-gradient-to-r from-green-600 to-green-400 rounded-full transition-all duration-1000", style: { width: `${episodePct}%` } }) })
             ] }),
-            /* @__PURE__ */ jsxs("div", { className: "bg-gradient-to-b from-white/10 to-white/5 border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center shadow-lg", children: [
-              /* @__PURE__ */ jsx("span", { className: "text-2xl mb-1 drop-shadow", children: "\u{1F3B5}" }),
-              /* @__PURE__ */ jsx("span", { className: "text-white font-bold text-lg", children: analytics.musicCount || 0 }),
-              /* @__PURE__ */ jsx("span", { className: "text-[9px] text-muted uppercase tracking-widest font-bold", children: "Tracks" })
+            tracks > 0 && /* @__PURE__ */ jsxs("div", { children: [
+              /* @__PURE__ */ jsxs("div", { className: "flex justify-between text-xs font-bold mb-1", children: [
+                /* @__PURE__ */ jsx("span", { className: "text-purple-400", children: "\u{1F3B5} Tracks" }),
+                /* @__PURE__ */ jsxs("span", { className: "text-gray-300", children: [
+                  tracks,
+                  " ",
+                  /* @__PURE__ */ jsxs("span", { className: "text-gray-500", children: [
+                    "(",
+                    trackPct,
+                    "%)"
+                  ] })
+                ] })
+              ] }),
+              /* @__PURE__ */ jsx("div", { className: "w-full h-2 bg-black/50 rounded-full overflow-hidden border border-white/5", children: /* @__PURE__ */ jsx("div", { className: "h-full bg-gradient-to-r from-purple-600 to-purple-400 rounded-full transition-all duration-1000", style: { width: `${trackPct}%` } }) })
             ] })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-2 gap-3 w-full mb-5", children: [
+            /* @__PURE__ */ jsxs("div", { className: "bg-gradient-to-b from-white/10 to-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center shadow-lg", children: [
+              /* @__PURE__ */ jsx("span", { className: "text-2xl font-black text-white mb-1", children: dailyAvg }),
+              /* @__PURE__ */ jsx("span", { className: "text-[9px] text-muted uppercase tracking-widest font-black", children: "Per Day" })
+            ] }),
+            /* @__PURE__ */ jsxs("div", { className: "bg-gradient-to-b from-plex/20 to-plex/5 border border-plex/30 rounded-xl p-4 flex flex-col items-center shadow-lg relative overflow-hidden", children: [
+              /* @__PURE__ */ jsx("div", { className: "absolute top-0 right-0 w-12 h-12 bg-plex/20 blur-xl -mr-4 -mt-4 rounded-full" }),
+              /* @__PURE__ */ jsx("span", { className: "text-2xl font-black text-plex mb-1", children: analytics.uniqueTitles || 0 }),
+              /* @__PURE__ */ jsx("span", { className: "text-[9px] text-plex/80 uppercase tracking-widest font-black", children: "Unique Titles" })
+            ] })
+          ] }),
+          recentItems.length > 0 && /* @__PURE__ */ jsxs("div", { className: "w-full", children: [
+            /* @__PURE__ */ jsx("p", { className: "text-left text-xs uppercase tracking-widest font-bold text-muted mb-3 border-b border-white/10 pb-2", children: "Recently Watched" }),
+            /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-1.5", children: recentItems.map((item, i) => /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-3 bg-white/5 border border-white/5 rounded-lg px-3 py-2 hover:bg-white/10 transition-colors", children: [
+              item.thumbUrl ? /* @__PURE__ */ jsx("img", { src: item.thumbUrl, className: "w-8 h-8 rounded object-cover flex-shrink-0" }) : /* @__PURE__ */ jsx("div", { className: "w-8 h-8 rounded bg-white/10 flex-shrink-0" }),
+              /* @__PURE__ */ jsxs("div", { className: "flex flex-col text-left overflow-hidden", children: [
+                /* @__PURE__ */ jsx("span", { className: "font-bold text-sm text-gray-200 truncate", children: item.title }),
+                item.episodeTitle && /* @__PURE__ */ jsx("span", { className: "text-[10px] text-gray-400 truncate", children: item.episodeTitle })
+              ] }),
+              /* @__PURE__ */ jsx("span", { className: "ml-auto text-[10px] text-gray-500 whitespace-nowrap flex-shrink-0", children: new Date(item.viewedAt * 1e3).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) })
+            ] }, i)) })
           ] })
         ] });
+      }
       case "Top Binge":
         return /* @__PURE__ */ jsxs("div", { className: "flex flex-col items-center justify-center text-center p-6 relative", children: [
           analytics.topBinge?.artUrl || analytics.topBinge?.thumbUrl ? /* @__PURE__ */ jsxs("div", { className: "w-full h-40 bg-cover bg-center rounded-xl shadow-lg mb-6 border border-white/10 relative overflow-hidden", style: { backgroundImage: `url('${analytics.topBinge.artUrl || "https://images.unsplash.com/photo-1594909122845-11baa439b7bf?auto=format&fit=crop&q=80&w=600"}')` }, children: [
@@ -4476,7 +4539,7 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
         ] })
       ] }) })
     ] }),
-    selectedMetric && analytics && /* @__PURE__ */ jsx(WrapUpModal, { metric: selectedMetric, analytics, onClose: () => setSelectedMetric(null) }),
+    selectedMetric && analytics && /* @__PURE__ */ jsx(WrapUpModal, { metric: selectedMetric, analytics, days: analyticsDays, onClose: () => setSelectedMetric(null) }),
     (sessionInfo.session.isAdmin || user) && !analyticsLoading && analytics && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-xl mb-2", children: [
       /* @__PURE__ */ jsxs("div", { className: "flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6", children: [
         /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-text", children: "Your Personal Wrap-Up" }),

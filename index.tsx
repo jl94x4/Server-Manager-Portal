@@ -4002,7 +4002,7 @@ const RebuildLibraryCacheButton: React.FC = () => {
     );
 };
 
-const WrapUpModal: React.FC<{ metric: string; analytics: any; onClose: () => void }> = ({ metric, analytics, onClose }) => {
+const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | string; onClose: () => void }> = ({ metric, analytics, days, onClose }) => {
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
             if (e.key === 'Escape') onClose();
@@ -4095,31 +4095,96 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; onClose: () => voi
                     </div>
                 );
             }
-            case 'Total Streams':
+            case 'Total Streams': {
+                const total = analytics.totalPlays || 0;
+                const movies = analytics.moviesCount || 0;
+                const episodes = analytics.showsCount || 0;
+                const tracks = analytics.musicCount || 0;
+                const moviePct = total > 0 ? Math.round((movies / total) * 100) : 0;
+                const episodePct = total > 0 ? Math.round((episodes / total) * 100) : 0;
+                const trackPct = total > 0 ? Math.round((tracks / total) * 100) : 0;
+                // Approximate daily average based on current filter
+                const filterDays = (days === 'all' || !days) ? 365 : (parseInt(String(days)) || 30);
+                const dailyAvg = filterDays > 0 ? (total / filterDays).toFixed(1) : '—';
+                const recentItems = (analytics.recentHistory || []).slice(0, 5);
+
                 return (
                     <div className="flex flex-col items-center justify-center text-center p-6">
-                        <PlayCircle className="w-16 h-16 text-plex mb-4 drop-shadow-lg" />
-                        <h2 className="text-4xl font-black text-white mb-2">{analytics.totalPlays || 0}</h2>
-                        <p className="text-muted uppercase tracking-widest text-xs font-bold mb-6">Total Streams</p>
-                        <div className="grid grid-cols-3 gap-4 w-full">
-                            <div className="bg-gradient-to-b from-white/10 to-white/5 border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center shadow-lg">
-                                <span className="text-2xl mb-1 drop-shadow">🎬</span>
-                                <span className="text-white font-bold text-lg">{analytics.moviesCount || 0}</span>
-                                <span className="text-[9px] text-muted uppercase tracking-widest font-bold">Movies</span>
+                        <PlayCircle className="w-14 h-14 text-plex mb-3 drop-shadow-lg" />
+                        <h2 className="text-5xl font-black text-white mb-1">{total}</h2>
+                        <p className="text-muted uppercase tracking-widest text-xs font-bold mb-5">Total Streams</p>
+
+                        {/* Type breakdown bars */}
+                        <div className="w-full flex flex-col gap-3 mb-5">
+                            <div>
+                                <div className="flex justify-between text-xs font-bold mb-1">
+                                    <span className="text-blue-400">🎬 Movies</span>
+                                    <span className="text-gray-300">{movies} <span className="text-gray-500">({moviePct}%)</span></span>
+                                </div>
+                                <div className="w-full h-2 bg-black/50 rounded-full overflow-hidden border border-white/5">
+                                    <div className="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full transition-all duration-1000" style={{ width: `${moviePct}%` }} />
+                                </div>
                             </div>
-                            <div className="bg-gradient-to-b from-white/10 to-white/5 border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center shadow-lg">
-                                <span className="text-2xl mb-1 drop-shadow">📺</span>
-                                <span className="text-white font-bold text-lg">{analytics.showsCount || 0}</span>
-                                <span className="text-[9px] text-muted uppercase tracking-widest font-bold">Episodes</span>
+                            <div>
+                                <div className="flex justify-between text-xs font-bold mb-1">
+                                    <span className="text-green-400">📺 Episodes</span>
+                                    <span className="text-gray-300">{episodes} <span className="text-gray-500">({episodePct}%)</span></span>
+                                </div>
+                                <div className="w-full h-2 bg-black/50 rounded-full overflow-hidden border border-white/5">
+                                    <div className="h-full bg-gradient-to-r from-green-600 to-green-400 rounded-full transition-all duration-1000" style={{ width: `${episodePct}%` }} />
+                                </div>
                             </div>
-                            <div className="bg-gradient-to-b from-white/10 to-white/5 border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center shadow-lg">
-                                <span className="text-2xl mb-1 drop-shadow">🎵</span>
-                                <span className="text-white font-bold text-lg">{analytics.musicCount || 0}</span>
-                                <span className="text-[9px] text-muted uppercase tracking-widest font-bold">Tracks</span>
+                            {tracks > 0 && (
+                                <div>
+                                    <div className="flex justify-between text-xs font-bold mb-1">
+                                        <span className="text-purple-400">🎵 Tracks</span>
+                                        <span className="text-gray-300">{tracks} <span className="text-gray-500">({trackPct}%)</span></span>
+                                    </div>
+                                    <div className="w-full h-2 bg-black/50 rounded-full overflow-hidden border border-white/5">
+                                        <div className="h-full bg-gradient-to-r from-purple-600 to-purple-400 rounded-full transition-all duration-1000" style={{ width: `${trackPct}%` }} />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Extra stats */}
+                        <div className="grid grid-cols-2 gap-3 w-full mb-5">
+                            <div className="bg-gradient-to-b from-white/10 to-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center shadow-lg">
+                                <span className="text-2xl font-black text-white mb-1">{dailyAvg}</span>
+                                <span className="text-[9px] text-muted uppercase tracking-widest font-black">Per Day</span>
+                            </div>
+                            <div className="bg-gradient-to-b from-plex/20 to-plex/5 border border-plex/30 rounded-xl p-4 flex flex-col items-center shadow-lg relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-12 h-12 bg-plex/20 blur-xl -mr-4 -mt-4 rounded-full" />
+                                <span className="text-2xl font-black text-plex mb-1">{analytics.uniqueTitles || 0}</span>
+                                <span className="text-[9px] text-plex/80 uppercase tracking-widest font-black">Unique Titles</span>
                             </div>
                         </div>
+
+                        {/* Recent activity */}
+                        {recentItems.length > 0 && (
+                            <div className="w-full">
+                                <p className="text-left text-xs uppercase tracking-widest font-bold text-muted mb-3 border-b border-white/10 pb-2">Recently Watched</p>
+                                <div className="flex flex-col gap-1.5">
+                                    {recentItems.map((item: any, i: number) => (
+                                        <div key={i} className="flex items-center gap-3 bg-white/5 border border-white/5 rounded-lg px-3 py-2 hover:bg-white/10 transition-colors">
+                                            {item.thumbUrl
+                                                ? <img src={item.thumbUrl} className="w-8 h-8 rounded object-cover flex-shrink-0" />
+                                                : <div className="w-8 h-8 rounded bg-white/10 flex-shrink-0" />}
+                                            <div className="flex flex-col text-left overflow-hidden">
+                                                <span className="font-bold text-sm text-gray-200 truncate">{item.title}</span>
+                                                {item.episodeTitle && <span className="text-[10px] text-gray-400 truncate">{item.episodeTitle}</span>}
+                                            </div>
+                                            <span className="ml-auto text-[10px] text-gray-500 whitespace-nowrap flex-shrink-0">
+                                                {new Date(item.viewedAt * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 );
+            }
             case 'Top Binge':
                 return (
                     <div className="flex flex-col items-center justify-center text-center p-6 relative">
@@ -4674,7 +4739,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
             </div>
 
             {selectedMetric && analytics && (
-                <WrapUpModal metric={selectedMetric} analytics={analytics} onClose={() => setSelectedMetric(null)} />
+                <WrapUpModal metric={selectedMetric} analytics={analytics} days={analyticsDays} onClose={() => setSelectedMetric(null)} />
             )}
 
             {/* Personal Wrap-Up */}
