@@ -5470,12 +5470,12 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                 {user?.isTrial ? (
                                     <div className="mb-5 flex-shrink-0">
                                         <p className="text-plex font-bold text-base mb-1">🍿 Enjoying your Free Trial?</p>
-                                        <p className="text-muted text-sm leading-relaxed">Once your 3-day trial ends, you'll lose access. A full subscription is just <span className="text-plex font-black">£60/year</span>. Get in touch to upgrade!</p>
+                                        <p className="text-muted text-sm leading-relaxed">Once your 3-day trial ends, you'll lose access. Get in touch with the admin to extend your access!</p>
                                     </div>
                                 ) : (
                                     <div className="mb-5 flex-shrink-0">
                                         <p className="text-text font-bold text-base mb-1">💬 Need Help?</p>
-                                        <p className="text-muted text-sm leading-relaxed">Contact the admin to renew your subscription, report an issue, or get support.</p>
+                                        <p className="text-muted text-sm leading-relaxed">Contact the admin to extend your access, report an issue, or get support.</p>
                                     </div>
                                 )}
                                 <div className="flex flex-col gap-3 mt-auto">

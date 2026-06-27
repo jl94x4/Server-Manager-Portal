@@ -53564,14 +53564,10 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
           !sessionInfo?.session?.isAdmin && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-lg flex flex-col", children: [
             user?.isTrial ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "mb-5 flex-shrink-0", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-plex font-bold text-base mb-1", children: "\u{1F37F} Enjoying your Free Trial?" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { className: "text-muted text-sm leading-relaxed", children: [
-                "Once your 3-day trial ends, you'll lose access. A full subscription is just ",
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-plex font-black", children: "\xA360/year" }),
-                ". Get in touch to upgrade!"
-              ] })
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-muted text-sm leading-relaxed", children: "Once your 3-day trial ends, you'll lose access. Get in touch with the admin to extend your access!" })
             ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "mb-5 flex-shrink-0", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-text font-bold text-base mb-1", children: "\u{1F4AC} Need Help?" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-muted text-sm leading-relaxed", children: "Contact the admin to renew your subscription, report an issue, or get support." })
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-muted text-sm leading-relaxed", children: "Contact the admin to extend your access, report an issue, or get support." })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-col gap-3 mt-auto", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
