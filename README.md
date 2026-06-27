@@ -18,6 +18,9 @@ Server Manager Portal is a self-hosted web application that turns your Plex Medi
 
 ---
 
+<img width="1956" height="972" alt="image" src="https://github.com/user-attachments/assets/c15bb979-b759-4fa1-ae88-772f6a04e34b" />
+
+
 ## Feature Overview
 
 ### Personal Analytics & Wrap-Up
