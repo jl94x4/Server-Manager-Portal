@@ -4294,6 +4294,21 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                         <span className={`inline-block w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-300 ${!optOutNewsletter ? 'translate-x-8' : 'translate-x-1'}`} />
                                     </button>
                                 </div>
+                                <div className="flex items-center justify-between gap-4 mt-6">
+                                    <div>
+                                        <p className="text-text font-bold text-sm">24-Hour Clock</p>
+                                        <p className="text-muted text-xs mt-1 leading-relaxed">Display time in 24-hour format across the app</p>
+                                    </div>
+                                    <button onClick={() => {
+                                        const is24 = localStorage.getItem('use24Hour') === 'true';
+                                        localStorage.setItem('use24Hour', is24 ? 'false' : 'true');
+                                        window.dispatchEvent(new Event('timeFormatChanged'));
+                                        window.location.reload();
+                                    }} aria-label="Toggle 24-hour clock"
+                                        className={`relative inline-flex items-center w-14 h-7 rounded-full transition-all flex-shrink-0 border-2 ${typeof window !== 'undefined' && window.localStorage.getItem('use24Hour') === 'true' ? 'bg-plex border-plex' : 'bg-background border-border'}`}>
+                                        <span className={`inline-block w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-300 ${typeof window !== 'undefined' && window.localStorage.getItem('use24Hour') === 'true' ? 'translate-x-8' : 'translate-x-1'}`} />
+                                    </button>
+                                </div>
                             </div>
                         )}
 

@@ -4057,6 +4057,26 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
                   children: /* @__PURE__ */ jsx("span", { className: `inline-block w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-300 ${!optOutNewsletter ? "translate-x-8" : "translate-x-1"}` })
                 }
               )
+            ] }),
+            /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between gap-4 mt-6", children: [
+              /* @__PURE__ */ jsxs("div", { children: [
+                /* @__PURE__ */ jsx("p", { className: "text-text font-bold text-sm", children: "24-Hour Clock" }),
+                /* @__PURE__ */ jsx("p", { className: "text-muted text-xs mt-1 leading-relaxed", children: "Display time in 24-hour format across the app" })
+              ] }),
+              /* @__PURE__ */ jsx(
+                "button",
+                {
+                  onClick: () => {
+                    const is24 = localStorage.getItem("use24Hour") === "true";
+                    localStorage.setItem("use24Hour", is24 ? "false" : "true");
+                    window.dispatchEvent(new Event("timeFormatChanged"));
+                    window.location.reload();
+                  },
+                  "aria-label": "Toggle 24-hour clock",
+                  className: `relative inline-flex items-center w-14 h-7 rounded-full transition-all flex-shrink-0 border-2 ${typeof window !== "undefined" && window.localStorage.getItem("use24Hour") === "true" ? "bg-plex border-plex" : "bg-background border-border"}`,
+                  children: /* @__PURE__ */ jsx("span", { className: `inline-block w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-300 ${typeof window !== "undefined" && window.localStorage.getItem("use24Hour") === "true" ? "translate-x-8" : "translate-x-1"}` })
+                }
+              )
             ] })
           ] }),
           !sessionInfo?.session?.isAdmin && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-lg flex flex-col", children: [
