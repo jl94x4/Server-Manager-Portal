@@ -29,6 +29,8 @@ Server Manager Portal serves as a beautiful, public-facing portal for your Plex 
 
 ### Public Portals
 - **Landing Page**: A sleek, modern login page showing live library statistics (e.g., "10,000+ Movies") to entice new users.
+- **Personal Analytics & Insights**: Every user gets a personalized dashboard showing their global "Server Rank", Total Streams, Top Binge series, and Time-of-Day persona (e.g. Night Owl), complete with dynamic timeframe toggles (7 days, 30 days, 60 days, etc).
+- **Discover Page**: A curated, interactive page for your users to discover trending content, weekend hits, all-time favorites, cult classics, and late-night retro hits across the server.
 - **Live System Status**: A public `/status` page displaying the uptime of your Plex server, request systems (Overseerr/Ombi), and download clients.
 - **Media Stack Integration**: Embed Sonarr and Radarr directly into the user portal for seamless requests.
 
