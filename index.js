@@ -75,6 +75,9 @@ app.use(cookieParser()); // Middleware to parse cookies
 // Trust the first proxy (e.g. Nginx/Caddy) so req.secure reflects HTTPS correctly
 app.set('trust proxy', 1);
 
+// --- In-Memory Cache for Plex Metadata ---
+const plexMetadataCache = new Map();
+
 // --- Configuration and Paths ---
 const CONFIG_PATH = path.join(process.cwd(), 'config.json');
 const INVITES_PATH = path.join(process.cwd(), 'invites.json');
@@ -3182,9 +3185,17 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
         await Promise.all(topShowsRaw.map(async (s, i) => {
             if (!s.art || i === 0) {
                 const metaPath = s.key.startsWith('/library/metadata/') ? s.key : `/library/metadata/${s.key}`;
-                const metaRes = await fetch(`${uri}${metaPath}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
-                if (metaRes && metaRes.MediaContainer && metaRes.MediaContainer.Metadata && metaRes.MediaContainer.Metadata[0]) {
-                    const data = metaRes.MediaContainer.Metadata[0];
+                
+                let data = plexMetadataCache.get(metaPath);
+                if (!data) {
+                    const metaRes = await fetch(`${uri}${metaPath}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+                    if (metaRes && metaRes.MediaContainer && metaRes.MediaContainer.Metadata && metaRes.MediaContainer.Metadata[0]) {
+                        data = metaRes.MediaContainer.Metadata[0];
+                        plexMetadataCache.set(metaPath, data);
+                    }
+                }
+
+                if (data) {
                     s.art = data.art || data.grandparentArt || data.parentArt || s.art;
                     if (i === 0) {
                         s.summary = data.summary || data.parentSummary || data.grandparentSummary;
@@ -3222,9 +3233,17 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
         await Promise.all(topMoviesRaw.map(async (m, i) => {
             if (!m.art || i === 0) {
                 const metaPath = m.key.startsWith('/library/metadata/') ? m.key : `/library/metadata/${m.key}`;
-                const metaRes = await fetch(`${uri}${metaPath}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
-                if (metaRes && metaRes.MediaContainer && metaRes.MediaContainer.Metadata && metaRes.MediaContainer.Metadata[0]) {
-                    const data = metaRes.MediaContainer.Metadata[0];
+                
+                let data = plexMetadataCache.get(metaPath);
+                if (!data) {
+                    const metaRes = await fetch(`${uri}${metaPath}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+                    if (metaRes && metaRes.MediaContainer && metaRes.MediaContainer.Metadata && metaRes.MediaContainer.Metadata[0]) {
+                        data = metaRes.MediaContainer.Metadata[0];
+                        plexMetadataCache.set(metaPath, data);
+                    }
+                }
+
+                if (data) {
                     m.art = data.art || data.grandparentArt || data.parentArt || m.art;
                     if (i === 0) {
                         m.summary = data.summary;
