@@ -2991,15 +2991,20 @@ app.get('/api/tautulli/graphs', requireAdmin, async (req, res) => {
             'get_plays_by_hourofday', 
             'get_plays_by_stream_type', 
             'get_plays_by_stream_resolution', 
-            'get_plays_by_top_10_platforms'
+            'get_plays_by_top_10_platforms',
+            'get_concurrent_streams_by_stream_type'
         ];
         const results = await Promise.all(
-            endpoints.map(cmd =>
-                fetch(`${tUrl}/api/v2?apikey=${config.tautulliApiKey}&cmd=${cmd}&time_range=${days}&y_axis=${yAxis}`, { headers: { 'Accept': 'application/json' } })
+            endpoints.map(cmd => {
+                let url = `${tUrl}/api/v2?apikey=${config.tautulliApiKey}&cmd=${cmd}&time_range=${days}`;
+                if (cmd !== 'get_concurrent_streams_by_stream_type') {
+                    url += `&y_axis=${yAxis}`;
+                }
+                return fetch(url, { headers: { 'Accept': 'application/json' } })
                     .then(r => r.json())
                     .then(j => ({ cmd, data: j?.response?.data || {} }))
-                    .catch(e => ({ cmd, data: {} }))
-            )
+                    .catch(e => ({ cmd, data: {} }));
+            })
         );
 
         const payload = {};

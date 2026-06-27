@@ -51105,7 +51105,8 @@ var TautulliGraphsTab = () => {
     get_plays_by_hourofday,
     get_plays_by_stream_type,
     get_plays_by_stream_resolution,
-    get_plays_by_top_10_platforms
+    get_plays_by_top_10_platforms,
+    get_concurrent_streams_by_stream_type
   } = graphs;
   const parseDateData = (data) => {
     if (!data || !data.categories || !data.series) return [];
@@ -51121,15 +51122,32 @@ var TautulliGraphsTab = () => {
       return obj;
     });
   };
+  const parseConcurrentData = (data) => {
+    if (!data || !data.categories || !data.series) return [];
+    return data.categories.map((date2, i) => {
+      const obj = { date: date2 };
+      data.series.forEach((s2) => {
+        obj[s2.name] = s2.data[i] || 0;
+      });
+      return obj;
+    });
+  };
   const getSeriesKeys = (data) => {
     if (!data || !data.series) return [];
     return data.series.map((s2) => s2.name);
+  };
+  const STREAM_COLORS = {
+    "Direct Play": "#eab308",
+    "Direct Stream": "#e2e8f0",
+    "Transcode": "#ef4444"
   };
   const dailyData = parseDateData(get_plays_by_date);
   const dayOfWeekData = parseDateData(get_plays_by_dayofweek);
   const hourOfDayData = parseDateData(get_plays_by_hourofday);
   const streamTypeData = parseDateData(get_plays_by_stream_type);
   const streamTypeKeys = getSeriesKeys(get_plays_by_stream_type);
+  const concurrentData = parseConcurrentData(get_concurrent_streams_by_stream_type);
+  const concurrentKeys = getSeriesKeys(get_concurrent_streams_by_stream_type);
   const resolutionData = parseDateData(get_plays_by_stream_resolution);
   const resolutionKeys = getSeriesKeys(get_plays_by_stream_resolution);
   const platformData = parseDateData(get_plays_by_top_10_platforms);
@@ -51212,17 +51230,33 @@ var TautulliGraphsTab = () => {
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", { className: "text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Activity, { className: "w-5 h-5 text-sky-400" }),
           " ",
-          yAxis === "plays" ? "Stream Type Breakdown" : "Stream Type Duration Breakdown (Hours)"
+          yAxis === "plays" ? "Daily Stream Type Breakdown" : "Daily Stream Type Duration Breakdown (Hours)"
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "h-64 w-full", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ResponsiveContainer, { width: "100%", height: "100%", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(BarChart, { data: streamTypeData, margin: { top: 10, right: 10, left: -20, bottom: 0 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "h-64 w-full", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ResponsiveContainer, { width: "100%", height: "100%", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(LineChart, { data: streamTypeData, margin: { top: 10, right: 10, left: -20, bottom: 0 }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CartesianGrid, { strokeDasharray: "3 3", stroke: "#333", vertical: false }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, { dataKey: "date", stroke: "#666", tick: { fill: "#888", fontSize: 12 } }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, { stroke: "#666", tick: { fill: "#888", fontSize: 12 } }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tooltip, { cursor: { fill: "#ffffff10" }, contentStyle: { backgroundColor: "#1e2329", borderColor: "#333", borderRadius: "8px" }, itemStyle: { color: "#fff" } }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tooltip, { contentStyle: { backgroundColor: "#1e2329", borderColor: "#333", borderRadius: "8px" }, itemStyle: { color: "#fff" } }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Legend, {}),
-          streamTypeKeys.map((key, idx) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, { dataKey: key, stackId: "a", fill: GRAPH_COLORS[idx % GRAPH_COLORS.length] }, key))
+          streamTypeKeys.map((key) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Line, { type: "monotone", dataKey: key, stroke: STREAM_COLORS[key] || "#3b82f6", strokeWidth: 2, dot: false }, key))
         ] }) }) })
       ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", { className: "text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TrendingUp, { className: "w-5 h-5 text-plex" }),
+          " Daily Concurrent Stream Count by Stream Type"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "h-64 w-full", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ResponsiveContainer, { width: "100%", height: "100%", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(LineChart, { data: concurrentData, margin: { top: 10, right: 10, left: -20, bottom: 0 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CartesianGrid, { strokeDasharray: "3 3", stroke: "#333", vertical: false }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, { dataKey: "date", stroke: "#666", tick: { fill: "#888", fontSize: 12 } }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, { stroke: "#666", tick: { fill: "#888", fontSize: 12 } }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tooltip, { contentStyle: { backgroundColor: "#1e2329", borderColor: "#333", borderRadius: "8px" }, itemStyle: { color: "#fff" } }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Legend, {}),
+          concurrentKeys.map((key) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Line, { type: "monotone", dataKey: key, stroke: STREAM_COLORS[key] || "#3b82f6", strokeWidth: 2, dot: false }, key))
+        ] }) }) })
+      ] })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-6", children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden", children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", { className: "text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MonitorSmartphone, { className: "w-5 h-5 text-purple-400" }),
@@ -51237,22 +51271,22 @@ var TautulliGraphsTab = () => {
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Legend, {}),
           resolutionKeys.map((key, idx) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, { dataKey: key, stackId: "a", fill: GRAPH_COLORS[idx % GRAPH_COLORS.length] }, key))
         ] }) }) })
-      ] })
-    ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", { className: "text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Users, { className: "w-5 h-5 text-teal-400" }),
-        " ",
-        yAxis === "plays" ? "Top 10 Streaming Platforms" : "Top 10 Platforms by Watch Duration (Hours)"
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "h-72 w-full", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ResponsiveContainer, { width: "100%", height: "100%", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(BarChart, { data: platformData, margin: { top: 10, right: 10, left: -20, bottom: 0 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CartesianGrid, { strokeDasharray: "3 3", stroke: "#333", vertical: false }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, { dataKey: "date", stroke: "#666", tick: { fill: "#888", fontSize: 12 } }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, { stroke: "#666", tick: { fill: "#888", fontSize: 12 } }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tooltip, { cursor: { fill: "#ffffff10" }, contentStyle: { backgroundColor: "#1e2329", borderColor: "#333", borderRadius: "8px" }, itemStyle: { color: "#fff" } }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Legend, {}),
-        platformKeys.map((key, idx) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, { dataKey: key, stackId: "a", fill: GRAPH_COLORS[idx % GRAPH_COLORS.length] }, key))
-      ] }) }) })
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden flex flex-col justify-between", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", { className: "text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Users, { className: "w-5 h-5 text-teal-400" }),
+          " ",
+          yAxis === "plays" ? "Top 10 Streaming Platforms" : "Top 10 Platforms by Watch Duration (Hours)"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "h-64 w-full", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ResponsiveContainer, { width: "100%", height: "100%", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(BarChart, { data: platformData, margin: { top: 10, right: 10, left: -20, bottom: 0 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CartesianGrid, { strokeDasharray: "3 3", stroke: "#333", vertical: false }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, { dataKey: "date", stroke: "#666", tick: { fill: "#888", fontSize: 12 } }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, { stroke: "#666", tick: { fill: "#888", fontSize: 12 } }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tooltip, { cursor: { fill: "#ffffff10" }, contentStyle: { backgroundColor: "#1e2329", borderColor: "#333", borderRadius: "8px" }, itemStyle: { color: "#fff" } }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Legend, {}),
+          platformKeys.map((key, idx) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, { dataKey: key, stackId: "a", fill: GRAPH_COLORS[idx % GRAPH_COLORS.length] }, key))
+        ] }) }) })
+      ] }) })
     ] })
   ] });
 };

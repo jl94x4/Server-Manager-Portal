@@ -2740,7 +2740,8 @@ const TautulliGraphsTab: React.FC = () => {
         get_plays_by_hourofday, 
         get_plays_by_stream_type, 
         get_plays_by_stream_resolution, 
-        get_plays_by_top_10_platforms 
+        get_plays_by_top_10_platforms,
+        get_concurrent_streams_by_stream_type
     } = graphs;
 
     const parseDateData = (data: any) => {
@@ -2759,9 +2760,26 @@ const TautulliGraphsTab: React.FC = () => {
         });
     };
 
+    const parseConcurrentData = (data: any) => {
+        if (!data || !data.categories || !data.series) return [];
+        return data.categories.map((date: string, i: number) => {
+            const obj: any = { date };
+            data.series.forEach((s: any) => {
+                obj[s.name] = s.data[i] || 0;
+            });
+            return obj;
+        });
+    };
+
     const getSeriesKeys = (data: any) => {
         if (!data || !data.series) return [];
         return data.series.map((s: any) => s.name);
+    };
+
+    const STREAM_COLORS: Record<string, string> = {
+        'Direct Play': '#eab308',
+        'Direct Stream': '#e2e8f0',
+        'Transcode': '#ef4444'
     };
 
     const dailyData = parseDateData(get_plays_by_date);
@@ -2770,6 +2788,9 @@ const TautulliGraphsTab: React.FC = () => {
     
     const streamTypeData = parseDateData(get_plays_by_stream_type);
     const streamTypeKeys = getSeriesKeys(get_plays_by_stream_type);
+
+    const concurrentData = parseConcurrentData(get_concurrent_streams_by_stream_type);
+    const concurrentKeys = getSeriesKeys(get_concurrent_streams_by_stream_type);
 
     const resolutionData = parseDateData(get_plays_by_stream_resolution);
     const resolutionKeys = getSeriesKeys(get_plays_by_stream_resolution);
@@ -2873,24 +2894,47 @@ const TautulliGraphsTab: React.FC = () => {
                 {/* Play count by stream type */}
                 <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden">
                     <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
-                        <Activity className="w-5 h-5 text-sky-400" /> {yAxis === 'plays' ? 'Stream Type Breakdown' : 'Stream Type Duration Breakdown (Hours)'}
+                        <Activity className="w-5 h-5 text-sky-400" /> {yAxis === 'plays' ? 'Daily Stream Type Breakdown' : 'Daily Stream Type Duration Breakdown (Hours)'}
                     </h3>
                     <div className="h-64 w-full">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={streamTypeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <LineChart data={streamTypeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
                                 <XAxis dataKey="date" stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
                                 <YAxis stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
-                                <RechartsTooltip cursor={{ fill: '#ffffff10' }} contentStyle={{ backgroundColor: '#1e2329', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
+                                <RechartsTooltip contentStyle={{ backgroundColor: '#1e2329', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
                                 <Legend />
-                                {streamTypeKeys.map((key: string, idx: number) => (
-                                    <Bar key={key} dataKey={key} stackId="a" fill={GRAPH_COLORS[idx % GRAPH_COLORS.length]} />
+                                {streamTypeKeys.map((key: string) => (
+                                    <Line key={key} type="monotone" dataKey={key} stroke={STREAM_COLORS[key] || '#3b82f6'} strokeWidth={2} dot={false} />
                                 ))}
-                            </BarChart>
+                            </LineChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
 
+                {/* Concurrent streams by stream type */}
+                <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden">
+                    <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
+                        <TrendingUp className="w-5 h-5 text-plex" /> Daily Concurrent Stream Count by Stream Type
+                    </h3>
+                    <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={concurrentData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                                <XAxis dataKey="date" stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
+                                <YAxis stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
+                                <RechartsTooltip contentStyle={{ backgroundColor: '#1e2329', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
+                                <Legend />
+                                {concurrentKeys.map((key: string) => (
+                                    <Line key={key} type="monotone" dataKey={key} stroke={STREAM_COLORS[key] || '#3b82f6'} strokeWidth={2} dot={false} />
+                                ))}
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Play count by stream resolution */}
                 <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden">
                     <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
@@ -2911,26 +2955,28 @@ const TautulliGraphsTab: React.FC = () => {
                         </ResponsiveContainer>
                     </div>
                 </div>
-            </div>
 
-            {/* Play count by platform */}
-            <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden">
-                <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
-                    <Users className="w-5 h-5 text-teal-400" /> {yAxis === 'plays' ? 'Top 10 Streaming Platforms' : 'Top 10 Platforms by Watch Duration (Hours)'}
-                </h3>
-                <div className="h-72 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={platformData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                            <XAxis dataKey="date" stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
-                            <YAxis stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
-                            <RechartsTooltip cursor={{ fill: '#ffffff10' }} contentStyle={{ backgroundColor: '#1e2329', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
-                            <Legend />
-                            {platformKeys.map((key: string, idx: number) => (
-                                <Bar key={key} dataKey={key} stackId="a" fill={GRAPH_COLORS[idx % GRAPH_COLORS.length]} />
-                            ))}
-                        </BarChart>
-                    </ResponsiveContainer>
+                {/* Play count by platform */}
+                <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden flex flex-col justify-between">
+                    <div>
+                        <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
+                            <Users className="w-5 h-5 text-teal-400" /> {yAxis === 'plays' ? 'Top 10 Streaming Platforms' : 'Top 10 Platforms by Watch Duration (Hours)'}
+                        </h3>
+                        <div className="h-64 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={platformData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                                    <XAxis dataKey="date" stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
+                                    <YAxis stroke="#666" tick={{ fill: '#888', fontSize: 12 }} />
+                                    <RechartsTooltip cursor={{ fill: '#ffffff10' }} contentStyle={{ backgroundColor: '#1e2329', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
+                                    <Legend />
+                                    {platformKeys.map((key: string, idx: number) => (
+                                        <Bar key={key} dataKey={key} stackId="a" fill={GRAPH_COLORS[idx % GRAPH_COLORS.length]} />
+                                    ))}
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
