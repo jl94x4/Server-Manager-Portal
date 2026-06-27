@@ -14,7 +14,7 @@ Built with Node.js · Express · React · Tailwind CSS
 
 ---
 
-Server Manager Portal is a self-hosted web application that turns your Plex Media Server into a fully managed streaming service. It handles everything from user onboarding and automated access management, to real-time analytics, live session monitoring, trending content discovery, and beautiful personalized wrap-ups for every user — all from one polished, mobile-first dashboard.
+Server Portal is a self-hosted web application that turns your Plex Media Server into a fully managed streaming service. It handles everything from user onboarding and automated access management, to real-time analytics, live session monitoring, trending content discovery, and beautiful personalized wrap-ups for every user — all from one polished, mobile-first dashboard.
 
 ---
 
