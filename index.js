@@ -3179,12 +3179,17 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
 
         const allShowsList = Object.values(contentCounts).filter(c => c.type === 'show').sort((a, b) => b.plays - a.plays);
         let topShowsRaw = allShowsList.slice(0, 5);
-        await Promise.all(topShowsRaw.map(async (s) => {
-            if (!s.art) {
-                const metaRes = await fetch(`${uri}${s.key}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+        await Promise.all(topShowsRaw.map(async (s, i) => {
+            if (!s.art || i === 0) {
+                const metaPath = s.key.startsWith('/library/metadata/') ? s.key : `/library/metadata/${s.key}`;
+                const metaRes = await fetch(`${uri}${metaPath}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
                 if (metaRes && metaRes.MediaContainer && metaRes.MediaContainer.Metadata && metaRes.MediaContainer.Metadata[0]) {
                     const data = metaRes.MediaContainer.Metadata[0];
                     s.art = data.art || data.grandparentArt || data.parentArt || s.art;
+                    if (i === 0) {
+                        s.summary = data.summary || data.parentSummary || data.grandparentSummary;
+                        s.year = data.year || data.parentYear || data.grandparentYear;
+                    }
                 }
             }
         }));
@@ -3214,12 +3219,18 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
 
         const allMoviesList = Object.values(contentCounts).filter(c => c.type === 'movie').sort((a, b) => b.plays - a.plays);
         let topMoviesRaw = allMoviesList.slice(0, 5);
-        await Promise.all(topMoviesRaw.map(async (m) => {
-            if (!m.art) {
-                const metaRes = await fetch(`${uri}${m.key}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+        await Promise.all(topMoviesRaw.map(async (m, i) => {
+            if (!m.art || i === 0) {
+                const metaPath = m.key.startsWith('/library/metadata/') ? m.key : `/library/metadata/${m.key}`;
+                const metaRes = await fetch(`${uri}${metaPath}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
                 if (metaRes && metaRes.MediaContainer && metaRes.MediaContainer.Metadata && metaRes.MediaContainer.Metadata[0]) {
                     const data = metaRes.MediaContainer.Metadata[0];
                     m.art = data.art || data.grandparentArt || data.parentArt || m.art;
+                    if (i === 0) {
+                        m.summary = data.summary;
+                        m.year = data.year;
+                        m.tagline = data.tagline;
+                    }
                 }
             }
         }));

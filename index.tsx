@@ -4072,7 +4072,14 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; onClose: () => voi
                             <Tv className="w-16 h-16 text-plex mb-6 drop-shadow-lg" />
                         )}
                         
-                        {analytics.topShows && analytics.topShows.length > 1 && (
+                        {analytics.topBinge?.summary && (
+                            <div className="w-full mt-2 mb-4 bg-white/5 border border-white/5 rounded-lg p-4 text-left">
+                                <p className="text-gray-300 text-sm leading-relaxed">{analytics.topBinge.summary}</p>
+                                {analytics.topBinge.year && <span className="inline-block mt-3 text-xs font-black px-2 py-1 bg-black/40 rounded text-gray-400">{analytics.topBinge.year}</span>}
+                            </div>
+                        )}
+                        
+                        {analytics.topShows && analytics.topShows.length > 1 ? (
                             <div className="w-full mt-2">
                                 <p className="text-left text-xs uppercase tracking-widest font-bold text-muted mb-3 border-b border-white/10 pb-2">Runner Ups</p>
                                 <div className="flex flex-col gap-2">
@@ -4087,6 +4094,11 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; onClose: () => voi
                                         </div>
                                     ))}
                                 </div>
+                            </div>
+                        ) : (
+                            <div className="w-full mt-2 py-6 border border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center opacity-50">
+                                <Tv className="w-8 h-8 text-gray-500 mb-2" />
+                                <p className="text-sm font-bold text-gray-400">No other shows watched</p>
                             </div>
                         )}
                     </div>
@@ -4106,7 +4118,15 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; onClose: () => voi
                             <Clapperboard className="w-16 h-16 text-plex mb-6 drop-shadow-lg" />
                         )}
                         
-                        {analytics.topMovies && analytics.topMovies.length > 1 && (
+                        {analytics.topMovie?.summary && (
+                            <div className="w-full mt-2 mb-4 bg-white/5 border border-white/5 rounded-lg p-4 text-left">
+                                {analytics.topMovie.tagline && <p className="italic text-plex text-xs mb-2 font-bold">"{analytics.topMovie.tagline}"</p>}
+                                <p className="text-gray-300 text-sm leading-relaxed">{analytics.topMovie.summary}</p>
+                                {analytics.topMovie.year && <span className="inline-block mt-3 text-xs font-black px-2 py-1 bg-black/40 rounded text-gray-400">{analytics.topMovie.year}</span>}
+                            </div>
+                        )}
+                        
+                        {analytics.topMovies && analytics.topMovies.length > 1 ? (
                             <div className="w-full mt-2">
                                 <p className="text-left text-xs uppercase tracking-widest font-bold text-muted mb-3 border-b border-white/10 pb-2">Runner Ups</p>
                                 <div className="flex flex-col gap-2">
@@ -4121,6 +4141,11 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; onClose: () => voi
                                         </div>
                                     ))}
                                 </div>
+                            </div>
+                        ) : (
+                            <div className="w-full mt-2 py-6 border border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center opacity-50">
+                                <Film className="w-8 h-8 text-gray-500 mb-2" />
+                                <p className="text-sm font-bold text-gray-400">No other movies watched</p>
                             </div>
                         )}
                     </div>

@@ -3962,7 +3962,11 @@ var WrapUpModal = ({ metric, analytics, onClose }) => {
               ] })
             ] })
           ] }) : /* @__PURE__ */ jsx(Tv, { className: "w-16 h-16 text-plex mb-6 drop-shadow-lg" }),
-          analytics.topShows && analytics.topShows.length > 1 && /* @__PURE__ */ jsxs("div", { className: "w-full mt-2", children: [
+          analytics.topBinge?.summary && /* @__PURE__ */ jsxs("div", { className: "w-full mt-2 mb-4 bg-white/5 border border-white/5 rounded-lg p-4 text-left", children: [
+            /* @__PURE__ */ jsx("p", { className: "text-gray-300 text-sm leading-relaxed", children: analytics.topBinge.summary }),
+            analytics.topBinge.year && /* @__PURE__ */ jsx("span", { className: "inline-block mt-3 text-xs font-black px-2 py-1 bg-black/40 rounded text-gray-400", children: analytics.topBinge.year })
+          ] }),
+          analytics.topShows && analytics.topShows.length > 1 ? /* @__PURE__ */ jsxs("div", { className: "w-full mt-2", children: [
             /* @__PURE__ */ jsx("p", { className: "text-left text-xs uppercase tracking-widest font-bold text-muted mb-3 border-b border-white/10 pb-2", children: "Runner Ups" }),
             /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-2", children: analytics.topShows.slice(1).map((show, i) => /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between bg-white/5 border border-white/5 rounded-lg p-2 hover:bg-white/10 transition-colors", children: [
               /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-3", children: [
@@ -3975,6 +3979,9 @@ var WrapUpModal = ({ metric, analytics, onClose }) => {
                 " eps"
               ] })
             ] }, i)) })
+          ] }) : /* @__PURE__ */ jsxs("div", { className: "w-full mt-2 py-6 border border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center opacity-50", children: [
+            /* @__PURE__ */ jsx(Tv, { className: "w-8 h-8 text-gray-500 mb-2" }),
+            /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-gray-400", children: "No other shows watched" })
           ] })
         ] });
       case "Top Movie":
@@ -3989,7 +3996,16 @@ var WrapUpModal = ({ metric, analytics, onClose }) => {
               ] })
             ] })
           ] }) : /* @__PURE__ */ jsx(Clapperboard, { className: "w-16 h-16 text-plex mb-6 drop-shadow-lg" }),
-          analytics.topMovies && analytics.topMovies.length > 1 && /* @__PURE__ */ jsxs("div", { className: "w-full mt-2", children: [
+          analytics.topMovie?.summary && /* @__PURE__ */ jsxs("div", { className: "w-full mt-2 mb-4 bg-white/5 border border-white/5 rounded-lg p-4 text-left", children: [
+            analytics.topMovie.tagline && /* @__PURE__ */ jsxs("p", { className: "italic text-plex text-xs mb-2 font-bold", children: [
+              '"',
+              analytics.topMovie.tagline,
+              '"'
+            ] }),
+            /* @__PURE__ */ jsx("p", { className: "text-gray-300 text-sm leading-relaxed", children: analytics.topMovie.summary }),
+            analytics.topMovie.year && /* @__PURE__ */ jsx("span", { className: "inline-block mt-3 text-xs font-black px-2 py-1 bg-black/40 rounded text-gray-400", children: analytics.topMovie.year })
+          ] }),
+          analytics.topMovies && analytics.topMovies.length > 1 ? /* @__PURE__ */ jsxs("div", { className: "w-full mt-2", children: [
             /* @__PURE__ */ jsx("p", { className: "text-left text-xs uppercase tracking-widest font-bold text-muted mb-3 border-b border-white/10 pb-2", children: "Runner Ups" }),
             /* @__PURE__ */ jsx("div", { className: "flex flex-col gap-2", children: analytics.topMovies.slice(1).map((movie, i) => /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between bg-white/5 border border-white/5 rounded-lg p-2 hover:bg-white/10 transition-colors", children: [
               /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-3", children: [
@@ -4002,6 +4018,9 @@ var WrapUpModal = ({ metric, analytics, onClose }) => {
                 " plays"
               ] })
             ] }, i)) })
+          ] }) : /* @__PURE__ */ jsxs("div", { className: "w-full mt-2 py-6 border border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center opacity-50", children: [
+            /* @__PURE__ */ jsx(Film, { className: "w-8 h-8 text-gray-500 mb-2" }),
+            /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-gray-400", children: "No other movies watched" })
           ] })
         ] });
       case "Time of Day":
