@@ -3915,7 +3915,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
     const [topContentPage, setTopContentPage] = useState(0);
     const TOP_CONTENT_PAGE_SIZE = 12;
     const [recentHistoryPage, setRecentHistoryPage] = useState(0);
-    const RECENT_HISTORY_PAGE_SIZE = 5;
+    const RECENT_HISTORY_PAGE_SIZE = 8;
     const [analyticsDays, setAnalyticsDays] = useState<number | 'all'>(30);
     const [analyticsDaysOpen, setAnalyticsDaysOpen] = useState(false);
     const [wrapUpDaysOpen, setWrapUpDaysOpen] = useState(false);
@@ -4373,10 +4373,10 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                         </div>
                                     )}
                                 </div>
-                                <div className="flex flex-col gap-3">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                     {analytics.recentHistory.slice(recentHistoryPage * RECENT_HISTORY_PAGE_SIZE, (recentHistoryPage + 1) * RECENT_HISTORY_PAGE_SIZE).map((item: any, idx: number) => (
-                                        <a key={idx} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-all group">
-                                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-background flex-shrink-0 shadow-md">
+                                        <a key={idx} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-2 bg-black/20 rounded-xl border border-white/5 hover:border-plex/50 hover:bg-black/40 hover:shadow-[0_0_15px_rgba(229,160,13,0.15)] transition-all group">
+                                            <div className="w-10 h-10 rounded-lg overflow-hidden bg-background flex-shrink-0 shadow-md">
                                                 {item.thumbUrl ? (
                                                     <img src={item.thumbUrl} alt={item.title} className="w-full h-full object-cover" />
                                                 ) : (
