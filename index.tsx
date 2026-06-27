@@ -3,6 +3,12 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createRoot } from 'react-dom/client';
 import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle } from 'lucide-react';
 
+declare global {
+    interface Window {
+        __USE_24_HOUR_CLOCK__?: boolean;
+    }
+}
+
 interface CustomSelectProps {
     id?: string;
     value: string | number;
@@ -972,7 +978,8 @@ const SettingsDashboard: React.FC = () => {
             announcement,
             navOrder,
             hideStreamUsers,
-            defaultLibraryIds
+            defaultLibraryIds,
+            use24HourClock
         });
         document.documentElement.style.setProperty('--color-plex', hexToRgb(primaryColor));
     };
@@ -4304,21 +4311,6 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                     <button onClick={handleToggleNewsletter} aria-label="Toggle newsletter"
                                         className={`relative inline-flex items-center w-14 h-7 rounded-full transition-all flex-shrink-0 border-2 ${!optOutNewsletter ? 'bg-plex border-plex' : 'bg-background border-border'}`}>
                                         <span className={`inline-block w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-300 ${!optOutNewsletter ? 'translate-x-8' : 'translate-x-1'}`} />
-                                    </button>
-                                </div>
-                                <div className="flex items-center justify-between gap-4 mt-6">
-                                    <div>
-                                        <p className="text-text font-bold text-sm">24-Hour Clock</p>
-                                        <p className="text-muted text-xs mt-1 leading-relaxed">Display time in 24-hour format across the app</p>
-                                    </div>
-                                    <button onClick={() => {
-                                        const is24 = window.__USE_24_HOUR_CLOCK__ === true;
-                                        localStorage.setItem('use24Hour', is24 ? 'false' : 'true');
-                                        window.dispatchEvent(new Event('timeFormatChanged'));
-                                        window.location.reload();
-                                    }} aria-label="Toggle 24-hour clock"
-                                        className={`relative inline-flex items-center w-14 h-7 rounded-full transition-all flex-shrink-0 border-2 ${typeof window !== 'undefined' && window.window.__USE_24_HOUR_CLOCK__ === true ? 'bg-plex border-plex' : 'bg-background border-border'}`}>
-                                        <span className={`inline-block w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-300 ${typeof window !== 'undefined' && window.window.__USE_24_HOUR_CLOCK__ === true ? 'translate-x-8' : 'translate-x-1'}`} />
                                     </button>
                                 </div>
                             </div>
