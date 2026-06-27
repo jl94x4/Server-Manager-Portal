@@ -974,6 +974,8 @@ const SettingsDashboard: React.FC = () => {
             sonarrApiKey,
             radarrUrl,
             radarrApiKey,
+            tautulliUrl,
+            tautulliApiKey,
             primaryColor,
             customLogoUrl,
             referralEnabled,

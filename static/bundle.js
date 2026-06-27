@@ -1223,6 +1223,8 @@ var SettingsDashboard = () => {
       sonarrApiKey,
       radarrUrl,
       radarrApiKey,
+      tautulliUrl,
+      tautulliApiKey,
       primaryColor,
       customLogoUrl,
       referralEnabled,
