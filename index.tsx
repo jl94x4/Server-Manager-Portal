@@ -2935,7 +2935,13 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     const [contentTab, setContentTab] = useState<'movies' | 'shows' | 'music'>('movies');
-    const [viewTab, setViewTab] = useState<'overview' | 'graphs'>('overview');
+    const [viewTab, setViewTab] = useState<'overview' | 'graphs'>(() => {
+        return (localStorage.getItem('analytics_view_tab') as 'overview' | 'graphs') || 'overview';
+    });
+
+    useEffect(() => {
+        localStorage.setItem('analytics_view_tab', viewTab);
+    }, [viewTab]);
 
     useEffect(() => {
         const fetchUsers = async () => {

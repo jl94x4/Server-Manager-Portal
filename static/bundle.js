@@ -51253,7 +51253,12 @@ var AnalyticsDashboard = ({ isAdmin, sessionInfo }) => {
   const [searchQuery, setSearchQuery] = (0, import_react61.useState)("");
   const [isSearching, setIsSearching] = (0, import_react61.useState)(false);
   const [contentTab, setContentTab] = (0, import_react61.useState)("movies");
-  const [viewTab, setViewTab] = (0, import_react61.useState)("overview");
+  const [viewTab, setViewTab] = (0, import_react61.useState)(() => {
+    return localStorage.getItem("analytics_view_tab") || "overview";
+  });
+  (0, import_react61.useEffect)(() => {
+    localStorage.setItem("analytics_view_tab", viewTab);
+  }, [viewTab]);
   (0, import_react61.useEffect)(() => {
     const fetchUsers = async () => {
       try {
