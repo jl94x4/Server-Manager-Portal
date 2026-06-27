@@ -3913,7 +3913,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
     const [dashboardData, setDashboardData] = useState<any>(null);
     const [serverDataLoading, setServerDataLoading] = useState(true);
     const [topContentPage, setTopContentPage] = useState(0);
-    const TOP_CONTENT_PAGE_SIZE = 12;
+    const TOP_CONTENT_PAGE_SIZE = 18;
     const [recentHistoryPage, setRecentHistoryPage] = useState(0);
     const RECENT_HISTORY_PAGE_SIZE = 12;
     const [analyticsDays, setAnalyticsDays] = useState<number | 'all'>(30);
@@ -4299,7 +4299,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                     )}
 
                     {/* Footer sections: Preferences & Support (Moved to Left Column) */}
-                    <div className="flex flex-col gap-6 mt-2">
+                    <div className="flex flex-col gap-6">
                         {/* Newsletter preferences */}
                         {user && !sessionInfo.session.isAdmin && (
                             <div className="bg-card border border-border rounded-2xl p-6 shadow-lg flex flex-col">

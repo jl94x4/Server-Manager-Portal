@@ -3756,7 +3756,7 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
   const [dashboardData, setDashboardData] = useState(null);
   const [serverDataLoading, setServerDataLoading] = useState(true);
   const [topContentPage, setTopContentPage] = useState(0);
-  const TOP_CONTENT_PAGE_SIZE = 12;
+  const TOP_CONTENT_PAGE_SIZE = 18;
   const [recentHistoryPage, setRecentHistoryPage] = useState(0);
   const RECENT_HISTORY_PAGE_SIZE = 12;
   const [analyticsDays, setAnalyticsDays] = useState(30);
@@ -4050,7 +4050,7 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
             }, className: "w-full py-2.5 bg-plex text-background rounded-lg font-bold hover:bg-plex-hover transition-colors shadow-md", children: "Copy Link" })
           ] })
         ] }),
-        /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-6 mt-2", children: [
+        /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-6", children: [
           user && !sessionInfo.session.isAdmin && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-lg flex flex-col", children: [
             /* @__PURE__ */ jsx("p", { className: "text-muted text-xs uppercase tracking-widest font-semibold mb-4 flex-shrink-0", children: "Preferences" }),
             /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between gap-4", children: [
