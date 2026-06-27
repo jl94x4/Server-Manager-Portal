@@ -3097,10 +3097,16 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
         const libraryCounts = {};
         const contentCounts = {};
         const recentHistory = [];
+        
+        let totalHourOfDay = 0;
+        let hourCount = 0;
 
         historyRes.MediaContainer.Metadata.forEach(item => {
             if (cutoffDate > 0 && item.viewedAt < cutoffDate) return;
             totalPlays++;
+            
+            totalHourOfDay += new Date(item.viewedAt * 1000).getHours();
+            hourCount++;
 
             if (recentHistory.length < 200) {
                 recentHistory.push({
@@ -3143,10 +3149,27 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
             return c;
         });
 
+        const avgHour = hourCount > 0 ? (totalHourOfDay / hourCount) : 12;
+        let timeOfDay = 'Night Owl';
+        if (avgHour >= 5 && avgHour < 12) timeOfDay = 'Early Bird';
+        else if (avgHour >= 12 && avgHour < 18) timeOfDay = 'Afternoon Watcher';
+        else if (avgHour >= 18) timeOfDay = 'Evening Streamer';
+
+        const topShows = Object.values(contentCounts).filter(c => c.type === 'show').sort((a, b) => b.plays - a.plays);
+        const topBinge = topShows.length > 0 ? topShows[0] : null;
+
+        const trendingStats = await loadFile(TRENDING_CACHE_PATH, {});
+        const leaderboardRank = trendingStats.leaderboard && accountID ? trendingStats.leaderboard[accountID] : null;
+        const totalActiveUsers = trendingStats.totalActiveUsers || 0;
+
         res.json({ 
             totalPlays, 
             topLibraries, 
             topContent,
+            topBinge,
+            timeOfDay,
+            leaderboardRank,
+            totalActiveUsers,
             recentHistory: recentHistory.map(h => {
                 if (h.thumb) h.thumbUrl = `/api/plex/image?path=${encodeURIComponent(h.thumb)}`;
                 return h;
@@ -3756,6 +3779,7 @@ async function calculateTrendingStats() {
             retroHits: {},
             cultClassics: {}
         };
+        const userPlays30Days = {};
 
         history.forEach(item => {
             const viewedAt = item.viewedAt;
@@ -3789,6 +3813,7 @@ async function calculateTrendingStats() {
             
             // Movie / Show 30 days
             if (viewedAt >= days30) {
+                userPlays30Days[item.accountID] = (userPlays30Days[item.accountID] || 0) + 1;
                 if (item.type === 'movie') increment(counts.movies30Days);
                 if (item.type === 'episode') increment(counts.shows30Days);
             }
@@ -3828,6 +3853,12 @@ async function calculateTrendingStats() {
                 .slice(0, 20);
         };
 
+        const sortedUsers = Object.entries(userPlays30Days).sort((a, b) => b[1] - a[1]);
+        const leaderboard = {};
+        sortedUsers.forEach(([accountId, plays], index) => {
+            leaderboard[accountId] = index + 1;
+        });
+
         const stats = {
             trending7Days: getTop(counts.trending7Days),
             movies30Days: getTop(counts.movies30Days),
@@ -3838,6 +3869,8 @@ async function calculateTrendingStats() {
             nightOwls: getTop(counts.nightOwls),
             retroHits: getTop(counts.retroHits),
             cultClassics: getCultClassics(counts.cultClassics),
+            leaderboard,
+            totalActiveUsers: sortedUsers.length,
             lastUpdated: Date.now()
         };
 

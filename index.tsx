@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle } from 'lucide-react';
 
 interface CustomSelectProps {
     id?: string;
@@ -4078,6 +4078,36 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                     </div>
                 </div>
             </div>
+            
+            {/* Personal Wrap-Up */}
+            {(sessionInfo.session.isAdmin || user) && !analyticsLoading && analytics && (
+                <div className="bg-card border border-border rounded-2xl p-6 shadow-xl mb-6">
+                    <h3 className="text-xl font-bold text-text mb-6">Your 30-Day Wrap-Up</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-background rounded-xl p-4 border border-border/50 flex flex-col items-center justify-center text-center">
+                            <Trophy className="w-6 h-6 text-plex mb-2" />
+                            <p className="text-muted text-[10px] uppercase tracking-widest font-bold mb-1">Server Rank</p>
+                            <p className="text-2xl font-black text-text">{analytics.leaderboardRank ? `#${analytics.leaderboardRank}` : 'Unranked'}</p>
+                            {analytics.totalActiveUsers > 0 && <p className="text-[10px] text-muted mt-1">out of {analytics.totalActiveUsers} users</p>}
+                        </div>
+                        <div className="bg-background rounded-xl p-4 border border-border/50 flex flex-col items-center justify-center text-center">
+                            <PlayCircle className="w-6 h-6 text-plex mb-2" />
+                            <p className="text-muted text-[10px] uppercase tracking-widest font-bold mb-1">Total Streams</p>
+                            <p className="text-2xl font-black text-text">{analytics.totalPlays || 0}</p>
+                        </div>
+                        <div className="bg-background rounded-xl p-4 border border-border/50 flex flex-col items-center justify-center text-center">
+                            <Tv className="w-6 h-6 text-plex mb-2" />
+                            <p className="text-muted text-[10px] uppercase tracking-widest font-bold mb-1">Top Binge</p>
+                            <p className="text-sm font-bold text-text line-clamp-2">{analytics.topBinge?.title || 'Nothing yet'}</p>
+                        </div>
+                        <div className="bg-background rounded-xl p-4 border border-border/50 flex flex-col items-center justify-center text-center">
+                            <Clock className="w-6 h-6 text-plex mb-2" />
+                            <p className="text-muted text-[10px] uppercase tracking-widest font-bold mb-1">Time of Day</p>
+                            <p className="text-sm font-bold text-text">{analytics.timeOfDay || 'Unknown'}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                 {/* Left Column */}
