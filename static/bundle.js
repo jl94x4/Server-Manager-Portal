@@ -3909,7 +3909,7 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
         ] })
       ] }) })
     ] }),
-    (sessionInfo.session.isAdmin || user) && !analyticsLoading && analytics && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-xl mb-6", children: [
+    (sessionInfo.session.isAdmin || user) && !analyticsLoading && analytics && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-xl mb-4", children: [
       /* @__PURE__ */ jsxs("div", { className: "flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6", children: [
         /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-text", children: "Your Personal Wrap-Up" }),
         /* @__PURE__ */ jsxs("div", { className: "relative", children: [
@@ -3976,8 +3976,8 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
         ] })
       ] })
     ] }),
-    /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch", children: [
-      /* @__PURE__ */ jsxs("div", { className: "lg:col-span-1 flex flex-col gap-6 h-full", children: [
+    /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-3 gap-6 items-start", children: [
+      /* @__PURE__ */ jsxs("div", { className: "lg:col-span-1 flex flex-col gap-6", children: [
         sessionInfo.session.isAdmin ? /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-6", children: [
           /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-xl flex flex-col items-center justify-center text-center md:h-[240px]", children: [
             /* @__PURE__ */ jsx("div", { className: "w-16 h-16 bg-plex/10 rounded-full flex items-center justify-center mb-4 border border-plex/30 shadow-[0_0_15px_rgba(229,160,13,0.15)]", children: /* @__PURE__ */ jsx(Shield, { className: "w-8 h-8 text-plex drop-shadow-md" }) }),
@@ -4050,7 +4050,7 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
             }, className: "w-full py-2.5 bg-plex text-background rounded-lg font-bold hover:bg-plex-hover transition-colors shadow-md", children: "Copy Link" })
           ] })
         ] }),
-        /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-6 mt-2 flex-1", children: [
+        /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-6 mt-2", children: [
           user && !sessionInfo.session.isAdmin && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-lg flex flex-col", children: [
             /* @__PURE__ */ jsx("p", { className: "text-muted text-xs uppercase tracking-widest font-semibold mb-4 flex-shrink-0", children: "Preferences" }),
             /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between gap-4", children: [
@@ -4111,7 +4111,7 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
               )
             ] })
           ] }),
-          (sessionInfo.session.isAdmin || user) && !analyticsLoading && analytics?.recentHistory && analytics.recentHistory.length > 0 && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-xl flex-1 flex flex-col", children: [
+          (sessionInfo.session.isAdmin || user) && !analyticsLoading && analytics?.recentHistory && analytics.recentHistory.length > 0 && /* @__PURE__ */ jsxs("div", { className: "bg-card border border-border rounded-2xl p-6 shadow-xl flex flex-col", children: [
             /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between mb-6", children: [
               /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-text", children: "Recently Watched" }),
               analytics.recentHistory.length > RECENT_HISTORY_PAGE_SIZE && /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [

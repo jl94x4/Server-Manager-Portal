@@ -4113,7 +4113,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
             
             {/* Personal Wrap-Up */}
             {(sessionInfo.session.isAdmin || user) && !analyticsLoading && analytics && (
-                <div className="bg-card border border-border rounded-2xl p-6 shadow-xl mb-6">
+                <div className="bg-card border border-border rounded-2xl p-6 shadow-xl mb-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                         <h3 className="text-xl font-bold text-text">Your Personal Wrap-Up</h3>
                         <div className="relative">
@@ -4186,9 +4186,9 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                 {/* Left Column */}
-                <div className="lg:col-span-1 flex flex-col gap-6 h-full">
+                <div className="lg:col-span-1 flex flex-col gap-6">
 
 
                     {/* Subscription Status */}
@@ -4299,7 +4299,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                     )}
 
                     {/* Footer sections: Preferences & Support (Moved to Left Column) */}
-                    <div className="flex flex-col gap-6 mt-2 flex-1">
+                    <div className="flex flex-col gap-6 mt-2">
                         {/* Newsletter preferences */}
                         {user && !sessionInfo.session.isAdmin && (
                             <div className="bg-card border border-border rounded-2xl p-6 shadow-lg flex flex-col">
@@ -4348,7 +4348,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
 
                         {/* Recent History (Moved to Left Column) */}
                         {(sessionInfo.session.isAdmin || user) && !analyticsLoading && analytics?.recentHistory && analytics.recentHistory.length > 0 && (
-                            <div className="bg-card border border-border rounded-2xl p-6 shadow-xl flex-1 flex flex-col">
+                            <div className="bg-card border border-border rounded-2xl p-6 shadow-xl flex flex-col">
                                 <div className="flex items-center justify-between mb-6">
                                     <h3 className="text-xl font-bold text-text">Recently Watched</h3>
                                     {analytics.recentHistory.length > RECENT_HISTORY_PAGE_SIZE && (
