@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle } from 'lucide-react';
+import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard } from 'lucide-react';
 
 declare global {
     interface Window {
@@ -4160,7 +4160,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                             )}
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                         <div className="bg-background rounded-xl p-4 border border-border/50 flex flex-col items-center justify-center text-center">
                             <Trophy className="w-6 h-6 text-plex mb-2" />
                             <p className="text-muted text-[10px] uppercase tracking-widest font-bold mb-1">Server Rank</p>
@@ -4178,6 +4178,11 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                             <p className="text-sm font-bold text-text line-clamp-2">{analytics.topBinge?.title || 'Nothing yet'}</p>
                         </div>
                         <div className="bg-background rounded-xl p-4 border border-border/50 flex flex-col items-center justify-center text-center">
+                            <Clapperboard className="w-6 h-6 text-plex mb-2" />
+                            <p className="text-muted text-[10px] uppercase tracking-widest font-bold mb-1">Top Movie</p>
+                            <p className="text-sm font-bold text-text line-clamp-2">{analytics.topMovie?.title || 'Nothing yet'}</p>
+                        </div>
+                        <div className="bg-background rounded-xl p-4 border border-border/50 flex flex-col items-center justify-center text-center">
                             <Clock className="w-6 h-6 text-plex mb-2" />
                             <p className="text-muted text-[10px] uppercase tracking-widest font-bold mb-1">Time of Day</p>
                             <p className="text-sm font-bold text-text">{analytics.timeOfDay || 'Unknown'}</p>
@@ -4193,9 +4198,19 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                             <p className="text-sm font-bold text-text line-clamp-2">{analytics.favoriteLibrary || 'None'}</p>
                         </div>
                         <div className="bg-background rounded-xl p-4 border border-border/50 flex flex-col items-center justify-center text-center">
-                            <Film className="w-6 h-6 text-plex mb-2" />
+                            <PieChart className="w-6 h-6 text-plex mb-2" />
                             <p className="text-muted text-[10px] uppercase tracking-widest font-bold mb-1">Media Profile</p>
                             <p className="text-sm font-bold text-text">{analytics.mediaPreference || 'Mixed Bag'}</p>
+                        </div>
+                        <div className="bg-background rounded-xl p-4 border border-border/50 flex flex-col items-center justify-center text-center">
+                            <Compass className="w-6 h-6 text-plex mb-2" />
+                            <p className="text-muted text-[10px] uppercase tracking-widest font-bold mb-1">Watch Style</p>
+                            <p className="text-sm font-bold text-text">{analytics.watchStyle || 'Unknown'}</p>
+                        </div>
+                        <div className="bg-background rounded-xl p-4 border border-border/50 flex flex-col items-center justify-center text-center">
+                            <Coffee className="w-6 h-6 text-plex mb-2" />
+                            <p className="text-muted text-[10px] uppercase tracking-widest font-bold mb-1">Habit</p>
+                            <p className="text-sm font-bold text-text">{analytics.streamingHabit || 'Unknown'}</p>
                         </div>
                     </div>
                 </div>

@@ -136,39 +136,52 @@ var __iconNode3 = [
 ];
 var ChartColumn = createLucideIcon("chart-column", __iconNode3);
 
+// node_modules/lucide-react/dist/esm/icons/chart-pie.mjs
+var __iconNode4 = [
+  [
+    "path",
+    {
+      d: "M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z",
+      key: "pzmjnu"
+    }
+  ],
+  ["path", { d: "M21.21 15.89A10 10 0 1 1 8 2.83", key: "k2fpak" }]
+];
+var ChartPie = createLucideIcon("chart-pie", __iconNode4);
+
 // node_modules/lucide-react/dist/esm/icons/chevron-down.mjs
-var __iconNode4 = [["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]];
-var ChevronDown = createLucideIcon("chevron-down", __iconNode4);
+var __iconNode5 = [["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]];
+var ChevronDown = createLucideIcon("chevron-down", __iconNode5);
 
 // node_modules/lucide-react/dist/esm/icons/chevron-left.mjs
-var __iconNode5 = [["path", { d: "m15 18-6-6 6-6", key: "1wnfg3" }]];
-var ChevronLeft = createLucideIcon("chevron-left", __iconNode5);
+var __iconNode6 = [["path", { d: "m15 18-6-6 6-6", key: "1wnfg3" }]];
+var ChevronLeft = createLucideIcon("chevron-left", __iconNode6);
 
 // node_modules/lucide-react/dist/esm/icons/chevron-right.mjs
-var __iconNode6 = [["path", { d: "m9 18 6-6-6-6", key: "mthhwq" }]];
-var ChevronRight = createLucideIcon("chevron-right", __iconNode6);
+var __iconNode7 = [["path", { d: "m9 18 6-6-6-6", key: "mthhwq" }]];
+var ChevronRight = createLucideIcon("chevron-right", __iconNode7);
 
 // node_modules/lucide-react/dist/esm/icons/chevron-up.mjs
-var __iconNode7 = [["path", { d: "m18 15-6-6-6 6", key: "153udz" }]];
-var ChevronUp = createLucideIcon("chevron-up", __iconNode7);
+var __iconNode8 = [["path", { d: "m18 15-6-6-6 6", key: "153udz" }]];
+var ChevronUp = createLucideIcon("chevron-up", __iconNode8);
 
 // node_modules/lucide-react/dist/esm/icons/circle-alert.mjs
-var __iconNode8 = [
+var __iconNode9 = [
   ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
   ["line", { x1: "12", x2: "12", y1: "8", y2: "12", key: "1pkeuh" }],
   ["line", { x1: "12", x2: "12.01", y1: "16", y2: "16", key: "4dfq90" }]
 ];
-var CircleAlert = createLucideIcon("circle-alert", __iconNode8);
+var CircleAlert = createLucideIcon("circle-alert", __iconNode9);
 
 // node_modules/lucide-react/dist/esm/icons/circle-check-big.mjs
-var __iconNode9 = [
+var __iconNode10 = [
   ["path", { d: "M21.801 10A10 10 0 1 1 17 3.335", key: "yps3ct" }],
   ["path", { d: "m9 11 3 3L22 4", key: "1pflzl" }]
 ];
-var CircleCheckBig = createLucideIcon("circle-check-big", __iconNode9);
+var CircleCheckBig = createLucideIcon("circle-check-big", __iconNode10);
 
 // node_modules/lucide-react/dist/esm/icons/circle-play.mjs
-var __iconNode10 = [
+var __iconNode11 = [
   [
     "path",
     {
@@ -178,32 +191,72 @@ var __iconNode10 = [
   ],
   ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }]
 ];
-var CirclePlay = createLucideIcon("circle-play", __iconNode10);
+var CirclePlay = createLucideIcon("circle-play", __iconNode11);
+
+// node_modules/lucide-react/dist/esm/icons/clapperboard.mjs
+var __iconNode12 = [
+  ["path", { d: "m12.296 3.464 3.02 3.956", key: "qash78" }],
+  [
+    "path",
+    { d: "M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3z", key: "1h7j8b" }
+  ],
+  ["path", { d: "M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z", key: "4lm6w1" }],
+  ["path", { d: "m6.18 5.276 3.1 3.899", key: "zjj9t3" }]
+];
+var Clapperboard = createLucideIcon("clapperboard", __iconNode12);
 
 // node_modules/lucide-react/dist/esm/icons/clock.mjs
-var __iconNode11 = [
+var __iconNode13 = [
   ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
   ["path", { d: "M12 6v6l4 2", key: "mmk7yg" }]
 ];
-var Clock = createLucideIcon("clock", __iconNode11);
+var Clock = createLucideIcon("clock", __iconNode13);
 
 // node_modules/lucide-react/dist/esm/icons/cloud-download.mjs
-var __iconNode12 = [
+var __iconNode14 = [
   ["path", { d: "M12 13v8l-4-4", key: "1f5nwf" }],
   ["path", { d: "m12 21 4-4", key: "1lfcce" }],
   ["path", { d: "M4.393 15.269A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.436 8.284", key: "ui1hmy" }]
 ];
-var CloudDownload = createLucideIcon("cloud-download", __iconNode12);
+var CloudDownload = createLucideIcon("cloud-download", __iconNode14);
+
+// node_modules/lucide-react/dist/esm/icons/coffee.mjs
+var __iconNode15 = [
+  ["path", { d: "M10 2v2", key: "7u0qdc" }],
+  ["path", { d: "M14 2v2", key: "6buw04" }],
+  [
+    "path",
+    {
+      d: "M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1",
+      key: "pwadti"
+    }
+  ],
+  ["path", { d: "M6 2v2", key: "colzsn" }]
+];
+var Coffee = createLucideIcon("coffee", __iconNode15);
+
+// node_modules/lucide-react/dist/esm/icons/compass.mjs
+var __iconNode16 = [
+  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
+  [
+    "path",
+    {
+      d: "m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z",
+      key: "9ktpf1"
+    }
+  ]
+];
+var Compass = createLucideIcon("compass", __iconNode16);
 
 // node_modules/lucide-react/dist/esm/icons/copy.mjs
-var __iconNode13 = [
+var __iconNode17 = [
   ["rect", { width: "14", height: "14", x: "8", y: "8", rx: "2", ry: "2", key: "17jyea" }],
   ["path", { d: "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2", key: "zix9uf" }]
 ];
-var Copy = createLucideIcon("copy", __iconNode13);
+var Copy = createLucideIcon("copy", __iconNode17);
 
 // node_modules/lucide-react/dist/esm/icons/file-text.mjs
-var __iconNode14 = [
+var __iconNode18 = [
   [
     "path",
     {
@@ -216,10 +269,10 @@ var __iconNode14 = [
   ["path", { d: "M16 13H8", key: "t4e002" }],
   ["path", { d: "M16 17H8", key: "z1uh3a" }]
 ];
-var FileText = createLucideIcon("file-text", __iconNode14);
+var FileText = createLucideIcon("file-text", __iconNode18);
 
 // node_modules/lucide-react/dist/esm/icons/film.mjs
-var __iconNode15 = [
+var __iconNode19 = [
   ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }],
   ["path", { d: "M7 3v18", key: "bbkbws" }],
   ["path", { d: "M3 7.5h4", key: "zfgn84" }],
@@ -229,10 +282,10 @@ var __iconNode15 = [
   ["path", { d: "M17 7.5h4", key: "myr1c1" }],
   ["path", { d: "M17 16.5h4", key: "go4c1d" }]
 ];
-var Film = createLucideIcon("film", __iconNode15);
+var Film = createLucideIcon("film", __iconNode19);
 
 // node_modules/lucide-react/dist/esm/icons/hard-drive.mjs
-var __iconNode16 = [
+var __iconNode20 = [
   ["path", { d: "M10 16h.01", key: "1bzywj" }],
   [
     "path",
@@ -244,10 +297,10 @@ var __iconNode16 = [
   ["path", { d: "M21.946 12.013H2.054", key: "zqlbp7" }],
   ["path", { d: "M6 16h.01", key: "1pmjb7" }]
 ];
-var HardDrive = createLucideIcon("hard-drive", __iconNode16);
+var HardDrive = createLucideIcon("hard-drive", __iconNode20);
 
 // node_modules/lucide-react/dist/esm/icons/house.mjs
-var __iconNode17 = [
+var __iconNode21 = [
   ["path", { d: "M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8", key: "5wwlr5" }],
   [
     "path",
@@ -257,10 +310,10 @@ var __iconNode17 = [
     }
   ]
 ];
-var House = createLucideIcon("house", __iconNode17);
+var House = createLucideIcon("house", __iconNode21);
 
 // node_modules/lucide-react/dist/esm/icons/layers.mjs
-var __iconNode18 = [
+var __iconNode22 = [
   [
     "path",
     {
@@ -283,35 +336,35 @@ var __iconNode18 = [
     }
   ]
 ];
-var Layers = createLucideIcon("layers", __iconNode18);
+var Layers = createLucideIcon("layers", __iconNode22);
 
 // node_modules/lucide-react/dist/esm/icons/log-out.mjs
-var __iconNode19 = [
+var __iconNode23 = [
   ["path", { d: "m16 17 5-5-5-5", key: "1bji2h" }],
   ["path", { d: "M21 12H9", key: "dn1m92" }],
   ["path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4", key: "1uf3rs" }]
 ];
-var LogOut = createLucideIcon("log-out", __iconNode19);
+var LogOut = createLucideIcon("log-out", __iconNode23);
 
 // node_modules/lucide-react/dist/esm/icons/music.mjs
-var __iconNode20 = [
+var __iconNode24 = [
   ["path", { d: "M9 18V5l12-2v13", key: "1jmyc2" }],
   ["circle", { cx: "6", cy: "18", r: "3", key: "fqmcym" }],
   ["circle", { cx: "18", cy: "16", r: "3", key: "1hluhg" }]
 ];
-var Music = createLucideIcon("music", __iconNode20);
+var Music = createLucideIcon("music", __iconNode24);
 
 // node_modules/lucide-react/dist/esm/icons/refresh-cw.mjs
-var __iconNode21 = [
+var __iconNode25 = [
   ["path", { d: "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8", key: "v9h5vc" }],
   ["path", { d: "M21 3v5h-5", key: "1q7to0" }],
   ["path", { d: "M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16", key: "3uifl3" }],
   ["path", { d: "M8 16H3v5", key: "1cv678" }]
 ];
-var RefreshCw = createLucideIcon("refresh-cw", __iconNode21);
+var RefreshCw = createLucideIcon("refresh-cw", __iconNode25);
 
 // node_modules/lucide-react/dist/esm/icons/settings.mjs
-var __iconNode22 = [
+var __iconNode26 = [
   [
     "path",
     {
@@ -321,10 +374,10 @@ var __iconNode22 = [
   ],
   ["circle", { cx: "12", cy: "12", r: "3", key: "1v7zrd" }]
 ];
-var Settings = createLucideIcon("settings", __iconNode22);
+var Settings = createLucideIcon("settings", __iconNode26);
 
 // node_modules/lucide-react/dist/esm/icons/shield.mjs
-var __iconNode23 = [
+var __iconNode27 = [
   [
     "path",
     {
@@ -333,10 +386,10 @@ var __iconNode23 = [
     }
   ]
 ];
-var Shield = createLucideIcon("shield", __iconNode23);
+var Shield = createLucideIcon("shield", __iconNode27);
 
 // node_modules/lucide-react/dist/esm/icons/sparkles.mjs
-var __iconNode24 = [
+var __iconNode28 = [
   [
     "path",
     {
@@ -348,10 +401,10 @@ var __iconNode24 = [
   ["path", { d: "M22 4h-4", key: "gwowj6" }],
   ["circle", { cx: "4", cy: "20", r: "2", key: "6kqj1y" }]
 ];
-var Sparkles = createLucideIcon("sparkles", __iconNode24);
+var Sparkles = createLucideIcon("sparkles", __iconNode28);
 
 // node_modules/lucide-react/dist/esm/icons/square-play.mjs
-var __iconNode25 = [
+var __iconNode29 = [
   ["rect", { x: "3", y: "3", width: "18", height: "18", rx: "2", key: "h1oib" }],
   [
     "path",
@@ -361,10 +414,10 @@ var __iconNode25 = [
     }
   ]
 ];
-var SquarePlay = createLucideIcon("square-play", __iconNode25);
+var SquarePlay = createLucideIcon("square-play", __iconNode29);
 
 // node_modules/lucide-react/dist/esm/icons/star.mjs
-var __iconNode26 = [
+var __iconNode30 = [
   [
     "path",
     {
@@ -373,17 +426,17 @@ var __iconNode26 = [
     }
   ]
 ];
-var Star = createLucideIcon("star", __iconNode26);
+var Star = createLucideIcon("star", __iconNode30);
 
 // node_modules/lucide-react/dist/esm/icons/trending-up.mjs
-var __iconNode27 = [
+var __iconNode31 = [
   ["path", { d: "M16 7h6v6", key: "box55l" }],
   ["path", { d: "m22 7-8.5 8.5-5-5L2 17", key: "1t1m79" }]
 ];
-var TrendingUp = createLucideIcon("trending-up", __iconNode27);
+var TrendingUp = createLucideIcon("trending-up", __iconNode31);
 
 // node_modules/lucide-react/dist/esm/icons/trophy.mjs
-var __iconNode28 = [
+var __iconNode32 = [
   ["path", { d: "M10 14.66v1.626a2 2 0 0 1-.976 1.696A5 5 0 0 0 7 21.978", key: "1n3hpd" }],
   ["path", { d: "M14 14.66v1.626a2 2 0 0 0 .976 1.696A5 5 0 0 1 17 21.978", key: "rfe1zi" }],
   ["path", { d: "M18 9h1.5a1 1 0 0 0 0-5H18", key: "7xy6bh" }],
@@ -391,30 +444,30 @@ var __iconNode28 = [
   ["path", { d: "M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z", key: "1mhfuq" }],
   ["path", { d: "M6 9H4.5a1 1 0 0 1 0-5H6", key: "tex48p" }]
 ];
-var Trophy = createLucideIcon("trophy", __iconNode28);
+var Trophy = createLucideIcon("trophy", __iconNode32);
 
 // node_modules/lucide-react/dist/esm/icons/tv.mjs
-var __iconNode29 = [
+var __iconNode33 = [
   ["path", { d: "m17 2-5 5-5-5", key: "16satq" }],
   ["rect", { width: "20", height: "15", x: "2", y: "7", rx: "2", key: "1e6viu" }]
 ];
-var Tv = createLucideIcon("tv", __iconNode29);
+var Tv = createLucideIcon("tv", __iconNode33);
 
 // node_modules/lucide-react/dist/esm/icons/users.mjs
-var __iconNode30 = [
+var __iconNode34 = [
   ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", key: "1yyitq" }],
   ["path", { d: "M16 3.128a4 4 0 0 1 0 7.744", key: "16gr8j" }],
   ["path", { d: "M22 21v-2a4 4 0 0 0-3-3.87", key: "kshegd" }],
   ["circle", { cx: "9", cy: "7", r: "4", key: "nufk8" }]
 ];
-var Users = createLucideIcon("users", __iconNode30);
+var Users = createLucideIcon("users", __iconNode34);
 
 // node_modules/lucide-react/dist/esm/icons/x.mjs
-var __iconNode31 = [
+var __iconNode35 = [
   ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
   ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
 ];
-var X = createLucideIcon("x", __iconNode31);
+var X = createLucideIcon("x", __iconNode35);
 
 // index.tsx
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
@@ -3948,7 +4001,7 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
           ] })
         ] })
       ] }),
-      /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4", children: [
+      /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4", children: [
         /* @__PURE__ */ jsxs("div", { className: "bg-background rounded-xl p-4 border border-border/50 flex flex-col items-center justify-center text-center", children: [
           /* @__PURE__ */ jsx(Trophy, { className: "w-6 h-6 text-plex mb-2" }),
           /* @__PURE__ */ jsx("p", { className: "text-muted text-[10px] uppercase tracking-widest font-bold mb-1", children: "Server Rank" }),
@@ -3970,6 +4023,11 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
           /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-text line-clamp-2", children: analytics.topBinge?.title || "Nothing yet" })
         ] }),
         /* @__PURE__ */ jsxs("div", { className: "bg-background rounded-xl p-4 border border-border/50 flex flex-col items-center justify-center text-center", children: [
+          /* @__PURE__ */ jsx(Clapperboard, { className: "w-6 h-6 text-plex mb-2" }),
+          /* @__PURE__ */ jsx("p", { className: "text-muted text-[10px] uppercase tracking-widest font-bold mb-1", children: "Top Movie" }),
+          /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-text line-clamp-2", children: analytics.topMovie?.title || "Nothing yet" })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "bg-background rounded-xl p-4 border border-border/50 flex flex-col items-center justify-center text-center", children: [
           /* @__PURE__ */ jsx(Clock, { className: "w-6 h-6 text-plex mb-2" }),
           /* @__PURE__ */ jsx("p", { className: "text-muted text-[10px] uppercase tracking-widest font-bold mb-1", children: "Time of Day" }),
           /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-text", children: analytics.timeOfDay || "Unknown" })
@@ -3985,9 +4043,19 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
           /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-text line-clamp-2", children: analytics.favoriteLibrary || "None" })
         ] }),
         /* @__PURE__ */ jsxs("div", { className: "bg-background rounded-xl p-4 border border-border/50 flex flex-col items-center justify-center text-center", children: [
-          /* @__PURE__ */ jsx(Film, { className: "w-6 h-6 text-plex mb-2" }),
+          /* @__PURE__ */ jsx(ChartPie, { className: "w-6 h-6 text-plex mb-2" }),
           /* @__PURE__ */ jsx("p", { className: "text-muted text-[10px] uppercase tracking-widest font-bold mb-1", children: "Media Profile" }),
           /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-text", children: analytics.mediaPreference || "Mixed Bag" })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "bg-background rounded-xl p-4 border border-border/50 flex flex-col items-center justify-center text-center", children: [
+          /* @__PURE__ */ jsx(Compass, { className: "w-6 h-6 text-plex mb-2" }),
+          /* @__PURE__ */ jsx("p", { className: "text-muted text-[10px] uppercase tracking-widest font-bold mb-1", children: "Watch Style" }),
+          /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-text", children: analytics.watchStyle || "Unknown" })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "bg-background rounded-xl p-4 border border-border/50 flex flex-col items-center justify-center text-center", children: [
+          /* @__PURE__ */ jsx(Coffee, { className: "w-6 h-6 text-plex mb-2" }),
+          /* @__PURE__ */ jsx("p", { className: "text-muted text-[10px] uppercase tracking-widest font-bold mb-1", children: "Habit" }),
+          /* @__PURE__ */ jsx("p", { className: "text-sm font-bold text-text", children: analytics.streamingHabit || "Unknown" })
         ] })
       ] })
     ] }),
@@ -5468,6 +5536,14 @@ lucide-react/dist/esm/icons/chart-column.mjs:
    * See the LICENSE file in the root directory of this source tree.
    *)
 
+lucide-react/dist/esm/icons/chart-pie.mjs:
+  (**
+   * @license lucide-react v1.21.0 - ISC
+   *
+   * This source code is licensed under the ISC license.
+   * See the LICENSE file in the root directory of this source tree.
+   *)
+
 lucide-react/dist/esm/icons/chevron-down.mjs:
   (**
    * @license lucide-react v1.21.0 - ISC
@@ -5524,6 +5600,14 @@ lucide-react/dist/esm/icons/circle-play.mjs:
    * See the LICENSE file in the root directory of this source tree.
    *)
 
+lucide-react/dist/esm/icons/clapperboard.mjs:
+  (**
+   * @license lucide-react v1.21.0 - ISC
+   *
+   * This source code is licensed under the ISC license.
+   * See the LICENSE file in the root directory of this source tree.
+   *)
+
 lucide-react/dist/esm/icons/clock.mjs:
   (**
    * @license lucide-react v1.21.0 - ISC
@@ -5533,6 +5617,22 @@ lucide-react/dist/esm/icons/clock.mjs:
    *)
 
 lucide-react/dist/esm/icons/cloud-download.mjs:
+  (**
+   * @license lucide-react v1.21.0 - ISC
+   *
+   * This source code is licensed under the ISC license.
+   * See the LICENSE file in the root directory of this source tree.
+   *)
+
+lucide-react/dist/esm/icons/coffee.mjs:
+  (**
+   * @license lucide-react v1.21.0 - ISC
+   *
+   * This source code is licensed under the ISC license.
+   * See the LICENSE file in the root directory of this source tree.
+   *)
+
+lucide-react/dist/esm/icons/compass.mjs:
   (**
    * @license lucide-react v1.21.0 - ISC
    *

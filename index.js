@@ -3195,6 +3195,24 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
             else if (musicCount / totalPrefCount >= 0.6) mediaPreference = 'Music Lover';
         }
 
+        const topMoviesList = Object.values(contentCounts).filter(c => c.type === 'movie').sort((a, b) => b.plays - a.plays);
+        const topMovie = topMoviesList.length > 0 ? topMoviesList[0] : null;
+
+        let watchStyle = 'Explorer';
+        if (totalPlays > 0) {
+            const uniqueTitles = Object.keys(contentCounts).length;
+            if (totalPlays / uniqueTitles > 3) watchStyle = 'Comfort Binger';
+            else if (totalPlays / uniqueTitles > 1.5) watchStyle = 'Loyal Fan';
+        }
+
+        let streamingHabit = 'Balanced Streamer';
+        const weekendPlays = dayOfWeekCounts[0] + dayOfWeekCounts[6];
+        const weekdayPlays = totalPlays - weekendPlays;
+        if (totalPlays > 0) {
+            if (weekendPlays / totalPlays >= 0.5) streamingHabit = 'Weekend Warrior';
+            else if (weekdayPlays / totalPlays >= 0.8) streamingHabit = 'Weekday Streamer';
+        }
+
         const trendingStats = await loadFile(TRENDING_CACHE_PATH, {});
         
         let periodKey = '30';
@@ -3213,10 +3231,13 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
             topLibraries, 
             topContent,
             topBinge,
+            topMovie,
             timeOfDay,
             popularDay,
             favoriteLibrary,
             mediaPreference,
+            watchStyle,
+            streamingHabit,
             leaderboardRank,
             totalActiveUsers,
             recentHistory: recentHistory.map(h => {
