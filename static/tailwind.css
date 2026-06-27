@@ -3507,6 +3507,12 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
 
+.hover\:shadow-\[0_0_15px_rgba\(229\2c 160\2c 13\2c 0\.15\)\]:hover {
+  --tw-shadow: 0 0 15px rgba(229,160,13,0.15);
+  --tw-shadow-colored: 0 0 15px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
 .hover\:shadow-\[0_0_8px_rgba\(210\2c 153\2c 34\2c 0\.6\)\]:hover {
   --tw-shadow: 0 0 8px rgba(210,153,34,0.6);
   --tw-shadow-colored: 0 0 8px var(--tw-shadow-color);
