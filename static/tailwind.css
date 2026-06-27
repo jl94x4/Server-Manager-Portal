@@ -2948,6 +2948,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   color: rgb(211 47 47 / var(--tw-text-opacity, 1));
 }
 
+.text-amber-400 {
+  --tw-text-opacity: 1;
+  color: rgb(251 191 36 / var(--tw-text-opacity, 1));
+}
+
 .text-background {
   --tw-text-opacity: 1;
   color: rgb(13 17 23 / var(--tw-text-opacity, 1));
@@ -3001,6 +3006,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 .text-green-500 {
   --tw-text-opacity: 1;
   color: rgb(34 197 94 / var(--tw-text-opacity, 1));
+}
+
+.text-indigo-400 {
+  --tw-text-opacity: 1;
+  color: rgb(129 140 248 / var(--tw-text-opacity, 1));
 }
 
 .text-muted {
