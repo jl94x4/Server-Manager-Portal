@@ -1734,7 +1734,7 @@ const fetchImageBuffer = async (config, thumbPath) => {
 };
 
 const generateNewsletterHtml = async (config) => {
-    const stats = await fetchPlexStatsInternal(config).catch(() => ({ movies: 0, shows: 0, music: 0 }));
+    const stats = cachedPlexStats || await loadPlexStatsFromDisk() || { movies: 0, shows: 0, music: 0 };
     let recentHtml = '';
     let serverName = 'our Plex Server';
     const attachments = [];
