@@ -1275,7 +1275,7 @@ app.post('/api/config', async (req, res) => {
         newsletterFrequency, newsletterDay, publicDomain, requestUrl, contactUrl,
         sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey,
         inactiveCleanupEnabled, inactiveCleanupDays,
-        primaryColor, customLogoUrl, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds
+        primaryColor, customLogoUrl, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock
     } = req.body;
 
     if (!token || !serverIdentifier) {
@@ -1334,7 +1334,8 @@ app.post('/api/config', async (req, res) => {
         announcement: announcement || '',
         hideStreamUsers: hideStreamUsers === true ? 'anonymous' : (hideStreamUsers === false ? 'false' : (hideStreamUsers || 'false')),
         navOrder: Array.isArray(navOrder) ? navOrder : existingConfig.navOrder || ['home', 'discover', 'users', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout'],
-        defaultLibraryIds: Array.isArray(defaultLibraryIds) ? defaultLibraryIds : null
+        defaultLibraryIds: Array.isArray(defaultLibraryIds) ? defaultLibraryIds : null,
+        use24HourClock: !!use24HourClock
     };
     await saveFile(CONFIG_PATH, config);
     log('Configuration saved successfully.');
@@ -1350,7 +1351,8 @@ app.get('/api/config/public', async (req, res) => {
             customLogoUrl: config.customLogoUrl || '',
             announcement: config.announcement || '',
             referralEnabled: !!config.referralEnabled,
-            appVersion: appVersion
+            appVersion: appVersion,
+            use24HourClock: !!config.use24HourClock
         });
     } catch (error) {
         res.json({
@@ -1358,7 +1360,8 @@ app.get('/api/config/public', async (req, res) => {
             customLogoUrl: '',
             announcement: '',
             referralEnabled: false,
-            appVersion: appVersion
+            appVersion: appVersion,
+            use24HourClock: false
         });
     }
 });

@@ -206,7 +206,7 @@ const addYears = (date: Date, years: number): Date => {
 
 const formatTime = (date) => {
     try {
-        const is24 = typeof window !== 'undefined' && window.localStorage.getItem('use24Hour') === 'true';
+        const is24 = typeof window !== 'undefined' && window.window.__USE_24_HOUR_CLOCK__ === true;
         const str = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: !is24 });
         return is24 ? str : str.replace(/^0:/, '12:');
     } catch (e) {
@@ -799,6 +799,7 @@ const SettingsDashboard: React.FC = () => {
     const [referralRewardDays, setReferralRewardDays] = useState(7);
     const [announcement, setAnnouncement] = useState('');
     const [isPushingAnnouncement, setIsPushingAnnouncement] = useState(false);
+    const [use24HourClock, setUse24HourClock] = useState(initialSettings.use24HourClock || false);
     const [navOrder, setNavOrder] = useState<string[]>(['home', 'discover', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout']);
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [tasks, setTasks] = useState<any[]>([]);
@@ -1449,6 +1450,15 @@ const SettingsDashboard: React.FC = () => {
                                     <input type="file" accept="image/*" className="w-full p-2 rounded-lg border border-border bg-background text-muted text-sm outline-none focus:border-plex transition-all file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-text hover:file:bg-white/20 file:cursor-pointer cursor-pointer" onChange={e => setLogoFile(e.target.files?.[0] || null)} />
                                 </div>
                                 <small>Provide a URL or upload a file. (Max 5MB)</small>
+                            </div>
+
+                            
+                            <div className="mb-4">
+                                <label>Time Format</label>
+                                <div className="flex items-center gap-2 mt-2">
+                                    <input type="checkbox" id="use24HourClock" checked={use24HourClock} onChange={e => setUse24HourClock(e.target.checked)} className="w-5 h-5 accent-plex cursor-pointer" />
+                                    <label htmlFor="use24HourClock" className="cursor-pointer text-sm font-medium">Use 24-Hour Clock across the Portal</label>
+                                </div>
                             </div>
 
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8">Announcements</h3>
@@ -2413,7 +2423,7 @@ const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                                                             <div className="flex items-center gap-1.5 md:gap-2 mb-1 md:mb-2">
                                                                 <span className="text-[9px] md:text-[11px] text-plex flex items-center gap-1 md:gap-1.5 font-bold tracking-wide">
                                                                     <Clock className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                                                                    {item.formatTime(date).replace(/^0:/, '12:')}
+                                                                    {formatTime(item.date).replace(/^0:/, '12:')}
                                                                 </span>
                                                                 <span className={`md:hidden text-[8px] font-black tracking-widest uppercase px-1 rounded ${item.service === 'Sonarr' ? 'text-blue-400' : 'text-red-400'}`}>
                                                                     {item.service}
@@ -4300,13 +4310,13 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                         <p className="text-muted text-xs mt-1 leading-relaxed">Display time in 24-hour format across the app</p>
                                     </div>
                                     <button onClick={() => {
-                                        const is24 = localStorage.getItem('use24Hour') === 'true';
+                                        const is24 = window.__USE_24_HOUR_CLOCK__ === true;
                                         localStorage.setItem('use24Hour', is24 ? 'false' : 'true');
                                         window.dispatchEvent(new Event('timeFormatChanged'));
                                         window.location.reload();
                                     }} aria-label="Toggle 24-hour clock"
-                                        className={`relative inline-flex items-center w-14 h-7 rounded-full transition-all flex-shrink-0 border-2 ${typeof window !== 'undefined' && window.localStorage.getItem('use24Hour') === 'true' ? 'bg-plex border-plex' : 'bg-background border-border'}`}>
-                                        <span className={`inline-block w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-300 ${typeof window !== 'undefined' && window.localStorage.getItem('use24Hour') === 'true' ? 'translate-x-8' : 'translate-x-1'}`} />
+                                        className={`relative inline-flex items-center w-14 h-7 rounded-full transition-all flex-shrink-0 border-2 ${typeof window !== 'undefined' && window.window.__USE_24_HOUR_CLOCK__ === true ? 'bg-plex border-plex' : 'bg-background border-border'}`}>
+                                        <span className={`inline-block w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-300 ${typeof window !== 'undefined' && window.window.__USE_24_HOUR_CLOCK__ === true ? 'translate-x-8' : 'translate-x-1'}`} />
                                     </button>
                                 </div>
                             </div>
@@ -5821,6 +5831,7 @@ const MainApp: React.FC = () => {
     const fetchPublicConfig = useCallback(async () => {
         try {
             const data = await apiFetch('/api/config/public');
+            window.__USE_24_HOUR_CLOCK__ = data.use24HourClock === true;
             setPublicConfig(data);
             if (data.primaryColor) {
                 document.documentElement.style.setProperty('--color-plex', hexToRgb(data.primaryColor));

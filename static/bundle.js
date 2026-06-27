@@ -487,23 +487,23 @@ var getDaysUntilExpiry = (expiryDate) => {
   const diffTime = expiry.getTime() - today.getTime();
   return Math.round(diffTime / (1e3 * 60 * 60 * 24));
 };
-var addMonths = (date2, months) => {
-  const d = new Date(date2);
+var addMonths = (date, months) => {
+  const d = new Date(date);
   d.setMonth(d.getMonth() + months);
   return d;
 };
-var addYears = (date2, years) => {
-  const d = new Date(date2);
+var addYears = (date, years) => {
+  const d = new Date(date);
   d.setFullYear(d.getFullYear() + years);
   return d;
 };
-var formatTime = (date2) => {
+var formatTime = (date) => {
   try {
-    const is24 = typeof window !== "undefined" && window.localStorage.getItem("use24Hour") === "true";
-    const str = date2.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: !is24 });
+    const is24 = typeof window !== "undefined" && window.window.__USE_24_HOUR_CLOCK__ === true;
+    const str = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: !is24 });
     return is24 ? str : str.replace(/^0:/, "12:");
   } catch (e) {
-    return formatTime(date2);
+    return formatTime(date);
   }
 };
 var apiFetch = async (url, options = {}) => {
@@ -989,6 +989,7 @@ var SettingsDashboard = () => {
   const [referralRewardDays, setReferralRewardDays] = useState(7);
   const [announcement, setAnnouncement] = useState("");
   const [isPushingAnnouncement, setIsPushingAnnouncement] = useState(false);
+  const [use24HourClock, setUse24HourClock] = useState(initialSettings.use24HourClock || false);
   const [navOrder, setNavOrder] = useState(["home", "discover", "status", "logs", "analytics", "mediastack", "request", "settings", "logout"]);
   const [logoFile, setLogoFile] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -1591,6 +1592,13 @@ var SettingsDashboard = () => {
             ] }),
             /* @__PURE__ */ jsx("small", { children: "Provide a URL or upload a file. (Max 5MB)" })
           ] }),
+          /* @__PURE__ */ jsxs("div", { className: "mb-4", children: [
+            /* @__PURE__ */ jsx("label", { children: "Time Format" }),
+            /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 mt-2", children: [
+              /* @__PURE__ */ jsx("input", { type: "checkbox", id: "use24HourClock", checked: use24HourClock, onChange: (e) => setUse24HourClock(e.target.checked), className: "w-5 h-5 accent-plex cursor-pointer" }),
+              /* @__PURE__ */ jsx("label", { htmlFor: "use24HourClock", className: "cursor-pointer text-sm font-medium", children: "Use 24-Hour Clock across the Portal" })
+            ] })
+          ] }),
           /* @__PURE__ */ jsx("h3", { className: "text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8", children: "Announcements" }),
           /* @__PURE__ */ jsxs("div", { className: "mb-4", children: [
             /* @__PURE__ */ jsx("label", { children: "Portal Announcement Banner" }),
@@ -2154,28 +2162,28 @@ var MediaStackDashboard = ({ isAdmin }) => {
     const interval = setInterval(fetchData, 3e4);
     return () => clearInterval(interval);
   }, [fetchData]);
-  const formatRelativeAirDate = (date2) => {
+  const formatRelativeAirDate = (date) => {
     const now = /* @__PURE__ */ new Date();
     const today = /* @__PURE__ */ new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const isMidnight = date2.getHours() === 0 && date2.getMinutes() === 0;
-    const timeStr = isMidnight ? "" : ` at ${formatTime(date2)}`;
-    const diffDays = Math.ceil((date2.getTime() - today.getTime()) / (1e3 * 60 * 60 * 24));
-    if (date2 >= today && date2 < tomorrow) {
+    const isMidnight = date.getHours() === 0 && date.getMinutes() === 0;
+    const timeStr = isMidnight ? "" : ` at ${formatTime(date)}`;
+    const diffDays = Math.ceil((date.getTime() - today.getTime()) / (1e3 * 60 * 60 * 24));
+    if (date >= today && date < tomorrow) {
       return `Today${timeStr}`;
     }
     const dayAfterTomorrow = new Date(tomorrow);
     dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
-    if (date2 >= tomorrow && date2 < dayAfterTomorrow) {
+    if (date >= tomorrow && date < dayAfterTomorrow) {
       return `Tomorrow${timeStr}`;
     }
     if (diffDays > 1 && diffDays < 7) {
-      const dayName = date2.toLocaleDateString([], { weekday: "long" });
+      const dayName = date.toLocaleDateString([], { weekday: "long" });
       return `${dayName}${timeStr}`;
     }
-    return date2.toLocaleDateString([], { month: "short", day: "numeric" }) + timeStr;
+    return date.toLocaleDateString([], { month: "short", day: "numeric" }) + timeStr;
   };
   const formatBytes = (bytes) => {
     if (!bytes) return "0.0 GB";
@@ -2445,7 +2453,7 @@ var MediaStackDashboard = ({ isAdmin }) => {
                     /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5 md:gap-2 mb-1 md:mb-2", children: [
                       /* @__PURE__ */ jsxs("span", { className: "text-[9px] md:text-[11px] text-plex flex items-center gap-1 md:gap-1.5 font-bold tracking-wide", children: [
                         /* @__PURE__ */ jsx(Clock, { className: "w-3 h-3 md:w-3.5 md:h-3.5" }),
-                        item.formatTime(date).replace(/^0:/, "12:")
+                        formatTime(item.date).replace(/^0:/, "12:")
                       ] }),
                       /* @__PURE__ */ jsx("span", { className: `md:hidden text-[8px] font-black tracking-widest uppercase px-1 rounded ${item.service === "Sonarr" ? "text-blue-400" : "text-red-400"}`, children: item.service })
                     ] }),
@@ -4067,14 +4075,14 @@ var UserDashboard = ({ sessionInfo, publicConfig, onLogout, refreshSession, onVi
                 "button",
                 {
                   onClick: () => {
-                    const is24 = localStorage.getItem("use24Hour") === "true";
+                    const is24 = window.__USE_24_HOUR_CLOCK__ === true;
                     localStorage.setItem("use24Hour", is24 ? "false" : "true");
                     window.dispatchEvent(new Event("timeFormatChanged"));
                     window.location.reload();
                   },
                   "aria-label": "Toggle 24-hour clock",
-                  className: `relative inline-flex items-center w-14 h-7 rounded-full transition-all flex-shrink-0 border-2 ${typeof window !== "undefined" && window.localStorage.getItem("use24Hour") === "true" ? "bg-plex border-plex" : "bg-background border-border"}`,
-                  children: /* @__PURE__ */ jsx("span", { className: `inline-block w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-300 ${typeof window !== "undefined" && window.localStorage.getItem("use24Hour") === "true" ? "translate-x-8" : "translate-x-1"}` })
+                  className: `relative inline-flex items-center w-14 h-7 rounded-full transition-all flex-shrink-0 border-2 ${typeof window !== "undefined" && window.window.__USE_24_HOUR_CLOCK__ === true ? "bg-plex border-plex" : "bg-background border-border"}`,
+                  children: /* @__PURE__ */ jsx("span", { className: `inline-block w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-300 ${typeof window !== "undefined" && window.window.__USE_24_HOUR_CLOCK__ === true ? "translate-x-8" : "translate-x-1"}` })
                 }
               )
             ] })
@@ -5262,6 +5270,7 @@ var MainApp = () => {
   const fetchPublicConfig = useCallback(async () => {
     try {
       const data = await apiFetch("/api/config/public");
+      window.__USE_24_HOUR_CLOCK__ = data.use24HourClock === true;
       setPublicConfig(data);
       if (data.primaryColor) {
         document.documentElement.style.setProperty("--color-plex", hexToRgb(data.primaryColor));
