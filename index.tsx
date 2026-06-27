@@ -4332,7 +4332,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                         </div>
 
                         <div className="rounded-xl overflow-hidden relative border border-border/50 group flex flex-col" style={{ minHeight: '130px' }}>
-                            <div className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-700 group-hover:scale-110 opacity-60" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1518818419601-1296c00cb0bd?auto=format&fit=crop&q=80&w=600')` }} />
+                            <div className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-700 group-hover:scale-110 opacity-60" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&q=80&w=600')` }} />
                             <div className="absolute inset-0 bg-black/60 z-10" />
                             <div className="relative z-20 p-4 flex-1 flex flex-col items-center justify-center text-center">
                                 <PieChart className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
