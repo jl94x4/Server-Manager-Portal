@@ -359,25 +359,33 @@ var __iconNode25 = [
 ];
 var MonitorSmartphone = createLucideIcon("monitor-smartphone", __iconNode25);
 
-// node_modules/lucide-react/dist/esm/icons/music.mjs
+// node_modules/lucide-react/dist/esm/icons/monitor.mjs
 var __iconNode26 = [
+  ["rect", { width: "20", height: "14", x: "2", y: "3", rx: "2", key: "48i651" }],
+  ["line", { x1: "8", x2: "16", y1: "21", y2: "21", key: "1svkeh" }],
+  ["line", { x1: "12", x2: "12", y1: "17", y2: "21", key: "vw1qmm" }]
+];
+var Monitor = createLucideIcon("monitor", __iconNode26);
+
+// node_modules/lucide-react/dist/esm/icons/music.mjs
+var __iconNode27 = [
   ["path", { d: "M9 18V5l12-2v13", key: "1jmyc2" }],
   ["circle", { cx: "6", cy: "18", r: "3", key: "fqmcym" }],
   ["circle", { cx: "18", cy: "16", r: "3", key: "1hluhg" }]
 ];
-var Music = createLucideIcon("music", __iconNode26);
+var Music = createLucideIcon("music", __iconNode27);
 
 // node_modules/lucide-react/dist/esm/icons/refresh-cw.mjs
-var __iconNode27 = [
+var __iconNode28 = [
   ["path", { d: "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8", key: "v9h5vc" }],
   ["path", { d: "M21 3v5h-5", key: "1q7to0" }],
   ["path", { d: "M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16", key: "3uifl3" }],
   ["path", { d: "M8 16H3v5", key: "1cv678" }]
 ];
-var RefreshCw = createLucideIcon("refresh-cw", __iconNode27);
+var RefreshCw = createLucideIcon("refresh-cw", __iconNode28);
 
 // node_modules/lucide-react/dist/esm/icons/settings.mjs
-var __iconNode28 = [
+var __iconNode29 = [
   [
     "path",
     {
@@ -387,10 +395,10 @@ var __iconNode28 = [
   ],
   ["circle", { cx: "12", cy: "12", r: "3", key: "1v7zrd" }]
 ];
-var Settings = createLucideIcon("settings", __iconNode28);
+var Settings = createLucideIcon("settings", __iconNode29);
 
 // node_modules/lucide-react/dist/esm/icons/shield.mjs
-var __iconNode29 = [
+var __iconNode30 = [
   [
     "path",
     {
@@ -399,10 +407,10 @@ var __iconNode29 = [
     }
   ]
 ];
-var Shield = createLucideIcon("shield", __iconNode29);
+var Shield = createLucideIcon("shield", __iconNode30);
 
 // node_modules/lucide-react/dist/esm/icons/sparkles.mjs
-var __iconNode30 = [
+var __iconNode31 = [
   [
     "path",
     {
@@ -414,10 +422,10 @@ var __iconNode30 = [
   ["path", { d: "M22 4h-4", key: "gwowj6" }],
   ["circle", { cx: "4", cy: "20", r: "2", key: "6kqj1y" }]
 ];
-var Sparkles = createLucideIcon("sparkles", __iconNode30);
+var Sparkles = createLucideIcon("sparkles", __iconNode31);
 
 // node_modules/lucide-react/dist/esm/icons/square-play.mjs
-var __iconNode31 = [
+var __iconNode32 = [
   ["rect", { x: "3", y: "3", width: "18", height: "18", rx: "2", key: "h1oib" }],
   [
     "path",
@@ -427,10 +435,10 @@ var __iconNode31 = [
     }
   ]
 ];
-var SquarePlay = createLucideIcon("square-play", __iconNode31);
+var SquarePlay = createLucideIcon("square-play", __iconNode32);
 
 // node_modules/lucide-react/dist/esm/icons/star.mjs
-var __iconNode32 = [
+var __iconNode33 = [
   [
     "path",
     {
@@ -439,10 +447,10 @@ var __iconNode32 = [
     }
   ]
 ];
-var Star = createLucideIcon("star", __iconNode32);
+var Star = createLucideIcon("star", __iconNode33);
 
 // node_modules/lucide-react/dist/esm/icons/triangle-alert.mjs
-var __iconNode33 = [
+var __iconNode34 = [
   [
     "path",
     {
@@ -453,17 +461,17 @@ var __iconNode33 = [
   ["path", { d: "M12 9v4", key: "juzpu7" }],
   ["path", { d: "M12 17h.01", key: "p32p05" }]
 ];
-var TriangleAlert = createLucideIcon("triangle-alert", __iconNode33);
+var TriangleAlert = createLucideIcon("triangle-alert", __iconNode34);
 
 // node_modules/lucide-react/dist/esm/icons/trending-up.mjs
-var __iconNode34 = [
+var __iconNode35 = [
   ["path", { d: "M16 7h6v6", key: "box55l" }],
   ["path", { d: "m22 7-8.5 8.5-5-5L2 17", key: "1t1m79" }]
 ];
-var TrendingUp = createLucideIcon("trending-up", __iconNode34);
+var TrendingUp = createLucideIcon("trending-up", __iconNode35);
 
 // node_modules/lucide-react/dist/esm/icons/trophy.mjs
-var __iconNode35 = [
+var __iconNode36 = [
   ["path", { d: "M10 14.66v1.626a2 2 0 0 1-.976 1.696A5 5 0 0 0 7 21.978", key: "1n3hpd" }],
   ["path", { d: "M14 14.66v1.626a2 2 0 0 0 .976 1.696A5 5 0 0 1 17 21.978", key: "rfe1zi" }],
   ["path", { d: "M18 9h1.5a1 1 0 0 0 0-5H18", key: "7xy6bh" }],
@@ -471,30 +479,30 @@ var __iconNode35 = [
   ["path", { d: "M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z", key: "1mhfuq" }],
   ["path", { d: "M6 9H4.5a1 1 0 0 1 0-5H6", key: "tex48p" }]
 ];
-var Trophy = createLucideIcon("trophy", __iconNode35);
+var Trophy = createLucideIcon("trophy", __iconNode36);
 
 // node_modules/lucide-react/dist/esm/icons/tv.mjs
-var __iconNode36 = [
+var __iconNode37 = [
   ["path", { d: "m17 2-5 5-5-5", key: "16satq" }],
   ["rect", { width: "20", height: "15", x: "2", y: "7", rx: "2", key: "1e6viu" }]
 ];
-var Tv = createLucideIcon("tv", __iconNode36);
+var Tv = createLucideIcon("tv", __iconNode37);
 
 // node_modules/lucide-react/dist/esm/icons/users.mjs
-var __iconNode37 = [
+var __iconNode38 = [
   ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", key: "1yyitq" }],
   ["path", { d: "M16 3.128a4 4 0 0 1 0 7.744", key: "16gr8j" }],
   ["path", { d: "M22 21v-2a4 4 0 0 0-3-3.87", key: "kshegd" }],
   ["circle", { cx: "9", cy: "7", r: "4", key: "nufk8" }]
 ];
-var Users = createLucideIcon("users", __iconNode37);
+var Users = createLucideIcon("users", __iconNode38);
 
 // node_modules/lucide-react/dist/esm/icons/x.mjs
-var __iconNode38 = [
+var __iconNode39 = [
   ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
   ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
 ];
-var X = createLucideIcon("x", __iconNode38);
+var X = createLucideIcon("x", __iconNode39);
 
 // index.tsx
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
@@ -6576,6 +6584,14 @@ lucide-react/dist/esm/icons/log-out.mjs:
    *)
 
 lucide-react/dist/esm/icons/monitor-smartphone.mjs:
+  (**
+   * @license lucide-react v1.21.0 - ISC
+   *
+   * This source code is licensed under the ISC license.
+   * See the LICENSE file in the root directory of this source tree.
+   *)
+
+lucide-react/dist/esm/icons/monitor.mjs:
   (**
    * @license lucide-react v1.21.0 - ISC
    *
