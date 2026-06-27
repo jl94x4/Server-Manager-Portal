@@ -3178,7 +3178,17 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
         else if (avgHour >= 18) timeOfDay = 'Evening Streamer';
 
         const allShowsList = Object.values(contentCounts).filter(c => c.type === 'show').sort((a, b) => b.plays - a.plays);
-        const topShows = allShowsList.slice(0, 5).map(s => ({ ...s, artUrl: s.art ? `/api/plex/image?path=${encodeURIComponent(s.art)}` : null, thumbUrl: s.thumb ? `/api/plex/image?path=${encodeURIComponent(s.thumb)}` : null }));
+        let topShowsRaw = allShowsList.slice(0, 5);
+        await Promise.all(topShowsRaw.map(async (s) => {
+            if (!s.art) {
+                const metaRes = await fetch(`${uri}${s.key}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+                if (metaRes && metaRes.MediaContainer && metaRes.MediaContainer.Metadata && metaRes.MediaContainer.Metadata[0]) {
+                    const data = metaRes.MediaContainer.Metadata[0];
+                    s.art = data.art || data.grandparentArt || data.parentArt || s.art;
+                }
+            }
+        }));
+        const topShows = topShowsRaw.map(s => ({ ...s, artUrl: s.art ? `/api/plex/image?path=${encodeURIComponent(s.art)}` : null, thumbUrl: s.thumb ? `/api/plex/image?path=${encodeURIComponent(s.thumb)}` : null }));
         const topBinge = topShows.length > 0 ? topShows[0] : null;
 
         const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -3203,7 +3213,17 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
         }
 
         const allMoviesList = Object.values(contentCounts).filter(c => c.type === 'movie').sort((a, b) => b.plays - a.plays);
-        const topMovies = allMoviesList.slice(0, 5).map(m => ({ ...m, artUrl: m.art ? `/api/plex/image?path=${encodeURIComponent(m.art)}` : null, thumbUrl: m.thumb ? `/api/plex/image?path=${encodeURIComponent(m.thumb)}` : null }));
+        let topMoviesRaw = allMoviesList.slice(0, 5);
+        await Promise.all(topMoviesRaw.map(async (m) => {
+            if (!m.art) {
+                const metaRes = await fetch(`${uri}${m.key}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+                if (metaRes && metaRes.MediaContainer && metaRes.MediaContainer.Metadata && metaRes.MediaContainer.Metadata[0]) {
+                    const data = metaRes.MediaContainer.Metadata[0];
+                    m.art = data.art || data.grandparentArt || data.parentArt || m.art;
+                }
+            }
+        }));
+        const topMovies = topMoviesRaw.map(m => ({ ...m, artUrl: m.art ? `/api/plex/image?path=${encodeURIComponent(m.art)}` : null, thumbUrl: m.thumb ? `/api/plex/image?path=${encodeURIComponent(m.thumb)}` : null }));
         const topMovie = topMovies.length > 0 ? topMovies[0] : null;
 
         let watchStyle = 'Explorer';
