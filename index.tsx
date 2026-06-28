@@ -702,22 +702,22 @@ const InvitesSettings: React.FC<{ addToast: (msg: string, type: 'success' | 'err
 // Stream Kill Rules Panel
 // ─────────────────────────────────────────────────────────────────────────────
 const RULE_FIELDS = [
-    { value: 'isTranscoding',          label: 'Is Transcoding',       type: 'bool' as const },
-    { value: 'videoResolution',        label: 'Video Resolution',     type: 'select' as const, options: ['4k', '1080', '720', '480', 'sd'] },
-    { value: 'transcodeVideoDecision', label: 'Transcode Decision',   type: 'select' as const, options: ['transcode', 'copy', 'directplay'] },
-    { value: 'mediaType',              label: 'Media Type',           type: 'select' as const, options: ['movie', 'episode', 'track'] },
-    { value: 'state',                  label: 'Playback State',       type: 'select' as const, options: ['playing', 'paused', 'buffering'] },
-    { value: 'sessionLocation',        label: 'Connection Location',  type: 'select' as const, options: ['lan', 'wan', 'cellular'] },
-    { value: 'videoCodec',             label: 'Video Codec',          type: 'text' as const },
-    { value: 'audioCodec',             label: 'Audio Codec',          type: 'text' as const },
-    { value: 'bandwidth',              label: 'Bandwidth (Mbps)',     type: 'number' as const },
-    { value: 'user',                   label: 'Username',             type: 'text' as const },
-    { value: 'playerProduct',          label: 'Player App',           type: 'text' as const },
-    { value: 'playerTitle',            label: 'Player/Device Name',   type: 'text' as const },
+    { value: 'isTranscoding', label: 'Is Transcoding', type: 'bool' as const },
+    { value: 'videoResolution', label: 'Video Resolution', type: 'select' as const, options: ['4k', '1080', '720', '480', 'sd'] },
+    { value: 'transcodeVideoDecision', label: 'Transcode Decision', type: 'select' as const, options: ['transcode', 'copy', 'directplay'] },
+    { value: 'mediaType', label: 'Media Type', type: 'select' as const, options: ['movie', 'episode', 'track'] },
+    { value: 'state', label: 'Playback State', type: 'select' as const, options: ['playing', 'paused', 'buffering'] },
+    { value: 'sessionLocation', label: 'Connection Location', type: 'select' as const, options: ['lan', 'wan', 'cellular'] },
+    { value: 'videoCodec', label: 'Video Codec', type: 'text' as const },
+    { value: 'audioCodec', label: 'Audio Codec', type: 'text' as const },
+    { value: 'bandwidth', label: 'Bandwidth (Mbps)', type: 'number' as const },
+    { value: 'user', label: 'Username', type: 'text' as const },
+    { value: 'playerProduct', label: 'Player App', type: 'text' as const },
+    { value: 'playerTitle', label: 'Player/Device Name', type: 'text' as const },
 ];
-const KR_OP_TEXT   = [{ value: 'equals', label: 'equals' }, { value: 'not_equals', label: 'not equals' }, { value: 'contains', label: 'contains' }, { value: 'not_contains', label: "doesn't contain" }];
+const KR_OP_TEXT = [{ value: 'equals', label: 'equals' }, { value: 'not_equals', label: 'not equals' }, { value: 'contains', label: 'contains' }, { value: 'not_contains', label: "doesn't contain" }];
 const KR_OP_NUMBER = [{ value: 'equals', label: 'equals' }, { value: 'not_equals', label: 'not equals' }, { value: 'greater_than', label: 'greater than' }, { value: 'less_than', label: 'less than' }];
-const KR_OP_BOOL   = [{ value: 'equals', label: 'is' }];
+const KR_OP_BOOL = [{ value: 'equals', label: 'is' }];
 const KR_OP_SELECT = [{ value: 'equals', label: 'equals' }, { value: 'not_equals', label: 'not equals' }];
 function krGetOps(field: any) {
     if (!field) return KR_OP_TEXT;
@@ -737,23 +737,41 @@ const KRConditionRow: React.FC<{ cond: any; onCh: (c: any) => void; onDel: () =>
         const dv = def?.type === 'bool' ? 'true' : (def && 'options' in def && def.options ? def.options[0] : '');
         onCh({ ...cond, field: v, value: dv, operator: krGetOps(def)[0].value });
     };
-    const selCls = "flex-shrink-0 bg-background border border-border text-text rounded-lg px-3 py-2 text-sm focus:border-plex outline-none transition-all cursor-pointer";
+    const fieldOptions = RULE_FIELDS.map(f => ({ label: f.label, value: f.value }));
+    const opOptions = ops.map(o => ({ label: o.label, value: o.value }));
+    const boolOptions = [{ label: 'Yes / True', value: 'true' }, { label: 'No / False', value: 'false' }];
+    const selectOptions = ('options' in (fd ?? {}) && (fd as any).options)
+        ? (fd as any).options.map((o: string) => ({ label: o, value: o }))
+        : [];
+
     return (
         <div className="flex flex-wrap items-center gap-2 p-3 bg-black/30 rounded-lg border border-white/10">
-            <select value={cond.field} onChange={e => onField(e.target.value)} className={selCls}>
-                {RULE_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-            </select>
-            <select value={cond.operator} onChange={e => onCh({ ...cond, operator: e.target.value })} className={selCls}>
-                {ops.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            <CustomSelect
+                value={cond.field}
+                onChange={v => onField(v)}
+                options={fieldOptions}
+                className="flex-shrink-0 min-w-[160px]"
+            />
+            <CustomSelect
+                value={cond.operator}
+                onChange={v => onCh({ ...cond, operator: v })}
+                options={opOptions}
+                className="flex-shrink-0 min-w-[130px]"
+            />
             {fd?.type === 'bool' ? (
-                <select value={cond.value} onChange={e => onCh({ ...cond, value: e.target.value })} className={`flex-1 min-w-[90px] ${selCls}`}>
-                    <option value="true">Yes / True</option><option value="false">No / False</option>
-                </select>
+                <CustomSelect
+                    value={cond.value}
+                    onChange={v => onCh({ ...cond, value: v })}
+                    options={boolOptions}
+                    className="flex-1 min-w-[110px]"
+                />
             ) : fd?.type === 'select' ? (
-                <select value={cond.value} onChange={e => onCh({ ...cond, value: e.target.value })} className={`flex-1 min-w-[90px] ${selCls}`}>
-                    {(('options' in fd && fd.options) ? fd.options : []).map((o: string) => <option key={o} value={o}>{o}</option>)}
-                </select>
+                <CustomSelect
+                    value={cond.value}
+                    onChange={v => onCh({ ...cond, value: v })}
+                    options={selectOptions}
+                    className="flex-1 min-w-[110px]"
+                />
             ) : (
                 <input type={fd?.type === 'number' ? 'number' : 'text'} value={cond.value}
                     onChange={e => onCh({ ...cond, value: e.target.value })}
@@ -761,11 +779,12 @@ const KRConditionRow: React.FC<{ cond: any; onCh: (c: any) => void; onDel: () =>
                     className="flex-1 min-w-[100px] bg-background border border-border text-text rounded-lg px-3 py-2 text-sm focus:border-plex focus:ring-1 focus:ring-plex outline-none transition-all" />
             )}
             <button onClick={onDel} title="Remove" className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all flex-shrink-0">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
             </button>
         </div>
     );
 };
+
 
 const StreamKillRulesPanel: React.FC<{ addToast: (m: string, t?: 'success' | 'error') => void }> = ({ addToast }) => {
     const [rules, setRules] = useState<any[]>([]);
@@ -797,7 +816,7 @@ const StreamKillRulesPanel: React.FC<{ addToast: (m: string, t?: 'success' | 'er
     return (
         <div className="mb-8 animate-fade-in">
             <h3 className="text-xl font-bold text-plex mb-1 border-b border-border pb-2 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
                 Stream Kill Rules
             </h3>
             <p className="text-sm text-muted mb-6 leading-relaxed">
@@ -805,7 +824,7 @@ const StreamKillRulesPanel: React.FC<{ addToast: (m: string, t?: 'success' | 'er
             </p>
             {rules.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-16 border-2 border-dashed border-border rounded-xl text-center gap-3 mb-6">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted opacity-40"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted opacity-40"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
                     <p className="text-muted font-medium">No rules configured</p>
                     <p className="text-muted text-sm">Add a rule below to start protecting your server automatically.</p>
                 </div>
@@ -829,9 +848,9 @@ const StreamKillRulesPanel: React.FC<{ addToast: (m: string, t?: 'success' | 'er
                                 </div>
                                 <div className="flex items-center gap-1 flex-shrink-0">
                                     <button onClick={e => { e.stopPropagation(); del(rule.id); }} title="Delete" className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
                                     </button>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`text-muted transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}><path d="m6 9 6 6 6-6"/></svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`text-muted transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}><path d="m6 9 6 6 6-6" /></svg>
                                 </div>
                             </div>
                             {isOpen && (
@@ -851,7 +870,7 @@ const StreamKillRulesPanel: React.FC<{ addToast: (m: string, t?: 'success' | 'er
                                             <KRConditionRow key={i} cond={c} onCh={nc => updCond(rule.id, i, nc)} onDel={() => delCond(rule.id, i)} />
                                         ))}
                                         <button onClick={() => addCond(rule.id)} className="flex items-center gap-2 text-plex text-sm font-bold hover:text-plex/80 transition-colors mt-1 w-fit py-1">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
                                             Add Condition
                                         </button>
                                     </div>
@@ -869,11 +888,11 @@ const StreamKillRulesPanel: React.FC<{ addToast: (m: string, t?: 'success' | 'er
             </div>
             <div className="flex items-center gap-3 mt-6 pt-4 border-t border-border">
                 <button onClick={addRule} className="flex items-center gap-2 px-4 py-2.5 bg-border text-text rounded-lg font-bold text-sm hover:bg-opacity-80 transition-all">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
                     Add New Rule
                 </button>
                 <button onClick={() => saveRules(rules)} disabled={saving} className="flex items-center gap-2 px-6 py-2.5 bg-plex text-background rounded-lg font-bold text-sm hover:opacity-90 transition-all disabled:opacity-50">
-                    {saving ? <span className="w-4 h-4 border-2 border-background/50 border-t-transparent rounded-full animate-spin" /> : <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>}
+                    {saving ? <span className="w-4 h-4 border-2 border-background/50 border-t-transparent rounded-full animate-spin" /> : <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>}
                     Save Rules
                 </button>
             </div>
@@ -1291,7 +1310,7 @@ const SettingsDashboard: React.FC = () => {
                         { id: 'navigation', label: 'Navigation' },
                         { id: 'invites', label: 'Invites' },
                         { id: 'cleanup', label: 'Cleanup' },
-                        { id: 'stream-rules', label: '🛡️ Stream Rules' },
+                        { id: 'stream-rules', label: 'Stream Rules' },
                         { id: 'status', label: 'Status Monitor' },
                         { id: 'newsletter', label: 'Newsletter' },
                         { id: 'broadcast', label: 'Broadcast Email' },
@@ -4901,8 +4920,8 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | str
                                 <div className="flex flex-col gap-1.5">
                                     {neighbourhood.map((u: any, i: number) => (
                                         <div key={i} className={`flex items-center justify-between rounded-lg px-3 py-2.5 border transition-all ${u.isMe
-                                                ? 'bg-plex/15 border-plex/50 shadow-[0_0_12px_rgba(229,160,13,0.2)]'
-                                                : 'bg-white/5 border-white/5'
+                                            ? 'bg-plex/15 border-plex/50 shadow-[0_0_12px_rgba(229,160,13,0.2)]'
+                                            : 'bg-white/5 border-white/5'
                                             }`}>
                                             <div className="flex items-center gap-3">
                                                 <span className={`font-black text-sm w-8 text-right ${u.isMe ? 'text-plex' : 'text-gray-500'}`}>#{u.rank}</span>
