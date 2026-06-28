@@ -3699,6 +3699,10 @@ const startBackgroundService = async () => {
                     }
                     t.nextRun = nextDate.toISOString();
                 }
+            } else if (t.id === 'checkAndCleanupInactive' && !currentConfig.inactiveCleanupEnabled) {
+                t.nextRun = null;
+            } else if (t.id === 'checkAndSendNotifications' && (!currentConfig.smtpHost || !currentConfig.smtpUser || !currentConfig.smtpPass)) {
+                t.nextRun = null;
             } else {
                 t.nextRun = nextRun;
             }
