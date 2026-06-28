@@ -987,8 +987,58 @@ const SettingsDashboard: React.FC = () => {
     const [libraries, setLibraries] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState(() => {
         const hash = window.location.hash.replace('#', '');
-        return ['plex', 'smtp', 'newsletter', 'cleanup', 'mediastack', 'branding', 'navigation', 'status', 'invites', 'tasks', 'system'].includes(hash) ? hash : 'plex';
+        return ['plex', 'smtp', 'newsletter', 'cleanup', 'mediastack', 'branding', 'navigation', 'status', 'invites', 'tasks', 'system', 'contact', 'broadcast', 'stream-rules'].includes(hash) ? hash : 'plex';
     });
+    const [settingsSearch, setSettingsSearch] = useState('');
+
+    const settingsTabGroups = [
+        {
+            title: 'Portal',
+            tabs: [
+                { id: 'branding', label: 'Portal UI', keywords: ['theme', 'logo', 'color', 'announcement', 'referral'] },
+                { id: 'contact', label: 'Contact Details', keywords: ['email', 'whatsapp', 'support'] },
+                { id: 'navigation', label: 'Navigation', keywords: ['menu', 'order', 'sidebar'] }
+            ]
+        },
+        {
+            title: 'Integrations',
+            tabs: [
+                { id: 'plex', label: 'Plex Integration', keywords: ['token', 'server', 'libraries'] },
+                { id: 'mediastack', label: 'Media Stack', keywords: ['sonarr', 'radarr', 'tautulli'] },
+                { id: 'status', label: 'Status Monitor', keywords: ['uptime', 'health', 'services'] }
+            ]
+        },
+        {
+            title: 'Comms',
+            tabs: [
+                { id: 'smtp', label: 'SMTP Alerts', keywords: ['mail', 'smtp', 'test'] },
+                { id: 'newsletter', label: 'Newsletter', keywords: ['digest', 'send', 'frequency'] },
+                { id: 'broadcast', label: 'Broadcast Email', keywords: ['announcement', 'bulk', 'users'] },
+                { id: 'invites', label: 'Invites', keywords: ['invite', 'link', 'code'] }
+            ]
+        },
+        {
+            title: 'Automation',
+            tabs: [
+                { id: 'cleanup', label: 'Cleanup', keywords: ['inactive', 'revoke', 'expiry'] },
+                { id: 'stream-rules', label: 'Stream Rules', keywords: ['kill', 'transcode', 'rule'] },
+                { id: 'tasks', label: 'Background Tasks', keywords: ['jobs', 'scheduler', 'run now'] },
+                { id: 'system', label: 'System', keywords: ['backup', 'restore', 'diagnostics'] }
+            ]
+        }
+    ];
+    const settingsTabsFlat = settingsTabGroups.flatMap(group => group.tabs);
+    const searchTerm = settingsSearch.trim().toLowerCase();
+    const visibleTabGroups = settingsTabGroups
+        .map(group => ({
+            ...group,
+            tabs: group.tabs.filter(tab => {
+                if (!searchTerm) return true;
+                const haystack = `${group.title} ${tab.label} ${(tab.keywords || []).join(' ')}`.toLowerCase();
+                return haystack.includes(searchTerm);
+            })
+        }))
+        .filter(group => group.tabs.length > 0);
 
     useEffect(() => {
         window.location.hash = activeTab;
@@ -1416,154 +1466,147 @@ const SettingsDashboard: React.FC = () => {
             </header>
 
             <div className="bg-card p-4 md:p-8 rounded-2xl w-full flex flex-col shadow-2xl border border-border">
-                {/* Mobile Dropdown Category Select */}
-                <div className="block md:hidden mb-6">
-                    <label htmlFor="settings-tab-select" className="text-muted text-xs uppercase tracking-wider font-bold mb-2 block">Settings Category</label>
-                    <CustomSelect
-                        id="settings-tab-select"
-                        value={activeTab}
-                        onChange={val => setActiveTab(val)}
-                        options={[
-                            { label: 'Portal UI', value: 'branding' },
-                            { label: 'Contact Details', value: 'contact' },
-                            { label: 'Plex Integration', value: 'plex' },
-                            { label: 'Media Stack', value: 'mediastack' },
-                            { label: 'Navigation', value: 'navigation' },
-                            { label: 'Invites', value: 'invites' },
-                            { label: 'Automated Cleanup', value: 'cleanup' },
-                            { label: 'Stream Kill Rules', value: 'stream-rules' },
-                            { label: 'Status Monitor', value: 'status' },
-                            { label: 'Newsletter', value: 'newsletter' },
-                            { label: 'Broadcast Email', value: 'broadcast' },
-                            { label: 'Background Tasks', value: 'tasks' },
-                            { label: 'System', value: 'system' },
-                            { label: 'SMTP Alerts', value: 'smtp' }
-                        ]}
-                    />
-                </div>
+                <div className="md:grid md:grid-cols-[280px_minmax(0,1fr)] md:gap-6">
+                    {/* Mobile Dropdown Category Select */}
+                    <div className="block md:hidden mb-6">
+                        <label htmlFor="settings-tab-select" className="text-muted text-xs uppercase tracking-wider font-bold mb-2 block">Settings Category</label>
+                        <CustomSelect
+                            id="settings-tab-select"
+                            value={activeTab}
+                            onChange={val => setActiveTab(val)}
+                            options={settingsTabsFlat.map(tab => ({ label: tab.label, value: tab.id }))}
+                        />
+                    </div>
 
-                {/* Desktop Category Tabs */}
-                <div className="hidden md:flex flex-wrap gap-2 mt-4 mb-8 p-1.5 bg-black/20 rounded-xl border border-border w-fit">
-                    {[
-                        { id: 'branding', label: 'Portal UI' },
-                        { id: 'contact', label: 'Contact Details' },
-                        { id: 'plex', label: 'Plex Integration' },
-                        { id: 'mediastack', label: 'Media Stack' },
-                        { id: 'navigation', label: 'Navigation' },
-                        { id: 'invites', label: 'Invites' },
-                        { id: 'cleanup', label: 'Cleanup' },
-                        { id: 'stream-rules', label: 'Stream Rules' },
-                        { id: 'status', label: 'Status Monitor' },
-                        { id: 'newsletter', label: 'Newsletter' },
-                        { id: 'broadcast', label: 'Broadcast Email' },
-                        { id: 'tasks', label: 'Background Tasks' },
-                        { id: 'system', label: 'System' },
-                        { id: 'smtp', label: 'SMTP Alerts' }
-                    ].map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 cursor-pointer border-none outline-none ${activeTab === tab.id
-                                ? 'bg-plex text-background shadow-md'
-                                : 'bg-transparent text-muted hover:text-text hover:bg-white/5'
-                                }`}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
-                <div className="overflow-y-auto pr-2 flex-grow mb-4 custom-scrollbar">
-                    {activeTab === 'stream-rules' && <StreamKillRulesPanel addToast={addToast} />}
-
-                    {activeTab === 'plex' && (
-                        <div className="mb-8">
-                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Plex Integration</h3>
-                            <div className="mb-4">
-                                <label htmlFor="plexToken">Plex Token</label>
-                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="plexToken" type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Enter your X-Plex-Token" />
-                                <small>Needed to fetch users and manage access. <a href="https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/" target="_blank" rel="noopener noreferrer">How to find your token.</a></small>
-                            </div>
-                            <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={handleFetchServers} disabled={!token}>Fetch Servers</button>
-                            {servers.length > 0 && (
-                                <div className="mb-4" style={{ marginTop: '1rem' }}>
-                                    <label htmlFor="serverSelect">Select Server</label>
-                                    <CustomSelect
-                                        id="serverSelect"
-                                        value={selectedServer}
-                                        onChange={val => setSelectedServer(val)}
-                                        options={servers.map(s => ({ label: `${s.name} (${s.identifier})`, value: s.identifier }))}
-                                    />
-                                    {initialSettings.serverIdentifier && (
-                                        <small>
-                                            Currently saved server ID: <strong>{initialSettings.serverIdentifier}</strong>
-                                        </small>
-                                    )}
-                                </div>
-                            )}
-                            <div className="mb-4" style={{ marginTop: '1rem' }}>
-                                <label htmlFor="checkInterval">Check Interval (minutes)</label>
-                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="checkInterval" type="number" value={checkInterval} onChange={e => setCheckInterval(Number(e.target.value))} min="1" />
-                                <small>How often to check for expired users in the background.</small>
-                            </div>
-
-                            {libraries.length > 0 && (
-                                <div className="mb-4 mt-4">
-                                    <label className="block mb-2 font-medium">Default Temporary Access/Automated Libraries</label>
-                                    <small className="block mb-2 text-muted">Libraries to share automatically when users request temporary access or link their account. Leave empty to share ALL libraries.</small>
-                                    <div className="flex flex-wrap gap-3 p-4 bg-black/10 rounded-lg border border-border">
-                                        {libraries.map(lib => {
-                                            const isSelected = defaultLibraryIds.includes(lib.id);
-                                            return (
-                                                <label key={lib.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-all border shadow-sm select-none ${isSelected ? 'bg-plex/10 border-plex text-plex font-bold' : 'bg-background border-border/50 text-muted hover:border-white/20 hover:text-text font-medium'}`}>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isSelected}
-                                                        onChange={(e) => {
-                                                            if (e.target.checked) setDefaultLibraryIds([...defaultLibraryIds, lib.id]);
-                                                            else setDefaultLibraryIds(defaultLibraryIds.filter(id => id !== lib.id));
-                                                        }}
-                                                        className="hidden"
-                                                    />
-                                                    {isSelected && <Check className="w-3.5 h-3.5" />}
-                                                    <span className="text-sm">{lib.title}</span>
-                                                </label>
-                                            );
-                                        })}
+                    {/* Desktop Sidebar Navigation */}
+                    <aside className="hidden md:block bg-black/20 border border-border rounded-xl p-3 h-fit sticky top-20">
+                        <label className="text-muted text-xs uppercase tracking-wider font-bold mb-2 block">Find Setting</label>
+                        <input
+                            type="text"
+                            placeholder="Search settings..."
+                            value={settingsSearch}
+                            onChange={(e) => setSettingsSearch(e.target.value)}
+                            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-plex transition-colors mb-3"
+                        />
+                        {visibleTabGroups.length === 0 ? (
+                            <p className="text-xs text-muted px-2 py-3">No settings sections found.</p>
+                        ) : (
+                            <div className="space-y-3 max-h-[70vh] overflow-y-auto custom-scrollbar pr-1">
+                                {visibleTabGroups.map(group => (
+                                    <div key={group.title}>
+                                        <p className="text-[10px] uppercase tracking-wider font-bold text-plex px-2 mb-1">{group.title}</p>
+                                        <div className="space-y-1">
+                                            {group.tabs.map(tab => (
+                                                <button
+                                                    key={tab.id}
+                                                    onClick={() => setActiveTab(tab.id)}
+                                                    className={`w-full text-left px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${activeTab === tab.id
+                                                        ? 'bg-plex text-background'
+                                                        : 'text-muted hover:text-text hover:bg-white/5'
+                                                        }`}
+                                                >
+                                                    {tab.label}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                ))}
+                            </div>
+                        )}
+                    </aside>
 
-                            <div className="mb-4" style={{ marginTop: '1rem' }}>
-                                <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-background">
-                                    <div>
-                                        <h4 className="font-bold text-text">Stream User Privacy</h4>
-                                        <p className="text-sm text-muted">Control how stream users are displayed to non-admins (e.g. on the public status page).</p>
-                                    </div>
-                                    <div className="w-56 ml-4 flex-shrink-0">
+                    <div className="overflow-y-auto pr-2 flex-grow mb-4 custom-scrollbar">
+                        {activeTab === 'stream-rules' && <StreamKillRulesPanel addToast={addToast} />}
+    
+                        {activeTab === 'plex' && (
+                            <div className="mb-8">
+                                <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Plex Integration</h3>
+                                <div className="mb-4">
+                                    <label htmlFor="plexToken">Plex Token</label>
+                                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="plexToken" type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Enter your X-Plex-Token" />
+                                    <small>Needed to fetch users and manage access. <a href="https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/" target="_blank" rel="noopener noreferrer">How to find your token.</a></small>
+                                </div>
+                                <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={handleFetchServers} disabled={!token}>Fetch Servers</button>
+                                {servers.length > 0 && (
+                                    <div className="mb-4" style={{ marginTop: '1rem' }}>
+                                        <label htmlFor="serverSelect">Select Server</label>
                                         <CustomSelect
-                                            value={String(hideStreamUsers)}
-                                            onChange={(val) => setHideStreamUsers(val)}
-                                            options={[
-                                                { label: 'Show Names', value: 'false' },
-                                                { label: 'Show as Anonymous', value: 'anonymous' },
-                                                { label: 'Hide Completely', value: 'hidden' }
-                                            ]}
+                                            id="serverSelect"
+                                            value={selectedServer}
+                                            onChange={val => setSelectedServer(val)}
+                                            options={servers.map(s => ({ label: `${s.name} (${s.identifier})`, value: s.identifier }))}
                                         />
+                                        {initialSettings.serverIdentifier && (
+                                            <small>
+                                                Currently saved server ID: <strong>{initialSettings.serverIdentifier}</strong>
+                                            </small>
+                                        )}
+                                    </div>
+                                )}
+                                <div className="mb-4" style={{ marginTop: '1rem' }}>
+                                    <label htmlFor="checkInterval">Check Interval (minutes)</label>
+                                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="checkInterval" type="number" value={checkInterval} onChange={e => setCheckInterval(Number(e.target.value))} min="1" />
+                                    <small>How often to check for expired users in the background.</small>
+                                </div>
+
+                                {libraries.length > 0 && (
+                                    <div className="mb-4 mt-4">
+                                        <label className="block mb-2 font-medium">Default Temporary Access/Automated Libraries</label>
+                                        <small className="block mb-2 text-muted">Libraries to share automatically when users request temporary access or link their account. Leave empty to share ALL libraries.</small>
+                                        <div className="flex flex-wrap gap-3 p-4 bg-black/10 rounded-lg border border-border">
+                                            {libraries.map(lib => {
+                                                const isSelected = defaultLibraryIds.includes(lib.id);
+                                                return (
+                                                    <label key={lib.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-all border shadow-sm select-none ${isSelected ? 'bg-plex/10 border-plex text-plex font-bold' : 'bg-background border-border/50 text-muted hover:border-white/20 hover:text-text font-medium'}`}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) setDefaultLibraryIds([...defaultLibraryIds, lib.id]);
+                                                                else setDefaultLibraryIds(defaultLibraryIds.filter(id => id !== lib.id));
+                                                            }}
+                                                            className="hidden"
+                                                        />
+                                                        {isSelected && <Check className="w-3.5 h-3.5" />}
+                                                        <span className="text-sm">{lib.title}</span>
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="mb-4" style={{ marginTop: '1rem' }}>
+                                    <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-background">
+                                        <div>
+                                            <h4 className="font-bold text-text">Stream User Privacy</h4>
+                                            <p className="text-sm text-muted">Control how stream users are displayed to non-admins (e.g. on the public status page).</p>
+                                        </div>
+                                        <div className="w-56 ml-4 flex-shrink-0">
+                                            <CustomSelect
+                                                value={String(hideStreamUsers)}
+                                                onChange={(val) => setHideStreamUsers(val)}
+                                                options={[
+                                                    { label: 'Show Names', value: 'false' },
+                                                    { label: 'Show as Anonymous', value: 'anonymous' },
+                                                    { label: 'Hide Completely', value: 'hidden' }
+                                                ]}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
+                                <div className="mb-4" style={{ marginTop: '1rem' }}>
+                                    <label htmlFor="requestUrl">Request URL</label>
+                                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="requestUrl" type="text" value={requestUrl} onChange={e => setRequestUrl(e.target.value)} placeholder="https://yourdomain.com" />
+                                    <small>The URL users are redirected to when they click the Request Content button.</small>
+                                </div>
+                                <div className="mb-4" style={{ marginTop: '1rem' }}>
+                                    <label htmlFor="contactUrl">Contact URL / Email</label>
+                                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="contactUrl" type="text" value={contactUrl} onChange={e => setContactUrl(e.target.value)} placeholder="mailto:youremail@example.com OR https://wa.me/123456" />
+                                    <small>Used for the "Request Extension" button in expiry emails. Defaults to sending an email to the SMTP User.</small>
+                                </div>
                             </div>
-                            <div className="mb-4" style={{ marginTop: '1rem' }}>
-                                <label htmlFor="requestUrl">Request URL</label>
-                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="requestUrl" type="text" value={requestUrl} onChange={e => setRequestUrl(e.target.value)} placeholder="https://yourdomain.com" />
-                                <small>The URL users are redirected to when they click the Request Content button.</small>
-                            </div>
-                            <div className="mb-4" style={{ marginTop: '1rem' }}>
-                                <label htmlFor="contactUrl">Contact URL / Email</label>
-                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="contactUrl" type="text" value={contactUrl} onChange={e => setContactUrl(e.target.value)} placeholder="mailto:youremail@example.com OR https://wa.me/123456" />
-                                <small>Used for the "Request Extension" button in expiry emails. Defaults to sending an email to the SMTP User.</small>
-                            </div>
-                        </div>
-                    )}
+                        )}
 
                     {activeTab === 'smtp' && (
                         <div className="mb-8">
@@ -2077,6 +2120,7 @@ const SettingsDashboard: React.FC = () => {
                             </div>
                         </div>
                     )}
+                </div>
                 </div>
                 <div className="flex justify-end gap-4 mt-8" style={{ marginTop: '2rem' }}>
                     <button className="px-6 py-3 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2" onClick={handleSave}>Save Settings</button>
