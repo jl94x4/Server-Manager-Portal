@@ -3068,7 +3068,7 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
         }
 
         if (!accountID) {
-            return res.json({ totalPlays: 0, topLibraries: [], topContent: [], recentHistory: [] });
+            return res.json({ totalPlays: 0, topLibraries: [], topWatched: [], topMusic: [], recentHistory: [] });
         }
         const limit = req.query.days === 'all' ? 999999 : 5000;
 
@@ -3076,7 +3076,7 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
         const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
 
         if (!historyRes || !historyRes.MediaContainer || !historyRes.MediaContainer.Metadata) {
-            return res.json({ totalPlays: 0, topLibraries: [], topContent: [], recentHistory: [] });
+            return res.json({ totalPlays: 0, topLibraries: [], topWatched: [], topMusic: [], recentHistory: [] });
         }
 
         const sectionsMap = {};
@@ -3161,7 +3161,11 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
 
         const allLibraries = Object.values(libraryCounts).sort((a, b) => b.plays - a.plays);
         const topLibraries = allLibraries.slice(0, 5);
-        const topContent = Object.values(contentCounts).sort((a, b) => b.plays - a.plays).slice(0, 60).map(c => {
+        const topWatched = Object.values(contentCounts).filter(c => c.type !== 'track').sort((a, b) => b.plays - a.plays).slice(0, 30).map(c => {
+            if (c.thumb) c.thumbUrl = `/api/plex/image?path=${encodeURIComponent(c.thumb)}`;
+            return c;
+        });
+        const topMusic = Object.values(contentCounts).filter(c => c.type === 'track').sort((a, b) => b.plays - a.plays).slice(0, 30).map(c => {
             if (c.thumb) c.thumbUrl = `/api/plex/image?path=${encodeURIComponent(c.thumb)}`;
             return c;
         });
@@ -3300,7 +3304,8 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
         res.json({
             totalPlays,
             topLibraries,
-            topContent,
+            topWatched,
+            topMusic,
             topBinge,
             topMovie,
             topShows,
@@ -3380,7 +3385,7 @@ app.get('/api/plex/analytics/user/:id', requireAdmin, async (req, res) => {
         const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
 
         if (!historyRes || !historyRes.MediaContainer || !historyRes.MediaContainer.Metadata) {
-            return res.json({ totalPlays: 0, topLibraries: [], topContent: [], recentHistory: [] });
+            return res.json({ totalPlays: 0, topLibraries: [], topWatched: [], topMusic: [], recentHistory: [] });
         }
 
         const sectionsMap = {};
@@ -3447,7 +3452,12 @@ app.get('/api/plex/analytics/user/:id', requireAdmin, async (req, res) => {
         });
 
         const topLibraries = Object.values(libraryCounts).sort((a, b) => b.plays - a.plays).slice(0, 5);
-        const topContent = Object.values(contentCounts).sort((a, b) => b.plays - a.plays).slice(0, 6).map(c => {
+        const topWatched = Object.values(contentCounts).filter(c => c.type !== 'track').sort((a, b) => b.plays - a.plays).slice(0, 6).map(c => {
+            if (c.thumb) c.thumbUrl = `/api/plex/image?path=${encodeURIComponent(c.thumb)}`;
+            if (c.art) c.artUrl = `/api/plex/image?path=${encodeURIComponent(c.art)}`;
+            return c;
+        });
+        const topMusic = Object.values(contentCounts).filter(c => c.type === 'track').sort((a, b) => b.plays - a.plays).slice(0, 6).map(c => {
             if (c.thumb) c.thumbUrl = `/api/plex/image?path=${encodeURIComponent(c.thumb)}`;
             if (c.art) c.artUrl = `/api/plex/image?path=${encodeURIComponent(c.art)}`;
             return c;
@@ -3456,7 +3466,8 @@ app.get('/api/plex/analytics/user/:id', requireAdmin, async (req, res) => {
         res.json({
             totalPlays,
             topLibraries,
-            topContent,
+            topWatched,
+            topMusic,
             recentHistory: recentHistory.map(h => {
                 if (h.thumb) h.thumbUrl = `/api/plex/image?path=${encodeURIComponent(h.thumb)}`;
                 return h;

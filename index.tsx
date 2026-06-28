@@ -1914,10 +1914,13 @@ const UserAnalyticsModal: React.FC<{ userId: string, username: string, thumb: st
                                 <div>
                                     <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><TrendingUp className="text-plex w-4 h-4" /> Top Watched</h3>
                                     <div className="flex flex-col gap-3">
-                                        {data.topContent.length === 0 ? <p className="text-muted text-sm">No content data.</p> : data.topContent.map((c: any, i: number) => (
+                                        {data.topWatched.length === 0 ? <p className="text-muted text-sm">No content data.</p> : data.topWatched.map((c: any, i: number) => (
                                             <a key={c.key} href={c.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-black/20 p-2 rounded border border-white/5 hover:bg-white/10 transition-colors">
-                                                <div className="w-8 h-12 bg-black/40 rounded overflow-hidden flex-shrink-0">
-                                                    {c.thumbUrl ? <img src={c.thumbUrl} className="w-full h-full object-cover" /> : <Film className="w-full h-full p-2 opacity-50" />}
+                                                <div className="w-8 h-12 bg-black/40 rounded overflow-hidden flex-shrink-0 relative">
+                                                    {c.thumbUrl && <img src={c.thumbUrl} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />}
+                                                      <div className={`absolute inset-0 w-full h-full p-2 opacity-50 flex items-center justify-center ${c.thumbUrl ? 'hidden' : ''}`}>
+                                                          <Film className="w-full h-full" />
+                                                      </div>
                                                 </div>
                                                 <div className="flex flex-col flex-grow overflow-hidden">
                                                     <span className="font-bold text-sm text-text truncate">{c.title}</span>
@@ -1926,11 +1929,35 @@ const UserAnalyticsModal: React.FC<{ userId: string, username: string, thumb: st
                                                 <span className="text-plex text-xs font-mono whitespace-nowrap">{c.plays} plays</span>
                                             </a>
                                         ))}
-                                    </div>
-                                </div>
-                            </div>
+                                        
+                                  {data.topMusic && data.topMusic.length > 0 && (
+                                      <div className="mt-6">
+                                          <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><Music className="text-plex w-4 h-4" /> Top Listened</h3>
+                                          <div className="flex flex-col gap-3">
+                                              {data.topMusic.map((c: any, i: number) => (
+                                                  <a key={c.key} href={c.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-black/20 p-2 rounded border border-white/5 hover:bg-white/10 transition-colors">
+                                                      <div className="w-12 h-12 bg-black/40 rounded overflow-hidden flex-shrink-0 relative">
+                                                          {c.thumbUrl && <img src={c.thumbUrl} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />}
+                                                          <div className={`absolute inset-0 w-full h-full p-2 opacity-50 flex items-center justify-center ${c.thumbUrl ? 'hidden' : ''}`}>
+                                                              <Music className="w-full h-full" />
+                                                          </div>
+                                                      </div>
+                                                      <div className="flex flex-col flex-grow overflow-hidden">
+                                                          <span className="font-bold text-sm text-text truncate">{c.title}</span>
+                                                          <span className="text-muted text-[10px] uppercase tracking-wider">{c.type}</span>
+                                                      </div>
+                                                      <span className="text-plex text-xs font-mono whitespace-nowrap">{c.plays} plays</span>
+                                                  </a>
+                                              ))}
+                                          </div>
+                                      </div>
+                                  )}
 
-                            {/* Recent History */}
+
+                                    </div>
+                                    </div>
+                                    </div>
+                                    {/* Recent History */}
                             <div>
                                 <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><Activity className="text-plex w-4 h-4" /> Recent Watch History</h3>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -2144,10 +2171,13 @@ const PersonalAnalyticsDashboard: React.FC<{ username: string, thumb: string | n
                                 <div>
                                     <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><TrendingUp className="text-plex w-4 h-4" /> Top Watched</h3>
                                     <div className="flex flex-col gap-3">
-                                        {data.topContent.length === 0 ? <p className="text-muted text-sm">No content data.</p> : data.topContent.map((c: any, i: number) => (
+                                        {data.topWatched.length === 0 ? <p className="text-muted text-sm">No content data.</p> : data.topWatched.map((c: any, i: number) => (
                                             <a key={c.key} href={c.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-black/20 p-2 rounded border border-white/5 hover:bg-white/10 transition-colors">
-                                                <div className="w-8 h-12 bg-black/40 rounded overflow-hidden flex-shrink-0">
-                                                    {c.thumbUrl ? <img src={c.thumbUrl} className="w-full h-full object-cover" /> : <Film className="w-full h-full p-2 opacity-50" />}
+                                                <div className="w-8 h-12 bg-black/40 rounded overflow-hidden flex-shrink-0 relative">
+                                                    {c.thumbUrl && <img src={c.thumbUrl} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />}
+                                                      <div className={`absolute inset-0 w-full h-full p-2 opacity-50 flex items-center justify-center ${c.thumbUrl ? 'hidden' : ''}`}>
+                                                          <Film className="w-full h-full" />
+                                                      </div>
                                                 </div>
                                                 <div className="flex flex-col flex-grow overflow-hidden">
                                                     <span className="font-bold text-sm text-text truncate">{c.title}</span>
@@ -2156,12 +2186,37 @@ const PersonalAnalyticsDashboard: React.FC<{ username: string, thumb: string | n
                                                 <span className="text-plex text-xs font-mono whitespace-nowrap">{c.plays} plays</span>
                                             </a>
                                         ))}
-                                    </div>
-                                </div>
-                            </div>
+                                        
+                                  {data.topMusic && data.topMusic.length > 0 && (
+                                      <div className="mt-6">
+                                          <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><Music className="text-plex w-4 h-4" /> Top Listened</h3>
+                                          <div className="flex flex-col gap-3">
+                                              {data.topMusic.map((c: any, i: number) => (
+                                                  <a key={c.key} href={c.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-black/20 p-2 rounded border border-white/5 hover:bg-white/10 transition-colors">
+                                                      <div className="w-12 h-12 bg-black/40 rounded overflow-hidden flex-shrink-0 relative">
+                                                          {c.thumbUrl && <img src={c.thumbUrl} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />}
+                                                          <div className={`absolute inset-0 w-full h-full p-2 opacity-50 flex items-center justify-center ${c.thumbUrl ? 'hidden' : ''}`}>
+                                                              <Music className="w-full h-full" />
+                                                          </div>
+                                                      </div>
+                                                      <div className="flex flex-col flex-grow overflow-hidden">
+                                                          <span className="font-bold text-sm text-text truncate">{c.title}</span>
+                                                          <span className="text-muted text-[10px] uppercase tracking-wider">{c.type}</span>
+                                                      </div>
+                                                      <span className="text-plex text-xs font-mono whitespace-nowrap">{c.plays} plays</span>
+                                                  </a>
+                                              ))}
+                                          </div>
+                                      </div>
+                                  )}
 
-                            <div>
-                                <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><Activity className="text-plex w-4 h-4" /> Recent Watch History</h3>
+
+                                    </div>
+                                    </div>
+                                    </div>
+                                    <div>
+
+                                    <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><Activity className="text-plex w-4 h-4" /> Recent Watch History</h3>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                     {data.recentHistory.length === 0 ? <p className="text-muted text-sm col-span-full">No recent history.</p> : data.recentHistory.map((h: any, i: number) => (
                                         <a key={i} href={h.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white/5 border border-white/5 p-2 rounded-lg hover:bg-white/10 transition-colors">
