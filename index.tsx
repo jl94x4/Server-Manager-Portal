@@ -1935,7 +1935,7 @@ const UserAnalyticsModal: React.FC<{ userId: string, username: string, thumb: st
                             {data.topMusic && data.topMusic.length > 0 && (
                                 <div>
                                     <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><Music className="text-plex w-4 h-4" /> Top Listened</h3>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
                                         {data.topMusic.map((c: any, i: number) => (
                                             <a key={c.key} href={c.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-black/20 p-2 rounded border border-white/5 hover:bg-white/10 transition-colors">
                                                 <div className="w-12 h-12 bg-black/40 rounded overflow-hidden flex-shrink-0 relative">
@@ -2190,7 +2190,7 @@ const PersonalAnalyticsDashboard: React.FC<{ username: string, thumb: string | n
                             {data.topMusic && data.topMusic.length > 0 && (
                                 <div>
                                     <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><Music className="text-plex w-4 h-4" /> Top Listened</h3>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
                                         {data.topMusic.map((c: any, i: number) => (
                                             <a key={c.key} href={c.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-black/20 p-2 rounded border border-white/5 hover:bg-white/10 transition-colors">
                                                 <div className="w-12 h-12 bg-black/40 rounded overflow-hidden flex-shrink-0 relative">
