@@ -1196,6 +1196,8 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
 app.get('/api/config', requireAdmin, async (req, res) => {
     const config = await loadFile(CONFIG_PATH, {});
     const isConfigured = !!(config && config.plexToken && config.serverIdentifier);
+        const contactWhatsApp = config.contactWhatsApp || '';
+        const contactEmail = config.contactEmail || '';
 
     if (isConfigured) {
         res.json({
@@ -2658,7 +2660,7 @@ app.get('/api/public/info', async (req, res) => {
         const config = await loadFile(CONFIG_PATH, {});
         const profile = await getAdminProfile(config);
         const isConfigured = !!(config && config.plexToken && config.serverIdentifier);
-        res.json({ ...profile, isConfigured, requestUrl: config.requestUrl || 'https://yourdomain.com' });
+        res.json({ ...profile, isConfigured, requestUrl: config.requestUrl || 'https://yourdomain.com', contactWhatsApp, contactEmail });
     } catch (e) {
         res.json({ thumb: null, serverName: 'Server Portal', isConfigured: false, requestUrl: 'https://yourdomain.com' });
     }

@@ -1075,6 +1075,7 @@ const SettingsDashboard: React.FC = () => {
                         onChange={val => setActiveTab(val)}
                         options={[
                             { label: 'Portal UI', value: 'branding' },
+                            { label: 'Contact Details', value: 'contact' },
                             { label: 'Plex Integration', value: 'plex' },
                             { label: 'Media Stack', value: 'mediastack' },
                             { label: 'Navigation', value: 'navigation' },
@@ -1093,6 +1094,7 @@ const SettingsDashboard: React.FC = () => {
                 <div className="hidden md:flex flex-wrap gap-2 mt-4 mb-8 p-1.5 bg-black/20 rounded-xl border border-border w-fit">
                     {[
                         { id: 'branding', label: 'Portal UI' },
+                        { id: 'contact', label: 'Contact Details' },
                         { id: 'plex', label: 'Plex Integration' },
                         { id: 'mediastack', label: 'Media Stack' },
                         { id: 'navigation', label: 'Navigation' },
@@ -1461,6 +1463,26 @@ const SettingsDashboard: React.FC = () => {
                                 fetchConfig={fetchStatusConfig}
                                 addToast={addToast}
                             />
+                        </div>
+                    )}
+
+                    
+                    {activeTab === 'contact' && (
+                        <div className="mb-8">
+                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Contact Details</h3>
+                            <p className="text-sm text-muted mb-6">
+                                These details are displayed in the "Need Help?" box on the User Dashboard. Users can click these buttons to contact you directly if they need to extend their access, report an issue, or request support.
+                            </p>
+                            <div className="mb-4">
+                                <label htmlFor="contactWhatsApp">WhatsApp Number (Optional)</label>
+                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="contactWhatsApp" type="text" value={contactWhatsApp} onChange={(e) => setContactWhatsApp(e.target.value)} placeholder="e.g. 447305697245" />
+                                <small>Enter your phone number including country code, without any '+', spaces, or dashes. If left blank, the WhatsApp button will be hidden.</small>
+                            </div>
+                            <div className="mb-4">
+                                <label htmlFor="contactEmail">Email Address (Optional)</label>
+                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="contactEmail" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="e.g. admin@example.com" />
+                                <small>The email address users should contact. If left blank, the Email button will be hidden.</small>
+                            </div>
                         </div>
                     )}
 
@@ -5126,11 +5148,11 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | str
                                     'You love exploring a wide variety of different content!'}
                         </p>
 
-                        {analytics.topContent && analytics.topContent.filter((c: any) => c.plays > 1).length > 0 && (
+                        {analytics.topWatched && analytics.topWatched.filter((c: any) => c.plays > 1).length > 0 && (
                             <div className="w-full mt-2">
                                 <p className="text-left text-xs uppercase tracking-widest font-bold text-muted mb-3 border-b border-white/10 pb-2">Top Obsessions</p>
                                 <div className="flex flex-col gap-2">
-                                    {analytics.topContent.filter((c: any) => c.plays > 1).slice(0, 5).map((item: any, i: number) => (
+                                    {analytics.topWatched.filter((c: any) => c.plays > 1).slice(0, 5).map((item: any, i: number) => (
                                         <div key={i} className="flex items-center justify-between bg-white/5 border border-white/5 rounded-lg p-2 hover:bg-white/10 transition-colors">
                                             <div className="flex items-center gap-3">
                                                 <span className="text-gray-500 font-bold w-4 text-right">{i + 1}</span>
@@ -5720,17 +5742,22 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                     </div>
                                 )}
                                 <div className="flex flex-col gap-3 mt-auto">
-                                    <a href="https://wa.me/447305697245" target="_blank" rel="noreferrer"
+                                    {publicConfig.contactWhatsApp && (
+                                        <a href={`https://wa.me/${publicConfig.contactWhatsApp}`} target="_blank" rel="noreferrer"
                                         className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-[#25D366]/10 border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366]/20">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12.031 21.972c-1.63 0-3.21-.42-4.606-1.21l-5.111 1.34 1.36-4.972a9.92 9.92 0 0 1-1.34-4.978C2.334 6.64 6.685 2.28 12.031 2.28c5.344 0 9.697 4.36 9.697 9.872 0 5.512-4.353 9.82-9.697 9.82zm0-18.062c-4.47 0-8.115 3.65-8.115 8.13 0 1.48.39 2.92 1.12 4.19l-1.02 3.73 3.82-1a8.13 8.13 0 0 0 4.195 1.15c4.475 0 8.115-3.65 8.115-8.13s-3.64-8.07-8.115-8.07zm4.332 11.23c-.237-.12-1.405-.69-1.62-.77-.216-.08-.372-.12-.53.12-.158.24-.616.77-.754.93-.138.16-.276.18-.513.06-1.124-.55-2.062-1.28-2.812-2.19-.214-.26-.14-.4.08-.56.12-.08.27-.3.41-.45.14-.15.19-.25.28-.42.1-.17.05-.32 0-.44-.05-.12-.53-1.28-.73-1.75-.19-.46-.38-.4-.53-.41h-.45c-.16 0-.41.06-.63.3-.22.24-.85.83-.85 2.02 0 1.19.87 2.34.99 2.5.12.16 1.7 2.6 4.12 3.64 1.38.59 2.05.65 2.8.55.75-.1 1.4-.57 1.6-1.12.2-.55.2-.102.14-1.12-.06-.1-.22-.16-.46-.28z" /></svg>
                                         WhatsApp
                                     </a>
-                                    <a href="mailto:jasonlucas58@gmail.com"
+                                    </a>
+                                    )}
+                                    {publicConfig.contactEmail && (
+                                        <a href={`mailto:${publicConfig.contactEmail}`}
                                         className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
                                         Email
-                                    </a>
-                                </div>
+                                        </a>
+                                    )}
+                                  </div>
                             </div>
                         )}
 
@@ -5940,14 +5967,14 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                 <div className="flex flex-col gap-6 flex-1">
 
                                     {/* Top Content Grid */}
-                                    {analytics.topContent && analytics.topContent.length > 0 && (
+                                    {analytics.topWatched && analytics.topWatched.length > 0 && (
                                         <div className="bg-card border border-border rounded-2xl p-6 shadow-xl flex-1 flex flex-col">
                                             <div className="flex items-center justify-between mb-6">
                                                 <div>
                                                     <h3 className="text-xl font-bold text-text mb-1">Your Most Watched</h3>
                                                     <p className="text-muted text-sm">Based on your {analytics.totalPlays} total plays</p>
                                                 </div>
-                                                {analytics.topContent.length > TOP_CONTENT_PAGE_SIZE && (
+                                                {analytics.topWatched.length > TOP_CONTENT_PAGE_SIZE && (
                                                     <div className="flex items-center gap-2">
                                                         <button
                                                             onClick={() => setTopContentPage(p => Math.max(0, p - 1))}
@@ -5957,11 +5984,11 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                                             <ChevronUp className="w-4 h-4 -rotate-90" />
                                                         </button>
                                                         <span className="text-xs text-muted font-medium w-8 text-center">
-                                                            {topContentPage + 1} / {Math.ceil(analytics.topContent.length / TOP_CONTENT_PAGE_SIZE)}
+                                                            {topContentPage + 1} / {Math.ceil(analytics.topWatched.length / TOP_CONTENT_PAGE_SIZE)}
                                                         </span>
                                                         <button
-                                                            onClick={() => setTopContentPage(p => Math.min(Math.ceil(analytics.topContent.length / TOP_CONTENT_PAGE_SIZE) - 1, p + 1))}
-                                                            disabled={topContentPage >= Math.ceil(analytics.topContent.length / TOP_CONTENT_PAGE_SIZE) - 1}
+                                                            onClick={() => setTopContentPage(p => Math.min(Math.ceil(analytics.topWatched.length / TOP_CONTENT_PAGE_SIZE) - 1, p + 1))}
+                                                            disabled={topContentPage >= Math.ceil(analytics.topWatched.length / TOP_CONTENT_PAGE_SIZE) - 1}
                                                             className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
                                                         >
                                                             <ChevronDown className="w-4 h-4 -rotate-90" />
@@ -5970,7 +5997,7 @@ const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: 
                                                 )}
                                             </div>
                                             <div className="grid grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
-                                                {analytics.topContent.slice(topContentPage * TOP_CONTENT_PAGE_SIZE, (topContentPage + 1) * TOP_CONTENT_PAGE_SIZE).map((item: any) => (
+                                                {analytics.topWatched.slice(topContentPage * TOP_CONTENT_PAGE_SIZE, (topContentPage + 1) * TOP_CONTENT_PAGE_SIZE).map((item: any) => (
                                                     <a key={item.key} href={item.plexUrl} target="_blank" rel="noreferrer" className="group flex flex-col gap-2">
                                                         <div className="relative rounded-xl overflow-hidden aspect-[2/3] bg-background border border-white/5 transition-transform group-hover:scale-105 group-hover:shadow-xl group-hover:border-plex/50">
                                                             {item.thumbUrl ? (
