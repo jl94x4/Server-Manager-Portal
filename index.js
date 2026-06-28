@@ -1554,6 +1554,7 @@ const buildPlexStatsCache = async () => {
         return;
     }
     isBuildingPlexStats = true;
+    markTaskStart(systemJobs.plexStats);
     log('[PlexStats] Starting background library size build...');
     try {
         const uri = await getPlexConnectionUri(config);
@@ -1627,17 +1628,23 @@ const buildPlexStatsCache = async () => {
 
         const totalVideoTitles = totalMoviesCount + totalShowsCount;
         const total4kTitles = total4kMovies + fourKShows.size;
+        const existingStats = await loadFile(PLEX_STATS_CACHE_PATH, {});
         const stats = {
             movies: totalMoviesCount, shows: totalShowsCount, music: totalMusicCount,
             moviesBytes: totalMoviesBytes, showsBytes: totalShowsBytes, musicBytes: totalMusicBytes,
             fourKPercent: totalVideoTitles > 0 ? Math.round((total4kTitles / totalVideoTitles) * 100) : 0,
+            maxConcurrentStreams: existingStats.maxConcurrentStreams || 0,
+            maxDirectPlays: existingStats.maxDirectPlays || 0,
+            maxTranscodes: existingStats.maxTranscodes || 0,
             generatedAt: Date.now()
         };
         cachedPlexStats = stats;
         await fs.writeFile(PLEX_STATS_CACHE_PATH, JSON.stringify(stats, null, 2));
         log(`[PlexStats] Cache built and saved — movies: ${totalMoviesCount}, shows: ${totalShowsCount}, music: ${totalMusicCount}`);
+        markTaskEnd(systemJobs.plexStats, null);
     } catch (e) {
         log(`[PlexStats] Build failed: ${e.message}`);
+        markTaskEnd(systemJobs.plexStats, e);
     } finally {
         isBuildingPlexStats = false;
     }
@@ -1651,6 +1658,7 @@ const buildPlexStatsCache = async () => {
  */
 const startPlexStatsBackgroundTask = async () => {
     const INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+    systemJobs.plexStats.nextRun = new Date(Date.now() + INTERVAL_MS).toISOString();
 
     const existing = await loadPlexStatsFromDisk();
     if (existing) {
@@ -1668,6 +1676,7 @@ const startPlexStatsBackgroundTask = async () => {
     // Schedule recurring rebuild every 24 hours
     setInterval(() => {
         log('[PlexStats] Scheduled 24-hour rebuild starting...');
+        systemJobs.plexStats.nextRun = new Date(Date.now() + INTERVAL_MS).toISOString();
         buildPlexStatsCache();
     }, INTERVAL_MS);
 };
@@ -2337,8 +2346,13 @@ app.get('/api/deleted-users', requireAdmin, async (req, res) => {
     res.json(deletedUsers.map(user => ({ ...user, blockId: getDeletedUserKey(user) })));
 });
 
+const getTasksSnapshot = () => [
+    ...tasksInfo.map(task => ({ ...task })),
+    ...Object.values(systemJobs).map(job => ({ ...job }))
+];
+
 app.get('/api/tasks', requireAdmin, (req, res) => {
-    res.json(tasksInfo);
+    res.json(getTasksSnapshot());
 });
 
 app.post('/api/tasks/run/:taskId', requireAdmin, async (req, res) => {
@@ -2348,7 +2362,7 @@ app.post('/api/tasks/run/:taskId', requireAdmin, async (req, res) => {
 
     try {
         const currentConfig = await loadFile(CONFIG_PATH, {});
-        task.lastRun = new Date().toISOString();
+        markTaskStart(task);
 
         switch (taskId) {
             case 'syncPlexUsers': await syncUsers(currentConfig); break;
@@ -2358,9 +2372,153 @@ app.post('/api/tasks/run/:taskId', requireAdmin, async (req, res) => {
             case 'checkAndCleanupInactive': await checkAndCleanupInactive(currentConfig); break;
             default: return res.status(400).json({ error: 'Invalid task' });
         }
+        markTaskEnd(task, null);
         res.json({ message: `Task ${task.name} executed successfully.`, task });
     } catch (e) {
+        markTaskEnd(task, e);
         res.status(500).json({ error: `Failed to execute task: ${e.message}` });
+    }
+});
+
+app.get('/api/admin/diagnostics', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const now = Date.now();
+        const statFile = async (filePath) => {
+            try {
+                const stat = await fs.stat(filePath);
+                return { exists: true, size: stat.size, modifiedAt: stat.mtime.toISOString() };
+            } catch (e) {
+                return { exists: false, size: 0, modifiedAt: null };
+            }
+        };
+
+        const [analyticsFile, trendingFile, plexStatsFile, usersFile, configFile] = await Promise.all([
+            statFile(ANALYTICS_CACHE_PATH),
+            statFile(TRENDING_CACHE_PATH),
+            statFile(PLEX_STATS_CACHE_PATH),
+            statFile(USERS_PATH),
+            statFile(CONFIG_PATH)
+        ]);
+
+        res.json({
+            app: {
+                version: appVersion,
+                uptimeSeconds: Math.floor(process.uptime()),
+                nodeVersion: process.version,
+                memoryRssMB: Math.round(process.memoryUsage().rss / (1024 * 1024))
+            },
+            integrations: {
+                plexConfigured: !!(config.plexToken && config.serverIdentifier),
+                smtpConfigured: !!(config.smtpHost && config.smtpUser && config.smtpPass),
+                sonarrConfigured: !!(config.sonarrUrl && config.sonarrApiKey),
+                radarrConfigured: !!(config.radarrUrl && config.radarrApiKey),
+                tautulliConfigured: !!(config.tautulliUrl && config.tautulliApiKey)
+            },
+            caches: {
+                analytics: analyticsFile,
+                trending: trendingFile,
+                plexStats: plexStatsFile
+            },
+            files: {
+                users: usersFile,
+                config: configFile
+            },
+            jobs: getTasksSnapshot(),
+            checkedAt: new Date(now).toISOString()
+        });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to load diagnostics: ${e.message}` });
+    }
+});
+
+const BACKUP_SCHEMA_VERSION = 1;
+const BACKUP_TARGETS = [
+    { key: 'config', path: CONFIG_PATH },
+    { key: 'users', path: USERS_PATH },
+    { key: 'invites', path: INVITES_PATH },
+    { key: 'deletedUsers', path: DELETED_USERS_PATH },
+    { key: 'auditLog', path: AUDIT_LOG_PATH },
+    { key: 'emailLog', path: EMAIL_LOG_PATH },
+    { key: 'statusConfig', path: STATUS_CONFIG_PATH },
+    { key: 'health', path: HEALTH_PATH },
+    { key: 'trendingCache', path: TRENDING_CACHE_PATH },
+    { key: 'analyticsCache', path: ANALYTICS_CACHE_PATH },
+    { key: 'killRules', path: KILL_RULES_PATH },
+    { key: 'plexStats', path: PLEX_STATS_CACHE_PATH }
+];
+
+const readBackupPayload = async () => {
+    const payload = {};
+    for (const target of BACKUP_TARGETS) {
+        payload[target.key] = await loadFile(target.path, null);
+    }
+    try {
+        const logoPath = path.join(process.cwd(), 'static', 'logo.png');
+        const logoBuffer = await fs.readFile(logoPath);
+        payload.logoPngBase64 = logoBuffer.toString('base64');
+    } catch (e) {
+        payload.logoPngBase64 = null;
+    }
+    return payload;
+};
+
+app.get('/api/admin/backup', requireAdmin, async (req, res) => {
+    try {
+        const backup = {
+            schemaVersion: BACKUP_SCHEMA_VERSION,
+            createdAt: new Date().toISOString(),
+            createdBy: req.user?.username || req.user?.email || 'admin',
+            data: await readBackupPayload()
+        };
+        await appendAuditLog('backup_exported', req.user, null, { schemaVersion: BACKUP_SCHEMA_VERSION });
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename=\"portal-backup-${Date.now()}.json\"`);
+        res.send(JSON.stringify(backup, null, 2));
+    } catch (e) {
+        res.status(500).json({ error: `Failed to create backup: ${e.message}` });
+    }
+});
+
+app.post('/api/admin/backup/restore', requireAdmin, express.text({ type: '*/*', limit: '25mb' }), async (req, res) => {
+    try {
+        const rawBody = typeof req.body === 'string' ? req.body : '';
+        if (!rawBody) return res.status(400).json({ error: 'Missing backup payload.' });
+
+        let backup;
+        try {
+            backup = JSON.parse(rawBody);
+        } catch (e) {
+            return res.status(400).json({ error: 'Backup payload is not valid JSON.' });
+        }
+
+        if (!backup || backup.schemaVersion !== BACKUP_SCHEMA_VERSION || !backup.data) {
+            return res.status(400).json({ error: 'Unsupported backup schema.' });
+        }
+
+        const confirmRestore = req.query.confirm === 'true' || req.headers['x-confirm-restore'] === 'true';
+        if (!confirmRestore) {
+            return res.status(400).json({ error: 'Restore requires explicit confirmation.' });
+        }
+
+        for (const target of BACKUP_TARGETS) {
+            if (backup.data[target.key] !== undefined) {
+                await saveFile(target.path, backup.data[target.key]);
+            }
+        }
+
+        if (backup.data.logoPngBase64 && typeof backup.data.logoPngBase64 === 'string') {
+            const logoPath = path.join(process.cwd(), 'static', 'logo.png');
+            await fs.writeFile(logoPath, Buffer.from(backup.data.logoPngBase64, 'base64'));
+        }
+
+        await appendAuditLog('backup_restored', req.user, null, {
+            schemaVersion: backup.schemaVersion,
+            createdAt: backup.createdAt || null
+        });
+        res.json({ success: true, message: 'Backup restored successfully.' });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to restore backup: ${e.message}` });
     }
 });
 
@@ -3044,6 +3202,63 @@ app.get('/api/tautulli/graphs', requireAuth, async (req, res) => {
     }
 });
 
+const toNumber = (value, fallback = 0) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+};
+
+const calculateDelta = (current, previous) => {
+    const currentVal = toNumber(current, 0);
+    const previousVal = Math.max(0, toNumber(previous, 0));
+    const absolute = currentVal - previousVal;
+    const percent = previousVal > 0 ? Number(((absolute / previousVal) * 100).toFixed(1)) : null;
+    return { current: currentVal, previous: previousVal, absolute, percent };
+};
+
+const getCompareSourceDays = (daysValue) => {
+    const key = String(daysValue || '30');
+    const map = {
+        '1': '7',
+        '7': '30',
+        '30': '60',
+        '60': '90',
+        '90': '180',
+        '180': '365',
+        '365': '1825'
+    };
+    return map[key] || null;
+};
+
+const summarizeLibraryHealth = (topLibraries = [], stats = {}) => {
+    const libraryPlays = (topLibraries || []).reduce((sum, lib) => sum + toNumber(lib.plays, 0), 0);
+    const leadingLibraryPlays = toNumber(topLibraries?.[0]?.plays, 0);
+    const concentrationPct = libraryPlays > 0 ? Number(((leadingLibraryPlays / libraryPlays) * 100).toFixed(1)) : 0;
+    const activeLibraries = (topLibraries || []).filter(lib => toNumber(lib.plays, 0) > 0).length;
+    const totalCatalogItems = toNumber(stats.movies) + toNumber(stats.shows) + toNumber(stats.music);
+    const totalCatalogBytes = toNumber(stats.moviesBytes) + toNumber(stats.showsBytes) + toNumber(stats.musicBytes);
+    const sizeGB = Number((totalCatalogBytes / (1024 * 1024 * 1024)).toFixed(1));
+    const fourKPercent = toNumber(stats.fourKPercent, 0);
+
+    let healthLabel = 'Needs Attention';
+    if (activeLibraries >= 5 && concentrationPct <= 55 && fourKPercent >= 20) {
+        healthLabel = 'Excellent';
+    } else if (activeLibraries >= 3 && concentrationPct <= 70) {
+        healthLabel = 'Healthy';
+    }
+
+    return {
+        activeLibraries,
+        concentrationPct,
+        totalCatalogItems,
+        totalCatalogBytes,
+        sizeGB,
+        fourKPercent,
+        healthLabel
+    };
+};
+
+const getUniqueActiveViewers = (users = []) => (users || []).filter(u => toNumber(u.plays, 0) > 0).length;
+
 app.get('/api/plex/analytics', requireAuth, async (req, res) => {
     try {
         const statsData = await loadFile(ANALYTICS_CACHE_PATH, {});
@@ -3061,6 +3276,32 @@ app.get('/api/plex/analytics', requireAuth, async (req, res) => {
         data.maxConcurrentStreams = stats.maxConcurrentStreams || 0;
         data.maxDirectPlays = stats.maxDirectPlays || 0;
         data.maxTranscodes = stats.maxTranscodes || 0;
+        data.libraryHealth = summarizeLibraryHealth(data.topLibraries || [], stats);
+
+        const compareSourceDays = getCompareSourceDays(reqDays);
+        if (compareSourceDays && statsData[compareSourceDays]) {
+            const compareData = statsData[compareSourceDays] || {};
+            const currentTotalPlaybacks = toNumber(data.totalPlaybacks, 0);
+            const compareTotalPlaybacks = toNumber(compareData.totalPlaybacks, 0);
+            const previousTotalPlaybacks = Math.max(0, compareTotalPlaybacks - currentTotalPlaybacks);
+
+            const currentUniqueViewers = getUniqueActiveViewers(cachedData.topUsers || []);
+            const compareUniqueViewers = getUniqueActiveViewers(compareData.topUsers || []);
+            const previousUniqueViewers = Math.max(0, compareUniqueViewers - currentUniqueViewers);
+
+            const currentLibraryPlays = (cachedData.topLibraries || []).reduce((sum, lib) => sum + toNumber(lib.plays, 0), 0);
+            const compareLibraryPlays = (compareData.topLibraries || []).reduce((sum, lib) => sum + toNumber(lib.plays, 0), 0);
+            const previousLibraryPlays = Math.max(0, compareLibraryPlays - currentLibraryPlays);
+
+            data.compare = {
+                sourceDays: String(compareSourceDays),
+                totalPlaybacks: calculateDelta(currentTotalPlaybacks, previousTotalPlaybacks),
+                uniqueViewers: calculateDelta(currentUniqueViewers, previousUniqueViewers),
+                libraryPlays: calculateDelta(currentLibraryPlays, previousLibraryPlays)
+            };
+        } else {
+            data.compare = null;
+        }
 
         res.json(data);
     } catch (e) {
@@ -3727,12 +3968,34 @@ const checkAndCleanupInactive = async (config) => {
 };
 
 let tasksInfo = [
-    { id: 'syncPlexUsers', name: 'Sync Plex Users', description: 'Fetches latest user data from Plex.', lastRun: null, nextRun: null },
-    { id: 'checkAndSendNotifications', name: 'Expiry Notifications', description: 'Sends warning emails to users nearing expiry.', lastRun: null, nextRun: null },
-    { id: 'checkAndRevoke', name: 'Revoke Access', description: 'Removes Plex access for expired users.', lastRun: null, nextRun: null },
-    { id: 'checkAndSendNewsletter', name: 'Send Newsletter', description: 'Generates and sends automated newsletters.', lastRun: null, nextRun: null },
-    { id: 'checkAndCleanupInactive', name: 'Inactive Cleanup', description: 'Revokes access for users who have not watched anything recently.', lastRun: null, nextRun: null }
+    { id: 'syncPlexUsers', name: 'Sync Plex Users', description: 'Fetches latest user data from Plex.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null },
+    { id: 'checkAndSendNotifications', name: 'Expiry Notifications', description: 'Sends warning emails to users nearing expiry.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null },
+    { id: 'checkAndRevoke', name: 'Revoke Access', description: 'Removes Plex access for expired users.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null },
+    { id: 'checkAndSendNewsletter', name: 'Send Newsletter', description: 'Generates and sends automated newsletters.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null },
+    { id: 'checkAndCleanupInactive', name: 'Inactive Cleanup', description: 'Revokes access for users who have not watched anything recently.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null }
 ];
+
+const systemJobs = {
+    analyticsCache: { id: 'analyticsCache', name: 'Analytics Cache Builder', description: 'Rebuilds server analytics cache snapshots.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null },
+    trendingCache: { id: 'trendingCache', name: 'Trending Cache Builder', description: 'Rebuilds trending and leaderboard data.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null },
+    plexStats: { id: 'plexStats', name: 'Plex Stats Builder', description: 'Rebuilds cached library size and usage totals.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null }
+};
+
+const markTaskStart = (task) => {
+    task.running = true;
+    task.lastError = null;
+    task._startedAt = Date.now();
+    task.lastRun = new Date(task._startedAt).toISOString();
+};
+
+const markTaskEnd = (task, error = null) => {
+    task.running = false;
+    if (task._startedAt) {
+        task.lastDurationMs = Date.now() - task._startedAt;
+        delete task._startedAt;
+    }
+    task.lastError = error ? (error.message || String(error)) : null;
+};
 
 const startBackgroundService = async () => {
     if (serviceIntervalId) clearInterval(serviceIntervalId);
@@ -3788,21 +4051,24 @@ const startBackgroundService = async () => {
     };
 
     const runBatch = async (currentConfig) => {
-        const now = new Date().toISOString();
-        tasksInfo.find(t => t.id === 'syncPlexUsers').lastRun = now;
-        await syncUsers(currentConfig).catch(e => log(`Error during sync: ${e.message}`));
+        const runManagedTask = async (taskId, runner, logPrefix) => {
+            const task = tasksInfo.find(t => t.id === taskId);
+            if (!task) return;
+            markTaskStart(task);
+            try {
+                await runner();
+                markTaskEnd(task, null);
+            } catch (e) {
+                markTaskEnd(task, e);
+                log(`Error during ${logPrefix}: ${e.message}`);
+            }
+        };
 
-        tasksInfo.find(t => t.id === 'checkAndSendNotifications').lastRun = now;
-        await checkAndSendNotifications(currentConfig).catch(e => log(`Error during notifications: ${e.message}`));
-
-        tasksInfo.find(t => t.id === 'checkAndRevoke').lastRun = now;
-        await checkAndRevoke(currentConfig).catch(e => log(`Error during revoke: ${e.message}`));
-
-        tasksInfo.find(t => t.id === 'checkAndSendNewsletter').lastRun = now;
-        await checkAndSendNewsletter(currentConfig).catch(e => log(`Error during newsletter: ${e.message}`));
-
-        tasksInfo.find(t => t.id === 'checkAndCleanupInactive').lastRun = now;
-        await checkAndCleanupInactive(currentConfig).catch(e => log(`Error during inactive cleanup: ${e.message}`));
+        await runManagedTask('syncPlexUsers', () => syncUsers(currentConfig), 'sync');
+        await runManagedTask('checkAndSendNotifications', () => checkAndSendNotifications(currentConfig), 'notifications');
+        await runManagedTask('checkAndRevoke', () => checkAndRevoke(currentConfig), 'revoke');
+        await runManagedTask('checkAndSendNewsletter', () => checkAndSendNewsletter(currentConfig), 'newsletter');
+        await runManagedTask('checkAndCleanupInactive', () => checkAndCleanupInactive(currentConfig), 'inactive cleanup');
 
         updateNextRun(currentConfig);
     };
@@ -4031,11 +4297,18 @@ app.get('/api/media-stack/trending', requireAuth, async (req, res) => {
 
 async function calculateAnalyticsStats() {
     try {
+        markTaskStart(systemJobs.analyticsCache);
         const config = await loadFile(CONFIG_PATH, null);
-        if (!config || !config.plexToken || !config.serverIdentifier) return;
+        if (!config || !config.plexToken || !config.serverIdentifier) {
+            markTaskEnd(systemJobs.analyticsCache, null);
+            return;
+        }
         
         const uri = await getPlexConnectionUri(config);
-        if (!uri) return;
+        if (!uri) {
+            markTaskEnd(systemJobs.analyticsCache, null);
+            return;
+        }
 
         log('Starting background calculation of Plex Analytics Stats...');
 
@@ -4070,7 +4343,10 @@ async function calculateAnalyticsStats() {
         const devicesRes = await fetch(`${uri}/devices?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
         const users = await loadFile(USERS_PATH, []);
 
-        if (!Array.isArray(historyItems) || historyItems.length === 0) return;
+        if (!Array.isArray(historyItems) || historyItems.length === 0) {
+            markTaskEnd(systemJobs.analyticsCache, null);
+            return;
+        }
 
         const accountsMap = {};
         if (accountsRes && accountsRes.MediaContainer && accountsRes.MediaContainer.Account) {
@@ -4214,28 +4490,41 @@ async function calculateAnalyticsStats() {
 
         await saveFile(ANALYTICS_CACHE_PATH, statsData);
         log('Successfully calculated and cached Plex Analytics Stats.');
+        markTaskEnd(systemJobs.analyticsCache, null);
 
     } catch (e) {
         log(`Error calculating analytics stats: ${e.message}`);
+        markTaskEnd(systemJobs.analyticsCache, e);
     }
 }
 
 async function calculateTrendingStats() {
     try {
+        markTaskStart(systemJobs.trendingCache);
         const config = await loadFile(CONFIG_PATH, null);
-        if (!config || !config.plexToken || !config.serverIdentifier) return;
+        if (!config || !config.plexToken || !config.serverIdentifier) {
+            markTaskEnd(systemJobs.trendingCache, null);
+            return;
+        }
 
         const uri = await getPlexConnectionUri(config);
-        if (!uri) return;
+        if (!uri) {
+            markTaskEnd(systemJobs.trendingCache, null);
+            return;
+        }
 
         log('Starting background calculation of Plex Trending Stats...');
 
         // Fetch up to 10,000 most recent history items
         const response = await fetch(`${uri}/status/sessions/history/all?sort=viewedAt%3Adesc&limit=10000&X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).catch(() => null);
-        if (!response) return;
+        if (!response) {
+            markTaskEnd(systemJobs.trendingCache, null);
+            return;
+        }
         const historyRes = await response.json().catch(() => null);
         if (!historyRes || !historyRes.MediaContainer || !historyRes.MediaContainer.Metadata) {
             log('No history found or failed to parse history JSON.');
+            markTaskEnd(systemJobs.trendingCache, null);
             return;
         }
 
@@ -4413,8 +4702,10 @@ async function calculateTrendingStats() {
 
         await saveFile(TRENDING_CACHE_PATH, stats);
         log('Successfully calculated and cached Plex Trending Stats.');
+        markTaskEnd(systemJobs.trendingCache, null);
     } catch (e) {
         log(`Error calculating trending stats: ${e.message}`);
+        markTaskEnd(systemJobs.trendingCache, e);
     }
 }
 
@@ -4640,8 +4931,16 @@ app.listen(PORT, async () => {
     startPlexStatsBackgroundTask(); // start 24-hour library size cache task
 
     // Setup Trending Stats Aggregator
+    systemJobs.trendingCache.nextRun = new Date(Date.now() + 10000).toISOString();
+    systemJobs.analyticsCache.nextRun = new Date(Date.now() + 15000).toISOString();
     setTimeout(calculateTrendingStats, 10000); // Run once shortly after startup
-    setInterval(calculateTrendingStats, 12 * 60 * 60 * 1000);
+    setInterval(() => {
+        systemJobs.trendingCache.nextRun = new Date(Date.now() + (12 * 60 * 60 * 1000)).toISOString();
+        calculateTrendingStats();
+    }, 12 * 60 * 60 * 1000);
     setTimeout(calculateAnalyticsStats, 15000);
-    setInterval(calculateAnalyticsStats, 30 * 60 * 1000); // Every 12 hours
+    setInterval(() => {
+        systemJobs.analyticsCache.nextRun = new Date(Date.now() + (30 * 60 * 1000)).toISOString();
+        calculateAnalyticsStats();
+    }, 30 * 60 * 1000);
 });

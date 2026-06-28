@@ -987,7 +987,7 @@ const SettingsDashboard: React.FC = () => {
     const [libraries, setLibraries] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState(() => {
         const hash = window.location.hash.replace('#', '');
-        return ['plex', 'smtp', 'newsletter', 'cleanup', 'mediastack', 'branding', 'navigation', 'status', 'invites', 'tasks'].includes(hash) ? hash : 'plex';
+        return ['plex', 'smtp', 'newsletter', 'cleanup', 'mediastack', 'branding', 'navigation', 'status', 'invites', 'tasks', 'system'].includes(hash) ? hash : 'plex';
     });
 
     useEffect(() => {
@@ -1041,6 +1041,10 @@ const SettingsDashboard: React.FC = () => {
     const [navOrder, setNavOrder] = useState<string[]>(['home', 'discover', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout']);
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [tasks, setTasks] = useState<any[]>([]);
+    const [diagnostics, setDiagnostics] = useState<any>(null);
+    const [isLoadingDiagnostics, setIsLoadingDiagnostics] = useState(false);
+    const [backupRestoreText, setBackupRestoreText] = useState('');
+    const [isRestoringBackup, setIsRestoringBackup] = useState(false);
 
     const handlePushAnnouncement = async () => {
         setIsPushingAnnouncement(true);
@@ -1068,9 +1072,78 @@ const SettingsDashboard: React.FC = () => {
         }
     };
 
+    const fetchDiagnostics = async () => {
+        setIsLoadingDiagnostics(true);
+        try {
+            const data = await apiFetch('/api/admin/diagnostics');
+            setDiagnostics(data);
+        } catch (e) {
+            addToast('Failed to load diagnostics', 'error');
+        } finally {
+            setIsLoadingDiagnostics(false);
+        }
+    };
+
+    const handleDownloadBackup = async () => {
+        try {
+            const response = await fetch('/api/admin/backup');
+            if (!response.ok) throw new Error('Backup download failed');
+            const text = await response.text();
+            const blob = new Blob([text], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `portal-backup-${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            addToast('Backup downloaded successfully.');
+        } catch (e: any) {
+            addToast(e.message || 'Backup download failed', 'error');
+        }
+    };
+
+    const handleRestoreBackup = async () => {
+        if (!backupRestoreText.trim()) {
+            addToast('Paste a backup JSON payload before restoring.', 'error');
+            return;
+        }
+        appConfirm('Restore backup now? This overwrites current data files.', async () => {
+            setIsRestoringBackup(true);
+            try {
+                const response = await fetch('/api/admin/backup/restore?confirm=true', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain',
+                        'x-confirm-restore': 'true'
+                    },
+                    body: backupRestoreText
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(data.error || 'Backup restore failed');
+                addToast(data.message || 'Backup restored successfully.');
+                await Promise.all([fetchDiagnostics(), fetchTasks()]);
+            } catch (e: any) {
+                addToast(e.message || 'Backup restore failed', 'error');
+            } finally {
+                setIsRestoringBackup(false);
+            }
+        });
+    };
+
+    const renderConfigPill = (configured: boolean) => (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${configured ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'}`}>
+            {configured ? 'Configured' : 'Missing'}
+        </span>
+    );
+
     useEffect(() => {
-        if (activeTab === 'tasks') {
+        if (activeTab === 'tasks' || activeTab === 'system') {
             fetchTasks();
+        }
+        if (activeTab === 'system') {
+            fetchDiagnostics();
         }
     }, [activeTab]);
 
@@ -1317,6 +1390,7 @@ const SettingsDashboard: React.FC = () => {
                             { label: 'Newsletter', value: 'newsletter' },
                             { label: 'Broadcast Email', value: 'broadcast' },
                             { label: 'Background Tasks', value: 'tasks' },
+                            { label: 'System', value: 'system' },
                             { label: 'SMTP Alerts', value: 'smtp' }
                         ]}
                     />
@@ -1337,6 +1411,7 @@ const SettingsDashboard: React.FC = () => {
                         { id: 'newsletter', label: 'Newsletter' },
                         { id: 'broadcast', label: 'Broadcast Email' },
                         { id: 'tasks', label: 'Background Tasks' },
+                        { id: 'system', label: 'System' },
                         { id: 'smtp', label: 'SMTP Alerts' }
                     ].map(tab => (
                         <button
@@ -1817,6 +1892,9 @@ const SettingsDashboard: React.FC = () => {
                                             <div className="flex gap-4 text-xs">
                                                 <span className="bg-black/20 px-2 py-1 rounded"><strong>Last Run:</strong> {task.lastRun ? new Date(task.lastRun).toLocaleString() : 'Never'}</span>
                                                 <span className="bg-black/20 px-2 py-1 rounded"><strong>Next Run:</strong> {task.nextRun ? new Date(task.nextRun).toLocaleString() : 'Not Scheduled'}</span>
+                                                <span className="bg-black/20 px-2 py-1 rounded"><strong>Status:</strong> {task.running ? 'Running' : 'Idle'}</span>
+                                                {task.lastDurationMs !== null && <span className="bg-black/20 px-2 py-1 rounded"><strong>Duration:</strong> {Math.round(task.lastDurationMs / 1000)}s</span>}
+                                                {task.lastError && <span className="bg-red-500/20 text-red-300 px-2 py-1 rounded"><strong>Error:</strong> {task.lastError}</span>}
                                             </div>
                                         </div>
                                         <button
@@ -1827,6 +1905,76 @@ const SettingsDashboard: React.FC = () => {
                                         </button>
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+                    )}
+                    {activeTab === 'system' && (
+                        <div className="mb-8 animate-fade-in space-y-6">
+                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">System</h3>
+                            <div className="bg-background border border-border rounded-xl p-4">
+                                <h4 className="font-bold text-text mb-3">Backup & Restore</h4>
+                                <div className="flex flex-wrap gap-3 mb-4">
+                                    <button className="px-4 py-2 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors" onClick={handleDownloadBackup}>Download Backup</button>
+                                    <button className="px-4 py-2 bg-red-600 text-white rounded-md font-bold hover:bg-red-500 transition-colors disabled:opacity-50" onClick={handleRestoreBackup} disabled={isRestoringBackup}>
+                                        {isRestoringBackup ? 'Restoring...' : 'Restore Backup'}
+                                    </button>
+                                </div>
+                                <textarea
+                                    className="w-full min-h-[140px] p-3 rounded-lg border border-border bg-card text-text outline-none focus:border-plex"
+                                    placeholder="Paste backup JSON here before clicking Restore Backup..."
+                                    value={backupRestoreText}
+                                    onChange={(e) => setBackupRestoreText(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="bg-background border border-border rounded-xl p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h4 className="font-bold text-text">System Diagnostics</h4>
+                                    <button className="px-3 py-1.5 bg-border text-text rounded-md font-semibold hover:bg-opacity-80" onClick={fetchDiagnostics}>
+                                        {isLoadingDiagnostics ? 'Refreshing...' : 'Refresh'}
+                                    </button>
+                                </div>
+                                {diagnostics ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 text-sm">
+                                        <div className="bg-black/20 rounded-lg p-3"><strong>App Version:</strong> {diagnostics?.app?.version || 'unknown'}</div>
+                                        <div className="bg-black/20 rounded-lg p-3"><strong>Uptime:</strong> {diagnostics?.app?.uptimeSeconds || 0}s</div>
+                                        <div className="bg-black/20 rounded-lg p-3"><strong>Node:</strong> {diagnostics?.app?.nodeVersion || 'n/a'}</div>
+                                        <div className="bg-black/20 rounded-lg p-3"><strong>Memory:</strong> {diagnostics?.app?.memoryRssMB || 0} MB</div>
+                                        <div className="bg-black/20 rounded-lg p-3 flex items-center justify-between gap-2"><strong>Plex</strong>{renderConfigPill(!!diagnostics?.integrations?.plexConfigured)}</div>
+                                        <div className="bg-black/20 rounded-lg p-3 flex items-center justify-between gap-2"><strong>SMTP</strong>{renderConfigPill(!!diagnostics?.integrations?.smtpConfigured)}</div>
+                                        <div className="bg-black/20 rounded-lg p-3 flex items-center justify-between gap-2"><strong>Sonarr</strong>{renderConfigPill(!!diagnostics?.integrations?.sonarrConfigured)}</div>
+                                        <div className="bg-black/20 rounded-lg p-3 flex items-center justify-between gap-2"><strong>Radarr</strong>{renderConfigPill(!!diagnostics?.integrations?.radarrConfigured)}</div>
+                                        <div className="bg-black/20 rounded-lg p-3 flex items-center justify-between gap-2"><strong>Tautulli</strong>{renderConfigPill(!!diagnostics?.integrations?.tautulliConfigured)}</div>
+                                        <div className="bg-black/20 rounded-lg p-3 flex items-center justify-between gap-2"><strong>Analytics Cache</strong>{renderConfigPill(!!diagnostics?.caches?.analytics?.exists)}</div>
+                                        <div className="bg-black/20 rounded-lg p-3 flex items-center justify-between gap-2"><strong>Trending Cache</strong>{renderConfigPill(!!diagnostics?.caches?.trending?.exists)}</div>
+                                        <div className="bg-black/20 rounded-lg p-3 flex items-center justify-between gap-2"><strong>Plex Stats Cache</strong>{renderConfigPill(!!diagnostics?.caches?.plexStats?.exists)}</div>
+                                        <div className="bg-black/20 rounded-lg p-3 flex items-center justify-between gap-2"><strong>Users File</strong>{renderConfigPill(!!diagnostics?.files?.users?.exists)}</div>
+                                        <div className="bg-black/20 rounded-lg p-3 flex items-center justify-between gap-2"><strong>Config File</strong>{renderConfigPill(!!diagnostics?.files?.config?.exists)}</div>
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted">No diagnostics loaded yet.</p>
+                                )}
+                            </div>
+
+                            <div className="bg-background border border-border rounded-xl p-4">
+                                <h4 className="font-bold text-text mb-3">Job Queue</h4>
+                                <div className="flex flex-col gap-3">
+                                    {tasks.map(task => (
+                                        <div key={`system-${task.id}`} className="bg-black/20 rounded-lg p-3">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="font-semibold text-text">{task.name}</p>
+                                                <span className={`text-xs px-2 py-1 rounded ${task.running ? 'bg-yellow-500/20 text-yellow-300' : 'bg-green-500/20 text-green-300'}`}>
+                                                    {task.running ? 'Running' : 'Idle'}
+                                                </span>
+                                            </div>
+                                            <div className="text-xs text-muted mt-1">
+                                                Last: {task.lastRun ? new Date(task.lastRun).toLocaleString() : 'Never'} · Next: {task.nextRun ? new Date(task.nextRun).toLocaleString() : 'Not Scheduled'}
+                                                {task.lastDurationMs !== null ? ` · Duration: ${Math.round(task.lastDurationMs / 1000)}s` : ''}
+                                            </div>
+                                            {task.lastError && <div className="text-xs text-red-300 mt-1">Last error: {task.lastError}</div>}
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     )}
@@ -3412,7 +3560,33 @@ const TautulliGraphsTab: React.FC = () => {
 };
 
 const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ isAdmin, sessionInfo }) => {
-    const [analyticsData, setAnalyticsData] = useState<{ topUsers: any[], topLibraries: any[], topMovies: any[], topShows: any[], topMusic: any[], topDevices: any[], peakHours: number[], totalPlaybacks: number, maxConcurrentStreams: number, maxDirectPlays: number, maxTranscodes: number } | null>(null);
+    const [analyticsData, setAnalyticsData] = useState<{
+        topUsers: any[],
+        topLibraries: any[],
+        topMovies: any[],
+        topShows: any[],
+        topMusic: any[],
+        topDevices: any[],
+        peakHours: number[],
+        totalPlaybacks: number,
+        maxConcurrentStreams: number,
+        maxDirectPlays: number,
+        maxTranscodes: number,
+        compare?: {
+            sourceDays: string,
+            totalPlaybacks: { absolute: number, percent: number | null },
+            uniqueViewers: { absolute: number, percent: number | null },
+            libraryPlays: { absolute: number, percent: number | null }
+        } | null,
+        libraryHealth?: {
+            activeLibraries: number,
+            concentrationPct: number,
+            totalCatalogItems: number,
+            sizeGB: number,
+            fourKPercent: number,
+            healthLabel: string
+        }
+    } | null>(null);
     const [tautulliData, setTautulliData] = useState<{ streamsRecord: number, transcodeRecord: number, directPlayRecord: number, directStreamRecord: number, totalPlays: number, tvPlays: number, moviePlays: number, musicPlays: number, totalTimeStr: string } | null>(null);
     const [isLoading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -3484,6 +3658,7 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
     if (!analyticsData) return null;
 
     const { topUsers, topLibraries, topMovies, topShows, topMusic, topDevices, peakHours, totalPlaybacks, maxConcurrentStreams, maxDirectPlays, maxTranscodes } = analyticsData;
+    const uniqueActiveViewers = topUsers.filter((u: any) => (u.plays || 0) > 0).length;
     const maxLibraryPlays = Math.max(...topLibraries.map(l => l.plays), 1);
     const maxDevicePlays = Math.max(...topDevices.map(d => d.plays), 1);
     const maxPeakHour = Math.max(...peakHours, 1);
@@ -3493,6 +3668,20 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
     let activeContent = topMovies;
     if (contentTab === 'shows') activeContent = topShows;
     else if (contentTab === 'music') activeContent = topMusic;
+    const compare = analyticsData.compare || null;
+    const libraryHealth = analyticsData.libraryHealth || null;
+
+    const renderDelta = (delta?: { absolute: number, percent: number | null } | null) => {
+        if (!delta) return null;
+        const isUp = delta.absolute >= 0;
+        const sign = isUp ? '+' : '';
+        const pctText = delta.percent === null ? `${sign}${delta.absolute}` : `${sign}${delta.percent}%`;
+        return (
+            <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold mt-1 ${isUp ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'}`}>
+                {pctText}
+            </span>
+        );
+    };
 
     return (
         <div className="w-full max-w-[1600px] animate-fade-in flex flex-col gap-6">
@@ -3543,6 +3732,7 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
                             <div>
                                 <p className="text-muted text-sm uppercase tracking-wider font-bold mb-1">Total Playbacks</p>
                                 <p className="text-2xl font-black text-text"><CountUp end={totalPlaybacks} /></p>
+                                {renderDelta(compare?.totalPlaybacks)}
                             </div>
                         </div>
                         <div className="bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border flex items-center gap-4">
@@ -3551,7 +3741,8 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
                             </div>
                             <div>
                                 <p className="text-muted text-sm uppercase tracking-wider font-bold mb-1">Unique Viewers</p>
-                                <p className="text-lg font-bold text-text truncate max-w-[150px]" title={String(topUsers.length)}>{topUsers.length}</p>
+                                <p className="text-lg font-bold text-text truncate max-w-[150px]" title={String(uniqueActiveViewers)}>{uniqueActiveViewers}</p>
+                                {renderDelta(compare?.uniqueViewers)}
                             </div>
                         </div>
                         <div className="bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border flex items-center gap-4 col-span-1 sm:col-span-2">
@@ -3572,6 +3763,28 @@ const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ 
                             </div>
                         </div>
                     </div>
+                    {libraryHealth && (
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 border border-border">
+                                <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Library Health</p>
+                                <p className="text-xl font-black text-plex">{libraryHealth.healthLabel}</p>
+                            </div>
+                            <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 border border-border">
+                                <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Active Libraries</p>
+                                <p className="text-xl font-black text-text">{libraryHealth.activeLibraries}</p>
+                            </div>
+                            <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 border border-border">
+                                <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Catalog Size</p>
+                                <p className="text-xl font-black text-text">{libraryHealth.totalCatalogItems.toLocaleString()}</p>
+                                <p className="text-[11px] text-muted">{libraryHealth.sizeGB} GB</p>
+                            </div>
+                            <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 border border-border">
+                                <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Usage Concentration</p>
+                                <p className="text-xl font-black text-text">{libraryHealth.concentrationPct}%</p>
+                                <p className="text-[11px] text-muted">4K Coverage: {libraryHealth.fourKPercent}%</p>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
