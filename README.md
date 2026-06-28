@@ -14,7 +14,7 @@ Built with Node.js · Express · React · Tailwind CSS
 
 ---
 
-Server Portal is a self-hosted web application that turns your Plex Media Server into a fully managed streaming service. It handles everything from user onboarding and automated access management, to real-time analytics, live session monitoring, trending content discovery, and beautiful personalized wrap-ups for every user — all from one polished, mobile-first dashboard.
+Server Portal is a self-hosted web application that turns your Plex Media Server into a fully managed streaming service. It handles everything from user onboarding and automated access management, to real-time analytics, live session monitoring, trending content discovery, and beautiful personalized wrap-ups for every user - all from one polished, mobile-first dashboard.
 
 ---
 
@@ -49,11 +49,11 @@ All cards open into detailed modals loaded with contextual data, Plex artwork, a
 
 A comprehensive control panel for the server owner:
 
-- **Live Session Monitor** — Real-time view of all active streams with user avatar, media title, progress bar, stream type badge (Direct Play / Transcode), and a click-through technical modal showing video codec, audio codec, bitrate, channels, resolution, and transcode reason
-- **User Management Table** — View all users with their Plex avatar, username, email, access expiry date, last seen timestamp, and quick-action buttons (+1 Month, +1 Year, Unlimited, Revoke)
-- **Server Leaderboard** — Server-wide play count rankings across all time periods, updated automatically in the background
-- **Audit Log** — Timestamped record of all system actions (access granted, revoked, extended, expired)
-- **Settings UI** — Configure every aspect of the portal from the browser without touching config files
+- **Live Session Monitor** - Real-time view of all active streams with user avatar, media title, progress bar, stream type badge (Direct Play / Transcode), and a click-through technical modal showing video codec, audio codec, bitrate, channels, resolution, and transcode reason
+- **User Management Table** - View all users with their Plex avatar, username, email, access expiry date, last seen timestamp, and quick-action buttons (+1 Month, +1 Year, Unlimited, Revoke)
+- **Server Leaderboard** - Server-wide play count rankings across all time periods, updated automatically in the background
+- **Audit Log** - Timestamped record of all system actions (access granted, revoked, extended, expired)
+- **Settings UI** - Configure every aspect of the portal from the browser without touching config files
 
 ---
 
@@ -61,13 +61,13 @@ A comprehensive control panel for the server owner:
 
 A curated content discovery experience for all users, powered by server-wide watch history:
 
-- **Trending This Week** — What the whole server has been watching in the last 7 days
-- **Top Movies / Top Shows** — The most-played movies and shows over the past month
-- **Weekend Warriors** — Content that spikes on Fridays, Saturdays, and Sundays
-- **Night Owl Club** — Content most watched between midnight and 5am
-- **All-Time Greats** — The highest play-count content ever on the server
-- **Cult Classics** — Niche content with extremely high plays relative to its tiny viewer count
-- **Blast from the Past** — Pre-2000 titles getting recent love
+- **Trending This Week** - What the whole server has been watching in the last 7 days
+- **Top Movies / Top Shows** - The most-played movies and shows over the past month
+- **Weekend Warriors** - Content that spikes on Fridays, Saturdays, and Sundays
+- **Night Owl Club** - Content most watched between midnight and 5am
+- **All-Time Greats** - The highest play-count content ever on the server
+- **Cult Classics** - Niche content with extremely high plays relative to its tiny viewer count
+- **Blast from the Past** - Pre-2000 titles getting recent love
 
 All discover items display Plex backdrop artwork, play counts, and viewer counts.
 
@@ -75,12 +75,12 @@ All discover items display Plex backdrop artwork, play counts, and viewer counts
 
 ### User Onboarding & Access Management
 
-- **Invite Link System** — Generate shareable invite links with a configurable max-use limit and custom duration. Users claim access via a branded landing page that automatically adds them to your Plex server
-- **Plex OAuth** — Secure login via official Plex.tv authentication. No passwords stored
-- **Automated Temporary Access** — Auto-grant configurable temporary access periods (e.g., 3 days) to all new users
-- **Access Expiry** — Set hard expiry dates per user. The system automatically removes Plex server access when time is up
-- **Inactivity Cleanup** — Automatically remove users who haven't streamed in a configurable number of days, with per-user exemptions available
-- **Grace Period Notifications** — Warn users via email before their access expires
+- **Invite Link System** - Generate shareable invite links with a configurable max-use limit and custom duration. Users claim access via a branded landing page that automatically adds them to your Plex server
+- **Plex OAuth** - Secure login via official Plex.tv authentication. No passwords stored
+- **Automated Temporary Access** - Auto-grant configurable temporary access periods (e.g., 3 days) to all new users
+- **Access Expiry** - Set hard expiry dates per user. The system automatically removes Plex server access when time is up
+- **Inactivity Cleanup** - Automatically remove users who haven't streamed in a configurable number of days, with per-user exemptions available
+- **Grace Period Notifications** - Warn users via email before their access expires
 
 ---
 
@@ -100,9 +100,9 @@ Beautiful, responsive HTML emails sent automatically:
 
 ### Public-Facing Pages
 
-- **Landing Page** — A sleek login page showing live library stats (total movies, shows, music) to entice new users
-- **Status Page** — A public `/status` dashboard showing the live uptime of your Plex server, request tools (Overseerr/Ombi), and download clients
-- **Invite Claim Page** — A dedicated, shareable page for invited users to claim their account
+- **Landing Page** - A sleek login page showing live library stats (total movies, shows, music) to entice new users
+- **Status Page** - A public `/status` dashboard showing the live uptime of your Plex server, request tools (Overseerr/Ombi), and download clients
+- **Invite Claim Page** - A dedicated, shareable page for invited users to claim their account
 
 ---
 
@@ -110,8 +110,8 @@ Beautiful, responsive HTML emails sent automatically:
 
 Embed your Arr stack directly into the portal for seamless browsing and requesting:
 
-- **Sonarr** — Browse and request TV shows without leaving the portal
-- **Radarr** — Browse and request movies without leaving the portal
+- **Sonarr** - Browse and request TV shows without leaving the portal
+- **Radarr** - Browse and request movies without leaving the portal
 
 ---
 
@@ -141,13 +141,13 @@ Embed your Arr stack directly into the portal for seamless browsing and requesti
 
 ## Security
 
-- **No Passwords** — Authentication is handled 100% by Plex.tv. The app only stores Plex Account IDs, usernames, and emails
-- **JWT Session Security** — Cookies use `httpOnly`, `secure`, and `sameSite: strict` flags to prevent XSS and CSRF attacks
-- **Rate Limiting** — Authentication endpoints have strict rate limiting to prevent brute-force attacks
-- **HTTP Security Headers** — HSTS, X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, and Permissions-Policy enforced on every response
-- **Admin Protection** — All admin routes are verified against live Plex server ownership, not just a stored flag
-- **Reverse Proxy Ready** — Supports Nginx, Caddy, and Cloudflare via `X-Forwarded-Proto` / `X-Forwarded-For` header trust
-- **Injection Proof** — Uses a flat-file JSON system, making SQL injection structurally impossible
+- **No Passwords** - Authentication is handled 100% by Plex.tv. The app only stores Plex Account IDs, usernames, and emails
+- **JWT Session Security** - Cookies use `httpOnly`, `secure`, and `sameSite: strict` flags to prevent XSS and CSRF attacks
+- **Rate Limiting** - Authentication endpoints have strict rate limiting to prevent brute-force attacks
+- **HTTP Security Headers** - HSTS, X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, and Permissions-Policy enforced on every response
+- **Admin Protection** - All admin routes are verified against live Plex server ownership, not just a stored flag
+- **Reverse Proxy Ready** - Supports Nginx, Caddy, and Cloudflare via `X-Forwarded-Proto` / `X-Forwarded-For` header trust
+- **Injection Proof** - Uses a flat-file JSON system, making SQL injection structurally impossible
 
 ---
 
@@ -214,8 +214,8 @@ All configuration is managed through the **Settings UI** in the browser. Key opt
 
 ```
 Server-Manager-Portal/
-├── index.js            # Backend — Express API, Plex integration, auth, email, scheduling
-├── index.tsx           # Frontend — React application (all UI components)
+├── index.js            # Backend - Express API, Plex integration, auth, email, scheduling
+├── index.tsx           # Frontend - React application (all UI components)
 ├── input.css           # Tailwind CSS source
 ├── static/
 │   ├── bundle.js       # Built React frontend
@@ -227,10 +227,10 @@ Server-Manager-Portal/
 ```
 
 Runtime-generated files (not committed to git):
-- `config.json` — Server configuration
-- `users.json` — User records
-- `audit-log.json` — System action log
-- `trending-cache.json` — Cached leaderboard and trending data
+- `config.json` - Server configuration
+- `users.json` - User records
+- `audit-log.json` - System action log
+- `trending-cache.json` - Cached leaderboard and trending data
 
 ---
 
