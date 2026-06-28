@@ -41,7 +41,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({ id, value, onChange, option
                 <span className={`text-[10px] transition-transform ${isOpen ? 'rotate-180' : ''}`}>▼</span>
             </div>
             {isOpen && (
-                <div className="absolute top-[calc(100%+8px)] right-0 w-max min-w-full bg-[#1e2329] border border-border rounded-lg shadow-2xl z-50 overflow-hidden py-1">
+                <div className="absolute top-[calc(100%+8px)] right-0 w-max min-w-full bg-[#1e2329] border border-border rounded-lg shadow-2xl z-50 overflow-hidden py-1 max-h-60 overflow-y-auto custom-scrollbar">
                     {options.map(opt => (
                         <div
                             key={String(opt.value)}
