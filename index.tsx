@@ -6417,8 +6417,15 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
     const [trendingStats, setTrendingStats] = useState<{ trending7Days: any[], movies30Days: any[], shows30Days: any[], top365Days: any[], allTime: any[], weekendWarriors: any[], nightOwls: any[], retroHits: any[], cultClassics: any[] } | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [recentLimit, setRecentLimit] = useState(12);
+    const [recentLimit, setRecentLimit] = useState(() => {
+        const saved = localStorage.getItem('discoverRecentLimit');
+        return saved ? Number(saved) : 12;
+    });
     const [selectedSession, setSelectedSession] = useState<any | null>(null);
+
+    useEffect(() => {
+        localStorage.setItem('discoverRecentLimit', String(recentLimit));
+    }, [recentLimit]);
 
     const fetchData = useCallback(async () => {
         try {
@@ -6661,7 +6668,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">🔥 Trending This Week</h3>
                                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4">
                                     {trendingStats.trending7Days.slice(0, recentLimit).map((item, i) => (
-                                        <div key={i} className="flex flex-col w-full gap-2 group">
+                                        <a key={i} href={item.plexUrl || '#'} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
                                                 <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
                                                 <div className="absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30">
@@ -6669,7 +6676,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                                                 </div>
                                             </div>
                                             <div className="text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight">{item.title}</div>
-                                        </div>
+                                        </a>
                                     ))}
                                 </div>
                             </div>
@@ -6681,7 +6688,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">🍿 Most Watched Movies (This Month)</h3>
                                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4">
                                     {trendingStats.movies30Days.slice(0, recentLimit).map((item, i) => (
-                                        <div key={i} className="flex flex-col w-full gap-2 group">
+                                        <a key={i} href={item.plexUrl || '#'} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
                                                 <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
                                                 <div className="absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30">
@@ -6689,7 +6696,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                                                 </div>
                                             </div>
                                             <div className="text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight">{item.title}</div>
-                                        </div>
+                                        </a>
                                     ))}
                                 </div>
                             </div>
@@ -6701,7 +6708,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">📺 Most Watched Shows (This Month)</h3>
                                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4">
                                     {trendingStats.shows30Days.slice(0, recentLimit).map((item, i) => (
-                                        <div key={i} className="flex flex-col w-full gap-2 group">
+                                        <a key={i} href={item.plexUrl || '#'} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
                                                 <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
                                                 <div className="absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30">
@@ -6709,7 +6716,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                                                 </div>
                                             </div>
                                             <div className="text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight">{item.title}</div>
-                                        </div>
+                                        </a>
                                     ))}
                                 </div>
                             </div>
@@ -6721,7 +6728,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">🏆 Top of the Year</h3>
                                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4">
                                     {trendingStats.top365Days.slice(0, recentLimit).map((item, i) => (
-                                        <div key={i} className="flex flex-col w-full gap-2 group">
+                                        <a key={i} href={item.plexUrl || '#'} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
                                                 <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
                                                 <div className="absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30">
@@ -6729,7 +6736,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                                                 </div>
                                             </div>
                                             <div className="text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight">{item.title}</div>
-                                        </div>
+                                        </a>
                                     ))}
                                 </div>
                             </div>
@@ -6741,7 +6748,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">🌟 All Time Favorites</h3>
                                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4">
                                     {trendingStats.allTime.slice(0, recentLimit).map((item, i) => (
-                                        <div key={i} className="flex flex-col w-full gap-2 group">
+                                        <a key={i} href={item.plexUrl || '#'} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
                                                 <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
                                                 <div className="absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30">
@@ -6749,7 +6756,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                                                 </div>
                                             </div>
                                             <div className="text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight">{item.title}</div>
-                                        </div>
+                                        </a>
                                     ))}
                                 </div>
                             </div>
@@ -6761,7 +6768,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">🍿 Weekend Warriors</h3>
                                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4">
                                     {trendingStats.weekendWarriors.slice(0, recentLimit).map((item, i) => (
-                                        <div key={i} className="flex flex-col w-full gap-2 group">
+                                        <a key={i} href={item.plexUrl || '#'} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
                                                 <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
                                                 <div className="absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30">
@@ -6769,7 +6776,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                                                 </div>
                                             </div>
                                             <div className="text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight">{item.title}</div>
-                                        </div>
+                                        </a>
                                     ))}
                                 </div>
                             </div>
@@ -6781,7 +6788,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">🦇 Night Owl Club</h3>
                                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4">
                                     {trendingStats.nightOwls.slice(0, recentLimit).map((item, i) => (
-                                        <div key={i} className="flex flex-col w-full gap-2 group">
+                                        <a key={i} href={item.plexUrl || '#'} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
                                                 <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
                                                 <div className="absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30">
@@ -6789,7 +6796,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                                                 </div>
                                             </div>
                                             <div className="text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight">{item.title}</div>
-                                        </div>
+                                        </a>
                                     ))}
                                 </div>
                             </div>
@@ -6801,7 +6808,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">📼 Blast from the Past</h3>
                                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4">
                                     {trendingStats.retroHits.slice(0, recentLimit).map((item, i) => (
-                                        <div key={i} className="flex flex-col w-full gap-2 group">
+                                        <a key={i} href={item.plexUrl || '#'} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
                                                 <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
                                                 <div className="absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30">
@@ -6809,7 +6816,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                                                 </div>
                                             </div>
                                             <div className="text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight">{item.title}</div>
-                                        </div>
+                                        </a>
                                     ))}
                                 </div>
                             </div>
@@ -6821,7 +6828,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">💎 Cult Classics</h3>
                                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4">
                                     {trendingStats.cultClassics.slice(0, recentLimit).map((item, i) => (
-                                        <div key={i} className="flex flex-col w-full gap-2 group">
+                                        <a key={i} href={item.plexUrl || '#'} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
                                                 <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
                                                 <div className="absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30">
@@ -6829,7 +6836,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                                                 </div>
                                             </div>
                                             <div className="text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight">{item.title}</div>
-                                        </div>
+                                        </a>
                                     ))}
                                 </div>
                             </div>

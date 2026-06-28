@@ -21,7 +21,7 @@ try {
     try {
         const gitHash = execSync('git rev-parse --short HEAD', { stdio: 'pipe' }).toString().trim();
         appVersion = `v1.0.0-${gitHash}`;
-    } catch(err) {}
+    } catch (err) { }
 }
 
 const app = express();
@@ -92,14 +92,14 @@ const PLEX_API = 'https://plex.tv/api';
 
 // --- Status App Global State ---
 let statusConfig = {
-  services: [],
-  groups: [
-    { id: 'core', name: 'Core Infrastructure', order: 0 },
-    { id: 'media', name: 'Media Stack', order: 1 },
-    { id: 'downloads', name: 'Download Clients', order: 2 },
-    { id: 'external', name: 'External Services', order: 3 },
-  ],
-  announcement: null
+    services: [],
+    groups: [
+        { id: 'core', name: 'Core Infrastructure', order: 0 },
+        { id: 'media', name: 'Media Stack', order: 1 },
+        { id: 'downloads', name: 'Download Clients', order: 2 },
+        { id: 'external', name: 'External Services', order: 3 },
+    ],
+    announcement: null
 };
 
 let healthData = {};
@@ -161,7 +161,7 @@ const withCache = async (key, ttlMs, fetcher) => {
         }
         apiCache.delete(key);
     }
-    
+
     const data = await fetcher();
     if (data !== null && data !== undefined) {
         apiCache.set(key, { data, expiresAt: now + ttlMs });
@@ -319,25 +319,25 @@ const checkAndSendNotifications = async (config) => {
     if (!config.smtpHost || !config.smtpUser || !config.smtpPass) {
         return;
     }
-    
+
     log('Checking for users to notify about upcoming expiry...');
     const users = await loadFile(USERS_PATH, []);
     const daysBefore = parseInt(config.emailDaysBefore, 10) || 7;
     let usersModified = false;
-    
+
     // Check if logo exists to determine if we should reference it in HTML
     const logoPath = path.join(process.cwd(), 'static', 'logo.png');
     let hasLogo = false;
     try {
         await fs.access(logoPath);
         hasLogo = true;
-    } catch (e) {}
+    } catch (e) { }
 
     for (const user of users) {
         if (!user.expiryDate || user.plexAccessStatus === 'revoked' || !user.email) {
             continue;
         }
-        
+
         const days = getDaysUntilExpiry(user.expiryDate);
         if (days !== null && days <= daysBefore && days >= 0) {
             const alreadySent = await hasEmailBeenSent(user.id, 'expiry_warning', user.expiryDate);
@@ -387,7 +387,7 @@ const checkAndSendNotifications = async (config) => {
                     </div>
                 </div>
             `;
-            
+
             try {
                 const sent = await sendEmail(config, user.email, subject, html);
                 if (sent) {
@@ -547,7 +547,7 @@ const syncUsers = async (config) => {
     const emailUserMap = new Map(localUsers.filter(u => u.email).map(u => [u.email.toLowerCase(), u]));
     const usernameUserMap = new Map(localUsers.filter(u => u.username).map(u => [u.username.toLowerCase(), u]));
     const matchedLocalUserIds = new Set();
-    
+
     const syncedUsers = plexUsers.map(pUser => {
         if (isDeletedUser(deletedUsers, pUser)) {
             log(`Skipping deleted user during sync: ${pUser.username}`);
@@ -563,13 +563,13 @@ const syncUsers = async (config) => {
         if (existingUser) {
             matchedLocalUserIds.add(existingUser.id);
             if (existingUser.plexAccessStatus === 'pending') {
-                appendAuditLog('invite_accepted_synced', null, { ...existingUser, id: pUser.id, username: pUser.username, email: pUser.email }).catch(() => {});
+                appendAuditLog('invite_accepted_synced', null, { ...existingUser, id: pUser.id, username: pUser.username, email: pUser.email }).catch(() => { });
             }
             // Update existing user with latest info from Plex, but keep local expiry/trial data.
             return { ...existingUser, id: pUser.id, username: pUser.username, email: pUser.email, thumb: pUser.thumb, plexAccessStatus: 'active' };
         }
         log(`New user found: ${pUser.username}. Setting default 1-day expiry.`);
-        appendAuditLog('plex_sync_new_user_added', null, pUser).catch(() => {});
+        appendAuditLog('plex_sync_new_user_added', null, pUser).catch(() => { });
         return {
             id: pUser.id,
             username: pUser.username,
@@ -620,7 +620,7 @@ const revokePlexAccess = async (user, config) => {
         }
 
         const xmlText = await usersListRes.text();
-        
+
         const userBlockRegex = new RegExp(`<User\\b[^>]*id="${user.id}"[^>]*>.*?<\\/User>`, 's');
         const userBlockMatch = xmlText.match(userBlockRegex);
 
@@ -628,7 +628,7 @@ const revokePlexAccess = async (user, config) => {
             log(`User ${user.username} not found in friends list. Assuming already revoked.`);
             return true;
         }
-        
+
         const serverTagRegex = new RegExp(`<Server\\b[^>]*machineIdentifier="${config.serverIdentifier}"[^>]*>`);
         const serverTagMatch = userBlockMatch[0].match(serverTagRegex);
 
@@ -873,7 +873,7 @@ const checkAndRevoke = async (config) => {
     try {
         await fs.access(logoPath);
         hasLogo = true;
-    } catch (e) {}
+    } catch (e) { }
 
     log(`Found ${expiredUsers.length} expired user(s).`);
     let usersModified = false;
@@ -926,7 +926,7 @@ app.post('/api/users/broadcast', requireAdmin, async (req, res) => {
             } else if (recipientFilter === 'expiring') {
                 if (user.expiryDate && new Date(user.expiryDate) > now) {
                     const diffTime = Math.abs(new Date(user.expiryDate) - now);
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                     include = diffDays <= 7;
                 }
             } else if (recipientFilter === 'expired') {
@@ -946,7 +946,7 @@ app.post('/api/users/broadcast', requireAdmin, async (req, res) => {
 
         (async () => {
             const config = await loadFile(CONFIG_PATH, null);
-            
+
             // Create a single pooled connection to avoid rate limits
             const bulkTransporter = nodemailer.createTransport({
                 pool: true,
@@ -989,7 +989,7 @@ app.post('/api/users/broadcast/test', requireAdmin, async (req, res) => {
             return res.status(400).json({ error: 'SMTP settings are not configured.' });
         }
         const adminEmail = req.user.email;
-        
+
         if (!adminEmail) {
             return res.status(400).json({ error: 'Admin email not found in session.' });
         }
@@ -1035,7 +1035,7 @@ app.post('/api/auth/plex/callback', authRateLimit, async (req, res) => {
             }
         });
         const pinData = await pinRes.json();
-        
+
         if (!pinData.authToken) {
             return res.status(400).json({ error: 'Not authenticated yet' });
         }
@@ -1067,13 +1067,13 @@ app.post('/api/auth/plex/callback', authRateLimit, async (req, res) => {
         if (!isAdmin && config.referralEnabled && ref) {
             const users = await loadFile(USERS_PATH, []);
             const isNewUser = !users.find(u => u.id === sessionUser.id || u.plexId === sessionUser.plexId);
-            
+
             if (isNewUser) {
                 const referrer = users.find(u => u.id === ref || u.plexId === ref);
                 if (referrer && referrer.plexAccessStatus === 'active') {
                     const trialDays = config.referralTrialDays || 3;
                     const rewardDays = config.referralRewardDays || 7;
-                    
+
                     // Add new user with trial
                     const newUserObj = {
                         id: sessionUser.id,
@@ -1086,16 +1086,16 @@ app.post('/api/auth/plex/callback', authRateLimit, async (req, res) => {
                         isTrial: true
                     };
                     users.push(newUserObj);
-                    
+
                     // Reward referrer
                     if (referrer.expiryDate) {
                         referrer.expiryDate = addDays(new Date(referrer.expiryDate), rewardDays).toISOString();
                     }
-                    
+
                     await saveFile(USERS_PATH, users);
-                    
+
                     await appendAuditLog('referral_claimed', sessionUser, referrer, { trialDays, rewardDays });
-                    
+
                     // Invite new user
                     if (config.serverIdentifier && config.plexToken) {
                         inviteUserToPlex(newUserObj, config).catch(e => log('Failed to invite referral: ' + e.message));
@@ -1107,7 +1107,7 @@ app.post('/api/auth/plex/callback', authRateLimit, async (req, res) => {
         const token = jwt.sign(sessionUser, JWT_SECRET, { expiresIn: '7d' });
         const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
         res.cookie('session', token, { httpOnly: true, secure: isHttps, sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
-        
+
         if (!isAdmin) {
             const users = await loadFile(USERS_PATH, []);
             const existingUser = users.find(u => u.id === sessionUser.id || u.plexId === sessionUser.plexId);
@@ -1135,23 +1135,23 @@ app.post('/api/users/preferences', requireAuth, async (req, res) => {
         const { optOutNewsletter } = req.body;
         const users = await loadFile(USERS_PATH, []);
         const userIndex = users.findIndex(u => u.id === req.user.id);
-        
+
         if (userIndex === -1) {
-            return res.status(404).json({error: 'User not found'});
+            return res.status(404).json({ error: 'User not found' });
         }
-        
+
         const oldPref = !!users[userIndex].optOutNewsletter;
         users[userIndex].optOutNewsletter = !!optOutNewsletter;
         await saveFile(USERS_PATH, users);
-        
+
         if (oldPref !== !!optOutNewsletter) {
             await appendAuditLog(optOutNewsletter ? 'newsletter_opt_out' : 'newsletter_opt_in', req.user, req.user);
         }
-        
-        res.json({success: true, user: users[userIndex]});
+
+        res.json({ success: true, user: users[userIndex] });
     } catch (e) {
         log(`Error updating preferences: ${e.message}`);
-        res.status(500).json({error: 'Failed to update preferences'});
+        res.status(500).json({ error: 'Failed to update preferences' });
     }
 });
 
@@ -1165,7 +1165,7 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
         res.clearCookie('session');
         return res.status(403).json({ error: 'Your portal session has expired. Please contact the admin for access.' });
     }
-    
+
     let serverName = 'Plex Server';
     let adminThumb = null;
     let requestUrl = 'https://yourdomain.com';
@@ -1179,7 +1179,7 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
             requestUrl = config.requestUrl || 'https://yourdomain.com';
             if (config.navOrder) navOrder = config.navOrder;
         }
-    } catch(e) {}
+    } catch (e) { }
 
     res.json({
         session: req.user,
@@ -1280,8 +1280,8 @@ app.get('/api/config', requireAdmin, async (req, res) => {
 });
 
 app.post('/api/config', async (req, res) => {
-    const { 
-        token, serverIdentifier, checkIntervalMinutes, 
+    const {
+        token, serverIdentifier, checkIntervalMinutes,
         smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, smtpSecure, emailDaysBefore,
         newsletterFrequency, newsletterDay, publicDomain, requestUrl, contactUrl,
         sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, tautulliUrl, tautulliApiKey,
@@ -1292,10 +1292,10 @@ app.post('/api/config', async (req, res) => {
     if (!token || !serverIdentifier) {
         return res.status(400).json({ error: 'Token and serverIdentifier are required.' });
     }
-    
+
     const existingConfig = await loadFile(CONFIG_PATH, {});
     const isConfigured = !!(existingConfig && existingConfig.plexToken && existingConfig.serverIdentifier);
-    
+
     if (isConfigured) {
         const sessionToken = req.cookies && req.cookies.session;
         if (!sessionToken) {
@@ -1313,11 +1313,11 @@ app.post('/api/config', async (req, res) => {
         }
     }
     const interval = parseInt(checkIntervalMinutes, 10);
-    
-    const config = { 
+
+    const config = {
         ...existingConfig,
-        plexToken: token, 
-        serverIdentifier, 
+        plexToken: token,
+        serverIdentifier,
         checkIntervalMinutes: (interval > 0 ? interval : 60),
         smtpHost: smtpHost || '',
         smtpPort: parseInt(smtpPort, 10) || 587,
@@ -1397,7 +1397,7 @@ app.post('/api/config/logo', requireAdmin, express.raw({ type: 'image/*', limit:
 
 app.post('/api/config/test-email', requireAdmin, async (req, res) => {
     const { smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, smtpSecure, testRecipient } = req.body;
-    
+
     if (!smtpHost || !smtpUser || !smtpPass || !testRecipient) {
         return res.status(400).json({ error: 'Host, user, password, and test recipient are required.' });
     }
@@ -1417,7 +1417,7 @@ app.post('/api/config/test-email', requireAdmin, async (req, res) => {
     try {
         await fs.access(logoPath);
         hasLogo = true;
-    } catch (e) {}
+    } catch (e) { }
 
     try {
         log(`Sending test email to ${testRecipient}...`);
@@ -1486,7 +1486,7 @@ app.get('/api/plex/image', requireAuth, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
         const uri = await getPlexConnectionUri(config);
-        
+
         let url;
         if (width && height) {
             url = `${uri}/photo/:/transcode?url=${encodeURIComponent(thumbPath)}&width=${encodeURIComponent(width)}&height=${encodeURIComponent(height)}&minSize=1&X-Plex-Token=${config.plexToken}`;
@@ -1576,9 +1576,9 @@ const buildPlexStatsCache = async () => {
                 if (countRes.ok) {
                     const { MediaContainer: mc } = await countRes.json();
                     const count = mc.totalSize || mc.size || 0;
-                    if (dir.type === 'movie')  totalMoviesCount += count;
-                    else if (dir.type === 'show')   totalShowsCount  += count;
-                    else if (dir.type === 'artist') totalMusicCount  += count;
+                    if (dir.type === 'movie') totalMoviesCount += count;
+                    else if (dir.type === 'show') totalShowsCount += count;
+                    else if (dir.type === 'artist') totalMusicCount += count;
                 }
 
                 // ── Bytes (paginated) ──
@@ -1610,9 +1610,9 @@ const buildPlexStatsCache = async () => {
                     }
                     start += PAGE;
                 }
-                if (dir.type === 'movie')  totalMoviesBytes += bytes;
-                else if (dir.type === 'show')   totalShowsBytes  += bytes;
-                else if (dir.type === 'artist') totalMusicBytes  += bytes;
+                if (dir.type === 'movie') totalMoviesBytes += bytes;
+                else if (dir.type === 'show') totalShowsBytes += bytes;
+                else if (dir.type === 'artist') totalMusicBytes += bytes;
             } catch (e) {
                 log(`[PlexStats] Failed to fetch section "${dir.title}": ${e.message}`);
             }
@@ -1704,13 +1704,13 @@ app.get('/api/plex/stats/status', requireAdmin, async (req, res) => {
 
 const calculateUptime30Days = (healthDataObj) => {
     if (!healthDataObj) return 100;
-    
+
     let totalUp = 0;
     let totalChecks = 0;
-    
+
     for (const [key, service] of Object.entries(healthDataObj)) {
         if (key === '_meta' || !service.dailyHistory) continue;
-        
+
         const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
         for (const [dateStr, stat] of Object.entries(service.dailyHistory)) {
             if (new Date(dateStr).getTime() >= thirtyDaysAgo) {
@@ -1719,7 +1719,7 @@ const calculateUptime30Days = (healthDataObj) => {
             }
         }
     }
-    
+
     if (totalChecks === 0) return 100;
     return (totalUp / totalChecks) * 100;
 };
@@ -1734,7 +1734,7 @@ const fetchImageBuffer = async (config, thumbPath) => {
         if (res.ok) {
             return Buffer.from(await res.arrayBuffer());
         }
-    } catch (e) {}
+    } catch (e) { }
     return null;
 };
 
@@ -1744,18 +1744,18 @@ const generateNewsletterHtml = async (config) => {
     let serverName = 'our Plex Server';
     const attachments = [];
     let cidCounter = 1;
-    
+
     try {
         const logoPath = path.join(process.cwd(), 'static', 'logo.png');
         const logoBuf = await fs.readFile(logoPath).catch(() => null);
         if (logoBuf) {
             attachments.push({ filename: 'logo.png', content: logoBuf, cid: 'logo' });
         }
-    } catch(e) {}
+    } catch (e) { }
 
     try {
         const uri = await getPlexConnectionUri(config);
-        
+
         // serverName is declared at function scope above
         try {
             const serverRes = await fetch(`${uri}/?X-Plex-Token=${config.plexToken}`, {
@@ -1765,7 +1765,7 @@ const generateNewsletterHtml = async (config) => {
             if (serverData?.MediaContainer?.friendlyName) {
                 serverName = serverData.MediaContainer.friendlyName;
             }
-        } catch(e) {}
+        } catch (e) { }
 
         const recentRes = await fetch(`${uri}/library/recentlyAdded?X-Plex-Container-Start=0&X-Plex-Container-Size=100`, {
             headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' }
@@ -1796,21 +1796,21 @@ const generateNewsletterHtml = async (config) => {
         });
 
         const tvShows = Array.from(tvShowsMap.values());
-        
+
         const renderGrid = async (categoryItems, categoryTitle, isSquare = false) => {
             if (!categoryItems || categoryItems.length === 0) return '';
             const itemsToRender = categoryItems.slice(0, 8);
             const imgWidth = 115;
             const imgHeight = isSquare ? 115 : 173;
-            
+
             let cols = '';
             for (let i = 0; i < itemsToRender.length; i++) {
                 if (i % 4 === 0) cols += '<tr>';
-                
+
                 const item = itemsToRender[i];
                 let thumbPath = item.thumb;
                 let imageUrl = '';
-                
+
                 if (thumbPath) {
                     const buf = await fetchImageBuffer(config, thumbPath);
                     if (buf) {
@@ -1832,7 +1832,7 @@ const generateNewsletterHtml = async (config) => {
                         </a>
                     </td>
                 `;
-                
+
                 if (i % 4 === 3 || i === itemsToRender.length - 1) {
                     if (i === itemsToRender.length - 1) {
                         const remaining = 3 - (i % 4);
@@ -1860,7 +1860,7 @@ const generateNewsletterHtml = async (config) => {
 
         recentHtml = moviesHtml + tvHtml + musicHtml;
 
-    } catch(e) {
+    } catch (e) {
         recentHtml = '<p style="color:#a0aec0; text-align:center;">Failed to load recently added content.</p>';
     }
 
@@ -1950,8 +1950,8 @@ const generateNewsletterHtml = async (config) => {
 app.post('/api/newsletter/test', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        if (!config.smtpHost || !config.smtpUser) return res.status(400).json({error: 'SMTP not configured'});
-        
+        if (!config.smtpHost || !config.smtpUser) return res.status(400).json({ error: 'SMTP not configured' });
+
         let adminEmail = null;
         try {
             const userRes = await fetch('https://plex.tv/api/v2/user', {
@@ -1965,7 +1965,7 @@ app.post('/api/newsletter/test', requireAdmin, async (req, res) => {
             log('Error fetching admin email: ' + e.message);
         }
 
-        if (!adminEmail) return res.status(400).json({error: 'Could not fetch admin email from Plex account.'});
+        if (!adminEmail) return res.status(400).json({ error: 'Could not fetch admin email from Plex account.' });
 
         const { html, attachments } = await generateNewsletterHtml(config);
         const transporter = nodemailer.createTransport({
@@ -1974,7 +1974,7 @@ app.post('/api/newsletter/test', requireAdmin, async (req, res) => {
             secure: config.smtpSecure,
             auth: { user: config.smtpUser, pass: config.smtpPass }
         });
-        
+
         const personalizedHtml = html.replace(/{{USERNAME}}/g, 'Admin');
 
         await transporter.sendMail({
@@ -1984,22 +1984,22 @@ app.post('/api/newsletter/test', requireAdmin, async (req, res) => {
             html: personalizedHtml,
             attachments: attachments
         });
-        res.json({success: true});
-    } catch(e) {
+        res.json({ success: true });
+    } catch (e) {
         log(`Newsletter test error: ${e.message}`);
-        res.status(500).json({error: e.message});
+        res.status(500).json({ error: e.message });
     }
 });
 
 app.post('/api/newsletter/send-now', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        if (!config.smtpHost || !config.smtpUser) return res.status(400).json({error: 'SMTP not configured'});
-        
+        if (!config.smtpHost || !config.smtpUser) return res.status(400).json({ error: 'SMTP not configured' });
+
         const users = await loadFile(USERS_PATH, []);
         const validUsers = users.filter(u => u.email);
-        if (validUsers.length === 0) return res.status(400).json({error: 'No users with email addresses found.'});
-        
+        if (validUsers.length === 0) return res.status(400).json({ error: 'No users with email addresses found.' });
+
         const { html, attachments } = await generateNewsletterHtml(config);
         const transporter = nodemailer.createTransport({
             host: config.smtpHost,
@@ -2007,10 +2007,10 @@ app.post('/api/newsletter/send-now', requireAdmin, async (req, res) => {
             secure: config.smtpSecure,
             auth: { user: config.smtpUser, pass: config.smtpPass }
         });
-        
+
         // Respond immediately, process in background
-        res.json({success: true, message: `Sending to ${validUsers.length} users...`});
-        
+        res.json({ success: true, message: `Sending to ${validUsers.length} users...` });
+
         log(`Manual newsletter trigger initiated for ${validUsers.length} users.`);
         for (const user of validUsers) {
             try {
@@ -2022,7 +2022,7 @@ app.post('/api/newsletter/send-now', requireAdmin, async (req, res) => {
                     attachments: attachments
                 });
                 await new Promise(resolve => setTimeout(resolve, 15000)); // 15s delay to avoid Gmail rate limits
-            } catch(e) {
+            } catch (e) {
                 log(`Failed to send manual newsletter to ${user.email}: ${e.message}`);
             }
         }
@@ -2031,7 +2031,7 @@ app.post('/api/newsletter/send-now', requireAdmin, async (req, res) => {
         await saveFile(CONFIG_PATH, config);
     } catch (e) {
         log(`Newsletter send-now error: ${e.message}`);
-        if (!res.headersSent) res.status(500).json({error: e.message});
+        if (!res.headersSent) res.status(500).json({ error: e.message });
     }
 });
 
@@ -2060,7 +2060,7 @@ app.post('/api/plex/servers', async (req, res) => {
         const servers = serverTags.map(tag => {
             const nameMatch = tag.match(/name="([^"]+)"/);
             const idMatch = tag.match(/machineIdentifier="([^"]+)"/);
-            
+
             if (nameMatch && idMatch) {
                 return { name: nameMatch[1], identifier: idMatch[1] };
             }
@@ -2072,7 +2072,7 @@ app.post('/api/plex/servers', async (req, res) => {
         } else {
             log(`Found ${servers.length} server(s).`);
         }
-        
+
         res.json(servers);
     } catch (error) {
         log(`An exception occurred in /api/plex/servers: ${error.message}`);
@@ -2103,7 +2103,7 @@ app.get('/api/invites', requireAdmin, async (req, res) => {
 app.post('/api/invites', requireAdmin, async (req, res) => {
     const { durationDays, maxUses, libraryIds } = req.body;
     const invites = await loadFile(INVITES_PATH, []);
-    
+
     const code = randomBytes(6).toString('hex');
     const newInvite = {
         code,
@@ -2114,7 +2114,7 @@ app.post('/api/invites', requireAdmin, async (req, res) => {
         createdBy: req.user.username || 'admin',
         createdAt: new Date().toISOString()
     };
-    
+
     invites.push(newInvite);
     await saveFile(INVITES_PATH, invites);
     res.json(newInvite);
@@ -2141,7 +2141,7 @@ app.post('/api/invites/email', requireAdmin, async (req, res) => {
         createdAt: new Date().toISOString(),
         sentTo: email
     };
-    
+
     try {
         const publicDomain = config.publicDomain || 'https://portal.yourdomain.com';
         const inviteUrl = `${publicDomain}/invite/${code}`;
@@ -2150,7 +2150,7 @@ app.post('/api/invites/email', requireAdmin, async (req, res) => {
 
         const logoPath = path.join(process.cwd(), 'static', 'logo.png');
         let hasLogo = false;
-        try { await fs.access(logoPath); hasLogo = true; } catch (e) {}
+        try { await fs.access(logoPath); hasLogo = true; } catch (e) { }
 
         const subject = `You've been invited to ${serverName}!`;
         const html = `
@@ -2179,7 +2179,7 @@ app.post('/api/invites/email', requireAdmin, async (req, res) => {
                 </div>
             </div>
         `;
-        
+
         await sendEmail(config, email, subject, html);
         invites.push(newInvite);
         await saveFile(INVITES_PATH, invites);
@@ -2206,9 +2206,9 @@ app.get('/api/invites/:code/info', async (req, res) => {
     }
     const config = await loadFile(CONFIG_PATH, {});
     const adminProfile = await getAdminProfile(config);
-    res.json({ 
-        durationDays: invite.durationDays, 
-        serverName: adminProfile.serverName || 'Our Server', 
+    res.json({
+        durationDays: invite.durationDays,
+        serverName: adminProfile.serverName || 'Our Server',
         customLogoUrl: config.customLogoUrl,
         thumb: adminProfile.thumb
     });
@@ -2221,7 +2221,7 @@ app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
     let invites = await loadFile(INVITES_PATH, []);
     const inviteIndex = invites.findIndex(i => i.code === req.params.code);
     if (inviteIndex === -1) return res.status(404).json({ error: 'Invite code not found or revoked.' });
-    
+
     const invite = invites[inviteIndex];
     if (invite.maxUses !== 'unlimited' && invite.currentUses >= invite.maxUses) {
         return res.status(400).json({ error: 'Invite code has reached its maximum usage limit.' });
@@ -2235,7 +2235,7 @@ app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
             }
         });
         const pinData = await pinRes.json();
-        
+
         if (!pinData.authToken) {
             return res.status(400).json({ error: 'Not authenticated with Plex yet. Please try again.' });
         }
@@ -2249,21 +2249,21 @@ app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
             }
         });
         if (!plexRes.ok) return res.status(401).json({ error: 'Invalid Plex token' });
-        
+
         const plexUser = await plexRes.json();
         const users = await loadFile(USERS_PATH, []);
-        
+
         // Check if user already exists
         if (users.find(u => String(u.plexId) === String(plexUser.id) || u.email === plexUser.email)) {
             return res.status(400).json({ error: 'You are already a member of this server.' });
         }
-        
+
         // Calculate expiry date
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         today.setDate(today.getDate() + invite.durationDays);
         const expiryDate = today.toISOString();
-        
+
         const newUser = {
             id: randomUUID(),
             plexId: plexUser.id,
@@ -2275,13 +2275,13 @@ app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
             plexAccessStatus: 'pending',
             isTrial: false
         };
-        
+
         users.push(newUser);
         await saveFile(USERS_PATH, users);
-        
+
         // Send actual Plex invite
         await inviteUserToPlex(newUser, config, invite.libraryIds).catch(e => log('Failed to invite claimed user: ' + e.message));
-        
+
         // Update invite usage
         // Re-read to prevent race condition during long Plex API calls
         let freshInvites = await loadFile(INVITES_PATH, []);
@@ -2296,9 +2296,9 @@ app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
             });
             await saveFile(INVITES_PATH, freshInvites);
         }
-        
+
         await appendAuditLog('invite_claimed', { username: plexUser.username, id: plexUser.id }, newUser, { code: invite.code });
-        
+
         // Log user in
         const adminId = await getAdminId(config);
         const isAdmin = plexUser.id === adminId;
@@ -2312,7 +2312,7 @@ app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
         const token = jwt.sign(sessionUser, JWT_SECRET, { expiresIn: '7d' });
         const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
         res.cookie('session', token, { httpOnly: true, secure: isHttps, sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
-        
+
         res.json({ success: true, user: newUser });
     } catch (e) {
         log(`Error claiming invite: ${e.message}`);
@@ -2339,12 +2339,12 @@ app.post('/api/tasks/run/:taskId', requireAdmin, async (req, res) => {
     const { taskId } = req.params;
     const task = tasksInfo.find(t => t.id === taskId);
     if (!task) return res.status(404).json({ error: 'Task not found' });
-    
+
     try {
         const currentConfig = await loadFile(CONFIG_PATH, {});
         task.lastRun = new Date().toISOString();
-        
-        switch(taskId) {
+
+        switch (taskId) {
             case 'syncPlexUsers': await syncUsers(currentConfig); break;
             case 'checkAndSendNotifications': await checkAndSendNotifications(currentConfig); break;
             case 'checkAndRevoke': await checkAndRevoke(currentConfig); break;
@@ -2353,7 +2353,7 @@ app.post('/api/tasks/run/:taskId', requireAdmin, async (req, res) => {
             default: return res.status(400).json({ error: 'Invalid task' });
         }
         res.json({ message: `Task ${task.name} executed successfully.`, task });
-    } catch(e) {
+    } catch (e) {
         res.status(500).json({ error: `Failed to execute task: ${e.message}` });
     }
 });
@@ -2376,13 +2376,13 @@ app.get('/api/audit-log', requireAdmin, async (req, res) => {
 
 app.put('/api/users/:id', requireAdmin, async (req, res) => {
     const { id } = req.params;
-    const { expiryDate, exemptFromCleanup, optOutNewsletter } = req.body; 
+    const { expiryDate, exemptFromCleanup, optOutNewsletter } = req.body;
     let users = await loadFile(USERS_PATH, []);
     const userIndex = users.findIndex(u => u.id === id);
     if (userIndex === -1) return res.status(404).json({ error: 'User not found.' });
-    
+
     const previousExpiryDate = users[userIndex].expiryDate;
-    
+
     if (expiryDate !== undefined) {
         users[userIndex].expiryDate = expiryDate;
     }
@@ -2394,14 +2394,14 @@ app.put('/api/users/:id', requireAdmin, async (req, res) => {
     }
 
     await saveFile(USERS_PATH, users);
-    
+
     if (expiryDate !== undefined && expiryDate !== previousExpiryDate) {
         await appendAuditLog('user_expiry_updated', req.user, users[userIndex], { previousExpiryDate, expiryDate });
         // Send adjustment email
         const config = await loadFile(CONFIG_PATH, {});
         const logoPath = path.join(process.cwd(), 'static', 'logo.png');
         let hasLogo = false;
-        try { await fs.access(logoPath); hasLogo = true; } catch (e) {}
+        try { await fs.access(logoPath); hasLogo = true; } catch (e) { }
         await sendAdjustmentEmail(config, users[userIndex], hasLogo);
 
         // Auto re-invite if revoked and new date is in the future
@@ -2423,7 +2423,7 @@ app.put('/api/users/:id', requireAdmin, async (req, res) => {
 
 const applyBulkAction = (user, action, customDate) => {
     const baseDate = user.expiryDate ? new Date(user.expiryDate) : new Date();
-    
+
     switch (action) {
         case 'addMonth':
             user.expiryDate = addMonths(baseDate, 1).toISOString();
@@ -2455,8 +2455,8 @@ app.post('/api/users/bulk-update', requireAdmin, async (req, res) => {
         const config = await loadFile(CONFIG_PATH, {});
         const logoPath = path.join(process.cwd(), 'static', 'logo.png');
         let hasLogo = false;
-        try { await fs.access(logoPath); hasLogo = true; } catch (e) {}
-        
+        try { await fs.access(logoPath); hasLogo = true; } catch (e) { }
+
         for (const user of users) {
             if (userIds.includes(user.id)) {
                 applyBulkAction(user, action, customDate);
@@ -2513,7 +2513,7 @@ app.post('/api/users/:id/revoke', requireAdmin, async (req, res) => {
     let users = await loadFile(USERS_PATH, []);
     const user = users.find(u => u.id === id);
     if (!user) return res.status(404).json({ error: 'User not found.' });
-    
+
     const revoked = await revokePlexAccess(user, config);
     if (revoked) {
         user.plexAccessStatus = 'revoked';
@@ -2528,15 +2528,15 @@ app.post('/api/users/:id/revoke', requireAdmin, async (req, res) => {
 app.post('/api/users/request-invite', requireAuth, async (req, res) => {
     const config = await loadFile(CONFIG_PATH, null);
     if (!config || !config.serverIdentifier) return res.status(400).json({ error: 'App not configured.' });
-    
+
     if (!config.allowTemporaryAccess) {
         return res.status(403).json({ error: 'New registrations are currently disabled.' });
     }
-    
+
     let users = await loadFile(USERS_PATH, []);
     const existingUser = users.find(u => u.email === req.user.email || u.username === req.user.username);
     const deletedUsers = await loadFile(DELETED_USERS_PATH, []);
-    
+
     if (existingUser) {
         await appendAuditLog('trial_request_blocked_existing_user', req.user, existingUser);
         return res.status(400).json({ error: 'You are already registered.' });
@@ -2627,14 +2627,14 @@ let lastAdminProfileFetch = 0;
 
 async function getAdminProfile(config) {
     if (!config || !config.plexToken) return { thumb: null, serverName: 'Server Portal' };
-    
+
     if (cachedAdminProfile && Date.now() - lastAdminProfileFetch < 3600000) {
-         return cachedAdminProfile;
+        return cachedAdminProfile;
     }
 
     try {
         const userRes = await fetch('https://plex.tv/api/v2/user', { headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' } }).then(r => r.json());
-        
+
         let serverName = 'Server Portal';
         const uri = await getPlexConnectionUri(config);
         if (uri) {
@@ -2693,7 +2693,7 @@ app.get('/api/plex/libraries', requireAdmin, async (req, res) => {
         if (!uri) return res.status(503).json({ error: 'Cannot connect to Plex' });
 
         const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
-        
+
         let libraries = [];
         if (sectionsRes && sectionsRes.MediaContainer && sectionsRes.MediaContainer.Directory) {
             libraries = sectionsRes.MediaContainer.Directory.map(s => ({
@@ -2722,7 +2722,7 @@ app.get('/api/plex/dashboard', requireAuth, async (req, res) => {
         if (!uri) return res.status(503).json({ error: 'Cannot connect to Plex' });
 
         const limit = parseInt(req.query.limit) || 50;
-        
+
         const cacheKey = `plex_dashboard_data_${limit}`;
         const cachedData = await withCache(cacheKey, 10000, async () => {
             const sessionsPromise = fetch(`${uri}/status/sessions?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
@@ -2742,10 +2742,10 @@ app.get('/api/plex/dashboard', requireAuth, async (req, res) => {
                 const viewOffset = m.viewOffset || 0;
                 const progress = duration > 0 ? (viewOffset / duration) * 100 : 0;
                 const plexUrl = `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent(m.key)}`;
-                
+
                 const hideConfig = config.hideStreamUsers === true ? 'anonymous' : (config.hideStreamUsers || 'false');
                 const isHidden = !req.user.isAdmin && (hideConfig === 'anonymous' || hideConfig === 'hidden');
-                
+
                 return {
                     sessionId: session.id || m.sessionKey,
                     title: m.title,
@@ -2782,18 +2782,18 @@ app.get('/api/plex/dashboard', requireAuth, async (req, res) => {
         let recentMovies = [];
         let recentShows = [];
         let recentMusic = [];
-        
+
         if (sectionsData && sectionsData.MediaContainer && sectionsData.MediaContainer.Directory) {
             const sections = sectionsData.MediaContainer.Directory;
-            const sectionPromises = sections.map(section => 
+            const sectionPromises = sections.map(section =>
                 fetch(`${uri}/library/sections/${section.key}/recentlyAdded?X-Plex-Token=${config.plexToken}&X-Plex-Container-Start=0&X-Plex-Container-Size=${limit}`, { headers: { 'Accept': 'application/json' } })
-                .then(r => r.json())
-                .then(data => ({ sectionType: section.type, data }))
-                .catch(() => ({ sectionType: section.type, data: null }))
+                    .then(r => r.json())
+                    .then(data => ({ sectionType: section.type, data }))
+                    .catch(() => ({ sectionType: section.type, data: null }))
             );
-            
+
             const results = await Promise.all(sectionPromises);
-            
+
             results.forEach(({ sectionType, data }) => {
                 if (data && data.MediaContainer && data.MediaContainer.Metadata) {
                     data.MediaContainer.Metadata.forEach(m => {
@@ -2805,14 +2805,14 @@ app.get('/api/plex/dashboard', requireAuth, async (req, res) => {
                             addedAt: m.addedAt,
                             plexUrl: `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent(m.key)}`
                         };
-                        
+
                         if (sectionType === 'movie') recentMovies.push(item);
                         else if (sectionType === 'show') recentShows.push(item);
                         else if (sectionType === 'artist') recentMusic.push(item);
                     });
                 }
             });
-            
+
             const processList = (list) => {
                 const unique = [];
                 const seen = new Set();
@@ -2826,7 +2826,7 @@ app.get('/api/plex/dashboard', requireAuth, async (req, res) => {
                 }
                 return unique;
             };
-            
+
             recentMovies = processList(recentMovies);
             recentShows = processList(recentShows);
             recentMusic = processList(recentMusic);
@@ -2845,12 +2845,12 @@ app.post('/api/streams/kill', requireAdmin, async (req, res) => {
         const config = await readConfig();
         const uri = await getPlexConnectionUri(config);
         if (!uri) return res.status(503).json({ error: 'Cannot connect to Plex' });
-        
-        const response = await fetch(`${uri}/status/sessions/terminate?sessionId=${encodeURIComponent(sessionId)}&reason=${encodeURIComponent(reason || 'Admin terminated session')}&X-Plex-Token=${config.plexToken}`, { 
-            method: 'GET', 
-            headers: { 'Accept': 'application/json' } 
+
+        const response = await fetch(`${uri}/status/sessions/terminate?sessionId=${encodeURIComponent(sessionId)}&reason=${encodeURIComponent(reason || 'Admin terminated session')}&X-Plex-Token=${config.plexToken}`, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
         });
-        
+
         if (response.ok) {
             res.json({ success: true });
         } else {
@@ -2864,12 +2864,12 @@ app.post('/api/streams/kill', requireAdmin, async (req, res) => {
 
 app.post('/api/announcements/push', requireAdmin, async (req, res) => {
     const { text, sendEmail: shouldSendEmail } = req.body;
-    
+
     try {
         const config = await readConfig();
         config.announcement = text || '';
         await saveFile(CONFIG_PATH, config);
-        
+
         if (shouldSendEmail && text) {
             const users = await readUsers();
             const activeUsers = users.filter(u => u.status === 'active' && u.email);
@@ -2877,7 +2877,7 @@ app.post('/api/announcements/push', requireAdmin, async (req, res) => {
                 // Email sending staggered over half an hour
                 const totalDuration = 30 * 60 * 1000; // 30 minutes in ms
                 const delayPerUser = Math.floor(totalDuration / activeUsers.length);
-                
+
                 // Background task
                 (async () => {
                     log(`Starting staggered announcement email push to ${activeUsers.length} users over 30 minutes.`);
@@ -2901,7 +2901,7 @@ app.post('/api/announcements/push', requireAdmin, async (req, res) => {
                         } catch (emailErr) {
                             log(`Failed to send announcement email to ${user.email}`);
                         }
-                        
+
                         if (i < activeUsers.length - 1) {
                             await new Promise(resolve => setTimeout(resolve, delayPerUser));
                         }
@@ -2925,7 +2925,7 @@ app.get('/api/tautulli/stats', requireAdmin, async (req, res) => {
         }
         const tUrl = config.tautulliUrl.replace(/\/+$/, '');
         const response = await fetch(`${tUrl}/api/v2?apikey=${config.tautulliApiKey}&cmd=get_home_stats`, { headers: { 'Accept': 'application/json' } }).then(r => r.json());
-        
+
         if (response && response.response && response.response.data) {
             const stats = response.response.data;
             let streamsRecord = 0;
@@ -2995,11 +2995,11 @@ app.get('/api/tautulli/graphs', requireAdmin, async (req, res) => {
         const yAxis = req.query.y_axis || 'plays';
 
         const endpoints = [
-            'get_plays_by_date', 
-            'get_plays_by_dayofweek', 
-            'get_plays_by_hourofday', 
-            'get_plays_by_stream_type', 
-            'get_plays_by_stream_resolution', 
+            'get_plays_by_date',
+            'get_plays_by_dayofweek',
+            'get_plays_by_hourofday',
+            'get_plays_by_stream_type',
+            'get_plays_by_stream_resolution',
             'get_plays_by_top_10_platforms',
             'get_concurrent_streams_by_stream_type',
             'get_plays_by_source_resolution',
@@ -3034,7 +3034,7 @@ app.get('/api/plex/analytics', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, null);
         if (!config || !config.plexToken || !config.serverIdentifier) return res.status(503).json({ error: 'Plex not configured' });
-        
+
         const uri = await getPlexConnectionUri(config);
         if (!uri) return res.status(503).json({ error: 'Cannot connect to Plex' });
 
@@ -3076,14 +3076,14 @@ app.get('/api/plex/analytics', requireAdmin, async (req, res) => {
         } else if (!req.query.days) {
             cutoffDate = Math.floor(Date.now() / 1000) - (30 * 24 * 60 * 60);
         }
-        
+
         const userCounts = {};
         const libraryCounts = {};
-        
+
         const contentCountsMovies = {};
         const contentCountsShows = {};
         const contentCountsMusic = {};
-        
+
         const deviceCounts = {};
         const peakHours = new Array(24).fill(0);
         let totalPlaybacks = 0;
@@ -3103,7 +3103,7 @@ app.get('/api/plex/analytics', requireAdmin, async (req, res) => {
             if (item.deviceID && devicesMap[item.deviceID]) deviceName = devicesMap[item.deviceID];
             else if (item.Player && item.Player.product) deviceName = item.Player.product;
             else if (item.client) deviceName = item.client; // fallback
-            
+
             if (!deviceCounts[deviceName]) deviceCounts[deviceName] = { name: deviceName, plays: 0 };
             deviceCounts[deviceName].plays++;
 
@@ -3137,7 +3137,7 @@ app.get('/api/plex/analytics', requireAdmin, async (req, res) => {
             const contentKey = item.type === 'episode' ? (item.grandparentKey || item.parentKey || item.ratingKey) : item.ratingKey;
             const contentTitle = item.type === 'episode' ? (item.grandparentTitle || item.parentTitle || item.title) : item.title;
             const contentThumb = item.type === 'episode' ? (item.grandparentThumb || item.parentThumb || item.thumb) : item.thumb;
-            
+
             if (contentKey) {
                 let targetDict = null;
                 if (item.type === 'movie') targetDict = contentCountsMovies;
@@ -3162,7 +3162,7 @@ app.get('/api/plex/analytics', requireAdmin, async (req, res) => {
         const topUsers = Object.values(userCounts).sort((a, b) => b.plays - a.plays).slice(0, 10);
         const topLibraries = Object.values(libraryCounts).sort((a, b) => b.plays - a.plays).slice(0, 10);
         const topDevices = Object.values(deviceCounts).sort((a, b) => b.plays - a.plays).slice(0, 10);
-        
+
         const fetchRichMetadata = async (c) => {
             if (c.thumb) {
                 c.thumbUrl = `/api/plex/image?path=${encodeURIComponent(c.thumb)}`;
@@ -3179,7 +3179,7 @@ app.get('/api/plex/analytics', requireAdmin, async (req, res) => {
                     c.duration = meta.duration || 0;
                     c.genres = meta.Genre ? meta.Genre.map(g => g.tag) : [];
                 }
-            } catch (e) {}
+            } catch (e) { }
             return c;
         };
 
@@ -3203,7 +3203,7 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, null);
         if (!config || !config.plexToken || !config.serverIdentifier) return res.status(503).json({ error: 'Plex not configured' });
-        
+
         const uri = await getPlexConnectionUri(config);
         if (!uri) return res.status(503).json({ error: 'Cannot connect to Plex' });
 
@@ -3220,7 +3220,7 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
             return res.json({ totalPlays: 0, topLibraries: [], topContent: [], recentHistory: [] });
         }
         const limit = req.query.days === 'all' ? 999999 : 5000;
-        
+
         const historyRes = await fetch(`${uri}/status/sessions/history/all?accountID=${accountID}&X-Plex-Token=${config.plexToken}&sort=viewedAt:desc&limit=${limit}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
         const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
 
@@ -3245,7 +3245,7 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
         const libraryCounts = {};
         const contentCounts = {};
         const recentHistory = [];
-        
+
         let totalHourOfDay = 0;
         let hourCount = 0;
         const hourDistribution = new Array(24).fill(0);
@@ -3258,7 +3258,7 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
         historyRes.MediaContainer.Metadata.forEach(item => {
             if (cutoffDate > 0 && item.viewedAt < cutoffDate) return;
             totalPlays++;
-            
+
             const viewDate = new Date(item.viewedAt * 1000);
             const hour = viewDate.getHours();
             totalHourOfDay += hour;
@@ -3290,7 +3290,7 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
             const contentTitle = item.type === 'episode' ? (item.grandparentTitle || item.parentTitle || item.title) : item.title;
             const contentThumb = item.type === 'episode' ? (item.grandparentThumb || item.parentThumb || item.thumb) : item.thumb;
             const contentArt = item.type === 'episode' ? (item.grandparentArt || item.parentArt || item.art) : item.art;
-            
+
             if (contentKey) {
                 if (!contentCounts[contentKey]) {
                     contentCounts[contentKey] = {
@@ -3325,7 +3325,7 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
         await Promise.all(topShowsRaw.map(async (s, i) => {
             if (!s.art || i === 0) {
                 const metaPath = s.key.startsWith('/library/metadata/') ? s.key : `/library/metadata/${s.key}`;
-                
+
                 let data = plexMetadataCache.get(metaPath);
                 if (!data) {
                     const metaRes = await fetch(`${uri}${metaPath}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
@@ -3357,7 +3357,7 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
             }
         }
         const popularDay = maxDayCount > 0 ? daysOfWeek[maxDayIndex] : 'Unknown';
-        
+
         const favoriteLibrary = topLibraries.length > 0 ? topLibraries[0].title : 'None';
 
         let mediaPreference = 'Mixed Bag';
@@ -3373,7 +3373,7 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
         await Promise.all(topMoviesRaw.map(async (m, i) => {
             if (!m.art || i === 0) {
                 const metaPath = m.key.startsWith('/library/metadata/') ? m.key : `/library/metadata/${m.key}`;
-                
+
                 let data = plexMetadataCache.get(metaPath);
                 if (!data) {
                     const metaRes = await fetch(`${uri}${metaPath}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
@@ -3412,25 +3412,25 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
         }
 
         const trendingStats = await loadFile(TRENDING_CACHE_PATH, {});
-        
+
         let periodKey = '30';
         if (req.query.days === 'all') periodKey = 'all';
         else if (req.query.days) periodKey = req.query.days;
 
-        const userEntry = trendingStats.leaderboards && trendingStats.leaderboards[periodKey] && accountID 
-            ? trendingStats.leaderboards[periodKey][accountID] 
+        const userEntry = trendingStats.leaderboards && trendingStats.leaderboards[periodKey] && accountID
+            ? trendingStats.leaderboards[periodKey][accountID]
             : null;
         const leaderboardRank = userEntry ? (typeof userEntry === 'object' ? userEntry.rank : userEntry) : null;
         const myPlaysOnLeaderboard = userEntry ? (typeof userEntry === 'object' ? userEntry.plays : null) : null;
-        const totalActiveUsers = trendingStats.totalActiveUsers && trendingStats.totalActiveUsers[periodKey] 
-            ? trendingStats.totalActiveUsers[periodKey] 
+        const totalActiveUsers = trendingStats.totalActiveUsers && trendingStats.totalActiveUsers[periodKey]
+            ? trendingStats.totalActiveUsers[periodKey]
             : 0;
 
         // Build a neighbourhood snapshot: the 2 users above and 2 below
         const users = await loadFile(USERS_PATH, []);
         const usernameMap = {};
         users.forEach(u => { if (u.plexAccountId) usernameMap[u.plexAccountId] = u.username || u.email || 'Unknown'; });
-        
+
         let leaderboardNeighbourhood = [];
         const sortedBoard = trendingStats.leaderboardsSorted && trendingStats.leaderboardsSorted[periodKey] ? trendingStats.leaderboardsSorted[periodKey] : [];
         if (leaderboardRank && sortedBoard.length > 0) {
@@ -3445,9 +3445,9 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
             }));
         }
 
-        res.json({ 
-            totalPlays, 
-            topLibraries, 
+        res.json({
+            totalPlays,
+            topLibraries,
             topContent,
             topBinge,
             topMovie,
@@ -3517,13 +3517,13 @@ app.get('/api/plex/analytics/user/:id', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, null);
         if (!config || !config.plexToken || !config.serverIdentifier) return res.status(503).json({ error: 'Plex not configured' });
-        
+
         const uri = await getPlexConnectionUri(config);
         if (!uri) return res.status(503).json({ error: 'Cannot connect to Plex' });
 
         const accountID = req.params.id;
         const limit = req.query.days === 'all' ? 999999 : 5000;
-        
+
         const historyRes = await fetch(`${uri}/status/sessions/history/all?accountID=${accountID}&X-Plex-Token=${config.plexToken}&sort=viewedAt:desc&limit=${limit}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
         const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
 
@@ -3576,7 +3576,7 @@ app.get('/api/plex/analytics/user/:id', requireAdmin, async (req, res) => {
             const contentTitle = item.type === 'episode' ? (item.grandparentTitle || item.parentTitle || item.title) : item.title;
             const contentThumb = item.type === 'episode' ? (item.grandparentThumb || item.parentThumb || item.thumb) : item.thumb;
             const contentArt = item.type === 'episode' ? (item.grandparentArt || item.parentArt || item.art) : item.art;
-            
+
             if (contentKey) {
                 if (!contentCounts[contentKey]) {
                     contentCounts[contentKey] = {
@@ -3600,9 +3600,9 @@ app.get('/api/plex/analytics/user/:id', requireAdmin, async (req, res) => {
             return c;
         });
 
-        res.json({ 
-            totalPlays, 
-            topLibraries, 
+        res.json({
+            totalPlays,
+            topLibraries,
             topContent,
             recentHistory: recentHistory.map(h => {
                 if (h.thumb) h.thumbUrl = `/api/plex/image?path=${encodeURIComponent(h.thumb)}`;
@@ -3617,23 +3617,23 @@ app.get('/api/plex/analytics/user/:id', requireAdmin, async (req, res) => {
 
 app.get('/api/speedtest/ping', (req, res) => { res.set('Cache-Control', 'no-store'); res.send('pong'); });
 app.get('/api/speedtest/download', (req, res) => {
-  const bytes = parseInt(req.query.bytes) || SPEED_TEST_CHUNK_SIZE;
-  res.set('Content-Type', 'application/octet-stream');
-  res.set('Content-Length', bytes);
-  res.set('Cache-Control', 'no-store');
-  let sent = 0;
-  const streamData = () => {
-    if (sent >= bytes) return res.end();
-    const remaining = bytes - sent;
-    const chunk = remaining >= SPEED_TEST_CHUNK_SIZE ? SPEED_TEST_BUFFER : SPEED_TEST_BUFFER.subarray(0, remaining);
-    const canContinue = res.write(chunk);
-    sent += chunk.length;
-    if (canContinue) setImmediate(streamData);
-    else res.once('drain', streamData);
-  };
-  streamData();
+    const bytes = parseInt(req.query.bytes) || SPEED_TEST_CHUNK_SIZE;
+    res.set('Content-Type', 'application/octet-stream');
+    res.set('Content-Length', bytes);
+    res.set('Cache-Control', 'no-store');
+    let sent = 0;
+    const streamData = () => {
+        if (sent >= bytes) return res.end();
+        const remaining = bytes - sent;
+        const chunk = remaining >= SPEED_TEST_CHUNK_SIZE ? SPEED_TEST_BUFFER : SPEED_TEST_BUFFER.subarray(0, remaining);
+        const canContinue = res.write(chunk);
+        sent += chunk.length;
+        if (canContinue) setImmediate(streamData);
+        else res.once('drain', streamData);
+    };
+    streamData();
 });
-app.post('/api/speedtest/upload', (req, res) => { req.on('data', () => {}); req.on('end', () => res.sendStatus(200)); });
+app.post('/api/speedtest/upload', (req, res) => { req.on('data', () => { }); req.on('end', () => res.sendStatus(200)); });
 
 // --- Static File Serving ---
 // Serve static assets from the 'static' directory
@@ -3656,25 +3656,25 @@ let serviceIntervalId = null;
 const checkAndSendNewsletter = async (config, force = false) => {
     if (!config.newsletterFrequency || config.newsletterFrequency === 'disabled') return;
     if (!config.smtpHost || !config.smtpUser) return;
-    
+
     const now = new Date();
     const dateStr = now.toISOString().split('T')[0];
 
     if (!force) {
         const dayOfWeek = now.getDay();
         const dayOfMonth = now.getDate();
-        
+
         let shouldSend = false;
         if (config.newsletterFrequency === 'weekly' && dayOfWeek === Number(config.newsletterDay)) {
             shouldSend = true;
         } else if (config.newsletterFrequency === 'monthly' && dayOfMonth === Number(config.newsletterDay)) {
             shouldSend = true;
         }
-        
+
         if (!shouldSend) return;
         if (config.lastNewsletterSent === dateStr) return;
     }
-    
+
     try {
         log('Generating and sending automated newsletters...');
         const { html, attachments } = await generateNewsletterHtml(config);
@@ -3684,24 +3684,24 @@ const checkAndSendNewsletter = async (config, force = false) => {
             secure: config.smtpSecure,
             auth: { user: config.smtpUser, pass: config.smtpPass }
         });
-        
+
         const users = await loadFile(USERS_PATH, []);
         const recipients = users.filter(user => user.email && !user.optOutNewsletter);
-        
+
         if (recipients.length === 0) return;
-        
+
         // Mark as sent immediately to prevent re-sending if the server restarts during the 30-minute window
         config.lastNewsletterSent = dateStr;
         await saveFile(CONFIG_PATH, config);
-        
+
         // Spread the sending out over a 30-minute period (1,800,000 ms) to avoid Gmail rate limits
         const totalDurationMs = 30 * 60 * 1000;
         const delayPerEmailMs = Math.floor(totalDurationMs / recipients.length);
-        
+
         let sentCount = 0;
         for (const user of recipients) {
             const personalizedHtml = html.replace(/{{USERNAME}}/g, user.username || 'User');
-            
+
             try {
                 await transporter.sendMail({
                     from: config.smtpFrom || config.smtpUser,
@@ -3712,11 +3712,11 @@ const checkAndSendNewsletter = async (config, force = false) => {
                 });
                 sentCount++;
                 await new Promise(resolve => setTimeout(resolve, delayPerEmailMs));
-            } catch(e) {
+            } catch (e) {
                 log(`Failed to send newsletter to ${user.email}: ${e.message}`);
             }
         }
-        
+
         log(`Newsletter sent to ${sentCount} users.`);
     } catch (e) {
         log(`Failed to generate/send newsletter: ${e.message}`);
@@ -3725,14 +3725,14 @@ const checkAndSendNewsletter = async (config, force = false) => {
 
 const checkAndCleanupInactive = async (config) => {
     if (!config.inactiveCleanupEnabled) return;
-    
+
     const thresholdDays = parseInt(config.inactiveCleanupDays) || 90;
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - thresholdDays);
     const cutoffMs = cutoffDate.getTime();
 
     log(`Running automated inactive cleanup check (threshold: ${thresholdDays} days)...`);
-    
+
     let users = await loadFile(USERS_PATH, []);
     let usersUpdated = false;
 
@@ -3745,7 +3745,7 @@ const checkAndCleanupInactive = async (config) => {
         try {
             // Get last session from Plex directly
             const historyRes = await fetch(`${uri}/status/sessions/history/all?X-Plex-Token=${config.plexToken}&accountID=${user.id}&sort=viewedAt:desc&limit=1`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
-            
+
             let lastWatchedMs = 0;
             if (historyRes && historyRes.MediaContainer && historyRes.MediaContainer.Metadata && historyRes.MediaContainer.Metadata.length > 0) {
                 const session = historyRes.MediaContainer.Metadata[0];
@@ -3755,14 +3755,14 @@ const checkAndCleanupInactive = async (config) => {
             // Only act if we know they have a lastWatched date AND it's older than cutoff
             // (If they've literally never watched anything ever, lastWatchedMs is 0. We'll count that as inactive too if they've been on the server long enough)
             const joinedAtMs = new Date(user.linkedAt || user.createdAt || Date.now()).getTime();
-            
+
             if ((lastWatchedMs > 0 && lastWatchedMs < cutoffMs) || (lastWatchedMs === 0 && joinedAtMs < cutoffMs)) {
                 log(`[INACTIVE CLEANUP] User ${user.email} last watched: ${lastWatchedMs > 0 ? new Date(lastWatchedMs).toISOString() : 'Never'}. Removing access.`);
-                
+
                 // Set expiry date to now so the main revocation loop catches them
                 user.expiryDate = new Date().toISOString();
                 usersUpdated = true;
-                
+
                 await appendAuditLog('user_inactive_cleanup', { username: 'System', email: 'system@local' }, user, {
                     reason: `Inactive for > ${thresholdDays} days`,
                     lastWatched: lastWatchedMs > 0 ? new Date(lastWatchedMs).toISOString() : 'Never'
@@ -3788,16 +3788,16 @@ let tasksInfo = [
 
 const startBackgroundService = async () => {
     if (serviceIntervalId) clearInterval(serviceIntervalId);
-    
+
     const config = await loadFile(CONFIG_PATH, null);
     if (!config || !config.plexToken || !config.serverIdentifier) {
         log('Plex is not configured. Background service will not start.');
         return;
     }
-    
+
     const intervalMinutes = config.checkIntervalMinutes || 60;
     const intervalMs = intervalMinutes * 60 * 1000;
-    
+
     const updateNextRun = (currentConfig) => {
         const nextRun = new Date(Date.now() + intervalMs).toISOString();
         tasksInfo.forEach(t => {
@@ -3808,7 +3808,7 @@ const startBackgroundService = async () => {
                     const now = new Date();
                     let nextDate = new Date(now);
                     const todayStr = now.toISOString().split('T')[0];
-                    
+
                     if (currentConfig.newsletterFrequency === 'weekly') {
                         const targetDay = Number(currentConfig.newsletterDay);
                         const currentDay = now.getDay();
@@ -3839,27 +3839,27 @@ const startBackgroundService = async () => {
         const now = new Date().toISOString();
         tasksInfo.find(t => t.id === 'syncPlexUsers').lastRun = now;
         await syncUsers(currentConfig).catch(e => log(`Error during sync: ${e.message}`));
-        
+
         tasksInfo.find(t => t.id === 'checkAndSendNotifications').lastRun = now;
         await checkAndSendNotifications(currentConfig).catch(e => log(`Error during notifications: ${e.message}`));
-        
+
         tasksInfo.find(t => t.id === 'checkAndRevoke').lastRun = now;
         await checkAndRevoke(currentConfig).catch(e => log(`Error during revoke: ${e.message}`));
-        
+
         tasksInfo.find(t => t.id === 'checkAndSendNewsletter').lastRun = now;
         await checkAndSendNewsletter(currentConfig).catch(e => log(`Error during newsletter: ${e.message}`));
-        
+
         tasksInfo.find(t => t.id === 'checkAndCleanupInactive').lastRun = now;
         await checkAndCleanupInactive(currentConfig).catch(e => log(`Error during inactive cleanup: ${e.message}`));
-        
+
         updateNextRun(currentConfig);
     };
 
     log(`Service started successfully. Checks will run every ${intervalMinutes} minute(s).`);
-    
+
     // Initial run
     await runBatch(config);
-    
+
     serviceIntervalId = setInterval(async () => {
         try {
             const currentConfig = await loadFile(CONFIG_PATH, config);
@@ -3872,135 +3872,135 @@ const startBackgroundService = async () => {
 
 // --- Status App Functions ---
 async function loadStatusState() {
-  try {
-    const configData = await fs.readFile(STATUS_CONFIG_PATH, 'utf-8');
-    statusConfig = JSON.parse(configData);
-  } catch (e) {
-    await saveFile(STATUS_CONFIG_PATH, statusConfig);
-  }
+    try {
+        const configData = await fs.readFile(STATUS_CONFIG_PATH, 'utf-8');
+        statusConfig = JSON.parse(configData);
+    } catch (e) {
+        await saveFile(STATUS_CONFIG_PATH, statusConfig);
+    }
 
-  try {
-    const healthRaw = await fs.readFile(HEALTH_PATH, 'utf-8');
-    healthData = JSON.parse(healthRaw);
-  } catch (e) {
-    healthData = {};
-  }
+    try {
+        const healthRaw = await fs.readFile(HEALTH_PATH, 'utf-8');
+        healthData = JSON.parse(healthRaw);
+    } catch (e) {
+        healthData = {};
+    }
 }
 
 async function saveHealthData() {
-  try {
-    await saveFile(HEALTH_PATH, healthData);
-  } catch (e) {}
+    try {
+        await saveFile(HEALTH_PATH, healthData);
+    } catch (e) { }
 }
 
 function performSingleProbe(service) {
-  return new Promise((resolve) => {
-    const rawUrl = service.url;
-    if (!rawUrl) return resolve({ status: 'offline', latency: 0, httpCode: 0 });
+    return new Promise((resolve) => {
+        const rawUrl = service.url;
+        if (!rawUrl) return resolve({ status: 'offline', latency: 0, httpCode: 0 });
 
-    let targetUrl = rawUrl;
-    if (!/^https?:\/\//i.test(targetUrl)) targetUrl = 'http://' + targetUrl;
-    if (service.port) {
-       try {
-         const u = new URL(targetUrl);
-         u.port = service.port;
-         targetUrl = u.toString();
-       } catch(e) {}
-    }
+        let targetUrl = rawUrl;
+        if (!/^https?:\/\//i.test(targetUrl)) targetUrl = 'http://' + targetUrl;
+        if (service.port) {
+            try {
+                const u = new URL(targetUrl);
+                u.port = service.port;
+                targetUrl = u.toString();
+            } catch (e) { }
+        }
 
-    let parsedUrl;
-    try {
-      parsedUrl = new URL(targetUrl);
-    } catch (e) {
-      return resolve({ status: 'offline', latency: 0, httpCode: 0 });
-    }
+        let parsedUrl;
+        try {
+            parsedUrl = new URL(targetUrl);
+        } catch (e) {
+            return resolve({ status: 'offline', latency: 0, httpCode: 0 });
+        }
 
-    const lib = parsedUrl.protocol === 'https:' ? https : http;
-    const start = Date.now();
-    
-    const request = lib.get(targetUrl, {
-      headers: { 'User-Agent': 'SubZero-Monitor/1.0', 'Cache-Control': 'no-cache', 'Connection': 'close' },
-      timeout: 8000, 
-      rejectUnauthorized: false 
-    }, (response) => {
-      response.resume();
-      const latency = Math.round(Date.now() - start);
-      const code = response.statusCode || 0;
-      let status = (code >= 200 && code < 400) || code === 401 || code === 403 ? 'online' : (code >= 500 ? 'degraded' : 'offline');
-      resolve({ status, latency, httpCode: code });
+        const lib = parsedUrl.protocol === 'https:' ? https : http;
+        const start = Date.now();
+
+        const request = lib.get(targetUrl, {
+            headers: { 'User-Agent': 'SubZero-Monitor/1.0', 'Cache-Control': 'no-cache', 'Connection': 'close' },
+            timeout: 8000,
+            rejectUnauthorized: false
+        }, (response) => {
+            response.resume();
+            const latency = Math.round(Date.now() - start);
+            const code = response.statusCode || 0;
+            let status = (code >= 200 && code < 400) || code === 401 || code === 403 ? 'online' : (code >= 500 ? 'degraded' : 'offline');
+            resolve({ status, latency, httpCode: code });
+        });
+
+        request.on('error', () => resolve({ status: 'offline', latency: 0, httpCode: 0 }));
+        request.on('timeout', () => { request.destroy(); resolve({ status: 'offline', latency: 0, httpCode: 408 }); });
     });
-
-    request.on('error', () => resolve({ status: 'offline', latency: 0, httpCode: 0 }));
-    request.on('timeout', () => { request.destroy(); resolve({ status: 'offline', latency: 0, httpCode: 408 }); });
-  });
 }
 
 async function runMonitorCycle() {
-  if (!statusConfig.services || statusConfig.services.length === 0) return;
-  
-  const now = Date.now();
-  const todayStr = new Date(now).toISOString().split('T')[0];
-  
-  if (!healthData._meta) {
-      healthData._meta = { lastCheck: now };
-  }
-  
-  const gapMs = now - healthData._meta.lastCheck;
-  const cycleMs = 15000;
-  
-  if (gapMs > 120000) {
-      const missedChecks = Math.floor(gapMs / cycleMs);
-      
-      for (const service of statusConfig.services) {
-          if (!healthData[service.id]) {
-              healthData[service.id] = { serviceId: service.id, currentStatus: 'unknown', lastCheck: 0, dailyHistory: {}, uptimePercentage: 100 };
-          }
-          const record = healthData[service.id];
-          if (!record.dailyHistory) record.dailyHistory = {};
-          if (!record.dailyHistory[todayStr]) record.dailyHistory[todayStr] = { up: 0, down: 0, total: 0 };
-          
-          record.dailyHistory[todayStr].down += missedChecks;
-          record.dailyHistory[todayStr].total += missedChecks;
-      }
-  }
+    if (!statusConfig.services || statusConfig.services.length === 0) return;
 
-  for (const service of statusConfig.services) {
-    const result = await performSingleProbe(service);
-    if (!healthData[service.id]) {
-      healthData[service.id] = { serviceId: service.id, currentStatus: 'unknown', lastCheck: 0, dailyHistory: {}, uptimePercentage: 100 };
+    const now = Date.now();
+    const todayStr = new Date(now).toISOString().split('T')[0];
+
+    if (!healthData._meta) {
+        healthData._meta = { lastCheck: now };
     }
-    const record = healthData[service.id];
-    if (!record.dailyHistory) record.dailyHistory = {};
-    if (!record.dailyHistory[todayStr]) record.dailyHistory[todayStr] = { up: 0, down: 0, total: 0 };
-    
-    record.currentStatus = result.status;
-    record.lastCheck = now;
-    
-    if (result.status === 'online') {
-        record.dailyHistory[todayStr].up += 1;
-    } else {
-        record.dailyHistory[todayStr].down += 1;
-    }
-    record.dailyHistory[todayStr].total += 1;
-    
-    const ninetyDaysAgo = now - (90 * 24 * 60 * 60 * 1000);
-    for (const dateStr of Object.keys(record.dailyHistory)) {
-        if (new Date(dateStr).getTime() < ninetyDaysAgo) {
-            delete record.dailyHistory[dateStr];
+
+    const gapMs = now - healthData._meta.lastCheck;
+    const cycleMs = 15000;
+
+    if (gapMs > 120000) {
+        const missedChecks = Math.floor(gapMs / cycleMs);
+
+        for (const service of statusConfig.services) {
+            if (!healthData[service.id]) {
+                healthData[service.id] = { serviceId: service.id, currentStatus: 'unknown', lastCheck: 0, dailyHistory: {}, uptimePercentage: 100 };
+            }
+            const record = healthData[service.id];
+            if (!record.dailyHistory) record.dailyHistory = {};
+            if (!record.dailyHistory[todayStr]) record.dailyHistory[todayStr] = { up: 0, down: 0, total: 0 };
+
+            record.dailyHistory[todayStr].down += missedChecks;
+            record.dailyHistory[todayStr].total += missedChecks;
         }
     }
-    
-    let totalUp = 0;
-    let totalChecks = 0;
-    for (const stat of Object.values(record.dailyHistory)) {
-        totalUp += stat.up;
-        totalChecks += stat.total;
+
+    for (const service of statusConfig.services) {
+        const result = await performSingleProbe(service);
+        if (!healthData[service.id]) {
+            healthData[service.id] = { serviceId: service.id, currentStatus: 'unknown', lastCheck: 0, dailyHistory: {}, uptimePercentage: 100 };
+        }
+        const record = healthData[service.id];
+        if (!record.dailyHistory) record.dailyHistory = {};
+        if (!record.dailyHistory[todayStr]) record.dailyHistory[todayStr] = { up: 0, down: 0, total: 0 };
+
+        record.currentStatus = result.status;
+        record.lastCheck = now;
+
+        if (result.status === 'online') {
+            record.dailyHistory[todayStr].up += 1;
+        } else {
+            record.dailyHistory[todayStr].down += 1;
+        }
+        record.dailyHistory[todayStr].total += 1;
+
+        const ninetyDaysAgo = now - (90 * 24 * 60 * 60 * 1000);
+        for (const dateStr of Object.keys(record.dailyHistory)) {
+            if (new Date(dateStr).getTime() < ninetyDaysAgo) {
+                delete record.dailyHistory[dateStr];
+            }
+        }
+
+        let totalUp = 0;
+        let totalChecks = 0;
+        for (const stat of Object.values(record.dailyHistory)) {
+            totalUp += stat.up;
+            totalChecks += stat.total;
+        }
+        record.uptimePercentage = totalChecks > 0 ? Math.round((totalUp / totalChecks) * 100) : 100;
     }
-    record.uptimePercentage = totalChecks > 0 ? Math.round((totalUp / totalChecks) * 100) : 100;
-  }
-  
-  healthData._meta.lastCheck = now;
-  saveHealthData();
+
+    healthData._meta.lastCheck = now;
+    saveHealthData();
 }
 
 app.get('/api/media-stack/summary', requireAuth, async (req, res) => {
@@ -4025,7 +4025,7 @@ app.get('/api/media-stack/summary', requireAuth, async (req, res) => {
 
             const targetDate = new Date();
             targetDate.setMonth(targetDate.getMonth() + monthOffset);
-            
+
             const firstDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
             const lastDay = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
 
@@ -4081,12 +4081,12 @@ async function calculateTrendingStats() {
     try {
         const config = await loadFile(CONFIG_PATH, null);
         if (!config || !config.plexToken || !config.serverIdentifier) return;
-        
+
         const uri = await getPlexConnectionUri(config);
         if (!uri) return;
 
         log('Starting background calculation of Plex Trending Stats...');
-        
+
         // Fetch up to 10,000 most recent history items
         const response = await fetch(`${uri}/status/sessions/history/all?sort=viewedAt%3Adesc&limit=10000&X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).catch(() => null);
         if (!response) return;
@@ -4095,9 +4095,9 @@ async function calculateTrendingStats() {
             log('No history found or failed to parse history JSON.');
             return;
         }
-        
+
         const history = historyRes.MediaContainer.Metadata;
-        
+
         const now = Date.now() / 1000;
         const days7 = now - (7 * 24 * 60 * 60);
         const days30 = now - (30 * 24 * 60 * 60);
@@ -4105,11 +4105,11 @@ async function calculateTrendingStats() {
         const days90 = now - (90 * 24 * 60 * 60);
         const days180 = now - (180 * 24 * 60 * 60);
         const days365 = now - (365 * 24 * 60 * 60);
-        
+
         const counts = {
-            trending7Days: {}, 
-            movies30Days: {}, 
-            shows30Days: {}, 
+            trending7Days: {},
+            movies30Days: {},
+            shows30Days: {},
             top365Days: {},
             allTime: {},
             weekendWarriors: {},
@@ -4131,11 +4131,11 @@ async function calculateTrendingStats() {
             const viewedAt = item.viewedAt;
             const isMovie = item.type === 'movie';
             const isEpisode = item.type === 'episode';
-            
+
             if (!isMovie && !isEpisode) return;
 
             const groupKey = isMovie ? item.ratingKey : item.grandparentKey;
-            
+
             const baseItem = {
                 ratingKey: groupKey,
                 title: isMovie ? item.title : item.grandparentTitle,
@@ -4153,7 +4153,7 @@ async function calculateTrendingStats() {
 
             increment(counts.allTime); // All time gets incremented for every view
             userPlays['all'][item.accountID] = (userPlays['all'][item.accountID] || 0) + 1;
-            
+
             // Time-based stats
             if (viewedAt >= days7) {
                 increment(counts.trending7Days);
@@ -4167,7 +4167,7 @@ async function calculateTrendingStats() {
                 increment(counts.top365Days);
                 userPlays['365'][item.accountID] = (userPlays['365'][item.accountID] || 0) + 1;
             }
-            
+
             // Movie / Show 30 days
             if (viewedAt >= days30) {
                 if (item.type === 'movie') increment(counts.movies30Days);
@@ -4199,7 +4199,7 @@ async function calculateTrendingStats() {
         });
 
         const excludedKeys = new Set();
-        
+
         const getTopUnique = (obj, limit = 20) => {
             const sorted = Object.values(obj).sort((a, b) => b.views - a.views);
             const result = [];
@@ -4217,7 +4217,7 @@ async function calculateTrendingStats() {
             const sorted = Object.values(obj)
                 .filter(a => a.views > 10 && a.users.size <= 2)
                 .sort((a, b) => (b.views / b.users.size) - (a.views / a.users.size));
-                
+
             const result = [];
             for (const item of sorted) {
                 if (result.length >= 20) break;
@@ -4277,10 +4277,10 @@ async function calculateTrendingStats() {
 
 app.get('/api/plex/stats/trending', requireAuth, async (req, res) => {
     try {
-        const stats = await loadFile(TRENDING_CACHE_PATH, { 
-            trending7Days: [], 
-            movies30Days: [], 
-            shows30Days: [], 
+        const stats = await loadFile(TRENDING_CACHE_PATH, {
+            trending7Days: [],
+            movies30Days: [],
+            shows30Days: [],
             top365Days: [],
             allTime: [],
             weekendWarriors: [],
@@ -4299,17 +4299,17 @@ async function monitorConcurrentSessions() {
     try {
         const config = await loadFile(CONFIG_PATH, null);
         if (!config || !config.plexToken || !config.serverIdentifier) return;
-        
+
         const uri = await getPlexConnectionUri(config);
         if (!uri) return;
 
         const sessionsRes = await fetch(`${uri}/status/sessions?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
-        
+
         if (sessionsRes && sessionsRes.MediaContainer) {
             const currentStreams = sessionsRes.MediaContainer.size || 0;
             let currentDirect = 0;
             let currentTranscodes = 0;
-            
+
             if (sessionsRes.MediaContainer.Metadata) {
                 sessionsRes.MediaContainer.Metadata.forEach(m => {
                     let isTranscode = false;
@@ -4355,12 +4355,12 @@ async function monitorConcurrentSessions() {
                 await saveFile(PLEX_STATS_CACHE_PATH, stats);
             }
         }
-    } catch (e) {}
+    } catch (e) { }
 }
 
 app.listen(PORT, async () => {
     log(`--- Server Manager Portal Service starting on http://localhost:${PORT} ---`);
-    
+
     // Ensure unique CLIENT_ID per installation to avoid Plex Auth blocking
     const config = await loadFile(CONFIG_PATH, {});
     if (!config.clientId || config.clientId.startsWith('smp-')) {
@@ -4378,7 +4378,7 @@ app.listen(PORT, async () => {
     setInterval(monitorConcurrentSessions, 15000);
     startBackgroundService();
     startPlexStatsBackgroundTask(); // start 24-hour library size cache task
-    
+
     // Setup Trending Stats Aggregator
     setTimeout(calculateTrendingStats, 10000); // Run once shortly after startup
     setInterval(calculateTrendingStats, 12 * 60 * 60 * 1000); // Every 12 hours

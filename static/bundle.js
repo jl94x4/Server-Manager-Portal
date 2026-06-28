@@ -54315,8 +54315,14 @@ var LibraryDashboard = ({ onBack, isAdmin, publicConfig }) => {
   const [trendingStats, setTrendingStats] = (0, import_react61.useState)(null);
   const [loading, setLoading] = (0, import_react61.useState)(true);
   const [error, setError] = (0, import_react61.useState)(null);
-  const [recentLimit, setRecentLimit] = (0, import_react61.useState)(12);
+  const [recentLimit, setRecentLimit] = (0, import_react61.useState)(() => {
+    const saved = localStorage.getItem("discoverRecentLimit");
+    return saved ? Number(saved) : 12;
+  });
   const [selectedSession, setSelectedSession] = (0, import_react61.useState)(null);
+  (0, import_react61.useEffect)(() => {
+    localStorage.setItem("discoverRecentLimit", String(recentLimit));
+  }, [recentLimit]);
   const fetchData = (0, import_react61.useCallback)(async () => {
     try {
       const res = await apiFetch(`/api/plex/dashboard?limit=${recentLimit}`);
@@ -54506,7 +54512,7 @@ var LibraryDashboard = ({ onBack, isAdmin, publicConfig }) => {
         ] }),
         trendingStats.trending7Days?.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-col", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "\u{1F525} Trending This Week" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.trending7Days.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-col w-full gap-2 group", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.trending7Days.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", { href: item.plexUrl || "#", target: "_blank", rel: "noreferrer", className: "flex flex-col w-full gap-2 group", style: { textDecoration: "none", color: "inherit" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30", children: [
@@ -54519,7 +54525,7 @@ var LibraryDashboard = ({ onBack, isAdmin, publicConfig }) => {
         ] }),
         trendingStats.movies30Days?.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-col", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "\u{1F37F} Most Watched Movies (This Month)" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.movies30Days.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-col w-full gap-2 group", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.movies30Days.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", { href: item.plexUrl || "#", target: "_blank", rel: "noreferrer", className: "flex flex-col w-full gap-2 group", style: { textDecoration: "none", color: "inherit" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30", children: [
@@ -54532,7 +54538,7 @@ var LibraryDashboard = ({ onBack, isAdmin, publicConfig }) => {
         ] }),
         trendingStats.shows30Days?.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-col", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "\u{1F4FA} Most Watched Shows (This Month)" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.shows30Days.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-col w-full gap-2 group", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.shows30Days.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", { href: item.plexUrl || "#", target: "_blank", rel: "noreferrer", className: "flex flex-col w-full gap-2 group", style: { textDecoration: "none", color: "inherit" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30", children: [
@@ -54545,7 +54551,7 @@ var LibraryDashboard = ({ onBack, isAdmin, publicConfig }) => {
         ] }),
         trendingStats.top365Days?.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-col", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "\u{1F3C6} Top of the Year" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.top365Days.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-col w-full gap-2 group", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.top365Days.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", { href: item.plexUrl || "#", target: "_blank", rel: "noreferrer", className: "flex flex-col w-full gap-2 group", style: { textDecoration: "none", color: "inherit" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30", children: [
@@ -54558,7 +54564,7 @@ var LibraryDashboard = ({ onBack, isAdmin, publicConfig }) => {
         ] }),
         trendingStats.allTime?.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-col", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "\u{1F31F} All Time Favorites" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.allTime.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-col w-full gap-2 group", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.allTime.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", { href: item.plexUrl || "#", target: "_blank", rel: "noreferrer", className: "flex flex-col w-full gap-2 group", style: { textDecoration: "none", color: "inherit" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30", children: [
@@ -54571,7 +54577,7 @@ var LibraryDashboard = ({ onBack, isAdmin, publicConfig }) => {
         ] }),
         trendingStats.weekendWarriors?.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-col", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "\u{1F37F} Weekend Warriors" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.weekendWarriors.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-col w-full gap-2 group", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.weekendWarriors.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", { href: item.plexUrl || "#", target: "_blank", rel: "noreferrer", className: "flex flex-col w-full gap-2 group", style: { textDecoration: "none", color: "inherit" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30", children: [
@@ -54584,7 +54590,7 @@ var LibraryDashboard = ({ onBack, isAdmin, publicConfig }) => {
         ] }),
         trendingStats.nightOwls?.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-col", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "\u{1F987} Night Owl Club" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.nightOwls.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-col w-full gap-2 group", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.nightOwls.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", { href: item.plexUrl || "#", target: "_blank", rel: "noreferrer", className: "flex flex-col w-full gap-2 group", style: { textDecoration: "none", color: "inherit" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30", children: [
@@ -54597,7 +54603,7 @@ var LibraryDashboard = ({ onBack, isAdmin, publicConfig }) => {
         ] }),
         trendingStats.retroHits?.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-col", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "\u{1F4FC} Blast from the Past" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.retroHits.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-col w-full gap-2 group", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.retroHits.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", { href: item.plexUrl || "#", target: "_blank", rel: "noreferrer", className: "flex flex-col w-full gap-2 group", style: { textDecoration: "none", color: "inherit" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30", children: [
@@ -54610,7 +54616,7 @@ var LibraryDashboard = ({ onBack, isAdmin, publicConfig }) => {
         ] }),
         trendingStats.cultClassics?.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-col", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { className: "text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2", children: "\u{1F48E} Cult Classics" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.cultClassics.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-col w-full gap-2 group", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 w-full pb-4", children: trendingStats.cultClassics.slice(0, recentLimit).map((item, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", { href: item.plexUrl || "#", target: "_blank", rel: "noreferrer", className: "flex flex-col w-full gap-2 group", style: { textDecoration: "none", color: "inherit" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { src: `/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`, alt: item.title, loading: "lazy", className: "w-full h-full object-cover" }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30", children: [
