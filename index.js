@@ -2847,7 +2847,7 @@ app.get('/api/plex/dashboard', requireAuth, async (req, res) => {
 app.post('/api/streams/kill', requireAdmin, async (req, res) => {
     const { sessionId, reason } = req.body;
     try {
-        const config = await readConfig();
+        const config = await loadFile(CONFIG_PATH, {});
         const uri = await getPlexConnectionUri(config);
         if (!uri) return res.status(503).json({ error: 'Cannot connect to Plex' });
 
@@ -2871,12 +2871,12 @@ app.post('/api/announcements/push', requireAdmin, async (req, res) => {
     const { text, sendEmail: shouldSendEmail } = req.body;
 
     try {
-        const config = await readConfig();
+        const config = await loadFile(CONFIG_PATH, {});
         config.announcement = text || '';
         await saveFile(CONFIG_PATH, config);
 
         if (shouldSendEmail && text) {
-            const users = await readUsers();
+            const users = await loadFile(USERS_PATH, []);
             const activeUsers = users.filter(u => u.status === 'active' && u.email);
             if (activeUsers.length > 0) {
                 // Email sending staggered over half an hour
