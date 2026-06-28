@@ -54,3 +54,4 @@ test*.cjs
 plex-stats.json
 trending-cache.json
 patch.cjs
+static/bundle.js
