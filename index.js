@@ -2729,7 +2729,7 @@ app.get('/api/plex/dashboard', requireAuth, async (req, res) => {
         const limit = parseInt(req.query.limit) || 50;
 
         const cacheKey = `plex_dashboard_data_${limit}`;
-        const cachedData = await withCache(cacheKey, 2000, async () => {
+        const cachedData = await withCache(cacheKey, 800, async () => {
             const sessionsPromise = fetch(`${uri}/status/sessions?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
             const sectionsPromise = fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
             const [sessionsData, sectionsData] = await Promise.all([sessionsPromise, sectionsPromise]);

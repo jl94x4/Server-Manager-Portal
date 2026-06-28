@@ -6590,7 +6590,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
 
     useEffect(() => {
         fetchData();
-        const liveInterval = setInterval(fetchDashboardOnly, 2500);
+        const liveInterval = setInterval(fetchDashboardOnly, 1000);
         return () => clearInterval(liveInterval);
     }, [fetchDashboardOnly, fetchData]);
 
