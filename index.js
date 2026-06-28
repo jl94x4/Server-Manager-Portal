@@ -1237,7 +1237,10 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 navOrder: config.navOrder || ['home', 'discover', 'users', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout'],
                 defaultLibraryIds: config.defaultLibraryIds || null,
                 use24HourClock: !!config.use24HourClock,
-                allowTemporaryAccess: !!config.allowTemporaryAccess
+                allowTemporaryAccess: !!config.allowTemporaryAccess,
+                autoBackupEnabled: !!config.autoBackupEnabled,
+                autoBackupIntervalDays: Number(config.autoBackupIntervalDays) > 0 ? Number(config.autoBackupIntervalDays) : 2,
+                autoBackupRetentionCount: Number(config.autoBackupRetentionCount) > 0 ? Number(config.autoBackupRetentionCount) : 10
             },
         });
     } else {
@@ -1277,7 +1280,10 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 navOrder: ['home', 'discover', 'users', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout'],
                 defaultLibraryIds: null,
                 use24HourClock: false,
-                allowTemporaryAccess: false
+                allowTemporaryAccess: false,
+                autoBackupEnabled: false,
+                autoBackupIntervalDays: 2,
+                autoBackupRetentionCount: 10
             },
         });
     }
@@ -1290,7 +1296,8 @@ app.post('/api/config', async (req, res) => {
         newsletterFrequency, newsletterDay, publicDomain, requestUrl, contactUrl, contactWhatsApp, contactEmail,
         sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, tautulliUrl, tautulliApiKey,
         inactiveCleanupEnabled, inactiveCleanupDays,
-        primaryColor, customLogoUrl, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess
+        primaryColor, customLogoUrl, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess,
+        autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount
     } = req.body;
 
     if (!token || !serverIdentifier) {
@@ -1355,9 +1362,13 @@ app.post('/api/config', async (req, res) => {
         navOrder: Array.isArray(navOrder) ? navOrder : existingConfig.navOrder || ['home', 'discover', 'users', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout'],
         defaultLibraryIds: Array.isArray(defaultLibraryIds) ? defaultLibraryIds : null,
         use24HourClock: !!use24HourClock,
-        allowTemporaryAccess: !!allowTemporaryAccess
+        allowTemporaryAccess: !!allowTemporaryAccess,
+        autoBackupEnabled: !!autoBackupEnabled,
+        autoBackupIntervalDays: Math.max(1, parseInt(autoBackupIntervalDays, 10) || 2),
+        autoBackupRetentionCount: Math.max(1, parseInt(autoBackupRetentionCount, 10) || 10)
     };
     await saveFile(CONFIG_PATH, config);
+    systemJobs.autoBackup.nextRun = config.autoBackupEnabled ? computeNextBackupRun(config) : null;
     log('Configuration saved successfully.');
     startBackgroundService(); // (Re)start service with new config
     res.json({ message: 'Configuration saved.' });
@@ -2393,12 +2404,13 @@ app.get('/api/admin/diagnostics', requireAdmin, async (req, res) => {
             }
         };
 
-        const [analyticsFile, trendingFile, plexStatsFile, usersFile, configFile] = await Promise.all([
+        const [analyticsFile, trendingFile, plexStatsFile, usersFile, configFile, backups] = await Promise.all([
             statFile(ANALYTICS_CACHE_PATH),
             statFile(TRENDING_CACHE_PATH),
             statFile(PLEX_STATS_CACHE_PATH),
             statFile(USERS_PATH),
-            statFile(CONFIG_PATH)
+            statFile(CONFIG_PATH),
+            listBackupFiles().catch(() => [])
         ]);
 
         res.json({
@@ -2424,6 +2436,13 @@ app.get('/api/admin/diagnostics', requireAdmin, async (req, res) => {
                 users: usersFile,
                 config: configFile
             },
+            backup: {
+                enabled: !!config.autoBackupEnabled,
+                intervalDays: Math.max(1, Number(config.autoBackupIntervalDays) || 2),
+                retentionCount: Math.max(1, Number(config.autoBackupRetentionCount) || 10),
+                lastRunAt: config.autoBackupLastRunAt || null,
+                availableBackups: backups.length
+            },
             jobs: getTasksSnapshot(),
             checkedAt: new Date(now).toISOString()
         });
@@ -2433,6 +2452,7 @@ app.get('/api/admin/diagnostics', requireAdmin, async (req, res) => {
 });
 
 const BACKUP_SCHEMA_VERSION = 1;
+const BACKUP_DIR = path.join(process.cwd(), 'backup');
 const BACKUP_TARGETS = [
     { key: 'config', path: CONFIG_PATH },
     { key: 'users', path: USERS_PATH },
@@ -2463,20 +2483,106 @@ const readBackupPayload = async () => {
     return payload;
 };
 
+const ensureBackupDir = async () => {
+    await fs.mkdir(BACKUP_DIR, { recursive: true });
+};
+
+const createBackupObject = async (createdBy = 'system', reason = 'manual') => ({
+    schemaVersion: BACKUP_SCHEMA_VERSION,
+    createdAt: new Date().toISOString(),
+    createdBy,
+    reason,
+    data: await readBackupPayload()
+});
+
+const getBackupFilename = (backup) => {
+    const stamp = (backup.createdAt || new Date().toISOString()).replace(/[:.]/g, '-');
+    return `portal-backup-${stamp}.json`;
+};
+
+const listBackupFiles = async () => {
+    await ensureBackupDir();
+    const entries = await fs.readdir(BACKUP_DIR).catch(() => []);
+    const jsonFiles = entries.filter(name => name.toLowerCase().endsWith('.json'));
+    const backups = await Promise.all(jsonFiles.map(async (filename) => {
+        const filePath = path.join(BACKUP_DIR, filename);
+        try {
+            const stat = await fs.stat(filePath);
+            return {
+                filename,
+                filePath,
+                size: stat.size,
+                createdAt: stat.mtime.toISOString()
+            };
+        } catch (e) {
+            return null;
+        }
+    }));
+    return backups.filter(Boolean).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+};
+
+const enforceBackupRetention = async (keepCount) => {
+    const backups = await listBackupFiles();
+    const toDelete = backups.slice(Math.max(0, keepCount));
+    for (const backup of toDelete) {
+        await fs.unlink(backup.filePath).catch(() => { });
+    }
+};
+
+const applyBackupPayload = async (backup) => {
+    if (!backup || backup.schemaVersion !== BACKUP_SCHEMA_VERSION || !backup.data) {
+        throw new Error('Unsupported backup schema.');
+    }
+    for (const target of BACKUP_TARGETS) {
+        if (backup.data[target.key] !== undefined) {
+            await saveFile(target.path, backup.data[target.key]);
+        }
+    }
+    if (backup.data.logoPngBase64 && typeof backup.data.logoPngBase64 === 'string') {
+        const logoPath = path.join(process.cwd(), 'static', 'logo.png');
+        await fs.writeFile(logoPath, Buffer.from(backup.data.logoPngBase64, 'base64'));
+    }
+};
+
+const writeBackupToFolder = async (backup) => {
+    await ensureBackupDir();
+    const filename = getBackupFilename(backup);
+    const filePath = path.join(BACKUP_DIR, filename);
+    await fs.writeFile(filePath, JSON.stringify(backup, null, 2), 'utf8');
+    return { filename, filePath };
+};
+
 app.get('/api/admin/backup', requireAdmin, async (req, res) => {
     try {
-        const backup = {
-            schemaVersion: BACKUP_SCHEMA_VERSION,
-            createdAt: new Date().toISOString(),
-            createdBy: req.user?.username || req.user?.email || 'admin',
-            data: await readBackupPayload()
-        };
+        const backup = await createBackupObject(req.user?.username || req.user?.email || 'admin', 'manual-download');
         await appendAuditLog('backup_exported', req.user, null, { schemaVersion: BACKUP_SCHEMA_VERSION });
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.setHeader('Content-Disposition', `attachment; filename=\"portal-backup-${Date.now()}.json\"`);
         res.send(JSON.stringify(backup, null, 2));
     } catch (e) {
         res.status(500).json({ error: `Failed to create backup: ${e.message}` });
+    }
+});
+
+app.get('/api/admin/backups', requireAdmin, async (req, res) => {
+    try {
+        const backups = await listBackupFiles();
+        res.json(backups.map(({ filename, size, createdAt }) => ({ filename, size, createdAt })));
+    } catch (e) {
+        res.status(500).json({ error: `Failed to list backups: ${e.message}` });
+    }
+});
+
+app.post('/api/admin/backups/create', requireAdmin, async (req, res) => {
+    try {
+        const backup = await createBackupObject(req.user?.username || req.user?.email || 'admin', 'manual-create');
+        const result = await writeBackupToFolder(backup);
+        const config = await loadFile(CONFIG_PATH, {});
+        await enforceBackupRetention(Math.max(1, Number(config.autoBackupRetentionCount) || 10));
+        await appendAuditLog('backup_created', req.user, null, { filename: result.filename });
+        res.json({ success: true, filename: result.filename });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to create backup file: ${e.message}` });
     }
 });
 
@@ -2492,25 +2598,11 @@ app.post('/api/admin/backup/restore', requireAdmin, express.text({ type: '*/*', 
             return res.status(400).json({ error: 'Backup payload is not valid JSON.' });
         }
 
-        if (!backup || backup.schemaVersion !== BACKUP_SCHEMA_VERSION || !backup.data) {
-            return res.status(400).json({ error: 'Unsupported backup schema.' });
-        }
-
         const confirmRestore = req.query.confirm === 'true' || req.headers['x-confirm-restore'] === 'true';
         if (!confirmRestore) {
             return res.status(400).json({ error: 'Restore requires explicit confirmation.' });
         }
-
-        for (const target of BACKUP_TARGETS) {
-            if (backup.data[target.key] !== undefined) {
-                await saveFile(target.path, backup.data[target.key]);
-            }
-        }
-
-        if (backup.data.logoPngBase64 && typeof backup.data.logoPngBase64 === 'string') {
-            const logoPath = path.join(process.cwd(), 'static', 'logo.png');
-            await fs.writeFile(logoPath, Buffer.from(backup.data.logoPngBase64, 'base64'));
-        }
+        await applyBackupPayload(backup);
 
         await appendAuditLog('backup_restored', req.user, null, {
             schemaVersion: backup.schemaVersion,
@@ -2519,6 +2611,29 @@ app.post('/api/admin/backup/restore', requireAdmin, express.text({ type: '*/*', 
         res.json({ success: true, message: 'Backup restored successfully.' });
     } catch (e) {
         res.status(500).json({ error: `Failed to restore backup: ${e.message}` });
+    }
+});
+
+app.post('/api/admin/backups/restore-file', requireAdmin, async (req, res) => {
+    try {
+        const { filename, confirm } = req.body || {};
+        if (!confirm) return res.status(400).json({ error: 'Restore requires explicit confirmation.' });
+        if (!filename || typeof filename !== 'string') return res.status(400).json({ error: 'Backup filename is required.' });
+        if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+            return res.status(400).json({ error: 'Invalid backup filename.' });
+        }
+        const filePath = path.join(BACKUP_DIR, filename);
+        const raw = await fs.readFile(filePath, 'utf8');
+        const backup = JSON.parse(raw);
+        await applyBackupPayload(backup);
+        await appendAuditLog('backup_restored_file', req.user, null, {
+            filename,
+            schemaVersion: backup.schemaVersion || null,
+            createdAt: backup.createdAt || null
+        });
+        res.json({ success: true, message: 'Backup restored from file successfully.' });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to restore backup file: ${e.message}` });
     }
 });
 
@@ -3978,7 +4093,8 @@ let tasksInfo = [
 const systemJobs = {
     analyticsCache: { id: 'analyticsCache', name: 'Analytics Cache Builder', description: 'Rebuilds server analytics cache snapshots.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null },
     trendingCache: { id: 'trendingCache', name: 'Trending Cache Builder', description: 'Rebuilds trending and leaderboard data.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null },
-    plexStats: { id: 'plexStats', name: 'Plex Stats Builder', description: 'Rebuilds cached library size and usage totals.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null }
+    plexStats: { id: 'plexStats', name: 'Plex Stats Builder', description: 'Rebuilds cached library size and usage totals.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null },
+    autoBackup: { id: 'autoBackup', name: 'Auto Rolling Backup', description: 'Creates rolling backup snapshots on configured interval.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null }
 };
 
 const markTaskStart = (task) => {
@@ -3995,6 +4111,38 @@ const markTaskEnd = (task, error = null) => {
         delete task._startedAt;
     }
     task.lastError = error ? (error.message || String(error)) : null;
+};
+
+const computeNextBackupRun = (config) => {
+    const days = Math.max(1, Number(config?.autoBackupIntervalDays) || 2);
+    const intervalMs = days * 24 * 60 * 60 * 1000;
+    const last = config?.autoBackupLastRunAt ? Date.parse(config.autoBackupLastRunAt) : null;
+    const base = Number.isFinite(last) ? last : Date.now();
+    return new Date(base + intervalMs).toISOString();
+};
+
+const runAutoBackupCycle = async (reason = 'auto') => {
+    const job = systemJobs.autoBackup;
+    markTaskStart(job);
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        if (!config.autoBackupEnabled) {
+            job.nextRun = null;
+            markTaskEnd(job, null);
+            return;
+        }
+        const backup = await createBackupObject('system', reason);
+        const result = await writeBackupToFolder(backup);
+        config.autoBackupLastRunAt = backup.createdAt;
+        await saveFile(CONFIG_PATH, config);
+        await enforceBackupRetention(Math.max(1, Number(config.autoBackupRetentionCount) || 10));
+        job.nextRun = computeNextBackupRun(config);
+        markTaskEnd(job, null);
+        await appendAuditLog('backup_auto_created', null, null, { filename: result.filename, reason });
+    } catch (e) {
+        markTaskEnd(job, e);
+        log(`Auto backup failed: ${e.message}`);
+    }
 };
 
 const startBackgroundService = async () => {
@@ -4943,4 +5091,20 @@ app.listen(PORT, async () => {
         systemJobs.analyticsCache.nextRun = new Date(Date.now() + (30 * 60 * 1000)).toISOString();
         calculateAnalyticsStats();
     }, 30 * 60 * 1000);
+
+    const backupConfig = await loadFile(CONFIG_PATH, {});
+    systemJobs.autoBackup.nextRun = backupConfig.autoBackupEnabled ? computeNextBackupRun(backupConfig) : null;
+    // Check every hour whether an auto backup is due.
+    setInterval(async () => {
+        const cfg = await loadFile(CONFIG_PATH, {});
+        if (!cfg.autoBackupEnabled) {
+            systemJobs.autoBackup.nextRun = null;
+            return;
+        }
+        const nextRunTs = Date.parse(computeNextBackupRun(cfg));
+        systemJobs.autoBackup.nextRun = new Date(nextRunTs).toISOString();
+        if (Date.now() >= nextRunTs) {
+            await runAutoBackupCycle('scheduled');
+        }
+    }, 60 * 60 * 1000);
 });

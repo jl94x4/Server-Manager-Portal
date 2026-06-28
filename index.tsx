@@ -1045,6 +1045,10 @@ const SettingsDashboard: React.FC = () => {
     const [isLoadingDiagnostics, setIsLoadingDiagnostics] = useState(false);
     const [backupRestoreText, setBackupRestoreText] = useState('');
     const [isRestoringBackup, setIsRestoringBackup] = useState(false);
+    const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
+    const [autoBackupIntervalDays, setAutoBackupIntervalDays] = useState(2);
+    const [autoBackupRetentionCount, setAutoBackupRetentionCount] = useState(10);
+    const [backupFiles, setBackupFiles] = useState<any[]>([]);
 
     const handlePushAnnouncement = async () => {
         setIsPushingAnnouncement(true);
@@ -1084,6 +1088,15 @@ const SettingsDashboard: React.FC = () => {
         }
     };
 
+    const fetchBackupFiles = async () => {
+        try {
+            const data = await apiFetch('/api/admin/backups');
+            setBackupFiles(Array.isArray(data) ? data : []);
+        } catch (e) {
+            addToast('Failed to load backup files', 'error');
+        }
+    };
+
     const handleDownloadBackup = async () => {
         try {
             const response = await fetch('/api/admin/backup');
@@ -1101,6 +1114,17 @@ const SettingsDashboard: React.FC = () => {
             addToast('Backup downloaded successfully.');
         } catch (e: any) {
             addToast(e.message || 'Backup download failed', 'error');
+        }
+    };
+
+    const handleCreateBackupFile = async () => {
+        try {
+            const res = await apiFetch('/api/admin/backups/create', { method: 'POST' });
+            addToast(res?.filename ? `Backup created: ${res.filename}` : 'Backup created successfully.');
+            await fetchBackupFiles();
+            await fetchDiagnostics();
+        } catch (e: any) {
+            addToast(e.message || 'Failed to create backup file', 'error');
         }
     };
 
@@ -1132,6 +1156,21 @@ const SettingsDashboard: React.FC = () => {
         });
     };
 
+    const handleRestoreFromFile = async (filename: string) => {
+        appConfirm(`Restore from backup file "${filename}"? This will overwrite current data.`, async () => {
+            try {
+                const res = await apiFetch('/api/admin/backups/restore-file', {
+                    method: 'POST',
+                    body: JSON.stringify({ filename, confirm: true })
+                });
+                addToast(res?.message || 'Backup restored from file successfully.');
+                await Promise.all([fetchDiagnostics(), fetchTasks(), fetchBackupFiles()]);
+            } catch (e: any) {
+                addToast(e.message || 'Failed to restore backup file', 'error');
+            }
+        });
+    };
+
     const renderConfigPill = (configured: boolean) => (
         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${configured ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'}`}>
             {configured ? 'Configured' : 'Missing'}
@@ -1144,6 +1183,7 @@ const SettingsDashboard: React.FC = () => {
         }
         if (activeTab === 'system') {
             fetchDiagnostics();
+            fetchBackupFiles();
         }
     }, [activeTab]);
 
@@ -1198,6 +1238,9 @@ const SettingsDashboard: React.FC = () => {
             if (initialSettings.defaultLibraryIds) setDefaultLibraryIds(initialSettings.defaultLibraryIds);
             if (initialSettings.use24HourClock !== undefined) setUse24HourClock(!!initialSettings.use24HourClock);
             if (initialSettings.allowTemporaryAccess !== undefined) setAllowTemporaryAccess(!!initialSettings.allowTemporaryAccess);
+            if (initialSettings.autoBackupEnabled !== undefined) setAutoBackupEnabled(!!initialSettings.autoBackupEnabled);
+            if (initialSettings.autoBackupIntervalDays !== undefined) setAutoBackupIntervalDays(Number(initialSettings.autoBackupIntervalDays) || 2);
+            if (initialSettings.autoBackupRetentionCount !== undefined) setAutoBackupRetentionCount(Number(initialSettings.autoBackupRetentionCount) || 10);
             setTestRecipient('');
             setServers([]);
         }
@@ -1295,7 +1338,10 @@ const SettingsDashboard: React.FC = () => {
             hideStreamUsers,
             defaultLibraryIds,
             use24HourClock,
-            allowTemporaryAccess
+            allowTemporaryAccess,
+            autoBackupEnabled,
+            autoBackupIntervalDays,
+            autoBackupRetentionCount
         });
         document.documentElement.style.setProperty('--color-plex', hexToRgb(primaryColor));
     };
@@ -1913,8 +1959,41 @@ const SettingsDashboard: React.FC = () => {
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">System</h3>
                             <div className="bg-background border border-border rounded-xl p-4">
                                 <h4 className="font-bold text-text mb-3">Backup & Restore</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                                    <div className="bg-black/20 rounded-lg p-3">
+                                        <label className="font-semibold text-sm block mb-2">Auto Backup Enabled</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setAutoBackupEnabled(!autoBackupEnabled)}
+                                            className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${autoBackupEnabled ? 'bg-plex' : 'bg-border'}`}
+                                        >
+                                            <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${autoBackupEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                                        </button>
+                                    </div>
+                                    <div className="bg-black/20 rounded-lg p-3">
+                                        <label className="font-semibold text-sm block mb-2">Interval (Days)</label>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            className="w-full p-2 rounded border border-border bg-card text-text"
+                                            value={autoBackupIntervalDays}
+                                            onChange={(e) => setAutoBackupIntervalDays(Math.max(1, Number(e.target.value) || 1))}
+                                        />
+                                    </div>
+                                    <div className="bg-black/20 rounded-lg p-3">
+                                        <label className="font-semibold text-sm block mb-2">Rolling Backups Kept</label>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            className="w-full p-2 rounded border border-border bg-card text-text"
+                                            value={autoBackupRetentionCount}
+                                            onChange={(e) => setAutoBackupRetentionCount(Math.max(1, Number(e.target.value) || 1))}
+                                        />
+                                    </div>
+                                </div>
                                 <div className="flex flex-wrap gap-3 mb-4">
                                     <button className="px-4 py-2 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors" onClick={handleDownloadBackup}>Download Backup</button>
+                                    <button className="px-4 py-2 bg-indigo-600 text-white rounded-md font-bold hover:bg-indigo-500 transition-colors" onClick={handleCreateBackupFile}>Create Backup File</button>
                                     <button className="px-4 py-2 bg-red-600 text-white rounded-md font-bold hover:bg-red-500 transition-colors disabled:opacity-50" onClick={handleRestoreBackup} disabled={isRestoringBackup}>
                                         {isRestoringBackup ? 'Restoring...' : 'Restore Backup'}
                                     </button>
@@ -1925,6 +2004,24 @@ const SettingsDashboard: React.FC = () => {
                                     value={backupRestoreText}
                                     onChange={(e) => setBackupRestoreText(e.target.value)}
                                 />
+                                <div className="mt-4">
+                                    <h5 className="font-semibold text-sm text-text mb-2">Auto Backup Files</h5>
+                                    <div className="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1">
+                                        {backupFiles.length === 0 ? (
+                                            <p className="text-xs text-muted">No backup files found in backup folder.</p>
+                                        ) : backupFiles.map(file => (
+                                            <div key={file.filename} className="bg-black/20 rounded-lg p-2 flex items-center justify-between gap-2">
+                                                <div className="text-xs">
+                                                    <p className="font-semibold text-text">{file.filename}</p>
+                                                    <p className="text-muted">{file.createdAt ? new Date(file.createdAt).toLocaleString() : 'Unknown date'} · {(file.size / 1024).toFixed(1)} KB</p>
+                                                </div>
+                                                <button className="px-3 py-1.5 bg-red-600/80 text-white rounded text-xs font-bold hover:bg-red-500" onClick={() => handleRestoreFromFile(file.filename)}>
+                                                    Restore
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
 
                             <div className="bg-background border border-border rounded-xl p-4">
@@ -1950,6 +2047,8 @@ const SettingsDashboard: React.FC = () => {
                                         <div className="bg-black/20 rounded-lg p-3 flex items-center justify-between gap-2"><strong>Plex Stats Cache</strong>{renderConfigPill(!!diagnostics?.caches?.plexStats?.exists)}</div>
                                         <div className="bg-black/20 rounded-lg p-3 flex items-center justify-between gap-2"><strong>Users File</strong>{renderConfigPill(!!diagnostics?.files?.users?.exists)}</div>
                                         <div className="bg-black/20 rounded-lg p-3 flex items-center justify-between gap-2"><strong>Config File</strong>{renderConfigPill(!!diagnostics?.files?.config?.exists)}</div>
+                                        <div className="bg-black/20 rounded-lg p-3 flex items-center justify-between gap-2"><strong>Auto Backup</strong>{renderConfigPill(!!diagnostics?.backup?.enabled)}</div>
+                                        <div className="bg-black/20 rounded-lg p-3"><strong>Backup Files:</strong> {diagnostics?.backup?.availableBackups ?? 0}</div>
                                     </div>
                                 ) : (
                                     <p className="text-sm text-muted">No diagnostics loaded yet.</p>
