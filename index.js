@@ -3047,7 +3047,9 @@ app.get('/api/plex/analytics', requireAdmin, async (req, res) => {
         log(`Error fetching analytics: ${e.message}`);
         res.status(500).json({ error: 'Analytics error' });
     }
-});\n\napp.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
+});
+
+app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, null);
         if (!config || !config.plexToken || !config.serverIdentifier) return res.status(503).json({ error: 'Plex not configured' });
@@ -4079,7 +4081,8 @@ async function calculateAnalyticsStats() {
         log(`Error calculating analytics stats: ${e.message}`);
     }
 }
-\n\nasync function calculateTrendingStats() {
+
+async function calculateTrendingStats() {
     try {
         const config = await loadFile(CONFIG_PATH, null);
         if (!config || !config.plexToken || !config.serverIdentifier) return;
@@ -4383,5 +4386,7 @@ app.listen(PORT, async () => {
 
     // Setup Trending Stats Aggregator
     setTimeout(calculateTrendingStats, 10000); // Run once shortly after startup
-    setInterval(calculateTrendingStats, 12 * 60 * 60 * 1000);\n    setTimeout(calculateAnalyticsStats, 15000);\n    setInterval(calculateAnalyticsStats, 30 * 60 * 1000); // Every 12 hours
+    setInterval(calculateTrendingStats, 12 * 60 * 60 * 1000);
+    setTimeout(calculateAnalyticsStats, 15000);
+    setInterval(calculateAnalyticsStats, 30 * 60 * 1000); // Every 12 hours
 });
