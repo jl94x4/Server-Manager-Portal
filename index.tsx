@@ -6417,7 +6417,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
     const [trendingStats, setTrendingStats] = useState<{ trending7Days: any[], movies30Days: any[], shows30Days: any[], top365Days: any[], allTime: any[], weekendWarriors: any[], nightOwls: any[], retroHits: any[], cultClassics: any[] } | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [recentLimit, setRecentLimit] = useState(10);
+    const [recentLimit, setRecentLimit] = useState(12);
     const [selectedSession, setSelectedSession] = useState<any | null>(null);
 
     const fetchData = useCallback(async () => {
@@ -6587,7 +6587,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                 <div className="flex justify-end gap-4 items-center mb-8">
                     <span style={{ fontSize: '0.85rem', color: '#999' }}>RECENTLY ADDED LIMIT</span>
                     <select className="w-full md:w-32 p-2 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all cursor-pointer text-sm" value={recentLimit} onChange={(e) => setRecentLimit(Number(e.target.value))}>
-                        <option value={10}>10 Items</option>
+                        <option value={12}>12 Items</option>
                         <option value={25}>25 Items</option>
                         <option value={50}>50 Items</option>
                         <option value={100}>100 Items</option>

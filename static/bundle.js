@@ -54315,7 +54315,7 @@ var LibraryDashboard = ({ onBack, isAdmin, publicConfig }) => {
   const [trendingStats, setTrendingStats] = (0, import_react61.useState)(null);
   const [loading, setLoading] = (0, import_react61.useState)(true);
   const [error, setError] = (0, import_react61.useState)(null);
-  const [recentLimit, setRecentLimit] = (0, import_react61.useState)(10);
+  const [recentLimit, setRecentLimit] = (0, import_react61.useState)(12);
   const [selectedSession, setSelectedSession] = (0, import_react61.useState)(null);
   const fetchData = (0, import_react61.useCallback)(async () => {
     try {
@@ -54455,7 +54455,7 @@ var LibraryDashboard = ({ onBack, isAdmin, publicConfig }) => {
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex justify-end gap-4 items-center mb-8", children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: "0.85rem", color: "#999" }, children: "RECENTLY ADDED LIMIT" }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", { className: "w-full md:w-32 p-2 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all cursor-pointer text-sm", value: recentLimit, onChange: (e) => setRecentLimit(Number(e.target.value)), children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: 10, children: "10 Items" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: 12, children: "12 Items" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: 25, children: "25 Items" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: 50, children: "50 Items" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: 100, children: "100 Items" }),

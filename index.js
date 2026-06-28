@@ -4198,15 +4198,35 @@ async function calculateTrendingStats() {
             increment(counts.cultClassics);
         });
 
-        // Sort and slice top 20
-        const getTop = (obj) => Object.values(obj).sort((a, b) => b.views - a.views).slice(0, 20);
+        const excludedKeys = new Set();
+        
+        const getTopUnique = (obj, limit = 20) => {
+            const sorted = Object.values(obj).sort((a, b) => b.views - a.views);
+            const result = [];
+            for (const item of sorted) {
+                if (result.length >= limit) break;
+                if (!excludedKeys.has(item.ratingKey)) {
+                    result.push(item);
+                    excludedKeys.add(item.ratingKey);
+                }
+            }
+            return result;
+        };
 
-        // Cult Classics requires custom sorting: high views, low unique users
-        const getCultClassics = (obj) => {
-            return Object.values(obj)
-                .filter(a => a.views > 10 && a.users.size <= 2) // Must have some decent views but very few users
-                .sort((a, b) => (b.views / b.users.size) - (a.views / a.users.size))
-                .slice(0, 20);
+        const getCultClassicsUnique = (obj) => {
+            const sorted = Object.values(obj)
+                .filter(a => a.views > 10 && a.users.size <= 2)
+                .sort((a, b) => (b.views / b.users.size) - (a.views / a.users.size));
+                
+            const result = [];
+            for (const item of sorted) {
+                if (result.length >= 20) break;
+                if (!excludedKeys.has(item.ratingKey)) {
+                    result.push(item);
+                    excludedKeys.add(item.ratingKey);
+                }
+            }
+            return result;
         };
 
         const leaderboards = {};
@@ -4222,16 +4242,26 @@ async function calculateTrendingStats() {
             totalActiveUsers[period] = sortedUsers.length;
         });
 
+        const trending7Days = getTopUnique(counts.trending7Days);
+        const movies30Days = getTopUnique(counts.movies30Days);
+        const shows30Days = getTopUnique(counts.shows30Days);
+        const top365Days = getTopUnique(counts.top365Days);
+        const allTime = getTopUnique(counts.allTime);
+        const weekendWarriors = getTopUnique(counts.weekendWarriors);
+        const nightOwls = getTopUnique(counts.nightOwls);
+        const retroHits = getTopUnique(counts.retroHits);
+        const cultClassics = getCultClassicsUnique(counts.cultClassics);
+
         const stats = {
-            trending7Days: getTop(counts.trending7Days),
-            movies30Days: getTop(counts.movies30Days),
-            shows30Days: getTop(counts.shows30Days),
-            top365Days: getTop(counts.top365Days),
-            allTime: getTop(counts.allTime),
-            weekendWarriors: getTop(counts.weekendWarriors),
-            nightOwls: getTop(counts.nightOwls),
-            retroHits: getTop(counts.retroHits),
-            cultClassics: getCultClassics(counts.cultClassics),
+            trending7Days,
+            movies30Days,
+            shows30Days,
+            top365Days,
+            allTime,
+            weekendWarriors,
+            nightOwls,
+            retroHits,
+            cultClassics,
             leaderboards,
             leaderboardsSorted,
             totalActiveUsers,
