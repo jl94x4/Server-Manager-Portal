@@ -788,6 +788,8 @@ const SettingsDashboard: React.FC = () => {
     const [publicDomain, setPublicDomain] = useState('https://yourdomain.com');
     const [requestUrl, setRequestUrl] = useState('https://yourdomain.com');
     const [contactUrl, setContactUrl] = useState('');
+    const [contactWhatsApp, setContactWhatsApp] = useState('');
+    const [contactEmail, setContactEmail] = useState('');
 
     // Cleanup States
     const [inactiveCleanupEnabled, setInactiveCleanupEnabled] = useState(false);
@@ -879,6 +881,8 @@ const SettingsDashboard: React.FC = () => {
             setPublicDomain(initialSettings.publicDomain || 'https://portal.yourdomain.com');
             setRequestUrl(initialSettings.requestUrl || 'https://yourdomain.com');
             setContactUrl(initialSettings.contactUrl || '');
+            setContactWhatsApp(initialSettings.contactWhatsApp || '');
+            setContactEmail(initialSettings.contactEmail || '');
             setSonarrUrl(initialSettings.sonarrUrl || '');
             setSonarrApiKey(initialSettings.sonarrApiKey || '');
             setRadarrUrl(initialSettings.radarrUrl || '');
@@ -975,6 +979,8 @@ const SettingsDashboard: React.FC = () => {
             publicDomain,
             requestUrl,
             contactUrl,
+            contactWhatsApp,
+            contactEmail,
             sonarrUrl,
             sonarrApiKey,
             radarrUrl,

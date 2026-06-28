@@ -1286,7 +1286,7 @@ app.post('/api/config', async (req, res) => {
     const {
         token, serverIdentifier, checkIntervalMinutes,
         smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, smtpSecure, emailDaysBefore,
-        newsletterFrequency, newsletterDay, publicDomain, requestUrl, contactUrl,
+        newsletterFrequency, newsletterDay, publicDomain, requestUrl, contactUrl, contactWhatsApp, contactEmail,
         sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, tautulliUrl, tautulliApiKey,
         inactiveCleanupEnabled, inactiveCleanupDays,
         primaryColor, customLogoUrl, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess
@@ -1336,6 +1336,8 @@ app.post('/api/config', async (req, res) => {
         publicDomain: publicDomain || 'https://portal.yourdomain.com',
         requestUrl: requestUrl || 'https://yourdomain.com',
         contactUrl: contactUrl || '',
+        contactWhatsApp: contactWhatsApp || '',
+        contactEmail: contactEmail || '',
         sonarrUrl: sonarrUrl !== undefined ? sonarrUrl : (existingConfig.sonarrUrl || ''),
         sonarrApiKey: sonarrApiKey !== undefined ? sonarrApiKey : (existingConfig.sonarrApiKey || ''),
         radarrUrl: radarrUrl !== undefined ? radarrUrl : (existingConfig.radarrUrl || ''),
