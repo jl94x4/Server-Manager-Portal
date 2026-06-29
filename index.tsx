@@ -808,7 +808,7 @@ const KRConditionRow: React.FC<{ cond: any; onCh: (c: any) => void; onDel: () =>
 };
 
 
-const StreamKillRulesPanel: React.FC<{ addToast: (m: string, t?: 'success' | 'error') => void }> = ({ addToast }) => {
+const StreamKillRulesPanel: React.FC<{ addToast: (m: string, t?: 'success' | 'error') => void; registerSaveHandler?: (handler: (() => Promise<boolean>) | null) => void }> = ({ addToast, registerSaveHandler }) => {
     const [rules, setRules] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -822,9 +822,14 @@ const StreamKillRulesPanel: React.FC<{ addToast: (m: string, t?: 'success' | 'er
 
     const saveRules = async (r: any[]) => {
         setSaving(true);
-        try { await apiFetch('/api/kill-rules', { method: 'POST', body: JSON.stringify(r) }); addToast('Stream rules saved!'); }
-        catch { addToast('Failed to save rules', 'error'); }
-        finally { setSaving(false); }
+        try {
+            await apiFetch('/api/kill-rules', { method: 'POST', body: JSON.stringify(r) });
+            addToast('Stream rules saved!');
+            return true;
+        } catch {
+            addToast('Failed to save rules', 'error');
+            return false;
+        } finally { setSaving(false); }
     };
     const addRule = () => { const r = krMkRule(); const u = [...rules, r]; setRules(u); setExpanded(r.id); };
     const upd = (id: string, p: any) => setRules(prev => prev.map(r => r.id === id ? { ...r, ...p } : r));
@@ -832,6 +837,12 @@ const StreamKillRulesPanel: React.FC<{ addToast: (m: string, t?: 'success' | 'er
     const addCond = (id: string) => upd(id, { conditions: [...(rules.find(r => r.id === id)?.conditions ?? []), krMkCond()] });
     const updCond = (rId: string, i: number, c: any) => { const rule = rules.find(r => r.id === rId); if (!rule) return; const cs = [...rule.conditions]; cs[i] = c; upd(rId, { conditions: cs }); };
     const delCond = (rId: string, i: number) => { const rule = rules.find(r => r.id === rId); if (!rule) return; upd(rId, { conditions: rule.conditions.filter((_: any, j: number) => j !== i) }); };
+
+    useEffect(() => {
+        if (!registerSaveHandler) return;
+        registerSaveHandler(() => saveRules(rules));
+        return () => registerSaveHandler(null);
+    }, [registerSaveHandler, rules]);
 
     if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-plex border-t-transparent rounded-full animate-spin" /></div>;
 
@@ -1418,6 +1429,7 @@ const SettingsDashboard: React.FC = () => {
     const [isLoading, setLoading] = useState(true);
     const [initialSettings, setInitialSettings] = useState<any>({});
     const [toasts, setToasts] = useState<ToastMessage[]>([]);
+    const streamRulesSaveHandlerRef = useRef<(() => Promise<boolean>) | null>(null);
 
     // Admin features moved here
     const [statusConfig, setStatusConfig] = useState<any>({});
@@ -2035,6 +2047,10 @@ const SettingsDashboard: React.FC = () => {
     };
 
     const handleSave = async () => {
+        if (activeTab === 'stream-rules' && streamRulesSaveHandlerRef.current) {
+            await streamRulesSaveHandlerRef.current();
+            return;
+        }
         if (!token || !selectedServer) {
             addToast('Token and server must be selected.', 'error');
             return;
@@ -2225,7 +2241,7 @@ const SettingsDashboard: React.FC = () => {
                     </aside>
 
                     <div className="overflow-y-auto pr-2 flex-grow mb-4 custom-scrollbar">
-                        {activeTab === 'stream-rules' && <StreamKillRulesPanel addToast={addToast} />}
+                        {activeTab === 'stream-rules' && <StreamKillRulesPanel addToast={addToast} registerSaveHandler={(handler) => { streamRulesSaveHandlerRef.current = handler; }} />}
     
                         {activeTab === 'plex' && (
                             <div className="mb-8">
@@ -3115,7 +3131,7 @@ const SettingsDashboard: React.FC = () => {
                 </div>
                 </div>
                 <div className="flex justify-end gap-4 mt-8" style={{ marginTop: '2rem' }}>
-                    <button className="px-6 py-3 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2" onClick={handleSave}>Save Settings</button>
+                    <button className="px-6 py-3 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2" onClick={handleSave}>{activeTab === 'stream-rules' ? 'Save Stream Rules' : 'Save Settings'}</button>
                 </div>
             </div>
         </div>
