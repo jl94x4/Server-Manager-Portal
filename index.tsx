@@ -8409,7 +8409,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                 <section className="mb-12 w-full">
                     <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">ACTIVITY</h2>
                     {dashboardData && dashboardData.activeSessions && dashboardData.activeSessions.length > 0 ? (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-4 gap-3 md:gap-6">
+                        <div className="grid grid-cols-1 md:[grid-template-columns:repeat(auto-fill,minmax(320px,320px))] md:justify-start gap-3 md:gap-6">
                             {dashboardData.activeSessions.map((session, i) => (
                                 <div key={i} onClick={() => setSelectedSession(session)} className="bg-card rounded-xl border border-border flex flex-col overflow-hidden shadow-lg hover:border-plex/50 hover:shadow-plex/20 transition-all cursor-pointer select-none">
                                     <div className="flex flex-row flex-grow relative">
