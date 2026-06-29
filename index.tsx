@@ -8528,7 +8528,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                     {/* RECENT MOVIES */}
                     <div className="flex flex-col">
                         <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">RECENTLY ADDED MOVIES</h2>
-                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-10 gap-3 w-full pb-4">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:[grid-template-columns:repeat(auto-fill,minmax(150px,150px))] md:justify-start gap-3 w-full pb-4">
                             {dashboardData && dashboardData.recentMovies.slice(0, recentLimit).map((item, i) => (
                                 <a key={i} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                     <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
@@ -8544,7 +8544,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                     {/* RECENT TV SHOWS */}
                     <div className="flex flex-col">
                         <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">RECENTLY ADDED TV SHOWS</h2>
-                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-10 gap-3 w-full pb-4">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:[grid-template-columns:repeat(auto-fill,minmax(150px,150px))] md:justify-start gap-3 w-full pb-4">
                             {dashboardData && dashboardData.recentShows.slice(0, recentLimit).map((item, i) => (
                                 <a key={i} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                     <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
@@ -8560,7 +8560,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                     {/* RECENT MUSIC */}
                     <div className="flex flex-col">
                         <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">RECENTLY ADDED MUSIC</h2>
-                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-10 gap-3 w-full pb-4">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:[grid-template-columns:repeat(auto-fill,minmax(150px,150px))] md:justify-start gap-3 w-full pb-4">
                             {dashboardData && dashboardData.recentMusic.slice(0, recentLimit).map((item, i) => (
                                 <a key={i} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                     <div className="relative aspect-square w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
@@ -8586,7 +8586,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                         {trendingStats.trending7Days?.length > 0 && (
                             <div className="flex flex-col">
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">🔥 Trending This Week</h3>
-                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-10 gap-3 w-full pb-4">
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:[grid-template-columns:repeat(auto-fill,minmax(150px,150px))] md:justify-start gap-3 w-full pb-4">
                                     {trendingStats.trending7Days.slice(0, recentLimit).map((item, i) => (
                                         <a key={i} href={item.plexUrl || '#'} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
@@ -8606,7 +8606,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                         {trendingStats.movies30Days?.length > 0 && (
                             <div className="flex flex-col">
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">🍿 Most Watched Movies (This Month)</h3>
-                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-10 gap-3 w-full pb-4">
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:[grid-template-columns:repeat(auto-fill,minmax(150px,150px))] md:justify-start gap-3 w-full pb-4">
                                     {trendingStats.movies30Days.slice(0, recentLimit).map((item, i) => (
                                         <a key={i} href={item.plexUrl || '#'} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
@@ -8626,7 +8626,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                         {trendingStats.shows30Days?.length > 0 && (
                             <div className="flex flex-col">
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">📺 Most Watched Shows (This Month)</h3>
-                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-10 gap-3 w-full pb-4">
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:[grid-template-columns:repeat(auto-fill,minmax(150px,150px))] md:justify-start gap-3 w-full pb-4">
                                     {trendingStats.shows30Days.slice(0, recentLimit).map((item, i) => (
                                         <a key={i} href={item.plexUrl || '#'} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
@@ -8646,7 +8646,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                         {trendingStats.top365Days?.length > 0 && (
                             <div className="flex flex-col">
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">🏆 Top of the Year</h3>
-                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-10 gap-3 w-full pb-4">
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:[grid-template-columns:repeat(auto-fill,minmax(150px,150px))] md:justify-start gap-3 w-full pb-4">
                                     {trendingStats.top365Days.slice(0, recentLimit).map((item, i) => (
                                         <a key={i} href={item.plexUrl || '#'} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
@@ -8666,7 +8666,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                         {trendingStats.allTime?.length > 0 && (
                             <div className="flex flex-col">
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">🌟 All Time Favorites</h3>
-                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-10 gap-3 w-full pb-4">
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:[grid-template-columns:repeat(auto-fill,minmax(150px,150px))] md:justify-start gap-3 w-full pb-4">
                                     {trendingStats.allTime.slice(0, recentLimit).map((item, i) => (
                                         <a key={i} href={item.plexUrl || '#'} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
@@ -8686,7 +8686,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                         {trendingStats.weekendWarriors?.length > 0 && (
                             <div className="flex flex-col">
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">🍿 Weekend Warriors</h3>
-                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-10 gap-3 w-full pb-4">
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:[grid-template-columns:repeat(auto-fill,minmax(150px,150px))] md:justify-start gap-3 w-full pb-4">
                                     {trendingStats.weekendWarriors.slice(0, recentLimit).map((item, i) => (
                                         <a key={i} href={item.plexUrl || '#'} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
@@ -8706,7 +8706,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                         {trendingStats.nightOwls?.length > 0 && (
                             <div className="flex flex-col">
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">🦇 Night Owl Club</h3>
-                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-10 gap-3 w-full pb-4">
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:[grid-template-columns:repeat(auto-fill,minmax(150px,150px))] md:justify-start gap-3 w-full pb-4">
                                     {trendingStats.nightOwls.slice(0, recentLimit).map((item, i) => (
                                         <a key={i} href={item.plexUrl || '#'} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
@@ -8726,7 +8726,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                         {trendingStats.retroHits?.length > 0 && (
                             <div className="flex flex-col">
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">📼 Blast from the Past</h3>
-                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-10 gap-3 w-full pb-4">
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:[grid-template-columns:repeat(auto-fill,minmax(150px,150px))] md:justify-start gap-3 w-full pb-4">
                                     {trendingStats.retroHits.slice(0, recentLimit).map((item, i) => (
                                         <a key={i} href={item.plexUrl || '#'} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
@@ -8746,7 +8746,7 @@ const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, public
                         {trendingStats.cultClassics?.length > 0 && (
                             <div className="flex flex-col">
                                 <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">💎 Cult Classics</h3>
-                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-10 gap-3 w-full pb-4">
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:[grid-template-columns:repeat(auto-fill,minmax(150px,150px))] md:justify-start gap-3 w-full pb-4">
                                     {trendingStats.cultClassics.slice(0, recentLimit).map((item, i) => (
                                         <a key={i} href={item.plexUrl || '#'} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
                                             <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
