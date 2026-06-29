@@ -9734,9 +9734,8 @@ const MaintenanceDashboard: React.FC = () => {
                             <div className="bg-background border border-border rounded-xl p-3 md:p-5 space-y-3">
                                 <h3 className="text-xl font-bold text-plex">Exclusions</h3>
                                 <p className="text-sm text-muted">Browse posters by library, search titles, click posters to select, then bulk exclude/unexclude. Excluded items are removed from preview and execution.</p>
-                                <div className="md:bg-black/20 md:border border-border rounded-lg p-2 md:p-3 space-y-3">
-                                    <div className="grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[220px_minmax(0,1fr)_auto] gap-1.5 md:gap-2 items-center">
-                                        <div className="min-w-0 md:w-[220px] h-8 md:h-9">
+                                <div className="md:bg-black/20 md:border border-border rounded-lg p-2 md:p-3 space-y-2">
+                                    <div className="min-w-0 md:w-[220px] h-8 md:h-9 -mt-0.5">
                                             <CustomSelect
                                                 value={libraryBrowseId}
                                                 onChange={(value) => {
@@ -9751,9 +9750,10 @@ const MaintenanceDashboard: React.FC = () => {
                                                     }))
                                                 ]}
                                             />
-                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_auto] gap-1.5 md:gap-2 items-center">
                                         <input
-                                            className="col-span-2 md:col-span-1 p-1.5 md:p-2 h-8 md:h-9 rounded border border-border bg-card text-text text-xs md:text-sm min-w-0"
+                                            className="p-1.5 md:p-2 h-8 md:h-9 rounded border border-border bg-card text-text text-xs md:text-sm min-w-0"
                                             placeholder="Search title..."
                                             value={libraryBrowseSearch}
                                             onChange={(e) => {
@@ -9763,7 +9763,7 @@ const MaintenanceDashboard: React.FC = () => {
                                         />
                                         <button type="button" className="h-8 md:h-9 px-2.5 md:px-3 bg-border text-text rounded-md text-xs md:text-sm font-semibold whitespace-nowrap" onClick={loadLibraryBrowse}>Refresh</button>
                                     </div>
-                                    <div className="grid grid-cols-2 md:grid-cols-[auto_auto_auto_minmax(0,1fr)] gap-1.5 md:gap-2 items-center">
+                                    <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
                                         <button
                                             type="button"
                                             className="h-8 md:h-9 px-2.5 md:px-3 bg-plex text-background rounded-md text-xs md:text-sm font-semibold whitespace-nowrap"
@@ -9785,6 +9785,15 @@ const MaintenanceDashboard: React.FC = () => {
                                         </button>
                                         <button
                                             type="button"
+                                            className="h-8 w-8 md:h-9 md:w-9 flex items-center justify-center bg-red-500/15 border border-red-500/40 text-red-300 rounded-md hover:bg-red-500/25 transition-colors"
+                                            onClick={() => setSelectedExcludeKeys([])}
+                                            title="Clear Selection"
+                                            aria-label="Clear Selection"
+                                        >
+                                            <X className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                                        </button>
+                                        <button
+                                            type="button"
                                             className="h-8 md:h-9 px-2.5 md:px-3 bg-border text-text rounded-md text-xs md:text-sm font-semibold whitespace-nowrap"
                                             onClick={async () => {
                                                 if (!selectedExcludeKeys.length) {
@@ -9802,27 +9811,18 @@ const MaintenanceDashboard: React.FC = () => {
                                         >
                                             Remove Selected Exclusions
                                         </button>
-                                        <button
-                                            type="button"
-                                            className="h-8 w-8 md:h-9 md:w-9 flex items-center justify-center bg-red-500/15 border border-red-500/40 text-red-300 rounded-md hover:bg-red-500/25 transition-colors"
-                                            onClick={() => setSelectedExcludeKeys([])}
-                                            title="Clear Selection"
-                                            aria-label="Clear Selection"
-                                        >
-                                            <X className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                                        </button>
-                                        <p className="text-[11px] md:text-xs text-muted col-span-2 md:col-span-1 self-center md:justify-self-end md:text-right">Showing {libraryItems.length} of {libraryBrowseTotal} titles · page {libraryBrowsePage}</p>
+                                        <p className="text-[11px] md:text-xs text-muted w-full md:w-auto md:ml-auto md:text-right">Showing {libraryItems.length} of {libraryBrowseTotal} titles · page {libraryBrowsePage}</p>
                                     </div>
                                     {libraryBrowseLoading ? (
                                         <p className="text-sm text-muted">Loading posters...</p>
                                     ) : (
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-8 gap-2 md:gap-3 max-h-[1240px] overflow-y-auto custom-scrollbar pr-1">
+                                        <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-8 gap-2 md:gap-3 max-h-[1240px] overflow-y-auto custom-scrollbar pr-1">
                                             {libraryItems.map((item: any) => {
                                                 const key = String(item.ratingKey || '');
                                                 const selected = selectedExcludeKeys.includes(key);
                                                 const excluded = item.excluded || excludedRatingKeySet.has(key);
                                                 return (
-                                                    <div key={`exclude-item-${key}`} className={`relative w-[80%] sm:w-full justify-self-center border rounded-lg overflow-hidden transition-colors ${selected ? 'border-plex' : 'border-border'} ${excluded ? 'ring-1 ring-red-500/70' : ''}`}>
+                                                    <div key={`exclude-item-${key}`} className={`relative w-full border rounded-lg overflow-hidden transition-colors ${selected ? 'border-plex' : 'border-border'} ${excluded ? 'ring-1 ring-red-500/70' : ''}`}>
                                                         <button
                                                             type="button"
                                                             className="w-full text-left"
