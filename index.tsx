@@ -922,6 +922,42 @@ const StreamKillRulesPanel: React.FC<{ addToast: (m: string, t?: 'success' | 'er
     );
 };
 
+const SettingHint: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const detailsRef = useRef<HTMLDetailsElement>(null);
+
+    useEffect(() => {
+        const handleOutsideClick = (event: MouseEvent) => {
+            if (!detailsRef.current?.open) return;
+            if (detailsRef.current.contains(event.target as Node)) return;
+            detailsRef.current.open = false;
+        };
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape') return;
+            if (detailsRef.current?.open) {
+                detailsRef.current.open = false;
+            }
+        };
+        document.addEventListener('mousedown', handleOutsideClick);
+        document.addEventListener('keydown', handleEscape);
+        return () => {
+            document.removeEventListener('mousedown', handleOutsideClick);
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, []);
+
+    return (
+        <details ref={detailsRef} className="relative inline-block group">
+            <summary className="list-none inline-flex items-center gap-1 cursor-pointer text-xs text-plex hover:text-plex-hover font-semibold select-none">
+                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-plex/60 text-[10px] leading-none">?</span>
+                Hint
+            </summary>
+            <div className="absolute z-20 mt-2 left-0 w-[min(420px,80vw)] bg-card border border-border rounded-lg px-3 py-2 text-xs text-muted shadow-xl">
+                {children}
+            </div>
+        </details>
+    );
+};
+
 const SettingsDashboard: React.FC = () => {
     const [statusDraft, setStatusDraft] = useState<any>(null);
     const [isLoading, setLoading] = useState(true);
@@ -1524,7 +1560,11 @@ const SettingsDashboard: React.FC = () => {
                                 <div className="mb-4">
                                     <label htmlFor="plexToken">Plex Token</label>
                                     <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="plexToken" type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Enter your X-Plex-Token" />
-                                    <small>Needed to fetch users and manage access. <a href="https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/" target="_blank" rel="noopener noreferrer">How to find your token.</a></small>
+                                    <div className="mt-2">
+                                        <SettingHint>
+                                            Needed to fetch users and manage access. <a href="https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/" target="_blank" rel="noopener noreferrer">How to find your token.</a>
+                                        </SettingHint>
+                                    </div>
                                 </div>
                                 <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={handleFetchServers} disabled={!token}>Fetch Servers</button>
                                 {servers.length > 0 && (
@@ -1537,22 +1577,28 @@ const SettingsDashboard: React.FC = () => {
                                             options={servers.map(s => ({ label: `${s.name} (${s.identifier})`, value: s.identifier }))}
                                         />
                                         {initialSettings.serverIdentifier && (
-                                            <small>
-                                                Currently saved server ID: <strong>{initialSettings.serverIdentifier}</strong>
-                                            </small>
+                                            <div className="mt-2">
+                                                <SettingHint>
+                                                    Currently saved server ID: <strong>{initialSettings.serverIdentifier}</strong>
+                                                </SettingHint>
+                                            </div>
                                         )}
                                     </div>
                                 )}
                                 <div className="mb-4" style={{ marginTop: '1rem' }}>
                                     <label htmlFor="checkInterval">Check Interval (minutes)</label>
                                     <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="checkInterval" type="number" value={checkInterval} onChange={e => setCheckInterval(Number(e.target.value))} min="1" />
-                                    <small>How often to check for expired users in the background.</small>
+                                    <div className="mt-2">
+                                        <SettingHint>How often to check for expired users in the background.</SettingHint>
+                                    </div>
                                 </div>
 
                                 {libraries.length > 0 && (
                                     <div className="mb-4 mt-4">
                                         <label className="block mb-2 font-medium">Default Temporary Access/Automated Libraries</label>
-                                        <small className="block mb-2 text-muted">Libraries to share automatically when users request temporary access or link their account. Leave empty to share ALL libraries.</small>
+                                        <div className="mb-2">
+                                            <SettingHint>Libraries to share automatically when users request temporary access or link their account. Leave empty to share ALL libraries.</SettingHint>
+                                        </div>
                                         <div className="flex flex-wrap gap-3 p-4 bg-black/10 rounded-lg border border-border">
                                             {libraries.map(lib => {
                                                 const isSelected = defaultLibraryIds.includes(lib.id);
@@ -1598,12 +1644,16 @@ const SettingsDashboard: React.FC = () => {
                                 <div className="mb-4" style={{ marginTop: '1rem' }}>
                                     <label htmlFor="requestUrl">Request URL</label>
                                     <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="requestUrl" type="text" value={requestUrl} onChange={e => setRequestUrl(e.target.value)} placeholder="https://yourdomain.com" />
-                                    <small>The URL users are redirected to when they click the Request Content button.</small>
+                                    <div className="mt-2">
+                                        <SettingHint>The URL users are redirected to when they click the Request Content button.</SettingHint>
+                                    </div>
                                 </div>
                                 <div className="mb-4" style={{ marginTop: '1rem' }}>
                                     <label htmlFor="contactUrl">Contact URL / Email</label>
                                     <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="contactUrl" type="text" value={contactUrl} onChange={e => setContactUrl(e.target.value)} placeholder="mailto:youremail@example.com OR https://wa.me/123456" />
-                                    <small>Used for the "Request Extension" button in expiry emails. Defaults to sending an email to the SMTP User.</small>
+                                    <div className="mt-2">
+                                        <SettingHint>Used for the "Request Extension" button in expiry emails. Defaults to sending an email to the SMTP User.</SettingHint>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -1646,7 +1696,9 @@ const SettingsDashboard: React.FC = () => {
                             <div className="mb-4">
                                 <label htmlFor="emailDaysBefore">Warning Alert Threshold (Days Before Expiry)</label>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="emailDaysBefore" type="number" value={emailDaysBefore} onChange={e => setEmailDaysBefore(Number(e.target.value))} min="0" />
-                                <small>Automated notification email will be sent when user has this many days left.</small>
+                                <div className="mt-2">
+                                    <SettingHint>Automated notification email will be sent when user has this many days left.</SettingHint>
+                                </div>
                             </div>
 
                             <div className="bg-background border border-border rounded-xl p-4 mt-6 shadow-inner">
@@ -1682,7 +1734,9 @@ const SettingsDashboard: React.FC = () => {
                                         { label: 'Monthly', value: 'monthly' }
                                     ]}
                                 />
-                                <small>How often should users receive the newsletter.</small>
+                                <div className="mt-2">
+                                    <SettingHint>How often should users receive the newsletter.</SettingHint>
+                                </div>
                             </div>
                             {newsletterFrequency !== 'disabled' && (
                                 <>
@@ -1710,7 +1764,9 @@ const SettingsDashboard: React.FC = () => {
                                     <div className="mb-4" style={{ marginTop: '1rem' }}>
                                         <label htmlFor="publicDomain">Public Domain</label>
                                         <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="publicDomain" type="text" value={publicDomain} onChange={e => setPublicDomain(e.target.value)} placeholder="https://portal.yourdomain.com" />
-                                        <small>Your public URL. This is required to host the posters inside the email.</small>
+                                        <div className="mt-2">
+                                            <SettingHint>Your public URL. This is required to host the posters inside the email.</SettingHint>
+                                        </div>
                                     </div>
                                 </>
                             )}
@@ -1759,7 +1815,9 @@ const SettingsDashboard: React.FC = () => {
                                         value={inactiveCleanupDays}
                                         onChange={e => setInactiveCleanupDays(Number(e.target.value))}
                                     />
-                                    <small>Revoke access if a user has not watched anything in this many days.</small>
+                                    <div className="mt-2">
+                                        <SettingHint>Revoke access if a user has not watched anything in this many days.</SettingHint>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1771,7 +1829,9 @@ const SettingsDashboard: React.FC = () => {
                             <div className="mb-4">
                                 <label htmlFor="sonarrUrl">Sonarr URL</label>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="sonarrUrl" type="text" value={sonarrUrl} onChange={(e) => setSonarrUrl(e.target.value)} placeholder="http://localhost:8989" />
-                                <small>The URL to your Sonarr instance.</small>
+                                <div className="mt-2">
+                                    <SettingHint>The URL to your Sonarr instance.</SettingHint>
+                                </div>
                             </div>
                             <div className="mb-4">
                                 <label htmlFor="sonarrApiKey">Sonarr API Key</label>
@@ -1782,7 +1842,9 @@ const SettingsDashboard: React.FC = () => {
                             <div className="mb-4">
                                 <label htmlFor="radarrUrl">Radarr URL</label>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="radarrUrl" type="text" value={radarrUrl} onChange={(e) => setRadarrUrl(e.target.value)} placeholder="http://localhost:7878" />
-                                <small>The URL to your Radarr instance.</small>
+                                <div className="mt-2">
+                                    <SettingHint>The URL to your Radarr instance.</SettingHint>
+                                </div>
                             </div>
                             <div className="mb-4">
                                 <label htmlFor="radarrApiKey">Radarr API Key</label>
@@ -1875,12 +1937,16 @@ const SettingsDashboard: React.FC = () => {
                             <div className="mb-4">
                                 <label htmlFor="contactWhatsApp">WhatsApp Number (Optional)</label>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="contactWhatsApp" type="text" value={contactWhatsApp} onChange={(e) => setContactWhatsApp(e.target.value)} placeholder="e.g. 447303647923" />
-                                <small>Enter your phone number including country code, without any '+', spaces, or dashes. If left blank, the WhatsApp button will be hidden.</small>
+                                <div className="mt-2">
+                                    <SettingHint>Enter your phone number including country code, without any '+', spaces, or dashes. If left blank, the WhatsApp button will be hidden.</SettingHint>
+                                </div>
                             </div>
                             <div className="mb-4">
                                 <label htmlFor="contactEmail">Email Address (Optional)</label>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="contactEmail" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="e.g. admin@example.com" />
-                                <small>The email address users should contact. If left blank, the Email button will be hidden.</small>
+                                <div className="mt-2">
+                                    <SettingHint>The email address users should contact. If left blank, the Email button will be hidden.</SettingHint>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -1902,7 +1968,9 @@ const SettingsDashboard: React.FC = () => {
                                     <span className="text-center text-muted font-bold text-sm">OR</span>
                                     <input type="file" accept="image/*" className="w-full p-2 rounded-lg border border-border bg-background text-muted text-sm outline-none focus:border-plex transition-all file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-text hover:file:bg-white/20 file:cursor-pointer cursor-pointer" onChange={e => setLogoFile(e.target.files?.[0] || null)} />
                                 </div>
-                                <small>Provide a URL or upload a file. (Max 5MB)</small>
+                                <div className="mt-2">
+                                    <SettingHint>Provide a URL or upload a file. (Max 5MB)</SettingHint>
+                                </div>
                             </div>
 
 
@@ -1931,7 +1999,7 @@ const SettingsDashboard: React.FC = () => {
                                 <label>Portal Announcement Banner</label>
                                 <textarea className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all" value={announcement} onChange={e => setAnnouncement(e.target.value)} placeholder="E.g. Server maintenance scheduled for Friday..." rows={3}></textarea>
                                 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mt-2">
-                                    <small>If provided, this announcement will be prominently displayed to all users.</small>
+                                    <SettingHint>If provided, this announcement will be prominently displayed to all users.</SettingHint>
                                     <button
                                         onClick={handlePushAnnouncement}
                                         disabled={isPushingAnnouncement || !announcement}
