@@ -13,6 +13,7 @@ import https from 'https';
 import compression from 'compression';
 import { execSync } from 'child_process';
 import fsSync from 'fs';
+import net from 'net';
 
 let appVersion = 'v1.0.0';
 try {
@@ -27,6 +28,11 @@ try {
 const app = express();
 app.use(compression());
 const PORT = 2121;
+const BIND_HOST = process.env.BIND_HOST || '0.0.0.0';
+const SETUP_TOKEN = process.env.SETUP_TOKEN || '';
+const ALLOW_PRIVATE_INTEGRATION_URLS = String(process.env.ALLOW_PRIVATE_INTEGRATION_URLS || '').toLowerCase() === 'true';
+const FORCE_SECURE_COOKIES = String(process.env.FORCE_SECURE_COOKIES || '').toLowerCase() === 'true';
+const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || '';
 
 // --- Security: JWT secret must be explicitly set in the environment ---
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -45,28 +51,103 @@ app.use((req, res, next) => {
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'");
+    if (req.secure) {
+        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+    if (req.path.startsWith('/api/')) {
+        res.setHeader('Cache-Control', 'no-store, private');
+        res.setHeader('Pragma', 'no-cache');
+    }
     next();
 });
 
 // --- Security: Rate Limiting for Auth Endpoints ---
-const authRateLimitStore = new Map();
-const authRateLimit = (req, res, next) => {
-    const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
-    const now = Date.now();
-    const windowMs = 15 * 60 * 1000; // 15 minutes
-    const maxRequests = 20;
-    const record = authRateLimitStore.get(ip) || { count: 0, resetAt: now + windowMs };
-    if (now > record.resetAt) {
-        record.count = 0;
-        record.resetAt = now + windowMs;
+const getClientIp = (req) => req.ip || req.socket.remoteAddress || 'unknown';
+const createRateLimiter = (windowMs, maxRequests) => {
+    const store = new Map();
+    return (req, res, next) => {
+        const ip = getClientIp(req);
+        const now = Date.now();
+        const record = store.get(ip) || { count: 0, resetAt: now + windowMs };
+        if (now > record.resetAt) {
+            record.count = 0;
+            record.resetAt = now + windowMs;
+        }
+        record.count++;
+        store.set(ip, record);
+        if (record.count > maxRequests) {
+            return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+        }
+        next();
+    };
+};
+const authRateLimit = createRateLimiter(15 * 60 * 1000, 20);
+const publicReadRateLimit = createRateLimiter(60 * 1000, 120);
+const speedtestRateLimit = createRateLimiter(60 * 1000, 12);
+const setupRateLimit = createRateLimiter(15 * 60 * 1000, 30);
+
+const isLoopbackAddress = (ip = '') => {
+    const normalizedIp = String(ip || '').replace('::ffff:', '').toLowerCase();
+    return normalizedIp === '127.0.0.1' || normalizedIp === '::1' || normalizedIp === 'localhost';
+};
+
+const hasValidSetupToken = (req) => {
+    if (!SETUP_TOKEN) return false;
+    const provided = req.headers['x-setup-token'] || req.body?.setupToken || req.query?.setupToken;
+    return typeof provided === 'string' && provided === SETUP_TOKEN;
+};
+
+const canRunInitialSetup = (req) => hasValidSetupToken(req) || isLoopbackAddress(getClientIp(req));
+
+const isPrivateIp = (host) => {
+    if (!net.isIP(host)) return false;
+    if (host === '127.0.0.1' || host === '::1') return true;
+    if (host.startsWith('10.') || host.startsWith('192.168.')) return true;
+    if (host.startsWith('169.254.')) return true;
+    if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(host)) return true;
+    if (/^fc|^fd/i.test(host.replace(':', ''))) return true;
+    return false;
+};
+
+const isBlockedHostName = (hostname = '') => {
+    const host = String(hostname || '').trim().toLowerCase();
+    if (!host) return true;
+    if (host === 'localhost' || host.endsWith('.localhost')) return true;
+    if (host.endsWith('.local') || host.endsWith('.internal') || host.endsWith('.lan')) return true;
+    if (isPrivateIp(host)) return true;
+    return false;
+};
+
+const normalizeExternalBaseUrl = (rawUrl, { allowPrivate = false, allowHttp = true } = {}) => {
+    if (!rawUrl) return '';
+    let parsed;
+    try {
+        parsed = new URL(String(rawUrl).trim());
+    } catch (e) {
+        throw new Error('Invalid URL format');
     }
-    record.count++;
-    authRateLimitStore.set(ip, record);
-    if (record.count > maxRequests) {
-        return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+    const isHttps = parsed.protocol === 'https:';
+    const isHttp = parsed.protocol === 'http:';
+    if (!isHttps && !(allowHttp && isHttp)) {
+        throw new Error('URL must use http or https');
     }
-    next();
+    if (!allowPrivate && isBlockedHostName(parsed.hostname)) {
+        throw new Error('Private or local network hosts are not allowed');
+    }
+    parsed.hash = '';
+    parsed.search = '';
+    return parsed.toString().replace(/\/+$/, '');
+};
+
+const sanitizeIntegrationUrl = (rawUrl) => {
+    if (!rawUrl) return '';
+    return normalizeExternalBaseUrl(rawUrl, { allowPrivate: ALLOW_PRIVATE_INTEGRATION_URLS, allowHttp: true });
+};
+
+const clearSessionCookie = (req, res) => {
+    const isHttps = FORCE_SECURE_COOKIES || req.secure;
+    res.clearCookie('session', { httpOnly: true, secure: isHttps, sameSite: 'strict', path: '/' });
 };
 
 app.use(express.json({ limit: '50kb' })); // Middleware to parse JSON bodies (with size limit)
@@ -476,6 +557,33 @@ const getAdminId = async (config) => {
     }
 };
 
+const findLocalUserForSession = (users, sessionUser) => {
+    if (!sessionUser || !Array.isArray(users)) return null;
+    const sessionId = normalized(sessionUser.id);
+    const sessionPlexId = normalized(sessionUser.plexId);
+    const sessionEmail = normalized(sessionUser.email);
+    const sessionUsername = normalized(sessionUser.username);
+    return users.find((user) => {
+        const userId = normalized(user.id);
+        const userPlexId = normalized(user.plexId);
+        const userEmail = normalized(user.email);
+        const userUsername = normalized(user.username);
+        return (
+            (sessionPlexId && (sessionPlexId === userPlexId || sessionPlexId === userId)) ||
+            (sessionId && (sessionId === userId || sessionId === userPlexId)) ||
+            (sessionEmail && sessionEmail === userEmail) ||
+            (sessionUsername && sessionUsername === userUsername)
+        );
+    }) || null;
+};
+
+const resolveCurrentAdmin = async (sessionUser, config = null) => {
+    if (!sessionUser) return false;
+    const loadedConfig = config || await loadFile(CONFIG_PATH, {});
+    const adminId = await getAdminId(loadedConfig);
+    return !!(adminId && String(sessionUser.plexId) === String(adminId));
+};
+
 const requireAuth = (req, res, next) => {
     const token = req.cookies.session;
     if (!token) return res.status(401).json({ error: 'Unauthorized' });
@@ -484,6 +592,28 @@ const requireAuth = (req, res, next) => {
         next();
     } catch (e) {
         return res.status(401).json({ error: 'Invalid session' });
+    }
+};
+
+const requireMember = async (req, res, next) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const isAdmin = await resolveCurrentAdmin(req.user, config);
+        req.user.isAdmin = isAdmin;
+        if (isAdmin) return next();
+
+        const users = await loadFile(USERS_PATH, []);
+        const localUser = findLocalUserForSession(users, req.user);
+        const deletedUsers = await loadFile(DELETED_USERS_PATH, []);
+        if (!localUser || isDeletedUser(deletedUsers, req.user)) {
+            await appendAuditLog('session_blocked_non_member', req.user, req.user);
+            clearSessionCookie(req, res);
+            return res.status(403).json({ error: 'Your account does not have active portal access.' });
+        }
+        req.localUser = localUser;
+        next();
+    } catch (e) {
+        res.status(500).json({ error: 'Membership verification failed' });
     }
 };
 
@@ -507,6 +637,7 @@ const requireAdmin = async (req, res, next) => {
     if (!req.user || req.user.plexId !== adminId) {
         return res.status(403).json({ error: 'Forbidden: Admins only' });
     }
+    req.user.isAdmin = true;
     next();
 };
 
@@ -1062,8 +1193,19 @@ app.post('/api/auth/plex/callback', authRateLimit, async (req, res) => {
 
         if (!isAdmin && isDeletedUser(deletedUsers, sessionUser)) {
             await appendAuditLog('login_blocked_deleted_user', sessionUser, sessionUser);
-            res.clearCookie('session');
+            clearSessionCookie(req, res);
             return res.status(403).json({ error: 'Your portal session has expired. Please contact the admin for access.' });
+        }
+
+        if (!isAdmin) {
+            const users = await loadFile(USERS_PATH, []);
+            const knownUser = findLocalUserForSession(users, sessionUser);
+            const canSelfRegister = !!config.allowTemporaryAccess || (!!config.referralEnabled && !!ref);
+            if (!knownUser && !canSelfRegister) {
+                await appendAuditLog('login_blocked_non_member', sessionUser, sessionUser);
+                clearSessionCookie(req, res);
+                return res.status(403).json({ error: 'Your account is not registered for this portal.' });
+            }
         }
 
         if (!isAdmin && config.referralEnabled && ref) {
@@ -1107,7 +1249,7 @@ app.post('/api/auth/plex/callback', authRateLimit, async (req, res) => {
         }
 
         const token = jwt.sign(sessionUser, JWT_SECRET, { expiresIn: '7d' });
-        const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
+        const isHttps = FORCE_SECURE_COOKIES || req.secure;
         res.cookie('session', token, { httpOnly: true, secure: isHttps, sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
 
         if (!isAdmin) {
@@ -1127,16 +1269,17 @@ app.post('/api/auth/plex/callback', authRateLimit, async (req, res) => {
     }
 });
 
-app.post('/api/auth/logout', (req, res) => {
-    res.clearCookie('session');
+app.post('/api/auth/logout', requireAuth, (req, res) => {
+    clearSessionCookie(req, res);
     res.json({ message: 'Logged out' });
 });
 
-app.post('/api/users/preferences', requireAuth, async (req, res) => {
+app.post('/api/users/preferences', requireAuth, requireMember, async (req, res) => {
     try {
         const { optOutNewsletter } = req.body;
         const users = await loadFile(USERS_PATH, []);
-        const userIndex = users.findIndex(u => u.id === req.user.id);
+        const localUser = findLocalUserForSession(users, req.user);
+        const userIndex = localUser ? users.findIndex(u => normalized(u.id) === normalized(localUser.id)) : -1;
 
         if (userIndex === -1) {
             return res.status(404).json({ error: 'User not found' });
@@ -1159,12 +1302,15 @@ app.post('/api/users/preferences', requireAuth, async (req, res) => {
 
 app.get('/api/users/me', requireAuth, async (req, res) => {
     const users = await loadFile(USERS_PATH, []);
-    const localUser = users.find(u => u.email === req.user.email || u.username === req.user.username);
+    const localUser = findLocalUserForSession(users, req.user);
     const deletedUsers = await loadFile(DELETED_USERS_PATH, []);
+    const config = await loadFile(CONFIG_PATH, {});
+    const isAdmin = await resolveCurrentAdmin(req.user, config);
+    req.user.isAdmin = isAdmin;
 
-    if (!localUser && !req.user.isAdmin && isDeletedUser(deletedUsers, req.user)) {
+    if (!localUser && !isAdmin && isDeletedUser(deletedUsers, req.user)) {
         await appendAuditLog('session_blocked_deleted_user', req.user, req.user);
-        res.clearCookie('session');
+        clearSessionCookie(req, res);
         return res.status(403).json({ error: 'Your portal session has expired. Please contact the admin for access.' });
     }
 
@@ -1173,7 +1319,6 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
     let requestUrl = 'https://yourdomain.com';
     let navOrder = ['home', 'discover', 'users', 'status', 'logs', 'analytics', 'mediastack', 'request', 'settings', 'logout'];
     try {
-        const config = await loadFile(CONFIG_PATH, {});
         if (config && config.plexToken && config.serverIdentifier) {
             const profile = await getAdminProfile(config);
             serverName = profile.serverName || 'Plex Server';
@@ -1289,7 +1434,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
     }
 });
 
-app.post('/api/config', async (req, res) => {
+app.post('/api/config', setupRateLimit, async (req, res) => {
     const {
         token, serverIdentifier, checkIntervalMinutes,
         smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, smtpSecure, emailDaysBefore,
@@ -1322,8 +1467,23 @@ app.post('/api/config', async (req, res) => {
         } catch (e) {
             return res.status(403).json({ error: 'Forbidden: Invalid or expired session. Please log in again.' });
         }
+    } else if (!canRunInitialSetup(req)) {
+        if (!SETUP_TOKEN) {
+            return res.status(403).json({ error: 'Initial setup is restricted. Configure SETUP_TOKEN or run setup from localhost.' });
+        }
+        return res.status(403).json({ error: 'Initial setup denied: invalid setup token.' });
     }
     const interval = parseInt(checkIntervalMinutes, 10);
+    let safeSonarrUrl = '';
+    let safeRadarrUrl = '';
+    let safeTautulliUrl = '';
+    try {
+        safeSonarrUrl = sonarrUrl !== undefined ? sanitizeIntegrationUrl(sonarrUrl) : sanitizeIntegrationUrl(existingConfig.sonarrUrl || '');
+        safeRadarrUrl = radarrUrl !== undefined ? sanitizeIntegrationUrl(radarrUrl) : sanitizeIntegrationUrl(existingConfig.radarrUrl || '');
+        safeTautulliUrl = tautulliUrl !== undefined ? sanitizeIntegrationUrl(tautulliUrl) : sanitizeIntegrationUrl(existingConfig.tautulliUrl || '');
+    } catch (e) {
+        return res.status(400).json({ error: `Invalid integration URL: ${e.message}` });
+    }
 
     const config = {
         ...existingConfig,
@@ -1346,11 +1506,11 @@ app.post('/api/config', async (req, res) => {
         contactUrl: contactUrl || '',
         contactWhatsApp: contactWhatsApp || '',
         contactEmail: contactEmail || '',
-        sonarrUrl: sonarrUrl !== undefined ? sonarrUrl : (existingConfig.sonarrUrl || ''),
+        sonarrUrl: safeSonarrUrl,
         sonarrApiKey: sonarrApiKey !== undefined ? sonarrApiKey : (existingConfig.sonarrApiKey || ''),
-        radarrUrl: radarrUrl !== undefined ? radarrUrl : (existingConfig.radarrUrl || ''),
+        radarrUrl: safeRadarrUrl,
         radarrApiKey: radarrApiKey !== undefined ? radarrApiKey : (existingConfig.radarrApiKey || ''),
-        tautulliUrl: tautulliUrl !== undefined ? tautulliUrl : (existingConfig.tautulliUrl || ''),
+        tautulliUrl: safeTautulliUrl,
         tautulliApiKey: tautulliApiKey !== undefined ? tautulliApiKey : (existingConfig.tautulliApiKey || ''),
         primaryColor: primaryColor || '#E5A00D',
         customLogoUrl: customLogoUrl || '',
@@ -1368,6 +1528,7 @@ app.post('/api/config', async (req, res) => {
         autoBackupRetentionCount: Math.max(1, parseInt(autoBackupRetentionCount, 10) || 10)
     };
     await saveFile(CONFIG_PATH, config);
+    cachedAdminId = null;
     systemJobs.autoBackup.nextRun = config.autoBackupEnabled ? computeNextBackupRun(config) : null;
     log('Configuration saved successfully.');
     startBackgroundService(); // (Re)start service with new config
@@ -1493,7 +1654,7 @@ const getPlexConnectionUri = async (config) => {
     return cachedPlexConnectionUri;
 };
 
-app.get('/api/plex/image', requireAuth, async (req, res) => {
+app.get('/api/plex/image', requireAuth, requireMember, async (req, res) => {
     const { path: thumbPath, width, height } = req.query;
     if (!thumbPath) return res.status(400).send('path required');
     // Security: only allow relative Plex paths — block protocol-relative and absolute URLs
@@ -1693,7 +1854,7 @@ const startPlexStatsBackgroundTask = async () => {
 };
 
 // ── API endpoint — read-only, never triggers a Plex fetch ──
-app.get('/api/plex/stats', async (req, res) => {
+app.get('/api/plex/stats', requireAuth, requireMember, async (req, res) => {
     if (cachedPlexStats) {
         return res.json(cachedPlexStats);
     }
@@ -2061,11 +2222,32 @@ app.post('/api/newsletter/send-now', requireAdmin, async (req, res) => {
     }
 });
 
-app.post('/api/plex/servers', async (req, res) => {
+app.post('/api/plex/servers', setupRateLimit, async (req, res) => {
     const { token } = req.body;
     if (!token) return res.status(400).json({ error: 'Plex token is required.' });
 
     try {
+        const existingConfig = await loadFile(CONFIG_PATH, {});
+        const isConfigured = !!(existingConfig && existingConfig.plexToken && existingConfig.serverIdentifier);
+        if (isConfigured) {
+            const sessionToken = req.cookies && req.cookies.session;
+            if (!sessionToken) {
+                return res.status(403).json({ error: 'Forbidden: Admin session required.' });
+            }
+            let decoded;
+            try {
+                decoded = jwt.verify(sessionToken, JWT_SECRET);
+            } catch (e) {
+                return res.status(403).json({ error: 'Forbidden: Invalid admin session.' });
+            }
+            const adminId = await getAdminId(existingConfig);
+            if (!adminId || String(decoded.plexId) !== String(adminId)) {
+                return res.status(403).json({ error: 'Forbidden: Admins only.' });
+            }
+        } else if (!canRunInitialSetup(req)) {
+            return res.status(403).json({ error: 'Initial setup denied: localhost or valid setup token required.' });
+        }
+
         log('Fetching Plex servers using /pms/servers XML API...');
         const response = await fetch('https://plex.tv/pms/servers', {
             headers: {
@@ -2223,7 +2405,7 @@ app.delete('/api/invites/:code', requireAdmin, async (req, res) => {
     res.json({ success: true });
 });
 
-app.get('/api/invites/:code/info', async (req, res) => {
+app.get('/api/invites/:code/info', publicReadRateLimit, async (req, res) => {
     const invites = await loadFile(INVITES_PATH, []);
     const invite = invites.find(i => i.code === req.params.code);
     if (!invite) return res.status(404).json({ error: 'Invite code not found or revoked.' });
@@ -2336,7 +2518,7 @@ app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
             isAdmin
         };
         const token = jwt.sign(sessionUser, JWT_SECRET, { expiresIn: '7d' });
-        const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
+        const isHttps = FORCE_SECURE_COOKIES || req.secure;
         res.cookie('session', token, { httpOnly: true, secure: isHttps, sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
 
         res.json({ success: true, user: newUser });
@@ -2807,6 +2989,7 @@ app.post('/api/users/:id/revoke', requireAdmin, async (req, res) => {
 app.post('/api/users/request-invite', requireAuth, async (req, res) => {
     const config = await loadFile(CONFIG_PATH, null);
     if (!config || !config.serverIdentifier) return res.status(400).json({ error: 'App not configured.' });
+    req.user.isAdmin = await resolveCurrentAdmin(req.user, config);
 
     if (!config.allowTemporaryAccess) {
         return res.status(403).json({ error: 'New registrations are currently disabled.' });
@@ -2822,7 +3005,7 @@ app.post('/api/users/request-invite', requireAuth, async (req, res) => {
     }
     if (!req.user.isAdmin && isDeletedUser(deletedUsers, req.user)) {
         await appendAuditLog('trial_request_blocked_deleted_user', req.user, req.user);
-        res.clearCookie('session');
+        clearSessionCookie(req, res);
         return res.status(403).json({ error: 'Your portal session has expired. Please contact the admin for access.' });
     }
 
@@ -2861,7 +3044,7 @@ app.post('/api/users/request-invite', requireAuth, async (req, res) => {
     }
 });
 
-app.post('/api/users/relink', requireAuth, async (req, res) => {
+app.post('/api/users/relink', requireAuth, requireMember, async (req, res) => {
     const config = await loadFile(CONFIG_PATH, null);
     if (!config || !config.serverIdentifier) return res.status(400).json({ error: 'App not configured.' });
 
@@ -2871,7 +3054,7 @@ app.post('/api/users/relink', requireAuth, async (req, res) => {
 
     if (!user && !req.user.isAdmin && isDeletedUser(deletedUsers, req.user)) {
         await appendAuditLog('relink_blocked_deleted_user', req.user, req.user);
-        res.clearCookie('session');
+        clearSessionCookie(req, res);
         return res.status(403).json({ error: 'Your portal session has expired. Please contact the admin for access.' });
     }
     if (!user) {
@@ -2931,7 +3114,7 @@ async function getAdminProfile(config) {
     }
 }
 
-app.get('/api/public/info', async (req, res) => {
+app.get('/api/public/info', publicReadRateLimit, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
         const profile = await getAdminProfile(config);
@@ -2945,7 +3128,24 @@ app.get('/api/public/info', async (req, res) => {
 });
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
-app.get('/api/status', (req, res) => res.json({ config: statusConfig, healthData }));
+app.get('/api/status', publicReadRateLimit, (req, res) => {
+    const publicServices = (statusConfig.services || []).map(service => ({
+        id: service.id,
+        name: service.name,
+        groupId: service.groupId,
+        type: service.type || 'web',
+        description: service.description || ''
+    }));
+    const groups = (statusConfig.groups || []).map(group => ({ id: group.id, name: group.name, order: group.order }));
+    res.json({
+        config: {
+            services: publicServices,
+            groups,
+            announcement: statusConfig.announcement || null
+        },
+        healthData
+    });
+});
 app.get('/api/status/config', requireAuth, requireAdmin, (req, res) => res.json(statusConfig));
 app.post('/api/status/config', requireAuth, requireAdmin, async (req, res) => {
     try {
@@ -2954,7 +3154,28 @@ app.post('/api/status/config', requireAuth, requireAdmin, async (req, res) => {
         if (!Array.isArray(services) || !Array.isArray(groups)) {
             return res.status(400).json({ error: 'Invalid config structure: services and groups must be arrays.' });
         }
-        statusConfig = { services, groups, announcement: announcement || null };
+        const sanitizedServices = [];
+        for (const service of services) {
+            if (!service || typeof service !== 'object') continue;
+            let normalizedUrl = '';
+            if (service.url) {
+                try {
+                    normalizedUrl = normalizeExternalBaseUrl(service.url, { allowPrivate: ALLOW_PRIVATE_INTEGRATION_URLS, allowHttp: true });
+                } catch (e) {
+                    return res.status(400).json({ error: `Invalid service URL for "${service.name || service.id || 'unknown'}": ${e.message}` });
+                }
+            }
+            sanitizedServices.push({
+                id: String(service.id || randomUUID()),
+                name: String(service.name || 'Service'),
+                url: normalizedUrl,
+                port: Number.isFinite(Number(service.port)) ? Number(service.port) : undefined,
+                type: String(service.type || 'web'),
+                groupId: String(service.groupId || 'core'),
+                description: String(service.description || '')
+            });
+        }
+        statusConfig = { services: sanitizedServices, groups, announcement: announcement || null };
         await saveFile(STATUS_CONFIG_PATH, statusConfig);
         res.json({ success: true, message: 'Status configuration updated successfully.' });
     } catch (error) {
@@ -2992,7 +3213,7 @@ app.get('/api/plex/libraries', requireAdmin, async (req, res) => {
 
 // Note: Duplicate route /api/plex/image handler removed. The primary handler is defined above.
 
-app.get('/api/plex/dashboard', requireAuth, async (req, res) => {
+app.get('/api/plex/dashboard', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, null);
         if (!config || !config.plexToken || !config.serverIdentifier) {
@@ -3165,14 +3386,16 @@ app.post('/api/announcements/push', requireAdmin, async (req, res) => {
                     let sentCount = 0;
                     for (let i = 0; i < activeUsers.length; i++) {
                         const user = activeUsers[i];
+                        const escapedAnnouncement = escapeHtmlAttr(String(text || ''));
+                        const escapedServerId = escapeHtmlAttr(String(config.serverIdentifier || 'our Plex Server'));
                         const html = `
                             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #1a1b26; color: #a9b1d6; padding: 20px; border-radius: 10px;">
                                 <h2 style="color: #E5A00D; text-align: center; text-transform: uppercase; letter-spacing: 2px;">Server Announcement</h2>
                                 <div style="background-color: #24283b; padding: 20px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #E5A00D;">
-                                    <p style="white-space: pre-wrap; font-size: 16px; line-height: 1.6; color: #c0caf5; margin: 0;">${text}</p>
+                                    <p style="white-space: pre-wrap; font-size: 16px; line-height: 1.6; color: #c0caf5; margin: 0;">${escapedAnnouncement}</p>
                                 </div>
                                 <p style="text-align: center; margin-top: 30px; font-size: 12px; color: #565f89;">
-                                    You are receiving this message because you are an active user on ${config.serverIdentifier || 'our Plex Server'}.
+                                    You are receiving this message because you are an active user on ${escapedServerId}.
                                 </p>
                             </div>
                         `;
@@ -3198,13 +3421,13 @@ app.post('/api/announcements/push', requireAdmin, async (req, res) => {
     }
 });
 
-app.get('/api/tautulli/stats', requireAuth, async (req, res) => {
+app.get('/api/tautulli/stats', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, null);
         if (!config || !config.tautulliUrl || !config.tautulliApiKey) {
             return res.status(404).json({ error: 'Tautulli is not configured.' });
         }
-        const tUrl = config.tautulliUrl.replace(/\/+$/, '');
+        const tUrl = sanitizeIntegrationUrl(config.tautulliUrl);
         const response = await fetch(`${tUrl}/api/v2?apikey=${config.tautulliApiKey}&cmd=get_home_stats`, { headers: { 'Accept': 'application/json' } }).then(r => r.json());
 
         if (response && response.response && response.response.data) {
@@ -3265,13 +3488,13 @@ app.get('/api/tautulli/stats', requireAuth, async (req, res) => {
     }
 });
 
-app.get('/api/tautulli/graphs', requireAuth, async (req, res) => {
+app.get('/api/tautulli/graphs', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, null);
         if (!config || !config.tautulliUrl || !config.tautulliApiKey) {
             return res.status(404).json({ error: 'Tautulli is not configured.' });
         }
-        const tUrl = config.tautulliUrl.replace(/\/+$/, '');
+        const tUrl = sanitizeIntegrationUrl(config.tautulliUrl);
         const days = req.query.days || 30;
         const yAxis = req.query.y_axis || 'plays';
 
@@ -3374,7 +3597,7 @@ const summarizeLibraryHealth = (topLibraries = [], stats = {}) => {
 
 const getUniqueActiveViewers = (users = []) => (users || []).filter(u => toNumber(u.plays, 0) > 0).length;
 
-app.get('/api/plex/analytics', requireAuth, async (req, res) => {
+app.get('/api/plex/analytics', requireAuth, requireMember, async (req, res) => {
     try {
         const statsData = await loadFile(ANALYTICS_CACHE_PATH, {});
         const reqDays = req.query.days || 30;
@@ -3425,7 +3648,7 @@ app.get('/api/plex/analytics', requireAuth, async (req, res) => {
     }
 });
 
-app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
+app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, null);
         if (!config || !config.plexToken || !config.serverIdentifier) return res.status(503).json({ error: 'Plex not configured' });
@@ -3718,7 +3941,7 @@ app.get('/api/plex/analytics/me', requireAuth, async (req, res) => {
     }
 });
 
-app.post('/api/plex/report-issue', requireAuth, async (req, res) => {
+app.post('/api/plex/report-issue', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, null);
         if (!config || !config.smtpUser) return res.status(503).json({ error: 'SMTP not configured' });
@@ -3726,14 +3949,18 @@ app.post('/api/plex/report-issue', requireAuth, async (req, res) => {
         const { title, key, issue } = req.body;
         if (!title || !issue) return res.status(400).json({ error: 'Missing title or issue' });
 
-        const subject = `Plex Issue Report: ${title}`;
+        const safeTitle = escapeHtmlAttr(String(title || ''));
+        const safeKey = key ? escapeHtmlAttr(String(key)) : '';
+        const safeUsername = escapeHtmlAttr(String(req.user.username || 'Unknown'));
+        const safeIssue = escapeHtmlAttr(String(issue || '')).replace(/\n/g, '<br/>');
+        const subject = `Plex Issue Report: ${String(title || '').slice(0, 120)}`;
         const html = `
-            <h2>Issue Reported by ${req.user.username}</h2>
-            <p><strong>Media:</strong> ${title}</p>
-            ${key ? `<p><strong>Key:</strong> ${key}</p>` : ''}
+            <h2>Issue Reported by ${safeUsername}</h2>
+            <p><strong>Media:</strong> ${safeTitle}</p>
+            ${safeKey ? `<p><strong>Key:</strong> ${safeKey}</p>` : ''}
             <p><strong>User's Note:</strong></p>
             <blockquote style="background: #f9f9f9; padding: 10px; border-left: 5px solid #E5A00D;">
-                ${issue.replace(/\n/g, '<br/>')}
+                ${safeIssue}
             </blockquote>
         `;
 
@@ -3860,9 +4087,10 @@ app.get('/api/plex/analytics/user/:id', requireAdmin, async (req, res) => {
     }
 });
 
-app.get('/api/speedtest/ping', (req, res) => { res.set('Cache-Control', 'no-store'); res.send('pong'); });
-app.get('/api/speedtest/download', (req, res) => {
-    const bytes = parseInt(req.query.bytes) || SPEED_TEST_CHUNK_SIZE;
+app.get('/api/speedtest/ping', requireAuth, requireMember, speedtestRateLimit, (req, res) => { res.set('Cache-Control', 'no-store'); res.send('pong'); });
+app.get('/api/speedtest/download', requireAuth, requireMember, speedtestRateLimit, (req, res) => {
+    const parsedBytes = parseInt(req.query.bytes, 10) || SPEED_TEST_CHUNK_SIZE;
+    const bytes = Math.max(1, Math.min(parsedBytes, 10 * 1024 * 1024));
     res.set('Content-Type', 'application/octet-stream');
     res.set('Content-Length', bytes);
     res.set('Cache-Control', 'no-store');
@@ -3878,7 +4106,7 @@ app.get('/api/speedtest/download', (req, res) => {
     };
     streamData();
 });
-app.post('/api/speedtest/upload', (req, res) => { req.on('data', () => { }); req.on('end', () => res.sendStatus(200)); });
+app.post('/api/speedtest/upload', requireAuth, requireMember, speedtestRateLimit, express.raw({ type: '*/*', limit: '10mb' }), (req, res) => res.sendStatus(200));
 
 // --- Static File Serving ---
 // Serve static assets from the 'static' directory
@@ -3897,9 +4125,20 @@ const escapeHtmlAttr = (value = '') => String(value)
     .replace(/>/g, '&gt;');
 
 const getRequestBaseUrl = (req) => {
-    const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'http').toString().split(',')[0].trim();
-    const host = req.get('host');
-    return `${proto}://${host}`;
+    if (PUBLIC_BASE_URL) {
+        try {
+            return new URL(PUBLIC_BASE_URL).toString().replace(/\/+$/, '');
+        } catch (e) {
+            log(`Invalid PUBLIC_BASE_URL configured: ${e.message}`);
+        }
+    }
+    const host = req.get('host') || `localhost:${PORT}`;
+    const normalizedHost = host.split(',')[0].trim();
+    if (isBlockedHostName(normalizedHost.split(':')[0])) {
+        return `${req.secure ? 'https' : 'http'}://localhost:${PORT}`;
+    }
+    const proto = req.secure ? 'https' : 'http';
+    return `${proto}://${normalizedHost}`;
 };
 
 const buildSocialMetaTags = async (req) => {
@@ -4265,7 +4504,11 @@ function performSingleProbe(service) {
         if (!rawUrl) return resolve({ status: 'offline', latency: 0, httpCode: 0 });
 
         let targetUrl = rawUrl;
-        if (!/^https?:\/\//i.test(targetUrl)) targetUrl = 'http://' + targetUrl;
+        try {
+            targetUrl = normalizeExternalBaseUrl(rawUrl, { allowPrivate: ALLOW_PRIVATE_INTEGRATION_URLS, allowHttp: true });
+        } catch (e) {
+            return resolve({ status: 'offline', latency: 0, httpCode: 0 });
+        }
         if (service.port) {
             try {
                 const u = new URL(targetUrl);
@@ -4287,7 +4530,7 @@ function performSingleProbe(service) {
         const request = lib.get(targetUrl, {
             headers: { 'User-Agent': 'SubZero-Monitor/1.0', 'Cache-Control': 'no-cache', 'Connection': 'close' },
             timeout: 8000,
-            rejectUnauthorized: false
+            rejectUnauthorized: true
         }, (response) => {
             response.resume();
             const latency = Math.round(Date.now() - start);
@@ -4369,7 +4612,7 @@ async function runMonitorCycle() {
     saveHealthData();
 }
 
-app.get('/api/media-stack/summary', requireAuth, async (req, res) => {
+app.get('/api/media-stack/summary', requireAuth, requireMember, async (req, res) => {
     try {
         const monthOffset = parseInt(req.query.monthOffset) || 0;
         const cacheKey = `media-stack-summary-offset-${monthOffset}`;
@@ -4378,7 +4621,8 @@ app.get('/api/media-stack/summary', requireAuth, async (req, res) => {
             const fetchArr = async (url, key, endpoint) => {
                 if (!url || !key) return null;
                 try {
-                    const u = new URL(endpoint, url);
+                    const safeBaseUrl = sanitizeIntegrationUrl(url);
+                    const u = new URL(endpoint, safeBaseUrl);
                     const response = await fetch(u.toString(), {
                         headers: { 'X-Api-Key': key }
                     });
@@ -4436,7 +4680,7 @@ app.get('/api/media-stack/summary', requireAuth, async (req, res) => {
     }
 });
 
-app.get('/api/media-stack/trending', requireAuth, async (req, res) => {
+app.get('/api/media-stack/trending', requireAuth, requireMember, async (req, res) => {
     const stats = await loadFile(TRENDING_CACHE_PATH, { movies: 0, series: 0 });
     res.json(stats);
 });
@@ -4857,7 +5101,7 @@ async function calculateTrendingStats() {
     }
 }
 
-app.get('/api/plex/stats/trending', requireAuth, async (req, res) => {
+app.get('/api/plex/stats/trending', requireAuth, requireMember, async (req, res) => {
     try {
         const stats = await loadFile(TRENDING_CACHE_PATH, {
             trending7Days: [],
@@ -5057,8 +5301,8 @@ async function monitorConcurrentSessions() {
     } catch (e) { }
 }
 
-app.listen(PORT, async () => {
-    log(`--- Server Manager Portal Service starting on http://localhost:${PORT} ---`);
+app.listen(PORT, BIND_HOST, async () => {
+    log(`--- Server Manager Portal Service starting on http://${BIND_HOST}:${PORT} ---`);
 
     // Ensure unique CLIENT_ID per installation to avoid Plex Auth blocking
     const config = await loadFile(CONFIG_PATH, {});
