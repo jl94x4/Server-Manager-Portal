@@ -791,6 +791,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   z-index: 100;
 }
 
+.z-\[1500\] {
+  z-index: 1500;
+}
+
 .z-\[2000\] {
   z-index: 2000;
 }
@@ -1164,6 +1168,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   max-height: 1240px;
 }
 
+.max-h-\[420px\] {
+  max-height: 420px;
+}
+
 .max-h-\[620px\] {
   max-height: 620px;
 }
@@ -1172,8 +1180,16 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   max-height: 640px;
 }
 
+.max-h-\[700px\] {
+  max-height: 700px;
+}
+
 .max-h-\[80vh\] {
   max-height: 80vh;
+}
+
+.max-h-\[86vh\] {
+  max-height: 86vh;
 }
 
 .max-h-\[90vh\] {
@@ -1635,6 +1651,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   grid-template-columns: minmax(0,1fr) auto;
 }
 
+.grid-cols-\[minmax\(0\2c 2fr\)_1fr_1fr_1fr_1fr\] {
+  grid-template-columns: minmax(0,2fr) 1fr 1fr 1fr 1fr;
+}
+
 .flex-row {
   flex-direction: row;
 }
@@ -1751,6 +1771,12 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .gap-y-4 {
   row-gap: 1rem;
+}
+
+.-space-x-2 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 0;
+  margin-right: calc(-0.5rem * var(--tw-space-x-reverse));
+  margin-left: calc(-0.5rem * calc(1 - var(--tw-space-x-reverse)));
 }
 
 .space-y-1 > :not([hidden]) ~ :not([hidden]) {
@@ -2213,6 +2239,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .bg-black\/60 {
   background-color: rgb(0 0 0 / 0.6);
+}
+
+.bg-black\/70 {
+  background-color: rgb(0 0 0 / 0.7);
 }
 
 .bg-black\/80 {
@@ -3802,6 +3832,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
 }
 
+.backdrop-blur-\[1px\] {
+  --tw-backdrop-blur: blur(1px);
+  backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
+}
+
 .backdrop-blur-md {
   --tw-backdrop-blur: blur(12px);
   backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
@@ -4080,6 +4115,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .hover\:bg-background\/80:hover {
   background-color: rgb(13 17 23 / 0.8);
+}
+
+.hover\:bg-black\/30:hover {
+  background-color: rgb(0 0 0 / 0.3);
 }
 
 .hover\:bg-black\/40:hover {

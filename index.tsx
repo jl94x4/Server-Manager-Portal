@@ -8727,6 +8727,9 @@ const MaintenanceDashboard: React.FC = () => {
     const [libraryBrowseLoading, setLibraryBrowseLoading] = useState(false);
     const [selectedExcludeKeys, setSelectedExcludeKeys] = useState<string[]>([]);
     const [exclusionsSummary, setExclusionsSummary] = useState<{ ratingKeys: any[]; titles: any[]; libraries: any[] }>({ ratingKeys: [], titles: [], libraries: [] });
+    const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
+    const [storageSummary, setStorageSummary] = useState<any>(null);
+    const [storageSummaryLoading, setStorageSummaryLoading] = useState(false);
     const [loading, setLoading] = useState(true);
     const [activeSection, setActiveSection] = useState(() => {
         const hash = window.location.hash.replace('#', '');
@@ -8759,6 +8762,12 @@ const MaintenanceDashboard: React.FC = () => {
 
     useEffect(() => {
         window.location.hash = `maintenance-${activeSection}`;
+    }, [activeSection]);
+
+    useEffect(() => {
+        if (activeSection !== 'calendar') {
+            setSelectedCalendarDate(null);
+        }
     }, [activeSection]);
 
     const loadOverview = useCallback(async () => {
@@ -8938,12 +8947,36 @@ const MaintenanceDashboard: React.FC = () => {
         }
     }, [addToast, isMaintenanceDisabledError, libraryBrowseId, libraryBrowseLimit, libraryBrowsePage, libraryBrowseSearch, maintenanceFeatureEnabled]);
 
+    const loadStorageSummary = useCallback(async (ruleId?: string) => {
+        if (!maintenanceFeatureEnabled) return;
+        setStorageSummaryLoading(true);
+        try {
+            const query = ruleId ? `?ruleId=${encodeURIComponent(ruleId)}` : '';
+            const payload = await apiFetch(`/api/maintenance/storage-summary${query}`);
+            setStorageSummary(payload || null);
+        } catch (e: any) {
+            if (isMaintenanceDisabledError(e)) {
+                setMaintenanceFeatureEnabled(false);
+                return;
+            }
+            addToast(e.message || 'Failed to load storage summary.', 'error');
+        } finally {
+            setStorageSummaryLoading(false);
+        }
+    }, [addToast, isMaintenanceDisabledError, maintenanceFeatureEnabled]);
+
     useEffect(() => {
         if (maintenanceFeatureEnabled && activeSection === 'exclusions') {
             loadLibraryBrowse();
             loadExclusionsSummary();
         }
     }, [activeSection, loadLibraryBrowse, loadExclusionsSummary, maintenanceFeatureEnabled]);
+
+    useEffect(() => {
+        if (maintenanceFeatureEnabled && activeSection === 'storage') {
+            loadStorageSummary(candidateRuleId || undefined);
+        }
+    }, [activeSection, candidateRuleId, maintenanceFeatureEnabled, loadStorageSummary]);
 
     const filteredCandidates = candidateItems.filter((item: any) => {
         if (!candidateSearch.trim()) return true;
@@ -8959,16 +8992,6 @@ const MaintenanceDashboard: React.FC = () => {
         () => new Set((preferences?.exclusions?.ratingKeys || []).map((v: string) => String(v))),
         [preferences?.exclusions?.ratingKeys]
     );
-
-    const storageStats = useMemo(() => {
-        const totalSize = filteredCandidates.reduce((sum: number, item: any) => sum + Number(item.sizeGB || 0), 0);
-        const byLibrary = filteredCandidates.reduce((acc: Record<string, number>, item: any) => {
-            const key = item.libraryTitle || 'Unknown';
-            acc[key] = (acc[key] || 0) + Number(item.sizeGB || 0);
-            return acc;
-        }, {});
-        return { totalSize, byLibrary };
-    }, [filteredCandidates]);
 
     const formatReclaimSizeFromGB = (sizeGB: number) => {
         const safeGB = Math.max(0, Number(sizeGB || 0));
@@ -8993,6 +9016,30 @@ const MaintenanceDashboard: React.FC = () => {
         });
         return entries.slice(0, 300).sort((a: any, b: any) => (a.projectedDate < b.projectedDate ? -1 : 1));
     }, [filteredCandidates]);
+
+    const calendarByDay = useMemo(() => {
+        const grouped = new Map<string, any[]>();
+        upcomingCalendar.forEach((item: any) => {
+            const key = String(item.projectedDate || '');
+            if (!key) return;
+            if (!grouped.has(key)) grouped.set(key, []);
+            grouped.get(key)?.push(item);
+        });
+        return Array.from(grouped.entries())
+            .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+            .map(([date, items]) => ({
+                date,
+                items,
+                count: items.length,
+                reclaimGB: items.reduce((sum: number, item: any) => sum + Number(item.sizeGB || 0), 0),
+                preview: items.slice(0, 4)
+            }));
+    }, [upcomingCalendar]);
+
+    const selectedCalendarGroup = useMemo(
+        () => calendarByDay.find((group) => group.date === selectedCalendarDate) || null,
+        [calendarByDay, selectedCalendarDate]
+    );
 
     const renderScaffoldPage = (title: string, description: string, bullets: string[]) => (
         <div className="bg-background border border-border rounded-xl p-5">
@@ -9304,42 +9351,172 @@ const MaintenanceDashboard: React.FC = () => {
                         {activeSection === 'calendar' && (
                             <div className="bg-background border border-border rounded-xl p-5 space-y-3">
                                 <h3 className="text-xl font-bold text-plex">Calendar</h3>
-                                <p className="text-sm text-muted">Projected maintenance dates using current candidate age data.</p>
-                                <div className="space-y-2 max-h-[620px] overflow-y-auto custom-scrollbar pr-1">
-                                    {upcomingCalendar.slice(0, 200).map((item: any) => (
-                                        <div key={`calendar-${item.ratingKey}-${item.projectedDate}`} className="bg-black/20 border border-border rounded-lg px-3 py-2 text-sm">
-                                            <span className="text-text font-semibold">{item.projectedDate}</span> · {item.title} <span className="text-muted">({item.libraryTitle})</span>
+                                <p className="text-sm text-muted">Projected removal days based on current candidates. Click a day to view all posters for that date.</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 max-h-[700px] overflow-y-auto custom-scrollbar pr-1">
+                                    {calendarByDay.slice(0, 120).map((day) => {
+                                        const dateLabel = new Date(`${day.date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                                        return (
+                                            <button
+                                                key={`calendar-day-${day.date}`}
+                                                type="button"
+                                                onClick={() => setSelectedCalendarDate(day.date)}
+                                                className="text-left bg-black/20 border border-border rounded-lg p-3 hover:border-plex/50 hover:bg-black/30 transition-colors"
+                                            >
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <p className="text-sm font-semibold text-text">{dateLabel}</p>
+                                                    <span className="text-[11px] px-2 py-0.5 rounded bg-plex/20 text-plex font-semibold">{day.count}</span>
+                                                </div>
+                                                <p className="text-[11px] text-muted mt-1">{formatReclaimSizeFromGB(day.reclaimGB)} projected reclaim</p>
+                                                <div className="mt-2 flex -space-x-2">
+                                                    {day.preview.map((item: any, idx: number) => (
+                                                        <div key={`calendar-preview-${day.date}-${item.ratingKey}-${idx}`} className="w-8 h-8 rounded-full overflow-hidden border border-border bg-black/50">
+                                                            {item.thumb ? (
+                                                                <img
+                                                                    src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=64&height=64`}
+                                                                    alt={item.title}
+                                                                    className="w-full h-full object-cover"
+                                                                    loading="lazy"
+                                                                />
+                                                            ) : (
+                                                                <div className="w-full h-full" />
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                    {!calendarByDay.length && <p className="text-sm text-muted col-span-full">No candidate data loaded. Open Candidates tab first.</p>}
+                                </div>
+                            </div>
+                        )}
+                        {activeSection === 'calendar' && selectedCalendarGroup && (
+                            <div className="fixed inset-0 z-[1500] bg-black/70 backdrop-blur-[1px] flex items-center justify-center p-3 md:p-6" onClick={() => setSelectedCalendarDate(null)}>
+                                <div className="w-full max-w-6xl max-h-[86vh] bg-card border border-border rounded-xl shadow-2xl p-4 md:p-5 overflow-y-auto custom-scrollbar" onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex items-start justify-between gap-3 mb-3">
+                                        <div>
+                                            <h4 className="text-xl font-bold text-plex">
+                                                {new Date(`${selectedCalendarGroup.date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                                            </h4>
+                                            <p className="text-sm text-muted mt-1">
+                                                {selectedCalendarGroup.count} title(s) · {formatReclaimSizeFromGB(selectedCalendarGroup.reclaimGB)} projected reclaim
+                                            </p>
                                         </div>
-                                    ))}
-                                    {!upcomingCalendar.length && <p className="text-sm text-muted">No candidate data loaded. Open Candidates tab first.</p>}
+                                        <button
+                                            type="button"
+                                            className="px-3 py-1.5 bg-border text-text rounded-md text-sm font-semibold hover:bg-opacity-80"
+                                            onClick={() => setSelectedCalendarDate(null)}
+                                        >
+                                            Close
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-3">
+                                        {selectedCalendarGroup.items.map((item: any, idx: number) => (
+                                            <div key={`calendar-modal-item-${selectedCalendarGroup.date}-${item.ratingKey}-${idx}`} className="bg-black/20 border border-border rounded-lg overflow-hidden">
+                                                <div className="aspect-[2/3] bg-black/40">
+                                                    {item.thumb ? (
+                                                        <img
+                                                            src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=240&height=360`}
+                                                            alt={item.title}
+                                                            loading="lazy"
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-xs text-muted">No Poster</div>
+                                                    )}
+                                                </div>
+                                                <div className="p-2">
+                                                    <p className="text-xs text-text line-clamp-2">{item.title}</p>
+                                                    <p className="text-[11px] text-muted mt-1">{item.libraryTitle || 'Unknown Library'}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         )}
                         {activeSection === 'storage' && (
                             <div className="bg-background border border-border rounded-xl p-5 space-y-4">
                                 <h3 className="text-xl font-bold text-plex">Storage Metrics</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <p className="text-sm text-muted">Deep storage projection per library based on indexed size and current rule matches.</p>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        className="px-3 py-1.5 bg-border text-text rounded-md text-xs font-semibold hover:bg-opacity-80"
+                                        onClick={() => loadStorageSummary(candidateRuleId || undefined)}
+                                    >
+                                        {storageSummaryLoading ? 'Refreshing...' : 'Refresh Summary'}
+                                    </button>
+                                    {selectedCandidateRule && (
+                                        <p className="text-xs text-muted">Rule scope: <span className="text-text font-semibold">{selectedCandidateRule.name || 'Unnamed Rule'}</span></p>
+                                    )}
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                                     <div className="bg-black/20 border border-border rounded-lg p-3">
-                                        <p className="text-xs text-muted">Visible Candidate Count</p>
-                                        <p className="text-2xl font-bold text-text">{filteredCandidates.length}</p>
+                                        <p className="text-xs text-muted">Library Size Before</p>
+                                        <p className="text-2xl font-bold text-text">{formatReclaimSizeFromGB(Number(storageSummary?.totals?.beforeGB || 0))}</p>
                                     </div>
                                     <div className="bg-black/20 border border-border rounded-lg p-3">
                                         <p className="text-xs text-muted">Projected Reclaim</p>
-                                        <p className="text-2xl font-bold text-text">{formatReclaimSizeFromGB(storageStats.totalSize)}</p>
+                                        <p className="text-2xl font-bold text-text">{formatReclaimSizeFromGB(Number(storageSummary?.totals?.reclaimGB || 0))}</p>
                                     </div>
                                     <div className="bg-black/20 border border-border rounded-lg p-3">
-                                        <p className="text-xs text-muted">Libraries Impacted</p>
-                                        <p className="text-2xl font-bold text-text">{Object.keys(storageStats.byLibrary).length}</p>
+                                        <p className="text-xs text-muted">Projected Size After</p>
+                                        <p className="text-2xl font-bold text-text">{formatReclaimSizeFromGB(Number(storageSummary?.totals?.afterGB || 0))}</p>
+                                    </div>
+                                    <div className="bg-black/20 border border-border rounded-lg p-3">
+                                        <p className="text-xs text-muted">Reclaim Percent</p>
+                                        <p className="text-2xl font-bold text-text">{Number(storageSummary?.totals?.reclaimPercent || 0).toFixed(1)}%</p>
                                     </div>
                                 </div>
-                                <div className="space-y-2">
-                                    {Object.entries(storageStats.byLibrary).sort((a, b) => Number(b[1]) - Number(a[1])).map(([library, size]) => (
-                                        <div key={`storage-${library}`} className="bg-black/20 border border-border rounded-lg px-3 py-2 text-sm flex justify-between">
-                                            <span className="text-text">{library}</span>
-                                            <span className="text-muted">{formatReclaimSizeFromGB(Number(size))}</span>
-                                        </div>
-                                    ))}
+                                <div className="bg-black/20 border border-border rounded-lg p-3">
+                                    <div className="grid grid-cols-[minmax(0,2fr)_1fr_1fr_1fr_1fr] gap-2 px-2 py-1 text-[11px] uppercase tracking-wider text-muted font-bold border-b border-border">
+                                        <span>Library</span>
+                                        <span className="text-right">Before</span>
+                                        <span className="text-right">Reclaim</span>
+                                        <span className="text-right">After</span>
+                                        <span className="text-right">Matched</span>
+                                    </div>
+                                    <div className="max-h-[420px] overflow-y-auto custom-scrollbar pr-1 space-y-1 mt-2">
+                                        {(storageSummary?.libraries || []).map((row: any) => (
+                                            <div key={`storage-row-${row.libraryTitle}`} className="grid grid-cols-[minmax(0,2fr)_1fr_1fr_1fr_1fr] gap-2 px-2 py-2 text-sm bg-black/20 border border-border rounded-lg items-center">
+                                                <span className="text-text line-clamp-1">{row.libraryTitle}</span>
+                                                <span className="text-muted text-right">{formatReclaimSizeFromGB(Number(row.totalSizeGB || 0))}</span>
+                                                <span className="text-right text-plex font-semibold">{formatReclaimSizeFromGB(Number(row.reclaimGB || 0))}</span>
+                                                <span className="text-muted text-right">{formatReclaimSizeFromGB(Number(row.afterSizeGB || 0))}</span>
+                                                <span className="text-muted text-right">{row.matchedItems || 0}</span>
+                                            </div>
+                                        ))}
+                                        {!storageSummaryLoading && !(storageSummary?.libraries || []).length && (
+                                            <p className="text-sm text-muted px-2 py-2">No storage summary yet. Refresh or load candidates/rules first.</p>
+                                        )}
+                                        {storageSummaryLoading && <p className="text-sm text-muted px-2 py-2">Loading storage summary...</p>}
+                                    </div>
                                 </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    <div className="bg-black/20 border border-border rounded-lg p-3">
+                                        <p className="text-xs text-muted">Total Indexed Items</p>
+                                        <p className="text-xl font-bold text-text">{Number(storageSummary?.totals?.items || 0)}</p>
+                                    </div>
+                                    <div className="bg-black/20 border border-border rounded-lg p-3">
+                                        <p className="text-xs text-muted">Matched Candidate Items</p>
+                                        <p className="text-xl font-bold text-text">{Number(storageSummary?.totals?.matchedItems || 0)}</p>
+                                    </div>
+                                    <div className="bg-black/20 border border-border rounded-lg p-3">
+                                        <p className="text-xs text-muted">Libraries Covered</p>
+                                        <p className="text-xl font-bold text-text">{Number(storageSummary?.totals?.libraries || 0)}</p>
+                                    </div>
+                                </div>
+                                {storageSummary?.rulesConsidered?.length > 0 && (
+                                    <div className="bg-black/20 border border-border rounded-lg p-3">
+                                        <p className="text-xs text-muted font-bold uppercase tracking-wider mb-2">Rules Included</p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {storageSummary.rulesConsidered.map((rule: any) => (
+                                                <span key={`storage-rule-${rule.id}`} className="px-2 py-1 rounded bg-border text-xs text-text">{rule.name || 'Unnamed Rule'}</span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                         {activeSection === 'library' && (

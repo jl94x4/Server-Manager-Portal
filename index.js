@@ -5296,6 +5296,10 @@ const MAINTENANCE_FILTER_CATALOG = [
     { field: 'labels', label: 'Labels', type: 'array', operators: ['contains', 'not_contains', 'in', 'not_in', 'is_empty', 'not_empty'] },
     { field: 'studio', label: 'Studio/Network', type: 'text', operators: ['contains', 'not_contains', 'equals', 'not_equals'] },
     { field: 'contentRating', label: 'Content Rating', type: 'text', operators: ['equals', 'not_equals', 'contains', 'not_contains'] },
+    { field: 'tmdbRating', label: 'TMDB Rating', type: 'number', operators: ['equals', 'not_equals', 'greater_than', 'less_than', 'between'] },
+    { field: 'rtCriticRating', label: 'Rotten Tomatoes Critic', type: 'number', operators: ['equals', 'not_equals', 'greater_than', 'less_than', 'between'] },
+    { field: 'rtAudienceRating', label: 'Rotten Tomatoes Audience', type: 'number', operators: ['equals', 'not_equals', 'greater_than', 'less_than', 'between'] },
+    { field: 'traktRating', label: 'Trakt Rating', type: 'number', operators: ['equals', 'not_equals', 'greater_than', 'less_than', 'between'] },
     { field: 'arrType', label: 'ARR Mapping Type', type: 'select', options: ['radarr', 'sonarr', 'none'], operators: ['equals', 'not_equals'] },
     { field: 'arrMapped', label: 'ARR Mapped', type: 'boolean', operators: ['equals'] },
     { field: 'requestStatus', label: 'Request Status', type: 'text', operators: ['equals', 'not_equals', 'contains', 'not_contains', 'is_empty', 'not_empty'] },
@@ -5401,6 +5405,10 @@ const maintenanceValueMap = (item, field) => {
         case 'labels': return item.labels || [];
         case 'studio': return item.studio || '';
         case 'contentRating': return item.contentRating || '';
+        case 'tmdbRating': return item.tmdbRating ?? null;
+        case 'rtCriticRating': return item.rtCriticRating ?? null;
+        case 'rtAudienceRating': return item.rtAudienceRating ?? null;
+        case 'traktRating': return item.traktRating ?? null;
         case 'arrType': return item.arrType || 'none';
         case 'arrMapped': return !!item.arrMapped;
         case 'requestStatus': return item.request?.status || '';
@@ -5527,6 +5535,43 @@ const fetchMaintenanceWatchStats = async (config, uri) => {
     return map;
 };
 
+const extractMaintenanceRatings = (media = {}) => {
+    const ratings = {
+        tmdbRating: null,
+        rtCriticRating: null,
+        rtAudienceRating: null,
+        traktRating: null
+    };
+    const asNum = (v) => {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+    };
+
+    const rawRatings = Array.isArray(media?.Rating) ? media.Rating : [];
+    rawRatings.forEach((entry) => {
+        const source = `${entry?.type || ''} ${entry?.image || ''} ${entry?.id || ''} ${entry?.source || ''}`.toLowerCase();
+        const value = asNum(entry?.value ?? entry?.rating ?? entry?.score);
+        if (value === null) return;
+        if (source.includes('themoviedb') || source.includes('tmdb')) {
+            ratings.tmdbRating = ratings.tmdbRating ?? value;
+        } else if (source.includes('rottentomatoes') || source.includes('rotten')) {
+            // Plex can expose critic/audience RT entries; infer using label hints.
+            if (source.includes('audience')) ratings.rtAudienceRating = ratings.rtAudienceRating ?? value;
+            else ratings.rtCriticRating = ratings.rtCriticRating ?? value;
+        } else if (source.includes('trakt')) {
+            ratings.traktRating = ratings.traktRating ?? value;
+        }
+    });
+
+    // Fallback to generic Plex rating fields when source-specific values are not present.
+    if (ratings.tmdbRating === null && asNum(media?.rating) !== null) ratings.tmdbRating = asNum(media.rating);
+    if (ratings.rtCriticRating === null && asNum(media?.audienceRating) !== null) ratings.rtCriticRating = asNum(media.audienceRating);
+    if (ratings.rtAudienceRating === null && asNum(media?.audienceRating) !== null) ratings.rtAudienceRating = asNum(media.audienceRating);
+    if (ratings.traktRating === null && asNum(media?.rating) !== null) ratings.traktRating = asNum(media.rating);
+
+    return ratings;
+};
+
 const fetchPlexLibraryItemsForMaintenance = async (config, uri) => {
     const watchStats = await fetchMaintenanceWatchStats(config, uri);
     const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { Accept: 'application/json' } })
@@ -5555,6 +5600,7 @@ const fetchPlexLibraryItemsForMaintenance = async (config, uri) => {
                 const ids = parsePlexGuidIds(guids);
                 const part = media?.Media?.[0]?.Part?.[0] || {};
                 const mediaInfo = media?.Media?.[0] || {};
+                const ratings = extractMaintenanceRatings(media);
                 const mediaType = media.type || section.type || 'movie';
                 // For TV shows, Plex exposes episode-level progress via viewedLeafCount.
                 // viewCount on shows is often null/0 even when episodes were watched.
@@ -5592,6 +5638,10 @@ const fetchPlexLibraryItemsForMaintenance = async (config, uri) => {
                     labels: (media.Label || []).map(l => l.tag).filter(Boolean),
                     studio: media.studio || '',
                     contentRating: media.contentRating || '',
+                    tmdbRating: ratings.tmdbRating,
+                    rtCriticRating: ratings.rtCriticRating,
+                    rtAudienceRating: ratings.rtAudienceRating,
+                    traktRating: ratings.traktRating,
                     imdbId: ids.imdb,
                     tmdbId: ids.tmdb,
                     tvdbId: ids.tvdb,
@@ -6096,6 +6146,86 @@ app.get('/api/maintenance/library-items', requireAdmin, async (req, res) => {
         });
     } catch (e) {
         res.status(500).json({ error: `Failed to load maintenance library items: ${e.message}` });
+    }
+});
+
+app.get('/api/maintenance/storage-summary', requireAdmin, async (req, res) => {
+    try {
+        const payload = await loadFile(MAINTENANCE_MEDIA_INDEX_PATH, { generatedAt: null, items: [] });
+        const preferences = await loadMaintenancePreferences();
+        const rules = await loadFile(MAINTENANCE_RULES_PATH, []);
+        const requestedRuleId = String(req.query.ruleId || '').trim();
+        const allItems = Array.isArray(payload.items) ? payload.items : [];
+        const usableItems = applyMaintenanceExclusions(allItems, preferences);
+
+        const selectedRules = requestedRuleId
+            ? rules.filter((r) => String(r.id || '') === requestedRuleId)
+            : rules.filter((r) => r?.enabled !== false);
+
+        const matched = selectedRules.length
+            ? usableItems.filter((item) => selectedRules.some((rule) => evaluateMaintenanceRule(item, rule)))
+            : [];
+        const matchedKeys = new Set(matched.map((item) => String(item?.ratingKey || '')));
+
+        const libraries = {};
+        allItems.forEach((item) => {
+            const libId = String(item?.libraryId || '');
+            const libName = item?.libraryTitle || `Library ${libId || 'Unknown'}`;
+            if (!libraries[libName]) {
+                libraries[libName] = {
+                    libraryId: libId,
+                    libraryTitle: libName,
+                    totalItems: 0,
+                    totalSizeGB: 0,
+                    matchedItems: 0,
+                    reclaimGB: 0,
+                    afterSizeGB: 0,
+                    reclaimPercent: 0
+                };
+            }
+            const size = Number(item?.sizeGB || 0);
+            libraries[libName].totalItems += 1;
+            libraries[libName].totalSizeGB += size;
+            if (matchedKeys.has(String(item?.ratingKey || ''))) {
+                libraries[libName].matchedItems += 1;
+                libraries[libName].reclaimGB += size;
+            }
+        });
+
+        const libraryRows = Object.values(libraries).map((lib) => {
+            const after = Math.max(0, Number(lib.totalSizeGB || 0) - Number(lib.reclaimGB || 0));
+            const percent = Number(lib.totalSizeGB || 0) > 0 ? ((Number(lib.reclaimGB || 0) / Number(lib.totalSizeGB || 0)) * 100) : 0;
+            return {
+                ...lib,
+                totalSizeGB: Math.round(Number(lib.totalSizeGB || 0) * 100) / 100,
+                reclaimGB: Math.round(Number(lib.reclaimGB || 0) * 100) / 100,
+                afterSizeGB: Math.round(after * 100) / 100,
+                reclaimPercent: Math.round(percent * 100) / 100
+            };
+        }).sort((a, b) => b.reclaimGB - a.reclaimGB);
+
+        const totalBeforeGB = libraryRows.reduce((sum, row) => sum + Number(row.totalSizeGB || 0), 0);
+        const totalReclaimGB = libraryRows.reduce((sum, row) => sum + Number(row.reclaimGB || 0), 0);
+        const totalAfterGB = Math.max(0, totalBeforeGB - totalReclaimGB);
+
+        res.json({
+            generatedAt: new Date().toISOString(),
+            indexGeneratedAt: payload.generatedAt || null,
+            selectedRuleId: requestedRuleId || null,
+            rulesConsidered: selectedRules.map((r) => ({ id: r.id, name: r.name || 'Unnamed Rule' })),
+            totals: {
+                libraries: libraryRows.length,
+                items: allItems.length,
+                matchedItems: matched.length,
+                beforeGB: Math.round(totalBeforeGB * 100) / 100,
+                reclaimGB: Math.round(totalReclaimGB * 100) / 100,
+                afterGB: Math.round(totalAfterGB * 100) / 100,
+                reclaimPercent: totalBeforeGB > 0 ? Math.round((totalReclaimGB / totalBeforeGB) * 10000) / 100 : 0
+            },
+            libraries: libraryRows
+        });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to load maintenance storage summary: ${e.message}` });
     }
 });
 
