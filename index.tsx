@@ -1135,6 +1135,9 @@ const SettingsDashboard: React.FC = () => {
     const [autoBackupIntervalDays, setAutoBackupIntervalDays] = useState(2);
     const [autoBackupRetentionCount, setAutoBackupRetentionCount] = useState(10);
     const [backupFiles, setBackupFiles] = useState<any[]>([]);
+    const [auditLogEntries, setAuditLogEntries] = useState<any[]>([]);
+    const [isLoadingAuditLog, setIsLoadingAuditLog] = useState(false);
+    const [auditLogPage, setAuditLogPage] = useState(1);
 
     const handlePushAnnouncement = async () => {
         setIsPushingAnnouncement(true);
@@ -1180,6 +1183,19 @@ const SettingsDashboard: React.FC = () => {
             setBackupFiles(Array.isArray(data) ? data : []);
         } catch (e) {
             addToast('Failed to load backup files', 'error');
+        }
+    };
+
+    const fetchAuditLog = async () => {
+        setIsLoadingAuditLog(true);
+        try {
+            const data = await apiFetch('/api/audit-log');
+            setAuditLogEntries(Array.isArray(data) ? data : []);
+            setAuditLogPage(1);
+        } catch (e) {
+            addToast('Failed to load audit log', 'error');
+        } finally {
+            setIsLoadingAuditLog(false);
         }
     };
 
@@ -1270,8 +1286,139 @@ const SettingsDashboard: React.FC = () => {
         if (activeTab === 'system') {
             fetchDiagnostics();
             fetchBackupFiles();
+            fetchAuditLog();
         }
     }, [activeTab]);
+
+    const formatEventName = (event: string) => event
+        .split('_')
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+
+    const formatDateTime = (value?: string | null) => {
+        if (!value) return 'N/A';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return 'N/A';
+        return date.toLocaleString();
+    };
+
+    const stringifyAuditValue = (value: any) => {
+        if (value === null || value === undefined) return '—';
+        if (typeof value === 'string') return value;
+        if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+        try {
+            return JSON.stringify(value);
+        } catch {
+            return String(value);
+        }
+    };
+
+    const getAuditDiffRows = (details: any) => {
+        if (!details || typeof details !== 'object') return [];
+        const rows: { field: string; before: string; after: string }[] = [];
+        const keys = Object.keys(details);
+        const used = new Set<string>();
+        const pairCandidate = (primaryKey: string, label: string, candidates: string[]) => {
+            if (used.has(primaryKey)) return;
+            for (const key of candidates) {
+                if (key in details) {
+                    rows.push({
+                        field: label,
+                        before: stringifyAuditValue(details[primaryKey]),
+                        after: stringifyAuditValue(details[key])
+                    });
+                    used.add(primaryKey);
+                    used.add(key);
+                    return;
+                }
+            }
+        };
+
+        if ('before' in details && 'after' in details) {
+            rows.push({ field: 'Value', before: stringifyAuditValue(details.before), after: stringifyAuditValue(details.after) });
+            used.add('before');
+            used.add('after');
+        }
+        if ('oldValue' in details && 'newValue' in details) {
+            rows.push({ field: 'Value', before: stringifyAuditValue(details.oldValue), after: stringifyAuditValue(details.newValue) });
+            used.add('oldValue');
+            used.add('newValue');
+        }
+
+        keys.forEach((key) => {
+            if (used.has(key)) return;
+            if (!key.startsWith('previous')) return;
+            const suffix = key.replace(/^previous/, '');
+            if (!suffix) return;
+            const lowerSuffix = suffix.charAt(0).toLowerCase() + suffix.slice(1);
+            pairCandidate(key, suffix, [lowerSuffix, `new${suffix}`, `current${suffix}`]);
+        });
+        return rows;
+    };
+
+    const systemHealth = useMemo(() => {
+        if (!diagnostics) {
+            return {
+                score: 0,
+                status: 'Unknown',
+                alerts: ['Diagnostics have not been loaded yet.'],
+                integrationsConfigured: 0,
+                integrationsTotal: 0,
+                cacheHealthy: 0,
+                cacheTotal: 0,
+                runningJobs: 0,
+                failingJobs: 0
+            };
+        }
+
+        const integrationValues = Object.values(diagnostics.integrations || {});
+        const cacheValues = Object.values(diagnostics.caches || {}).map((entry: any) => !!entry?.exists);
+        const jobs = Array.isArray(diagnostics.jobs) ? diagnostics.jobs : [];
+        const integrationsConfigured = integrationValues.filter(Boolean).length;
+        const integrationsTotal = integrationValues.length;
+        const cacheHealthy = cacheValues.filter(Boolean).length;
+        const cacheTotal = cacheValues.length;
+        const runningJobs = jobs.filter((job: any) => !!job.running).length;
+        const failingJobs = jobs.filter((job: any) => !!job.lastError).length;
+        const alerts: string[] = [];
+
+        if (integrationsConfigured < integrationsTotal) {
+            alerts.push(`${integrationsTotal - integrationsConfigured} integration(s) are not configured.`);
+        }
+        if (cacheHealthy < cacheTotal) {
+            alerts.push(`${cacheTotal - cacheHealthy} cache file(s) are missing.`);
+        }
+        if (failingJobs > 0) {
+            alerts.push(`${failingJobs} background job(s) reported recent errors.`);
+        }
+        if (diagnostics?.backup?.enabled && !diagnostics?.backup?.lastRunAt) {
+            alerts.push('Auto backup is enabled but has not completed a run yet.');
+        }
+
+        const maxPenalty = 55;
+        const integrationPenalty = integrationsTotal > 0 ? Math.round(((integrationsTotal - integrationsConfigured) / integrationsTotal) * 25) : 0;
+        const cachePenalty = cacheTotal > 0 ? Math.round(((cacheTotal - cacheHealthy) / cacheTotal) * 20) : 0;
+        const jobPenalty = Math.min(10, failingJobs * 5);
+        const penalty = Math.min(maxPenalty, integrationPenalty + cachePenalty + jobPenalty);
+        const score = Math.max(0, 100 - penalty);
+        const status = score >= 85 ? 'Healthy' : score >= 65 ? 'Watch' : 'Needs Attention';
+
+        return {
+            score,
+            status,
+            alerts,
+            integrationsConfigured,
+            integrationsTotal,
+            cacheHealthy,
+            cacheTotal,
+            runningJobs,
+            failingJobs
+        };
+    }, [diagnostics]);
+
+    const auditEventsPerPage = 12;
+    const totalAuditLogPages = Math.max(1, Math.ceil(auditLogEntries.length / auditEventsPerPage));
+    const pagedAuditEntries = auditLogEntries.slice((auditLogPage - 1) * auditEventsPerPage, auditLogPage * auditEventsPerPage);
 
     const handleRunTask = async (taskId: string) => {
         setLoading(true);
@@ -2069,6 +2216,48 @@ const SettingsDashboard: React.FC = () => {
                         <div className="mb-8 animate-fade-in space-y-6">
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">System</h3>
                             <div className="bg-background border border-border rounded-xl p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h4 className="font-bold text-text">Health Dashboard</h4>
+                                    <span className={`text-xs px-2 py-1 rounded font-bold ${systemHealth.score >= 85 ? 'bg-green-500/20 text-green-300' : systemHealth.score >= 65 ? 'bg-yellow-500/20 text-yellow-300' : 'bg-red-500/20 text-red-300'}`}>
+                                        {systemHealth.status}
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 text-sm mb-3">
+                                    <div className="bg-black/20 rounded-lg p-3">
+                                        <p className="text-muted text-xs mb-1">Health Score</p>
+                                        <p className="text-xl font-bold text-text">{systemHealth.score}%</p>
+                                    </div>
+                                    <div className="bg-black/20 rounded-lg p-3">
+                                        <p className="text-muted text-xs mb-1">Integrations</p>
+                                        <p className="text-xl font-bold text-text">{systemHealth.integrationsConfigured}/{systemHealth.integrationsTotal}</p>
+                                    </div>
+                                    <div className="bg-black/20 rounded-lg p-3">
+                                        <p className="text-muted text-xs mb-1">Caches</p>
+                                        <p className="text-xl font-bold text-text">{systemHealth.cacheHealthy}/{systemHealth.cacheTotal}</p>
+                                    </div>
+                                    <div className="bg-black/20 rounded-lg p-3">
+                                        <p className="text-muted text-xs mb-1">Running Jobs</p>
+                                        <p className="text-xl font-bold text-text">{systemHealth.runningJobs}</p>
+                                    </div>
+                                    <div className="bg-black/20 rounded-lg p-3">
+                                        <p className="text-muted text-xs mb-1">Failing Jobs</p>
+                                        <p className={`text-xl font-bold ${systemHealth.failingJobs > 0 ? 'text-red-300' : 'text-text'}`}>{systemHealth.failingJobs}</p>
+                                    </div>
+                                </div>
+                                <div className="bg-black/20 rounded-lg p-3">
+                                    <p className="text-xs font-semibold text-muted mb-2">Attention Needed</p>
+                                    {systemHealth.alerts.length === 0 ? (
+                                        <p className="text-sm text-green-300">No active health alerts.</p>
+                                    ) : (
+                                        <ul className="text-sm text-yellow-200 space-y-1">
+                                            {systemHealth.alerts.map((alert, index) => (
+                                                <li key={`health-alert-${index}`}>- {alert}</li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="bg-background border border-border rounded-xl p-4">
                                 <h4 className="font-bold text-text mb-3">Backup & Restore</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
                                     <div className="bg-black/20 rounded-lg p-3">
@@ -2185,6 +2374,93 @@ const SettingsDashboard: React.FC = () => {
                                         </div>
                                     ))}
                                 </div>
+                            </div>
+
+                            <div className="bg-background border border-border rounded-xl p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h4 className="font-bold text-text">Audit Log Viewer</h4>
+                                    <button className="px-3 py-1.5 bg-border text-text rounded-md font-semibold hover:bg-opacity-80" onClick={fetchAuditLog}>
+                                        {isLoadingAuditLog ? 'Refreshing...' : 'Refresh'}
+                                    </button>
+                                </div>
+                                {pagedAuditEntries.length === 0 ? (
+                                    <p className="text-sm text-muted">No audit events found.</p>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {pagedAuditEntries.map((entry) => {
+                                            const diffRows = getAuditDiffRows(entry.details);
+                                            const detailKeys = entry.details && typeof entry.details === 'object'
+                                                ? Object.entries(entry.details).filter(([key]) => !diffRows.some(row => key.toLowerCase().includes(row.field.toLowerCase())))
+                                                : [];
+                                            return (
+                                                <details key={entry.id} className="bg-black/20 rounded-lg p-3 border border-border/60">
+                                                    <summary className="cursor-pointer list-none">
+                                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                                            <p className="font-semibold text-text text-sm">{formatEventName(entry.event || 'event')}</p>
+                                                            <span className="text-[11px] text-muted">{formatDateTime(entry.timestamp)}</span>
+                                                        </div>
+                                                        <p className="text-xs text-muted mt-1">
+                                                            Target: {entry.target?.username || entry.target?.email || 'System'}
+                                                            {entry.actor?.username || entry.actor?.email ? ` · Actor: ${entry.actor.username || entry.actor.email}` : ''}
+                                                        </p>
+                                                    </summary>
+                                                    <div className="mt-3 space-y-2">
+                                                        {diffRows.length > 0 && (
+                                                            <div className="overflow-x-auto">
+                                                                <table className="w-full text-xs border border-border/60 rounded-lg overflow-hidden">
+                                                                    <thead className="bg-black/30 text-muted">
+                                                                        <tr>
+                                                                            <th className="text-left px-2 py-1">Field</th>
+                                                                            <th className="text-left px-2 py-1">Before</th>
+                                                                            <th className="text-left px-2 py-1">After</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {diffRows.map((row, rowIdx) => (
+                                                                            <tr key={`${entry.id}-diff-${rowIdx}`} className="border-t border-border/50">
+                                                                                <td className="px-2 py-1 text-text">{row.field}</td>
+                                                                                <td className="px-2 py-1 text-red-300">{row.before}</td>
+                                                                                <td className="px-2 py-1 text-green-300">{row.after}</td>
+                                                                            </tr>
+                                                                        ))}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        )}
+                                                        {detailKeys.length > 0 && (
+                                                            <div className="text-xs text-muted bg-black/30 rounded p-2 space-y-1">
+                                                                {detailKeys.map(([key, value]) => (
+                                                                    <p key={`${entry.id}-${key}`}>
+                                                                        <span className="text-text">{key}:</span> {stringifyAuditValue(value)}
+                                                                    </p>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </details>
+                                            );
+                                        })}
+                                        {totalAuditLogPages > 1 && (
+                                            <div className="flex items-center justify-between pt-1">
+                                                <button
+                                                    className="px-3 py-1.5 bg-border text-text rounded-md font-semibold hover:bg-opacity-80 disabled:opacity-50"
+                                                    disabled={auditLogPage === 1}
+                                                    onClick={() => setAuditLogPage(p => Math.max(1, p - 1))}
+                                                >
+                                                    Previous
+                                                </button>
+                                                <span className="text-xs text-muted">Page {auditLogPage} of {totalAuditLogPages}</span>
+                                                <button
+                                                    className="px-3 py-1.5 bg-border text-text rounded-md font-semibold hover:bg-opacity-80 disabled:opacity-50"
+                                                    disabled={auditLogPage === totalAuditLogPages}
+                                                    onClick={() => setAuditLogPage(p => Math.min(totalAuditLogPages, p + 1))}
+                                                >
+                                                    Next
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
