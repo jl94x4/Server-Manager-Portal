@@ -5464,7 +5464,57 @@ const evaluateMaintenanceRule = (item, rule) => {
     return evaluateMaintenanceFilterNode(item, root);
 };
 
+const normalizePlexRatingKey = (input) => {
+    const raw = String(input || '').trim();
+    if (!raw) return '';
+    const parts = raw.split('/');
+    return String(parts[parts.length - 1] || '').trim();
+};
+
+const fetchMaintenanceWatchStats = async (config, uri) => {
+    const pageSize = 5000;
+    const maxHistoryItems = 250000;
+    let start = 0;
+    const map = new Map();
+
+    while (start < maxHistoryItems) {
+        const pageRes = await fetch(
+            `${uri}/status/sessions/history/all?X-Plex-Token=${config.plexToken}&sort=viewedAt:desc&X-Plex-Container-Start=${start}&X-Plex-Container-Size=${pageSize}`,
+            { headers: { Accept: 'application/json' } }
+        ).then(r => r.json()).catch(() => null);
+
+        const pageContainer = pageRes?.MediaContainer || {};
+        const pageItems = Array.isArray(pageContainer.Metadata) ? pageContainer.Metadata : [];
+        if (!pageItems.length) break;
+
+        for (const item of pageItems) {
+            // For episodes, map plays to the show (grandparent) so show-level rules are accurate.
+            const rawKey = item.type === 'episode'
+                ? (item.grandparentRatingKey || item.grandparentKey || item.parentRatingKey || item.parentKey || item.ratingKey)
+                : (item.ratingKey);
+            const key = normalizePlexRatingKey(rawKey);
+            if (!key) continue;
+            const viewedAt = Number(item.viewedAt || 0);
+            const existing = map.get(key) || { watchCount: 0, lastViewedAt: null };
+            existing.watchCount += 1;
+            if (viewedAt > Number(existing.lastViewedAt || 0)) existing.lastViewedAt = viewedAt;
+            map.set(key, existing);
+        }
+
+        start += pageItems.length;
+        const totalSize = Number(pageContainer.totalSize || 0);
+        if ((totalSize > 0 && start >= totalSize) || pageItems.length < pageSize) break;
+    }
+
+    if (start >= maxHistoryItems) {
+        log(`Maintenance watch history fetch reached cap (${maxHistoryItems}). Watch counts may be truncated.`);
+    }
+
+    return map;
+};
+
 const fetchPlexLibraryItemsForMaintenance = async (config, uri) => {
+    const watchStats = await fetchMaintenanceWatchStats(config, uri);
     const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { Accept: 'application/json' } })
         .then(r => r.json())
         .catch(() => null);
@@ -5491,20 +5541,30 @@ const fetchPlexLibraryItemsForMaintenance = async (config, uri) => {
                 const ids = parsePlexGuidIds(guids);
                 const part = media?.Media?.[0]?.Part?.[0] || {};
                 const mediaInfo = media?.Media?.[0] || {};
+                const mediaType = media.type || section.type || 'movie';
+                // For TV shows, Plex exposes episode-level progress via viewedLeafCount.
+                // viewCount on shows is often null/0 even when episodes were watched.
+                const resolvedWatchCount = mediaType === 'show'
+                    ? Number(media.viewedLeafCount || 0)
+                    : Number(media.viewCount || 0);
+                const normalizedRatingKey = normalizePlexRatingKey(media.ratingKey);
+                const aggregatedWatch = watchStats.get(normalizedRatingKey) || null;
+                const finalWatchCount = Number(aggregatedWatch?.watchCount ?? resolvedWatchCount ?? 0);
+                const finalLastViewedAtUnix = Number(aggregatedWatch?.lastViewedAt || media.lastViewedAt || 0);
                 const item = {
                     ratingKey: String(media.ratingKey || ''),
                     title: media.title || media.grandparentTitle || media.originalTitle || 'Unknown',
                     thumb: media.thumb || media.grandparentThumb || '',
-                    mediaType: media.type || section.type || 'movie',
+                    mediaType,
                     libraryId: String(sectionKey),
                     libraryTitle: section.title || 'Library',
                     year: media.year || null,
-                    watchCount: Number(media.viewCount || 0),
-                    watchedEver: Number(media.viewCount || 0) > 0,
+                    watchCount: finalWatchCount,
+                    watchedEver: finalWatchCount > 0,
                     addedAt: media.addedAt ? new Date(media.addedAt * 1000).toISOString() : null,
-                    lastViewedAt: media.lastViewedAt ? new Date(media.lastViewedAt * 1000).toISOString() : null,
+                    lastViewedAt: finalLastViewedAtUnix ? new Date(finalLastViewedAtUnix * 1000).toISOString() : null,
                     daysSinceAdded: media.addedAt ? Math.floor((Date.now() - (media.addedAt * 1000)) / (24 * 60 * 60 * 1000)) : null,
-                    daysSinceLastWatch: media.lastViewedAt ? Math.floor((Date.now() - (media.lastViewedAt * 1000)) / (24 * 60 * 60 * 1000)) : null,
+                    daysSinceLastWatch: finalLastViewedAtUnix ? Math.floor((Date.now() - (finalLastViewedAtUnix * 1000)) / (24 * 60 * 60 * 1000)) : null,
                     durationMinutes: media.duration ? Math.round(media.duration / 60000) : null,
                     bitrateKbps: Number(mediaInfo.bitrate || 0),
                     videoResolution: String(mediaInfo.videoResolution || '').toLowerCase(),
