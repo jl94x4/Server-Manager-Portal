@@ -1040,6 +1040,7 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
     const [runningRuleId, setRunningRuleId] = useState<string | null>(null);
     const [previewRuleId, setPreviewRuleId] = useState<string | null>(null);
     const [resettingRuleId, setResettingRuleId] = useState<string | null>(null);
+    const [togglingRuleId, setTogglingRuleId] = useState<string | null>(null);
     const [pinCollectionOnDestructiveRun, setPinCollectionOnDestructiveRun] = useState(false);
 
     const selectedRule = useMemo(() => rules.find((rule: any) => rule.id === selectedRuleId) || null, [rules, selectedRuleId]);
@@ -1265,6 +1266,28 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
         }
     };
 
+    const toggleRuleEnabled = async (ruleId: string, event?: React.MouseEvent) => {
+        event?.preventDefault();
+        event?.stopPropagation();
+        const target = rules.find((rule: any) => rule.id === ruleId);
+        if (!target) return;
+        const previousRules = rules;
+        const nextEnabled = target.enabled === false;
+        const nextRules = rules.map((rule: any) => rule.id === ruleId ? { ...rule, enabled: nextEnabled } : rule);
+        setRules(nextRules);
+        setTogglingRuleId(ruleId);
+        try {
+            await apiFetch('/api/maintenance/rules', { method: 'POST', body: JSON.stringify(nextRules) });
+            addToast(`Filter ${nextEnabled ? 'enabled' : 'disabled'}: "${target.name || 'Unnamed Rule'}".`);
+            await Promise.all([refreshRules(), runPreview(ruleId)]);
+        } catch (e: any) {
+            setRules(previousRules);
+            addToast(e.message || 'Failed to update filter status', 'error');
+        } finally {
+            setTogglingRuleId(null);
+        }
+    };
+
     if (loading) return <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-plex border-t-transparent rounded-full animate-spin" /></div>;
 
     return (
@@ -1298,9 +1321,18 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
                                         <p className="text-sm font-semibold text-text">{rule.name || 'Unnamed Rule'}</p>
                                         <p className="text-xs text-muted mt-1">{(rule?.filterTree?.conditions || []).length} condition(s)</p>
                                     </div>
-                                    <span className={`text-[11px] px-2 py-0.5 rounded ${rule.enabled !== false ? 'bg-green-500/20 text-green-300' : 'bg-border text-muted'}`}>
-                                        {rule.enabled !== false ? 'Enabled' : 'Disabled'}
-                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => toggleRuleEnabled(rule.id, e)}
+                                        disabled={togglingRuleId === rule.id}
+                                        className={`inline-flex items-center gap-2 px-2 py-1 rounded border text-[11px] font-semibold transition-colors disabled:opacity-60 ${rule.enabled !== false ? 'border-green-500/40 bg-green-500/10 text-green-300' : 'border-border bg-black/30 text-muted'}`}
+                                        title="Toggle filter enabled/disabled"
+                                    >
+                                        <span className={`relative inline-flex h-3.5 w-7 rounded-full transition-colors ${rule.enabled !== false ? 'bg-green-500/40' : 'bg-border'}`}>
+                                            <span className={`absolute top-0.5 h-2.5 w-2.5 rounded-full bg-white transition-transform ${rule.enabled !== false ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                        </span>
+                                        {togglingRuleId === rule.id ? 'Saving...' : (rule.enabled !== false ? 'Enabled' : 'Disabled')}
+                                    </button>
                                 </div>
                                 <p className="text-[11px] text-muted mt-2">Matches: {preview?.totalMatches ?? '—'}</p>
                                 <p className="text-[11px] text-muted mt-1" title="Grace countdown starts when the rule is created.">
@@ -1312,14 +1344,14 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
                                         className="px-2.5 py-1.5 text-xs rounded border border-border text-text hover:border-plex/50"
                                         onClick={() => setSelectedRuleId(rule.id)}
                                     >
-                                        Edit Filter
+                                        Edit
                                     </button>
                                     <button
                                         type="button"
                                         className="px-2.5 py-1.5 text-xs rounded border border-border text-text hover:border-plex/50"
                                         onClick={(e) => runPreview(rule.id, e)}
                                     >
-                                        Refresh Matches
+                                        Refresh
                                     </button>
                                     <button
                                         type="button"
@@ -1328,7 +1360,7 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
                                         onClick={(e) => resetRuleGraceTimer(rule.id, e)}
                                         disabled={saving || resettingRuleId === rule.id}
                                     >
-                                        {resettingRuleId === rule.id ? 'Resetting...' : 'Reset Grace Timer'}
+                                        {resettingRuleId === rule.id ? 'Resetting...' : 'Reset'}
                                     </button>
                                     <button
                                         type="button"
@@ -1348,17 +1380,17 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
 
             {selectedRule && (
                 <div className="bg-background border border-border rounded-xl p-4 space-y-4 w-full">
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-end justify-between gap-3">
                         <div className="flex-1">
-                            <label className="text-xs text-muted font-bold uppercase">Filter Name</label>
+                            <label className="text-xs text-muted font-bold uppercase mb-1 block">Filter Name</label>
                             <input
                                 value={selectedRule.name || ''}
                                 onChange={(e) => updateRule(selectedRule.id, { name: e.target.value })}
-                                className="w-full mt-1 p-3 rounded-lg border border-border bg-card text-text outline-none focus:border-plex"
+                                className="w-full px-2.5 py-1.5 text-xs rounded border border-border bg-card text-text outline-none focus:border-plex"
                                 placeholder="Filter name"
                             />
                         </div>
-                        <div className="mt-6 flex gap-2">
+                        <div className="flex gap-2">
                             <button type="button" className="px-2.5 py-1.5 text-xs border border-border text-text rounded hover:bg-white/5" onClick={() => setSelectedRuleId(null)}>Close Editor</button>
                             <button
                                 type="button"
@@ -9155,20 +9187,16 @@ const MaintenanceDashboard: React.FC = () => {
             <header className="hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0">
                 <h1 className="text-xl md:text-3xl font-bold text-plex">Maintenance</h1>
             </header>
-            <div className="w-full flex flex-col p-0 md:p-8 bg-transparent md:bg-card rounded-none md:rounded-2xl border-0 md:border border-border shadow-none md:shadow-2xl">
-                <div className="md:hidden mb-3">
+            <div className="w-full flex flex-col p-2 md:p-8 bg-transparent md:bg-card rounded-none md:rounded-2xl border-0 md:border border-border shadow-none md:shadow-2xl">
+                <div className="md:hidden mb-3 px-2 md:px-0">
                     <label className="text-[10px] text-muted font-bold uppercase tracking-wider mb-1 block">Module Page</label>
-                    <select
+                    <CustomSelect
                         value={activeSection}
-                        onChange={(e) => setActiveSection(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg border border-border bg-card text-text text-xs font-semibold outline-none focus:border-plex"
-                    >
-                        {sections.map((section) => (
-                            <option key={`mobile-section-${section.id}`} value={section.id}>
-                                {section.label}
-                            </option>
-                        ))}
-                    </select>
+                        onChange={(value) => setActiveSection(value)}
+                        compact
+                        className="w-full"
+                        options={sections.map((section) => ({ label: section.label, value: section.id }))}
+                    />
                 </div>
                 <div className="md:grid md:grid-cols-[280px_minmax(0,1fr)] md:gap-6">
                     <aside className="hidden md:block bg-black/20 border border-border rounded-xl p-3 h-fit sticky top-20">
@@ -9186,7 +9214,7 @@ const MaintenanceDashboard: React.FC = () => {
                             ))}
                         </div>
                     </aside>
-                    <div className="overflow-y-auto pr-2 flex-grow mb-4 custom-scrollbar space-y-4">
+                    <div className="overflow-y-auto px-2 md:px-0 md:pr-2 flex-grow mb-4 custom-scrollbar space-y-4">
                         {!maintenanceFeatureEnabled && (
                             <div className="bg-background border border-yellow-500/30 rounded-xl p-5">
                                 <h3 className="text-xl font-bold text-plex mb-2">Maintenance Disabled</h3>
