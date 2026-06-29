@@ -5805,9 +5805,36 @@ const applyArrActions = async (config, resolved, actions = {}) => {
     return { success: true };
 };
 
-const syncRulePlexCollection = async (config, uri, rule, items) => {
+const resolveCollectionRatingKey = async (config, uri, libraryId, title) => {
+    try {
+        const payload = await fetch(`${uri}/library/sections/${encodeURIComponent(libraryId)}/collections?X-Plex-Token=${encodeURIComponent(config.plexToken)}`, {
+            headers: { Accept: 'application/json' }
+        }).then(r => r.json()).catch(() => null);
+        const collections = Array.isArray(payload?.MediaContainer?.Metadata) ? payload.MediaContainer.Metadata : [];
+        const needle = String(title || '').trim().toLowerCase();
+        const exact = collections.find((c) => String(c?.title || '').trim().toLowerCase() === needle);
+        const candidate = exact || collections.find((c) => String(c?.title || '').toLowerCase().includes(needle));
+        return candidate?.ratingKey ? String(candidate.ratingKey) : null;
+    } catch (e) {
+        return null;
+    }
+};
+
+const pinCollectionToHome = async (config, uri, libraryId, collectionRatingKey, pinToHomeForAllUsers) => {
+    if (!pinToHomeForAllUsers || !libraryId || !collectionRatingKey) return { pinned: false };
+    try {
+        const hubManageUrl = `${uri}/hubs/sections/${encodeURIComponent(libraryId)}/manage?metadataItemId=${encodeURIComponent(collectionRatingKey)}&promotedToRecommended=1&promotedToOwnHome=1&promotedToSharedHome=1&X-Plex-Token=${encodeURIComponent(config.plexToken)}`;
+        const res = await fetch(hubManageUrl, { method: 'PUT', headers: { Accept: 'application/json' } }).catch(() => null);
+        return { pinned: !!(res && res.ok), status: res?.status || null };
+    } catch (e) {
+        return { pinned: false, error: e.message };
+    }
+};
+
+const syncRulePlexCollection = async (config, uri, rule, items, options = {}) => {
     const collectionSettings = rule?.collection || {};
     if (!collectionSettings.enabled || !items.length) return { success: true, updated: false };
+    const pinToHomeForAllUsers = !!options.pinToHomeForAllUsers;
 
     const sectionGroups = new Map();
     items.forEach((item) => {
@@ -5818,6 +5845,7 @@ const syncRulePlexCollection = async (config, uri, rule, items) => {
     });
 
     let updated = 0;
+    let pinned = 0;
     for (const [sectionKey, ratingKeys] of sectionGroups.entries()) {
         const [libraryId, typeId] = sectionKey.split(':');
         const nameTemplate = collectionSettings.nameTemplate || 'Maintenance - {{ruleName}}';
@@ -5829,9 +5857,14 @@ const syncRulePlexCollection = async (config, uri, rule, items) => {
         const createRes = await fetch(targetUrl, { method: 'POST', headers: { Accept: 'application/json' } }).catch(() => null);
         if (createRes && (createRes.ok || createRes.status === 201 || createRes.status === 200)) {
             updated += 1;
+            if (pinToHomeForAllUsers) {
+                const collectionRatingKey = await resolveCollectionRatingKey(config, uri, libraryId, title);
+                const pinResult = await pinCollectionToHome(config, uri, libraryId, collectionRatingKey, true);
+                if (pinResult.pinned) pinned += 1;
+            }
         }
     }
-    return { success: true, updated: updated > 0, updatedCollections: updated };
+    return { success: true, updated: updated > 0, updatedCollections: updated, pinRequested: pinToHomeForAllUsers, pinnedCollections: pinned };
 };
 
 const createRunRecord = (rule, dryRun, actor) => ({
@@ -5848,7 +5881,7 @@ const createRunRecord = (rule, dryRun, actor) => ({
     errors: []
 });
 
-const runMaintenanceRule = async ({ rule, dryRun, actor, confirmToken }) => {
+const runMaintenanceRule = async ({ rule, dryRun, actor, confirmToken, runOptions = {} }) => {
     const config = await loadFile(CONFIG_PATH, {});
     const indexPayload = await loadFile(MAINTENANCE_MEDIA_INDEX_PATH, { items: [] });
     const preferences = await loadMaintenancePreferences();
@@ -5868,10 +5901,15 @@ const runMaintenanceRule = async ({ rule, dryRun, actor, confirmToken }) => {
     const maxActions = Math.max(1, Number(preferences.global?.maxActionsPerRun || settings.maxActionsPerRun || MAINTENANCE_DEFAULTS.maxActionsPerRun));
     const candidates = matched.slice(0, maxActions);
     const catalog = (!effectiveDryRun && destructive) ? await getArrCatalog(config) : { radarr: [], sonarr: [] };
-    const uri = (!effectiveDryRun && rule?.collection?.enabled) ? await getPlexConnectionUri(config) : null;
+    const createAndPinCollection = !!runOptions.createAndPinCollection;
+    const shouldCollectionSync = !effectiveDryRun && (rule?.collection?.enabled || createAndPinCollection);
+    const uri = shouldCollectionSync ? await getPlexConnectionUri(config) : null;
 
-    if (!effectiveDryRun && uri && rule?.collection?.enabled) {
-        const collectionResult = await syncRulePlexCollection(config, uri, rule, candidates);
+    if (!effectiveDryRun && uri && shouldCollectionSync) {
+        const ruleWithCollection = createAndPinCollection
+            ? { ...rule, collection: { ...(rule?.collection || {}), enabled: true } }
+            : rule;
+        const collectionResult = await syncRulePlexCollection(config, uri, ruleWithCollection, candidates, { pinToHomeForAllUsers: createAndPinCollection });
         run.outcomes.push({ type: 'collection_sync', success: !!collectionResult.success, details: collectionResult });
     }
 
@@ -6196,7 +6234,7 @@ app.get('/api/maintenance/runs', requireAdmin, async (req, res) => {
     }
 });
 
-const executeMaintenanceRunBatch = async ({ actor, ruleId = null, dryRun = undefined, confirmToken = null }) => {
+const executeMaintenanceRunBatch = async ({ actor, ruleId = null, dryRun = undefined, confirmToken = null, runOptions = {} }) => {
     const config = await loadFile(CONFIG_PATH, {});
     if (!isMaintenanceExperimentalEnabled(config)) {
         throw new Error('Maintenance Experimental Mode is disabled. Enable it in Settings first.');
@@ -6209,7 +6247,7 @@ const executeMaintenanceRunBatch = async ({ actor, ruleId = null, dryRun = undef
     const existingRuns = await loadFile(MAINTENANCE_RUNS_PATH, []);
     const newRuns = [];
     for (const rule of selected) {
-        const run = await runMaintenanceRule({ rule, dryRun, actor, confirmToken });
+        const run = await runMaintenanceRule({ rule, dryRun, actor, confirmToken, runOptions });
         newRuns.push(run);
     }
     const updatedRuns = [...newRuns, ...existingRuns].slice(0, 400);
@@ -6223,12 +6261,12 @@ app.post('/api/maintenance/run', requireAdmin, async (req, res) => {
     }
     const task = tasksInfo.find(t => t.id === 'maintenanceRuleRun');
     try {
-        const { ruleId, dryRun, confirmToken } = req.body || {};
+        const { ruleId, dryRun, confirmToken, runOptions } = req.body || {};
         maintenanceRunState.running = true;
         maintenanceRunState.lastRunAt = new Date().toISOString();
         maintenanceRunState.lastError = null;
         if (task) markTaskStart(task);
-        const newRuns = await executeMaintenanceRunBatch({ actor: req.user, ruleId, dryRun, confirmToken });
+        const newRuns = await executeMaintenanceRunBatch({ actor: req.user, ruleId, dryRun, confirmToken, runOptions });
         if (task) {
             task.nextRun = null;
             markTaskEnd(task, null);

@@ -1017,6 +1017,7 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
     const [saving, setSaving] = useState(false);
     const [runningRuleId, setRunningRuleId] = useState<string | null>(null);
     const [previewRuleId, setPreviewRuleId] = useState<string | null>(null);
+    const [pinCollectionOnDestructiveRun, setPinCollectionOnDestructiveRun] = useState(false);
 
     const selectedRule = useMemo(() => rules.find((rule: any) => rule.id === selectedRuleId) || null, [rules, selectedRuleId]);
     const selectedPreview = useMemo(() => previewData.find((preview: any) => preview.ruleId === selectedRuleId) || null, [previewData, selectedRuleId]);
@@ -1184,6 +1185,7 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
     const runRule = async (ruleId: string, dryRun: boolean, event?: React.MouseEvent) => {
         event?.preventDefault();
         event?.stopPropagation();
+        const useCollectionPin = !dryRun && pinCollectionOnDestructiveRun;
         const runNow = async () => {
             setRunningRuleId(ruleId);
             try {
@@ -1192,10 +1194,13 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
                     body: JSON.stringify({
                         ruleId,
                         dryRun,
-                        confirmToken: dryRun ? null : 'CONFIRM_MAINTENANCE_DELETE'
+                        confirmToken: dryRun ? null : 'CONFIRM_MAINTENANCE_DELETE',
+                        runOptions: dryRun ? {} : { createAndPinCollection: useCollectionPin }
                     })
                 });
-                addToast(dryRun ? 'Dry-run completed.' : 'Rule execution completed.');
+                addToast(dryRun
+                    ? 'Dry-run completed.'
+                    : (useCollectionPin ? 'Rule execution completed with collection pinning.' : 'Rule execution completed.'));
                 await Promise.all([refreshRuns(), runPreview(ruleId)]);
             } catch (e: any) {
                 addToast(e.message || 'Rule execution failed', 'error');
@@ -1204,7 +1209,12 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
             }
         };
         if (!dryRun) {
-            appConfirm('Run destructive maintenance action now? This will only delete via Sonarr/Radarr.', runNow);
+            appConfirm(
+                useCollectionPin
+                    ? 'Run destructive maintenance action now? This will delete via Sonarr/Radarr and also create/pin a Plex collection to home for all users.'
+                    : 'Run destructive maintenance action now? This will only delete via Sonarr/Radarr.',
+                runNow
+            );
             return;
         }
         await runNow();
@@ -1338,6 +1348,17 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
                             <MaintenanceConditionRow key={`${selectedRule.id}-${idx}`} condition={cond} fields={fields} onChange={(next) => updateCondition(selectedRule.id, idx, next)} onDelete={() => removeCondition(selectedRule.id, idx)} />
                         ))}
                         <button type="button" onClick={() => addCondition(selectedRule.id)} className="px-3 py-2 border border-border rounded-lg text-sm text-plex font-semibold">Add Filter Condition</button>
+                    </div>
+
+                    <div className="bg-black/20 border border-border rounded-lg p-3">
+                        <label className="flex items-center gap-2 text-sm text-muted">
+                            <input
+                                type="checkbox"
+                                checked={pinCollectionOnDestructiveRun}
+                                onChange={(e) => setPinCollectionOnDestructiveRun(e.target.checked)}
+                            />
+                            On destructive run, create collection and pin to home for all users
+                        </label>
                     </div>
 
                     <div className="flex flex-wrap gap-2 pt-1">
