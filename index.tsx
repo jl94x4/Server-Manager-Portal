@@ -198,6 +198,13 @@ interface ToastMessage {
     type: 'success' | 'error';
 }
 
+const MAX_VISIBLE_TOASTS = 3;
+
+const pushToast = (prev: ToastMessage[], message: string, type: 'success' | 'error'): ToastMessage[] => {
+    const next = [...prev, { id: Date.now() + Math.random(), message, type }];
+    return next.length > MAX_VISIBLE_TOASTS ? next.slice(-MAX_VISIBLE_TOASTS) : next;
+};
+
 interface DeletedUser {
     blockId: string;
     id?: string;
@@ -334,13 +341,21 @@ const Toast: React.FC<{ message: string; type: 'success' | 'error'; onDismiss: (
 
     return (
         <div
-            className={`px-8 py-4 rounded-xl text-white font-medium shadow-2xl transition-all duration-300 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'
+            className={`px-3 py-2 rounded-lg text-white text-sm font-medium shadow-lg transition-all duration-300 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
                 } ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}
         >
             {message}
         </div>
     );
 };
+
+const ToastContainer: React.FC<{ toasts: ToastMessage[]; setToasts: React.Dispatch<React.SetStateAction<ToastMessage[]>> }> = ({ toasts, setToasts }) => (
+    <div className="fixed z-[2000] flex flex-col-reverse gap-1.5 w-[min(18rem,calc(100vw-2rem))] bottom-5 left-1/2 -translate-x-1/2 md:bottom-auto md:left-auto md:translate-x-0 md:top-4 md:right-4">
+        {toasts.map(toast => (
+            <Toast key={toast.id} {...toast} onDismiss={() => setToasts(t => t.filter(item => item.id !== toast.id))} />
+        ))}
+    </div>
+);
 
 const SettingsIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
@@ -1646,7 +1661,7 @@ const SettingsDashboard: React.FC = () => {
     const [users, setUsers] = useState<User[]>([]);
 
     const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
-        setToasts(t => [...t, { id: Date.now(), message, type }]);
+        setToasts(t => pushToast(t, message, type));
     }, []);
 
     const fetchStatusConfig = useCallback(async () => {
@@ -2391,9 +2406,7 @@ const SettingsDashboard: React.FC = () => {
     return (
         <div className="w-full flex flex-col">
             <Loader isLoading={isLoading} />
-            <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] flex flex-col-reverse gap-2 items-center">
-                {toasts.map(toast => <Toast key={toast.id} {...toast} onDismiss={() => setToasts(t => t.filter(item => item.id !== toast.id))} />)}
-            </div>
+            <ToastContainer toasts={toasts} setToasts={setToasts} />
 
 
             <header className="hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0">
@@ -5485,7 +5498,7 @@ const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     const itemsPerPage = 20;
 
     const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
-        setToasts(t => [...t, { id: Date.now(), message, type }]);
+        setToasts(t => pushToast(t, message, type));
     }, []);
 
     const fetchSecurityData = useCallback(async () => {
@@ -5545,9 +5558,7 @@ const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     return (
         <div className="w-full flex flex-col">
             <Loader isLoading={isLoading} />
-            <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] flex flex-col-reverse gap-2 items-center">
-                {toasts.map(toast => <Toast key={toast.id} {...toast} onDismiss={() => setToasts(t => t.filter(item => item.id !== toast.id))} />)}
-            </div>
+            <ToastContainer toasts={toasts} setToasts={setToasts} />
             <header className="hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0">
                 <h1 className="text-xl md:text-3xl font-bold text-plex">System Logs</h1>
             </header>
@@ -5706,7 +5717,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: () => v
     const [sortBy, setSortBy] = useState<'username-asc' | 'username-desc' | 'expiry-asc' | 'expiry-desc' | 'joined-desc'>('username-asc');
 
     const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
-        setToasts(t => [...t, { id: Date.now(), message, type }]);
+        setToasts(t => pushToast(t, message, type));
     }, []);
 
     const fetchUsers = useCallback(async () => {
@@ -5970,9 +5981,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: () => v
     return (
         <div className="w-full flex flex-col">
             <Loader isLoading={isLoading} />
-            <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] flex flex-col-reverse gap-2 items-center">
-                {toasts.map(toast => <Toast key={toast.id} {...toast} onDismiss={() => setToasts(t => t.filter(item => item.id !== toast.id))} />)}
-            </div>
+            <ToastContainer toasts={toasts} setToasts={setToasts} />
 
             <header className="hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0">
                 <h1 className="text-xl md:text-3xl font-bold text-plex">Users Management</h1>
@@ -8988,7 +8997,7 @@ const MaintenanceDashboard: React.FC = () => {
     });
 
     const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
-        setToasts(t => [...t, { id: Date.now() + Math.random(), message, type }]);
+        setToasts(t => pushToast(t, message, type));
     }, []);
     const isMaintenanceDisabledError = useCallback((error: any) => {
         const msg = String(error?.message || '');
@@ -9366,9 +9375,7 @@ const MaintenanceDashboard: React.FC = () => {
     return (
         <div className="w-full flex flex-col">
             <Loader isLoading={loading} />
-            <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] flex flex-col-reverse gap-2 items-center">
-                {toasts.map(toast => <Toast key={toast.id} {...toast} onDismiss={() => setToasts(t => t.filter(item => item.id !== toast.id))} />)}
-            </div>
+            <ToastContainer toasts={toasts} setToasts={setToasts} />
             <header className="hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0">
                 <h1 className="text-xl md:text-3xl font-bold text-plex">Maintenance</h1>
             </header>
