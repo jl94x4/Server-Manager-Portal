@@ -159,6 +159,16 @@ const sanitizeIntegrationUrl = (rawUrl) => {
     return normalizeExternalBaseUrl(rawUrl, { allowPrivate: ALLOW_PRIVATE_INTEGRATION_URLS, allowHttp: true });
 };
 
+// For server-side calls to an already-configured integration (Tautulli, Sonarr,
+// Radarr, request apps), the host is trusted admin input and is typically a LAN
+// address. We still validate URL format/scheme but allow private/local hosts so
+// homelab setups work regardless of the ALLOW_PRIVATE_INTEGRATION_URLS setting,
+// which only governs validation of newly submitted URLs.
+const resolveIntegrationUrlForFetch = (rawUrl) => {
+    if (!rawUrl) return '';
+    return normalizeExternalBaseUrl(rawUrl, { allowPrivate: true, allowHttp: true });
+};
+
 const clearSessionCookie = (req, res) => {
     const isHttps = FORCE_SECURE_COOKIES || req.secure;
     res.clearCookie('session', { httpOnly: true, secure: isHttps, sameSite: 'strict', path: '/' });
@@ -3561,7 +3571,7 @@ app.get('/api/tautulli/stats', requireAuth, requireMember, async (req, res) => {
         if (!config || !config.tautulliUrl || !config.tautulliApiKey) {
             return res.status(404).json({ error: 'Tautulli is not configured.' });
         }
-        const tUrl = sanitizeIntegrationUrl(config.tautulliUrl);
+        const tUrl = resolveIntegrationUrlForFetch(config.tautulliUrl);
         const response = await fetch(`${tUrl}/api/v2?apikey=${config.tautulliApiKey}&cmd=get_home_stats`, { headers: { 'Accept': 'application/json' } }).then(r => r.json());
 
         if (response && response.response && response.response.data) {
@@ -3628,7 +3638,7 @@ app.get('/api/tautulli/graphs', requireAuth, requireMember, async (req, res) => 
         if (!config || !config.tautulliUrl || !config.tautulliApiKey) {
             return res.status(404).json({ error: 'Tautulli is not configured.' });
         }
-        const tUrl = sanitizeIntegrationUrl(config.tautulliUrl);
+        const tUrl = resolveIntegrationUrlForFetch(config.tautulliUrl);
         const days = req.query.days || 30;
         const yAxis = req.query.y_axis || 'plays';
 
@@ -5745,7 +5755,7 @@ const fetchRequestIndex = async (config) => {
     if (!baseUrlRaw || !apiKey || requestAppType === 'none') {
         return { generatedAt: new Date().toISOString(), type: requestAppType, items: [] };
     }
-    const baseUrl = sanitizeIntegrationUrl(baseUrlRaw);
+    const baseUrl = resolveIntegrationUrlForFetch(baseUrlRaw);
     const headers = { Accept: 'application/json', 'Content-Type': 'application/json', 'X-Api-Key': apiKey };
     const items = [];
 
@@ -5867,10 +5877,10 @@ const buildMaintenanceMediaIndex = async ({ actor = null, force = false } = {}) 
 const getArrCatalog = async (config) => {
     const [radarrItems, sonarrItems] = await Promise.all([
         config.radarrUrl && config.radarrApiKey
-            ? fetch(`${sanitizeIntegrationUrl(config.radarrUrl)}/api/v3/movie`, { headers: { 'X-Api-Key': config.radarrApiKey, Accept: 'application/json' } }).then(r => r.json()).catch(() => [])
+            ? fetch(`${resolveIntegrationUrlForFetch(config.radarrUrl)}/api/v3/movie`, { headers: { 'X-Api-Key': config.radarrApiKey, Accept: 'application/json' } }).then(r => r.json()).catch(() => [])
             : [],
         config.sonarrUrl && config.sonarrApiKey
-            ? fetch(`${sanitizeIntegrationUrl(config.sonarrUrl)}/api/v3/series`, { headers: { 'X-Api-Key': config.sonarrApiKey, Accept: 'application/json' } }).then(r => r.json()).catch(() => [])
+            ? fetch(`${resolveIntegrationUrlForFetch(config.sonarrUrl)}/api/v3/series`, { headers: { 'X-Api-Key': config.sonarrApiKey, Accept: 'application/json' } }).then(r => r.json()).catch(() => [])
             : []
     ]);
 
@@ -5909,7 +5919,7 @@ const applyArrActions = async (config, resolved, actions = {}) => {
     const shouldUnmonitor = !!actions.unmonitor;
     const qualityProfileId = Number(actions.qualityProfileId || 0);
 
-    const baseUrl = resolved.type === 'radarr' ? sanitizeIntegrationUrl(config.radarrUrl) : sanitizeIntegrationUrl(config.sonarrUrl);
+    const baseUrl = resolved.type === 'radarr' ? resolveIntegrationUrlForFetch(config.radarrUrl) : resolveIntegrationUrlForFetch(config.sonarrUrl);
     const apiKey = resolved.type === 'radarr' ? config.radarrApiKey : config.sonarrApiKey;
     const headers = { 'X-Api-Key': apiKey, Accept: 'application/json', 'Content-Type': 'application/json' };
     const id = resolved.entity.id;
