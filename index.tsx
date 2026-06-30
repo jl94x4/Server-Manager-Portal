@@ -6026,16 +6026,26 @@ const LivePlexStats: React.FC = () => {
 
     useEffect(() => {
         const fetchStats = async () => {
-            try {
-                const res = await apiFetch('/api/public/plex/stats');
-                if (res && res.movies !== undefined) {
-                    setStats(res);
+            const endpoints = ['/api/public/plex/stats', '/api/plex/stats'];
+
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(endpoint, { headers: { 'Accept': 'application/json' } });
+                    if (!response.ok) continue;
+                    const res = await response.json();
+                    if (res && typeof res.movies === 'number' && typeof res.shows === 'number' && typeof res.music === 'number') {
+                        setStats(res);
+                        return;
+                    }
+                } catch (e) {
+                    // Try next endpoint
                 }
-            } catch (e) {
-                // Silently fail if stats are unavailable
             }
         };
+
         fetchStats();
+        const interval = setInterval(fetchStats, 30000);
+        return () => clearInterval(interval);
     }, []);
 
     if (!stats) return (
