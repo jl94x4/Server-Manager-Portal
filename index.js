@@ -4271,9 +4271,12 @@ app.post('/api/speedtest/upload', requireAuth, requireMember, speedtestRateLimit
 // Serve static assets from the 'static' directory
 app.use('/static', express.static(path.join(process.cwd(), 'static')));
 
-// Serve index.css from the root directory
+// Serve optional legacy stylesheet from the root directory
 app.get('/style.css', (req, res) => {
-    res.sendFile(path.join(process.cwd(), 'style.css'));
+    const cssPath = path.join(process.cwd(), 'style.css');
+    res.sendFile(cssPath, (err) => {
+        if (err) res.type('text/css').send('/* style.css not found */');
+    });
 });
 
 const escapeHtmlAttr = (value = '') => String(value)

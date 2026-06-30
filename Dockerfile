@@ -9,7 +9,8 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-RUN npm run build
+RUN npm run build \
+    && test -f style.css || printf '/* Legacy stylesheet placeholder */\n' > style.css
 
 # --- Production image ---
 FROM node:22-alpine AS runner
