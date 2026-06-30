@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Maintainer>
+  <Icon>https://raw.githubusercontent.com/jl94x4/Server-Manager-Portal/main/static/logo.png</Icon>
+  <Profile>
+    Server Manager Portal — a Plex server management and analytics portal with automated user access, invite links, status monitoring, and admin tools.
+    Docker template and documentation: https://github.com/jl94x4/Server-Manager-Portal
+  </Profile>
+  <WebPage>https://github.com/jl94x4/Server-Manager-Portal</WebPage>
+  <Support>https://github.com/jl94x4/Server-Manager-Portal/issues</Support>
+</Maintainer>

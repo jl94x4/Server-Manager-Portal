@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>Server-Manager-Portal</Name>
+  <Repository>ghcr.io/jl94x4/server-manager-portal:latest</Repository>
+  <Registry>https://ghcr.io</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/jl94x4/Server-Manager-Portal/issues</Support>
+  <Project>https://github.com/jl94x4/Server-Manager-Portal</Project>
+  <Overview>A self-hosted Plex server management portal with user onboarding, access expiry, analytics, status monitoring, and admin tools.&#xD;&#xA;&#xD;&#xA;After install, open the WebUI and sign in with your Plex admin account, then configure Plex token and SMTP in Settings.</Overview>
+  <Category>MediaServer:Other</Category>
+  <WebUI>http://[IP]:[PORT:2121]/portal</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/jl94x4/Server-Manager-Portal/main/unraid/server-manager-portal.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/jl94x4/Server-Manager-Portal/main/static/logo.png</Icon>
+  <ExtraParams>--restart=unless-stopped</ExtraParams>
+  <Config Name="WebUI Port" Target="2121" Default="2121" Mode="tcp" Description="Portal web interface port." Type="Port" Display="always" Required="true" Mask="false">2121</Config>
+  <Config Name="Config Directory" Target="/app/config" Default="/mnt/user/appdata/server-manager-portal/config" Mode="rw" Description="Persistent JSON data (users, settings, caches, logs). Container path: /app/config" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/server-manager-portal/config</Config>
+  <Config Name="Backup Directory" Target="/app/backup" Default="/mnt/user/appdata/server-manager-portal/backup" Mode="rw" Description="Rolling backup snapshots created from Settings. Container path: /app/backup" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/server-manager-portal/backup</Config>
+  <Config Name="JWT Secret" Target="JWT_SECRET" Default="" Mode="" Description="Required session signing secret (minimum 32 characters). Generate with: node -e &quot;console.log(require('crypto').randomBytes(48).toString('hex'))&quot;" Type="Variable" Display="always" Required="true" Mask="true"></Config>
+  <Config Name="Public Base URL" Target="PUBLIC_BASE_URL" Default="" Mode="" Description="Public HTTPS URL for email links (no trailing slash). Example: https://portal.example.com" Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="Force Secure Cookies" Target="FORCE_SECURE_COOKIES" Default="false|true" Mode="" Description="Set to true when the portal is served over HTTPS (reverse proxy)." Type="Variable" Display="always" Required="false" Mask="false">true</Config>
+  <Config Name="Allow Private Integration URLs" Target="ALLOW_PRIVATE_INTEGRATION_URLS" Default="false|true" Mode="" Description="Allow Sonarr/Radarr/Tautulli URLs on LAN/private IPs (recommended for homelab)." Type="Variable" Display="always" Required="false" Mask="false">true</Config>
+  <Config Name="Setup Token" Target="SETUP_TOKEN" Default="" Mode="" Description="Optional one-time token for remote first-time setup." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="Plex OAuth Client ID" Target="CLIENT_ID" Default="" Mode="" Description="Optional fixed Plex OAuth client id (auto-generated on first run if empty)." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Config Data Directory" Target="CONFIG_DIR" Default="/app/config" Mode="" Description="Internal runtime data path (normally leave as /app/config)." Type="Variable" Display="advanced-hide" Required="true" Mask="false">/app/config</Config>
+  <Config Name="Bind Host" Target="BIND_HOST" Default="0.0.0.0" Mode="" Description="Network interface to bind." Type="Variable" Display="advanced-hide" Required="true" Mask="false">0.0.0.0</Config>
+  <Config Name="Internal Port" Target="PORT" Default="2121" Mode="" Description="Application listen port inside the container." Type="Variable" Display="advanced-hide" Required="true" Mask="false">2121</Config>
+</Container>

@@ -265,6 +265,16 @@ portal.example.com {
 
 Set `FORCE_SECURE_COOKIES=true` and `PUBLIC_BASE_URL=https://portal.example.com` so session cookies and email links use the public URL.
 
+### Unraid
+
+Use the Community Applications-compatible template in [`unraid/server-manager-portal.xml`](unraid/server-manager-portal.xml):
+
+1. **Docker** → **Add Container** → paste the [template URL](https://raw.githubusercontent.com/jl94x4/Server-Manager-Portal/main/unraid/server-manager-portal.xml)
+2. Set **JWT Secret** and adjust appdata paths (defaults: `/mnt/user/appdata/server-manager-portal/`)
+3. Apply and open the WebUI
+
+See [`unraid/README.md`](unraid/README.md) for full Unraid install steps and Community Applications submission notes.
+
 ### Environment variables
 
 | Variable | Required | Description |
@@ -316,6 +326,9 @@ Server-Manager-Portal/
 ├── config/             # Runtime JSON data (gitignored — created on first run)
 ├── Dockerfile          # Multi-stage production image
 ├── docker-compose.yml  # One-command Docker deployment
+├── ca_profile.xml      # Unraid Community Applications maintainer profile
+├── unraid/
+│   └── server-manager-portal.xml  # Unraid Docker template
 ├── .env.example        # Environment variable template
 ├── build-version.js    # Auto-increments version.txt on each build
 ├── package.json
