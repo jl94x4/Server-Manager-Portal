@@ -1620,6 +1620,8 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
     lastPlexConnectionUriFetch = 0;
     cachedAdminProfile = null;
     lastAdminProfileFetch = 0;
+    cachedArrCatalog = null;
+    cachedArrCatalogAt = 0;
     systemJobs.autoBackup.nextRun = config.autoBackupEnabled ? computeNextBackupRun(config) : null;
     log('Configuration saved successfully.');
     startBackgroundService(); // (Re)start service with new config
@@ -5407,7 +5409,7 @@ const MAINTENANCE_PREFS_DEFAULTS = {
 };
 
 const MAINTENANCE_FILTER_CATALOG = [
-    { field: 'mediaType', label: 'Media Type', type: 'select', options: ['movie', 'show', 'episode', 'season'], operators: ['equals', 'not_equals', 'in', 'not_in'] },
+    { field: 'mediaType', label: 'Media Type', type: 'select', options: ['movie', 'show'], operators: ['equals', 'not_equals', 'in', 'not_in'] },
     { field: 'libraryTitle', label: 'Library', type: 'text', operators: ['equals', 'not_equals', 'contains', 'not_contains', 'in', 'not_in'] },
     { field: 'title', label: 'Title', type: 'text', operators: ['contains', 'not_contains', 'equals', 'not_equals', 'regex'] },
     { field: 'year', label: 'Year', type: 'number', operators: ['equals', 'not_equals', 'greater_than', 'less_than', 'between'] },
@@ -5513,6 +5515,104 @@ const getMaintenanceSettings = (rule) => ({
     ...MAINTENANCE_DEFAULTS,
     ...(rule?.settings || {})
 });
+
+const computeRuleGraceRemainingDays = (rule) => {
+    const minGrace = Math.max(0, Number(rule?.graceDays || 0));
+    const createdAtMs = Date.parse(String(rule?.createdAt || ''));
+    const hasRuleCreatedAt = Number.isFinite(createdAtMs);
+    const daysSinceRuleCreated = hasRuleCreatedAt
+        ? Math.max(0, Math.floor((Date.now() - createdAtMs) / (24 * 60 * 60 * 1000)))
+        : minGrace;
+    return Math.max(0, minGrace - daysSinceRuleCreated);
+};
+
+const resolveMaintenanceMaxActions = (rule, preferences) => {
+    const ruleMax = Number(rule?.settings?.maxActionsPerRun);
+    if (Number.isFinite(ruleMax) && ruleMax > 0) return Math.max(1, Math.floor(ruleMax));
+    const globalMax = Number(preferences?.global?.maxActionsPerRun);
+    if (Number.isFinite(globalMax) && globalMax > 0) return Math.max(1, Math.floor(globalMax));
+    return MAINTENANCE_DEFAULTS.maxActionsPerRun;
+};
+
+const sanitizeMaintenanceRuleForPersist = (rule) => {
+    if (!rule || typeof rule !== 'object') return rule;
+    const { overlay, _resetGrace, ...rest } = rule;
+    return rest;
+};
+
+const validateMaintenanceDestructivePreflight = async (config, rule, catalog) => {
+    const errors = [];
+    const warnings = [];
+    const indexPayload = await loadFile(MAINTENANCE_MEDIA_INDEX_PATH, { items: [], generatedAt: null });
+    if (!indexPayload.generatedAt || !Array.isArray(indexPayload.items) || indexPayload.items.length === 0) {
+        errors.push('Maintenance media index is empty. Rebuild the index before running destructive actions.');
+    }
+    const wantsDelete = rule?.actions?.deleteFromArr !== false;
+    const wantsUnmonitor = !!rule?.actions?.unmonitor;
+    const wantsQuality = Number(rule?.actions?.qualityProfileId || 0) > 0;
+    if (wantsDelete || wantsUnmonitor || wantsQuality) {
+        const radarrReady = !!(config.radarrUrl && config.radarrApiKey);
+        const sonarrReady = !!(config.sonarrUrl && config.sonarrApiKey);
+        if (wantsDelete) {
+            if (!radarrReady) warnings.push('Radarr is not configured — matched movies cannot be deleted.');
+            if (!sonarrReady) warnings.push('Sonarr is not configured — matched shows cannot be deleted.');
+            if (!radarrReady && !sonarrReady) {
+                errors.push('Neither Radarr nor Sonarr is configured. Configure at least one integration before destructive delete.');
+            }
+        }
+        if ((wantsDelete || wantsUnmonitor || wantsQuality) && radarrReady && catalog.radarr.length === 0) {
+            warnings.push('Radarr catalog is empty or unreachable — movie matches may be unactionable.');
+        }
+        if ((wantsDelete || wantsUnmonitor || wantsQuality) && sonarrReady && catalog.sonarr.length === 0) {
+            warnings.push('Sonarr catalog is empty or unreachable — show matches may be unactionable.');
+        }
+    }
+    return { ok: errors.length === 0, errors, warnings };
+};
+
+const buildMaintenancePreviewForRule = (rule, allItems, preferences, catalog = null, options = {}) => {
+    const { limit = 300, includeAll = false } = options;
+    const matches = applyMaintenanceExclusions(allItems.filter(item => evaluateMaintenanceRule(item, rule)), preferences);
+    const graceRemainingDays = computeRuleGraceRemainingDays(rule);
+    const maxActions = resolveMaintenanceMaxActions(rule, preferences);
+    let actionableCount = 0;
+    let unactionableCount = 0;
+
+    if (catalog && graceRemainingDays <= 0) {
+        for (const item of matches) {
+            const resolved = resolveArrEntity(item, catalog);
+            if (resolved.entity) actionableCount += 1;
+            else unactionableCount += 1;
+        }
+    }
+
+    const sampleSource = includeAll ? matches : matches.slice(0, Math.max(1, Number(limit)));
+    const sample = sampleSource.map((item) => {
+        const resolved = catalog ? resolveArrEntity(item, catalog) : { type: 'none', entity: null };
+        return {
+            ...item,
+            graceRemainingDays,
+            eligible: graceRemainingDays <= 0,
+            arrResolvable: !!resolved.entity,
+            arrType: resolved.type
+        };
+    });
+
+    const eligibleCount = graceRemainingDays <= 0 ? matches.length : 0;
+    return {
+        ruleId: rule.id,
+        ruleName: rule.name,
+        totalMatches: matches.length,
+        graceRemainingDays,
+        inGraceCount: graceRemainingDays > 0 ? matches.length : 0,
+        eligibleCount,
+        actionableCount,
+        unactionableCount,
+        maxActionsPerRun: maxActions,
+        wouldProcessCount: Math.min(maxActions, eligibleCount),
+        sample
+    };
+};
 
 const maintenanceValueMap = (item, field) => {
     switch (field) {
@@ -5920,7 +6020,30 @@ const buildMaintenanceMediaIndex = async ({ actor = null, force = false } = {}) 
     }
 };
 
-const getArrCatalog = async (config) => {
+let cachedArrCatalog = null;
+let cachedArrCatalogAt = 0;
+const ARR_CATALOG_CACHE_MS = 5 * 60 * 1000;
+
+const buildArrLookupMaps = (radarrItems = [], sonarrItems = []) => {
+    const addEntry = (maps, entry) => {
+        const imdb = entry?.imdbId ? String(entry.imdbId) : null;
+        const tmdb = entry?.tmdbId != null ? String(entry.tmdbId) : null;
+        const tvdb = entry?.tvdbId != null ? String(entry.tvdbId) : null;
+        if (imdb) maps.byImdb.set(imdb, entry);
+        if (tmdb) maps.byTmdb.set(tmdb, entry);
+        if (tvdb) maps.byTvdb.set(tvdb, entry);
+    };
+    const radarrMaps = { byImdb: new Map(), byTmdb: new Map(), byTvdb: new Map() };
+    const sonarrMaps = { byImdb: new Map(), byTmdb: new Map(), byTvdb: new Map() };
+    radarrItems.forEach((entry) => addEntry(radarrMaps, entry));
+    sonarrItems.forEach((entry) => addEntry(sonarrMaps, entry));
+    return { radarr: radarrMaps, sonarr: sonarrMaps };
+};
+
+const getArrCatalog = async (config, { force = false } = {}) => {
+    if (!force && cachedArrCatalog && (Date.now() - cachedArrCatalogAt) < ARR_CATALOG_CACHE_MS) {
+        return cachedArrCatalog;
+    }
     const [radarrItems, sonarrItems] = await Promise.all([
         config.radarrUrl && config.radarrApiKey
             ? fetch(`${resolveIntegrationUrlForFetch(config.radarrUrl)}/api/v3/movie`, { headers: { 'X-Api-Key': config.radarrApiKey, Accept: 'application/json' } }).then(r => r.json()).catch(() => [])
@@ -5930,13 +6053,30 @@ const getArrCatalog = async (config) => {
             : []
     ]);
 
-    return {
-        radarr: Array.isArray(radarrItems) ? radarrItems : [],
-        sonarr: Array.isArray(sonarrItems) ? sonarrItems : []
+    const radarr = Array.isArray(radarrItems) ? radarrItems : [];
+    const sonarr = Array.isArray(sonarrItems) ? sonarrItems : [];
+    cachedArrCatalog = {
+        radarr,
+        sonarr,
+        lookup: buildArrLookupMaps(radarr, sonarr)
     };
+    cachedArrCatalogAt = Date.now();
+    return cachedArrCatalog;
 };
 
 const resolveArrEntity = (item, catalog) => {
+    const lookup = catalog?.lookup;
+    if (lookup) {
+        const maps = item.mediaType === 'movie' ? lookup.radarr : lookup.sonarr;
+        const arrType = item.mediaType === 'movie' ? 'radarr' : 'sonarr';
+        const entity = (item.imdbId && maps.byImdb.get(String(item.imdbId)))
+            || (item.tmdbId && maps.byTmdb.get(String(item.tmdbId)))
+            || (item.tvdbId && maps.byTvdb.get(String(item.tvdbId)))
+            || null;
+        if (entity) return { type: arrType, entity };
+        return { type: 'none', entity: null };
+    }
+
     const matchByIds = (entry) => {
         const imdb = entry?.imdbId || null;
         const tmdb = entry?.tmdbId ? String(entry.tmdbId) : null;
@@ -5971,12 +6111,12 @@ const applyArrActions = async (config, resolved, actions = {}) => {
     const id = resolved.entity.id;
 
     if (qualityProfileId > 0) {
-        const body = { ...resolved.entity, qualityProfileId };
-        await fetch(`${baseUrl}/api/v3/${resolved.type === 'radarr' ? 'movie' : 'series'}/${id}`, { method: 'PUT', headers, body: JSON.stringify(body) });
+        const putRes = await fetch(`${baseUrl}/api/v3/${resolved.type === 'radarr' ? 'movie' : 'series'}/${id}`, { method: 'PUT', headers, body: JSON.stringify({ ...resolved.entity, qualityProfileId }) });
+        if (!putRes.ok) return { success: false, reason: `ARR quality profile update failed (${putRes.status})` };
     }
     if (shouldUnmonitor) {
-        const body = { ...resolved.entity, monitored: false };
-        await fetch(`${baseUrl}/api/v3/${resolved.type === 'radarr' ? 'movie' : 'series'}/${id}`, { method: 'PUT', headers, body: JSON.stringify(body) });
+        const putRes = await fetch(`${baseUrl}/api/v3/${resolved.type === 'radarr' ? 'movie' : 'series'}/${id}`, { method: 'PUT', headers, body: JSON.stringify({ ...resolved.entity, monitored: false }) });
+        if (!putRes.ok) return { success: false, reason: `ARR unmonitor failed (${putRes.status})` };
     }
     if (shouldDelete) {
         const deletePath = resolved.type === 'radarr'
@@ -6072,9 +6212,11 @@ const runMaintenanceRule = async ({ rule, dryRun, actor, confirmToken, runOption
     const preferences = await loadMaintenancePreferences();
     const items = Array.isArray(indexPayload.items) ? indexPayload.items : [];
     const settings = getMaintenanceSettings(rule);
-    const effectiveDryRun = dryRun ?? !!preferences.global?.dryRunByDefault ?? !!settings.dryRunByDefault;
+    const effectiveDryRun = dryRun !== undefined && dryRun !== null
+        ? !!dryRun
+        : (settings.dryRunByDefault ?? preferences.global?.dryRunByDefault ?? MAINTENANCE_DEFAULTS.dryRunByDefault);
     const destructive = !effectiveDryRun && (rule?.actions?.deleteFromArr !== false || !!rule?.actions?.unmonitor || Number(rule?.actions?.qualityProfileId || 0) > 0);
-    const confirmRequired = preferences.global?.requireConfirmForDestructive ?? settings.requireConfirmForDestructive;
+    const confirmRequired = settings.requireConfirmForDestructive ?? preferences.global?.requireConfirmForDestructive ?? MAINTENANCE_DEFAULTS.requireConfirmForDestructive;
     if (destructive && confirmRequired && String(confirmToken || '') !== 'CONFIRM_MAINTENANCE_DELETE') {
         throw new Error('Destructive run requires confirm token.');
     }
@@ -6083,9 +6225,19 @@ const runMaintenanceRule = async ({ rule, dryRun, actor, confirmToken, runOption
     const run = createRunRecord(rule, effectiveDryRun, actor);
     run.totals.matched = matched.length;
 
-    const maxActions = Math.max(1, Number(preferences.global?.maxActionsPerRun || settings.maxActionsPerRun || MAINTENANCE_DEFAULTS.maxActionsPerRun));
+    const maxActions = resolveMaintenanceMaxActions(rule, preferences);
     const candidates = matched.slice(0, maxActions);
     const catalog = (!effectiveDryRun && destructive) ? await getArrCatalog(config) : { radarr: [], sonarr: [] };
+    const dryRunCatalog = effectiveDryRun ? await getArrCatalog(config) : catalog;
+
+    if (destructive) {
+        const preflight = await validateMaintenanceDestructivePreflight(config, rule, catalog);
+        run.preflight = { warnings: preflight.warnings };
+        if (!preflight.ok) {
+            throw new Error(preflight.errors.join(' '));
+        }
+    }
+
     const createAndPinCollection = !!runOptions.createAndPinCollection;
     const shouldCollectionSync = !effectiveDryRun && (rule?.collection?.enabled || createAndPinCollection);
     const uri = shouldCollectionSync ? await getPlexConnectionUri(config) : null;
@@ -6098,13 +6250,7 @@ const runMaintenanceRule = async ({ rule, dryRun, actor, confirmToken, runOption
         run.outcomes.push({ type: 'collection_sync', success: !!collectionResult.success, details: collectionResult });
     }
 
-    const minGrace = Math.max(0, Number(rule?.graceDays || 0));
-    const createdAtMs = Date.parse(String(rule?.createdAt || ''));
-    const hasRuleCreatedAt = Number.isFinite(createdAtMs);
-    const daysSinceRuleCreated = hasRuleCreatedAt
-        ? Math.max(0, Math.floor((Date.now() - createdAtMs) / (24 * 60 * 60 * 1000)))
-        : minGrace;
-    const graceRemainingDays = Math.max(0, minGrace - daysSinceRuleCreated);
+    const graceRemainingDays = computeRuleGraceRemainingDays(rule);
 
     for (const item of candidates) {
         if (graceRemainingDays > 0) {
@@ -6119,7 +6265,15 @@ const runMaintenanceRule = async ({ rule, dryRun, actor, confirmToken, runOption
         }
         if (effectiveDryRun) {
             run.totals.processed += 1;
-            run.outcomes.push({ ratingKey: item.ratingKey, title: item.title, status: 'dry_run', proposedActions: rule.actions || {} });
+            const resolved = resolveArrEntity(item, dryRunCatalog);
+            run.outcomes.push({
+                ratingKey: item.ratingKey,
+                title: item.title,
+                status: 'dry_run',
+                arrResolvable: !!resolved.entity,
+                arrType: resolved.type,
+                proposedActions: rule.actions || {}
+            });
             continue;
         }
 
@@ -6187,7 +6341,7 @@ app.get('/api/maintenance/rules', requireAdmin, async (req, res) => {
             const createdAt = rule?.createdAt || new Date().toISOString();
             if (graceDays !== Number(rule?.graceDays || 0) || !rule?.createdAt) changed = true;
             return {
-                ...rule,
+                ...sanitizeMaintenanceRuleForPersist(rule),
                 graceDays,
                 createdAt
             };
@@ -6205,26 +6359,55 @@ app.post('/api/maintenance/rules', requireAdmin, async (req, res) => {
         if (!Array.isArray(rules)) return res.status(400).json({ error: 'Rules must be an array.' });
         const existingRules = await loadFile(MAINTENANCE_RULES_PATH, []);
         const existingById = new Map((Array.isArray(existingRules) ? existingRules : []).map((rule) => [String(rule?.id || ''), rule]));
-        await saveFile(MAINTENANCE_RULES_PATH, rules.map((rule) => ({
-            ...rule,
-            id: rule.id || randomUUID(),
-            name: rule.name || 'Unnamed Rule',
-            enabled: rule.enabled !== false,
-            graceDays: Math.max(0, Number(rule?.graceDays || 0)),
-            createdAt: (() => {
-                const currentId = String(rule?.id || '');
-                const prev = existingById.get(currentId);
-                if (prev?.createdAt) return prev.createdAt;
-                if (rule?.createdAt) return rule.createdAt;
-                return new Date().toISOString();
-            })(),
-            updatedAt: new Date().toISOString(),
-            settings: getMaintenanceSettings(rule)
-        })));
-        await appendAuditLog('maintenance_rules_updated', req.user, null, { count: rules.length });
-        res.json({ success: true });
+        const normalized = rules.map((rule) => {
+            const cleaned = sanitizeMaintenanceRuleForPersist(rule);
+            const currentId = String(cleaned?.id || '');
+            const prev = existingById.get(currentId);
+            const resetGrace = !!rule?._resetGrace;
+            return {
+                ...cleaned,
+                id: cleaned.id || randomUUID(),
+                name: cleaned.name || 'Unnamed Rule',
+                enabled: cleaned.enabled !== false,
+                graceDays: Math.max(0, Number(cleaned?.graceDays || 0)),
+                createdAt: resetGrace
+                    ? new Date().toISOString()
+                    : (prev?.createdAt || cleaned?.createdAt || new Date().toISOString()),
+                updatedAt: new Date().toISOString(),
+                settings: getMaintenanceSettings(cleaned)
+            };
+        });
+        await saveFile(MAINTENANCE_RULES_PATH, normalized);
+        await appendAuditLog('maintenance_rules_updated', req.user, null, { count: normalized.length });
+        res.json({ success: true, rules: normalized });
     } catch (e) {
         res.status(500).json({ error: `Failed to save maintenance rules: ${e.message}` });
+    }
+});
+
+app.post('/api/maintenance/rules/reset-grace', requireAdmin, async (req, res) => {
+    try {
+        const ruleId = String(req.body?.ruleId || '').trim();
+        if (!ruleId) return res.status(400).json({ error: 'ruleId is required.' });
+        const rules = await loadFile(MAINTENANCE_RULES_PATH, []);
+        const source = Array.isArray(rules) ? rules : [];
+        let found = false;
+        const resetAt = new Date().toISOString();
+        const updated = source.map((rule) => {
+            if (String(rule?.id || '') !== ruleId) return sanitizeMaintenanceRuleForPersist(rule);
+            found = true;
+            return {
+                ...sanitizeMaintenanceRuleForPersist(rule),
+                createdAt: resetAt,
+                updatedAt: resetAt
+            };
+        });
+        if (!found) return res.status(404).json({ error: 'Maintenance rule not found.' });
+        await saveFile(MAINTENANCE_RULES_PATH, updated);
+        await appendAuditLog('maintenance_grace_reset', req.user, null, { ruleId, resetAt });
+        res.json({ success: true, ruleId, createdAt: resetAt });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to reset maintenance grace timer: ${e.message}` });
     }
 });
 
@@ -6401,7 +6584,8 @@ app.get('/api/maintenance/storage-summary', requireAdmin, async (req, res) => {
 
 app.post('/api/maintenance/preview', requireAdmin, async (req, res) => {
     try {
-        const { ruleId, rule, limit = 300, includeAll = false } = req.body || {};
+        const { ruleId, rule, limit = 300, includeAll = false, includeArrDiagnostics = false } = req.body || {};
+        const config = await loadFile(CONFIG_PATH, {});
         const rules = await loadFile(MAINTENANCE_RULES_PATH, []);
         const payload = await loadFile(MAINTENANCE_MEDIA_INDEX_PATH, { items: [] });
         const preferences = await loadMaintenancePreferences();
@@ -6409,23 +6593,69 @@ app.post('/api/maintenance/preview', requireAdmin, async (req, res) => {
         const selectedRules = rule
             ? [rule]
             : (ruleId ? rules.filter(r => r.id === ruleId) : rules.filter(r => r.enabled !== false));
-        const previews = selectedRules.map((rule) => {
-            const matches = applyMaintenanceExclusions(allItems.filter(item => evaluateMaintenanceRule(item, rule)), preferences);
-            return {
-                ruleId: rule.id,
-                ruleName: rule.name,
-                totalMatches: matches.length,
-                sample: includeAll ? matches : matches.slice(0, Math.max(1, Number(limit)))
-            };
-        });
+        const catalog = includeArrDiagnostics ? await getArrCatalog(config) : null;
+        const previews = selectedRules.map((selectedRule) => buildMaintenancePreviewForRule(
+            selectedRule,
+            allItems,
+            preferences,
+            catalog,
+            { limit, includeAll }
+        ));
         res.json({
             generatedAt: new Date().toISOString(),
             indexGeneratedAt: payload.generatedAt || null,
             preferences,
+            arrDiagnostics: includeArrDiagnostics ? {
+                radarrCount: catalog?.radarr?.length || 0,
+                sonarrCount: catalog?.sonarr?.length || 0,
+                radarrConfigured: !!(config.radarrUrl && config.radarrApiKey),
+                sonarrConfigured: !!(config.sonarrUrl && config.sonarrApiKey)
+            } : null,
             previews
         });
     } catch (e) {
         res.status(500).json({ error: `Failed to generate maintenance preview: ${e.message}` });
+    }
+});
+
+app.post('/api/maintenance/preflight', requireAdmin, async (req, res) => {
+    try {
+        const ruleId = String(req.body?.ruleId || '').trim();
+        if (!ruleId) return res.status(400).json({ error: 'ruleId is required.' });
+        const config = await loadFile(CONFIG_PATH, {});
+        const rules = await loadFile(MAINTENANCE_RULES_PATH, []);
+        const rule = (Array.isArray(rules) ? rules : []).find((r) => String(r?.id || '') === ruleId);
+        if (!rule) return res.status(404).json({ error: 'Maintenance rule not found.' });
+        const catalog = await getArrCatalog(config);
+        const preflight = await validateMaintenanceDestructivePreflight(config, rule, catalog);
+        const preferences = await loadMaintenancePreferences();
+        const indexPayload = await loadFile(MAINTENANCE_MEDIA_INDEX_PATH, { items: [] });
+        const preview = buildMaintenancePreviewForRule(
+            rule,
+            Array.isArray(indexPayload.items) ? indexPayload.items : [],
+            preferences,
+            catalog,
+            { limit: 5, includeAll: false }
+        );
+        res.json({
+            ...preflight,
+            preview: {
+                totalMatches: preview.totalMatches,
+                eligibleCount: preview.eligibleCount,
+                inGraceCount: preview.inGraceCount,
+                graceRemainingDays: preview.graceRemainingDays,
+                actionableCount: preview.actionableCount,
+                unactionableCount: preview.unactionableCount,
+                wouldProcessCount: preview.wouldProcessCount,
+                maxActionsPerRun: preview.maxActionsPerRun
+            },
+            arrCatalog: {
+                radarrCount: catalog.radarr.length,
+                sonarrCount: catalog.sonarr.length
+            }
+        });
+    } catch (e) {
+        res.status(500).json({ error: `Failed maintenance preflight: ${e.message}` });
     }
 });
 

@@ -957,11 +957,26 @@ const mkMaintenanceRule = () => ({
     enabled: true,
     graceDays: 7,
     createdAt: new Date().toISOString(),
-    settings: { enabled: false, dryRunByDefault: true, maxActionsPerRun: 25, requireConfirmForDestructive: true },
-    collection: { enabled: true, nameTemplate: 'Leaving Soon - {{ruleName}}' },
+    settings: { dryRunByDefault: true, maxActionsPerRun: 25, requireConfirmForDestructive: true },
+    collection: { enabled: false, nameTemplate: 'Leaving Soon - {{ruleName}}' },
     actions: { deleteFromArr: true, deleteFiles: true, unmonitor: false, qualityProfileId: 0 },
     filterTree: { logic: 'AND', conditions: [mkMaintenanceCondition()] }
 });
+
+const snapshotMaintenanceRules = (items: any[]) => JSON.stringify(
+    (Array.isArray(items) ? items : []).map(({ overlay, _resetGrace, ...rule }) => rule)
+);
+
+const formatMaintenanceRunSummary = (run: any) => {
+    const totals = run?.totals || {};
+    const parts = [
+        `${totals.matched ?? 0} matched`,
+        `${totals.deleted ?? 0} deleted`,
+        `${totals.skipped ?? 0} skipped`,
+        `${totals.failed ?? 0} failed`
+    ];
+    return parts.join(', ');
+};
 
 const MaintenanceConditionRow: React.FC<{
     condition: any;
@@ -1028,9 +1043,10 @@ const MaintenanceConditionRow: React.FC<{
     );
 };
 
-const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 'error') => void }> = ({ addToast }) => {
+const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 'error') => void; onRulesUpdated?: () => void }> = ({ addToast, onRulesUpdated }) => {
     const [fields, setFields] = useState<any[]>([]);
     const [rules, setRules] = useState<any[]>([]);
+    const [savedRulesSnapshot, setSavedRulesSnapshot] = useState('');
     const [runs, setRuns] = useState<any[]>([]);
     const [previewData, setPreviewData] = useState<any[]>([]);
     const [indexInfo, setIndexInfo] = useState<any>(null);
@@ -1060,18 +1076,36 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
         const data = await apiFetch('/api/maintenance/rules');
         const normalized = Array.isArray(data) ? data : [];
         setRules(normalized);
+        setSavedRulesSnapshot(snapshotMaintenanceRules(normalized));
         setSelectedRuleId(prev => {
             if (!prev) return null;
             return normalized.some((rule: any) => rule.id === prev) ? prev : null;
         });
     }, []);
 
+    const isRuleDirty = useCallback((ruleId: string) => {
+        if (!savedRulesSnapshot) return false;
+        try {
+            const saved = JSON.parse(savedRulesSnapshot) as any[];
+            const savedRule = saved.find((rule: any) => rule.id === ruleId);
+            const currentRule = rules.find((rule: any) => rule.id === ruleId);
+            if (!savedRule || !currentRule) return !!currentRule;
+            const stripTransient = ({ overlay, _resetGrace, ...rest }: any) => rest;
+            return JSON.stringify(stripTransient(savedRule)) !== JSON.stringify(stripTransient(currentRule));
+        } catch {
+            return false;
+        }
+    }, [rules, savedRulesSnapshot]);
+
     const loadAll = useCallback(async () => {
         setLoading(true);
         try {
             const [catalog, preview, index] = await Promise.all([
                 apiFetch('/api/maintenance/filter-options'),
-                apiFetch('/api/maintenance/preview', { method: 'POST', body: JSON.stringify({ includeAll: false, limit: 40 }) }),
+                apiFetch('/api/maintenance/preview', {
+                    method: 'POST',
+                    body: JSON.stringify({ includeAll: false, limit: 40, includeArrDiagnostics: false })
+                }),
                 apiFetch('/api/maintenance/index')
             ]);
             setFields(Array.isArray(catalog?.fields) ? catalog.fields : []);
@@ -1119,6 +1153,7 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
                 await apiFetch('/api/maintenance/rules', { method: 'POST', body: JSON.stringify(nextRules) });
                 addToast(`Deleted filter: ${target.name || 'Unnamed Rule'}.`);
                 await Promise.all([refreshRules(), refreshRuns()]);
+                onRulesUpdated?.();
             } catch (e: any) {
                 setRules(previousRules);
                 addToast(e.message || 'Failed to delete filter', 'error');
@@ -1158,6 +1193,7 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
             await apiFetch('/api/maintenance/rules', { method: 'POST', body: JSON.stringify(rules) });
             addToast('Maintenance rules saved.');
             await refreshRules();
+            onRulesUpdated?.();
         } catch (e: any) {
             addToast(e.message || 'Failed to save maintenance rules', 'error');
         } finally {
@@ -1188,7 +1224,8 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
                 body: JSON.stringify({
                     ruleId,
                     rule: ruleDraft || undefined,
-                    includeAll: true
+                    includeAll: true,
+                    includeArrDiagnostics: true
                 })
             });
             const previews = Array.isArray(payload?.previews) ? payload.previews : [];
@@ -1198,7 +1235,15 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
                 return Array.from(map.values());
             });
             const current = previews.find((p: any) => p.ruleId === ruleId) || previews[0];
-            addToast(`Preview complete: ${current?.totalMatches ?? 0} match(es).`);
+            const eligible = current?.eligibleCount ?? current?.totalMatches ?? 0;
+            const actionable = current?.actionableCount ?? '—';
+            const inGrace = current?.inGraceCount ?? 0;
+            const graceDays = current?.graceRemainingDays ?? 0;
+            addToast(
+                graceDays > 0
+                    ? `Preview: ${current?.totalMatches ?? 0} match(es), all in grace (${graceDays} day(s) remaining).`
+                    : `Preview: ${current?.totalMatches ?? 0} match(es), ${eligible} eligible, ${actionable} mapped in Sonarr/Radarr${inGrace ? `, ${inGrace} in grace` : ''}.`
+            );
         } catch (e: any) {
             addToast(e.message || 'Failed to generate preview', 'error');
         } finally {
@@ -1209,11 +1254,16 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
     const runRule = async (ruleId: string, dryRun: boolean, event?: React.MouseEvent) => {
         event?.preventDefault();
         event?.stopPropagation();
+        if (isRuleDirty(ruleId)) {
+            addToast('Save your filter changes before running.', 'error');
+            return;
+        }
         const useCollectionPin = !dryRun && pinCollectionOnDestructiveRun;
-        const runNow = async () => {
+
+        const executeRun = async () => {
             setRunningRuleId(ruleId);
             try {
-                await apiFetch('/api/maintenance/run', {
+                const response = await apiFetch('/api/maintenance/run', {
                     method: 'POST',
                     body: JSON.stringify({
                         ruleId,
@@ -1222,26 +1272,53 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
                         runOptions: dryRun ? {} : { createAndPinCollection: useCollectionPin }
                     })
                 });
+                const latestRun = Array.isArray(response?.runs) ? response.runs[0] : null;
+                const summary = latestRun ? formatMaintenanceRunSummary(latestRun) : '';
                 addToast(dryRun
-                    ? 'Dry-run completed.'
-                    : (useCollectionPin ? 'Rule execution completed with collection pinning.' : 'Rule execution completed.'));
+                    ? (summary ? `Dry-run completed (${summary}).` : 'Dry-run completed.')
+                    : (summary
+                        ? (useCollectionPin ? `Destructive run completed with collection pinning (${summary}).` : `Destructive run completed (${summary}).`)
+                        : (useCollectionPin ? 'Rule execution completed with collection pinning.' : 'Rule execution completed.')));
                 await Promise.all([refreshRuns(), runPreview(ruleId)]);
+                onRulesUpdated?.();
             } catch (e: any) {
                 addToast(e.message || 'Rule execution failed', 'error');
             } finally {
                 setRunningRuleId(null);
             }
         };
+
         if (!dryRun) {
-            appConfirm(
-                useCollectionPin
+            try {
+                const preflight = await apiFetch('/api/maintenance/preflight', {
+                    method: 'POST',
+                    body: JSON.stringify({ ruleId })
+                });
+                if (!preflight.ok) {
+                    addToast((preflight.errors || ['Preflight check failed.']).join(' '), 'error');
+                    return;
+                }
+                let confirmMessage = useCollectionPin
                     ? 'Run destructive maintenance action now? This will delete via Sonarr/Radarr and also create/pin a Plex collection to home for all users.'
-                    : 'Run destructive maintenance action now? This will only delete via Sonarr/Radarr.',
-                runNow
-            );
+                    : 'Run destructive maintenance action now? This will delete matching items via Sonarr/Radarr using the saved filter.';
+                if (Array.isArray(preflight.warnings) && preflight.warnings.length) {
+                    confirmMessage += `\n\nWarnings:\n- ${preflight.warnings.join('\n- ')}`;
+                }
+                const preview = preflight.preview;
+                if (preview) {
+                    confirmMessage += `\n\nWould process up to ${preview.wouldProcessCount} item(s): ${preview.actionableCount} mapped in Sonarr/Radarr, ${preview.unactionableCount} unmapped.`;
+                    if (preview.graceRemainingDays > 0) {
+                        confirmMessage += ` ${preview.inGraceCount} still in grace (${preview.graceRemainingDays} day(s) remaining).`;
+                    }
+                }
+                appConfirm(confirmMessage, executeRun);
+            } catch (e: any) {
+                addToast(e.message || 'Preflight check failed', 'error');
+            }
             return;
         }
-        await runNow();
+
+        await executeRun();
     };
 
     const resetRuleGraceTimer = async (ruleId: string, event?: React.MouseEvent) => {
@@ -1249,17 +1326,13 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
         event?.stopPropagation();
         const target = rules.find((rule: any) => rule.id === ruleId);
         if (!target) return;
-        const previousRules = rules;
-        const resetAt = new Date().toISOString();
-        const nextRules = rules.map((rule: any) => rule.id === ruleId ? { ...rule, createdAt: resetAt } : rule);
-        setRules(nextRules);
         setResettingRuleId(ruleId);
         try {
-            await apiFetch('/api/maintenance/rules', { method: 'POST', body: JSON.stringify(nextRules) });
+            await apiFetch('/api/maintenance/rules/reset-grace', { method: 'POST', body: JSON.stringify({ ruleId }) });
             addToast(`Grace timer reset for "${target.name || 'Unnamed Rule'}".`);
             await Promise.all([refreshRules(), runPreview(ruleId)]);
+            onRulesUpdated?.();
         } catch (e: any) {
-            setRules(previousRules);
             addToast(e.message || 'Failed to reset grace timer', 'error');
         } finally {
             setResettingRuleId(null);
@@ -1280,6 +1353,7 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
             await apiFetch('/api/maintenance/rules', { method: 'POST', body: JSON.stringify(nextRules) });
             addToast(`Filter ${nextEnabled ? 'enabled' : 'disabled'}: "${target.name || 'Unnamed Rule'}".`);
             await Promise.all([refreshRules(), runPreview(ruleId)]);
+            onRulesUpdated?.();
         } catch (e: any) {
             setRules(previousRules);
             addToast(e.message || 'Failed to update filter status', 'error');
@@ -1335,6 +1409,14 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
                                     </button>
                                 </div>
                                 <p className="text-[11px] text-muted mt-2">Matches: {preview?.totalMatches ?? '—'}</p>
+                                {(preview?.graceRemainingDays ?? 0) > 0 ? (
+                                    <p className="text-[11px] text-amber-300 mt-1">In grace: {preview.graceRemainingDays} day(s) left</p>
+                                ) : (
+                                    <p className="text-[11px] text-muted mt-1">
+                                        Eligible: {preview?.eligibleCount ?? '—'} · Sonarr/Radarr: {preview?.actionableCount ?? '—'} mapped
+                                        {(preview?.unactionableCount ?? 0) > 0 ? `, ${preview.unactionableCount} unmapped` : ''}
+                                    </p>
+                                )}
                                 <p className="text-[11px] text-muted mt-1" title="Grace countdown starts when the rule is created.">
                                     Grace: {Math.max(0, Number(rule?.graceDays || 0))} day(s) {rule?.createdAt ? `from ${new Date(rule.createdAt).toLocaleDateString()}` : 'from creation'}
                                 </p>
@@ -1380,6 +1462,11 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
 
             {selectedRule && (
                 <div className="bg-card/50 backdrop-blur-md border border-white/5 rounded-xl p-4 space-y-4 w-full">
+                    {isRuleDirty(selectedRule.id) && (
+                        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs rounded-lg px-3 py-2">
+                            You have unsaved changes. Save the filter before previewing or running against production rules.
+                        </div>
+                    )}
                     <div className="flex items-end justify-between gap-3">
                         <div className="flex-1">
                             <label className="text-xs text-muted font-bold uppercase mb-1 block">Filter Name</label>
@@ -1458,7 +1545,16 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
             <div className="bg-card/50 backdrop-blur-md border border-white/5 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-3">
                     <h4 className="font-bold text-text">Matched Titles</h4>
-                    <span className="text-xs px-2 py-1 rounded bg-plex/20 text-plex font-semibold">{selectedPreview?.totalMatches || 0} matches</span>
+                    <div className="text-right">
+                        <span className="text-xs px-2 py-1 rounded bg-plex/20 text-plex font-semibold">{selectedPreview?.totalMatches || 0} matches</span>
+                        {selectedPreview && (
+                            <p className="text-[11px] text-muted mt-1">
+                                {(selectedPreview.graceRemainingDays ?? 0) > 0
+                                    ? `All in grace (${selectedPreview.graceRemainingDays} day(s) remaining)`
+                                    : `${selectedPreview.eligibleCount ?? 0} eligible · ${selectedPreview.actionableCount ?? 0} in Sonarr/Radarr · up to ${selectedPreview.wouldProcessCount ?? 0} per run`}
+                            </p>
+                        )}
+                    </div>
                 </div>
                 {!selectedRuleId ? (
                     <p className="text-sm text-muted">Select a saved filter to preview matches.</p>
@@ -1481,6 +1577,16 @@ const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'success' | 
                                 <div className="p-2">
                                     <p className="text-xs text-text line-clamp-2">{item.title}</p>
                                     <p className="text-[11px] text-muted mt-1">{item.libraryTitle || item.mediaType}</p>
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                        {item.eligible === false && (
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300">Grace</span>
+                                        )}
+                                        {item.arrResolvable ? (
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/15 text-green-300">{item.arrType || 'ARR'}</span>
+                                        ) : item.eligible !== false ? (
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-300">Unmapped</span>
+                                        ) : null}
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -8874,7 +8980,9 @@ const MaintenanceDashboard: React.FC = () => {
     const [activeSection, setActiveSection] = useState(() => {
         const hash = window.location.hash.replace('#', '');
         if (hash.startsWith('maintenance-')) {
-            return hash.replace('maintenance-', '');
+            const section = hash.replace('maintenance-', '');
+            if (section === 'overlays') return 'overview';
+            return section;
         }
         return 'overview';
     });
@@ -8910,21 +9018,22 @@ const MaintenanceDashboard: React.FC = () => {
         }
     }, [activeSection]);
 
-    const loadOverview = useCallback(async () => {
-        setLoading(true);
+    const loadOverview = useCallback(async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             const configData = await apiFetch('/api/config');
             const isEnabled = !!configData?.settings?.maintenanceExperimentalEnabled;
             setMaintenanceFeatureEnabled(isEnabled);
             if (!isEnabled) {
-                setLoading(false);
                 return;
             }
-            const [indexData, runsData, previewData, previewAllData, rulesData, prefData] = await Promise.all([
+            const [indexData, runsData, previewData, rulesData, prefData] = await Promise.all([
                 apiFetch('/api/maintenance/index'),
                 apiFetch('/api/maintenance/runs'),
-                apiFetch('/api/maintenance/preview', { method: 'POST', body: JSON.stringify({ limit: 30 }) }),
-                apiFetch('/api/maintenance/preview', { method: 'POST', body: JSON.stringify({ includeAll: true }) }),
+                apiFetch('/api/maintenance/preview', {
+                    method: 'POST',
+                    body: JSON.stringify({ limit: 30, includeArrDiagnostics: false })
+                }),
                 apiFetch('/api/maintenance/rules'),
                 apiFetch('/api/maintenance/preferences')
             ]);
@@ -8936,7 +9045,7 @@ const MaintenanceDashboard: React.FC = () => {
                 global: { dryRunByDefault: true, maxActionsPerRun: 25, requireConfirmForDestructive: true },
                 exclusions: { ratingKeys: [], titles: [], libraries: [] }
             });
-            const previewAll = Array.isArray(previewAllData?.previews) ? previewAllData.previews : [];
+            const previewAll = Array.isArray(previewData?.previews) ? previewData.previews : [];
             const uniqueItems = new Map<string, any>();
             const libraryMap: Record<string, { libraryTitle: string; count: number; reclaimGB: number }> = {};
             const ruleInsights = previewAll.map((preview: any) => {
@@ -8976,7 +9085,7 @@ const MaintenanceDashboard: React.FC = () => {
             }
             addToast(e.message || 'Failed to load maintenance overview', 'error');
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     }, [addToast, isMaintenanceDisabledError]);
 
@@ -9010,7 +9119,8 @@ const MaintenanceDashboard: React.FC = () => {
                 method: 'POST',
                 body: JSON.stringify({
                     ruleId,
-                    includeAll: true
+                    includeAll: true,
+                    includeArrDiagnostics: false
                 })
             });
             const previews = Array.isArray(payload?.previews) ? payload.previews : [];
@@ -9107,10 +9217,15 @@ const MaintenanceDashboard: React.FC = () => {
 
     useEffect(() => {
         if (maintenanceFeatureEnabled && activeSection === 'exclusions') {
-            loadLibraryBrowse();
             loadExclusionsSummary();
         }
-    }, [activeSection, loadLibraryBrowse, loadExclusionsSummary, maintenanceFeatureEnabled]);
+    }, [activeSection, loadExclusionsSummary, maintenanceFeatureEnabled]);
+
+    useEffect(() => {
+        if (maintenanceFeatureEnabled && activeSection === 'exclusions') {
+            loadLibraryBrowse();
+        }
+    }, [activeSection, libraryBrowseId, libraryBrowsePage, libraryBrowseSearch, loadLibraryBrowse, maintenanceFeatureEnabled]);
 
     useEffect(() => {
         if (maintenanceFeatureEnabled && activeSection === 'storage') {
@@ -9292,7 +9407,7 @@ const MaintenanceDashboard: React.FC = () => {
                             <div className="space-y-4">
                                 <div className="bg-card/50 backdrop-blur-md border border-white/5 rounded-xl p-5">
                                     <h3 className="text-xl font-bold text-plex mb-2">Maintenance Control Center</h3>
-                                    <p className="text-sm text-muted mb-4">Dedicated top-level module for Maintainerr-style automation: rules, collections, candidates, execution timeline, overlays, calendar, storage, and governance.</p>
+                                    <p className="text-sm text-muted mb-4">Dedicated module for library maintenance automation: rules, collections, candidates, execution timeline, calendar, storage, and governance.</p>
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                                         <div className="bg-background/30 rounded-lg p-3 border border-white/5">
                                             <p className="text-xs text-muted">Indexed Media</p>
@@ -9362,7 +9477,7 @@ const MaintenanceDashboard: React.FC = () => {
                                 </div>
                             </div>
                         )}
-                        {activeSection === 'rules' && <LibraryMaintenancePanel addToast={addToast} />}
+                        {activeSection === 'rules' && <LibraryMaintenancePanel addToast={addToast} onRulesUpdated={() => loadOverview(true)} />}
                         {activeSection === 'collections' && (
                             <div className="bg-card/50 backdrop-blur-md border border-white/5 rounded-xl p-5 space-y-3">
                                 <h3 className="text-xl font-bold text-plex">Collections</h3>
@@ -9393,8 +9508,12 @@ const MaintenanceDashboard: React.FC = () => {
                                                     const next = rules.map((r: any) => r.id === rule.id ? { ...r, collection: { ...(r.collection || {}), nameTemplate: e.target.value } } : r);
                                                     setRules(next);
                                                 }}
-                                                onBlur={async () => {
-                                                    await saveAllRules(rules);
+                                                onBlur={async (e) => {
+                                                    const next = rules.map((r: any) => r.id === rule.id
+                                                        ? { ...r, collection: { ...(r.collection || {}), nameTemplate: e.target.value } }
+                                                        : r);
+                                                    setRules(next);
+                                                    await saveAllRules(next);
                                                     addToast('Collection template saved.');
                                                 }}
                                             />
@@ -9472,8 +9591,13 @@ const MaintenanceDashboard: React.FC = () => {
                                                 </div>
                                             </summary>
                                             <div className="mt-3 text-xs text-muted">
-                                                Matched {run.totals?.matched || 0} · Processed {run.totals?.processed || 0} · Deleted {run.totals?.deleted || 0} · Failed {run.totals?.failed || 0}
+                                                Matched {run.totals?.matched || 0} · Processed {run.totals?.processed || 0} · Deleted {run.totals?.deleted || 0} · Skipped {run.totals?.skipped || 0} · Failed {run.totals?.failed || 0}
                                             </div>
+                                            {Array.isArray(run.preflight?.warnings) && run.preflight.warnings.length > 0 && (
+                                                <div className="mt-2 text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded px-2 py-1">
+                                                    {run.preflight.warnings.join(' ')}
+                                                </div>
+                                            )}
                                             <div className="mt-2 max-h-52 overflow-y-auto custom-scrollbar pr-1 space-y-1">
                                                 {(run.outcomes || []).slice(0, 120).map((outcome: any, idx: number) => (
                                                     <div key={`outcome-${run.id}-${idx}`} className="text-xs bg-background/30 border border-white/5 rounded px-2 py-1">
@@ -9486,28 +9610,6 @@ const MaintenanceDashboard: React.FC = () => {
                                     ))}
                                     {!runs.length && <p className="text-sm text-muted">No runs recorded yet.</p>}
                                 </div>
-                            </div>
-                        )}
-                        {activeSection === 'overlays' && (
-                            <div className="bg-card/50 backdrop-blur-md border border-white/5 rounded-xl p-5 space-y-3">
-                                <h3 className="text-xl font-bold text-plex">Overlays</h3>
-                                <p className="text-sm text-muted">Configure per-rule overlay labels (stored with each ruleset).</p>
-                                <div className="space-y-2">
-                                    {rules.map((rule: any) => (
-                                        <div key={`overlay-${rule.id}`} className="bg-background/30 border border-white/5 rounded-lg p-3">
-                                            <p className="text-sm font-semibold text-text mb-2">{rule.name || 'Unnamed Rule'}</p>
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                                                <label className="text-xs text-muted flex items-center gap-2">
-                                                    <input type="checkbox" checked={!!rule?.overlay?.enabled} onChange={(e) => setRules(prev => prev.map((r: any) => r.id === rule.id ? { ...r, overlay: { ...(r.overlay || {}), enabled: e.target.checked } } : r))} />
-                                                    Enable overlay
-                                                </label>
-                                                <input className="p-2 rounded border border-border bg-card text-text text-xs" placeholder="Text (e.g. Leaving Soon)" value={rule?.overlay?.text || ''} onChange={(e) => setRules(prev => prev.map((r: any) => r.id === rule.id ? { ...r, overlay: { ...(r.overlay || {}), text: e.target.value } } : r))} />
-                                                <input className="p-2 rounded border border-border bg-card text-text text-xs" placeholder="Color (e.g. #E5A00D)" value={rule?.overlay?.color || ''} onChange={(e) => setRules(prev => prev.map((r: any) => r.id === rule.id ? { ...r, overlay: { ...(r.overlay || {}), color: e.target.value } } : r))} />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                                <button type="button" className="px-3 py-2 bg-plex text-background rounded-md text-sm font-semibold" onClick={async () => { await saveAllRules(rules); addToast('Overlay settings saved.'); }}>Save Overlay Settings</button>
                             </div>
                         )}
                         {activeSection === 'calendar' && (
