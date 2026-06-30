@@ -193,6 +193,96 @@ npm start
 
 ---
 
+## Docker Deployment
+
+The recommended way to run Server Portal in production is Docker with a persistent volume for `config/`.
+
+### Quick start (Docker Compose)
+
+**1. Clone and configure**
+
+```bash
+git clone https://github.com/jl94x4/Server-Manager-Portal.git
+cd Server-Manager-Portal
+cp .env.example .env
+```
+
+Edit `.env` and set `JWT_SECRET` (at least 32 characters). If the portal is served over HTTPS behind a reverse proxy, also set:
+
+```env
+FORCE_SECURE_COOKIES=true
+PUBLIC_BASE_URL=https://portal.example.com
+```
+
+**2. Build and run**
+
+```bash
+docker compose up -d --build
+```
+
+The portal listens on port **2121** by default. Open `http://localhost:2121` and sign in with your Plex admin account.
+
+**3. Persisted data**
+
+| Host path | Container path | Purpose |
+|---|---|---|
+| `./config` | `/app/config` | All JSON settings, users, caches, logs |
+| `./backup` | `/app/backup` | Rolling backup snapshots |
+
+On first startup, any legacy JSON files still in the project root are automatically migrated into `config/`.
+
+### Docker Compose tips
+
+- Change the published port: set `PORT=8080` in `.env` (maps host `8080` → container `2121`).
+- Integrations on your LAN (Sonarr, Radarr, Tautulli): set `ALLOW_PRIVATE_INTEGRATION_URLS=true` and use reachable URLs from inside the container (e.g. `http://host.docker.internal:8989` on Docker Desktop, or your host IP on Linux).
+- View logs: `docker compose logs -f portal`
+- Update: `git pull && docker compose up -d --build`
+
+### Build the image manually
+
+```bash
+docker build -t server-manager-portal .
+docker run -d \
+  --name server-manager-portal \
+  -p 2121:2121 \
+  -e JWT_SECRET="your-secret-at-least-32-chars" \
+  -e FORCE_SECURE_COOKIES=true \
+  -e PUBLIC_BASE_URL=https://portal.example.com \
+  -v "$(pwd)/config:/app/config" \
+  -v "$(pwd)/backup:/app/backup" \
+  server-manager-portal
+```
+
+### Reverse proxy (Nginx / Caddy / Traefik)
+
+Run the container on an internal port and proxy HTTPS to it. Example Caddy:
+
+```caddy
+portal.example.com {
+    reverse_proxy localhost:2121
+}
+```
+
+Set `FORCE_SECURE_COOKIES=true` and `PUBLIC_BASE_URL=https://portal.example.com` so session cookies and email links use the public URL.
+
+### Environment variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `JWT_SECRET` | Yes | Session signing secret (min 32 characters) |
+| `PORT` | No | Listen port inside the container (default `2121`) |
+| `BIND_HOST` | No | Bind address (default `0.0.0.0`) |
+| `CONFIG_DIR` | No | Runtime data directory (default `/app/config` in Docker) |
+| `PUBLIC_BASE_URL` | Recommended | Public HTTPS URL for links and emails |
+| `FORCE_SECURE_COOKIES` | Recommended | Set `true` when behind HTTPS |
+| `ALLOW_PRIVATE_INTEGRATION_URLS` | No | Allow LAN/private URLs for Arr stack integrations |
+| `SETUP_TOKEN` | No | Token for remote first-time setup |
+| `CLIENT_ID` | No | Fixed Plex OAuth client id (auto-generated if unset) |
+
+See `.env.example` for a full template.
+
+---
+
 ## Configuration
 
 All configuration is managed through the **Settings UI** in the browser. Key options include:
@@ -224,6 +314,9 @@ Server-Manager-Portal/
 ├── lib/
 │   └── data-paths.js   # Data file locations + legacy migration
 ├── config/             # Runtime JSON data (gitignored — created on first run)
+├── Dockerfile          # Multi-stage production image
+├── docker-compose.yml  # One-command Docker deployment
+├── .env.example        # Environment variable template
 ├── build-version.js    # Auto-increments version.txt on each build
 ├── package.json
 └── .env                # JWT_SECRET (not committed to git)

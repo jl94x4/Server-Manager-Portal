@@ -1,0 +1,14 @@
+node_modules
+config
+backup
+.env
+.env.*
+.git
+.github
+.vscode
+.idea
+unneeded
+v2
+*.log
+npm-debug.log*
+.DS_Store

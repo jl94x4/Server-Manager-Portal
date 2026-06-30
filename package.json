@@ -9,7 +9,8 @@
     "build:js": "esbuild index.tsx --bundle --outfile=static/bundle.js --jsx=automatic --format=esm",
     "build:version": "node build-version.js",
     "build": "npm run build:css && npm run build:js && npm run build:version",
-    "start": "npm run build && node --env-file=.env index.js"
+    "start": "npm run build && node --env-file=.env index.js",
+    "start:prod": "node index.js"
   },
   "dependencies": {
     "compression": "^1.7.4",

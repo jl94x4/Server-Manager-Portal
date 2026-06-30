@@ -58,6 +58,7 @@ v2/
 # Environment secrets
 .env
 .env.*
+!.env.example
 
 test*.js
 test*.cjs

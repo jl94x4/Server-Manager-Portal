@@ -1,0 +1,23 @@
+services:
+  portal:
+    build: .
+    image: server-manager-portal:latest
+    container_name: server-manager-portal
+    restart: unless-stopped
+    ports:
+      - "${PORT:-2121}:2121"
+    env_file:
+      - .env
+    environment:
+      PORT: 2121
+      BIND_HOST: 0.0.0.0
+      CONFIG_DIR: /app/config
+    volumes:
+      - ./config:/app/config
+      - ./backup:/app/backup
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:2121/api/config/public').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

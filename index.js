@@ -27,7 +27,7 @@ try {
 
 const app = express();
 app.use(compression());
-const PORT = 2121;
+const PORT = parseInt(process.env.PORT || '2121', 10);
 const BIND_HOST = process.env.BIND_HOST || '0.0.0.0';
 const SETUP_TOKEN = process.env.SETUP_TOKEN || '';
 const ALLOW_PRIVATE_INTEGRATION_URLS = String(process.env.ALLOW_PRIVATE_INTEGRATION_URLS || '').toLowerCase() === 'true';
