@@ -3757,7 +3757,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     const [dashboardData, setDashboardData] = useState<any>(null);
     const [serverDataLoading, setServerDataLoading] = useState(true);
     const [topContentPage, setTopContentPage] = useState(0);
-    const TOP_CONTENT_PAGE_SIZE = 18;
+    const TOP_CONTENT_PAGE_SIZE = 24;
     const [recentHistoryPage, setRecentHistoryPage] = useState(0);
     const RECENT_HISTORY_PAGE_SIZE = 18;
     const [analyticsDays, setAnalyticsDays] = useState<number | 'all'>(30);
@@ -4533,10 +4533,10 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                                     </div>
                                                 )}
                                             </div>
-                                            <div className="grid grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
+                                            <div className="grid grid-cols-4 md:grid-cols-8 gap-2 md:gap-3">
                                                 {analytics.topWatched.slice(topContentPage * TOP_CONTENT_PAGE_SIZE, (topContentPage + 1) * TOP_CONTENT_PAGE_SIZE).map((item: any) => (
-                                                    <a key={item.key} href={item.plexUrl} target="_blank" rel="noreferrer" className="group flex flex-col gap-2">
-                                                        <div className="relative rounded-xl overflow-hidden aspect-[2/3] bg-background border border-white/5 transition-transform group-hover:scale-105 group-hover:shadow-xl group-hover:border-plex/50">
+                                                    <a key={item.key} href={item.plexUrl} target="_blank" rel="noreferrer" className="group flex flex-col gap-1.5">
+                                                        <div className="relative rounded-lg overflow-hidden aspect-[2/3] bg-background border border-white/5 transition-transform group-hover:scale-105 group-hover:shadow-xl group-hover:border-plex/50">
                                                             {item.thumbUrl ? (
                                                                 <img src={item.thumbUrl} alt={item.title} className="w-full h-full object-cover transition-opacity group-hover:opacity-80" />
                                                             ) : (
