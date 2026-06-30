@@ -183,23 +183,27 @@ app.set('trust proxy', 1);
 // --- In-Memory Cache for Plex Metadata ---
 const plexMetadataCache = new Map();
 
-// --- Configuration and Paths ---
-const CONFIG_PATH = path.join(process.cwd(), 'config.json');
-const INVITES_PATH = path.join(process.cwd(), 'invites.json');
-const USERS_PATH = path.join(process.cwd(), 'users.json');
-const DELETED_USERS_PATH = path.join(process.cwd(), 'deleted-users.json');
-const AUDIT_LOG_PATH = path.join(process.cwd(), 'audit-log.json');
-const EMAIL_LOG_PATH = path.join(process.cwd(), 'email_log.json');
-const STATUS_CONFIG_PATH = path.join(process.cwd(), 'status.json');
-const HEALTH_PATH = path.join(process.cwd(), 'subzero-health.json');
-const TRENDING_CACHE_PATH = path.join(process.cwd(), 'trending-cache.json');
-const ANALYTICS_CACHE_PATH = path.join(process.cwd(), 'analytics-cache.json');
-const KILL_RULES_PATH = path.join(process.cwd(), 'kill-rules.json');
-const MAINTENANCE_RULES_PATH = path.join(process.cwd(), 'maintenance-rules.json');
-const MAINTENANCE_MEDIA_INDEX_PATH = path.join(process.cwd(), 'maintenance-media-index.json');
-const MAINTENANCE_RUNS_PATH = path.join(process.cwd(), 'maintenance-runs.json');
-const MAINTENANCE_REQUEST_INDEX_PATH = path.join(process.cwd(), 'maintenance-request-index.json');
-const MAINTENANCE_PREFS_PATH = path.join(process.cwd(), 'maintenance-prefs.json');
+import {
+    CONFIG_DIR,
+    CONFIG_PATH,
+    INVITES_PATH,
+    USERS_PATH,
+    DELETED_USERS_PATH,
+    AUDIT_LOG_PATH,
+    EMAIL_LOG_PATH,
+    STATUS_CONFIG_PATH,
+    HEALTH_PATH,
+    TRENDING_CACHE_PATH,
+    ANALYTICS_CACHE_PATH,
+    KILL_RULES_PATH,
+    MAINTENANCE_RULES_PATH,
+    MAINTENANCE_MEDIA_INDEX_PATH,
+    MAINTENANCE_RUNS_PATH,
+    MAINTENANCE_REQUEST_INDEX_PATH,
+    MAINTENANCE_PREFS_PATH,
+    PLEX_STATS_CACHE_PATH,
+    migrateConfigFiles,
+} from './lib/data-paths.js';
 const PLEX_API = 'https://plex.tv/api';
 
 // --- Status App Global State ---
@@ -1812,7 +1816,6 @@ app.get('/api/plex/image', requireAuth, requireMember, async (req, res) => {
 // The /api/plex/stats endpoint ONLY reads from the cache file — it never
 // triggers a Plex fetch itself.
 
-const PLEX_STATS_CACHE_PATH = path.join(process.cwd(), 'plex-stats.json');
 let cachedPlexStats = null;          // in-memory mirror of the cache file
 let isBuildingPlexStats = false;
 
@@ -2730,7 +2733,8 @@ app.get('/api/admin/diagnostics', requireAdmin, async (req, res) => {
                 version: appVersion,
                 uptimeSeconds: Math.floor(process.uptime()),
                 nodeVersion: process.version,
-                memoryRssMB: Math.round(process.memoryUsage().rss / (1024 * 1024))
+                memoryRssMB: Math.round(process.memoryUsage().rss / (1024 * 1024)),
+                configDataDir: CONFIG_DIR
             },
             integrations: {
                 plexConfigured: !!(config.plexToken && config.serverIdentifier),
@@ -7060,6 +7064,8 @@ async function monitorConcurrentSessions() {
 
 app.listen(PORT, BIND_HOST, async () => {
     log(`--- Server Manager Portal Service starting on http://${BIND_HOST}:${PORT} ---`);
+
+    await migrateConfigFiles((message) => log(`[config] ${message}`));
 
     // Ensure unique CLIENT_ID per installation to avoid Plex Auth blocking
     const config = await loadFile(CONFIG_PATH, {});

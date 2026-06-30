@@ -1,0 +1,100 @@
+export interface User {
+    id: string;
+    username: string;
+    email?: string;
+    thumb?: string;
+    joiningDate: string;
+    expiryDate: string | null;
+    plexAccessStatus: 'active' | 'pending' | 'revoked' | 'unknown';
+    exemptFromCleanup?: boolean;
+    isTrial?: boolean;
+    optOutNewsletter?: boolean;
+    lastLogin?: string;
+}
+
+export interface PlexConfig {
+    token: string;
+    serverIdentifier: string;
+    checkIntervalMinutes: number;
+    smtpHost: string;
+    smtpPort: number;
+    smtpUser: string;
+    smtpPass: string;
+    smtpFrom: string;
+    smtpSecure: boolean;
+    emailDaysBefore: number;
+    newsletterFrequency: string;
+    newsletterDay: number;
+    publicDomain: string;
+    requestUrl?: string;
+    contactUrl?: string;
+}
+
+export interface AppSettings {
+    token?: string;
+    serverIdentifier?: string;
+    checkIntervalMinutes: number;
+    smtpHost?: string;
+    smtpPort?: number;
+    smtpUser?: string;
+    smtpPass?: string;
+    smtpFrom?: string;
+    smtpSecure?: boolean;
+    emailDaysBefore?: number;
+    newsletterFrequency?: string;
+    newsletterDay?: number;
+    publicDomain?: string;
+    requestUrl?: string;
+    contactUrl?: string;
+    inactiveCleanupEnabled?: boolean;
+    inactiveCleanupDays?: number;
+    sonarrUrl?: string;
+    sonarrApiKey?: string;
+    radarrUrl?: string;
+    radarrApiKey?: string;
+    tautulliUrl?: string;
+    tautulliApiKey?: string;
+    primaryColor?: string;
+    navOrder?: string[];
+}
+
+export interface PlexServer {
+    name: string;
+    identifier: string;
+}
+
+export interface ToastMessage {
+    id: number;
+    message: string;
+    type: 'success' | 'error';
+}
+
+export interface DeletedUser {
+    blockId: string;
+    id?: string;
+    plexId?: string;
+    username?: string;
+    email?: string;
+    deletedAt?: string;
+    deletedBy?: string;
+}
+
+export interface AuditEntry {
+    id: string;
+    timestamp: string;
+    event: string;
+    actor?: { username?: string; email?: string; isAdmin?: boolean } | null;
+    target?: { username?: string; email?: string } | null;
+    details?: Record<string, any>;
+}
+
+export type UserStatus = 'active' | 'expiring' | 'expired';
+
+export interface CustomSelectProps {
+    id?: string;
+    value: string | number;
+    onChange: (value: string) => void;
+    options: { label: string; value: string | number }[];
+    className?: string;
+    compact?: boolean;
+}

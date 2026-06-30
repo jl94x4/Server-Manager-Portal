@@ -221,16 +221,21 @@ Server-Manager-Portal/
 │   ├── bundle.js       # Built React frontend
 │   ├── tailwind.css    # Built Tailwind styles
 │   └── logo.png        # Server logo
+├── lib/
+│   └── data-paths.js   # Data file locations + legacy migration
+├── config/             # Runtime JSON data (gitignored — created on first run)
 ├── build-version.js    # Auto-increments version.txt on each build
 ├── package.json
 └── .env                # JWT_SECRET (not committed to git)
 ```
 
-Runtime-generated files (not committed to git):
-- `config.json` - Server configuration
-- `users.json` - User records
-- `audit-log.json` - System action log
-- `trending-cache.json` - Cached leaderboard and trending data
+Runtime-generated files (stored in `config/`, not committed to git):
+- `config/config.json` - Server configuration
+- `config/users.json` - User records
+- `config/audit-log.json` - System action log
+- `config/trending-cache.json` - Cached leaderboard and trending data
+
+On first startup after an upgrade, any legacy JSON files still in the project root are automatically moved into `config/`.
 
 ---
 

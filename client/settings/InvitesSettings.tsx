@@ -1,0 +1,198 @@
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Copy, ChevronUp, ChevronDown } from 'lucide-react';
+import { apiFetch } from '../shared/api';
+import { appConfirm } from '../shared/confirm';
+import { CustomSelect } from '../shared/ui';
+import { Loader, ToastContainer, pushToast, type ToastMessage } from '../shared/toast';
+import { SettingHint } from './SettingHint';
+import type { User, AuditEntry, DeletedUser } from '../shared/types';
+import { formatDateTime, formatEventName, hexToRgb, getDaysUntilExpiry, addMonths, addYears, formatDate } from '../shared/format';
+export const InvitesSettings: React.FC<{ addToast: (msg: string, type: 'success' | 'error') => void }> = ({ addToast }) => {
+    const [invites, setInvites] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [durationDays, setDurationDays] = useState(30);
+    const [maxUses, setMaxUses] = useState<string | number>(1);
+    const [emailInvite, setEmailInvite] = useState('');
+    const [emailing, setEmailing] = useState(false);
+    const [libraries, setLibraries] = useState<any[]>([]);
+    const [selectedLibraries, setSelectedLibraries] = useState<string[]>([]);
+
+    const fetchInvites = useCallback(async () => {
+        try {
+            const data = await apiFetch('/api/invites');
+            setInvites(data);
+            const libData = await apiFetch('/api/plex/libraries').catch(() => []);
+            setLibraries(libData || []);
+        } catch (e) {
+            addToast('Failed to load invites', 'error');
+        } finally {
+            setLoading(false);
+        }
+    }, [addToast]);
+
+    useEffect(() => { fetchInvites(); }, [fetchInvites]);
+
+    const handleCreate = async () => {
+        try {
+            await apiFetch('/api/invites', {
+                method: 'POST',
+                body: JSON.stringify({ durationDays, maxUses, libraryIds: selectedLibraries })
+            });
+            addToast('Invite link created', 'success');
+            fetchInvites();
+        } catch (e: any) {
+            addToast(e.message || 'Error creating invite', 'error');
+        }
+    };
+
+    const handleEmailInvite = async () => {
+        if (!emailInvite) return addToast('Please enter an email address', 'error');
+        setEmailing(true);
+        try {
+            await apiFetch('/api/invites/email', {
+                method: 'POST',
+                body: JSON.stringify({ email: emailInvite, durationDays, libraryIds: selectedLibraries })
+            });
+            addToast('Email invite sent!', 'success');
+            setEmailInvite('');
+            fetchInvites();
+        } catch (e: any) {
+            addToast(e.message || 'Error sending email invite', 'error');
+        } finally {
+            setEmailing(false);
+        }
+    };
+
+    const handleDelete = async (code: string) => {
+        appConfirm('Are you sure you want to delete this invite link?', async () => {
+            try {
+                await apiFetch(`/api/invites/${code}`, { method: 'DELETE' });
+                addToast('Invite link deleted', 'success');
+                fetchInvites();
+            } catch (e: any) {
+                addToast(e.message || 'Error deleting invite', 'error');
+            }
+        });
+    };
+
+    const handleCopy = (code: string) => {
+        navigator.clipboard.writeText(`${window.location.origin}/invite/${code}`);
+        addToast('Invite link copied to clipboard!', 'success');
+    };
+
+    if (loading) return <div className="text-muted">Loading invites...</div>;
+
+    return (
+        <div className="animate-fade-in mb-8">
+            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Automated Invite Links</h3>
+            <p className="text-sm text-muted mb-6">Generate unique links to automatically invite users to your Plex server.</p>
+
+            <div className="space-y-6 mb-8">
+                <h4 className="font-bold">Create New Invite Link</h4>
+                <div className="flex flex-col md:flex-row gap-4 items-end mb-6">
+                    <div className="flex-1 w-full">
+                        <label className="block text-sm mb-1 font-medium">Duration (Days)</label>
+                        <input type="number" min="1" className="w-full p-2.5 rounded-lg bg-background border border-border text-text outline-none focus:border-plex" value={durationDays} onChange={e => setDurationDays(Number(e.target.value))} />
+                    </div>
+                    <div className="flex-1 w-full">
+                        <label className="block text-sm mb-1 font-medium">Max Uses (Number or 'unlimited')</label>
+                        <input type="text" className="w-full p-2.5 rounded-lg bg-background border border-border text-text outline-none focus:border-plex" value={maxUses} onChange={e => setMaxUses(e.target.value)} />
+                    </div>
+                    <button className="w-full md:w-auto px-6 py-2.5 bg-plex text-background font-bold rounded-lg hover:bg-plex-hover transition-colors shadow-lg" onClick={handleCreate}>Generate Link</button>
+                </div>
+
+                {libraries.length > 0 && (
+                    <div className="mb-6">
+                        <label className="block text-sm mb-2 font-medium">Libraries to Share (Leave unselected to share ALL libraries)</label>
+                        <div className="flex flex-wrap gap-2">
+                            {libraries.map(lib => (
+                                <label key={lib.id} className="flex items-center gap-2 bg-background border border-border px-3 py-2 rounded-lg cursor-pointer hover:border-plex transition-colors">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedLibraries.includes(lib.id)}
+                                        onChange={(e) => {
+                                            if (e.target.checked) setSelectedLibraries([...selectedLibraries, lib.id]);
+                                            else setSelectedLibraries(selectedLibraries.filter(id => id !== lib.id));
+                                        }}
+                                        className="accent-plex"
+                                    />
+                                    <span className="text-sm font-medium">{lib.title}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                <div className="border-t border-border/50 pt-6">
+                    <h4 className="font-bold mb-4">Direct Email Invite</h4>
+                    <p className="text-sm text-muted mb-4">Send a 1-time use invite directly to a user's email address (uses the Duration defined above).</p>
+                    <div className="flex flex-col md:flex-row gap-4 items-end">
+                        <div className="flex-1 w-full">
+                            <label className="block text-sm mb-1 font-medium">Email Address</label>
+                            <input type="email" placeholder="user@example.com" className="w-full p-2.5 rounded-lg bg-background border border-border text-text outline-none focus:border-plex" value={emailInvite} onChange={e => setEmailInvite(e.target.value)} />
+                        </div>
+                        <button disabled={emailing} className="w-full md:w-auto px-6 py-2.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-lg disabled:opacity-50" onClick={handleEmailInvite}>
+                            {emailing ? 'Sending...' : 'Send Email Invite'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[600px]">
+                    <thead>
+                        <tr className="border-b border-border text-muted text-sm uppercase tracking-wider">
+                            <th className="p-3">Invite Link</th>
+                            <th className="p-3">Duration</th>
+                            <th className="p-3">Uses</th>
+                            <th className="p-3">Libraries</th>
+                            <th className="p-3">Created</th>
+                            <th className="p-3 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {invites.length === 0 ? (
+                            <tr><td colSpan={6} className="p-8 text-center text-muted">No active invites. Create one above!</td></tr>
+                        ) : invites.map(inv => (
+                            <tr key={inv.code} className="border-b border-border/50 hover:bg-white/5 transition-colors">
+                                <td className="p-3">
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-mono text-sm text-plex select-all">{window.location.origin}/invite/{inv.code}</span>
+                                        <button onClick={() => handleCopy(inv.code)} className="text-muted hover:text-plex transition-colors p-1" title="Copy Link">
+                                            <Copy size={16} />
+                                        </button>
+                                    </div>
+                                </td>
+                                <td className="p-3 font-medium">{inv.durationDays} days</td>
+                                <td className="p-3">
+                                    <div className="font-medium">{inv.maxUses === 'unlimited' ? 'Unlimited' : `${inv.currentUses} / ${inv.maxUses}`}</div>
+                                    {inv.usedBy && inv.usedBy.length > 0 && (
+                                        <div className="mt-1.5 flex flex-wrap gap-1 max-w-[200px]">
+                                            {inv.usedBy.map((u: any, idx: number) => (
+                                                <span key={idx} className="text-[10px] text-plex bg-plex/10 border border-plex/20 px-1.5 py-0.5 rounded shadow-sm" title={`Claimed on ${new Date(u.date).toLocaleString()} by ${u.email}`}>
+                                                    {u.username}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </td>
+                                <td className="p-3 text-sm">
+                                    {inv.libraryIds && inv.libraryIds.length > 0
+                                        ? libraries.filter(l => inv.libraryIds.includes(l.id)).map(l => l.title).join(', ') || `${inv.libraryIds.length} selected`
+                                        : <span className="text-plex opacity-80">All Libraries</span>}
+                                </td>
+                                <td className="p-3 text-muted text-sm">
+                                    {new Date(inv.createdAt).toLocaleDateString()}
+                                    {inv.sentTo && <div className="text-xs text-blue-400 mt-1">Sent to: {inv.sentTo}</div>}
+                                </td>
+                                <td className="p-3 text-right">
+                                    <button onClick={() => handleDelete(inv.code)} className="text-red-500 hover:text-red-400 font-bold border border-red-500/30 px-3 py-1 rounded hover:bg-red-500/10 transition-colors text-xs">Revoke</button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};

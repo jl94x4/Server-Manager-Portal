@@ -23,7 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 
-# Database and configuration files
+# Runtime data (config/ directory — see config/README.md)
+config/
+
+# Legacy root-level data files (pre-config/ migration)
 config.json
 users.json
 status.json
@@ -32,16 +35,25 @@ audit.json
 emails.json
 subzero-health.json
 invites.json
+audit-log.json
+deleted-users.json
+email_log.json
+plex-stats.json
+trending-cache.json
+analytics-cache.json
+kill-rules.json
+maintenance-rules.json
+maintenance-media-index.json
+maintenance-runs.json
+maintenance-request-index.json
+maintenance-prefs.json
+subzero-status-config.json
+status-config.json
 
 # Backup directories
 backup/
 unneeded/
 v2/
-
-# Local database files
-audit-log.json
-deleted-users.json
-email_log.json
 
 # Environment secrets
 .env
@@ -50,22 +62,6 @@ email_log.json
 test*.js
 test*.cjs
 
-# Runtime cache files
-plex-stats.json
-trending-cache.json
-analytics-cache.json
+# Build artifacts
 patch.cjs
 static/bundle.js
-
-# Kill rules and maintenance data (may contain usernames, IPs, internal paths)
-kill-rules.json
-maintenance-rules.json
-maintenance-media-index.json
-maintenance-runs.json
-maintenance-request-index.json
-maintenance-prefs.json
-
-# Plex stats & status operational data
-subzero-status-config.json
-subzero-health.json
-status-config.json
