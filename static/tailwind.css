@@ -607,6 +607,18 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   }
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
 .pointer-events-none {
   pointer-events: none;
 }
@@ -725,6 +737,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .top-0 {
   top: 0px;
+}
+
+.top-0\.5 {
+  top: 0.125rem;
 }
 
 .top-1 {
@@ -1063,6 +1079,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   height: 0.5rem;
 }
 
+.h-2\.5 {
+  height: 0.625rem;
+}
+
 .h-2\/3 {
   height: 66.666667%;
 }
@@ -1121,6 +1141,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .h-8 {
   height: 2rem;
+}
+
+.h-9 {
+  height: 2.25rem;
 }
 
 .h-\[300px\] {
@@ -1268,6 +1292,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   width: 0.5rem;
 }
 
+.w-2\.5 {
+  width: 0.625rem;
+}
+
 .w-24 {
   width: 6rem;
 }
@@ -1332,12 +1360,12 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   width: 2rem;
 }
 
-.w-\[120px\] {
-  width: 120px;
+.w-9 {
+  width: 2.25rem;
 }
 
-.w-\[80\%\] {
-  width: 80%;
+.w-\[120px\] {
+  width: 120px;
 }
 
 .w-\[90\%\] {
@@ -1387,11 +1415,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .min-w-\[600px\] {
   min-width: 600px;
-}
-
-.min-w-max {
-  min-width: -moz-max-content;
-  min-width: max-content;
 }
 
 .max-w-2xl {
@@ -1484,8 +1507,18 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
+.translate-x-0\.5 {
+  --tw-translate-x: 0.125rem;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
 .translate-x-1 {
   --tw-translate-x: 0.25rem;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
+.translate-x-4 {
+  --tw-translate-x: 1rem;
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
@@ -1797,6 +1830,12 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   margin-bottom: calc(0.5rem * var(--tw-space-y-reverse));
 }
 
+.space-y-2\.5 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(0.625rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(0.625rem * var(--tw-space-y-reverse));
+}
+
 .space-y-3 > :not([hidden]) ~ :not([hidden]) {
   --tw-space-y-reverse: 0;
   margin-top: calc(0.75rem * calc(1 - var(--tw-space-y-reverse)));
@@ -1825,16 +1864,8 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-color: rgb(48 54 61 / 0.5);
 }
 
-.self-center {
-  align-self: center;
-}
-
 .self-stretch {
   align-self: stretch;
-}
-
-.justify-self-center {
-  justify-self: center;
 }
 
 .overflow-hidden {
@@ -1847,6 +1878,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .overflow-y-auto {
   overflow-y: auto;
+}
+
+.overflow-x-clip {
+  overflow-x: clip;
 }
 
 .overflow-x-visible {
@@ -2038,6 +2073,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .border-green-500\/30 {
   border-color: rgb(34 197 94 / 0.3);
+}
+
+.border-green-500\/40 {
+  border-color: rgb(34 197 94 / 0.4);
 }
 
 .border-green-500\/50 {
@@ -2285,6 +2324,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   background-color: rgb(22 27 34 / 0.5);
 }
 
+.bg-card\/80 {
+  background-color: rgb(22 27 34 / 0.8);
+}
+
 .bg-card\/90 {
   background-color: rgb(22 27 34 / 0.9);
 }
@@ -2314,6 +2357,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .bg-green-500\/20 {
   background-color: rgb(34 197 94 / 0.2);
+}
+
+.bg-green-500\/40 {
+  background-color: rgb(34 197 94 / 0.4);
 }
 
 .bg-green-600 {
@@ -3204,6 +3251,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 .text-\[\#D32F2F\] {
   --tw-text-opacity: 1;
   color: rgb(211 47 47 / var(--tw-text-opacity, 1));
+}
+
+.text-amber-300 {
+  --tw-text-opacity: 1;
+  color: rgb(252 211 77 / var(--tw-text-opacity, 1));
 }
 
 .text-amber-400 {
@@ -4105,6 +4157,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   background-color: rgb(37 211 102 / 0.2);
 }
 
+.hover\:bg-amber-500\/10:hover {
+  background-color: rgb(245 158 11 / 0.1);
+}
+
 .hover\:bg-background\/50:hover {
   background-color: rgb(13 17 23 / 0.5);
 }
@@ -4361,6 +4417,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   opacity: 0.5;
 }
 
+.disabled\:opacity-60:disabled {
+  opacity: 0.6;
+}
+
 .group:hover .group-hover\:rotate-180 {
   --tw-rotate: 180deg;
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
@@ -4437,6 +4497,19 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
 
+.peer:checked ~ .peer-checked\:border-plex {
+  --tw-border-opacity: 1;
+  border-color: rgb(var(--color-plex) / var(--tw-border-opacity, 1));
+}
+
+.peer:checked ~ .peer-checked\:bg-plex\/20 {
+  background-color: rgb(var(--color-plex) / 0.2);
+}
+
+.peer:checked ~ .peer-checked\:opacity-100 {
+  opacity: 1;
+}
+
 @media (min-width: 640px) {
   .sm\:col-span-2 {
     grid-column: span 2 / span 2;
@@ -4479,10 +4552,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .sm\:w-auto {
     width: auto;
-  }
-
-  .sm\:w-full {
-    width: 100%;
   }
 
   .sm\:grid-cols-2 {
@@ -4541,6 +4610,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .md\:top-\[88px\] {
     top: 88px;
+  }
+
+  .md\:col-auto {
+    grid-column: auto;
   }
 
   .md\:col-span-1 {
@@ -4627,10 +4700,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     height: 20rem;
   }
 
-  .md\:h-9 {
-    height: 2.25rem;
-  }
-
   .md\:h-\[240px\] {
     height: 240px;
   }
@@ -4681,10 +4750,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .md\:w-64 {
     width: 16rem;
-  }
-
-  .md\:w-9 {
-    width: 2.25rem;
   }
 
   .md\:w-\[220px\] {
@@ -4745,20 +4810,16 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     grid-template-columns: 1.5fr 1fr 2fr auto;
   }
 
-  .md\:grid-cols-\[220px_minmax\(0\2c 1fr\)_auto\] {
-    grid-template-columns: 220px minmax(0,1fr) auto;
-  }
-
   .md\:grid-cols-\[280px_minmax\(0\2c 1fr\)\] {
     grid-template-columns: 280px minmax(0,1fr);
   }
 
-  .md\:grid-cols-\[auto_auto_auto_minmax\(0\2c 1fr\)\] {
-    grid-template-columns: auto auto auto minmax(0,1fr);
-  }
-
   .md\:flex-row {
     flex-direction: row;
+  }
+
+  .md\:flex-wrap {
+    flex-wrap: wrap;
   }
 
   .md\:items-start {
@@ -4771,6 +4832,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .md\:items-center {
     align-items: center;
+  }
+
+  .md\:justify-start {
+    justify-content: flex-start;
   }
 
   .md\:gap-1\.5 {
@@ -4797,10 +4862,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     gap: 2rem;
   }
 
-  .md\:justify-self-end {
-    justify-self: end;
-  }
-
   .md\:rounded-2xl {
     border-radius: 1rem;
   }
@@ -4821,13 +4882,8 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     border-width: 1px;
   }
 
-  .md\:bg-black\/20 {
-    background-color: rgb(0 0 0 / 0.2);
-  }
-
-  .md\:bg-card {
-    --tw-bg-opacity: 1;
-    background-color: rgb(22 27 34 / var(--tw-bg-opacity, 1));
+  .md\:bg-card\/50 {
+    background-color: rgb(22 27 34 / 0.5);
   }
 
   .md\:bg-gradient-to-r {
@@ -4844,14 +4900,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .md\:p-10 {
     padding: 2.5rem;
-  }
-
-  .md\:p-2 {
-    padding: 0.5rem;
-  }
-
-  .md\:p-3 {
-    padding: 0.75rem;
   }
 
   .md\:p-4 {
@@ -4885,11 +4933,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     padding-right: 0.5rem;
   }
 
-  .md\:px-3 {
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
-  }
-
   .md\:py-1 {
     padding-top: 0.25rem;
     padding-bottom: 0.25rem;
@@ -4915,6 +4958,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .md\:pb-8 {
     padding-bottom: 2rem;
+  }
+
+  .md\:pr-2 {
+    padding-right: 0.5rem;
   }
 
   .md\:pr-32 {
@@ -5006,6 +5053,15 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     --tw-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
     --tw-shadow-colored: 0 25px 50px -12px var(--tw-shadow-color);
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+  }
+
+  .md\:backdrop-blur-md {
+    --tw-backdrop-blur: blur(12px);
+    backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
+  }
+
+  .md\:\[grid-template-columns\:repeat\(auto-fill\2c minmax\(150px\2c 150px\)\)\] {
+    grid-template-columns: repeat(auto-fill,minmax(150px,150px));
   }
 }
 
@@ -5103,14 +5159,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 }
 
 @media (min-width: 1536px) {
-  .\32xl\:grid-cols-10 {
-    grid-template-columns: repeat(10, minmax(0, 1fr));
-  }
-
-  .\32xl\:grid-cols-4 {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
   .\32xl\:grid-cols-5 {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }

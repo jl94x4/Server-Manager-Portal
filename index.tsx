@@ -10120,7 +10120,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLog
 
 
             {/* Desktop Sidebar */}
-            <div className="hidden md:flex flex-col w-72 bg-card border-r border-border p-6 sticky top-0 h-screen shadow-2xl">
+            <div className="hidden md:flex flex-col w-72 bg-card border-r border-border p-6 sticky top-0 h-screen overflow-y-auto custom-scrollbar shadow-2xl">
                 <div className="flex flex-col gap-2 mt-4">
                     {normalizedNavOrder.map((key) => {
                         const item = navItemsConfig[key];
@@ -10477,7 +10477,7 @@ const MainApp: React.FC = () => {
     };
 
     return (
-        <div className="flex w-full min-h-screen bg-background overflow-x-hidden">
+        <div className="flex w-full min-h-screen bg-background overflow-x-clip">
             <ConfirmModal isOpen={confirmState.isOpen} message={confirmState.message} onConfirm={handleConfirm} onCancel={closeConfirm} />
             {!isPublicView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Server Portal'} adminThumb={sessionInfo?.adminThumb} requestUrl={sessionInfo?.requestUrl || 'https://yourdomain.com'} navOrder={sessionInfo?.navOrder || ['home', 'discover', 'status', 'analytics', 'mediastack', 'maintenance', 'request', 'settings', 'logout']} appVersion={publicConfig.appVersion} />}
             <div className={`flex-1 min-w-0 flex flex-col items-center px-[2px] pt-20 pb-[80px] md:p-8 md:pt-8 md:pb-8 overflow-x-visible ${isPublicView ? '!pt-8 !pb-8' : ''}`}>
