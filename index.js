@@ -34,6 +34,11 @@ const ALLOW_PRIVATE_INTEGRATION_URLS = String(process.env.ALLOW_PRIVATE_INTEGRAT
 const FORCE_SECURE_COOKIES = String(process.env.FORCE_SECURE_COOKIES || '').toLowerCase() === 'true';
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || '';
 
+// Sentinel sent to the admin UI in place of stored secrets so raw credentials
+// never leave the server. When the UI posts this value back unchanged on save,
+// the existing stored secret is preserved instead of being overwritten.
+const SECRET_MASK = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022';
+
 // --- Security: JWT secret must be explicitly set in the environment ---
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET || JWT_SECRET.length < 32) {
@@ -98,7 +103,11 @@ const hasValidSetupToken = (req) => {
     return typeof provided === 'string' && provided === SETUP_TOKEN;
 };
 
-const canRunInitialSetup = (req) => hasValidSetupToken(req) || isLoopbackAddress(getClientIp(req));
+// Use the raw TCP peer address for setup authorization. req.ip honors the
+// client-supplied X-Forwarded-For header (trust proxy is enabled), which an
+// attacker could spoof to impersonate localhost during the unconfigured window.
+const getSocketPeerIp = (req) => (req.socket && req.socket.remoteAddress) || 'unknown';
+const canRunInitialSetup = (req) => hasValidSetupToken(req) || isLoopbackAddress(getSocketPeerIp(req));
 
 const isPrivateIp = (host) => {
     if (!net.isIP(host)) return false;
@@ -1354,13 +1363,13 @@ app.get('/api/config', requireAdmin, async (req, res) => {
         res.json({
             configured: true,
             settings: {
-                token: config.plexToken,
+                token: config.plexToken ? SECRET_MASK : '',
                 serverIdentifier: config.serverIdentifier,
                 checkIntervalMinutes: config.checkIntervalMinutes || 60,
                 smtpHost: config.smtpHost || '',
                 smtpPort: config.smtpPort || 587,
                 smtpUser: config.smtpUser || '',
-                smtpPass: config.smtpPass || '',
+                smtpPass: config.smtpPass ? SECRET_MASK : '',
                 smtpFrom: config.smtpFrom || '',
                 smtpSecure: !!config.smtpSecure,
                 emailDaysBefore: config.emailDaysBefore || 7,
@@ -1372,14 +1381,14 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 requestUrl: config.requestUrl || 'https://yourdomain.com',
                 contactUrl: config.contactUrl || '',
                 sonarrUrl: config.sonarrUrl || '',
-                sonarrApiKey: config.sonarrApiKey || '',
+                sonarrApiKey: config.sonarrApiKey ? SECRET_MASK : '',
                 radarrUrl: config.radarrUrl || '',
-                radarrApiKey: config.radarrApiKey || '',
+                radarrApiKey: config.radarrApiKey ? SECRET_MASK : '',
                 tautulliUrl: config.tautulliUrl || '',
-                tautulliApiKey: config.tautulliApiKey || '',
+                tautulliApiKey: config.tautulliApiKey ? SECRET_MASK : '',
                 requestAppType: config.requestAppType || 'none',
                 requestAppUrl: config.requestAppUrl || '',
-                requestAppApiKey: config.requestAppApiKey || '',
+                requestAppApiKey: config.requestAppApiKey ? SECRET_MASK : '',
                 primaryColor: config.primaryColor || '#E5A00D',
                 customLogoUrl: config.customLogoUrl || '',
                 referralEnabled: !!config.referralEnabled,
@@ -1511,15 +1520,23 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         return res.status(400).json({ error: `Invalid integration URL: ${e.message}` });
     }
 
+    // Secrets are returned to the UI as SECRET_MASK. If the UI sends the mask
+    // back unchanged, keep the existing stored value rather than overwriting it.
+    const resolveSecret = (incoming, existing) => {
+        if (incoming === undefined || incoming === null) return existing || '';
+        if (incoming === SECRET_MASK) return existing || '';
+        return String(incoming);
+    };
+
     const config = {
         ...existingConfig,
-        plexToken: token,
+        plexToken: resolveSecret(token, existingConfig.plexToken),
         serverIdentifier,
         checkIntervalMinutes: (interval > 0 ? interval : 60),
         smtpHost: smtpHost || '',
         smtpPort: parseInt(smtpPort, 10) || 587,
         smtpUser: smtpUser || '',
-        smtpPass: smtpPass || '',
+        smtpPass: resolveSecret(smtpPass, existingConfig.smtpPass),
         smtpFrom: smtpFrom || '',
         smtpSecure: !!smtpSecure,
         emailDaysBefore: parseInt(emailDaysBefore, 10) || 7,
@@ -1533,14 +1550,14 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         contactWhatsApp: contactWhatsApp || '',
         contactEmail: contactEmail || '',
         sonarrUrl: safeSonarrUrl,
-        sonarrApiKey: sonarrApiKey !== undefined ? sonarrApiKey : (existingConfig.sonarrApiKey || ''),
+        sonarrApiKey: resolveSecret(sonarrApiKey, existingConfig.sonarrApiKey),
         radarrUrl: safeRadarrUrl,
-        radarrApiKey: radarrApiKey !== undefined ? radarrApiKey : (existingConfig.radarrApiKey || ''),
+        radarrApiKey: resolveSecret(radarrApiKey, existingConfig.radarrApiKey),
         tautulliUrl: safeTautulliUrl,
-        tautulliApiKey: tautulliApiKey !== undefined ? tautulliApiKey : (existingConfig.tautulliApiKey || ''),
+        tautulliApiKey: resolveSecret(tautulliApiKey, existingConfig.tautulliApiKey),
         requestAppType: ['none', 'overseerr', 'jellyseerr', 'ombi'].includes(String(requestAppType || '').toLowerCase()) ? String(requestAppType).toLowerCase() : (existingConfig.requestAppType || 'none'),
         requestAppUrl: safeRequestAppUrl,
-        requestAppApiKey: requestAppApiKey !== undefined ? requestAppApiKey : (existingConfig.requestAppApiKey || ''),
+        requestAppApiKey: resolveSecret(requestAppApiKey, existingConfig.requestAppApiKey),
         primaryColor: primaryColor || '#E5A00D',
         customLogoUrl: customLogoUrl || '',
         referralEnabled: !!referralEnabled,
@@ -1623,11 +1640,19 @@ app.post('/api/config/test-email', requireAdmin, async (req, res) => {
         return res.status(400).json({ error: 'Host, user, password, and test recipient are required.' });
     }
 
+    // The UI shows the stored password as SECRET_MASK; resolve it back to the
+    // real stored value so the test uses actual credentials.
+    let effectiveSmtpPass = smtpPass;
+    if (smtpPass === SECRET_MASK) {
+        const storedConfig = await loadFile(CONFIG_PATH, {});
+        effectiveSmtpPass = storedConfig.smtpPass || '';
+    }
+
     const config = {
         smtpHost,
         smtpPort: parseInt(smtpPort, 10) || 587,
         smtpUser,
-        smtpPass,
+        smtpPass: effectiveSmtpPass,
         smtpFrom,
         smtpSecure: !!smtpSecure,
     };

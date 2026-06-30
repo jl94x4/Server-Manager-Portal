@@ -3500,9 +3500,11 @@ const BroadcastSettingsTab: React.FC<{ selectedUserIds: string[]; users: User[];
                     </button>
                 </div>
                 {isPreviewMode ? (
-                    <div
-                        className="w-full h-[300px] p-4 rounded-lg bg-white text-black border border-border overflow-y-auto"
-                        dangerouslySetInnerHTML={{ __html: body }}
+                    <iframe
+                        title="Email body preview"
+                        sandbox=""
+                        srcDoc={body}
+                        className="w-full h-[300px] rounded-lg bg-white border border-border"
                     />
                 ) : (
                     <textarea
