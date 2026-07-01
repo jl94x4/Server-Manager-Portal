@@ -180,15 +180,52 @@ app.use(cookieParser()); // Middleware to parse cookies
 // Trust the first proxy (e.g. Nginx/Caddy) so req.secure reflects HTTPS correctly
 app.set('trust proxy', 1);
 
-const verifyInitialSetupPlexOwner = async (plexToken, serverIdentifier) => {
+const verifyInitialSetupPlexOwner = async (plexToken, serverIdentifier, plexServerUrl = '') => {
     if (!plexToken || !serverIdentifier || plexToken === SECRET_MASK) return false;
     try {
         const servers = await fetchOwnedPlexServers(plexToken);
-        return servers.some(server => String(server.identifier) === String(serverIdentifier));
+        if (servers.some(server => String(server.identifier) === String(serverIdentifier))) {
+            return true;
+        }
     } catch (e) {
-        log(`Initial setup Plex owner verification failed: ${e.message}`);
-        return false;
+        log(`Initial setup Plex owner verification via Plex.tv failed: ${e.message}`);
     }
+
+    // Fallback for Docker/LAN setups where Plex.tv resource discovery can fail:
+    // probe the direct Plex URL /identity endpoint and compare machineIdentifier.
+    if (plexServerUrl) {
+        try {
+            const directUrl = resolveIntegrationUrlForFetch(plexServerUrl);
+            const identityRes = await fetchWithTimeout(`${directUrl}/identity`, {
+                headers: {
+                    'X-Plex-Token': plexToken,
+                    'Accept': 'application/json'
+                }
+            }, 6000);
+            if (!identityRes.ok) return false;
+
+            const identityText = await identityRes.text();
+            let machineIdentifier = '';
+
+            try {
+                const parsed = JSON.parse(identityText);
+                const container = parsed?.MediaContainer || parsed || {};
+                machineIdentifier = String(container.machineIdentifier || '');
+            } catch {
+                const machineMatch = identityText.match(/machineIdentifier="([^"]+)"/i)
+                    || identityText.match(/<machineIdentifier>([^<]+)<\/machineIdentifier>/i);
+                machineIdentifier = machineMatch ? String(machineMatch[1]) : '';
+            }
+
+            if (machineIdentifier && String(machineIdentifier) === String(serverIdentifier)) {
+                return true;
+            }
+        } catch (e) {
+            log(`Initial setup Plex owner verification via direct URL failed: ${e.message}`);
+        }
+    }
+
+    return false;
 };
 
 // --- In-Memory Cache for Plex Metadata ---
@@ -1703,7 +1740,10 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
             return res.status(403).json({ error: 'Forbidden: Invalid or expired session. Please log in again.' });
         }
     } else if (!canRunInitialSetup(req)) {
-        const verifiedPlexOwner = await verifyInitialSetupPlexOwner(token, serverIdentifier);
+        const candidatePlexServerUrl = (plexServerUrlFromBody !== undefined
+            ? String(plexServerUrlFromBody || '').trim()
+            : String(existingConfig.plexServerUrl || '').trim());
+        const verifiedPlexOwner = await verifyInitialSetupPlexOwner(token, serverIdentifier, candidatePlexServerUrl);
         if (!verifiedPlexOwner) {
             if (!SETUP_TOKEN) {
                 return res.status(403).json({ error: 'Initial setup is restricted. Sign in with the Plex server owner account, configure SETUP_TOKEN, or run setup from localhost.' });
