@@ -21,9 +21,7 @@ ENV NODE_ENV=production
 ENV BIND_HOST=0.0.0.0
 ENV PORT=2121
 
-RUN apk add --no-cache su-exec \
-    && addgroup -S -g 1000 portal \
-    && adduser -S -u 1000 -G portal portal
+RUN apk add --no-cache su-exec
 
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
@@ -38,7 +36,7 @@ COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 RUN mkdir -p config backup \
-    && chown -R portal:portal /app
+    && chown -R node:node /app
 
 EXPOSE 2121
 
