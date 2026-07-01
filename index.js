@@ -1348,7 +1348,7 @@ app.post('/api/auth/plex/callback', authRateLimit, async (req, res) => {
 
         const token = jwt.sign(sessionUser, JWT_SECRET, { expiresIn: '7d' });
         const isHttps = FORCE_SECURE_COOKIES || req.secure;
-        res.cookie('session', token, { httpOnly: true, secure: isHttps, sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
+        res.cookie('session', token, { httpOnly: true, secure: isHttps, sameSite: 'strict', path: '/', maxAge: 7 * 24 * 60 * 60 * 1000 });
 
         if (!isAdmin) {
             const users = await loadFile(USERS_PATH, []);
@@ -3040,7 +3040,7 @@ app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
         };
         const token = jwt.sign(sessionUser, JWT_SECRET, { expiresIn: '7d' });
         const isHttps = FORCE_SECURE_COOKIES || req.secure;
-        res.cookie('session', token, { httpOnly: true, secure: isHttps, sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
+        res.cookie('session', token, { httpOnly: true, secure: isHttps, sameSite: 'strict', path: '/', maxAge: 7 * 24 * 60 * 60 * 1000 });
 
         res.json({ success: true, user: newUser });
     } catch (e) {
