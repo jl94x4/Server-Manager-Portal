@@ -1577,7 +1577,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         try {
             const decoded = jwt.verify(sessionToken, JWT_SECRET);
             const adminId = await getAdminId(existingConfig);
-            if (!adminId || decoded.plexId !== adminId) {
+            if (!adminId || String(decoded.plexId) !== String(adminId)) {
                 return res.status(403).json({ error: 'Forbidden: Admins only.' });
             }
             req.user = decoded;
