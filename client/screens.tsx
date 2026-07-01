@@ -5091,6 +5091,34 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
     );
 };
 
+const DiscoverPosterCard: React.FC<{
+    item: { title: string; thumb?: string; plexUrl: string; tags?: string[] };
+    aspect?: '2/3' | 'square';
+    overlay?: React.ReactNode;
+}> = ({ item, aspect = '2/3', overlay }) => (
+    <a href={item.plexUrl} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
+        <div className={`relative ${aspect === 'square' ? 'aspect-square' : 'aspect-[2/3]'} w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md`}>
+            <img
+                src={`/api/plex/image?path=${encodeURIComponent(item.thumb || '')}&width=300&height=${aspect === 'square' ? 300 : 450}`}
+                alt={item.title}
+                loading="lazy"
+                className="w-full h-full object-cover"
+            />
+            {overlay}
+            {item.tags && item.tags.length > 0 && (
+                <div className="absolute bottom-1 left-1 right-1 flex flex-wrap gap-0.5 pointer-events-none z-10">
+                    {item.tags.map((tag) => (
+                        <span key={tag} className="text-[8px] font-bold px-1 py-px rounded bg-black/85 text-white/95 border border-white/15 uppercase tracking-wide">
+                            {tag}
+                        </span>
+                    ))}
+                </div>
+            )}
+        </div>
+        <div className="text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight">{item.title}</div>
+    </a>
+);
+
 export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, publicConfig?: any }> = ({ onBack, isAdmin, publicConfig }) => {
     const [dashboardData, setDashboardData] = useState<{ activeSessions: any[], recentMovies: any[], recentShows: any[], recentMusic: any[] } | null>(null);
     const [trendingStats, setTrendingStats] = useState<{ trending7Days: any[], movies30Days: any[], shows30Days: any[], top365Days: any[], allTime: any[], weekendWarriors: any[], nightOwls: any[], retroHits: any[], cultClassics: any[] } | null>(null);
@@ -5302,12 +5330,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                         <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">RECENTLY ADDED MOVIES</h2>
                         <div className="grid grid-cols-3 sm:grid-cols-4 md:[grid-template-columns:repeat(auto-fill,minmax(150px,150px))] md:justify-start gap-3 w-full pb-4">
                             {dashboardData && dashboardData.recentMovies.slice(0, recentLimit).map((item, i) => (
-                                <a key={i} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
-                                    <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
-                                        <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
-                                    </div>
-                                    <div className="text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight">{item.title}</div>
-                                </a>
+                                <DiscoverPosterCard key={i} item={item} />
                             ))}
                             {(!dashboardData || dashboardData.recentMovies.length === 0) && <div className="text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full col-span-full">No recent movies</div>}
                         </div>
@@ -5318,12 +5341,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                         <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">RECENTLY ADDED TV SHOWS</h2>
                         <div className="grid grid-cols-3 sm:grid-cols-4 md:[grid-template-columns:repeat(auto-fill,minmax(150px,150px))] md:justify-start gap-3 w-full pb-4">
                             {dashboardData && dashboardData.recentShows.slice(0, recentLimit).map((item, i) => (
-                                <a key={i} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
-                                    <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
-                                        <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
-                                    </div>
-                                    <div className="text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight">{item.title}</div>
-                                </a>
+                                <DiscoverPosterCard key={i} item={item} />
                             ))}
                             {(!dashboardData || dashboardData.recentShows.length === 0) && <div className="text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full col-span-full">No recent TV shows</div>}
                         </div>
@@ -5334,12 +5352,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                         <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">RECENTLY ADDED MUSIC</h2>
                         <div className="grid grid-cols-3 sm:grid-cols-4 md:[grid-template-columns:repeat(auto-fill,minmax(150px,150px))] md:justify-start gap-3 w-full pb-4">
                             {dashboardData && dashboardData.recentMusic.slice(0, recentLimit).map((item, i) => (
-                                <a key={i} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex flex-col w-full gap-2 group" style={{ textDecoration: 'none', color: 'inherit' }}>
-                                    <div className="relative aspect-square w-full rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md">
-                                        <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=300`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
-                                    </div>
-                                    <div className="text-white text-xs font-medium text-center mt-1 line-clamp-2 leading-tight">{item.title}</div>
-                                </a>
+                                <DiscoverPosterCard key={i} item={item} aspect="square" />
                             ))}
                             {(!dashboardData || dashboardData.recentMusic.length === 0) && <div className="text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full col-span-full">No recent music</div>}
                         </div>

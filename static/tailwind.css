@@ -723,6 +723,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   right: 0px;
 }
 
+.right-1 {
+  right: 0.25rem;
+}
+
 .right-2 {
   right: 0.5rem;
 }
@@ -2205,6 +2209,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-color: rgb(255 255 255 / 0.1);
 }
 
+.border-white\/15 {
+  border-color: rgb(255 255 255 / 0.15);
+}
+
 .border-white\/20 {
   border-color: rgb(255 255 255 / 0.2);
 }
@@ -2333,6 +2341,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .bg-black\/80 {
   background-color: rgb(0 0 0 / 0.8);
+}
+
+.bg-black\/85 {
+  background-color: rgb(0 0 0 / 0.85);
 }
 
 .bg-blue-500 {
@@ -2991,6 +3003,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   padding-bottom: 2rem;
 }
 
+.py-px {
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
+
 .\!pb-8 {
   padding-bottom: 2rem !important;
 }
@@ -3498,6 +3515,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .text-white\/90 {
   color: rgb(255 255 255 / 0.9);
+}
+
+.text-white\/95 {
+  color: rgb(255 255 255 / 0.95);
 }
 
 .text-yellow-200 {
