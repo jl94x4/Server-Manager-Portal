@@ -1254,7 +1254,13 @@ app.post('/api/auth/plex/callback', authRateLimit, async (req, res) => {
 
         const config = await loadFile(CONFIG_PATH, {});
         const adminId = await getAdminId(config);
-        const isAdmin = userData.id === adminId;
+        let isAdmin = adminId && String(userData.id) === String(adminId);
+        if (!isAdmin && config?.serverIdentifier) {
+            // Fresh setup can leave the admin-id comparison brittle if Plex
+            // returns different id shapes. Owning the configured server is
+            // enough to establish portal admin access.
+            isAdmin = await verifyInitialSetupPlexOwner(pinData.authToken, config.serverIdentifier);
+        }
         const deletedUsers = await loadFile(DELETED_USERS_PATH, []);
 
         const sessionUser = {

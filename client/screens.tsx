@@ -2822,7 +2822,7 @@ const LivePlexStats: React.FC = () => {
             <div className="bg-plex/10 text-plex text-xs font-bold px-4 py-1.5 rounded-full border border-plex/20 uppercase tracking-wider mb-4">
                 Live Library Stats
             </div>
-            <div className="grid grid-cols-3 gap-3 w-full">
+            <div className={`grid gap-3 w-full ${stats.music > 0 ? 'grid-cols-3' : 'grid-cols-2 max-w-md mx-auto'}`}>
                 <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm">
                     <span className="text-xl">🎬</span>
                     <span className="text-plex font-bold text-xl">{stats.movies.toLocaleString()}</span>
