@@ -2010,13 +2010,18 @@ const pickPlexConnection = (connections = []) => {
 };
 
 const orderPlexConnectionsForTest = (connections = []) => {
-    const preferred = pickPlexConnection(connections);
+    if (!Array.isArray(connections) || connections.length === 0) return [];
+    // For connectivity probing we always try local/LAN connections first because
+    // remote plex.direct URLs routinely time-out inside Docker (DNS-rebind
+    // protection on the host blocks those names), which wastes 12 s per entry
+    // before we reach the LAN IP that actually works.
+    const local = connections.filter(c => c?.uri && c.local && !isLoopbackPlexUri(c.uri));
+    const remote = connections.filter(c => c?.uri && !c.local && !isLoopbackPlexUri(c.uri));
+    const loopback = connections.filter(c => c?.uri && isLoopbackPlexUri(c.uri));
+    const seen = new Set();
     const ordered = [];
-    if (preferred) ordered.push(preferred);
-    for (const connection of connections) {
-        if (connection?.uri && !ordered.some(existing => existing.uri === connection.uri)) {
-            ordered.push(connection);
-        }
+    for (const c of [...local, ...remote, ...loopback]) {
+        if (c?.uri && !seen.has(c.uri)) { seen.add(c.uri); ordered.push(c); }
     }
     return ordered;
 };
@@ -2068,7 +2073,7 @@ const testPlexServerConnection = async (config) => {
                     'X-Plex-Token': config.plexToken,
                     'Accept': 'application/json'
                 },
-            }, 12000);
+            }, 5000);
             if (!identityRes.ok) {
                 failures.push(`${connection.uri} returned HTTP ${identityRes.status}`);
                 continue;
