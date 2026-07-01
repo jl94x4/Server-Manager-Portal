@@ -27,6 +27,7 @@ const readStoredSetupPlex = () => {
         if (!raw) return null;
         return JSON.parse(raw) as {
             token?: string;
+            plexId?: string;
             servers?: PlexServer[];
             serverIdentifier?: string;
             username?: string;
@@ -51,6 +52,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
     const [isLoading, setIsLoading] = useState(false);
 
     const [token, setToken] = useState(storedPlex?.token || '');
+    const [plexId, setPlexId] = useState(storedPlex?.plexId || '');
     const [serverIdentifier, setServerIdentifier] = useState(storedPlex?.serverIdentifier || '');
     const [servers, setServers] = useState<PlexServer[]>(storedPlex?.servers || []);
     const [plexUsername, setPlexUsername] = useState(storedPlex?.username || '');
@@ -100,6 +102,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
         }).then((data) => {
             const next = {
                 token: data.token,
+                plexId: data.plexId || '',
                 servers: data.servers || [],
                 serverIdentifier: data.servers?.[0]?.identifier || '',
                 username: data.username || '',
@@ -107,6 +110,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
             };
             sessionStorage.setItem(SETUP_PLEX_STORAGE_KEY, JSON.stringify(next));
             setToken(next.token);
+            setPlexId(next.plexId);
             setServers(next.servers);
             setPlexUsername(next.username);
             setServerIdentifier(next.serverIdentifier);
@@ -191,6 +195,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                 body: JSON.stringify({
                     token,
                     serverIdentifier,
+                    adminPlexId: plexId || undefined,
                     publicDomain,
                     primaryColor,
                     customLogoUrl,

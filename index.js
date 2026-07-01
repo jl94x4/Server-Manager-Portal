@@ -1267,17 +1267,21 @@ app.post('/api/auth/plex/callback', authRateLimit, async (req, res) => {
 
         const config = await loadFile(CONFIG_PATH, {});
         const adminId = await getAdminId(config);
-        let isAdmin = adminId && String(userData.id) === String(adminId);
+        let isAdmin = !!(adminId && String(userData.id) === String(adminId));
+
+        // If the stored adminPlexId doesn't match, check whether this user actually
+        // owns the configured Plex server — this handles first-login-after-setup
+        // scenarios where adminPlexId wasn't saved correctly.
         if (!isAdmin && config?.serverIdentifier) {
-            // Fresh setup can leave the admin-id comparison brittle if Plex
-            // returns different id shapes. Owning the configured server is
-            // enough to establish portal admin access.
             isAdmin = await verifyInitialSetupPlexOwner(pinData.authToken, config.serverIdentifier);
-            if (isAdmin && String(config.adminPlexId || '') !== String(userData.id)) {
-                config.adminPlexId = String(userData.id);
-                await saveFile(CONFIG_PATH, config);
-                cachedAdminId = String(userData.id);
-            }
+        }
+
+        // Whenever we confirm this user is the admin, persist their Plex ID so
+        // future logins don't need the extra ownership-verification API call.
+        if (isAdmin && String(config.adminPlexId || '') !== String(userData.id)) {
+            config.adminPlexId = String(userData.id);
+            await saveFile(CONFIG_PATH, config);
+            cachedAdminId = String(userData.id);
         }
         const deletedUsers = await loadFile(DELETED_USERS_PATH, []);
 
@@ -1547,6 +1551,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
 app.post('/api/config', setupRateLimit, async (req, res) => {
     const {
         token, serverIdentifier, checkIntervalMinutes,
+        adminPlexId: adminPlexIdFromBody,
         smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, smtpSecure, emailDaysBefore,
         newsletterFrequency, newsletterDay, publicDomain, requestUrl, contactUrl, contactWhatsApp, contactEmail,
         sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, tautulliUrl, tautulliApiKey,
@@ -1666,9 +1671,13 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         autoBackupRetentionCount: Math.max(1, parseInt(autoBackupRetentionCount, 10) || 10),
         maintenanceExperimentalEnabled: maintenanceExperimentalEnabled !== undefined ? !!maintenanceExperimentalEnabled : !!existingConfig.maintenanceExperimentalEnabled
     };
-    const adminPlexId = await getPlexAccountIdForToken(config.plexToken);
-    if (adminPlexId) {
-        config.adminPlexId = adminPlexId;
+    // Prefer the plexId sent directly by the setup wizard (avoids an extra API call).
+    // Fall back to fetching it from Plex if not provided or still unknown.
+    const resolvedAdminPlexId = (adminPlexIdFromBody && adminPlexIdFromBody !== SECRET_MASK && String(adminPlexIdFromBody).trim())
+        || existingConfig.adminPlexId
+        || await getPlexAccountIdForToken(config.plexToken);
+    if (resolvedAdminPlexId) {
+        config.adminPlexId = String(resolvedAdminPlexId);
     }
     await saveFile(CONFIG_PATH, config);
     cachedAdminId = null;
@@ -2688,12 +2697,13 @@ const fetchOwnedPlexServers = async (plexToken) => {
         throw new Error('Failed to fetch servers from Plex. Please double-check your Plex account.');
     }
     const xmlText = await response.text();
-    const serverTags = xmlText.match(/<Server\b[^>]*\/>/g) || [];
+    // Match both self-closing <Server ... /> and regular <Server ...> tags
+    const serverTags = xmlText.match(/<Server\b[^>]*\/?>/g) || [];
     return serverTags.map((tag) => {
         const nameMatch = tag.match(/name="([^"]+)"/);
         const idMatch = tag.match(/machineIdentifier="([^"]+)"/);
-        if (nameMatch && idMatch) {
-            return { name: nameMatch[1], identifier: idMatch[1] };
+        if (idMatch) {
+            return { name: nameMatch ? nameMatch[1] : 'Unknown', identifier: idMatch[1] };
         }
         return null;
     }).filter(Boolean);
@@ -2747,6 +2757,7 @@ app.post('/api/setup/plex/callback', setupRateLimit, authRateLimit, async (req, 
 
         res.json({
             token: pinData.authToken,
+            plexId: String(userData.id || ''),
             servers,
             username: userData.username || userData.title || userData.email || 'Plex User',
             email: userData.email || '',
