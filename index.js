@@ -2878,7 +2878,7 @@ const assertInitialSetupAccess = async (req, res, options = {}) => {
 };
 
 app.post('/api/plex/servers', setupRateLimit, async (req, res) => {
-    const { token } = req.body;
+    const { token, plexServerUrl } = req.body;
     if (!token) return res.status(400).json({ error: 'Plex token is required.' });
 
     try {
@@ -2914,7 +2914,53 @@ app.post('/api/plex/servers', setupRateLimit, async (req, res) => {
         }
 
         log('Fetching Plex servers using /pms/servers XML API...');
-        const servers = await fetchOwnedPlexServers(token);
+        let servers = [];
+        try {
+            servers = await fetchOwnedPlexServers(token);
+        } catch (e) {
+            log(`Owned Plex server discovery failed: ${e.message}`);
+        }
+
+        // Fallback: if Plex.tv discovery returns nothing, try the direct URL's
+        // /identity endpoint and extract machineIdentifier for manual setups.
+        if (servers.length === 0 && plexServerUrl) {
+            try {
+                const baseUrl = resolveIntegrationUrlForFetch(plexServerUrl);
+                const identityRes = await fetchWithTimeout(`${baseUrl}/identity`, {
+                    headers: {
+                        'X-Plex-Token': token,
+                        'Accept': 'application/json'
+                    }
+                }, 6000);
+                if (identityRes.ok) {
+                    const identityText = await identityRes.text();
+                    let machineIdentifier = '';
+                    let friendlyName = '';
+
+                    try {
+                        const parsed = JSON.parse(identityText);
+                        const container = parsed?.MediaContainer || parsed || {};
+                        machineIdentifier = String(container.machineIdentifier || '');
+                        friendlyName = String(container.friendlyName || container.name || '');
+                    } catch {
+                        // XML fallback
+                        const machineMatch = identityText.match(/machineIdentifier="([^"]+)"/i)
+                            || identityText.match(/<machineIdentifier>([^<]+)<\/machineIdentifier>/i);
+                        const nameMatch = identityText.match(/friendlyName="([^"]+)"/i)
+                            || identityText.match(/<friendlyName>([^<]+)<\/friendlyName>/i);
+                        machineIdentifier = machineMatch ? String(machineMatch[1]) : '';
+                        friendlyName = nameMatch ? String(nameMatch[1]) : '';
+                    }
+
+                    if (machineIdentifier) {
+                        servers = [{ name: friendlyName || 'Direct Plex Server', identifier: machineIdentifier }];
+                        log(`Derived server identifier from direct URL: ${machineIdentifier}`);
+                    }
+                }
+            } catch (e) {
+                log(`Direct Plex URL identity lookup failed: ${e.message}`);
+            }
+        }
 
         if (servers.length === 0) {
             log('API call successful, but no servers with a machineIdentifier were found in the response.');

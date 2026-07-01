@@ -94,7 +94,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
         try {
             const foundServers = await apiFetch('/api/plex/servers', {
                 method: 'POST',
-                body: JSON.stringify({ token }),
+                body: JSON.stringify({ token, plexServerUrl: plexServerUrl || undefined }),
             });
             setServers(foundServers);
             if (foundServers.length > 0) {
@@ -104,7 +104,12 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                 setServerIdentifier('');
             }
         } catch (e) {
-            setError(e instanceof Error ? e.message : 'Failed to fetch servers.');
+            const message = e instanceof Error ? e.message : 'Failed to fetch servers.';
+            if (message.toLowerCase().includes('initial setup denied')) {
+                setError('Server fetch is blocked during setup from this host. Enter the Server Identifier manually using the steps below.');
+            } else {
+                setError(message);
+            }
             setServers([]);
             setServerIdentifier('');
         } finally {
@@ -254,9 +259,15 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                                     <CustomSelect value={serverIdentifier} onChange={setServerIdentifier} options={servers.map((s) => ({ label: `${s.name} (${s.identifier})`, value: s.identifier }))} />
                                 </div>
                             ) : token ? (
-                                <div className="flex flex-col gap-2">
+                                <div className="flex flex-col gap-3">
                                     <label className={labelClass}>Server Identifier</label>
                                     <input type="text" className={inputClass} value={serverIdentifier} onChange={(e) => setServerIdentifier(e.target.value)} placeholder="No servers returned — enter identifier manually" required />
+                                    <div className="text-xs text-muted p-3 rounded-lg bg-background/60 border border-border space-y-1">
+                                        <p className="font-semibold text-text">How to find Server Identifier manually:</p>
+                                        <p>1) Open: <code className="bg-background px-1 rounded">http://YOUR_PLEX_IP:32400/identity?X-Plex-Token=YOUR_TOKEN</code></p>
+                                        <p>2) Copy <code className="bg-background px-1 rounded">machineIdentifier</code> from the response.</p>
+                                        <p>3) Paste it into the field above.</p>
+                                    </div>
                                 </div>
                             ) : null}
 
