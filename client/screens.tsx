@@ -2876,6 +2876,10 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any }>
         fetchPublicInfo();
 
         const path = window.location.pathname;
+        // Setup wizard OAuth return — SetupWizard handles this, not login
+        if (path.startsWith('/auth/setup/')) {
+            return;
+        }
         if (path.startsWith('/auth/')) {
             const pinId = path.split('/')[2];
             setIsLoading(true);
@@ -2906,7 +2910,9 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any }>
         }
     };
 
-    if (publicInfo.isConfigured === false) {
+    const isSetupOAuthReturn = typeof window !== 'undefined' && window.location.pathname.startsWith('/auth/setup/');
+
+    if (publicInfo.isConfigured === false || isSetupOAuthReturn) {
         return <SetupWizard onComplete={fetchPublicInfo} />;
     }
 

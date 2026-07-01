@@ -19,15 +19,40 @@ const STEPS = [
 
 type StepId = (typeof STEPS)[number]['id'];
 
+const SETUP_PLEX_STORAGE_KEY = 'setupWizardPlex';
+
+const readStoredSetupPlex = () => {
+    try {
+        const raw = sessionStorage.getItem(SETUP_PLEX_STORAGE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw) as {
+            token?: string;
+            servers?: PlexServer[];
+            serverIdentifier?: string;
+            username?: string;
+            step?: StepId;
+        };
+    } catch {
+        return null;
+    }
+};
+
 export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
-    const [step, setStep] = useState<StepId>('welcome');
+    const storedPlex = readStoredSetupPlex();
+    const isOAuthReturn = typeof window !== 'undefined' && window.location.pathname.startsWith('/auth/setup/');
+
+    const [step, setStep] = useState<StepId>(() => {
+        if (isOAuthReturn) return 'plex';
+        if (storedPlex?.token) return storedPlex.step || 'plex';
+        return 'welcome';
+    });
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    const [token, setToken] = useState('');
-    const [serverIdentifier, setServerIdentifier] = useState('');
-    const [servers, setServers] = useState<PlexServer[]>([]);
-    const [plexUsername, setPlexUsername] = useState('');
+    const [token, setToken] = useState(storedPlex?.token || '');
+    const [serverIdentifier, setServerIdentifier] = useState(storedPlex?.serverIdentifier || '');
+    const [servers, setServers] = useState<PlexServer[]>(storedPlex?.servers || []);
+    const [plexUsername, setPlexUsername] = useState(storedPlex?.username || '');
     const [showManualToken, setShowManualToken] = useState(false);
 
     const [publicDomain, setPublicDomain] = useState(typeof window !== 'undefined' ? window.location.origin : '');
@@ -59,8 +84,8 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
         const path = window.location.pathname;
         if (!path.startsWith('/auth/setup/')) return;
 
-        const pinId = path.split('/')[3];
-        if (!pinId) return;
+        const pinId = path.split('/').filter(Boolean).pop();
+        if (!pinId || pinId === 'setup') return;
 
         const returnPath = sessionStorage.getItem('setupReturnPath') || '/';
         sessionStorage.removeItem('setupReturnPath');
@@ -74,12 +99,18 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
             method: 'POST',
             body: JSON.stringify({ pinId }),
         }).then((data) => {
-            setToken(data.token);
-            setServers(data.servers || []);
-            setPlexUsername(data.username || '');
-            if (data.servers?.length) {
-                setServerIdentifier(data.servers[0].identifier);
-            }
+            const next = {
+                token: data.token,
+                servers: data.servers || [],
+                serverIdentifier: data.servers?.[0]?.identifier || '',
+                username: data.username || '',
+                step: 'plex' as StepId,
+            };
+            sessionStorage.setItem(SETUP_PLEX_STORAGE_KEY, JSON.stringify(next));
+            setToken(next.token);
+            setServers(next.servers);
+            setPlexUsername(next.username);
+            setServerIdentifier(next.serverIdentifier);
         }).catch((e) => {
             setError(e instanceof Error ? e.message : 'Plex sign-in failed');
         }).finally(() => {
@@ -178,6 +209,8 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                     requestAppApiKey,
                 }),
             });
+            sessionStorage.removeItem(SETUP_PLEX_STORAGE_KEY);
+            sessionStorage.removeItem('setupReturnPath');
             onComplete();
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Failed to save configuration.');
@@ -256,9 +289,9 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                                         type="button"
                                         onClick={handlePlexSignIn}
                                         disabled={isLoading}
-                                        className="w-full py-4 bg-plex text-background rounded-xl font-bold text-lg hover:bg-plex-hover transition-colors disabled:opacity-50 flex items-center justify-center gap-3"
+                                        className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-plex text-background rounded-lg font-bold text-sm hover:bg-plex-hover transition-colors disabled:opacity-50"
                                     >
-                                        <img src="/static/logo.png" alt="" className="w-6 h-6 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                                        <img src="/static/logo.png" alt="" className="w-4 h-4 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                                         {isLoading ? 'Redirecting to Plex…' : 'Sign in with Plex'}
                                     </button>
                                     <p className="text-center text-xs text-muted">Uses secure Plex OAuth. We&apos;ll fetch your owned servers automatically.</p>
@@ -272,7 +305,13 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                                     </div>
                                     <button
                                         type="button"
-                                        onClick={() => { setToken(''); setServers([]); setServerIdentifier(''); setPlexUsername(''); }}
+                                        onClick={() => {
+                                            setToken('');
+                                            setServers([]);
+                                            setServerIdentifier('');
+                                            setPlexUsername('');
+                                            sessionStorage.removeItem(SETUP_PLEX_STORAGE_KEY);
+                                        }}
                                         className="ml-auto text-xs text-muted hover:text-text underline"
                                     >
                                         Sign out
