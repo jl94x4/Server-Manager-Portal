@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Copy, ChevronUp, ChevronDown } from 'lucide-react';
+import { Copy, ChevronUp, ChevronDown, Check } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { appConfirm } from '../shared/confirm';
 import { CustomSelect } from '../shared/ui';
