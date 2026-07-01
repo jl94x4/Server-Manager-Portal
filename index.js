@@ -1552,6 +1552,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
     const {
         token, serverIdentifier, checkIntervalMinutes,
         adminPlexId: adminPlexIdFromBody,
+        plexServerUrl: plexServerUrlFromBody,
         smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, smtpSecure, emailDaysBefore,
         newsletterFrequency, newsletterDay, publicDomain, requestUrl, contactUrl, contactWhatsApp, contactEmail,
         sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, tautulliUrl, tautulliApiKey,
@@ -1628,6 +1629,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         ...existingConfig,
         plexToken: resolveSecret(token, existingConfig.plexToken),
         serverIdentifier,
+        plexServerUrl: (plexServerUrlFromBody !== undefined ? String(plexServerUrlFromBody || '').trim() : existingConfig.plexServerUrl) || '',
         checkIntervalMinutes: (interval > 0 ? interval : 60),
         smtpHost: smtpHost || '',
         smtpPort: parseInt(smtpPort, 10) || 587,
@@ -1884,7 +1886,7 @@ app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
 
     const {
         type,
-        token, serverIdentifier,
+        token, serverIdentifier, plexServerUrl,
         sonarrUrl, sonarrApiKey,
         radarrUrl, radarrApiKey,
         tautulliUrl, tautulliApiKey,
@@ -1898,7 +1900,8 @@ app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
             const plexToken = resolveTestCredential(token, stored.plexToken);
             const serverId = resolveTestCredential(serverIdentifier, stored.serverIdentifier);
             if (!plexToken || !serverId) return res.status(400).json({ error: 'Plex token and server identifier are required.' });
-            const testConfig = { ...stored, plexToken, serverIdentifier: serverId };
+            const resolvedPlexServerUrl = (plexServerUrl || '').trim().replace(/\/$/, '') || stored.plexServerUrl || '';
+            const testConfig = { ...stored, plexToken, serverIdentifier: serverId, plexServerUrl: resolvedPlexServerUrl };
             const { container, uri, directReachable } = await testPlexServerConnection(testConfig);
             const version = container.version || container.Version || '';
             const message = directReachable && version
@@ -2048,10 +2051,35 @@ const fetchWithTimeout = async (url, options = {}, timeoutMs = 15000) => {
     }
 };
 
+const probeOnePlexUrl = async (uri, plexToken) => {
+    const identityRes = await fetchWithTimeout(`${uri}/identity`, {
+        headers: { 'X-Plex-Token': plexToken, 'Accept': 'application/json' },
+    }, 5000);
+    if (!identityRes.ok) throw new Error(`HTTP ${identityRes.status}`);
+    const identity = await identityRes.json().catch(() => ({}));
+    return { container: identity.MediaContainer || identity, uri, directReachable: true };
+};
+
 const testPlexServerConnection = async (config) => {
+    const plexToken = config.plexToken;
+    const failures = [];
+
+    // 1. Try user-supplied direct URL first (PLEX_SERVER_URL env var or config.plexServerUrl).
+    //    This is the most reliable path in Docker where Plex-advertised IPs may be unreachable.
+    const envDirectUrl = (process.env.PLEX_SERVER_URL || '').trim().replace(/\/$/, '');
+    const cfgDirectUrl = (config.plexServerUrl || '').trim().replace(/\/$/, '');
+    for (const directUrl of [cfgDirectUrl, envDirectUrl].filter(Boolean)) {
+        try {
+            return await probeOnePlexUrl(directUrl, plexToken);
+        } catch (e) {
+            failures.push(`${directUrl}: ${sanitizeConnectionError(e.message, [plexToken])}`);
+        }
+    }
+
+    // 2. Fetch the advertised connection list from Plex.tv and try each URI.
     const response = await fetchWithTimeout('https://plex.tv/api/v2/resources?includeHttps=1', {
         headers: {
-            'X-Plex-Token': config.plexToken,
+            'X-Plex-Token': plexToken,
             'X-Plex-Client-Identifier': CLIENT_ID,
             'Accept': 'application/json'
         }
@@ -2064,24 +2092,12 @@ const testPlexServerConnection = async (config) => {
         throw new Error('Server not found in Plex resources');
     }
 
-    const failures = [];
     for (const connection of orderPlexConnectionsForTest(server.connections)) {
         if (!connection?.uri) continue;
         try {
-            const identityRes = await fetchWithTimeout(`${connection.uri}/identity`, {
-                headers: {
-                    'X-Plex-Token': config.plexToken,
-                    'Accept': 'application/json'
-                },
-            }, 5000);
-            if (!identityRes.ok) {
-                failures.push(`${connection.uri} returned HTTP ${identityRes.status}`);
-                continue;
-            }
-            const identity = await identityRes.json().catch(() => ({}));
-            return { container: identity.MediaContainer || identity, uri: connection.uri, directReachable: true };
+            return await probeOnePlexUrl(connection.uri, plexToken);
         } catch (e) {
-            failures.push(`${connection.uri}: ${sanitizeConnectionError(e.message, [config.plexToken])}`);
+            failures.push(`${connection.uri}: ${sanitizeConnectionError(e.message, [plexToken])}`);
         }
     }
 
@@ -2098,6 +2114,16 @@ const testPlexServerConnection = async (config) => {
 
 // Plex interaction helpers
 const getPlexConnectionUri = async (config) => {
+    // Allow a hard-coded URL to bypass discovery — useful when the container
+    // cannot reach plex.direct domains (DNS-rebind protection on LAN routers).
+    const envUrl = (process.env.PLEX_SERVER_URL || '').trim().replace(/\/$/, '');
+    const cfgUrl = (config.plexServerUrl || '').trim().replace(/\/$/, '');
+    const overrideUrl = cfgUrl || envUrl;
+    if (overrideUrl) {
+        cachedPlexConnectionUri = overrideUrl;
+        lastPlexConnectionUriFetch = Date.now();
+        return overrideUrl;
+    }
     if (cachedPlexConnectionUri && (Date.now() - lastPlexConnectionUriFetch < 60 * 60 * 1000)) {
         return cachedPlexConnectionUri;
     }

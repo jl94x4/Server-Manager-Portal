@@ -54,6 +54,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
     const [token, setToken] = useState(storedPlex?.token || '');
     const [plexId, setPlexId] = useState(storedPlex?.plexId || '');
     const [serverIdentifier, setServerIdentifier] = useState(storedPlex?.serverIdentifier || '');
+    const [plexServerUrl, setPlexServerUrl] = useState('');
     const [servers, setServers] = useState<PlexServer[]>(storedPlex?.servers || []);
     const [plexUsername, setPlexUsername] = useState(storedPlex?.username || '');
     const [showManualToken, setShowManualToken] = useState(false);
@@ -196,6 +197,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                     token,
                     serverIdentifier,
                     adminPlexId: plexId || undefined,
+                    plexServerUrl: plexServerUrl || undefined,
                     publicDomain,
                     primaryColor,
                     customLogoUrl,
@@ -339,8 +341,22 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                             ) : null}
 
                             {token && serverIdentifier && (
-                                <IntegrationTestButton type="plex" payload={{ token, serverIdentifier }} />
+                                <IntegrationTestButton type="plex" payload={{ token, serverIdentifier, plexServerUrl: plexServerUrl || undefined }} />
                             )}
+
+                            <div className="flex flex-col gap-1.5">
+                                <label className={labelClass}>
+                                    Direct Plex URL <span className="text-muted font-normal">(optional — required in Docker)</span>
+                                </label>
+                                <input
+                                    type="url"
+                                    className={inputClass}
+                                    value={plexServerUrl}
+                                    onChange={(e) => setPlexServerUrl(e.target.value)}
+                                    placeholder="http://192.168.1.6:32400"
+                                />
+                                <p className="text-xs text-muted">If the test connection fails in Docker, enter your Plex server&apos;s LAN address here. Leave blank to use auto-discovery.</p>
+                            </div>
 
                             <div className="border-t border-border pt-4">
                                 <button
