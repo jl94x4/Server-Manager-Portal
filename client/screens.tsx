@@ -9,6 +9,15 @@ import { apiFetch } from './shared/api';
 import { formatDate, getDaysUntilExpiry, addMonths, addYears, formatTime, formatEventName, formatDateTime, hexToRgb, formatSizeCeil } from './shared/format';
 import { CustomSelect, ConfirmModal, StyledCheckbox } from './shared/ui';
 import { Loader, ToastContainer, pushToast } from './shared/toast';
+import {
+    ActivityGridSkeleton,
+    DiscoverPageSkeleton,
+    HomeRecentlyAddedSkeleton,
+    LibraryStatsSkeleton,
+    TopWatchedGridSkeleton,
+    TrendingSectionsSkeleton,
+    WrapUpCardsSkeleton,
+} from './shared/skeletons';
 import type { User, PlexConfig, AppSettings, PlexServer, ToastMessage, DeletedUser, AuditEntry, UserStatus } from './shared/types';
 
 declare global {
@@ -4052,6 +4061,9 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
             )}
 
             {/* Personal Wrap-Up */}
+            {(sessionInfo.session.isAdmin || user) && analyticsLoading && (
+                <WrapUpCardsSkeleton />
+            )}
             {(sessionInfo.session.isAdmin || user) && !analyticsLoading && analytics && (
                 <div className="bg-card border border-border rounded-2xl p-6 shadow-xl mb-2">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -4456,8 +4468,8 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                 <p className="text-muted text-sm uppercase tracking-widest font-semibold">Server Library Size</p>
                                 {sessionInfo.session.isAdmin && <RebuildLibraryCacheButton />}
                             </div>
-                            {serverDataLoading ? (
-                                <div className="flex gap-3 items-center text-muted"><div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin" /> Fetching latest library sizes...</div>
+                            {serverDataLoading && !serverStats ? (
+                                <LibraryStatsSkeleton />
                             ) : serverStats?.isBuilding ? (
                                 <div className="flex flex-col gap-2">
                                     <div className="flex gap-3 items-center text-muted"><div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin" /> Building library size cache in background...</div>
@@ -4576,12 +4588,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                             </div>
 
                             {analyticsLoading ? (
-                                <div className="flex items-center justify-center p-8 bg-card border border-border rounded-2xl shadow-lg">
-                                    <div className="flex flex-col items-center gap-3">
-                                        <div className="w-6 h-6 rounded-full border-2 border-plex border-t-transparent animate-spin" />
-                                        <span className="text-muted text-sm font-medium">Loading your stats...</span>
-                                    </div>
-                                </div>
+                                <TopWatchedGridSkeleton />
                             ) : analytics && analytics.totalPlays > 0 ? (
                                 <div className="flex flex-col gap-6 flex-1">
 
@@ -4650,7 +4657,9 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
             </div>
 
             {/* Recently Added Section (Full Width below Grid) */}
-            {dashboardData && (
+            {serverDataLoading && !dashboardData ? (
+                <HomeRecentlyAddedSkeleton />
+            ) : dashboardData && (
                 <div className="flex flex-col gap-6 w-full">
                     {dashboardData.recentMovies?.length > 0 && (
                         <div className="bg-card border border-border rounded-2xl p-6 shadow-xl overflow-hidden w-full">
@@ -5169,7 +5178,8 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
 export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, publicConfig?: any }> = ({ onBack, isAdmin, publicConfig }) => {
     const [dashboardData, setDashboardData] = useState<{ activeSessions: any[], recentMovies: any[], recentShows: any[], recentMusic: any[] } | null>(null);
     const [trendingStats, setTrendingStats] = useState<{ trending7Days: any[], movies30Days: any[], shows30Days: any[], top365Days: any[], allTime: any[], weekendWarriors: any[], nightOwls: any[], retroHits: any[], cultClassics: any[] } | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [dashboardLoading, setDashboardLoading] = useState(true);
+    const [trendingLoading, setTrendingLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [recentLimit, setRecentLimit] = useState(() => {
         const saved = localStorage.getItem('discoverRecentLimit');
@@ -5177,6 +5187,8 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
     });
     const [selectedSession, setSelectedSession] = useState<any | null>(null);
     const showQualityBadges = publicConfig?.showPosterQualityBadges !== false;
+    const hasLoadedDashboard = useRef(false);
+    const hasLoadedTrending = useRef(false);
 
     useEffect(() => {
         localStorage.setItem('discoverRecentLimit', String(recentLimit));
@@ -5194,19 +5206,30 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
     }, [recentLimit]);
 
     const fetchData = useCallback(async () => {
+        setError(null);
+        if (!hasLoadedDashboard.current) setDashboardLoading(true);
+        if (!hasLoadedTrending.current) setTrendingLoading(true);
         try {
             const res = await apiFetch(`/api/plex/dashboard?limit=${recentLimit}`);
             if (res.error) throw new Error(res.error);
             setDashboardData(res);
+        } catch (err: any) {
+            setError(err.message || 'Failed to load dashboard data');
+        } finally {
+            hasLoadedDashboard.current = true;
+            setDashboardLoading(false);
+        }
 
+        try {
             const statsRes = await apiFetch('/api/plex/stats/trending');
             if (!statsRes.error) {
                 setTrendingStats(statsRes);
             }
-        } catch (err: any) {
-            setError(err.message || 'Failed to load dashboard data');
+        } catch {
+            // Trending cache may still be building
         } finally {
-            setLoading(false);
+            hasLoadedTrending.current = true;
+            setTrendingLoading(false);
         }
     }, [recentLimit]);
 
@@ -5216,9 +5239,12 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
         return () => clearInterval(liveInterval);
     }, [fetchDashboardOnly, fetchData]);
 
-    if (loading && !dashboardData) return <Loader isLoading={true} />;
+    if (dashboardLoading && !dashboardData) {
+        return <DiscoverPageSkeleton recentLimit={recentLimit} />;
+    }
 
     const totalStreams = dashboardData?.activeSessions?.length || 0;
+    const trendingCount = Math.min(recentLimit, 12);
     const transcodingStreams = dashboardData?.activeSessions?.filter(s => s.isTranscoding).length || 0;
     const directStreams = totalStreams - transcodingStreams;
     const totalBandwidthKbps = dashboardData?.activeSessions?.reduce((acc, s) => acc + (s.bandwidth || 0), 0) || 0;
@@ -5408,7 +5434,9 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                 </div>
 
                 {/* SERVER WIDE STATS SECTION */}
-                {trendingStats && (
+                {trendingLoading && !trendingStats ? (
+                    <TrendingSectionsSkeleton count={trendingCount} sections={3} />
+                ) : trendingStats && (
                     <div className="mt-16 w-full flex flex-col gap-12">
                         <div className="flex flex-col gap-2 items-center text-center mb-4">
                             <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">Other things happening on {publicConfig?.serverIdentifier || 'this server'}</h2>

@@ -97,7 +97,7 @@ export const MainApp: React.FC = () => {
             if (route === 'user') path = '/portal';
             if (route === 'status') path = '/status';
             if (route === 'dashboard') path = '/dashboard';
-            if (route === 'settings') path = '/settings#plex';
+            if (route === 'settings') path = '/settings#branding';
             if (route === 'analytics') path = '/analytics';
             if (route === 'mediastack') path = '/mediastack';
             if (route === 'maintenance') path = '/maintenance';
@@ -190,7 +190,7 @@ export const MainApp: React.FC = () => {
         <div className="flex w-full min-h-screen bg-background overflow-x-clip">
             <ConfirmModal isOpen={confirmState.isOpen} message={confirmState.message} onConfirm={handleConfirm} onCancel={closeConfirm} />
             {!isPublicView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Server Portal'} adminThumb={sessionInfo?.adminThumb} requestUrl={sessionInfo?.requestUrl || 'https://yourdomain.com'} navOrder={sessionInfo?.navOrder || ['home', 'discover', 'status', 'analytics', 'mediastack', 'maintenance', 'request', 'settings', 'logout']} appVersion={publicConfig.appVersion} />}
-            <div className={`flex-1 min-w-0 flex flex-col items-center px-[2px] pt-20 pb-[80px] md:p-8 md:pt-8 md:pb-8 overflow-x-visible ${isPublicView ? '!pt-8 !pb-8' : ''}`}>
+            <div className={`flex-1 min-w-0 flex flex-col items-center px-4 pt-20 pb-[80px] md:p-8 md:pt-8 md:pb-8 overflow-x-visible ${isPublicView ? '!pt-8 !pb-8' : ''}`}>
                 <div className="w-full min-w-0" style={{ maxWidth: contentMaxWidth }}>
                     {renderView()}
                 </div>

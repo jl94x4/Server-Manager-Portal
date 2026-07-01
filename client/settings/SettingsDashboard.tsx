@@ -83,7 +83,7 @@ export const SettingsDashboard: React.FC = () => {
     const [libraries, setLibraries] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState(() => {
         const hash = window.location.hash.replace('#', '');
-        return (SETTINGS_TABS as readonly string[]).includes(hash) ? hash : 'plex';
+        return (SETTINGS_TABS as readonly string[]).includes(hash) ? hash : 'branding';
     });
     const [highlightMaintenanceToggle, setHighlightMaintenanceToggle] = useState(false);
     const [settingsSearch, setSettingsSearch] = useState('');
@@ -150,6 +150,8 @@ export const SettingsDashboard: React.FC = () => {
             const hash = window.location.hash.replace('#', '');
             if ((SETTINGS_TABS as readonly string[]).includes(hash)) {
                 setActiveTab(hash);
+            } else if (!hash) {
+                setActiveTab('branding');
             }
         };
         window.addEventListener('hashchange', syncTabFromHash);
@@ -826,7 +828,7 @@ export const SettingsDashboard: React.FC = () => {
     };
 
     return (
-        <div className="w-full flex flex-col">
+        <div className="w-full flex flex-col box-border">
             <Loader isLoading={isLoading} />
             <ToastContainer toasts={toasts} setToasts={setToasts} />
 
@@ -841,8 +843,8 @@ export const SettingsDashboard: React.FC = () => {
                 </div>
             )}
 
-            <div className="w-full flex flex-col">
-                <div className="md:grid md:grid-cols-[280px_minmax(0,1fr)] md:gap-6">
+            <div className="w-full flex flex-col min-w-0">
+                <div className="w-full md:grid md:grid-cols-[18rem_minmax(0,1fr)] md:gap-8 xl:gap-10">
                     {/* Mobile Dropdown Category Select */}
                     <div className="block md:hidden mb-6">
                         <label htmlFor="settings-tab-select" className="text-muted text-xs uppercase tracking-wider font-bold mb-2 block">Settings Category</label>
@@ -854,30 +856,30 @@ export const SettingsDashboard: React.FC = () => {
                         />
                     </div>
 
-                    {/* Desktop Sidebar Navigation */}
-                    <aside className="hidden md:block border-r border-border/40 pr-4 h-fit sticky top-20">
+                    {/* Desktop Sidebar Navigation — matches main app nav width (w-72) */}
+                    <aside className="hidden md:flex md:flex-col w-72 shrink-0 h-fit sticky top-20 rounded-xl border border-border bg-card p-6 shadow-2xl">
                         <label className="text-muted text-xs uppercase tracking-wider font-bold mb-2 block">Find Setting</label>
                         <input
                             type="text"
                             placeholder="Search settings..."
                             value={settingsSearch}
                             onChange={(e) => setSettingsSearch(e.target.value)}
-                            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-plex transition-colors mb-3"
+                            className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm text-text focus:outline-none focus:border-plex transition-colors mb-4"
                         />
                         {visibleTabGroups.length === 0 ? (
                             <p className="text-xs text-muted px-2 py-3">No settings sections found.</p>
                         ) : (
-                            <div className="space-y-3 pr-1">
+                            <div className="space-y-4">
                                 {visibleTabGroups.map(group => (
                                     <div key={group.title}>
-                                        <p className="text-[10px] uppercase tracking-wider font-bold text-plex px-2 mb-1">{group.title}</p>
+                                        <p className="text-[10px] uppercase tracking-wider font-bold text-plex px-3 mb-1.5">{group.title}</p>
                                         <div className="space-y-1">
                                             {group.tabs.map(tab => (
                                                 <button
                                                     key={tab.id}
                                                     onClick={() => setActiveTab(tab.id)}
-                                                    className={`w-full text-left px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${activeTab === tab.id
-                                                        ? 'bg-plex text-background'
+                                                    className={`w-full text-left px-3 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === tab.id
+                                                        ? 'bg-plex/15 text-plex shadow-[0_0_15px_rgba(229,160,13,0.1)]'
                                                         : 'text-muted hover:text-text hover:bg-white/5'
                                                         }`}
                                                 >
@@ -891,7 +893,8 @@ export const SettingsDashboard: React.FC = () => {
                         )}
                     </aside>
 
-                    <div className="overflow-y-auto pr-2 flex-grow mb-4 custom-scrollbar">
+                    <div className="overflow-y-auto flex-grow mb-4 custom-scrollbar md:pr-1 min-w-0 w-full">
+                        <div className="settings-panel">
                         {activeTab === 'stream-rules' && <StreamKillRulesPanel addToast={addToast} registerSaveHandler={(handler) => { streamRulesSaveHandlerRef.current = handler; }} />}
     
                         {activeTab === 'plex' && (
@@ -1789,10 +1792,11 @@ export const SettingsDashboard: React.FC = () => {
                             </section>
                         </div>
                     )}
+                        </div>
+                    </div>
                 </div>
-                </div>
-                <div className="flex justify-end gap-4 mt-8" style={{ marginTop: '2rem' }}>
-                    <button className="px-6 py-3 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2" onClick={handleSave}>{activeTab === 'stream-rules' ? 'Save Stream Rules' : 'Save Settings'}</button>
+                <div className="flex justify-end gap-4 mt-8 pb-1">
+                    <button className="w-full sm:w-auto px-6 py-3 bg-plex text-background rounded-lg font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2 shadow-lg shadow-plex/10" onClick={handleSave}>{activeTab === 'stream-rules' ? 'Save Stream Rules' : 'Save Settings'}</button>
                 </div>
             </div>
         </div>

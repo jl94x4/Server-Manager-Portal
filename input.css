@@ -44,6 +44,28 @@
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+@layer components {
+  .settings-panel {
+    @apply rounded-2xl border border-border/50 bg-card/30 backdrop-blur-sm shadow-sm;
+    @apply p-5 sm:p-6 md:p-8 lg:p-10 w-full min-w-0;
+  }
+  .settings-panel > label:not([class]),
+  .settings-panel .mb-4 > label:first-child {
+    @apply block text-sm font-semibold text-text/90 mb-2;
+  }
+  .settings-panel .mb-4 {
+    margin-bottom: 1.5rem;
+  }
+  .settings-panel .mb-4:last-child,
+  .settings-panel .mb-8:last-child {
+    margin-bottom: 0;
+  }
+  .settings-panel h3 {
+    @apply pb-3 border-border/60;
+    margin-bottom: 1.5rem;
+  }
+}
+
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
