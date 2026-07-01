@@ -1507,6 +1507,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   min-width: 0px;
 }
 
+.min-w-\[10\.5rem\] {
+  min-width: 10.5rem;
+}
+
 .min-w-\[100px\] {
   min-width: 100px;
 }

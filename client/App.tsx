@@ -111,6 +111,10 @@ export const MainApp: React.FC = () => {
             setCurrentRoute('invite');
             return;
         }
+        if (path.startsWith('/auth/setup/')) {
+            setCurrentRoute('login');
+            return;
+        }
 
         try {
             const data = await apiFetch('/api/users/me');

@@ -2564,6 +2564,87 @@ app.post('/api/newsletter/send-now', requireAdmin, async (req, res) => {
     }
 });
 
+const fetchOwnedPlexServers = async (plexToken) => {
+    const response = await fetch('https://plex.tv/pms/servers', {
+        headers: {
+            'X-Plex-Token': plexToken,
+            'Accept': 'application/xml',
+        },
+    });
+    if (!response.ok) {
+        const errorText = await response.text();
+        log(`Error fetching Plex servers (XML). Status: ${response.status}. Response: ${errorText}`);
+        throw new Error('Failed to fetch servers from Plex. Please double-check your Plex account.');
+    }
+    const xmlText = await response.text();
+    const serverTags = xmlText.match(/<Server\b[^>]*\/>/g) || [];
+    return serverTags.map((tag) => {
+        const nameMatch = tag.match(/name="([^"]+)"/);
+        const idMatch = tag.match(/machineIdentifier="([^"]+)"/);
+        if (nameMatch && idMatch) {
+            return { name: nameMatch[1], identifier: idMatch[1] };
+        }
+        return null;
+    }).filter(Boolean);
+};
+
+const assertInitialSetupAccess = async (req, res) => {
+    const existingConfig = await loadFile(CONFIG_PATH, {});
+    const isConfigured = !!(existingConfig?.plexToken && existingConfig?.serverIdentifier);
+    if (isConfigured) {
+        res.status(403).json({ error: 'Portal is already configured.' });
+        return false;
+    }
+    if (canRunInitialSetup(req)) return true;
+    const sessionToken = req.cookies && req.cookies.session;
+    if (sessionToken) {
+        try {
+            jwt.verify(sessionToken, JWT_SECRET);
+            return true;
+        } catch (e) { /* fall through */ }
+    }
+    res.status(403).json({ error: 'Initial setup denied: localhost, valid setup token, or admin session required.' });
+    return false;
+};
+
+app.post('/api/setup/plex/callback', setupRateLimit, authRateLimit, async (req, res) => {
+    if (!(await assertInitialSetupAccess(req, res))) return;
+    const { pinId } = req.body;
+    if (!pinId) return res.status(400).json({ error: 'pinId is required' });
+
+    try {
+        const pinRes = await fetch(`https://plex.tv/api/v2/pins/${pinId}`, {
+            headers: {
+                Accept: 'application/json',
+                'X-Plex-Client-Identifier': CLIENT_ID,
+            },
+        });
+        const pinData = await pinRes.json();
+        if (!pinData.authToken) {
+            return res.status(400).json({ error: 'Plex sign-in not completed yet. Please try again.' });
+        }
+
+        const userRes = await apiFetch('https://plex.tv/api/v2/user', pinData.authToken);
+        if (!userRes.ok) throw new Error('Failed to fetch Plex user info');
+        const userData = await userRes.json();
+
+        const servers = await fetchOwnedPlexServers(pinData.authToken);
+        if (!servers.length) {
+            return res.status(400).json({ error: 'No owned Plex servers found for this account. You must sign in as the server owner.' });
+        }
+
+        res.json({
+            token: pinData.authToken,
+            servers,
+            username: userData.username || userData.title || userData.email || 'Plex User',
+            email: userData.email || '',
+        });
+    } catch (err) {
+        log(`Setup Plex callback error: ${err.message}`);
+        res.status(500).json({ error: err.message || 'Failed to complete Plex sign-in' });
+    }
+});
+
 app.post('/api/plex/servers', setupRateLimit, async (req, res) => {
     const { token } = req.body;
     if (!token) return res.status(400).json({ error: 'Plex token is required.' });
@@ -2587,35 +2668,21 @@ app.post('/api/plex/servers', setupRateLimit, async (req, res) => {
                 return res.status(403).json({ error: 'Forbidden: Admins only.' });
             }
         } else if (!canRunInitialSetup(req)) {
-            return res.status(403).json({ error: 'Initial setup denied: localhost or valid setup token required.' });
+            const sessionToken = req.cookies && req.cookies.session;
+            let allowed = false;
+            if (sessionToken) {
+                try {
+                    jwt.verify(sessionToken, JWT_SECRET);
+                    allowed = true;
+                } catch (e) { /* ignore */ }
+            }
+            if (!allowed) {
+                return res.status(403).json({ error: 'Initial setup denied: localhost or valid setup token required.' });
+            }
         }
 
         log('Fetching Plex servers using /pms/servers XML API...');
-        const response = await fetch('https://plex.tv/pms/servers', {
-            headers: {
-                'X-Plex-Token': token,
-                'Accept': 'application/xml'
-            }
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            log(`Error fetching Plex servers (XML). Status: ${response.status}. Response: ${errorText}`);
-            throw new Error('Failed to fetch servers from Plex. Please double-check your Plex token.');
-        }
-
-        const xmlText = await response.text();
-        const serverTags = xmlText.match(/<Server\b[^>]*\/>/g) || [];
-
-        const servers = serverTags.map(tag => {
-            const nameMatch = tag.match(/name="([^"]+)"/);
-            const idMatch = tag.match(/machineIdentifier="([^"]+)"/);
-
-            if (nameMatch && idMatch) {
-                return { name: nameMatch[1], identifier: idMatch[1] };
-            }
-            return null;
-        }).filter(Boolean); // Filter out any null entries from failed regex matches
+        const servers = await fetchOwnedPlexServers(token);
 
         if (servers.length === 0) {
             log('API call successful, but no servers with a machineIdentifier were found in the response.');
