@@ -1,5 +1,6 @@
 export const apiFetch = async (url: string, options: RequestInit = {}) => {
     const response = await fetch(url, {
+        credentials: 'same-origin',
         headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
