@@ -3748,7 +3748,7 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | str
     );
 };
 
-export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: () => void; refreshSession: () => void; onViewAdmin: () => void; onViewStatus: () => void; onViewDashboard: () => void }> = ({ sessionInfo, publicConfig, onLogout, refreshSession, onViewAdmin, onViewStatus, onViewDashboard }) => {
+export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: () => void; refreshSession: () => void; onViewAdmin: () => void; onViewStatus: () => void; onViewDashboard: () => void; onViewSettings?: () => void; onViewLogs?: () => void }> = ({ sessionInfo, publicConfig, onLogout, refreshSession, onViewAdmin, onViewStatus, onViewDashboard, onViewSettings, onViewLogs }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [toast, setToast] = useState<ToastMessage | null>(null);
     const [analytics, setAnalytics] = useState<any>(null);
@@ -4155,15 +4155,15 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                             <div className="bg-card border border-border rounded-2xl p-6 shadow-xl flex flex-col">
                                 <p className="text-muted text-xs uppercase tracking-widest font-semibold mb-4">Quick Actions</p>
                                 <div className="flex flex-col gap-3 mt-auto">
-                                    <a href="/users" className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-plex/10 border-plex/30 text-plex hover:bg-plex/20">
+                                    <button type="button" onClick={() => onViewAdmin()} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-plex/10 border-plex/30 text-plex hover:bg-plex/20">
                                         <Users size={16} /> Manage Users
-                                    </a>
-                                    <a href="/settings" className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
+                                    </button>
+                                    <button type="button" onClick={() => onViewSettings?.()} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
                                         <Settings size={16} /> Server Settings
-                                    </a>
-                                    <a href="/logs" className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
+                                    </button>
+                                    <button type="button" onClick={() => onViewLogs?.()} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
                                         <Activity size={16} /> System Logs
-                                    </a>
+                                    </button>
                                 </div>
                             </div>
                         </div>

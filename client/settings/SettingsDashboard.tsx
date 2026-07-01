@@ -13,8 +13,10 @@ import { InvitesSettings } from './InvitesSettings';
 import { StatusMonitorSettings } from './StatusMonitorSettings';
 import { BroadcastSettingsTab } from './BroadcastSettingsTab';
 export const SettingsDashboard: React.FC = () => {
+    const SETTINGS_TABS = ['plex', 'smtp', 'newsletter', 'cleanup', 'mediastack', 'branding', 'navigation', 'status', 'invites', 'tasks', 'system', 'contact', 'broadcast', 'stream-rules', 'logs'] as const;
     const [statusDraft, setStatusDraft] = useState<any>(null);
     const [isLoading, setLoading] = useState(true);
+    const [configLoadError, setConfigLoadError] = useState<string | null>(null);
     const [initialSettings, setInitialSettings] = useState<any>({});
     const [toasts, setToasts] = useState<ToastMessage[]>([]);
     const streamRulesSaveHandlerRef = useRef<(() => Promise<boolean>) | null>(null);
@@ -37,9 +39,9 @@ export const SettingsDashboard: React.FC = () => {
     useEffect(() => {
         const fetchConfig = async () => {
             setLoading(true);
+            setConfigLoadError(null);
             try {
-                const configRes = await fetch('/api/config');
-                const configData = await configRes.json();
+                const configData = await apiFetch('/api/config');
                 if (configData.settings) {
                     setInitialSettings(configData.settings);
                 }
@@ -49,13 +51,15 @@ export const SettingsDashboard: React.FC = () => {
                 setLibraries(libData || []);
                 await fetchStatusConfig();
             } catch (error) {
-                addToast("Failed to load config", "error");
+                const message = error instanceof Error ? error.message : 'Failed to load config';
+                setConfigLoadError(message);
+                addToast(message, 'error');
             } finally {
                 setLoading(false);
             }
         };
         fetchConfig();
-    }, [addToast]);
+    }, [addToast, fetchStatusConfig]);
 
     const handleSaveConfig = async (newConfig: any) => {
         setLoading(true);
@@ -78,7 +82,7 @@ export const SettingsDashboard: React.FC = () => {
     const [libraries, setLibraries] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState(() => {
         const hash = window.location.hash.replace('#', '');
-        return ['plex', 'smtp', 'newsletter', 'cleanup', 'mediastack', 'branding', 'navigation', 'status', 'invites', 'tasks', 'system', 'contact', 'broadcast', 'stream-rules', 'logs'].includes(hash) ? hash : 'plex';
+        return (SETTINGS_TABS as readonly string[]).includes(hash) ? hash : 'plex';
     });
     const [highlightMaintenanceToggle, setHighlightMaintenanceToggle] = useState(false);
     const [settingsSearch, setSettingsSearch] = useState('');
@@ -134,8 +138,22 @@ export const SettingsDashboard: React.FC = () => {
         .filter(group => group.tabs.length > 0);
 
     useEffect(() => {
-        window.location.hash = activeTab;
+        const hash = `#${activeTab}`;
+        if (window.location.hash !== hash) {
+            window.history.replaceState({}, '', `${window.location.pathname}${window.location.search}${hash}`);
+        }
     }, [activeTab]);
+
+    useEffect(() => {
+        const syncTabFromHash = () => {
+            const hash = window.location.hash.replace('#', '');
+            if ((SETTINGS_TABS as readonly string[]).includes(hash)) {
+                setActiveTab(hash);
+            }
+        };
+        window.addEventListener('hashchange', syncTabFromHash);
+        return () => window.removeEventListener('hashchange', syncTabFromHash);
+    }, []);
 
     useEffect(() => {
         if (activeTab !== 'system') return;
@@ -373,6 +391,27 @@ export const SettingsDashboard: React.FC = () => {
         </span>
     );
 
+    const renderOptionalPill = (enabled: boolean, configured: boolean) => {
+        if (!enabled) {
+            return (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-white/10 text-muted border border-border">
+                    Disabled
+                </span>
+            );
+        }
+        return renderConfigPill(configured);
+    };
+
+    const trackedIntegrationKeys = ['plexConfigured', 'smtpConfigured', 'sonarrConfigured', 'radarrConfigured', 'tautulliConfigured', 'requestAppConfigured'] as const;
+    const integrationLabels: Record<(typeof trackedIntegrationKeys)[number], string> = {
+        plexConfigured: 'Plex',
+        smtpConfigured: 'SMTP',
+        sonarrConfigured: 'Sonarr',
+        radarrConfigured: 'Radarr',
+        tautulliConfigured: 'Tautulli',
+        requestAppConfigured: 'Request App',
+    };
+
     useEffect(() => {
         if (activeTab === 'tasks' || activeTab === 'system') {
             fetchTasks();
@@ -485,11 +524,14 @@ export const SettingsDashboard: React.FC = () => {
             };
         }
 
-        const integrationValues = Object.values(diagnostics.integrations || {});
+        const integrations = diagnostics.integrations || {};
+        const trackedIntegrations = trackedIntegrationKeys
+            .filter((key) => key !== 'requestAppConfigured' || integrations.requestAppEnabled)
+            .map((key) => [key, !!integrations[key]] as const);
         const cacheValues = Object.values(diagnostics.caches || {}).map((entry: any) => !!entry?.exists);
         const jobs = Array.isArray(diagnostics.jobs) ? diagnostics.jobs : [];
-        const integrationsConfigured = integrationValues.filter(Boolean).length;
-        const integrationsTotal = integrationValues.length;
+        const integrationsConfigured = trackedIntegrations.filter(([, configured]) => configured).length;
+        const integrationsTotal = trackedIntegrations.length;
         const cacheHealthy = cacheValues.filter(Boolean).length;
         const cacheTotal = cacheValues.length;
         const runningJobs = jobs.filter((job: any) => !!job.running).length;
@@ -497,7 +539,10 @@ export const SettingsDashboard: React.FC = () => {
         const alerts: string[] = [];
 
         if (integrationsConfigured < integrationsTotal) {
-            alerts.push(`${integrationsTotal - integrationsConfigured} integration(s) are not configured.`);
+            const missingNames = trackedIntegrations
+                .filter(([, configured]) => !configured)
+                .map(([key]) => integrationLabels[key]);
+            alerts.push(`${missingNames.join(', ')} not configured.`);
         }
         if (cacheHealthy < cacheTotal) {
             alerts.push(`${cacheTotal - cacheHealthy} cache file(s) are missing.`);
@@ -772,9 +817,15 @@ export const SettingsDashboard: React.FC = () => {
             <ToastContainer toasts={toasts} setToasts={setToasts} />
 
 
-            <header className="hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0">
+            <header className="flex items-center justify-between w-full mb-6 mt-2 md:mt-0">
                 <h1 className="text-xl md:text-3xl font-bold text-plex">Settings</h1>
             </header>
+
+            {configLoadError && (
+                <div className="mb-6 p-4 rounded-xl border border-red-500/40 bg-red-500/10 text-red-200 text-sm">
+                    Could not load settings: {configLoadError}. Try refreshing the page. If this persists on Docker, confirm your session cookie is valid and the container can reach the API.
+                </div>
+            )}
 
             <div className="w-full flex flex-col">
                 <div className="md:grid md:grid-cols-[280px_minmax(0,1fr)] md:gap-6">
@@ -1514,6 +1565,7 @@ export const SettingsDashboard: React.FC = () => {
                                         <div className="flex items-center justify-between gap-2"><strong>Sonarr</strong>{renderConfigPill(!!diagnostics?.integrations?.sonarrConfigured)}</div>
                                         <div className="flex items-center justify-between gap-2"><strong>Radarr</strong>{renderConfigPill(!!diagnostics?.integrations?.radarrConfigured)}</div>
                                         <div className="flex items-center justify-between gap-2"><strong>Tautulli</strong>{renderConfigPill(!!diagnostics?.integrations?.tautulliConfigured)}</div>
+                                        <div className="flex items-center justify-between gap-2"><strong>Request App</strong>{renderOptionalPill(!!diagnostics?.integrations?.requestAppEnabled, !!diagnostics?.integrations?.requestAppConfigured)}</div>
                                         <div className="flex items-center justify-between gap-2"><strong>Analytics Cache</strong>{renderConfigPill(!!diagnostics?.caches?.analytics?.exists)}</div>
                                         <div className="flex items-center justify-between gap-2"><strong>Trending Cache</strong>{renderConfigPill(!!diagnostics?.caches?.trending?.exists)}</div>
                                         <div className="flex items-center justify-between gap-2"><strong>Plex Stats Cache</strong>{renderConfigPill(!!diagnostics?.caches?.plexStats?.exists)}</div>

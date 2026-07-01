@@ -91,7 +91,7 @@ export const MainApp: React.FC = () => {
             if (route === 'user') path = '/portal';
             if (route === 'status') path = '/status';
             if (route === 'dashboard') path = '/dashboard';
-            if (route === 'settings') path = '/settings';
+            if (route === 'settings') path = '/settings#plex';
             if (route === 'analytics') path = '/analytics';
             if (route === 'mediastack') path = '/mediastack';
             if (route === 'maintenance') path = '/maintenance';
@@ -141,6 +141,14 @@ export const MainApp: React.FC = () => {
         checkSession();
     }, [checkSession]);
 
+    useEffect(() => {
+        const onPopState = () => {
+            checkSession();
+        };
+        window.addEventListener('popstate', onPopState);
+        return () => window.removeEventListener('popstate', onPopState);
+    }, [checkSession]);
+
     const handleLogout = async () => {
         await apiFetch('/api/auth/logout', { method: 'POST' });
         setSessionInfo(null);
@@ -169,7 +177,7 @@ export const MainApp: React.FC = () => {
         if (currentRoute === 'mediastack') return <MediaStackDashboard isAdmin={isAdmin} />;
         if (currentRoute === 'analytics') return <AnalyticsDashboard isAdmin={isAdmin} sessionInfo={sessionInfo} />;
         if (currentRoute === 'admin' || currentRoute === 'users') return <AdminDashboard onLogout={handleLogout} onViewUserPortal={() => setRoute('user')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} />;
-        return <UserDashboard sessionInfo={sessionInfo} publicConfig={publicConfig} onLogout={handleLogout} refreshSession={checkSession} onViewAdmin={() => setRoute('users')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} />;
+        return <UserDashboard sessionInfo={sessionInfo} publicConfig={publicConfig} onLogout={handleLogout} refreshSession={checkSession} onViewAdmin={() => setRoute('users')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} onViewSettings={() => setRoute('settings')} onViewLogs={() => setRoute('logs')} />;
     };
 
     return (

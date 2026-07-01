@@ -676,10 +676,16 @@ const requireAdmin = async (req, res, next) => {
 
 const syncUsers = async (config) => {
     log('Starting user sync from Plex...');
-    const res = await apiFetch(
-        `${PLEX_API}/users`,
-        config.plexToken
-    );
+    let res;
+    try {
+        res = await apiFetch(
+            `${PLEX_API}/users`,
+            config.plexToken
+        );
+    } catch (error) {
+        const reason = error?.cause?.message || error?.cause?.code || error?.message || 'network error';
+        throw new Error(`request to ${PLEX_API}/users failed, reason: ${reason}`);
+    }
 
     if (!res.ok) {
         const errorText = await res.text();
@@ -1423,6 +1429,8 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 publicDomain: config.publicDomain || 'https://portal.yourdomain.com',
                 requestUrl: config.requestUrl || 'https://yourdomain.com',
                 contactUrl: config.contactUrl || '',
+                contactWhatsApp,
+                contactEmail,
                 sonarrUrl: config.sonarrUrl || '',
                 sonarrApiKey: config.sonarrApiKey ? SECRET_MASK : '',
                 radarrUrl: config.radarrUrl || '',
@@ -2671,32 +2679,66 @@ const getTasksSnapshot = () => [
     ...Object.values(systemJobs).map(job => ({ ...job }))
 ];
 
+const findRunnableTask = (taskId) => {
+    const scheduled = tasksInfo.find(t => t.id === taskId);
+    if (scheduled) return { task: scheduled, kind: 'scheduled' };
+    const systemJob = systemJobs[taskId] || Object.values(systemJobs).find(j => j.id === taskId);
+    if (systemJob) return { task: systemJob, kind: 'system' };
+    return null;
+};
+
 app.get('/api/tasks', requireAdmin, (req, res) => {
     res.json(getTasksSnapshot());
 });
 
 app.post('/api/tasks/run/:taskId', requireAdmin, async (req, res) => {
     const { taskId } = req.params;
-    const task = tasksInfo.find(t => t.id === taskId);
-    if (!task) return res.status(404).json({ error: 'Task not found' });
+    const match = findRunnableTask(taskId);
+    if (!match) return res.status(404).json({ error: 'Task not found' });
+
+    const { task, kind } = match;
 
     try {
         const currentConfig = await loadFile(CONFIG_PATH, {});
-        markTaskStart(task);
 
-        switch (taskId) {
-            case 'syncPlexUsers': await syncUsers(currentConfig); break;
-            case 'checkAndSendNotifications': await checkAndSendNotifications(currentConfig); break;
-            case 'checkAndRevoke': await checkAndRevoke(currentConfig); break;
-            case 'checkAndSendNewsletter': await checkAndSendNewsletter(currentConfig, true); break;
-            case 'checkAndCleanupInactive': await checkAndCleanupInactive(currentConfig); break;
-            case 'maintenanceRuleRun': await executeMaintenanceRunBatch({ actor: req.user, dryRun: true }); break;
-            default: return res.status(400).json({ error: 'Invalid task' });
+        if (kind === 'scheduled') {
+            markTaskStart(task);
+            try {
+                switch (taskId) {
+                    case 'syncPlexUsers': await syncUsers(currentConfig); break;
+                    case 'checkAndSendNotifications': await checkAndSendNotifications(currentConfig); break;
+                    case 'checkAndRevoke': await checkAndRevoke(currentConfig); break;
+                    case 'checkAndSendNewsletter': await checkAndSendNewsletter(currentConfig, true); break;
+                    case 'checkAndCleanupInactive': await checkAndCleanupInactive(currentConfig); break;
+                    case 'maintenanceRuleRun':
+                        if (!isMaintenanceExperimentalEnabled(currentConfig)) {
+                            throw new Error('Maintenance module is disabled. Enable it in Settings → System first.');
+                        }
+                        await executeMaintenanceRunBatch({ actor: req.user, dryRun: true });
+                        break;
+                    default:
+                        markTaskEnd(task, null);
+                        return res.status(400).json({ error: 'Invalid task' });
+                }
+                markTaskEnd(task, null);
+            } catch (e) {
+                markTaskEnd(task, e);
+                throw e;
+            }
+        } else {
+            switch (taskId) {
+                case 'analyticsCache': await calculateAnalyticsStats(); break;
+                case 'trendingCache': await calculateTrendingStats(); break;
+                case 'plexStats': await buildPlexStatsCache(); break;
+                case 'autoBackup': await runAutoBackupCycle('manual', { force: true }); break;
+                case 'maintenanceIndex': await buildMaintenanceMediaIndex({ actor: req.user, force: true }); break;
+                default:
+                    return res.status(400).json({ error: 'Invalid task' });
+            }
         }
-        markTaskEnd(task, null);
+
         res.json({ message: `Task ${task.name} executed successfully.`, task });
     } catch (e) {
-        markTaskEnd(task, e);
         res.status(500).json({ error: `Failed to execute task: ${e.message}` });
     }
 });
@@ -2742,6 +2784,7 @@ app.get('/api/admin/diagnostics', requireAdmin, async (req, res) => {
                 sonarrConfigured: !!(config.sonarrUrl && config.sonarrApiKey),
                 radarrConfigured: !!(config.radarrUrl && config.radarrApiKey),
                 tautulliConfigured: !!(config.tautulliUrl && config.tautulliApiKey),
+                requestAppEnabled: !!(config.requestAppType && config.requestAppType !== 'none'),
                 requestAppConfigured: !!(config.requestAppType && config.requestAppType !== 'none' && config.requestAppUrl && config.requestAppApiKey)
             },
             caches: {
@@ -4347,6 +4390,8 @@ app.get(['/', '/portal', '/status', '/admin', '/users', '/dashboard', '/settings
         const updatedHtml = html
             .replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtmlAttr(socialMeta.title)}</title>`)
             .replace('</head>', `    ${socialMeta.tags}\n</head>`);
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.send(updatedHtml);
     } catch (e) {
@@ -4527,12 +4572,12 @@ const computeNextBackupRun = (config) => {
     return new Date(base + intervalMs).toISOString();
 };
 
-const runAutoBackupCycle = async (reason = 'auto') => {
+const runAutoBackupCycle = async (reason = 'auto', { force = false } = {}) => {
     const job = systemJobs.autoBackup;
     markTaskStart(job);
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        if (!config.autoBackupEnabled) {
+        if (!config.autoBackupEnabled && !force) {
             job.nextRun = null;
             markTaskEnd(job, null);
             return;

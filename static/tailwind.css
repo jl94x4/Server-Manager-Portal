@@ -1696,6 +1696,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.grid-cols-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .grid-cols-\[minmax\(0\2c 1fr\)_auto\] {
   grid-template-columns: minmax(0,1fr) auto;
 }
@@ -3416,6 +3420,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   color: rgb(192 132 252 / var(--tw-text-opacity, 1));
 }
 
+.text-red-200 {
+  --tw-text-opacity: 1;
+  color: rgb(254 202 202 / var(--tw-text-opacity, 1));
+}
+
 .text-red-300 {
   --tw-text-opacity: 1;
   color: rgb(252 165 165 / var(--tw-text-opacity, 1));
@@ -4868,8 +4877,8 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
-  .md\:grid-cols-6 {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+  .md\:grid-cols-8 {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
   }
 
   .md\:grid-cols-\[1\.5fr_1fr_2fr_auto\] {
@@ -4914,10 +4923,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .md\:gap-3 {
     gap: 0.75rem;
-  }
-
-  .md\:gap-4 {
-    gap: 1rem;
   }
 
   .md\:gap-6 {
