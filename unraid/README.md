@@ -18,6 +18,20 @@ Install **Server Manager Portal** on Unraid using the Community Applications tem
    - **Allow Private Integration URLs** — `true` for LAN Sonarr/Radarr/Tautulli
 4. Apply and open the **WebUI** link. Sign in with your Plex admin account.
 
+## Troubleshooting
+
+### `EACCES: permission denied, open '/app/config/config.json'`
+
+Unraid creates appdata folders as root. Current images include an entrypoint that `chown`s `/app/config` and `/app/backup` on startup. **Pull the latest image** and recreate the container.
+
+If you are on an older image, stop the container and run:
+
+```bash
+chown -R 1000:1000 /mnt/user/appdata/server-manager-portal/
+```
+
+Then start the container again.
+
 ## Container image
 
 The template pulls `ghcr.io/jl94x4/server-manager-portal:latest`, built automatically on each push to `main` via GitHub Actions.
