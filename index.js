@@ -180,6 +180,17 @@ app.use(cookieParser()); // Middleware to parse cookies
 // Trust the first proxy (e.g. Nginx/Caddy) so req.secure reflects HTTPS correctly
 app.set('trust proxy', 1);
 
+const verifyInitialSetupPlexOwner = async (plexToken, serverIdentifier) => {
+    if (!plexToken || !serverIdentifier || plexToken === SECRET_MASK) return false;
+    try {
+        const servers = await fetchOwnedPlexServers(plexToken);
+        return servers.some(server => String(server.identifier) === String(serverIdentifier));
+    } catch (e) {
+        log(`Initial setup Plex owner verification failed: ${e.message}`);
+        return false;
+    }
+};
+
 // --- In-Memory Cache for Plex Metadata ---
 const plexMetadataCache = new Map();
 
@@ -1545,10 +1556,13 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
             return res.status(403).json({ error: 'Forbidden: Invalid or expired session. Please log in again.' });
         }
     } else if (!canRunInitialSetup(req)) {
-        if (!SETUP_TOKEN) {
-            return res.status(403).json({ error: 'Initial setup is restricted. Configure SETUP_TOKEN or run setup from localhost.' });
+        const verifiedPlexOwner = await verifyInitialSetupPlexOwner(token, serverIdentifier);
+        if (!verifiedPlexOwner) {
+            if (!SETUP_TOKEN) {
+                return res.status(403).json({ error: 'Initial setup is restricted. Sign in with the Plex server owner account, configure SETUP_TOKEN, or run setup from localhost.' });
+            }
+            return res.status(403).json({ error: 'Initial setup denied: invalid setup token or Plex server owner verification failed.' });
         }
-        return res.status(403).json({ error: 'Initial setup denied: invalid setup token.' });
     }
     const interval = parseInt(checkIntervalMinutes, 10);
     let safeSonarrUrl = '';
@@ -1848,12 +1862,14 @@ app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
             const serverId = resolveTestCredential(serverIdentifier, stored.serverIdentifier);
             if (!plexToken || !serverId) return res.status(400).json({ error: 'Plex token and server identifier are required.' });
             const testConfig = { ...stored, plexToken, serverIdentifier: serverId };
-            const { container, uri } = await testPlexServerConnection(testConfig);
+            const { container, uri, directReachable } = await testPlexServerConnection(testConfig);
             const version = container.version || container.Version || '';
-            const message = version
+            const message = directReachable && version
                 ? `Connected to Plex Media Server (v${version})`
-                : 'Connected to Plex Media Server';
-            return res.json({ ok: true, message, details: { version: version || null, machineIdentifier: container.machineIdentifier || serverId, uri } });
+                : directReachable
+                    ? 'Connected to Plex Media Server'
+                    : 'Plex account and server verified via Plex.tv. Direct server access from the container could not be confirmed, but setup can continue.';
+            return res.json({ ok: true, message, details: { version: version || null, machineIdentifier: container.machineIdentifier || serverId, uri, directReachable } });
         }
 
         if (type === 'sonarr') {
@@ -2021,13 +2037,21 @@ const testPlexServerConnection = async (config) => {
                 continue;
             }
             const identity = await identityRes.json().catch(() => ({}));
-            return { container: identity.MediaContainer || identity, uri: connection.uri };
+            return { container: identity.MediaContainer || identity, uri: connection.uri, directReachable: true };
         } catch (e) {
             failures.push(`${connection.uri}: ${sanitizeConnectionError(e.message, [config.plexToken])}`);
         }
     }
 
-    throw new Error(`Could not reach Plex Media Server from this container. Tried ${failures.length} connection(s): ${failures.join(' | ')}`);
+    log(`Plex direct connection probe failed during test: ${failures.join(' | ')}`);
+    return {
+        container: {
+            machineIdentifier: server.clientIdentifier || config.serverIdentifier,
+            version: server.productVersion || server.version || ''
+        },
+        uri: null,
+        directReachable: false
+    };
 };
 
 // Plex interaction helpers
