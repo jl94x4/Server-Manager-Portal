@@ -43,7 +43,8 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
 
     const [step, setStep] = useState<StepId>(() => {
         if (isOAuthReturn) return 'plex';
-        if (storedPlex?.token) return storedPlex.step || 'plex';
+        if (storedPlex?.step) return storedPlex.step;
+        if (storedPlex?.token) return 'plex';
         return 'welcome';
     });
     const [error, setError] = useState('');
@@ -88,8 +89,6 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
         if (!pinId || pinId === 'setup') return;
 
         const returnPath = sessionStorage.getItem('setupReturnPath') || '/';
-        sessionStorage.removeItem('setupReturnPath');
-        window.history.replaceState({}, '', returnPath);
 
         setIsLoading(true);
         setError('');
@@ -114,6 +113,8 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
         }).catch((e) => {
             setError(e instanceof Error ? e.message : 'Plex sign-in failed');
         }).finally(() => {
+            sessionStorage.removeItem('setupReturnPath');
+            window.history.replaceState({}, '', returnPath);
             setIsLoading(false);
         });
     }, []);
@@ -123,6 +124,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
         setError('');
         try {
             sessionStorage.setItem('setupReturnPath', window.location.pathname + window.location.search);
+            sessionStorage.setItem(SETUP_PLEX_STORAGE_KEY, JSON.stringify({ step: 'plex' }));
             const data = await apiFetch('/api/auth/plex/login', { method: 'POST' });
             const forwardUrl = `${window.location.origin}/auth/setup/${data.id}`;
             const authUrl = `https://app.plex.tv/auth#?clientID=${data.clientIdentifier}&code=${data.code}&context[device][product]=Server%20Manager%20Portal&forwardUrl=${encodeURIComponent(forwardUrl)}`;
@@ -229,7 +231,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
     const labelClass = 'text-sm font-bold text-muted uppercase tracking-wider';
 
     return (
-        <div className="w-full max-w-3xl mx-auto px-4 py-8 md:py-12">
+        <div className="w-full max-w-4xl mx-auto px-4 py-8 md:py-12">
             <div className="bg-card rounded-2xl shadow-2xl border border-white/10 overflow-hidden">
                 <div className="h-1 bg-gradient-to-r from-plex to-[#e5a00d]" />
 
@@ -449,11 +451,16 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                             ].map(({ label, url, setUrl, key, setKey, type, placeholder }) => (
                                 <div key={type} className="border border-border rounded-xl p-4 flex flex-col gap-3">
                                     <h3 className="font-bold text-plex">{label}</h3>
-                                    <input type="text" className={inputClass} value={url} onChange={(e) => setUrl(e.target.value)} placeholder={placeholder} />
-                                    <input type="password" className={inputClass} value={key} onChange={(e) => setKey(e.target.value)} placeholder="API Key" />
-                                    {url && key && (
-                                        <IntegrationTestButton type={type} payload={{ [`${type}Url`]: url, [`${type}ApiKey`]: key }} />
-                                    )}
+                                    <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 md:items-start">
+                                        <input type="text" className={inputClass} value={url} onChange={(e) => setUrl(e.target.value)} placeholder={placeholder} />
+                                        <input type="password" className={inputClass} value={key} onChange={(e) => setKey(e.target.value)} placeholder="API Key" />
+                                        <IntegrationTestButton
+                                            type={type}
+                                            payload={{ [`${type}Url`]: url, [`${type}ApiKey`]: key }}
+                                            disabled={!url || !key}
+                                            className="md:min-w-[10rem]"
+                                        />
+                                    </div>
                                 </div>
                             ))}
                             <div className="border border-border rounded-xl p-4 flex flex-col gap-3">
@@ -461,11 +468,16 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                                 <CustomSelect value={requestAppType} onChange={setRequestAppType} options={[...REQUEST_APP_OPTIONS]} />
                                 {requestAppType !== 'none' && (
                                     <>
-                                        <input type="text" className={inputClass} value={requestAppUrl} onChange={(e) => setRequestAppUrl(e.target.value)} placeholder="http://localhost:5055" />
-                                        <input type="password" className={inputClass} value={requestAppApiKey} onChange={(e) => setRequestAppApiKey(e.target.value)} placeholder="API Key" />
-                                        {requestAppUrl && requestAppApiKey && (
-                                            <IntegrationTestButton type="requestApp" payload={{ requestAppType, requestAppUrl, requestAppApiKey }} />
-                                        )}
+                                        <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 md:items-start">
+                                            <input type="text" className={inputClass} value={requestAppUrl} onChange={(e) => setRequestAppUrl(e.target.value)} placeholder="http://localhost:5055" />
+                                            <input type="password" className={inputClass} value={requestAppApiKey} onChange={(e) => setRequestAppApiKey(e.target.value)} placeholder="API Key" />
+                                            <IntegrationTestButton
+                                                type="requestApp"
+                                                payload={{ requestAppType, requestAppUrl, requestAppApiKey }}
+                                                disabled={!requestAppUrl || !requestAppApiKey}
+                                                className="md:min-w-[10rem]"
+                                            />
+                                        </div>
                                     </>
                                 )}
                             </div>

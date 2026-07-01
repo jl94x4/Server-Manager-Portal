@@ -1544,10 +1544,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   max-width: 42rem;
 }
 
-.max-w-3xl {
-  max-width: 48rem;
-}
-
 .max-w-4xl {
   max-width: 56rem;
 }
@@ -5016,6 +5012,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     width: auto;
   }
 
+  .md\:min-w-\[10rem\] {
+    min-width: 10rem;
+  }
+
   .md\:max-w-\[100px\] {
     max-width: 100px;
   }
@@ -5069,6 +5069,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .md\:grid-cols-\[18rem_minmax\(0\2c 1fr\)\] {
     grid-template-columns: 18rem minmax(0,1fr);
+  }
+
+  .md\:grid-cols-\[1fr_1fr_auto\] {
+    grid-template-columns: 1fr 1fr auto;
   }
 
   .md\:grid-cols-\[280px_minmax\(0\2c 1fr\)\] {
