@@ -2913,10 +2913,17 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any }>
         setError('');
         try {
             const data = await apiFetch('/api/auth/plex/login', { method: 'POST' });
-            // Use the server-side GET callback as forwardUrl — plex.tv redirects to the
-            // server endpoint which sets the cookie via a navigation response and redirects
-            // to /portal. This is more reliable than the fetch-based approach in Docker.
-            const forwardUrl = window.location.origin + '/api/auth/plex/callback?pinId=' + data.id;
+            // Use standard GET callback on secure/localhost contexts, but fall back to the
+            // POST flow on remote HTTP IP addresses or non-SSL domains where the browser
+            // blocks Set-Cookie on secure-to-insecure HTTPS-to-HTTP redirects.
+            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const isHttp = window.location.protocol === 'http:';
+            const usePostFlow = isHttp && !isLocalhost;
+            
+            const forwardUrl = usePostFlow
+                ? window.location.origin + '/auth/' + data.id
+                : window.location.origin + '/api/auth/plex/callback?pinId=' + data.id;
+                
             const authUrl = `https://app.plex.tv/auth#?clientID=${data.clientIdentifier}&code=${data.code}&context[device][product]=Server%20Manager%20Portal&forwardUrl=${encodeURIComponent(forwardUrl)}`;
             window.location.href = authUrl;
         } catch (e) {
