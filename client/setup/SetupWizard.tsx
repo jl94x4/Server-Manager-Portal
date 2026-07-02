@@ -85,7 +85,8 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
     }, [token, servers, serverIdentifier, step]);
 
     const handleFetchServers = async () => {
-        if (!token) {
+        const trimmedToken = token.trim();
+        if (!trimmedToken) {
             setError('Please enter a Plex token first.');
             return;
         }
@@ -94,7 +95,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
         try {
             const foundServers = await apiFetch('/api/plex/servers', {
                 method: 'POST',
-                body: JSON.stringify({ token, plexServerUrl: plexServerUrl || undefined }),
+                body: JSON.stringify({ token: trimmedToken, plexServerUrl: plexServerUrl || undefined }),
             });
             setServers(foundServers);
             if (foundServers.length > 0) {
@@ -137,14 +138,23 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
     };
 
     const handleComplete = async () => {
+        const trimmedToken = token.trim();
+        if (!trimmedToken || !serverIdentifier.trim()) {
+            setError('Plex token and server identifier are required.');
+            return;
+        }
         setIsLoading(true);
         setError('');
         try {
+            await apiFetch('/api/plex/validate-token', {
+                method: 'POST',
+                body: JSON.stringify({ token: trimmedToken, plexServerUrl: plexServerUrl || undefined }),
+            });
             await apiFetch('/api/config', {
                 method: 'POST',
                 body: JSON.stringify({
-                    token,
-                    serverIdentifier,
+                    token: trimmedToken,
+                    serverIdentifier: serverIdentifier.trim(),
                     plexServerUrl: plexServerUrl || undefined,
                     publicDomain,
                     primaryColor,
@@ -239,8 +249,11 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                                 <p className="text-muted text-sm">Enter your Plex token manually, then fetch and choose your server.</p>
                             </div>
 
-                            <div className="p-4 bg-plex/5 border border-plex/20 rounded-xl text-sm text-muted">
-                                <strong className="text-plex">Tip:</strong> Log into Plex Web, open any library item XML, and find <code className="bg-background px-1 rounded">X-Plex-Token=...</code> in the URL.
+                            <div className="p-4 bg-plex/5 border border-plex/20 rounded-xl text-sm text-muted space-y-2">
+                                <p><strong className="text-plex">Required:</strong> Use the <strong className="text-text">server owner</strong> account token — not a shared user token.</p>
+                                <p>1) Sign in at <strong className="text-text">app.plex.tv</strong> as the Plex server owner.</p>
+                                <p>2) Open any library item, then copy <code className="bg-background px-1 rounded">X-Plex-Token=...</code> from the browser address bar.</p>
+                                <p>3) Paste the token below (no spaces). If setup fails, the token is wrong or expired — generate a fresh one at plex.tv while signed in.</p>
                             </div>
 
                             <div className="flex flex-col gap-2">

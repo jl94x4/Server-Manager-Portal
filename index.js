@@ -169,6 +169,17 @@ const resolveIntegrationUrlForFetch = (rawUrl) => {
     return normalizeExternalBaseUrl(rawUrl, { allowPrivate: true, allowHttp: true });
 };
 
+const resolveConfiguredPlexServerUrl = (config = {}) => {
+    const fromConfig = String(config.plexServerUrl || '').trim().replace(/\/+$/, '');
+    const fromEnv = String(process.env.PLEX_SERVER_URL || '').trim().replace(/\/+$/, '');
+    return fromConfig || fromEnv;
+};
+
+const normalizePlexToken = (token) => {
+    if (token === undefined || token === null || token === SECRET_MASK) return token;
+    return String(token).trim();
+};
+
 const clearSessionCookie = (req, res) => {
     const isHttps = FORCE_SECURE_COOKIES || !!(req.socket?.encrypted);
     res.clearCookie('session', { httpOnly: true, secure: isHttps, sameSite: 'lax', path: '/' });
@@ -218,7 +229,10 @@ const verifyInitialSetupPlexOwner = async (plexToken, serverIdentifier, plexServ
             }
 
             if (machineIdentifier && String(machineIdentifier) === String(serverIdentifier)) {
-                return true;
+                if (await validatePlexServerAdminToken(plexToken, plexServerUrl)) {
+                    return true;
+                }
+                log('Direct URL identity matched but token cannot access server libraries (invalid or non-admin token).');
             }
         } catch (e) {
             log(`Initial setup Plex owner verification via direct URL failed: ${e.message}`);
@@ -751,6 +765,9 @@ const syncUsers = async (config) => {
     if (!res.ok) {
         const errorText = await res.text();
         log(`Error fetching Plex shared users. Status: ${res.status}. Response: ${errorText}`);
+        if (res.status === 401) {
+            throw new Error('Invalid Plex token in config. Update the token in Settings (or config/config.json) using the server owner X-Plex-Token from app.plex.tv.');
+        }
         throw new Error(`Failed to fetch Plex shared users. Status: ${res.status}`);
     }
 
@@ -1310,7 +1327,11 @@ app.post('/api/auth/plex/callback', authRateLimit, async (req, res) => {
         // owns the configured Plex server — this handles first-login-after-setup
         // scenarios where adminPlexId wasn't saved correctly.
         if (!isAdmin && config?.serverIdentifier) {
-            isAdmin = await verifyInitialSetupPlexOwner(pinData.authToken, config.serverIdentifier);
+            isAdmin = await verifyInitialSetupPlexOwner(
+                pinData.authToken,
+                config.serverIdentifier,
+                resolveConfiguredPlexServerUrl(config),
+            );
         }
 
         // Whenever we confirm this user is the admin, persist their Plex ID so
@@ -1437,7 +1458,11 @@ app.get('/api/auth/plex/callback', authRateLimit, async (req, res) => {
         let isAdmin = !!(adminId && String(userData.id) === String(adminId));
 
         if (!isAdmin && config?.serverIdentifier) {
-            isAdmin = await verifyInitialSetupPlexOwner(pinData.authToken, config.serverIdentifier);
+            isAdmin = await verifyInitialSetupPlexOwner(
+                pinData.authToken,
+                config.serverIdentifier,
+                resolveConfiguredPlexServerUrl(config),
+            );
         }
 
         if (isAdmin && String(config.adminPlexId || '') !== String(userData.id)) {
@@ -1720,6 +1745,9 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         return res.status(400).json({ error: 'Token and serverIdentifier are required.' });
     }
 
+    const normalizedToken = normalizePlexToken(token);
+    const normalizedServerIdentifier = String(serverIdentifier).trim();
+
     const existingConfig = await loadFile(CONFIG_PATH, {});
     const isConfigured = !!(existingConfig && existingConfig.plexToken && existingConfig.serverIdentifier);
     const wasMaintenanceEnabled = !!existingConfig.maintenanceExperimentalEnabled;
@@ -1739,16 +1767,27 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         } catch (e) {
             return res.status(403).json({ error: 'Forbidden: Invalid or expired session. Please log in again.' });
         }
-    } else if (!canRunInitialSetup(req)) {
+    } else {
         const candidatePlexServerUrl = (plexServerUrlFromBody !== undefined
             ? String(plexServerUrlFromBody || '').trim()
-            : String(existingConfig.plexServerUrl || '').trim());
-        const verifiedPlexOwner = await verifyInitialSetupPlexOwner(token, serverIdentifier, candidatePlexServerUrl);
-        if (!verifiedPlexOwner) {
-            if (!SETUP_TOKEN) {
-                return res.status(403).json({ error: 'Initial setup is restricted. Sign in with the Plex server owner account, configure SETUP_TOKEN, or run setup from localhost.' });
+            : String(existingConfig.plexServerUrl || '').trim()) || resolveConfiguredPlexServerUrl(existingConfig);
+
+        if (!canRunInitialSetup(req)) {
+            const verifiedPlexOwner = await verifyInitialSetupPlexOwner(normalizedToken, normalizedServerIdentifier, candidatePlexServerUrl);
+            if (!verifiedPlexOwner) {
+                if (!SETUP_TOKEN) {
+                    return res.status(403).json({ error: 'Initial setup is restricted. Sign in with the Plex server owner account, configure SETUP_TOKEN, or run setup from localhost.' });
+                }
+                return res.status(403).json({ error: 'Initial setup denied: invalid setup token or Plex server owner verification failed.' });
             }
-            return res.status(403).json({ error: 'Initial setup denied: invalid setup token or Plex server owner verification failed.' });
+        }
+
+        const tokenValidation = await validatePlexTokenForSetup(normalizedToken, candidatePlexServerUrl);
+        if (!tokenValidation.ok) {
+            return res.status(400).json({ error: tokenValidation.error });
+        }
+        if (tokenValidation.warning) {
+            log(`Initial setup token validation: ${tokenValidation.warning}`);
         }
     }
     const interval = parseInt(checkIntervalMinutes, 10);
@@ -1784,8 +1823,8 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
 
     const config = {
         ...existingConfig,
-        plexToken: resolveSecret(token, existingConfig.plexToken),
-        serverIdentifier,
+        plexToken: resolveSecret(normalizedToken, existingConfig.plexToken),
+        serverIdentifier: normalizedServerIdentifier,
         plexServerUrl: (plexServerUrlFromBody !== undefined ? String(plexServerUrlFromBody || '').trim() : existingConfig.plexServerUrl) || '',
         checkIntervalMinutes: (interval > 0 ? interval : 60),
         smtpHost: smtpHost || '',
@@ -2206,6 +2245,69 @@ const fetchWithTimeout = async (url, options = {}, timeoutMs = 15000) => {
     } finally {
         clearTimeout(timer);
     }
+};
+
+const validatePlexAccountToken = async (plexToken) => {
+    const token = normalizePlexToken(plexToken);
+    if (!token || token === SECRET_MASK) return { ok: false, reason: 'missing' };
+    try {
+        const res = await apiFetch('https://plex.tv/api/v2/user', token);
+        if (res.ok) return { ok: true, source: 'plex.tv' };
+        if (res.status === 401) return { ok: false, reason: 'invalid' };
+        return { ok: false, reason: 'error', status: res.status };
+    } catch (e) {
+        return { ok: false, reason: 'unreachable', message: e.message };
+    }
+};
+
+const validatePlexServerAdminToken = async (plexToken, plexServerUrl) => {
+    const token = normalizePlexToken(plexToken);
+    const directUrl = resolveIntegrationUrlForFetch(plexServerUrl);
+    if (!token || !directUrl) return false;
+    try {
+        const res = await fetchWithTimeout(`${directUrl}/library/sections?X-Plex-Container-Size=1`, {
+            headers: { 'X-Plex-Token': token, Accept: 'application/json' },
+        }, 6000);
+        return res.ok;
+    } catch {
+        return false;
+    }
+};
+
+const validatePlexTokenForSetup = async (plexToken, plexServerUrl = '') => {
+    const token = normalizePlexToken(plexToken);
+    if (!token) {
+        return { ok: false, error: 'Plex token is required.' };
+    }
+
+    const accountCheck = await validatePlexAccountToken(token);
+    if (accountCheck.ok) {
+        return { ok: true, source: accountCheck.source };
+    }
+
+    if (accountCheck.reason === 'invalid') {
+        return {
+            ok: false,
+            error: 'Invalid Plex token. Sign in at app.plex.tv as the server owner, open any library item, and copy X-Plex-Token from the page URL.',
+        };
+    }
+
+    const directUrl = String(plexServerUrl || '').trim();
+    if (directUrl && await validatePlexServerAdminToken(token, directUrl)) {
+        return { ok: true, source: 'direct-server', warning: 'Plex.tv is unreachable; token verified via your direct Plex URL.' };
+    }
+
+    if (accountCheck.reason === 'unreachable' && !directUrl) {
+        return {
+            ok: false,
+            error: 'Could not reach Plex.tv to verify your token. Enter your direct Plex URL (e.g. http://192.168.1.6:32400) and try again.',
+        };
+    }
+
+    return {
+        ok: false,
+        error: 'Could not verify Plex token. Check the token, direct Plex URL, and that the container can reach Plex.',
+    };
 };
 
 const probeOnePlexUrl = async (uri, plexToken) => {
@@ -2917,9 +3019,39 @@ const assertInitialSetupAccess = async (req, res, options = {}) => {
     return false;
 };
 
+app.post('/api/plex/validate-token', setupRateLimit, async (req, res) => {
+    const { token, plexServerUrl } = req.body || {};
+    const normalizedToken = normalizePlexToken(token);
+    if (!normalizedToken) return res.status(400).json({ error: 'Plex token is required.' });
+
+    const existingConfig = await loadFile(CONFIG_PATH, {});
+    const isConfigured = !!(existingConfig?.plexToken && existingConfig?.serverIdentifier);
+    if (isConfigured) {
+        const sessionToken = req.cookies && req.cookies.session;
+        if (!sessionToken) return res.status(403).json({ error: 'Forbidden: Admin session required.' });
+        try {
+            const decoded = jwt.verify(sessionToken, JWT_SECRET);
+            const adminId = await getAdminId(existingConfig);
+            if (!adminId || String(decoded.plexId) !== String(adminId)) {
+                return res.status(403).json({ error: 'Forbidden: Admins only.' });
+            }
+        } catch (e) {
+            return res.status(403).json({ error: 'Forbidden: Invalid admin session.' });
+        }
+    } else if (!(await assertInitialSetupAccess(req, res, { allowUnconfigured: true }))) {
+        return;
+    }
+
+    const directUrl = String(plexServerUrl || '').trim() || resolveConfiguredPlexServerUrl(existingConfig);
+    const result = await validatePlexTokenForSetup(normalizedToken, directUrl);
+    if (!result.ok) return res.status(400).json({ error: result.error });
+    return res.json({ ok: true, message: result.warning || 'Plex token is valid.' });
+});
+
 app.post('/api/plex/servers', setupRateLimit, async (req, res) => {
     const { token, plexServerUrl } = req.body;
-    if (!token) return res.status(400).json({ error: 'Plex token is required.' });
+    const normalizedToken = normalizePlexToken(token);
+    if (!normalizedToken) return res.status(400).json({ error: 'Plex token is required.' });
 
     try {
         const existingConfig = await loadFile(CONFIG_PATH, {});
@@ -2956,7 +3088,7 @@ app.post('/api/plex/servers', setupRateLimit, async (req, res) => {
         log('Fetching Plex servers using /pms/servers XML API...');
         let servers = [];
         try {
-            servers = await fetchOwnedPlexServers(token);
+            servers = await fetchOwnedPlexServers(normalizedToken);
         } catch (e) {
             log(`Owned Plex server discovery failed: ${e.message}`);
         }
@@ -2968,7 +3100,7 @@ app.post('/api/plex/servers', setupRateLimit, async (req, res) => {
                 const baseUrl = resolveIntegrationUrlForFetch(plexServerUrl);
                 const identityRes = await fetchWithTimeout(`${baseUrl}/identity`, {
                     headers: {
-                        'X-Plex-Token': token,
+                        'X-Plex-Token': normalizedToken,
                         'Accept': 'application/json'
                     }
                 }, 6000);

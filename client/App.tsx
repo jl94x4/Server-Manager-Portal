@@ -111,6 +111,11 @@ export const MainApp: React.FC = () => {
             setCurrentRoute('invite');
             return;
         }
+        // Plex OAuth return path — Login handles the callback; skip session probe here.
+        if (path.startsWith('/auth/')) {
+            setCurrentRoute('login');
+            return;
+        }
 
         try {
             const data = await apiFetch('/api/users/me');
