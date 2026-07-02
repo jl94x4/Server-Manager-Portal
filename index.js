@@ -591,16 +591,37 @@ const apiFetch = (url, token, options = {}) => {
 };
 
 let cachedAdminId = null;
+
+const syncAdminPlexIdFromConfigToken = async (config, { persist = false } = {}) => {
+    if (!config?.plexToken || config.plexToken === SECRET_MASK) return config;
+    try {
+        const ownerRes = await apiFetch('https://plex.tv/api/v2/user', config.plexToken);
+        if (!ownerRes.ok) return config;
+        const ownerData = await ownerRes.json();
+        const ownerId = ownerData?.id ? String(ownerData.id) : '';
+        if (!ownerId) return config;
+        if (String(config.adminPlexId || '') !== ownerId) {
+            log(`Syncing adminPlexId -> ${ownerId} from configured Plex token (was ${config.adminPlexId || 'unset'})`);
+            config.adminPlexId = ownerId;
+            cachedAdminId = ownerId;
+            if (persist) await saveFile(CONFIG_PATH, config);
+        } else {
+            cachedAdminId = ownerId;
+        }
+    } catch (e) {
+        log(`Admin Plex ID sync skipped: ${e.message}`);
+    }
+    return config;
+};
+
 const getAdminId = async (config) => {
     if (config?.adminPlexId) return String(config.adminPlexId);
-    if (cachedAdminId) return cachedAdminId;
-    if (!config || !config.plexToken) return null;
+    if (!config || !config.plexToken || config.plexToken === SECRET_MASK) return null;
     try {
         const res = await apiFetch('https://plex.tv/api/v2/user', config.plexToken);
         if (!res.ok) return null;
         const data = await res.json();
-        cachedAdminId = data.id;
-        return String(data.id);
+        return data?.id ? String(data.id) : null;
     } catch (e) {
         log('Failed to fetch admin info: ' + e.message);
         return null;
@@ -627,34 +648,11 @@ const findLocalUserForSession = (users, sessionUser) => {
     }) || null;
 };
 
-const verifyPlexAccountOwnsServer = async (plexToken, serverIdentifier) => {
-    const token = normalizePlexToken(plexToken);
-    if (!token || !serverIdentifier || token === SECRET_MASK) return false;
-    try {
-        const servers = await fetchOwnedPlexServers(token);
-        return servers.some((server) => String(server.identifier) === String(serverIdentifier));
-    } catch (e) {
-        log(`Plex server ownership check failed: ${e.message}`);
-        return false;
-    }
-};
-
 const resolveCurrentAdmin = async (sessionUser, config = null) => {
-    if (!sessionUser) return false;
+    if (!sessionUser?.plexId) return false;
     const loadedConfig = config || await loadFile(CONFIG_PATH, {});
     const adminId = await getAdminId(loadedConfig);
-    if (adminId && String(sessionUser.plexId) === String(adminId)) {
-        return true;
-    }
-    // Only trust the JWT admin flag when it matches the configured admin Plex ID.
-    if (
-        sessionUser.isAdmin === true
-        && loadedConfig.adminPlexId
-        && String(sessionUser.plexId) === String(loadedConfig.adminPlexId)
-    ) {
-        return true;
-    }
-    return false;
+    return !!(adminId && String(sessionUser.plexId) === String(adminId));
 };
 
 const requireAuth = (req, res, next) => {
@@ -1296,23 +1294,9 @@ const handlePlexPinLogin = async (req, res, pinId, ref, { redirectOnSuccess = fa
     const userData = await userRes.json();
 
     const config = await loadFile(CONFIG_PATH, {});
+    await syncAdminPlexIdFromConfigToken(config);
     const adminId = await getAdminId(config);
-    let isAdmin = !!(adminId && String(userData.id) === String(adminId));
-
-    if (!isAdmin && config?.adminPlexId && String(userData.id) === String(config.adminPlexId)) {
-        isAdmin = true;
-    }
-
-    // Only the Plex server owner (not shared/library users) may receive admin access.
-    if (!isAdmin && config?.serverIdentifier) {
-        isAdmin = await verifyPlexAccountOwnsServer(pinData.authToken, config.serverIdentifier);
-    }
-
-    if (isAdmin && String(config.adminPlexId || '') !== String(userData.id)) {
-        config.adminPlexId = String(userData.id);
-        await saveFile(CONFIG_PATH, config);
-        cachedAdminId = String(userData.id);
-    }
+    const isAdmin = !!(adminId && String(userData.id) === String(adminId));
 
     const deletedUsers = await loadFile(DELETED_USERS_PATH, []);
     const sessionUser = {
@@ -1780,24 +1764,8 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         autoBackupRetentionCount: Math.max(1, parseInt(autoBackupRetentionCount, 10) || 10),
         maintenanceExperimentalEnabled: maintenanceExperimentalEnabled !== undefined ? !!maintenanceExperimentalEnabled : !!existingConfig.maintenanceExperimentalEnabled
     };
-    if (!config.adminPlexId && config.plexToken && config.plexToken !== SECRET_MASK) {
-        try {
-            const ownerRes = await apiFetch('https://plex.tv/api/v2/user', config.plexToken);
-            if (ownerRes.ok) {
-                const ownerData = await ownerRes.json();
-                if (ownerData?.id) {
-                    config.adminPlexId = String(ownerData.id);
-                    cachedAdminId = config.adminPlexId;
-                }
-            }
-        } catch (e) {
-            log(`Could not resolve admin Plex ID during config save: ${e.message}`);
-        }
-    }
-
     await saveFile(CONFIG_PATH, config);
-    if (!cachedAdminId && config.adminPlexId) cachedAdminId = String(config.adminPlexId);
-    else if (!config.adminPlexId) cachedAdminId = null;
+    await syncAdminPlexIdFromConfigToken(config, { persist: true });
     // Invalidate caches tied to the Plex token/server so changes take effect immediately.
     cachedPlexConnectionUri = null;
     lastPlexConnectionUriFetch = 0;
@@ -3090,7 +3058,7 @@ app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
 
         // Log user in
         const adminId = await getAdminId(config);
-        const isAdmin = plexUser.id === adminId;
+        const isAdmin = !!(adminId && String(plexUser.id) === String(adminId));
         const sessionUser = {
             id: plexUser.uuid || plexUser.id,
             plexId: plexUser.id,
@@ -7668,8 +7636,6 @@ async function monitorConcurrentSessions() {
 app.listen(PORT, BIND_HOST, async () => {
     log(`--- Server Manager Portal Service starting on http://${BIND_HOST}:${PORT} ---`);
     log(`Runtime: CONFIG_DIR=${CONFIG_DIR}, FORCE_SECURE_COOKIES=${FORCE_SECURE_COOKIES}, appVersion=${appVersion}`);
-
-    log(`Runtime: CONFIG_DIR=${CONFIG_DIR}, FORCE_SECURE_COOKIES=${FORCE_SECURE_COOKIES}, appVersion=${appVersion}`);
     if (FORCE_SECURE_COOKIES) {
         log('WARNING: FORCE_SECURE_COOKIES=true — plain HTTP logins (http://LAN-IP:2121) will fail until this is set to false.');
     }
@@ -7678,22 +7644,7 @@ app.listen(PORT, BIND_HOST, async () => {
 
     // Ensure unique CLIENT_ID per installation to avoid Plex Auth blocking
     let config = await loadFile(CONFIG_PATH, {});
-    if (!config.adminPlexId && config.plexToken && config.plexToken !== SECRET_MASK) {
-        try {
-            const ownerRes = await apiFetch('https://plex.tv/api/v2/user', config.plexToken);
-            if (ownerRes.ok) {
-                const ownerData = await ownerRes.json();
-                if (ownerData?.id) {
-                    config.adminPlexId = String(ownerData.id);
-                    await saveFile(CONFIG_PATH, config);
-                    cachedAdminId = config.adminPlexId;
-                    log(`Backfilled adminPlexId=${config.adminPlexId} from configured Plex token`);
-                }
-            }
-        } catch (e) {
-            log(`Admin Plex ID backfill skipped: ${e.message}`);
-        }
-    }
+    await syncAdminPlexIdFromConfigToken(config, { persist: true });
     if (!config.clientId || config.clientId.startsWith('smp-')) {
         config.clientId = randomUUID();
         await saveFile(CONFIG_PATH, config);
