@@ -1908,6 +1908,157 @@ app.post('/api/config/test-email', requireAdmin, async (req, res) => {
     }
 });
 
+const resolveTestCredential = (incoming, existing) => {
+    if (incoming === undefined || incoming === null || incoming === '') return existing || '';
+    if (incoming === SECRET_MASK) return existing || '';
+    return String(incoming);
+};
+
+const isSeerrFamilyRequestApp = (type) => {
+    const lower = String(type || '').toLowerCase();
+    return lower === 'seerr' || lower === 'overseerr' || lower === 'jellyseerr';
+};
+
+const testSeerrFamilyConnection = async (baseUrl, apiKey) => {
+    const headers = { Accept: 'application/json', 'X-Api-Key': apiKey };
+    const statusRes = await fetchWithTimeout(`${baseUrl}/api/v1/status`, { headers }, 12000);
+    if (!statusRes.ok) throw new Error(`Seerr returned HTTP ${statusRes.status} at /api/v1/status`);
+    const data = await statusRes.json().catch(() => ({}));
+    const authRes = await fetchWithTimeout(`${baseUrl}/api/v1/request/count`, { headers }, 12000);
+    if (!authRes.ok) throw new Error(`Seerr API key rejected (HTTP ${authRes.status})`);
+    const version = data.version || data.commitTag || '?';
+    return { version, message: `Seerr v${version} connected` };
+};
+
+const assertIntegrationTestAccess = async (req, res) => {
+    const stored = await loadFile(CONFIG_PATH, {});
+    const isConfigured = !!(stored.plexToken && stored.serverIdentifier);
+    if (isConfigured) {
+        const sessionToken = req.cookies && req.cookies.session;
+        if (!sessionToken) {
+            res.status(403).json({ error: 'Forbidden: admin login required.' });
+            return false;
+        }
+        try {
+            const decoded = jwt.verify(sessionToken, JWT_SECRET);
+            const isAdmin = await resolveCurrentAdmin(decoded, stored);
+            if (!isAdmin) {
+                res.status(403).json({ error: 'Forbidden: admins only.' });
+                return false;
+            }
+            req.user = decoded;
+        } catch (e) {
+            res.status(403).json({ error: 'Forbidden: invalid session.' });
+            return false;
+        }
+    } else if (!canRunInitialSetup(req)) {
+        res.status(403).json({ error: 'Initial setup denied: localhost or valid setup token required.' });
+        return false;
+    }
+    return true;
+};
+
+app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
+    if (!(await assertIntegrationTestAccess(req, res))) return;
+
+    const {
+        type,
+        token, serverIdentifier,
+        sonarrUrl, sonarrApiKey,
+        radarrUrl, radarrApiKey,
+        tautulliUrl, tautulliApiKey,
+        requestAppType, requestAppUrl, requestAppApiKey,
+    } = req.body || {};
+
+    const stored = await loadFile(CONFIG_PATH, {});
+
+    try {
+        if (type === 'plex') {
+            const plexToken = resolveTestCredential(token, stored.plexToken);
+            const serverId = resolveTestCredential(serverIdentifier, stored.serverIdentifier);
+            if (!plexToken || !serverId) return res.status(400).json({ error: 'Plex token and server identifier are required.' });
+            cachedPlexConnectionUri = null;
+            lastPlexConnectionUriFetch = 0;
+            const testConfig = { ...stored, plexToken, serverIdentifier: serverId };
+            const uri = await getPlexConnectionUri(testConfig);
+            const identityRes = await fetchWithTimeout(`${uri}/identity?X-Plex-Token=${encodeURIComponent(plexToken)}`, {
+                headers: { Accept: 'application/json' },
+            }, 12000);
+            if (!identityRes.ok) throw new Error(`Plex server returned HTTP ${identityRes.status}`);
+            const identity = await identityRes.json().catch(() => ({}));
+            const container = identity.MediaContainer || identity;
+            const version = container.version || container.Version || '';
+            const message = version
+                ? `Connected to Plex Media Server (v${version})`
+                : 'Connected to Plex Media Server';
+            return res.json({ ok: true, message, details: { version: version || null, machineIdentifier: container.machineIdentifier || serverId, uri } });
+        }
+
+        if (type === 'sonarr') {
+            const url = resolveIntegrationUrlForFetch(resolveTestCredential(sonarrUrl, stored.sonarrUrl));
+            const apiKey = resolveTestCredential(sonarrApiKey, stored.sonarrApiKey);
+            if (!url || !apiKey) return res.status(400).json({ error: 'Sonarr URL and API key are required.' });
+            const statusRes = await fetchWithTimeout(`${url}/api/v3/system/status`, {
+                headers: { 'X-Api-Key': apiKey, Accept: 'application/json' },
+            }, 12000);
+            if (!statusRes.ok) throw new Error(`Sonarr returned HTTP ${statusRes.status}`);
+            const data = await statusRes.json();
+            return res.json({ ok: true, message: `Sonarr v${data.version || '?'} connected`, details: { version: data.version, appName: data.appName } });
+        }
+
+        if (type === 'radarr') {
+            const url = resolveIntegrationUrlForFetch(resolveTestCredential(radarrUrl, stored.radarrUrl));
+            const apiKey = resolveTestCredential(radarrApiKey, stored.radarrApiKey);
+            if (!url || !apiKey) return res.status(400).json({ error: 'Radarr URL and API key are required.' });
+            const statusRes = await fetchWithTimeout(`${url}/api/v3/system/status`, {
+                headers: { 'X-Api-Key': apiKey, Accept: 'application/json' },
+            }, 12000);
+            if (!statusRes.ok) throw new Error(`Radarr returned HTTP ${statusRes.status}`);
+            const data = await statusRes.json();
+            return res.json({ ok: true, message: `Radarr v${data.version || '?'} connected`, details: { version: data.version, appName: data.appName } });
+        }
+
+        if (type === 'tautulli') {
+            const url = resolveIntegrationUrlForFetch(resolveTestCredential(tautulliUrl, stored.tautulliUrl));
+            const apiKey = resolveTestCredential(tautulliApiKey, stored.tautulliApiKey);
+            if (!url || !apiKey) return res.status(400).json({ error: 'Tautulli URL and API key are required.' });
+            const infoRes = await fetchWithTimeout(`${url}/api/v2?apikey=${encodeURIComponent(apiKey)}&cmd=get_server_info`, {
+                headers: { Accept: 'application/json' },
+            }, 12000);
+            if (!infoRes.ok) throw new Error(`Tautulli returned HTTP ${infoRes.status}`);
+            const payload = await infoRes.json();
+            if (payload?.response?.result !== 'success') throw new Error(payload?.response?.message || 'Tautulli API error');
+            const info = payload.response.data || {};
+            return res.json({ ok: true, message: `Tautulli connected (${info.pms_name || 'Plex'})`, details: { pmsVersion: info.pms_version, pmsPlatform: info.pms_platform } });
+        }
+
+        if (type === 'requestApp') {
+            const appType = String(resolveTestCredential(requestAppType, stored.requestAppType) || 'none').toLowerCase();
+            const baseUrl = resolveIntegrationUrlForFetch(resolveTestCredential(requestAppUrl, stored.requestAppUrl));
+            const apiKey = resolveTestCredential(requestAppApiKey, stored.requestAppApiKey);
+            if (appType === 'none') return res.status(400).json({ error: 'Request app type must be selected.' });
+            if (!baseUrl || !apiKey) return res.status(400).json({ error: 'Request app URL and API key are required.' });
+            if (isSeerrFamilyRequestApp(appType)) {
+                const result = await testSeerrFamilyConnection(baseUrl, apiKey);
+                return res.json({ ok: true, message: result.message, details: { version: result.version } });
+            }
+            if (appType === 'ombi') {
+                const headers = { Accept: 'application/json', 'X-Api-Key': apiKey };
+                const aboutRes = await fetchWithTimeout(`${baseUrl}/api/v1/Settings/about`, { headers }, 12000);
+                if (!aboutRes.ok) throw new Error(`Ombi returned HTTP ${aboutRes.status}`);
+                const data = await aboutRes.json().catch(() => ({}));
+                return res.json({ ok: true, message: `Ombi v${data.version || data.applicationVersion || '?'} connected`, details: { version: data.version || data.applicationVersion } });
+            }
+            return res.status(400).json({ error: 'Unsupported request app type.' });
+        }
+
+        return res.status(400).json({ error: 'Unknown integration type.' });
+    } catch (e) {
+        log(`Integration test failed (${type}): ${e.message}`);
+        res.status(500).json({ error: e.message || 'Connection test failed.' });
+    }
+});
+
 let cachedPlexConnectionUri = null;
 let lastPlexConnectionUriFetch = 0;
 

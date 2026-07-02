@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart } from 'lucide-react';
+import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend } from 'recharts';
 
 import { SettingsDashboard } from './settings/SettingsDashboard';
@@ -19,6 +19,8 @@ import {
     WrapUpCardsSkeleton,
 } from './shared/skeletons';
 import type { User, PlexConfig, AppSettings, PlexServer, ToastMessage, DeletedUser, AuditEntry, UserStatus } from './shared/types';
+import { ShareWrapUpModal } from './shared/ShareWrapUp';
+import { IntegrationTestButton } from './shared/IntegrationTestButton';
 
 declare global {
     interface Window {
@@ -2964,29 +2966,47 @@ const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
                             </div>
                         </div>
                     )}
+                    {token && serverIdentifier && (
+                        <IntegrationTestButton type="plex" payload={{ token, serverIdentifier }} />
+                    )}
 
                     <div className="border-t border-border pt-6 mt-2">
                         <h3 className="text-lg font-bold text-plex mb-4">Optional: Media Stack Integration</h3>
                         <div className="flex flex-col gap-4">
                             <div className="flex flex-col gap-2">
                                 <label className="text-sm font-bold text-muted uppercase tracking-wider">Sonarr URL & API Key</label>
-                                <div className="flex gap-2">
-                                    <input type="text" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="http://localhost:8989" value={sonarrUrl} onChange={e => setSonarrUrl(e.target.value)} />
-                                    <input type="password" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="Sonarr API Key" value={sonarrApiKey} onChange={e => setSonarrApiKey(e.target.value)} />
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex gap-2">
+                                        <input type="text" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="http://localhost:8989" value={sonarrUrl} onChange={e => setSonarrUrl(e.target.value)} />
+                                        <input type="password" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="Sonarr API Key" value={sonarrApiKey} onChange={e => setSonarrApiKey(e.target.value)} />
+                                    </div>
+                                    {sonarrUrl && sonarrApiKey && (
+                                        <IntegrationTestButton type="sonarr" payload={{ sonarrUrl, sonarrApiKey }} />
+                                    )}
                                 </div>
                             </div>
                             <div className="flex flex-col gap-2">
                                 <label className="text-sm font-bold text-muted uppercase tracking-wider">Radarr URL & API Key</label>
-                                <div className="flex gap-2">
-                                    <input type="text" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="http://localhost:7878" value={radarrUrl} onChange={e => setRadarrUrl(e.target.value)} />
-                                    <input type="password" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="Radarr API Key" value={radarrApiKey} onChange={e => setRadarrApiKey(e.target.value)} />
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex gap-2">
+                                        <input type="text" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="http://localhost:7878" value={radarrUrl} onChange={e => setRadarrUrl(e.target.value)} />
+                                        <input type="password" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="Radarr API Key" value={radarrApiKey} onChange={e => setRadarrApiKey(e.target.value)} />
+                                    </div>
+                                    {radarrUrl && radarrApiKey && (
+                                        <IntegrationTestButton type="radarr" payload={{ radarrUrl, radarrApiKey }} />
+                                    )}
                                 </div>
                             </div>
                             <div className="flex flex-col gap-2">
                                 <label className="text-sm font-bold text-muted uppercase tracking-wider">Tautulli URL & API Key</label>
-                                <div className="flex gap-2">
-                                    <input type="text" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="http://localhost:8181" value={tautulliUrl} onChange={e => setTautulliUrl(e.target.value)} />
-                                    <input type="password" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="Tautulli API Key" value={tautulliApiKey} onChange={e => setTautulliApiKey(e.target.value)} />
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex gap-2">
+                                        <input type="text" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="http://localhost:8181" value={tautulliUrl} onChange={e => setTautulliUrl(e.target.value)} />
+                                        <input type="password" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="Tautulli API Key" value={tautulliApiKey} onChange={e => setTautulliApiKey(e.target.value)} />
+                                    </div>
+                                    {tautulliUrl && tautulliApiKey && (
+                                        <IntegrationTestButton type="tautulli" payload={{ tautulliUrl, tautulliApiKey }} />
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -3886,6 +3906,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     const [wrapUpDaysOpen, setWrapUpDaysOpen] = useState(false);
     const [reportItem, setReportItem] = useState<any>(null);
     const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
+    const [shareWrapUpOpen, setShareWrapUpOpen] = useState(false);
 
     const user = sessionInfo.account;
     const showQualityBadges = publicConfig?.showPosterQualityBadges !== false;
@@ -4090,6 +4111,16 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
             {selectedMetric && analytics && (
                 <WrapUpModal metric={selectedMetric} analytics={analytics} days={analyticsDays} onClose={() => setSelectedMetric(null)} />
             )}
+            {shareWrapUpOpen && analytics && (
+                <ShareWrapUpModal
+                    analytics={analytics}
+                    days={analyticsDays}
+                    serverName={sessionInfo?.serverName || 'Server Portal'}
+                    username={sessionInfo?.session?.username || user?.username}
+                    onClose={() => setShareWrapUpOpen(false)}
+                    onToast={(message, type) => setToast({ id: Date.now(), message, type })}
+                />
+            )}
 
             {/* Personal Wrap-Up */}
             {(sessionInfo.session.isAdmin || user) && analyticsLoading && (
@@ -4099,7 +4130,16 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                 <div className="bg-card border border-border rounded-2xl p-6 shadow-xl mb-2">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                         <h3 className="text-xl font-bold text-text">Your Personal Wrap-Up</h3>
-                        <div className="relative">
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setShareWrapUpOpen(true)}
+                                className="flex items-center justify-center gap-2 h-9 min-w-[10.5rem] px-4 rounded-lg text-sm font-medium bg-plex/10 border border-plex/30 text-plex hover:bg-plex/20 transition-colors shadow-sm"
+                            >
+                                <Share2 className="w-4 h-4 flex-shrink-0" />
+                                Share
+                            </button>
+                            <div className="relative">
                             <button
                                 onClick={() => setWrapUpDaysOpen(!wrapUpDaysOpen)}
                                 className="flex items-center gap-2 bg-background border border-border/50 rounded-lg px-3 py-1.5 text-sm font-medium text-text focus:outline-none hover:border-plex/50 transition-colors cursor-pointer shadow-sm"
@@ -4141,6 +4181,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                     </div>
                                 </>
                             )}
+                            </div>
                         </div>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">

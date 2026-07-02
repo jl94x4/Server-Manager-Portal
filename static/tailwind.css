@@ -1507,6 +1507,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   min-width: 0px;
 }
 
+.min-w-\[10\.5rem\] {
+  min-width: 10.5rem;
+}
+
 .min-w-\[100px\] {
   min-width: 100px;
 }
@@ -2731,6 +2735,12 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .from-plex\/0 {
   --tw-gradient-from: rgb(var(--color-plex) / 0) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(var(--color-plex) / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.from-plex\/10 {
+  --tw-gradient-from: rgb(var(--color-plex) / 0.1) var(--tw-gradient-from-position);
   --tw-gradient-to: rgb(var(--color-plex) / 0) var(--tw-gradient-to-position);
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
 }
