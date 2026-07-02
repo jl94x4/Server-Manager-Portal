@@ -13,6 +13,18 @@ import { InvitesSettings } from './InvitesSettings';
 import { StatusMonitorSettings } from './StatusMonitorSettings';
 import { BroadcastSettingsTab } from './BroadcastSettingsTab';
 import { IntegrationTestButton } from '../shared/IntegrationTestButton';
+
+const hasIntegrationCredentials = (
+    url: string | undefined,
+    apiKey: string | undefined,
+    savedUrl?: string,
+    savedApiKey?: string,
+) => {
+    const effectiveUrl = String(url || savedUrl || '').trim();
+    const effectiveKey = String(apiKey || savedApiKey || '').trim();
+    return Boolean(effectiveUrl && effectiveKey);
+};
+
 export const SettingsDashboard: React.FC = () => {
     const SETTINGS_TABS = ['plex', 'smtp', 'newsletter', 'cleanup', 'mediastack', 'branding', 'navigation', 'status', 'invites', 'tasks', 'system', 'contact', 'broadcast', 'stream-rules', 'logs'] as const;
     const [statusDraft, setStatusDraft] = useState<any>(null);
@@ -910,14 +922,21 @@ export const SettingsDashboard: React.FC = () => {
                                         </SettingHint>
                                     </div>
                                 </div>
-                                <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={handleFetchServers} disabled={!token}>Fetch Servers</button>
-                                {token && selectedServer && (
+                                <div className="flex flex-wrap items-start gap-3">
+                                    <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={handleFetchServers} disabled={!token}>Fetch Servers</button>
                                     <IntegrationTestButton
                                         type="plex"
-                                        payload={{ token, serverIdentifier: selectedServer }}
-                                        className="mt-3"
+                                        payload={{ token, serverIdentifier: selectedServer || initialSettings.serverIdentifier }}
+                                        disabled={!token || !(selectedServer || initialSettings.serverIdentifier)}
                                         onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
                                     />
+                                </div>
+                                {(selectedServer || initialSettings.serverIdentifier) && servers.length === 0 && (
+                                    <div className="mt-3">
+                                        <SettingHint>
+                                            Saved server: <strong>{selectedServer || initialSettings.serverIdentifier}</strong>
+                                        </SettingHint>
+                                    </div>
                                 )}
                                 {servers.length > 0 && (
                                     <div className="mb-4" style={{ marginTop: '1rem' }}>
@@ -1186,9 +1205,13 @@ export const SettingsDashboard: React.FC = () => {
                                 <label htmlFor="sonarrApiKey">Sonarr API Key</label>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="sonarrApiKey" type="password" value={sonarrApiKey} onChange={(e) => setSonarrApiKey(e.target.value)} placeholder="API Key from Sonarr Settings -> General" />
                             </div>
-                            {(sonarrUrl || initialSettings.sonarrUrl) && (sonarrApiKey || initialSettings.sonarrApiKey) && (
-                                <IntegrationTestButton type="sonarr" payload={{ sonarrUrl, sonarrApiKey }} className="mb-6" onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')} />
-                            )}
+                            <IntegrationTestButton
+                                type="sonarr"
+                                payload={{ sonarrUrl, sonarrApiKey }}
+                                disabled={!hasIntegrationCredentials(sonarrUrl, sonarrApiKey, initialSettings.sonarrUrl, initialSettings.sonarrApiKey)}
+                                className="mb-6"
+                                onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
+                            />
 
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8">Radarr Integration</h3>
                             <div className="mb-4">
@@ -1202,9 +1225,13 @@ export const SettingsDashboard: React.FC = () => {
                                 <label htmlFor="radarrApiKey">Radarr API Key</label>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="radarrApiKey" type="password" value={radarrApiKey} onChange={(e) => setRadarrApiKey(e.target.value)} placeholder="Enter Radarr API Key" />
                             </div>
-                            {(radarrUrl || initialSettings.radarrUrl) && (radarrApiKey || initialSettings.radarrApiKey) && (
-                                <IntegrationTestButton type="radarr" payload={{ radarrUrl, radarrApiKey }} className="mb-6" onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')} />
-                            )}
+                            <IntegrationTestButton
+                                type="radarr"
+                                payload={{ radarrUrl, radarrApiKey }}
+                                disabled={!hasIntegrationCredentials(radarrUrl, radarrApiKey, initialSettings.radarrUrl, initialSettings.radarrApiKey)}
+                                className="mb-6"
+                                onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
+                            />
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8">Tautulli Integration (Optional)</h3>
                             <div className="mb-4">
                                 <label htmlFor="tautulliUrl">Tautulli URL</label>
@@ -1214,9 +1241,13 @@ export const SettingsDashboard: React.FC = () => {
                                 <label htmlFor="tautulliApiKey">Tautulli API Key</label>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="tautulliApiKey" type="password" value={tautulliApiKey} onChange={(e) => setTautulliApiKey(e.target.value)} placeholder="Enter Tautulli API Key" />
                             </div>
-                            {(tautulliUrl || initialSettings.tautulliUrl) && (tautulliApiKey || initialSettings.tautulliApiKey) && (
-                                <IntegrationTestButton type="tautulli" payload={{ tautulliUrl, tautulliApiKey }} className="mb-6" onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')} />
-                            )}
+                            <IntegrationTestButton
+                                type="tautulli"
+                                payload={{ tautulliUrl, tautulliApiKey }}
+                                disabled={!hasIntegrationCredentials(tautulliUrl, tautulliApiKey, initialSettings.tautulliUrl, initialSettings.tautulliApiKey)}
+                                className="mb-6"
+                                onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
+                            />
 
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8">Request App Integration</h3>
                             <div className="mb-4">
@@ -1244,9 +1275,12 @@ export const SettingsDashboard: React.FC = () => {
                                 <label htmlFor="requestAppApiKey">Request App API Key</label>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="requestAppApiKey" type="password" value={requestAppApiKey} onChange={(e) => setRequestAppApiKey(e.target.value)} placeholder="API key from request app settings" />
                             </div>
-                            {requestAppType !== 'none' && (requestAppUrl || initialSettings.requestAppUrl) && (requestAppApiKey || initialSettings.requestAppApiKey) && (
-                                <IntegrationTestButton type="requestApp" payload={{ requestAppType, requestAppUrl, requestAppApiKey }} onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')} />
-                            )}
+                            <IntegrationTestButton
+                                type="requestApp"
+                                payload={{ requestAppType, requestAppUrl, requestAppApiKey }}
+                                disabled={requestAppType === 'none' || !hasIntegrationCredentials(requestAppUrl, requestAppApiKey, initialSettings.requestAppUrl, initialSettings.requestAppApiKey)}
+                                onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
+                            />
                         </div>
                     )}
 

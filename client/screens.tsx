@@ -2966,9 +2966,11 @@ const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
                             </div>
                         </div>
                     )}
-                    {token && serverIdentifier && (
-                        <IntegrationTestButton type="plex" payload={{ token, serverIdentifier }} />
-                    )}
+                    <IntegrationTestButton
+                        type="plex"
+                        payload={{ token, serverIdentifier }}
+                        disabled={!token || !serverIdentifier}
+                    />
 
                     <div className="border-t border-border pt-6 mt-2">
                         <h3 className="text-lg font-bold text-plex mb-4">Optional: Media Stack Integration</h3>
@@ -2980,9 +2982,7 @@ const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
                                         <input type="text" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="http://localhost:8989" value={sonarrUrl} onChange={e => setSonarrUrl(e.target.value)} />
                                         <input type="password" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="Sonarr API Key" value={sonarrApiKey} onChange={e => setSonarrApiKey(e.target.value)} />
                                     </div>
-                                    {sonarrUrl && sonarrApiKey && (
-                                        <IntegrationTestButton type="sonarr" payload={{ sonarrUrl, sonarrApiKey }} />
-                                    )}
+                                    <IntegrationTestButton type="sonarr" payload={{ sonarrUrl, sonarrApiKey }} disabled={!sonarrUrl || !sonarrApiKey} />
                                 </div>
                             </div>
                             <div className="flex flex-col gap-2">
@@ -2992,9 +2992,7 @@ const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
                                         <input type="text" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="http://localhost:7878" value={radarrUrl} onChange={e => setRadarrUrl(e.target.value)} />
                                         <input type="password" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="Radarr API Key" value={radarrApiKey} onChange={e => setRadarrApiKey(e.target.value)} />
                                     </div>
-                                    {radarrUrl && radarrApiKey && (
-                                        <IntegrationTestButton type="radarr" payload={{ radarrUrl, radarrApiKey }} />
-                                    )}
+                                    <IntegrationTestButton type="radarr" payload={{ radarrUrl, radarrApiKey }} disabled={!radarrUrl || !radarrApiKey} />
                                 </div>
                             </div>
                             <div className="flex flex-col gap-2">
@@ -3004,9 +3002,7 @@ const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
                                         <input type="text" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="http://localhost:8181" value={tautulliUrl} onChange={e => setTautulliUrl(e.target.value)} />
                                         <input type="password" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="Tautulli API Key" value={tautulliApiKey} onChange={e => setTautulliApiKey(e.target.value)} />
                                     </div>
-                                    {tautulliUrl && tautulliApiKey && (
-                                        <IntegrationTestButton type="tautulli" payload={{ tautulliUrl, tautulliApiKey }} />
-                                    )}
+                                    <IntegrationTestButton type="tautulli" payload={{ tautulliUrl, tautulliApiKey }} disabled={!tautulliUrl || !tautulliApiKey} />
                                 </div>
                             </div>
                         </div>
@@ -4134,7 +4130,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                             <button
                                 type="button"
                                 onClick={() => setShareWrapUpOpen(true)}
-                                className="flex items-center justify-center gap-2 h-9 min-w-[10.5rem] px-4 rounded-lg text-sm font-medium bg-plex/10 border border-plex/30 text-plex hover:bg-plex/20 transition-colors shadow-sm"
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-plex/10 border border-plex/30 text-plex hover:bg-plex/20 transition-colors shadow-sm"
                             >
                                 <Share2 className="w-4 h-4 flex-shrink-0" />
                                 Share
