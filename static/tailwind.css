@@ -1507,10 +1507,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   min-width: 0px;
 }
 
-.min-w-\[10\.5rem\] {
-  min-width: 10.5rem;
-}
-
 .min-w-\[100px\] {
   min-width: 100px;
 }
@@ -1535,8 +1531,17 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   min-width: 600px;
 }
 
+.min-w-max {
+  min-width: -moz-max-content;
+  min-width: max-content;
+}
+
 .max-w-2xl {
   max-width: 42rem;
+}
+
+.max-w-3xl {
+  max-width: 48rem;
 }
 
 .max-w-4xl {
@@ -1774,10 +1779,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .snap-start {
   scroll-snap-align: start;
-}
-
-.list-disc {
-  list-style-type: disc;
 }
 
 .list-none {
@@ -2499,6 +2500,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   background-color: rgb(74 222 128 / var(--tw-bg-opacity, 1));
 }
 
+.bg-green-400\/50 {
+  background-color: rgb(74 222 128 / 0.5);
+}
+
 .bg-green-500 {
   --tw-bg-opacity: 1;
   background-color: rgb(34 197 94 / var(--tw-bg-opacity, 1));
@@ -3163,10 +3168,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   padding-left: 1rem;
 }
 
-.pl-5 {
-  padding-left: 1.25rem;
-}
-
 .pr-1 {
   padding-right: 0.25rem;
 }
@@ -3237,6 +3238,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .text-right {
   text-align: right;
+}
+
+.align-middle {
+  vertical-align: middle;
 }
 
 .font-mono {
@@ -4620,6 +4625,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   cursor: not-allowed;
 }
 
+.disabled\:opacity-30:disabled {
+  opacity: 0.3;
+}
+
 .disabled\:opacity-40:disabled {
   opacity: 0.4;
 }
@@ -4737,6 +4746,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     display: block;
   }
 
+  .sm\:inline {
+    display: inline;
+  }
+
   .sm\:flex {
     display: flex;
   }
@@ -4849,6 +4862,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .md\:col-span-1 {
     grid-column: span 1 / span 1;
+  }
+
+  .md\:col-span-2 {
+    grid-column: span 2 / span 2;
   }
 
   .md\:mx-0 {
@@ -5173,14 +5190,19 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     padding-right: 0.5rem;
   }
 
+  .md\:px-8 {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+
   .md\:py-1 {
     padding-top: 0.25rem;
     padding-bottom: 0.25rem;
   }
 
-  .md\:py-20 {
-    padding-top: 5rem;
-    padding-bottom: 5rem;
+  .md\:py-12 {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
   }
 
   .md\:py-3 {
@@ -5344,6 +5366,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .lg\:grid-cols-8 {
     grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  .lg\:p-10 {
+    padding: 2.5rem;
   }
 
   .lg\:p-12 {

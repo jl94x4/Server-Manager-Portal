@@ -1445,6 +1445,58 @@ app.get('/api/auth/plex/callback', authCallbackRateLimit, async (req, res) => {
     }
 });
 
+const assertInitialSetupAccess = async (req, res, options = {}) => {
+    const existingConfig = await loadFile(CONFIG_PATH, {});
+    const isConfigured = !!(existingConfig?.plexToken && existingConfig?.serverIdentifier);
+    if (isConfigured) {
+        res.status(403).json({ error: 'Portal is already configured.' });
+        return false;
+    }
+    if (options.allowUnconfigured === true) return true;
+    if (canRunInitialSetup(req)) return true;
+    const sessionToken = req.cookies && req.cookies.session;
+    if (sessionToken) {
+        try {
+            jwt.verify(sessionToken, JWT_SECRET);
+            return true;
+        } catch (e) { /* fall through */ }
+    }
+    res.status(403).json({ error: 'Initial setup denied: localhost, valid setup token, or admin session required.' });
+    return false;
+};
+
+app.post('/api/setup/plex/callback', setupRateLimit, authRateLimit, async (req, res) => {
+    if (!(await assertInitialSetupAccess(req, res, { allowUnconfigured: true }))) return;
+    const { pinId } = req.body;
+    if (!pinId) return res.status(400).json({ error: 'pinId is required' });
+
+    try {
+        const pinData = await fetchPlexPinAuthToken(pinId);
+        if (!pinData.authToken) {
+            return res.status(400).json({ error: 'Plex sign-in not completed yet. Please try again.' });
+        }
+
+        const userRes = await apiFetch('https://plex.tv/api/v2/user', pinData.authToken);
+        if (!userRes.ok) throw new Error('Failed to fetch Plex user info');
+        const userData = await userRes.json();
+
+        const servers = await fetchOwnedPlexServers(pinData.authToken);
+        if (!servers.length) {
+            return res.status(400).json({ error: 'No owned Plex servers found for this account. You must sign in as the server owner.' });
+        }
+
+        res.json({
+            token: pinData.authToken,
+            servers,
+            username: userData.username || userData.title || userData.email || 'Plex User',
+            email: userData.email || '',
+        });
+    } catch (err) {
+        log(`Setup Plex callback error: ${err.message}`);
+        res.status(500).json({ error: err.message || 'Failed to complete Plex sign-in' });
+    }
+});
+
 app.post('/api/auth/logout', requireAuth, (req, res) => {
     clearSessionCookie(req, res);
     res.json({ message: 'Logged out' });
@@ -1951,9 +2003,6 @@ const assertIntegrationTestAccess = async (req, res) => {
             res.status(403).json({ error: 'Forbidden: invalid session.' });
             return false;
         }
-    } else if (!canRunInitialSetup(req)) {
-        res.status(403).json({ error: 'Initial setup denied: localhost or valid setup token required.' });
-        return false;
     }
     return true;
 };
@@ -1963,7 +2012,7 @@ app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
 
     const {
         type,
-        token, serverIdentifier,
+        token, serverIdentifier, plexServerUrl,
         sonarrUrl, sonarrApiKey,
         radarrUrl, radarrApiKey,
         tautulliUrl, tautulliApiKey,
@@ -1979,7 +2028,8 @@ app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
             if (!plexToken || !serverId) return res.status(400).json({ error: 'Plex token and server identifier are required.' });
             cachedPlexConnectionUri = null;
             lastPlexConnectionUriFetch = 0;
-            const testConfig = { ...stored, plexToken, serverIdentifier: serverId };
+            const directUrl = resolveTestCredential(plexServerUrl, stored.plexServerUrl);
+            const testConfig = { ...stored, plexToken, serverIdentifier: serverId, ...(directUrl ? { plexServerUrl: directUrl } : {}) };
             const uri = await getPlexConnectionUri(testConfig);
             const identityRes = await fetchWithTimeout(`${uri}/identity?X-Plex-Token=${encodeURIComponent(plexToken)}`, {
                 headers: { Accept: 'application/json' },
