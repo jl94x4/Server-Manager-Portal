@@ -627,6 +627,18 @@ const findLocalUserForSession = (users, sessionUser) => {
     }) || null;
 };
 
+const verifyPlexAccountOwnsServer = async (plexToken, serverIdentifier) => {
+    const token = normalizePlexToken(plexToken);
+    if (!token || !serverIdentifier || token === SECRET_MASK) return false;
+    try {
+        const servers = await fetchOwnedPlexServers(token);
+        return servers.some((server) => String(server.identifier) === String(serverIdentifier));
+    } catch (e) {
+        log(`Plex server ownership check failed: ${e.message}`);
+        return false;
+    }
+};
+
 const resolveCurrentAdmin = async (sessionUser, config = null) => {
     if (!sessionUser) return false;
     const loadedConfig = config || await loadFile(CONFIG_PATH, {});
@@ -634,19 +646,14 @@ const resolveCurrentAdmin = async (sessionUser, config = null) => {
     if (adminId && String(sessionUser.plexId) === String(adminId)) {
         return true;
     }
-
-    // Trust admin flag minted at login after Plex owner verification.
-    if (sessionUser.isAdmin === true) {
-        const sessionPlexId = String(sessionUser.plexId || '');
-        if (sessionPlexId && String(loadedConfig.adminPlexId || '') !== sessionPlexId) {
-            loadedConfig.adminPlexId = sessionPlexId;
-            await saveFile(CONFIG_PATH, loadedConfig);
-            cachedAdminId = sessionPlexId;
-            log(`Repaired adminPlexId -> ${sessionPlexId} from authenticated admin session`);
-        }
+    // Only trust the JWT admin flag when it matches the configured admin Plex ID.
+    if (
+        sessionUser.isAdmin === true
+        && loadedConfig.adminPlexId
+        && String(sessionUser.plexId) === String(loadedConfig.adminPlexId)
+    ) {
         return true;
     }
-
     return false;
 };
 
@@ -1292,17 +1299,13 @@ const handlePlexPinLogin = async (req, res, pinId, ref, { redirectOnSuccess = fa
     const adminId = await getAdminId(config);
     let isAdmin = !!(adminId && String(userData.id) === String(adminId));
 
-    if (!isAdmin && config?.serverIdentifier) {
-        isAdmin = await verifyInitialSetupPlexOwner(
-            pinData.authToken,
-            config.serverIdentifier,
-            resolveConfiguredPlexServerUrl(config),
-            config,
-        );
-    }
-
     if (!isAdmin && config?.adminPlexId && String(userData.id) === String(config.adminPlexId)) {
         isAdmin = true;
+    }
+
+    // Only the Plex server owner (not shared/library users) may receive admin access.
+    if (!isAdmin && config?.serverIdentifier) {
+        isAdmin = await verifyPlexAccountOwnsServer(pinData.authToken, config.serverIdentifier);
     }
 
     if (isAdmin && String(config.adminPlexId || '') !== String(userData.id)) {
