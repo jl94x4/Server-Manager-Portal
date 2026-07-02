@@ -50,7 +50,8 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
 
     const [step, setStep] = useState<StepId>(() => {
         if (isOAuthReturn) return 'plex';
-        if (storedPlex?.token) return storedPlex.step || 'plex';
+        if (storedPlex?.step) return storedPlex.step;
+        if (storedPlex?.token) return 'plex';
         return 'welcome';
     });
     const [error, setError] = useState('');
@@ -109,8 +110,6 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
         if (!pinId || pinId === 'setup') return;
 
         const returnPath = sessionStorage.getItem('setupReturnPath') || '/';
-        sessionStorage.removeItem('setupReturnPath');
-        window.history.replaceState({}, '', returnPath);
 
         setIsLoading(true);
         setError('');
@@ -135,6 +134,8 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
         }).catch((e) => {
             setError(e instanceof Error ? e.message : 'Plex sign-in failed');
         }).finally(() => {
+            sessionStorage.removeItem('setupReturnPath');
+            window.history.replaceState({}, '', returnPath);
             setIsLoading(false);
         });
     }, []);
@@ -144,6 +145,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
         setError('');
         try {
             sessionStorage.setItem('setupReturnPath', window.location.pathname + window.location.search);
+            sessionStorage.setItem(SETUP_PLEX_STORAGE_KEY, JSON.stringify({ step: 'plex' }));
             const data = await apiFetch('/api/auth/plex/login', { method: 'POST' });
             const clientId = data.clientIdentifier || data.clientId || '';
             const forwardUrl = `${window.location.origin}/auth/setup/${data.id}`;
