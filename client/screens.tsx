@@ -2755,32 +2755,36 @@ const PublicUptimeBanner: React.FC = () => {
         return () => clearInterval(interval);
     }, []);
 
-    if (!config.services || config.services.length === 0) return null;
+    if (!config.services?.length) return null;
+
+    const visibleServices = config.services.filter((service: any) => healthData[service.id]);
+    if (visibleServices.length === 0) return null;
 
     return (
-        <div className="w-full flex flex-col items-center">
-            <div className="flex flex-col items-center text-center mb-4">
-                <a href="/status" className="text-plex hover:text-plex-hover font-bold text-[10px] tracking-[0.16em] uppercase mb-1.5 transition-colors">
-                    View Full Status Page &rarr;
-                </a>
-                <h3 className="text-text font-bold uppercase tracking-[0.14em] text-xs">Live System Status</h3>
-            </div>
-            <div className="flex flex-wrap justify-center gap-3">
-                {config.services.map((service: any) => {
-                    const health = healthData[service.id];
-                    if (!health) return null;
-                    const isUp = health.currentStatus === 'online';
-                    const colorClass = isUp ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-red-500/30 bg-red-500/10';
-                    const dotClass = isUp ? 'bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]';
+        <div className="rounded-2xl border border-white/10 bg-card/40 backdrop-blur-xl px-6 py-5 w-full">
+            <div className="w-full flex flex-col items-center">
+                <div className="flex flex-col items-center text-center mb-4">
+                    <a href="/status" className="text-plex hover:text-plex-hover font-bold text-[10px] tracking-[0.16em] uppercase mb-1.5 transition-colors">
+                        View Full Status Page &rarr;
+                    </a>
+                    <h3 className="text-text font-bold uppercase tracking-[0.14em] text-xs">Live System Status</h3>
+                </div>
+                <div className="flex flex-wrap justify-center gap-3">
+                    {visibleServices.map((service: any) => {
+                        const health = healthData[service.id];
+                        const isUp = health.currentStatus === 'online';
+                        const colorClass = isUp ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-red-500/30 bg-red-500/10';
+                        const dotClass = isUp ? 'bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]';
 
-                    return (
-                        <div key={service.id} className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border ${colorClass} backdrop-blur-sm`}>
-                            <span className={`w-2 h-2 rounded-full ${dotClass}`} />
-                            <span className="text-sm font-bold text-text">{service.name}</span>
-                            <span className="text-xs font-bold text-muted">{health.uptimePercentage}%</span>
-                        </div>
-                    );
-                })}
+                        return (
+                            <div key={service.id} className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border ${colorClass} backdrop-blur-sm`}>
+                                <span className={`w-2 h-2 rounded-full ${dotClass}`} />
+                                <span className="text-sm font-bold text-text">{service.name}</span>
+                                <span className="text-xs font-bold text-muted">{health.uptimePercentage}%</span>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );
@@ -2995,14 +2999,14 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
                                 <img
                                     src={logoSrc}
                                     alt="Server Logo"
-                                    className="w-28 h-28 sm:w-32 sm:h-32 object-cover rounded-2xl border-2 border-plex/40 shadow-[0_0_40px_rgba(229,160,13,0.25)] relative z-10"
+                                    className="w-28 h-28 sm:w-32 sm:h-32 object-cover rounded-full border-2 border-plex/40 shadow-[0_0_40px_rgba(229,160,13,0.25)] relative z-10"
                                     onError={(e) => {
                                         e.currentTarget.src = '/static/logo.png';
-                                        e.currentTarget.className = 'w-36 sm:w-40 object-contain drop-shadow-[0_0_20px_rgba(229,160,13,0.3)] relative z-10';
+                                        e.currentTarget.className = 'w-28 h-28 sm:w-32 sm:h-32 object-cover rounded-full border-2 border-plex/40 shadow-[0_0_40px_rgba(229,160,13,0.25)] relative z-10';
                                     }}
                                 />
                             ) : (
-                                <img src="/static/logo.png" alt="Server Logo" className="w-36 sm:w-40 object-contain drop-shadow-[0_0_20px_rgba(229,160,13,0.3)] relative z-10" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                                <img src="/static/logo.png" alt="Server Logo" className="w-28 h-28 sm:w-32 sm:h-32 object-cover rounded-full border-2 border-plex/40 shadow-[0_0_40px_rgba(229,160,13,0.25)] relative z-10" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                             )}
                         </div>
 
@@ -3040,9 +3044,7 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
                     </div>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-card/40 backdrop-blur-xl px-6 py-5">
-                    <PublicUptimeBanner />
-                </div>
+                <PublicUptimeBanner />
 
                 {error && (
                     <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-300 text-sm flex items-start gap-3">

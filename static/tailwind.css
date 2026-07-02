@@ -4319,11 +4319,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
 }
 
-.drop-shadow-\[0_0_20px_rgba\(229\2c 160\2c 13\2c 0\.3\)\] {
-  --tw-drop-shadow: drop-shadow(0 0 20px rgba(229,160,13,0.3));
-  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
-}
-
 .drop-shadow-\[0_0_8px_rgba\(229\2c 160\2c 13\2c 0\.3\)\] {
   --tw-drop-shadow: drop-shadow(0 0 8px rgba(229,160,13,0.3));
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
@@ -5109,10 +5104,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .sm\:w-32 {
     width: 8rem;
-  }
-
-  .sm\:w-40 {
-    width: 10rem;
   }
 
   .sm\:w-5 {
