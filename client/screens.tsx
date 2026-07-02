@@ -1626,10 +1626,10 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
         maxDirectPlays: number,
         maxTranscodes: number,
         compare?: {
-            sourceDays: string,
-            totalPlaybacks: { absolute: number, percent: number | null },
-            uniqueViewers: { absolute: number, percent: number | null },
-            libraryPlays: { absolute: number, percent: number | null }
+            previousPeriodDays: string,
+            totalPlaybacks: { absolute: number, percent: number | null, previous?: number, current?: number },
+            uniqueViewers: { absolute: number, percent: number | null, previous?: number, current?: number },
+            libraryPlays: { absolute: number, percent: number | null, previous?: number, current?: number }
         } | null,
         libraryHealth?: {
             activeLibraries: number,
@@ -1729,13 +1729,36 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
     const compare = analyticsData.compare || null;
     const libraryHealth = analyticsData.libraryHealth || null;
 
-    const renderDelta = (delta?: { absolute: number, percent: number | null } | null) => {
+    const formatPriorPeriodLabel = (days: string) => {
+        if (days === '1') return '24 hours';
+        if (days === '7') return '7 days';
+        if (days === '365') return 'year';
+        if (days === '1825') return '5 years';
+        return `${days} days`;
+    };
+
+    const renderDelta = (delta?: { absolute: number, percent: number | null, previous?: number, current?: number } | null) => {
         if (!delta) return null;
+        if (delta.absolute === 0 && delta.previous === 0) return null;
         const isUp = delta.absolute >= 0;
         const sign = isUp ? '+' : '';
-        const pctText = delta.percent === null ? `${sign}${delta.absolute}` : `${sign}${delta.percent}%`;
+        let pctText: string;
+        if (delta.percent !== null) {
+            pctText = `${sign}${delta.percent}%`;
+        } else if ((delta.previous ?? 0) === 0 && delta.absolute > 0) {
+            pctText = 'New';
+        } else {
+            pctText = `${sign}${delta.absolute}`;
+        }
+        const priorLabel = compare?.previousPeriodDays ? formatPriorPeriodLabel(compare.previousPeriodDays) : null;
+        const tooltip = priorLabel
+            ? `Compared to the previous ${priorLabel}${delta.previous != null ? ` (${delta.previous})` : ''}`
+            : undefined;
         return (
-            <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold mt-1 ${isUp ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'}`}>
+            <span
+                title={tooltip}
+                className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold mt-1 ${isUp ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'}`}
+            >
                 {pctText}
             </span>
         );

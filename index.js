@@ -4474,18 +4474,111 @@ const calculateDelta = (current, previous) => {
     return { current: currentVal, previous: previousVal, absolute, percent };
 };
 
-const getCompareSourceDays = (daysValue) => {
-    const key = String(daysValue || '30');
-    const map = {
-        '1': '7',
-        '7': '30',
-        '30': '60',
-        '60': '90',
-        '90': '180',
-        '180': '365',
-        '365': '1825'
+const sumLibraryPlays = (libraries = []) => (libraries || []).reduce((sum, lib) => sum + toNumber(lib.plays, 0), 0);
+
+const aggregateAnalyticsWindow = (historyItems, { afterTs = 0, beforeTs = null }, ctx, { includePortalUsers = false } = {}) => {
+    const { accountsMap, sectionsMap, devicesMap, users, config } = ctx;
+    const userCounts = {};
+    const libraryCounts = {};
+    const contentCountsMovies = {};
+    const contentCountsShows = {};
+    const contentCountsMusic = {};
+    const deviceCounts = {};
+    const peakHours = new Array(24).fill(0);
+    let totalPlaybacks = 0;
+
+    historyItems.forEach(item => {
+        if (afterTs > 0 && item.viewedAt != null && item.viewedAt < afterTs) return;
+        if (beforeTs != null && item.viewedAt != null && item.viewedAt >= beforeTs) return;
+        if (afterTs > 0 && item.viewedAt == null) return;
+
+        totalPlaybacks++;
+
+        if (item.viewedAt) {
+            const hour = new Date(item.viewedAt * 1000).getHours();
+            peakHours[hour]++;
+        }
+
+        let deviceName = 'Unknown Platform';
+        if (item.deviceID && devicesMap[item.deviceID]) deviceName = devicesMap[item.deviceID];
+        else if (item.Player && item.Player.product) deviceName = item.Player.product;
+        else if (item.client) deviceName = item.client;
+
+        if (!deviceCounts[deviceName]) deviceCounts[deviceName] = { name: deviceName, plays: 0 };
+        deviceCounts[deviceName].plays++;
+
+        if (item.accountID) {
+            const userFromDb = users.find(u => u.id === String(item.accountID));
+            const accountFromPlex = accountsMap[item.accountID];
+            let username = `User ${item.accountID}`;
+            let thumb = null;
+
+            if (userFromDb) {
+                username = userFromDb.username;
+                thumb = userFromDb.thumb;
+            } else if (accountFromPlex) {
+                username = accountFromPlex.name;
+                thumb = accountFromPlex.thumb;
+            }
+
+            if (!userCounts[item.accountID]) userCounts[item.accountID] = { id: item.accountID, username, thumb, plays: 0 };
+            userCounts[item.accountID].plays++;
+        }
+
+        if (item.librarySectionID) {
+            const libTitle = sectionsMap[item.librarySectionID] || `Library ${item.librarySectionID}`;
+            if (!libraryCounts[item.librarySectionID]) libraryCounts[item.librarySectionID] = { id: item.librarySectionID, title: libTitle, plays: 0 };
+            libraryCounts[item.librarySectionID].plays++;
+        }
+
+        const contentKey = item.type === 'episode' ? (item.grandparentKey || item.parentKey || item.ratingKey) : item.type === 'track' ? (item.parentKey || item.grandparentKey || item.ratingKey) : item.ratingKey;
+        const contentTitle = item.type === 'episode' ? (item.grandparentTitle || item.parentTitle || item.title) : item.type === 'track' ? (item.parentTitle || item.grandparentTitle || item.title) : item.title;
+        const contentThumb = item.type === 'episode' ? (item.grandparentThumb || item.parentThumb || item.thumb) : item.type === 'track' ? (item.parentThumb || item.grandparentThumb || item.thumb) : item.thumb;
+        if (contentKey) {
+            let targetDict = null;
+            if (item.type === 'movie') targetDict = contentCountsMovies;
+            else if (item.type === 'episode') targetDict = contentCountsShows;
+            else if (item.type === 'track') targetDict = contentCountsMusic;
+            else targetDict = contentCountsMovies;
+
+            if (!targetDict[contentKey]) {
+                targetDict[contentKey] = {
+                    key: contentKey,
+                    title: contentTitle,
+                    type: item.type === 'episode' ? 'show' : item.type === 'track' ? 'track' : item.type,
+                    thumb: contentThumb,
+                    plays: 0,
+                    plexUrl: `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent('/library/metadata/' + contentKey.split('/').pop())}`
+                };
+            }
+            targetDict[contentKey].plays++;
+        }
+    });
+
+    if (includePortalUsers) {
+        users.forEach((u) => {
+            if (!u || !u.id) return;
+            if (!userCounts[u.id]) {
+                userCounts[u.id] = {
+                    id: String(u.id),
+                    username: u.username || `User ${u.id}`,
+                    thumb: u.thumb || null,
+                    plays: 0
+                };
+            }
+        });
+    }
+
+    return {
+        totalPlaybacks,
+        peakHours,
+        topUsers: Object.values(userCounts).sort((a, b) => b.plays - a.plays),
+        topLibraries: Object.values(libraryCounts).sort((a, b) => b.plays - a.plays).slice(0, 10),
+        topDevices: Object.values(deviceCounts).sort((a, b) => b.plays - a.plays).slice(0, 10),
+        contentCountsMovies,
+        contentCountsShows,
+        contentCountsMusic
     };
-    return map[key] || null;
 };
 
 const summarizeLibraryHealth = (topLibraries = [], stats = {}) => {
@@ -4537,26 +4630,18 @@ app.get('/api/plex/analytics', requireAuth, requireMember, async (req, res) => {
         data.maxTranscodes = stats.maxTranscodes || 0;
         data.libraryHealth = summarizeLibraryHealth(data.topLibraries || [], stats);
 
-        const compareSourceDays = getCompareSourceDays(reqDays);
-        if (compareSourceDays && statsData[compareSourceDays]) {
-            const compareData = statsData[compareSourceDays] || {};
-            const currentTotalPlaybacks = toNumber(data.totalPlaybacks, 0);
-            const compareTotalPlaybacks = toNumber(compareData.totalPlaybacks, 0);
-            const previousTotalPlaybacks = Math.max(0, compareTotalPlaybacks - currentTotalPlaybacks);
-
+        const priorPeriod = cachedData.priorPeriod;
+        if (priorPeriod && reqDays !== 'all') {
             const currentUniqueViewers = getUniqueActiveViewers(cachedData.topUsers || []);
-            const compareUniqueViewers = getUniqueActiveViewers(compareData.topUsers || []);
-            const previousUniqueViewers = Math.max(0, compareUniqueViewers - currentUniqueViewers);
-
-            const currentLibraryPlays = (cachedData.topLibraries || []).reduce((sum, lib) => sum + toNumber(lib.plays, 0), 0);
-            const compareLibraryPlays = (compareData.topLibraries || []).reduce((sum, lib) => sum + toNumber(lib.plays, 0), 0);
-            const previousLibraryPlays = Math.max(0, compareLibraryPlays - currentLibraryPlays);
+            const priorUniqueViewers = getUniqueActiveViewers(priorPeriod.topUsers || []);
+            const currentLibraryPlays = sumLibraryPlays(cachedData.topLibraries);
+            const priorLibraryPlays = sumLibraryPlays(priorPeriod.topLibraries);
 
             data.compare = {
-                sourceDays: String(compareSourceDays),
-                totalPlaybacks: calculateDelta(currentTotalPlaybacks, previousTotalPlaybacks),
-                uniqueViewers: calculateDelta(currentUniqueViewers, previousUniqueViewers),
-                libraryPlays: calculateDelta(currentLibraryPlays, previousLibraryPlays)
+                previousPeriodDays: String(reqDays),
+                totalPlaybacks: calculateDelta(toNumber(data.totalPlaybacks, 0), priorPeriod.totalPlaybacks),
+                uniqueViewers: calculateDelta(currentUniqueViewers, priorUniqueViewers),
+                libraryPlays: calculateDelta(currentLibraryPlays, priorLibraryPlays)
             };
         } else {
             data.compare = null;
@@ -5791,109 +5876,44 @@ async function calculateAnalyticsStats() {
 
         const timeframes = [1, 7, 30, 60, 90, 180, 365, 1825, 'all'];
         const statsData = {};
+        const nowSec = Math.floor(Date.now() / 1000);
+        const aggCtx = { accountsMap, sectionsMap, devicesMap, users, config };
 
         for (const days of timeframes) {
-            let cutoffDate = 0;
+            const afterTs = days === 'all' ? 0 : nowSec - (days * 24 * 60 * 60);
+            const windowStats = aggregateAnalyticsWindow(historyItems, { afterTs, beforeTs: null }, aggCtx, { includePortalUsers: true });
+
+            const topMovies = await Promise.all(Object.values(windowStats.contentCountsMovies).sort((a, b) => b.plays - a.plays).slice(0, 10).map(fetchRichMetadata));
+            const topShows = await Promise.all(Object.values(windowStats.contentCountsShows).sort((a, b) => b.plays - a.plays).slice(0, 10).map(fetchRichMetadata));
+            const topMusic = await Promise.all(Object.values(windowStats.contentCountsMusic).sort((a, b) => b.plays - a.plays).slice(0, 10).map(fetchRichMetadata));
+
+            const entry = {
+                topUsers: windowStats.topUsers,
+                topLibraries: windowStats.topLibraries,
+                topMovies,
+                topShows,
+                topMusic,
+                topDevices: windowStats.topDevices,
+                peakHours: windowStats.peakHours,
+                totalPlaybacks: windowStats.totalPlaybacks
+            };
+
             if (days !== 'all') {
-                cutoffDate = Math.floor(Date.now() / 1000) - (days * 24 * 60 * 60);
+                const daySeconds = Number(days) * 24 * 60 * 60;
+                const priorStats = aggregateAnalyticsWindow(
+                    historyItems,
+                    { afterTs: nowSec - daySeconds * 2, beforeTs: nowSec - daySeconds },
+                    aggCtx,
+                    { includePortalUsers: false }
+                );
+                entry.priorPeriod = {
+                    totalPlaybacks: priorStats.totalPlaybacks,
+                    topUsers: priorStats.topUsers,
+                    topLibraries: priorStats.topLibraries
+                };
             }
 
-            const userCounts = {};
-            const libraryCounts = {};
-            const contentCountsMovies = {};
-            const contentCountsShows = {};
-            const contentCountsMusic = {};
-            const deviceCounts = {};
-            const peakHours = new Array(24).fill(0);
-            let totalPlaybacks = 0;
-
-            historyItems.forEach(item => {
-                if (cutoffDate > 0 && item.viewedAt < cutoffDate) return;
-                totalPlaybacks++;
-
-                if (item.viewedAt) {
-                    const hour = new Date(item.viewedAt * 1000).getHours();
-                    peakHours[hour]++;
-                }
-
-                let deviceName = 'Unknown Platform';
-                if (item.deviceID && devicesMap[item.deviceID]) deviceName = devicesMap[item.deviceID];
-                else if (item.Player && item.Player.product) deviceName = item.Player.product;
-                else if (item.client) deviceName = item.client; 
-                
-                if (!deviceCounts[deviceName]) deviceCounts[deviceName] = { name: deviceName, plays: 0 };
-                deviceCounts[deviceName].plays++;
-
-                if (item.accountID) {
-                    const userFromDb = users.find(u => u.id === String(item.accountID));
-                    const accountFromPlex = accountsMap[item.accountID];
-                    let username = `User ${item.accountID}`;
-                    let thumb = null;
-
-                    if (userFromDb) {
-                        username = userFromDb.username;
-                        thumb = userFromDb.thumb;
-                    } else if (accountFromPlex) {
-                        username = accountFromPlex.name;
-                        thumb = accountFromPlex.thumb;
-                    }
-
-                    if (!userCounts[item.accountID]) userCounts[item.accountID] = { id: item.accountID, username, thumb, plays: 0 };
-                    userCounts[item.accountID].plays++;
-                }
-
-                if (item.librarySectionID) {
-                    const libTitle = sectionsMap[item.librarySectionID] || `Library ${item.librarySectionID}`;
-                    if (!libraryCounts[item.librarySectionID]) libraryCounts[item.librarySectionID] = { id: item.librarySectionID, title: libTitle, plays: 0 };
-                    libraryCounts[item.librarySectionID].plays++;
-                }
-
-                const contentKey = item.type === 'episode' ? (item.grandparentKey || item.parentKey || item.ratingKey) : item.type === 'track' ? (item.parentKey || item.grandparentKey || item.ratingKey) : item.ratingKey;
-                const contentTitle = item.type === 'episode' ? (item.grandparentTitle || item.parentTitle || item.title) : item.type === 'track' ? (item.parentTitle || item.grandparentTitle || item.title) : item.title;
-                const contentThumb = item.type === 'episode' ? (item.grandparentThumb || item.parentThumb || item.thumb) : item.type === 'track' ? (item.parentThumb || item.grandparentThumb || item.thumb) : item.thumb;
-                if (contentKey) {
-                    let targetDict = null;
-                    if (item.type === 'movie') targetDict = contentCountsMovies;
-                    else if (item.type === 'episode') targetDict = contentCountsShows;
-                    else if (item.type === 'track') targetDict = contentCountsMusic;
-                    else targetDict = contentCountsMovies; 
-
-                    if (!targetDict[contentKey]) {
-                        targetDict[contentKey] = {
-                            key: contentKey,
-                            title: contentTitle,
-                            type: item.type === 'episode' ? 'show' : item.type === 'track' ? 'track' : item.type,
-                            thumb: contentThumb,
-                            plays: 0,
-                            plexUrl: `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent('/library/metadata/' + contentKey.split('/').pop())}`
-                        };
-                    }
-                    targetDict[contentKey].plays++;
-                }
-            });
-
-            // Ensure all known portal users appear in analytics, even with 0 plays.
-            users.forEach((u) => {
-                if (!u || !u.id) return;
-                if (!userCounts[u.id]) {
-                    userCounts[u.id] = {
-                        id: String(u.id),
-                        username: u.username || `User ${u.id}`,
-                        thumb: u.thumb || null,
-                        plays: 0
-                    };
-                }
-            });
-
-            const topUsers = Object.values(userCounts).sort((a, b) => b.plays - a.plays);
-            const topLibraries = Object.values(libraryCounts).sort((a, b) => b.plays - a.plays).slice(0, 10);
-            const topDevices = Object.values(deviceCounts).sort((a, b) => b.plays - a.plays).slice(0, 10);
-
-            const topMovies = await Promise.all(Object.values(contentCountsMovies).sort((a, b) => b.plays - a.plays).slice(0, 10).map(fetchRichMetadata));
-            const topShows = await Promise.all(Object.values(contentCountsShows).sort((a, b) => b.plays - a.plays).slice(0, 10).map(fetchRichMetadata));
-            const topMusic = await Promise.all(Object.values(contentCountsMusic).sort((a, b) => b.plays - a.plays).slice(0, 10).map(fetchRichMetadata));
-
-            statsData[days] = { topUsers, topLibraries, topMovies, topShows, topMusic, topDevices, peakHours, totalPlaybacks };
+            statsData[days] = entry;
         }
 
         statsData.lastUpdated = Date.now();
