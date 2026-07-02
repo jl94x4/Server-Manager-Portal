@@ -111,6 +111,13 @@ export const MainApp: React.FC = () => {
             setCurrentRoute('invite');
             return;
         }
+        const params = new URLSearchParams(window.location.search);
+        const loginError = params.get('loginError');
+        if (loginError) {
+            setCurrentRoute('login');
+            return;
+        }
+
         if (path.startsWith('/auth/')) {
             setCurrentRoute('login');
             return;
@@ -166,7 +173,12 @@ export const MainApp: React.FC = () => {
     };
 
     if (currentRoute === 'loading') return <Loader isLoading={true} />;
-    if (currentRoute === 'login') return <Login onLoginSuccess={checkSession} publicConfig={publicConfig} />;
+    if (currentRoute === 'login') {
+        const initialLoginError = typeof window !== 'undefined'
+            ? new URLSearchParams(window.location.search).get('loginError')
+            : null;
+        return <Login onLoginSuccess={checkSession} publicConfig={publicConfig} initialError={initialLoginError || undefined} />;
+    }
 
     const isAdmin = !!sessionInfo?.session?.isAdmin;
 

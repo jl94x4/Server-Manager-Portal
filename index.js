@@ -93,6 +93,7 @@ const createRateLimiter = (windowMs, maxRequests) => {
     };
 };
 const authRateLimit = createRateLimiter(15 * 60 * 1000, 10); // Reduced from 20 — tighter brute-force window
+const authCallbackRateLimit = createRateLimiter(15 * 60 * 1000, 40);
 const publicReadRateLimit = createRateLimiter(60 * 1000, 120);
 const speedtestRateLimit = createRateLimiter(60 * 1000, 12);
 const setupRateLimit = createRateLimiter(15 * 60 * 1000, 30);
@@ -1242,17 +1243,34 @@ app.post('/api/auth/plex/login', authRateLimit, async (req, res) => {
     }
 });
 
+const fetchPlexPinAuthToken = async (pinId, { attempts = 10, delayMs = 800 } = {}) => {
+    let lastData = null;
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+        const pinRes = await fetch(`https://plex.tv/api/v2/pins/${pinId}`, {
+            headers: {
+                Accept: 'application/json',
+                'X-Plex-Client-Identifier': CLIENT_ID,
+            },
+        });
+        lastData = await pinRes.json();
+        if (lastData?.authToken) {
+            if (attempt > 1) log(`Plex pin ${pinId} authenticated after ${attempt} attempts`);
+            return lastData;
+        }
+        if (attempt < attempts) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
+    }
+    log(`Plex pin ${pinId} missing authToken after ${attempts} attempts`);
+    return lastData || {};
+};
+
 const handlePlexPinLogin = async (req, res, pinId, ref, { redirectOnSuccess = false } = {}) => {
-    const pinRes = await fetch(`https://plex.tv/api/v2/pins/${pinId}`, {
-        headers: {
-            'Accept': 'application/json',
-            'X-Plex-Client-Identifier': CLIENT_ID,
-        },
-    });
-    const pinData = await pinRes.json();
+    const pinData = await fetchPlexPinAuthToken(pinId);
 
     if (!pinData.authToken) {
-        const message = 'Not authenticated yet — please try again';
+        const message = 'Plex sign-in did not complete in time — please try again';
+        log(`Plex login failed for pin ${pinId}: authToken not ready`);
         if (redirectOnSuccess) {
             return res.redirect('/?loginError=' + encodeURIComponent(message));
         }
@@ -1272,7 +1290,12 @@ const handlePlexPinLogin = async (req, res, pinId, ref, { redirectOnSuccess = fa
             pinData.authToken,
             config.serverIdentifier,
             resolveConfiguredPlexServerUrl(config),
+            config,
         );
+    }
+
+    if (!isAdmin && config?.adminPlexId && String(userData.id) === String(config.adminPlexId)) {
+        isAdmin = true;
     }
 
     if (isAdmin && String(config.adminPlexId || '') !== String(userData.id)) {
@@ -1307,6 +1330,7 @@ const handlePlexPinLogin = async (req, res, pinId, ref, { redirectOnSuccess = fa
         if (!knownUser && !canSelfRegister) {
             await appendAuditLog('login_blocked_non_member', sessionUser, sessionUser);
             clearSessionCookie(req, res);
+            log(`Plex login blocked for ${sessionUser.username}: not a portal member (admin=${isAdmin}, adminPlexId=${config.adminPlexId || 'unset'})`);
             const message = 'Your account is not registered for this portal.';
             if (redirectOnSuccess) {
                 return res.redirect('/?loginError=' + encodeURIComponent(message));
@@ -1368,7 +1392,38 @@ const handlePlexPinLogin = async (req, res, pinId, ref, { redirectOnSuccess = fa
     return res.json({ message: 'Logged in successfully', user: sessionUser });
 };
 
-app.post('/api/auth/plex/callback', authRateLimit, async (req, res) => {
+app.get('/api/auth/diagnostics', publicReadRateLimit, async (req, res) => {
+    const config = await loadFile(CONFIG_PATH, {});
+    res.json({
+        appVersion,
+        forceSecureCookies: FORCE_SECURE_COOKIES,
+        configured: !!(config?.plexToken && config?.serverIdentifier),
+        hasAdminPlexId: !!config?.adminPlexId,
+        plexServerUrlConfigured: !!resolveConfiguredPlexServerUrl(config),
+        dockerRuntime: fsSync.existsSync('/.dockerenv'),
+        clientId: CLIENT_ID ? `${String(CLIENT_ID).slice(0, 8)}…` : null,
+    });
+});
+
+app.get('/api/auth/session', publicReadRateLimit, (req, res) => {
+    const token = req.cookies?.session;
+    if (!token) return res.json({ authenticated: false });
+    try {
+        const user = jwt.verify(token, JWT_SECRET);
+        return res.json({
+            authenticated: true,
+            user: {
+                username: user.username,
+                plexId: user.plexId,
+                isAdmin: !!user.isAdmin,
+            },
+        });
+    } catch {
+        return res.json({ authenticated: false, reason: 'invalid_token' });
+    }
+});
+
+app.post('/api/auth/plex/callback', authCallbackRateLimit, async (req, res) => {
     const { pinId, ref } = req.body;
     if (!pinId) return res.status(400).json({ error: 'pinId is required' });
 
@@ -1380,7 +1435,7 @@ app.post('/api/auth/plex/callback', authRateLimit, async (req, res) => {
     }
 });
 
-app.get('/api/auth/plex/callback', authRateLimit, async (req, res) => {
+app.get('/api/auth/plex/callback', authCallbackRateLimit, async (req, res) => {
     const { pinId, ref } = req.query;
     if (!pinId) return res.redirect('/?loginError=' + encodeURIComponent('Missing pin ID'));
 
@@ -1910,6 +1965,40 @@ const resolveConfiguredPlexServerUrl = (config = {}) => {
     return fromConfig || fromEnv;
 };
 
+const resolvePlexServerUrlForVerification = async (plexToken, config = {}, serverIdentifier = '') => {
+    const configured = resolveConfiguredPlexServerUrl(config);
+    if (configured && !(isLoopbackPlexUri(configured) && shouldPreferRemotePlexConnection())) {
+        return configured;
+    }
+
+    const sid = String(serverIdentifier || config.serverIdentifier || '').trim();
+    const token = normalizePlexToken(plexToken);
+    if (!token || !sid || token === SECRET_MASK) return configured;
+
+    try {
+        const response = await fetchWithTimeout('https://plex.tv/api/v2/resources?includeHttps=1', {
+            headers: {
+                'X-Plex-Token': token,
+                'X-Plex-Client-Identifier': CLIENT_ID,
+                Accept: 'application/json',
+            },
+        }, 10000);
+        if (!response.ok) return configured;
+        const resources = await response.json();
+        const server = resources.find((r) => r.clientIdentifier === sid);
+        const conn = pickPlexConnection(server?.connections || []);
+        if (conn?.uri) {
+            const discovered = String(conn.uri).replace(/\/+$/, '');
+            log(`Discovered Plex server URL for verification: ${discovered}`);
+            return discovered;
+        }
+    } catch (e) {
+        log(`Plex server URL discovery failed: ${e.message}`);
+    }
+
+    return configured;
+};
+
 const fetchOwnedPlexServers = async (plexToken) => {
     const response = await fetch('https://plex.tv/pms/servers', {
         headers: {
@@ -1948,7 +2037,7 @@ const validatePlexServerAdminToken = async (plexToken, plexServerUrl) => {
     }
 };
 
-const verifyInitialSetupPlexOwner = async (plexToken, serverIdentifier, plexServerUrl = '') => {
+const verifyInitialSetupPlexOwner = async (plexToken, serverIdentifier, plexServerUrl = '', config = null) => {
     const token = normalizePlexToken(plexToken);
     if (!token || !serverIdentifier || token === SECRET_MASK) return false;
     try {
@@ -1960,7 +2049,11 @@ const verifyInitialSetupPlexOwner = async (plexToken, serverIdentifier, plexServ
         log(`Initial setup Plex owner verification via Plex.tv failed: ${e.message}`);
     }
 
-    const directUrl = String(plexServerUrl || '').trim() || resolveConfiguredPlexServerUrl({});
+    const cfg = config || {};
+    let directUrl = String(plexServerUrl || '').trim() || resolveConfiguredPlexServerUrl(cfg);
+    if (!directUrl || (isLoopbackPlexUri(directUrl) && shouldPreferRemotePlexConnection())) {
+        directUrl = await resolvePlexServerUrlForVerification(token, cfg, serverIdentifier);
+    }
     if (directUrl) {
         try {
             const baseUrl = resolveIntegrationUrlForFetch(directUrl);

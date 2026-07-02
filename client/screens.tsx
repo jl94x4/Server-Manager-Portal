@@ -3001,9 +3001,9 @@ const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
     );
 };
 
-export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any }> = ({ onLoginSuccess, publicConfig }) => {
+export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, initialError?: string }> = ({ onLoginSuccess, publicConfig, initialError }) => {
     const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [error, setError] = useState(initialError || '');
     const [publicInfo, setPublicInfo] = useState<{ thumb: string | null, serverName: string, isConfigured: boolean | null }>({ thumb: null, serverName: 'Server Portal', isConfigured: null });
 
     const fetchPublicInfo = () => {
@@ -3021,6 +3021,12 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any }>
             setPublicInfo(prev => ({ ...prev, isConfigured: false }));
         });
     };
+
+    useEffect(() => {
+        if (initialError) {
+            window.history.replaceState({}, '', '/');
+        }
+    }, [initialError]);
 
     useEffect(() => {
         fetchPublicInfo();

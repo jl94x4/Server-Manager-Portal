@@ -22,6 +22,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV BIND_HOST=0.0.0.0
 ENV PORT=2121
+ENV FORCE_SECURE_COOKIES=false
 
 RUN apk add --no-cache su-exec
 
