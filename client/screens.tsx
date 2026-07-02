@@ -2725,6 +2725,19 @@ export const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: 
 
 // --- User Portal Components ---
 
+const AuthPageBackground: React.FC = () => (
+    <div className="pointer-events-none absolute inset-0 bg-background">
+        <div className="absolute -top-32 -left-32 w-[520px] h-[520px] rounded-full bg-plex/10 blur-[120px]" />
+        <div className="absolute top-1/3 -right-24 w-[480px] h-[480px] rounded-full bg-amber-500/8 blur-[100px]" />
+        <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] rounded-full bg-plex/5 blur-[90px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(229,160,13,0.12),transparent)]" />
+        <div className="absolute inset-0 opacity-[0.025]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'1\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")' }} />
+    </div>
+);
+
+const loginPrimaryBtnClass = 'inline-flex items-center justify-center gap-2 w-full px-8 py-4 rounded-xl font-bold text-base bg-gradient-to-r from-plex to-amber-500 text-background shadow-[0_8px_28px_rgba(229,160,13,0.35)] hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none';
+const loginSecondaryBtnClass = 'inline-flex items-center justify-center gap-2 w-full px-8 py-4 rounded-xl font-bold text-base border border-white/10 bg-white/[0.04] text-text hover:bg-white/10 hover:border-white/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none';
+
 const PublicUptimeBanner: React.FC = () => {
     const [healthData, setHealthData] = useState<Record<string, any>>({});
     const [config, setConfig] = useState<any>({});
@@ -2745,24 +2758,24 @@ const PublicUptimeBanner: React.FC = () => {
     if (!config.services || config.services.length === 0) return null;
 
     return (
-        <div className="w-full flex flex-col items-center mt-2 mb-4">
+        <div className="w-full flex flex-col items-center">
             <div className="flex flex-col items-center text-center mb-4">
-                <a href="/status" className="text-plex hover:text-plex-hover font-bold text-[10px] tracking-wider uppercase mb-1 transition-colors">
+                <a href="/status" className="text-plex hover:text-plex-hover font-bold text-[10px] tracking-[0.16em] uppercase mb-1.5 transition-colors">
                     View Full Status Page &rarr;
                 </a>
-                <h3 className="text-text font-bold uppercase tracking-widest text-sm">Live System Status</h3>
+                <h3 className="text-text font-bold uppercase tracking-[0.14em] text-xs">Live System Status</h3>
             </div>
-            <div className="flex flex-wrap justify-center gap-4">
+            <div className="flex flex-wrap justify-center gap-3">
                 {config.services.map((service: any) => {
                     const health = healthData[service.id];
                     if (!health) return null;
                     const isUp = health.currentStatus === 'online';
-                    const colorClass = isUp ? 'border-green-500/30 bg-green-500/10' : 'border-red-500/30 bg-red-500/10';
-                    const dotClass = isUp ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]';
+                    const colorClass = isUp ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-red-500/30 bg-red-500/10';
+                    const dotClass = isUp ? 'bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]';
 
                     return (
-                        <div key={service.id} className={`flex items-center gap-2 px-4 py-2 rounded-full border ${colorClass} backdrop-blur-sm`}>
-                            <span className={`w-2 h-2 rounded-full ${dotClass}`}></span>
+                        <div key={service.id} className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border ${colorClass} backdrop-blur-sm`}>
+                            <span className={`w-2 h-2 rounded-full ${dotClass}`} />
                             <span className="text-sm font-bold text-text">{service.name}</span>
                             <span className="text-xs font-bold text-muted">{health.uptimePercentage}%</span>
                         </div>
@@ -2801,41 +2814,54 @@ const LivePlexStats: React.FC = () => {
     }, []);
 
     if (!stats) return (
-        <ul className="server-features">
-            <li>🎬 10,000+ Movies & TV Shows</li>
-            <li>🎵 Thousands of Music Albums</li>
-            <li>🔄 Automated Request System</li>
-        </ul>
+        <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+                { icon: Film, label: 'Movies & TV', desc: 'Massive library' },
+                { icon: Music, label: 'Music', desc: 'Thousands of albums' },
+                { icon: Sparkles, label: 'Requests', desc: 'Automated system' },
+            ].map(({ icon: Icon, label, desc }) => (
+                <div key={label} className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent p-4 flex flex-col items-center text-center gap-2 animate-pulse">
+                    <Icon className="w-5 h-5 text-plex/60" />
+                    <span className="text-xs font-bold text-muted uppercase tracking-wider">{label}</span>
+                    <span className="text-[11px] text-muted/70">{desc}</span>
+                </div>
+            ))}
+        </div>
     );
 
+    const statCardClass = 'rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] to-transparent p-4 flex flex-col items-center justify-center gap-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]';
+
     return (
-        <div className="w-full flex flex-col items-center mt-6 mb-8">
-            <div className="bg-plex/10 text-plex text-xs font-bold px-4 py-1.5 rounded-full border border-plex/20 uppercase tracking-wider mb-4">
-                Live Library Stats
+        <div className="w-full flex flex-col">
+            <div className="inline-flex self-center items-center gap-2 px-3 py-1 rounded-full bg-plex/10 border border-plex/25 text-plex text-[10px] font-bold uppercase tracking-[0.14em] mb-4">
+                <Activity className="w-3 h-3" /> Live Library Stats
             </div>
-            <div className="grid grid-cols-3 gap-3 w-full">
-                <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm">
-                    <span className="text-xl">🎬</span>
-                    <span className="text-plex font-bold text-xl">{stats.movies.toLocaleString()}</span>
-                    <span className="text-muted text-[10px] uppercase tracking-wider font-bold">Movies</span>
+            <div className={`grid gap-3 w-full ${stats.music > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                <div className={statCardClass}>
+                    <Film className="w-5 h-5 text-plex mb-0.5" />
+                    <span className="text-plex font-black text-xl tabular-nums">{stats.movies.toLocaleString()}</span>
+                    <span className="text-muted text-[10px] uppercase tracking-[0.12em] font-bold">Movies</span>
                 </div>
-                <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm">
-                    <span className="text-xl">📺</span>
-                    <span className="text-plex font-bold text-xl">{stats.shows.toLocaleString()}</span>
-                    <span className="text-muted text-[10px] uppercase tracking-wider font-bold">TV Shows</span>
+                <div className={statCardClass}>
+                    <Tv className="w-5 h-5 text-plex mb-0.5" />
+                    <span className="text-plex font-black text-xl tabular-nums">{stats.shows.toLocaleString()}</span>
+                    <span className="text-muted text-[10px] uppercase tracking-[0.12em] font-bold">TV Shows</span>
                 </div>
                 {stats.music > 0 && (
-                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm">
-                        <span className="text-xl">🎵</span>
-                        <span className="text-plex font-bold text-xl">{stats.music.toLocaleString()}</span>
-                        <span className="text-muted text-[10px] uppercase tracking-wider font-bold">Artists</span>
+                    <div className={statCardClass}>
+                        <Music className="w-5 h-5 text-plex mb-0.5" />
+                        <span className="text-plex font-black text-xl tabular-nums">{stats.music.toLocaleString()}</span>
+                        <span className="text-muted text-[10px] uppercase tracking-[0.12em] font-bold">Artists</span>
                     </div>
                 )}
             </div>
             <div className="w-full mt-3">
-                <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center gap-1 shadow-lg backdrop-blur-sm">
-                    <span className="text-plex font-bold text-lg flex items-center gap-2"><span className="text-orange-500">⚡</span> {stats.fourKPercent !== undefined ? stats.fourKPercent : 30}%</span>
-                    <span className="text-muted text-[10px] uppercase tracking-wider font-bold">Available in 4K</span>
+                <div className={statCardClass + ' py-3.5'}>
+                    <span className="text-plex font-black text-lg flex items-center gap-2 tabular-nums">
+                        <Sparkles className="w-4 h-4 text-amber-400" />
+                        {stats.fourKPercent !== undefined ? stats.fourKPercent : 30}%
+                    </span>
+                    <span className="text-muted text-[10px] uppercase tracking-[0.12em] font-bold">Available in 4K</span>
                 </div>
             </div>
         </div>
@@ -2924,59 +2950,107 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
         return <Loader isLoading={true} />;
     }
 
+    const showTrialAccess = publicConfig?.allowTemporaryAccess !== false;
+    const logoSrc = publicConfig?.customLogoUrl || publicInfo.thumb;
+
     return (
-        <div className="w-full mx-auto flex flex-col items-center justify-center min-h-[80vh] px-4 pt-12 md:pt-20">
+        <div className="relative min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 lg:p-10 overflow-hidden">
+            <AuthPageBackground />
             <Loader isLoading={isLoading} />
-            <div className={`w-full mx-auto bg-card rounded-2xl shadow-2xl border-t-[6px] border-plex flex flex-col-reverse md:flex-row relative z-10 overflow-hidden ${publicConfig?.allowTemporaryAccess !== false ? 'max-w-6xl' : 'max-w-2xl'}`}>
-                {publicConfig?.allowTemporaryAccess !== false && (
-                    <>
-                        <div className="flex-1 p-4 md:p-8 lg:p-12 flex flex-col justify-center">
-                            <h1 className="text-3xl md:text-4xl font-bold text-plex mb-4">Welcome to {publicInfo.serverName}</h1>
-                            <p className="text-muted text-sm md:text-base leading-relaxed mb-6">The ultimate Plex experience. Get instant access to our entire library with a <strong>3-Day Temporary Access</strong>.</p>
 
-                            <LivePlexStats />
+            <div className="relative z-10 w-full max-w-6xl flex flex-col gap-6">
+                <div className={`rounded-3xl border border-white/10 bg-card/75 backdrop-blur-2xl shadow-[0_32px_100px_-16px_rgba(0,0,0,0.65)] overflow-hidden flex flex-col ${showTrialAccess ? 'lg:flex-row min-h-[min(680px,calc(100vh-3rem))]' : 'max-w-xl mx-auto w-full'}`}>
+                    {showTrialAccess && (
+                        <div className="flex-1 flex flex-col justify-center p-6 sm:p-8 lg:p-10 xl:p-12 border-b lg:border-b-0 lg:border-r border-white/10 bg-gradient-to-br from-plex/[0.08] via-plex/[0.03] to-transparent min-w-0">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-plex/10 border border-plex/25 text-plex text-[11px] font-bold uppercase tracking-widest mb-5 w-fit">
+                                <Sparkles className="w-3.5 h-3.5" /> New here?
+                            </div>
+                            <h1 className="text-3xl sm:text-4xl font-black text-text tracking-tight leading-tight mb-3">
+                                Welcome to{' '}
+                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-plex to-amber-400">{publicInfo.serverName}</span>
+                            </h1>
+                            <p className="text-muted text-sm sm:text-base leading-relaxed mb-6 max-w-lg">
+                                The ultimate Plex experience. Get instant access to our entire library with a{' '}
+                                <strong className="text-text font-semibold">3-Day Temporary Access</strong> pass.
+                            </p>
 
-                            <p className="text-xs text-muted mt-2 mb-4 text-center">You'll need a free Plex account to continue. You can create one securely on the next screen.</p>
-                            <button className="w-full py-4 bg-plex text-background rounded-lg font-bold text-lg hover:bg-plex-hover transition-colors shadow-lg" onClick={handlePlexLogin} disabled={isLoading}>
+                            <div className="mb-6">
+                                <LivePlexStats />
+                            </div>
+
+                            <p className="text-xs text-muted/80 leading-relaxed mb-5">
+                                You&apos;ll need a free Plex account to continue. You can create one securely on the next screen.
+                            </p>
+                            <button type="button" className={loginPrimaryBtnClass} onClick={handlePlexLogin} disabled={isLoading}>
+                                <img src="/static/logo.png" alt="" className="w-5 h-5 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                                 Request Temporary Access
                             </button>
                         </div>
+                    )}
 
-                        <div className="hidden md:block w-px bg-white/5 my-12"></div>
-                    </>
-                )}
-
-                <div className={`flex-1 p-4 md:p-8 lg:p-12 flex flex-col justify-center bg-white/[0.02] ${publicConfig?.allowTemporaryAccess === false ? 'w-full' : ''}`}>
-                    <div className="text-center">
-                        <div className="w-full flex justify-center mb-8">
-                            <div className="relative">
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-plex rounded-full blur-[50px] opacity-20 pointer-events-none"></div>
-                                {publicConfig?.customLogoUrl || publicInfo.thumb ? (
-                                    <img src={publicConfig?.customLogoUrl || publicInfo.thumb} alt="Server Logo" className="w-32 h-32 object-cover rounded-full border-2 border-plex drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10" onError={(e) => { e.currentTarget.src = '/static/logo.png'; e.currentTarget.className = 'w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10'; }} />
-                                ) : (
-                                    <img src="/static/logo.png" alt="Server Logo" className="w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10" onError={(e) => e.currentTarget.style.display = 'none'} />
-                                )}
-                            </div>
+                    <div className={`flex flex-col justify-center items-center text-center p-6 sm:p-8 lg:p-10 xl:p-12 min-w-0 ${showTrialAccess ? 'flex-1' : 'w-full py-10 sm:py-12'}`}>
+                        <div className="relative mb-8">
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-36 h-36 bg-plex/20 rounded-full blur-[60px] pointer-events-none" />
+                            {logoSrc ? (
+                                <img
+                                    src={logoSrc}
+                                    alt="Server Logo"
+                                    className="w-28 h-28 sm:w-32 sm:h-32 object-cover rounded-2xl border-2 border-plex/40 shadow-[0_0_40px_rgba(229,160,13,0.25)] relative z-10"
+                                    onError={(e) => {
+                                        e.currentTarget.src = '/static/logo.png';
+                                        e.currentTarget.className = 'w-36 sm:w-40 object-contain drop-shadow-[0_0_20px_rgba(229,160,13,0.3)] relative z-10';
+                                    }}
+                                />
+                            ) : (
+                                <img src="/static/logo.png" alt="Server Logo" className="w-36 sm:w-40 object-contain drop-shadow-[0_0_20px_rgba(229,160,13,0.3)] relative z-10" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            )}
                         </div>
-                        <h2 className="text-2xl font-bold text-text mb-4">Already on our server?</h2>
-                        <p className="text-muted text-sm mb-8">Manage your existing access or re-link your account.</p>
-                        <button className="w-full py-4 bg-border text-text rounded-lg font-bold hover:bg-white/10 transition-colors border border-white/10" onClick={handlePlexLogin} disabled={isLoading}>
+
+                        {!showTrialAccess && (
+                            <>
+                                <h1 className="text-3xl sm:text-4xl font-black text-text tracking-tight mb-3">
+                                    {publicInfo.serverName}
+                                </h1>
+                                <p className="text-muted text-sm sm:text-base leading-relaxed mb-8 max-w-sm">
+                                    Sign in with Plex to access your portal and manage your subscription.
+                                </p>
+                            </>
+                        )}
+
+                        {showTrialAccess && (
+                            <>
+                                <p className="text-[11px] font-bold text-muted uppercase tracking-[0.16em] mb-2">Returning member</p>
+                                <h2 className="text-2xl sm:text-3xl font-black text-text tracking-tight mb-3">Already on our server?</h2>
+                                <p className="text-muted text-sm sm:text-base leading-relaxed mb-8 max-w-sm">
+                                    Manage your existing access or re-link your Plex account.
+                                </p>
+                            </>
+                        )}
+
+                        <button type="button" className={loginSecondaryBtnClass} onClick={handlePlexLogin} disabled={isLoading}>
+                            <img src="/static/logo.png" alt="" className="w-5 h-5 object-contain opacity-80" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                             Login with Plex
                         </button>
 
-                        {publicConfig?.allowTemporaryAccess === false && (
-                            <div className="mt-8 border-t border-white/5 pt-8">
+                        {!showTrialAccess && (
+                            <div className="w-full mt-10 pt-8 border-t border-white/10">
                                 <LivePlexStats />
                             </div>
                         )}
                     </div>
                 </div>
-            </div>
 
-            <div className="mt-4 w-full max-w-5xl mx-auto">
-                <PublicUptimeBanner />
+                <div className="rounded-2xl border border-white/10 bg-card/40 backdrop-blur-xl px-6 py-5">
+                    <PublicUptimeBanner />
+                </div>
+
+                {error && (
+                    <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-300 text-sm flex items-start gap-3">
+                        <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-red-400" />
+                        <span>{error}</span>
+                    </div>
+                )}
             </div>
-            {error && <div className="error-message" style={{ marginTop: '1rem' }}>{error}</div>}
         </div>
     );
 };

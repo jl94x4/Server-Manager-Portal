@@ -931,11 +931,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   margin-right: auto;
 }
 
-.my-12 {
-  margin-top: 3rem;
-  margin-bottom: 3rem;
-}
-
 .-mr-4 {
   margin-right: -1rem;
 }
@@ -950,6 +945,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .-mt-5 {
   margin-top: -1.25rem;
+}
+
+.mb-0\.5 {
+  margin-bottom: 0.125rem;
 }
 
 .mb-1 {
@@ -1038,6 +1037,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .mt-1\.5 {
   margin-top: 0.375rem;
+}
+
+.mt-10 {
+  margin-top: 2.5rem;
 }
 
 .mt-16 {
@@ -1209,6 +1212,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   height: 8rem;
 }
 
+.h-36 {
+  height: 9rem;
+}
+
 .h-4 {
   height: 1rem;
 }
@@ -1370,8 +1377,8 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   min-height: 60vh;
 }
 
-.min-h-\[80vh\] {
-  min-height: 80vh;
+.min-h-\[min\(680px\2c calc\(100vh-3rem\)\)\] {
+  min-height: min(680px, calc(100vh - 3rem));
 }
 
 .min-h-\[min\(720px\2c calc\(100vh-3rem\)\)\] {
@@ -1559,10 +1566,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   width: 100%;
 }
 
-.w-px {
-  width: 1px;
-}
-
 .min-w-0 {
   min-width: 0px;
 }
@@ -1602,10 +1605,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .max-w-4xl {
   max-width: 56rem;
-}
-
-.max-w-5xl {
-  max-width: 64rem;
 }
 
 .max-w-6xl {
@@ -2070,6 +2069,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-color: rgb(48 54 61 / 0.5);
 }
 
+.self-center {
+  align-self: center;
+}
+
 .self-stretch {
   align-self: stretch;
 }
@@ -2201,10 +2204,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .border-t {
   border-top-width: 1px;
-}
-
-.border-t-\[6px\] {
-  border-top-width: 6px;
 }
 
 .border-dashed {
@@ -2562,6 +2561,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   background-color: rgb(22 27 34 / var(--tw-bg-opacity, 1));
 }
 
+.bg-card\/40 {
+  background-color: rgb(22 27 34 / 0.4);
+}
+
 .bg-card\/50 {
   background-color: rgb(22 27 34 / 0.5);
 }
@@ -2576,6 +2579,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .bg-card\/90 {
   background-color: rgb(22 27 34 / 0.9);
+}
+
+.bg-emerald-500 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(16 185 129 / var(--tw-bg-opacity, 1));
 }
 
 .bg-emerald-500\/10 {
@@ -2744,8 +2752,8 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   background-color: rgb(255 255 255 / 0.05);
 }
 
-.bg-white\/\[0\.02\] {
-  background-color: rgb(255 255 255 / 0.02);
+.bg-white\/\[0\.04\] {
+  background-color: rgb(255 255 255 / 0.04);
 }
 
 .bg-yellow-400 {
@@ -2902,6 +2910,12 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .from-white\/\[0\.05\] {
   --tw-gradient-from: rgb(255 255 255 / 0.05) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(255 255 255 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.from-white\/\[0\.06\] {
+  --tw-gradient-from: rgb(255 255 255 / 0.06) var(--tw-gradient-from-position);
   --tw-gradient-to: rgb(255 255 255 / 0) var(--tw-gradient-to-position);
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
 }
@@ -3195,6 +3209,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 .py-1\.5 {
   padding-top: 0.375rem;
   padding-bottom: 0.375rem;
+}
+
+.py-10 {
+  padding-top: 2.5rem;
+  padding-bottom: 2.5rem;
 }
 
 .py-12 {
@@ -3498,6 +3517,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   font-style: italic;
 }
 
+.tabular-nums {
+  --tw-numeric-spacing: tabular-nums;
+  font-variant-numeric: var(--tw-ordinal) var(--tw-slashed-zero) var(--tw-numeric-figure) var(--tw-numeric-spacing) var(--tw-numeric-fraction);
+}
+
 .leading-none {
   line-height: 1;
 }
@@ -3514,8 +3538,16 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   line-height: 1.25;
 }
 
+.tracking-\[0\.12em\] {
+  letter-spacing: 0.12em;
+}
+
 .tracking-\[0\.14em\] {
   letter-spacing: 0.14em;
+}
+
+.tracking-\[0\.16em\] {
+  letter-spacing: 0.16em;
 }
 
 .tracking-\[0\.2em\] {
@@ -3688,14 +3720,13 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   color: rgb(251 146 60 / var(--tw-text-opacity, 1));
 }
 
-.text-orange-500 {
-  --tw-text-opacity: 1;
-  color: rgb(249 115 22 / var(--tw-text-opacity, 1));
-}
-
 .text-plex {
   --tw-text-opacity: 1;
   color: rgb(var(--color-plex) / var(--tw-text-opacity, 1));
+}
+
+.text-plex\/60 {
+  color: rgb(var(--color-plex) / 0.6);
 }
 
 .text-plex\/80 {
@@ -4025,6 +4056,12 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
 
+.shadow-\[0_0_40px_rgba\(229\2c 160\2c 13\2c 0\.25\)\] {
+  --tw-shadow: 0 0 40px rgba(229,160,13,0.25);
+  --tw-shadow-colored: 0 0 40px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
 .shadow-\[0_0_40px_rgba\(52\2c 211\2c 153\2c 0\.15\)\] {
   --tw-shadow: 0 0 40px rgba(52,211,153,0.15);
   --tw-shadow-colored: 0 0 40px var(--tw-shadow-color);
@@ -4093,6 +4130,12 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .shadow-\[0_0_8px_rgba\(34\2c 197\2c 94\2c 0\.6\)\] {
   --tw-shadow: 0 0 8px rgba(34,197,94,0.6);
+  --tw-shadow-colored: 0 0 8px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+.shadow-\[0_0_8px_rgba\(52\2c 211\2c 153\2c 0\.6\)\] {
+  --tw-shadow: 0 0 8px rgba(52,211,153,0.6);
   --tw-shadow-colored: 0 0 8px var(--tw-shadow-color);
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
@@ -4246,6 +4289,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
 }
 
+.blur-\[60px\] {
+  --tw-blur: blur(60px);
+  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+
 .blur-\[90px\] {
   --tw-blur: blur(90px);
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
@@ -4268,6 +4316,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .drop-shadow-\[0_0_15px_rgba\(229\2c 160\2c 13\2c 0\.25\)\] {
   --tw-drop-shadow: drop-shadow(0 0 15px rgba(229,160,13,0.25));
+  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+
+.drop-shadow-\[0_0_20px_rgba\(229\2c 160\2c 13\2c 0\.3\)\] {
+  --tw-drop-shadow: drop-shadow(0 0 20px rgba(229,160,13,0.3));
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
 }
 
@@ -4322,6 +4375,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .backdrop-blur-sm {
   --tw-backdrop-blur: blur(4px);
+  backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
+}
+
+.backdrop-blur-xl {
+  --tw-backdrop-blur: blur(24px);
   backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
 }
 
@@ -5041,12 +5099,20 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     display: flex;
   }
 
+  .sm\:h-32 {
+    height: 8rem;
+  }
+
   .sm\:h-5 {
     height: 1.25rem;
   }
 
   .sm\:w-32 {
     width: 8rem;
+  }
+
+  .sm\:w-40 {
+    width: 10rem;
   }
 
   .sm\:w-5 {
@@ -5113,6 +5179,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   .sm\:px-8 {
     padding-left: 2rem;
     padding-right: 2rem;
+  }
+
+  .sm\:py-12 {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
   }
 
   .sm\:text-3xl {
@@ -5552,10 +5623,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     padding-top: 0px;
   }
 
-  .md\:pt-20 {
-    padding-top: 5rem;
-  }
-
   .md\:pt-8 {
     padding-top: 2rem;
   }
@@ -5698,12 +5765,16 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     flex-direction: row;
   }
 
-  .lg\:p-10 {
-    padding: 2.5rem;
+  .lg\:border-b-0 {
+    border-bottom-width: 0px;
   }
 
-  .lg\:p-12 {
-    padding: 3rem;
+  .lg\:border-r {
+    border-right-width: 1px;
+  }
+
+  .lg\:p-10 {
+    padding: 2.5rem;
   }
 
   .lg\:px-10 {
