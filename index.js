@@ -1591,6 +1591,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
             settings: {
                 token: config.plexToken ? SECRET_MASK : '',
                 serverIdentifier: config.serverIdentifier,
+                plexServerUrl: config.plexServerUrl || '',
                 checkIntervalMinutes: config.checkIntervalMinutes || 60,
                 smtpHost: config.smtpHost || '',
                 smtpPort: config.smtpPort || 587,
@@ -1641,6 +1642,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
             settings: {
                 token: '',
                 serverIdentifier: '',
+                plexServerUrl: '',
                 checkIntervalMinutes: 60,
                 smtpHost: '',
                 smtpPort: 587,
@@ -2566,17 +2568,19 @@ const buildPlexStatsCache = async () => {
  */
 const startPlexStatsBackgroundTask = async () => {
     const INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
-    systemJobs.plexStats.nextRun = new Date(Date.now() + INTERVAL_MS).toISOString();
 
     const existing = await loadPlexStatsFromDisk();
     if (existing) {
         const ageMs = Date.now() - (existing.generatedAt || 0);
+        const remainingMs = Math.max(0, INTERVAL_MS - ageMs);
+        systemJobs.plexStats.nextRun = new Date(Date.now() + (ageMs >= INTERVAL_MS ? 0 : remainingMs)).toISOString();
         log(`[PlexStats] Loaded existing cache (age: ${Math.round(ageMs / 60000)} min).`);
         if (ageMs >= INTERVAL_MS) {
             log('[PlexStats] Cache is stale — triggering immediate rebuild.');
             buildPlexStatsCache(); // async, don't await
         }
     } else {
+        systemJobs.plexStats.nextRun = new Date(Date.now() + INTERVAL_MS).toISOString();
         log('[PlexStats] No cache found — triggering initial build.');
         buildPlexStatsCache(); // async, don't await
     }
@@ -5892,6 +5896,7 @@ async function calculateAnalyticsStats() {
             statsData[days] = { topUsers, topLibraries, topMovies, topShows, topMusic, topDevices, peakHours, totalPlaybacks };
         }
 
+        statsData.lastUpdated = Date.now();
         await saveFile(ANALYTICS_CACHE_PATH, statsData);
         log('Successfully calculated and cached Plex Analytics Stats.');
         markTaskEnd(systemJobs.analyticsCache, null);
@@ -6143,6 +6148,113 @@ async function calculateTrendingStats() {
         isBuildingTrendingStats = false;
     }
 }
+
+const TRENDING_CACHE_INTERVAL_MS = 12 * 60 * 60 * 1000;
+const ANALYTICS_CACHE_INTERVAL_MS = 30 * 60 * 1000;
+const INITIAL_CACHE_BUILD_DELAY_MS = 10 * 1000;
+
+let trendingRebuildTimer = null;
+let analyticsRebuildTimer = null;
+
+const getCacheAgeMs = async (filePath, parsed, timestampFields = ['lastUpdated', 'generatedAt']) => {
+    for (const field of timestampFields) {
+        const value = parsed?.[field];
+        if (value) return Date.now() - Number(value);
+    }
+    try {
+        const stat = await fs.stat(filePath);
+        return Date.now() - stat.mtimeMs;
+    } catch {
+        return null;
+    }
+};
+
+const isValidTrendingCache = (data) => (
+    data && typeof data === 'object' && !!data.lastUpdated && Array.isArray(data.trending7Days)
+);
+
+const isValidAnalyticsCache = (data) => {
+    if (!data || typeof data !== 'object') return false;
+    return data.all !== undefined || data['7'] !== undefined || data['30'] !== undefined || data[7] !== undefined || data[30] !== undefined;
+};
+
+const scheduleTrendingRebuild = (delayMs) => {
+    if (trendingRebuildTimer) clearTimeout(trendingRebuildTimer);
+    const safeDelay = Math.max(0, delayMs);
+    systemJobs.trendingCache.nextRun = new Date(Date.now() + safeDelay).toISOString();
+    trendingRebuildTimer = setTimeout(async () => {
+        await calculateTrendingStats();
+        scheduleTrendingRebuild(TRENDING_CACHE_INTERVAL_MS);
+    }, safeDelay);
+};
+
+const scheduleAnalyticsRebuild = (delayMs) => {
+    if (analyticsRebuildTimer) clearTimeout(analyticsRebuildTimer);
+    const safeDelay = Math.max(0, delayMs);
+    systemJobs.analyticsCache.nextRun = new Date(Date.now() + safeDelay).toISOString();
+    analyticsRebuildTimer = setTimeout(async () => {
+        await calculateAnalyticsStats();
+        scheduleAnalyticsRebuild(ANALYTICS_CACHE_INTERVAL_MS);
+    }, safeDelay);
+};
+
+const startTrendingStatsBackgroundTask = async () => {
+    let existing = null;
+    try {
+        const loaded = await loadFile(TRENDING_CACHE_PATH, null);
+        if (isValidTrendingCache(loaded)) existing = loaded;
+    } catch { /* no cache yet */ }
+
+    if (existing) {
+        const ageMs = await getCacheAgeMs(TRENDING_CACHE_PATH, existing);
+        if (ageMs == null) {
+            log('[TrendingStats] Loaded existing cache.');
+            scheduleTrendingRebuild(TRENDING_CACHE_INTERVAL_MS);
+            return;
+        }
+        const remainingMs = Math.max(0, TRENDING_CACHE_INTERVAL_MS - ageMs);
+        log(`[TrendingStats] Loaded existing cache (age: ${Math.round(ageMs / 60000)} min). Next rebuild in ${Math.round(remainingMs / 60000)} min.`);
+        if (ageMs >= TRENDING_CACHE_INTERVAL_MS) {
+            log('[TrendingStats] Cache is stale — triggering immediate rebuild.');
+            scheduleTrendingRebuild(0);
+        } else {
+            scheduleTrendingRebuild(remainingMs);
+        }
+        return;
+    }
+
+    log('[TrendingStats] No cache found — triggering initial build.');
+    scheduleTrendingRebuild(INITIAL_CACHE_BUILD_DELAY_MS);
+};
+
+const startAnalyticsStatsBackgroundTask = async () => {
+    let existing = null;
+    try {
+        const loaded = await loadFile(ANALYTICS_CACHE_PATH, null);
+        if (isValidAnalyticsCache(loaded)) existing = loaded;
+    } catch { /* no cache yet */ }
+
+    if (existing) {
+        const ageMs = await getCacheAgeMs(ANALYTICS_CACHE_PATH, existing);
+        if (ageMs == null) {
+            log('[AnalyticsStats] Loaded existing cache.');
+            scheduleAnalyticsRebuild(ANALYTICS_CACHE_INTERVAL_MS);
+            return;
+        }
+        const remainingMs = Math.max(0, ANALYTICS_CACHE_INTERVAL_MS - ageMs);
+        log(`[AnalyticsStats] Loaded existing cache (age: ${Math.round(ageMs / 60000)} min). Next rebuild in ${Math.round(remainingMs / 60000)} min.`);
+        if (ageMs >= ANALYTICS_CACHE_INTERVAL_MS) {
+            log('[AnalyticsStats] Cache is stale — triggering immediate rebuild.');
+            scheduleAnalyticsRebuild(0);
+        } else {
+            scheduleAnalyticsRebuild(remainingMs);
+        }
+        return;
+    }
+
+    log('[AnalyticsStats] No cache found — triggering initial build.');
+    scheduleAnalyticsRebuild(INITIAL_CACHE_BUILD_DELAY_MS + 5000);
+};
 
 app.get('/api/plex/stats/trending', requireAuth, requireMember, async (req, res) => {
     try {
@@ -7862,19 +7974,9 @@ app.listen(PORT, BIND_HOST, async () => {
     startBackgroundService();
     startPlexStatsBackgroundTask(); // start 24-hour library size cache task
 
-    // Background cache builders: trending every 12h, analytics every 30m, plex stats every 24h.
-    systemJobs.trendingCache.nextRun = new Date(Date.now() + 10000).toISOString();
-    systemJobs.analyticsCache.nextRun = new Date(Date.now() + 15000).toISOString();
-    setTimeout(calculateTrendingStats, 10000); // Run once shortly after startup
-    setInterval(() => {
-        systemJobs.trendingCache.nextRun = new Date(Date.now() + (12 * 60 * 60 * 1000)).toISOString();
-        calculateTrendingStats();
-    }, 12 * 60 * 60 * 1000);
-    setTimeout(calculateAnalyticsStats, 15000);
-    setInterval(() => {
-        systemJobs.analyticsCache.nextRun = new Date(Date.now() + (30 * 60 * 1000)).toISOString();
-        calculateAnalyticsStats();
-    }, 30 * 60 * 1000);
+    // Background cache builders: reuse on-disk cache and schedule next run by interval.
+    startTrendingStatsBackgroundTask();
+    startAnalyticsStatsBackgroundTask();
     systemJobs.maintenanceIndex.nextRun = new Date(Date.now() + (20 * 1000)).toISOString();
     setTimeout(async () => {
         try {

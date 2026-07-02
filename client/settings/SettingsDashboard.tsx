@@ -88,6 +88,7 @@ export const SettingsDashboard: React.FC = () => {
         }
     };
     const [token, setToken] = useState('');
+    const [plexServerUrl, setPlexServerUrl] = useState('');
     const [servers, setServers] = useState<PlexServer[]>([]);
     const [selectedServer, setSelectedServer] = useState('');
     const [checkInterval, setCheckInterval] = useState(60);
@@ -113,7 +114,7 @@ export const SettingsDashboard: React.FC = () => {
         {
             title: 'Integrations',
             tabs: [
-                { id: 'plex', label: 'Plex Integration', keywords: ['token', 'server', 'libraries'] },
+                { id: 'plex', label: 'Plex Integration', keywords: ['token', 'server', 'libraries', 'docker', 'local', 'url', 'direct'] },
                 { id: 'mediastack', label: 'Media Stack', keywords: ['sonarr', 'radarr', 'tautulli'] },
                 { id: 'status', label: 'Status Monitor', keywords: ['uptime', 'health', 'services'] }
             ]
@@ -626,6 +627,7 @@ export const SettingsDashboard: React.FC = () => {
     useEffect(() => {
         if (initialSettings) {
             setToken(initialSettings.token || '');
+            setPlexServerUrl(initialSettings.plexServerUrl || '');
             setSelectedServer(initialSettings.serverIdentifier || '');
             setCheckInterval(initialSettings.checkIntervalMinutes || 60);
             setSmtpHost(initialSettings.smtpHost || '');
@@ -683,7 +685,7 @@ export const SettingsDashboard: React.FC = () => {
         try {
             const foundServers = await apiFetch('/api/plex/servers', {
                 method: 'POST',
-                body: JSON.stringify({ token })
+                body: JSON.stringify({ token, plexServerUrl: plexServerUrl || undefined }),
             });
 
             setServers(foundServers);
@@ -737,6 +739,7 @@ export const SettingsDashboard: React.FC = () => {
         await handleSaveConfig({
             token,
             serverIdentifier: selectedServer,
+            plexServerUrl: plexServerUrl || '',
             checkIntervalMinutes: checkInterval,
             smtpHost,
             smtpPort,
@@ -926,7 +929,11 @@ export const SettingsDashboard: React.FC = () => {
                                     <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={handleFetchServers} disabled={!token}>Fetch Servers</button>
                                     <IntegrationTestButton
                                         type="plex"
-                                        payload={{ token, serverIdentifier: selectedServer || initialSettings.serverIdentifier }}
+                                        payload={{
+                                            token,
+                                            serverIdentifier: selectedServer || initialSettings.serverIdentifier,
+                                            plexServerUrl: plexServerUrl || undefined,
+                                        }}
                                         disabled={!token || !(selectedServer || initialSettings.serverIdentifier)}
                                         onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
                                     />
@@ -956,6 +963,25 @@ export const SettingsDashboard: React.FC = () => {
                                         )}
                                     </div>
                                 )}
+                                <div className="mb-4" style={{ marginTop: '1rem' }}>
+                                    <label htmlFor="plexServerUrl">
+                                        Direct Plex URL{' '}
+                                        <span className="text-muted font-normal normal-case">(required in Docker)</span>
+                                    </label>
+                                    <input
+                                        className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all"
+                                        id="plexServerUrl"
+                                        type="url"
+                                        value={plexServerUrl}
+                                        onChange={(e) => setPlexServerUrl(e.target.value)}
+                                        placeholder="http://192.168.1.6:32400"
+                                    />
+                                    <div className="mt-2">
+                                        <SettingHint>
+                                            Your Plex server&apos;s LAN address. Use this when Plex.tv discovery fails from inside the container (e.g. <code className="text-xs">getaddrinfo EAI_AGAIN …plex.direct</code> errors).
+                                        </SettingHint>
+                                    </div>
+                                </div>
                                 <div className="mb-4" style={{ marginTop: '1rem' }}>
                                     <label htmlFor="checkInterval">Check Interval (minutes)</label>
                                     <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="checkInterval" type="number" value={checkInterval} onChange={e => setCheckInterval(Number(e.target.value))} min="1" />
