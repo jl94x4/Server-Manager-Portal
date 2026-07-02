@@ -2843,6 +2843,7 @@ const LivePlexStats: React.FC = () => {
 const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
     const [token, setToken] = useState('');
     const [serverIdentifier, setServerIdentifier] = useState('');
+    const [plexServerUrl, setPlexServerUrl] = useState('');
     const [servers, setServers] = useState<PlexServer[]>([]);
     const [sonarrUrl, setSonarrUrl] = useState('');
     const [sonarrApiKey, setSonarrApiKey] = useState('');
@@ -2863,7 +2864,7 @@ const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
         try {
             const foundServers = await apiFetch('/api/plex/servers', {
                 method: 'POST',
-                body: JSON.stringify({ token })
+                body: JSON.stringify({ token: token.trim(), plexServerUrl: plexServerUrl || undefined }),
             });
 
             setServers(foundServers);
@@ -2890,7 +2891,12 @@ const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
         try {
             const res = await apiFetch('/api/config', {
                 method: 'POST',
-                body: JSON.stringify({ token, serverIdentifier, sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, tautulliUrl, tautulliApiKey })
+                body: JSON.stringify({
+                    token: token.trim(),
+                    serverIdentifier: serverIdentifier.trim(),
+                    plexServerUrl: plexServerUrl || undefined,
+                    sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, tautulliUrl, tautulliApiKey,
+                }),
             });
             if (res.error) throw new Error(res.error);
             onComplete();
@@ -2918,11 +2924,16 @@ const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
                     <h3 className="text-plex font-bold mb-2 flex items-center gap-2"><Sparkles className="w-4 h-4" /> Need help finding these?</h3>
                     <ul className="list-disc pl-5 space-y-2">
                         <li><strong>Plex Token:</strong> Log into Plex Web, view the XML of any library item, and look for <code className="bg-background px-1 rounded">X-Plex-Token=...</code> in the URL.</li>
-                        <li><strong>Server Identifier:</strong> You can automatically fetch this by entering your token and clicking <strong>Fetch Servers</strong>.</li>
+                        <li><strong>Server Identifier:</strong> Click <strong>Fetch Servers</strong>, or enter manually using the steps below if fetch fails in Docker.</li>
                     </ul>
                 </div>
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-muted uppercase tracking-wider">Direct Plex URL <span className="text-muted font-normal normal-case">(required in Docker)</span></label>
+                        <input type="url" className="w-full p-4 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="http://192.168.1.6:32400" value={plexServerUrl} onChange={e => setPlexServerUrl(e.target.value)} />
+                        <p className="text-xs text-muted">Your Plex server&apos;s LAN address. Required when Plex.tv discovery fails from inside the container.</p>
+                    </div>
                     <div className="flex flex-col gap-2">
                         <label className="text-sm font-bold text-muted uppercase tracking-wider">Plex Token</label>
                         <div className="flex gap-2">
@@ -2942,9 +2953,15 @@ const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
                             </select>
                         </div>
                     ) : (
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-3">
                             <label className="text-sm font-bold text-muted uppercase tracking-wider">Server Identifier</label>
                             <input type="text" className="w-full p-4 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="Enter your Server Identifier (or Fetch above)" value={serverIdentifier} onChange={e => setServerIdentifier(e.target.value)} required />
+                            <div className="text-xs text-muted p-3 rounded-lg bg-background/60 border border-border space-y-1">
+                                <p className="font-semibold text-text">How to find Server Identifier manually:</p>
+                                <p>1) Open: <code className="bg-background px-1 rounded">http://YOUR_PLEX_IP:32400/identity?X-Plex-Token=YOUR_TOKEN</code></p>
+                                <p>2) Copy <code className="bg-background px-1 rounded">machineIdentifier</code> from the response.</p>
+                                <p>3) Paste it into the field above.</p>
+                            </div>
                         </div>
                     )}
 
