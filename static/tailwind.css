@@ -1261,6 +1261,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   margin: 0px;
 }
 
+.-mx-1 {
+  margin-left: -0.25rem;
+  margin-right: -0.25rem;
+}
+
 .-mx-4 {
   margin-left: -1rem;
   margin-right: -1rem;
@@ -1693,6 +1698,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   max-height: 90vh;
 }
 
+.max-h-\[92vh\] {
+  max-height: 92vh;
+}
+
 .min-h-0 {
   min-height: 0px;
 }
@@ -1961,6 +1970,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .max-w-2xl {
   max-width: 42rem;
+}
+
+.max-w-3xl {
+  max-width: 48rem;
 }
 
 .max-w-4xl {
@@ -2242,6 +2255,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   flex-wrap: wrap;
 }
 
+.content-center {
+  align-content: center;
+}
+
 .content-start {
   align-content: flex-start;
 }
@@ -2355,6 +2372,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .gap-y-1 {
   row-gap: 0.25rem;
+}
+
+.gap-y-1\.5 {
+  row-gap: 0.375rem;
 }
 
 .gap-y-2 {
@@ -2783,6 +2804,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-top-color: transparent;
 }
 
+.bg-\[\#0d0e10\] {
+  --tw-bg-opacity: 1;
+  background-color: rgb(13 14 16 / var(--tw-bg-opacity, 1));
+}
+
 .bg-\[\#1a1f2e\] {
   --tw-bg-opacity: 1;
   background-color: rgb(26 31 46 / var(--tw-bg-opacity, 1));
@@ -3190,12 +3216,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .from-plex\/0 {
   --tw-gradient-from: rgb(var(--color-plex) / 0) var(--tw-gradient-from-position);
-  --tw-gradient-to: rgb(var(--color-plex) / 0) var(--tw-gradient-to-position);
-  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
-}
-
-.from-plex\/10 {
-  --tw-gradient-from: rgb(var(--color-plex) / 0.1) var(--tw-gradient-from-position);
   --tw-gradient-to: rgb(var(--color-plex) / 0) var(--tw-gradient-to-position);
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
 }
@@ -6050,6 +6070,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .lg\:col-span-2 {
     grid-column: span 2 / span 2;
+  }
+
+  .lg\:col-span-3 {
+    grid-column: span 3 / span 3;
   }
 
   .lg\:col-start-2 {
