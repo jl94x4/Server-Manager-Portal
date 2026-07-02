@@ -1,109 +1,35 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { X, Copy, Download, Share2 } from 'lucide-react';
-
-const periodLabel = (days: number | string) => {
-    if (days === 'all') return 'All Time';
-    if (days === 7) return 'Last 7 Days';
-    if (days === 30) return 'Last 30 Days';
-    if (days === 60) return 'Last 60 Days';
-    if (days === 90) return 'Last 90 Days';
-    if (days === 180) return 'Last 180 Days';
-    return `Last ${days} Days`;
-};
+import html2canvas from 'html2canvas';
+import { WrapUpCardGrid, periodLabel } from './WrapUpCards';
 
 export const buildWrapUpShareText = (analytics: any, days: number | string, serverName: string, username?: string) => {
     const period = periodLabel(days);
-    const rank = analytics.leaderboardRank ? `#${analytics.leaderboardRank} of ${analytics.totalActiveUsers || '?'}` : 'Unranked';
+    const rank = analytics.leaderboardRank
+        ? `#${analytics.leaderboardRank} of ${analytics.totalActiveUsers || '?'}`
+        : 'Unranked';
+    const topDayStreams = analytics.dayOfWeekCounts
+        ? Math.max(...Object.values(analytics.dayOfWeekCounts) as number[])
+        : 0;
+
     const lines = [
         `📊 ${serverName} — Personal Wrap-Up (${period})`,
         username ? `👤 ${username}` : '',
         '',
         `🏆 Server Rank: ${rank}`,
-        `▶️ Total Streams: ${analytics.totalPlays || 0} (🎬 ${analytics.moviesCount || 0} · 📺 ${analytics.showsCount || 0})`,
+        `▶️ Total Streams: ${analytics.totalPlays || 0} (🎬 ${analytics.moviesCount || 0} · 📺 ${analytics.showsCount || 0}${analytics.musicCount ? ` · 🎵 ${analytics.musicCount}` : ''})`,
         `📺 Top Binge: ${analytics.topBinge?.title || '—'} (${analytics.topBinge?.plays || 0} eps)`,
         `🎬 Top Movie: ${analytics.topMovie?.title || '—'} (${analytics.topMovie?.plays || 0} plays)`,
-        `🕐 Time of Day: ${analytics.timeOfDay || '—'}`,
-        `📅 Top Day: ${analytics.popularDay || '—'}`,
-        `📚 Top Library: ${analytics.favoriteLibrary || '—'}`,
+        `🕐 Time of Day: ${analytics.timeOfDay || '—'} (avg ${analytics.avgHour ? `${Math.round(analytics.avgHour)}:00` : '—'})`,
+        `📅 Top Day: ${analytics.popularDay || '—'} (${topDayStreams} streams)`,
+        `📚 Top Library: ${analytics.favoriteLibrary || '—'} (${analytics.topLibraries?.[0]?.plays || 0} plays)`,
+        `🎭 Media Profile: ${analytics.mediaPreference || '—'}`,
+        `🧭 Watch Style: ${analytics.watchStyle || '—'} (${analytics.uniqueTitles || 0} unique titles)`,
+        `☕ Streaming Habit: ${analytics.streamingHabit || '—'} (${analytics.weekdayPlays || 0} weekday · ${analytics.weekendPlays || 0} weekend)`,
         '',
         `Shared from ${window.location.origin}`,
     ].filter(Boolean);
     return lines.join('\n');
-};
-
-const drawWrapUpCard = (
-    canvas: HTMLCanvasElement,
-    analytics: any,
-    days: number | string,
-    serverName: string,
-    username?: string,
-) => {
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const w = 1080;
-    const h = 1080;
-    canvas.width = w;
-    canvas.height = h;
-
-    const bg = ctx.createLinearGradient(0, 0, w, h);
-    bg.addColorStop(0, '#1a1c1e');
-    bg.addColorStop(1, '#0d0e10');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, w, h);
-
-    ctx.fillStyle = '#e5a00d';
-    ctx.fillRect(0, 0, w, 8);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 48px system-ui, sans-serif';
-    ctx.fillText('Personal Wrap-Up', 64, 100);
-
-    ctx.fillStyle = '#e5a00d';
-    ctx.font = '600 28px system-ui, sans-serif';
-    ctx.fillText(serverName, 64, 148);
-
-    ctx.fillStyle = '#9ca3af';
-    ctx.font = '24px system-ui, sans-serif';
-    ctx.fillText(`${periodLabel(days)}${username ? ` · ${username}` : ''}`, 64, 188);
-
-    const stats: [string, string][] = [
-        ['Server Rank', analytics.leaderboardRank ? `#${analytics.leaderboardRank}` : 'Unranked'],
-        ['Total Streams', String(analytics.totalPlays || 0)],
-        ['Top Binge', analytics.topBinge?.title || '—'],
-        ['Top Movie', analytics.topMovie?.title || '—'],
-        ['Time of Day', analytics.timeOfDay || '—'],
-        ['Top Day', analytics.popularDay || '—'],
-        ['Top Library', analytics.favoriteLibrary || '—'],
-        ['Watch Style', analytics.watchStyle || '—'],
-    ];
-
-    stats.forEach(([label, value], i) => {
-        const row = Math.floor(i / 2);
-        const col = i % 2;
-        const x = 64 + col * 480;
-        const rowY = 260 + row * 180;
-
-        ctx.fillStyle = 'rgba(255,255,255,0.06)';
-        ctx.fillRect(x, rowY, 440, 140);
-
-        ctx.strokeStyle = 'rgba(229,160,13,0.25)';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x, rowY, 440, 140);
-
-        ctx.fillStyle = '#9ca3af';
-        ctx.font = '600 18px system-ui, sans-serif';
-        ctx.fillText(label.toUpperCase(), x + 24, rowY + 40);
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 32px system-ui, sans-serif';
-        const display = value.length > 28 ? value.slice(0, 26) + '…' : value;
-        ctx.fillText(display, x + 24, rowY + 90);
-    });
-
-    ctx.fillStyle = '#6b7280';
-    ctx.font = '20px system-ui, sans-serif';
-    ctx.fillText(window.location.origin, 64, h - 48);
 };
 
 type ShareWrapUpModalProps = {
@@ -123,14 +49,25 @@ export const ShareWrapUpModal: React.FC<ShareWrapUpModalProps> = ({
     onClose,
     onToast,
 }) => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const exportRef = useRef<HTMLDivElement>(null);
     const [busy, setBusy] = useState<'copy' | 'download' | 'share' | null>(null);
 
-    const getCanvas = useCallback(() => {
-        const canvas = canvasRef.current || document.createElement('canvas');
-        drawWrapUpCard(canvas, analytics, days, serverName, username);
-        return canvas;
-    }, [analytics, days, serverName, username]);
+    const rankPct = analytics.leaderboardRank && analytics.totalActiveUsers > 0
+        ? Math.max(1, Math.round((analytics.leaderboardRank / analytics.totalActiveUsers) * 100))
+        : null;
+
+    const renderExportBlob = useCallback(async (): Promise<Blob | null> => {
+        const node = exportRef.current;
+        if (!node) return null;
+        const canvas = await html2canvas(node, {
+            useCORS: true,
+            allowTaint: false,
+            backgroundColor: '#0d0e10',
+            scale: 2,
+            logging: false,
+        });
+        return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    }, []);
 
     const handleCopyText = async () => {
         setBusy('copy');
@@ -144,51 +81,65 @@ export const ShareWrapUpModal: React.FC<ShareWrapUpModalProps> = ({
         }
     };
 
-    const handleDownload = () => {
+    const handleDownload = async () => {
         setBusy('download');
         try {
-            const canvas = getCanvas();
-            canvas.toBlob((blob) => {
-                if (!blob) {
-                    onToast?.('Could not generate image.', 'error');
-                    setBusy(null);
-                    return;
-                }
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `wrap-up-${serverName.replace(/\s+/g, '-').toLowerCase()}.png`;
-                a.click();
-                URL.revokeObjectURL(url);
-                onToast?.('Wrap-Up image downloaded!', 'success');
-                setBusy(null);
-            }, 'image/png');
+            const blob = await renderExportBlob();
+            if (!blob) {
+                onToast?.('Could not generate image.', 'error');
+                return;
+            }
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `wrap-up-${serverName.replace(/\s+/g, '-').toLowerCase()}.png`;
+            a.click();
+            URL.revokeObjectURL(url);
+            onToast?.('Wrap-Up image downloaded!', 'success');
         } catch {
             onToast?.('Could not generate image.', 'error');
+        } finally {
             setBusy(null);
         }
     };
 
     const handleShare = async () => {
         setBusy('share');
+        const text = buildWrapUpShareText(analytics, days, serverName, username);
+
         try {
-            const text = buildWrapUpShareText(analytics, days, serverName, username);
-            const canvas = getCanvas();
-            const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-            if (navigator.share) {
-                const files = blob ? [new File([blob], 'wrap-up.png', { type: 'image/png' })] : [];
-                await navigator.share({
-                    title: `${serverName} Wrap-Up`,
-                    text,
-                    ...(files.length && navigator.canShare?.({ files }) ? { files } : {}),
-                });
-            } else {
+            if (!navigator.share) {
                 await navigator.clipboard.writeText(text);
-                onToast?.('Share not supported — stats copied instead!', 'success');
+                onToast?.('Share not supported on this browser — full stats copied. Use Save Image for the card.', 'success');
+                return;
             }
+
+            const blob = await renderExportBlob();
+            if (blob) {
+                const file = new File([blob], 'wrap-up.png', { type: 'image/png' });
+                if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        title: `${serverName} — Personal Wrap-Up`,
+                        files: [file],
+                    });
+                    onToast?.('Wrap-Up shared!', 'success');
+                    return;
+                }
+            }
+
+            await navigator.share({
+                title: `${serverName} — Personal Wrap-Up`,
+                text,
+            });
+            onToast?.('Wrap-Up shared!', 'success');
         } catch (e) {
-            if ((e as Error)?.name !== 'AbortError') {
-                onToast?.('Share cancelled or failed.', 'error');
+            const err = e as Error;
+            if (err.name === 'AbortError') return;
+            try {
+                await navigator.clipboard.writeText(text);
+                onToast?.('Share sheet unavailable — full stats copied. Use Save Image for the visual card.', 'success');
+            } catch {
+                onToast?.('Share unavailable. Try Copy Text or Save Image.', 'error');
             }
         } finally {
             setBusy(null);
@@ -197,22 +148,52 @@ export const ShareWrapUpModal: React.FC<ShareWrapUpModalProps> = ({
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={onClose}>
-            <div className="glass-card shadow-2xl max-w-lg w-full p-6 relative" onClick={(e) => e.stopPropagation()}>
-                <button type="button" onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-muted hover:text-text transition-colors">
+            <div className="glass-card shadow-2xl max-w-3xl w-full p-5 md:p-6 relative max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+                <button type="button" onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-muted hover:text-text transition-colors z-10">
                     <X className="w-5 h-5" />
                 </button>
-                <h3 className="text-xl font-bold text-text mb-1">Share Your Wrap-Up</h3>
-                <p className="text-muted text-sm mb-6">Show off your streaming stats with friends.</p>
 
-                <div className="rounded-xl border border-plex/30 bg-gradient-to-br from-plex/10 to-transparent p-5 mb-6 text-sm space-y-2">
-                    <p className="font-bold text-plex">{serverName} · {periodLabel(days)}</p>
-                    <p className="text-text">Rank #{analytics.leaderboardRank || '—'} · {analytics.totalPlays || 0} streams</p>
-                    <p className="text-muted line-clamp-1">Binge: {analytics.topBinge?.title || '—'} · Movie: {analytics.topMovie?.title || '—'}</p>
+                <h3 className="text-xl font-bold text-text mb-1 pr-10">Share Your Wrap-Up</h3>
+                <p className="text-muted text-sm mb-4">Preview matches what Save Image exports — same cards as your dashboard.</p>
+
+                <div className="overflow-y-auto flex-1 min-h-0 custom-scrollbar -mx-1 px-1 mb-4">
+                    <div
+                        ref={exportRef}
+                        className="rounded-2xl overflow-hidden border border-white/10 bg-[#0d0e10] p-4 md:p-5"
+                    >
+                        <div className="mb-4 pb-3 border-b border-white/10">
+                            <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-plex mb-1">Personal Wrap-Up</p>
+                            <h4 className="text-xl md:text-2xl font-black text-white">{serverName}</h4>
+                            <p className="text-sm text-muted mt-1">
+                                {periodLabel(days)}
+                                {username ? ` · ${username}` : ''}
+                            </p>
+                        </div>
+
+                        <WrapUpCardGrid analytics={analytics} minCardHeight={128} className="lg:grid-cols-5" />
+
+                        <p className="text-[10px] text-muted/70 mt-4 truncate">{window.location.origin}</p>
+                    </div>
+
+                    <div className="mt-4 rounded-xl border border-border/50 bg-background/40 p-4 text-sm space-y-2">
+                        <p className="font-bold text-text">Full stats summary</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-muted">
+                            <p><span className="text-text font-semibold">Rank:</span> {analytics.leaderboardRank ? `#${analytics.leaderboardRank}` : 'Unranked'}{rankPct ? ` (top ${rankPct}%)` : ''}</p>
+                            <p><span className="text-text font-semibold">Streams:</span> {analytics.totalPlays || 0} total</p>
+                            <p><span className="text-text font-semibold">Movies / TV:</span> {analytics.moviesCount || 0} / {analytics.showsCount || 0}</p>
+                            <p><span className="text-text font-semibold">Top binge:</span> {analytics.topBinge?.title || '—'}</p>
+                            <p><span className="text-text font-semibold">Top movie:</span> {analytics.topMovie?.title || '—'}</p>
+                            <p><span className="text-text font-semibold">Time of day:</span> {analytics.timeOfDay || '—'}</p>
+                            <p><span className="text-text font-semibold">Top day:</span> {analytics.popularDay || '—'}</p>
+                            <p><span className="text-text font-semibold">Top library:</span> {analytics.favoriteLibrary || '—'}</p>
+                            <p><span className="text-text font-semibold">Media profile:</span> {analytics.mediaPreference || '—'}</p>
+                            <p><span className="text-text font-semibold">Watch style:</span> {analytics.watchStyle || '—'}</p>
+                            <p className="sm:col-span-2"><span className="text-text font-semibold">Streaming habit:</span> {analytics.streamingHabit || '—'} · {analytics.weekdayPlays || 0} weekday / {analytics.weekendPlays || 0} weekend plays</p>
+                        </div>
+                    </div>
                 </div>
 
-                <canvas ref={canvasRef} className="hidden" aria-hidden />
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-shrink-0">
                     <button type="button" onClick={handleCopyText} disabled={!!busy}
                         className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-white/5 border border-border hover:border-plex/50 font-bold text-sm transition-colors disabled:opacity-50">
                         <Copy className="w-4 h-4" /> {busy === 'copy' ? 'Copying…' : 'Copy Text'}

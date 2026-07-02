@@ -20,6 +20,7 @@ import {
 } from './shared/skeletons';
 import type { User, PlexConfig, AppSettings, PlexServer, ToastMessage, DeletedUser, AuditEntry, UserStatus } from './shared/types';
 import { ShareWrapUpModal } from './shared/ShareWrapUp';
+import { WrapUpCardGrid } from './shared/WrapUpCards';
 import { SetupWizard } from './setup/SetupWizard';
 import { AuthPageBackground, themeClasses } from './shared/theme';
 
@@ -4078,141 +4079,26 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                             </div>
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 md:gap-3">
-                        <div onClick={() => setSelectedMetric('Server Rank')} className="rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all" style={{ minHeight: '112px' }}>
-                            <div className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-700 group-hover:scale-110 opacity-60" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&q=80&w=600')` }} />
-                            <div className="absolute inset-0 bg-black/60 z-10" />
-                            <div className="relative z-20 p-3 md:p-4 flex-1 flex flex-col items-center justify-center text-center">
-                                <Trophy className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
-                                <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">Server Rank</p>
-                                <p className="text-2xl font-black text-white drop-shadow-lg leading-none mb-1">{analytics.leaderboardRank ? <><span className="text-plex text-xl mr-0.5">#</span><CountUp end={analytics.leaderboardRank} /></> : 'Unranked'}</p>
-                                {analytics.totalActiveUsers > 0 && <p className="text-[10px] text-gray-400 font-bold tracking-wider">Top {Math.max(1, Math.round((analytics.leaderboardRank / analytics.totalActiveUsers) * 100))}% of users</p>}
-                            </div>
-                        </div>
-
-                        <div onClick={() => setSelectedMetric('Total Streams')} className="rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all" style={{ minHeight: '112px' }}>
-                            <div className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-700 group-hover:scale-110 opacity-60" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=600')` }} />
-                            <div className="absolute inset-0 bg-black/60 z-10" />
-                            <div className="relative z-20 p-3 md:p-4 flex-1 flex flex-col items-center justify-center text-center">
-                                <PlayCircle className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
-                                <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">Total Streams</p>
-                                <p className="text-2xl font-black text-white drop-shadow-lg leading-none mb-1"><CountUp end={analytics.totalPlays || 0} /></p>
-                                <p className="text-[10px] text-gray-400 font-bold tracking-wider flex gap-2">
-                                    <span>🎬 {analytics.moviesCount || 0}</span>
-                                    <span>📺 {analytics.showsCount || 0}</span>
-                                    {analytics.musicCount > 0 && <span>🎵 {analytics.musicCount}</span>}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div onClick={() => setSelectedMetric('Top Binge')} className="rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all" style={{ minHeight: '112px' }}>
-                            <div className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-700 group-hover:scale-110 opacity-60" style={{ backgroundImage: `url('${analytics.topBinge?.artUrl || 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?auto=format&fit=crop&q=80&w=600'}')` }} />
-                            <div className="absolute inset-0 bg-black/60 z-10" />
-                            <div className="relative z-20 p-3 md:p-4 flex-1 flex flex-col items-center justify-center text-center">
-                                <Tv className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
-                                <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">Top Binge</p>
-                                <p className="text-sm font-bold text-white drop-shadow-lg line-clamp-2 leading-tight mb-1">{analytics.topBinge?.title || 'Nothing yet'}</p>
-                                <p className="text-[10px] text-plex font-bold tracking-wider">{analytics.topBinge?.plays || 0} episodes</p>
-                            </div>
-                        </div>
-
-                        <div onClick={() => setSelectedMetric('Top Movie')} className="rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all" style={{ minHeight: '112px' }}>
-                            <div className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-700 group-hover:scale-110 opacity-60" style={{ backgroundImage: `url('${analytics.topMovie?.artUrl || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=600'}')` }} />
-                            <div className="absolute inset-0 bg-black/60 z-10" />
-                            <div className="relative z-20 p-3 md:p-4 flex-1 flex flex-col items-center justify-center text-center">
-                                <Clapperboard className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
-                                <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">Top Movie</p>
-                                <p className="text-sm font-bold text-white drop-shadow-lg line-clamp-2 leading-tight mb-1">{analytics.topMovie?.title || 'Nothing yet'}</p>
-                                <p className="text-[10px] text-plex font-bold tracking-wider">{analytics.topMovie?.plays || 0} plays</p>
-                            </div>
-                        </div>
-
-                        <div onClick={() => setSelectedMetric('Time of Day')} className="rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all" style={{ minHeight: '112px' }}>
-                            <div className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-700 group-hover:scale-110 opacity-60" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&q=80&w=600')` }} />
-                            <div className="absolute inset-0 bg-black/60 z-10" />
-                            <div className="relative z-20 p-3 md:p-4 flex-1 flex flex-col items-center justify-center text-center">
-                                <Clock className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
-                                <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">Time of Day</p>
-                                <p className="text-sm font-bold text-white drop-shadow-lg leading-tight mb-1">{analytics.timeOfDay || 'Unknown'}</p>
-                                <p className="text-[10px] text-gray-400 font-bold tracking-wider">Avg Time: {analytics.avgHour ? Math.round(analytics.avgHour) + ':00' : 'Unknown'}</p>
-                            </div>
-                        </div>
-
-                        <div onClick={() => setSelectedMetric('Top Day')} className="rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all" style={{ minHeight: '112px' }}>
-                            <div className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-700 group-hover:scale-110 opacity-60" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&q=80&w=600')` }} />
-                            <div className="absolute inset-0 bg-black/60 z-10" />
-                            <div className="relative z-20 p-3 md:p-4 flex-1 flex flex-col items-center justify-center text-center">
-                                <Calendar className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
-                                <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">Top Day</p>
-                                <p className="text-sm font-bold text-white drop-shadow-lg leading-tight mb-1">{analytics.popularDay || 'Unknown'}</p>
-                                <p className="text-[10px] text-gray-400 font-bold tracking-wider">{analytics.dayOfWeekCounts ? Math.max(...Object.values(analytics.dayOfWeekCounts) as number[]) : 0} streams</p>
-                            </div>
-                        </div>
-
-                        <div onClick={() => setSelectedMetric('Media Profile')} className="rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all" style={{ minHeight: '112px' }}>
-                            <div className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-700 group-hover:scale-110 opacity-60" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&q=80&w=600')` }} />
-                            <div className="absolute inset-0 bg-black/60 z-10" />
-                            <div className="relative z-20 p-3 md:p-4 flex-1 flex flex-col items-center justify-center text-center">
-                                <Layers className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
-                                <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">Top Library</p>
-                                <p className="text-sm font-bold text-white drop-shadow-lg line-clamp-2 leading-tight mb-1">{analytics.favoriteLibrary || 'None'}</p>
-                                <p className="text-[10px] text-gray-400 font-bold tracking-wider">{analytics.topLibraries?.[0]?.plays || 0} plays</p>
-                            </div>
-                        </div>
-
-                        <div onClick={() => setSelectedMetric('Top Library')} className="rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all" style={{ minHeight: '112px' }}>
-                            <div className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-700 group-hover:scale-110 opacity-60" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&q=80&w=600')` }} />
-                            <div className="absolute inset-0 bg-black/60 z-10" />
-                            <div className="relative z-20 p-3 md:p-4 flex-1 flex flex-col items-center justify-center text-center">
-                                <PieChart className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
-                                <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">Media Profile</p>
-                                <p className="text-sm font-bold text-white drop-shadow-lg leading-tight mb-1">{analytics.mediaPreference || 'Mixed Bag'}</p>
-                                <p className="text-[10px] text-gray-400 font-bold tracking-wider">Prefers {analytics.moviesCount > analytics.showsCount ? 'Movies' : 'TV Shows'}</p>
-                            </div>
-                        </div>
-
-                        <div onClick={() => setSelectedMetric('Watch Style')} className="rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all" style={{ minHeight: '112px' }}>
-                            <div className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-700 group-hover:scale-110 opacity-60" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=600')` }} />
-                            <div className="absolute inset-0 bg-black/60 z-10" />
-                            <div className="relative z-20 p-3 md:p-4 flex-1 flex flex-col items-center justify-center text-center">
-                                <Compass className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
-                                <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">Watch Style</p>
-                                <p className="text-sm font-bold text-white drop-shadow-lg leading-tight mb-1">{analytics.watchStyle || 'Unknown'}</p>
-                                <p className="text-[10px] text-gray-400 font-bold tracking-wider">{analytics.uniqueTitles || 0} unique titles</p>
-                            </div>
-                        </div>
-
-                        <div onClick={() => setSelectedMetric('Streaming Habit')} className="rounded-xl overflow-hidden relative border border-border/50 group flex flex-col cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all" style={{ minHeight: '112px' }}>
-                            <div className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-700 group-hover:scale-110 opacity-60" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?auto=format&fit=crop&q=80&w=600')` }} />
-                            <div className="absolute inset-0 bg-black/60 z-10" />
-                            <div className="relative z-20 p-3 md:p-4 flex-1 flex flex-col items-center justify-center text-center">
-                                <Coffee className="w-6 h-6 text-plex mb-2 drop-shadow-md" />
-                                <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">Streaming Habit</p>
-                                <p className="text-sm font-bold text-white drop-shadow-lg leading-tight mb-1">{analytics.streamingHabit || 'Unknown'}</p>
-                                <p className="text-[10px] text-gray-400 font-bold tracking-wider">{analytics.weekdayPlays || 0} WD • {analytics.weekendPlays || 0} WE</p>
-                            </div>
-                        </div>
-                    </div>
+                    <WrapUpCardGrid analytics={analytics} interactive onCardClick={setSelectedMetric} minCardHeight={112} />
                 </div>
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 items-stretch">
-                {/* Left Column */}
-                <div className="lg:col-span-1 flex flex-col gap-3 md:gap-4">
-
-
-                    {/* Subscription Status */}
+                {/* Status + Library Size — shared row so heights match */}
+                <div className="col-span-1 lg:col-span-3 grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 items-stretch">
                     {sessionInfo.session.isAdmin ? (
-                            <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col items-center justify-center text-center">
+                        <div className="lg:col-span-1 flex min-h-0">
+                            <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col items-center justify-center text-center h-full w-full min-h-0">
                                 <div className="w-14 h-14 md:w-16 md:h-16 bg-plex/10 rounded-full flex items-center justify-center mb-2 md:mb-3 border border-plex/30 shadow-[0_0_15px_rgba(229,160,13,0.15)]">
                                     <Shield className="w-7 h-7 md:w-8 md:h-8 text-plex drop-shadow-md" />
                                 </div>
                                 <h3 className="text-xl md:text-2xl font-black text-text uppercase tracking-widest mb-1">Server Admin</h3>
                                 <div className="mt-2 inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-500/40 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.25)] tracking-widest uppercase"><Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]" /> VIP UNLIMITED</div>
                             </div>
-                    ) : (
-                        user ? (
-                            <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col justify-center">
+                        </div>
+                    ) : user ? (
+                        <div className="lg:col-span-1 flex min-h-0">
+                            <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col justify-center h-full w-full min-h-0">
                                 <div className="flex flex-col gap-3 md:gap-4">
                                     <div>
                                         <p className="text-muted text-xs uppercase tracking-widest font-semibold mb-3">Access Status</p>
@@ -4256,15 +4142,97 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                     )}
                                 </div>
                             </div>
-                        ) : (
-                            <div className="flex items-center gap-3 text-muted text-sm bg-card p-6 rounded-2xl border border-border shadow-lg">
+                        </div>
+                    ) : (
+                        <div className="lg:col-span-1 flex min-h-0">
+                            <div className="flex items-center gap-3 text-muted text-sm bg-card p-6 rounded-2xl border border-border shadow-lg h-full w-full min-h-0">
                                 <div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin flex-shrink-0" />
                                 Setting up your 3-Day Temporary Access...
                             </div>
-                        )
+                        </div>
                     )}
 
-                    {/* Announcement Banner */}
+                    <div className="lg:col-span-2 flex min-h-0">
+                        <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col justify-center relative overflow-hidden h-full w-full min-h-0">
+                            <div className="absolute -top-10 -right-10 p-8 opacity-5">
+                                <Activity className="w-64 h-64 text-plex" />
+                            </div>
+                            <div className="relative z-10 flex flex-col h-full min-h-0">
+                                <div className="flex items-center justify-between mb-3 md:mb-4 flex-shrink-0">
+                                    <p className="text-muted text-sm uppercase tracking-widest font-semibold">Server Library Size</p>
+                                    {sessionInfo.session.isAdmin && <RebuildLibraryCacheButton />}
+                                </div>
+                                {serverDataLoading && !serverStats ? (
+                                    <LibraryStatsSkeleton />
+                                ) : serverStats?.isBuilding ? (
+                                    <div className="flex flex-col gap-2 flex-1 justify-center">
+                                        <div className="flex gap-3 items-center text-muted"><div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin" /> Building library size cache in background...</div>
+                                        <p className="text-xs text-muted/60">This runs once and may take a few minutes for large libraries. The page will auto-update when ready.</p>
+                                    </div>
+                                ) : serverStats ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 md:gap-3 flex-1 content-center">
+                                        <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
+                                            <Film className="w-7 h-7 text-plex mb-2 opacity-80" />
+                                            <span className="text-3xl font-black text-text drop-shadow-md mb-1">
+                                                {serverStats.moviesBytes ? (() => {
+                                                    const bytes = serverStats.moviesBytes;
+                                                    if (bytes === 0) return '0 B';
+                                                    const k = 1024;
+                                                    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+                                                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                                                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                                                })() : '0 B'}
+                                            </span>
+                                            <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
+                                                <span className="text-plex">{serverStats.movies?.toLocaleString() || 0}</span>
+                                                <span className="text-muted">Movies</span>
+                                            </div>
+                                        </div>
+                                        <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
+                                            <Tv className="w-7 h-7 text-plex mb-2 opacity-80" />
+                                            <span className="text-3xl font-black text-text drop-shadow-md mb-1">
+                                                {serverStats.showsBytes ? (() => {
+                                                    const bytes = serverStats.showsBytes;
+                                                    if (bytes === 0) return '0 B';
+                                                    const k = 1024;
+                                                    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+                                                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                                                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                                                })() : '0 B'}
+                                            </span>
+                                            <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
+                                                <span className="text-plex">{serverStats.shows?.toLocaleString() || 0}</span>
+                                                <span className="text-muted">Shows</span>
+                                            </div>
+                                        </div>
+                                        <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
+                                            <Music className="w-7 h-7 text-plex mb-2 opacity-80" />
+                                            <span className="text-3xl font-black text-text drop-shadow-md mb-1">
+                                                {serverStats.musicBytes ? (() => {
+                                                    const bytes = serverStats.musicBytes;
+                                                    if (bytes === 0) return '0 B';
+                                                    const k = 1024;
+                                                    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+                                                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                                                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                                                })() : '0 B'}
+                                            </span>
+                                            <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
+                                                <span className="text-plex">{serverStats.music?.toLocaleString() || 0}</span>
+                                                <span className="text-muted">Albums</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-muted text-sm bg-background/50 p-4 rounded-xl border border-white/5 flex-1 flex items-center">Could not load server statistics at this time.</div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Left Column */}
+                <div className="lg:col-span-1 flex flex-col gap-3 md:gap-4">
                     {publicConfig?.announcement && (
                         <div className="bg-plex/10 border border-plex/30 rounded-2xl p-3 md:p-4 shadow-lg">
                             <div className="flex items-start gap-3">
@@ -4340,86 +4308,6 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                 </div>
                             </div>
                         )}
-                    </div>
-                </div>
-
-                {/* Right Column */}
-                <div className="lg:col-span-2 flex flex-col gap-3 md:gap-4">
-                    {/* Server Stats Card */}
-                    <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col justify-center relative overflow-hidden flex-shrink-0">
-                        <div className="absolute -top-10 -right-10 p-8 opacity-5">
-                            <Activity className="w-64 h-64 text-plex" />
-                        </div>
-                        <div className="relative z-10">
-                            <div className="flex items-center justify-between mb-3 md:mb-4">
-                                <p className="text-muted text-sm uppercase tracking-widest font-semibold">Server Library Size</p>
-                                {sessionInfo.session.isAdmin && <RebuildLibraryCacheButton />}
-                            </div>
-                            {serverDataLoading && !serverStats ? (
-                                <LibraryStatsSkeleton />
-                            ) : serverStats?.isBuilding ? (
-                                <div className="flex flex-col gap-2">
-                                    <div className="flex gap-3 items-center text-muted"><div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin" /> Building library size cache in background...</div>
-                                    <p className="text-xs text-muted/60">This runs once and may take a few minutes for large libraries. The page will auto-update when ready.</p>
-                                </div>
-                            ) : serverStats ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 md:gap-3">
-                                    <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
-                                        <Film className="w-7 h-7 text-plex mb-2 opacity-80" />
-                                        <span className="text-3xl font-black text-text drop-shadow-md mb-1">
-                                            {serverStats.moviesBytes ? (() => {
-                                                const bytes = serverStats.moviesBytes;
-                                                if (bytes === 0) return '0 B';
-                                                const k = 1024;
-                                                const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-                                                const i = Math.floor(Math.log(bytes) / Math.log(k));
-                                                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-                                            })() : '0 B'}
-                                        </span>
-                                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
-                                            <span className="text-plex">{serverStats.movies?.toLocaleString() || 0}</span>
-                                            <span className="text-muted">Movies</span>
-                                        </div>
-                                    </div>
-                                    <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
-                                        <Tv className="w-7 h-7 text-plex mb-2 opacity-80" />
-                                        <span className="text-3xl font-black text-text drop-shadow-md mb-1">
-                                            {serverStats.showsBytes ? (() => {
-                                                const bytes = serverStats.showsBytes;
-                                                if (bytes === 0) return '0 B';
-                                                const k = 1024;
-                                                const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-                                                const i = Math.floor(Math.log(bytes) / Math.log(k));
-                                                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-                                            })() : '0 B'}
-                                        </span>
-                                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
-                                            <span className="text-plex">{serverStats.shows?.toLocaleString() || 0}</span>
-                                            <span className="text-muted">Shows</span>
-                                        </div>
-                                    </div>
-                                    <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
-                                        <Music className="w-7 h-7 text-plex mb-2 opacity-80" />
-                                        <span className="text-3xl font-black text-text drop-shadow-md mb-1">
-                                            {serverStats.musicBytes ? (() => {
-                                                const bytes = serverStats.musicBytes;
-                                                if (bytes === 0) return '0 B';
-                                                const k = 1024;
-                                                const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-                                                const i = Math.floor(Math.log(bytes) / Math.log(k));
-                                                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-                                            })() : '0 B'}
-                                        </span>
-                                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
-                                            <span className="text-plex">{serverStats.music?.toLocaleString() || 0}</span>
-                                            <span className="text-muted">Albums</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="text-muted text-sm bg-background/50 p-4 rounded-xl border border-white/5">Could not load server statistics at this time.</div>
-                            )}
-                        </div>
                     </div>
                 </div>
 
