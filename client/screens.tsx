@@ -4147,7 +4147,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                     )}
 
                     {sessionInfo.session.isAdmin && (
-                        <div className="glass-card p-3 md:p-4 shadow-xl flex flex-col flex-1 min-h-0 justify-center gap-2.5">
+                        <div className="glass-card p-3 md:p-4 shadow-xl flex flex-col flex-shrink-0 justify-center gap-2.5">
                             <p className="text-muted text-xs uppercase tracking-widest font-semibold flex-shrink-0">Quick Actions</p>
                             <div className="grid grid-cols-3 gap-2">
                                 <button type="button" onClick={() => onViewAdmin()} className="flex flex-col items-center justify-center gap-1.5 px-2 py-3 rounded-xl font-bold text-[10px] leading-tight text-center transition-all border bg-plex/10 border-plex/30 text-plex hover:bg-plex/20">
@@ -4378,10 +4378,11 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                         </div>
                     )}
                 </div>
+            </div>
 
-                {/* Recently Watched + Most Watched — shared row so bottoms align */}
-                {(sessionInfo.session.isAdmin || user) && (
-                    <>
+            {/* Recently Watched + Most Watched */}
+            {(sessionInfo.session.isAdmin || user) && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 items-stretch">
                         {!analyticsLoading && analytics?.recentHistory && analytics.recentHistory.length > 0 && (
                             <div className="lg:col-span-1 flex min-h-0">
                                 <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col h-full w-full min-h-0">
@@ -4500,9 +4501,8 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                 </div>
                             </div>
                         ) : null}
-                    </>
-                )}
-            </div>
+                </div>
+            )}
 
             {/* Recently Added Section (Full Width below Grid) */}
             {serverDataLoading && !dashboardData ? (

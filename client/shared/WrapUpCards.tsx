@@ -34,6 +34,7 @@ export type WrapUpCardDef = {
     icon: LucideIcon;
     value: React.ReactNode;
     subValue?: React.ReactNode;
+    valueClassName?: string;
 };
 
 export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
@@ -50,6 +51,7 @@ export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
             label: 'Server Rank',
             bgImage: FALLBACK_IMAGES.rank,
             icon: Trophy,
+            valueClassName: 'text-2xl font-black leading-none',
             value: analytics.leaderboardRank ? (
                 <><span className="text-plex text-xl mr-0.5">#</span>{analytics.leaderboardRank}</>
             ) : 'Unranked',
@@ -60,6 +62,7 @@ export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
             label: 'Total Streams',
             bgImage: FALLBACK_IMAGES.streams,
             icon: PlayCircle,
+            valueClassName: 'text-2xl font-black leading-none',
             value: analytics.totalPlays || 0,
             subValue: (
                 <span className="flex gap-2 justify-center flex-wrap">
@@ -74,6 +77,7 @@ export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
             label: 'Top Binge',
             bgImage: analytics.topBinge?.artUrl || FALLBACK_IMAGES.binge,
             icon: Tv,
+            valueClassName: 'text-sm font-bold line-clamp-2 leading-tight',
             value: analytics.topBinge?.title || 'Nothing yet',
             subValue: `${analytics.topBinge?.plays || 0} episodes`,
         },
@@ -82,6 +86,7 @@ export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
             label: 'Top Movie',
             bgImage: analytics.topMovie?.artUrl || FALLBACK_IMAGES.movie,
             icon: Clapperboard,
+            valueClassName: 'text-sm font-bold line-clamp-2 leading-tight',
             value: analytics.topMovie?.title || 'Nothing yet',
             subValue: `${analytics.topMovie?.plays || 0} plays`,
         },
@@ -90,6 +95,7 @@ export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
             label: 'Time of Day',
             bgImage: FALLBACK_IMAGES.time,
             icon: Clock,
+            valueClassName: 'text-sm font-bold leading-tight',
             value: analytics.timeOfDay || 'Unknown',
             subValue: `Avg Time: ${analytics.avgHour ? `${Math.round(analytics.avgHour)}:00` : 'Unknown'}`,
         },
@@ -98,6 +104,7 @@ export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
             label: 'Top Day',
             bgImage: FALLBACK_IMAGES.day,
             icon: Calendar,
+            valueClassName: 'text-sm font-bold leading-tight',
             value: analytics.popularDay || 'Unknown',
             subValue: `${topDayStreams} streams`,
         },
@@ -106,6 +113,7 @@ export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
             label: 'Top Library',
             bgImage: FALLBACK_IMAGES.library,
             icon: Layers,
+            valueClassName: 'text-sm font-bold line-clamp-2 leading-tight',
             value: analytics.favoriteLibrary || 'None',
             subValue: `${analytics.topLibraries?.[0]?.plays || 0} plays`,
         },
@@ -114,6 +122,7 @@ export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
             label: 'Media Profile',
             bgImage: FALLBACK_IMAGES.profile,
             icon: PieChart,
+            valueClassName: 'text-sm font-bold leading-tight',
             value: analytics.mediaPreference || 'Mixed Bag',
             subValue: `Prefers ${analytics.moviesCount > analytics.showsCount ? 'Movies' : 'TV Shows'}`,
         },
@@ -122,6 +131,7 @@ export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
             label: 'Watch Style',
             bgImage: FALLBACK_IMAGES.style,
             icon: Compass,
+            valueClassName: 'text-sm font-bold leading-tight',
             value: analytics.watchStyle || 'Unknown',
             subValue: `${analytics.uniqueTitles || 0} unique titles`,
         },
@@ -130,6 +140,7 @@ export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
             label: 'Streaming Habit',
             bgImage: FALLBACK_IMAGES.habit,
             icon: Coffee,
+            valueClassName: 'text-sm font-bold leading-tight',
             value: analytics.streamingHabit || 'Unknown',
             subValue: `${analytics.weekdayPlays || 0} WD • ${analytics.weekendPlays || 0} WE`,
         },
@@ -151,7 +162,7 @@ export const WrapUpCardGrid: React.FC<WrapUpCardGridProps> = ({
     onCardClick,
     minCardHeight = 112,
     className = '',
-    valueClassName = 'text-2xl',
+    valueClassName: defaultValueClassName = 'text-sm font-bold leading-tight',
 }) => {
     const cards = buildWrapUpCards(analytics);
 
@@ -159,7 +170,7 @@ export const WrapUpCardGrid: React.FC<WrapUpCardGridProps> = ({
         <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 md:gap-3 ${className}`}>
             {cards.map((card) => {
                 const Icon = card.icon;
-                const isLongValue = typeof card.value === 'string' && card.value.length > 18;
+                const valueClass = card.valueClassName || defaultValueClassName;
                 return (
                     <div
                         key={card.metric}
@@ -177,7 +188,7 @@ export const WrapUpCardGrid: React.FC<WrapUpCardGridProps> = ({
                         <div className="relative z-20 p-3 md:p-4 flex-1 flex flex-col items-center justify-center text-center">
                             <Icon className="w-6 h-6 text-plex mb-2 drop-shadow-md flex-shrink-0" />
                             <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">{card.label}</p>
-                            <p className={`font-black text-white drop-shadow-lg leading-none mb-1 ${isLongValue ? 'text-sm line-clamp-2 leading-tight' : valueClassName}`}>
+                            <p className={`text-white drop-shadow-lg mb-1 ${valueClass}`}>
                                 {card.value}
                             </p>
                             {card.subValue && (
