@@ -114,7 +114,7 @@ Beautiful, responsive HTML emails sent automatically:
 ### Public-Facing Pages
 
 - **Landing Page** - A sleek login page showing live library stats (total movies, shows, music) to entice new users
-- **Status Page** - A public `/status` dashboard showing the live uptime of your Plex server, request tools (Seerr/Ombi), and download clients
+- **Status Page** - A public `/status` dashboard showing the live uptime of your Plex server, request tools (Overseerr/Ombi), and download clients
 - **Invite Claim Page** - A dedicated, shareable page for invited users to claim their account
 
 ---

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2 } from 'lucide-react';
+import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend } from 'recharts';
 
 import { SettingsDashboard } from './settings/SettingsDashboard';
@@ -19,9 +19,6 @@ import {
     WrapUpCardsSkeleton,
 } from './shared/skeletons';
 import type { User, PlexConfig, AppSettings, PlexServer, ToastMessage, DeletedUser, AuditEntry, UserStatus } from './shared/types';
-import { SetupWizard } from './setup/SetupWizard';
-import { SpeedTestPanel } from './shared/SpeedTestPanel';
-import { ShareWrapUpModal } from './shared/ShareWrapUp';
 
 declare global {
     interface Window {
@@ -2595,12 +2592,6 @@ export const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: 
             <Loader isLoading={isLoading} />
             <ToastContainer toasts={toasts} setToasts={setToasts} />
 
-            {!isConfigured && (
-                <SetupWizard onComplete={() => window.location.reload()} />
-            )}
-
-            {isConfigured && (
-            <>
             <header className="hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0">
                 <h1 className="text-xl md:text-3xl font-bold text-plex">Users Management</h1>
             </header>
@@ -2720,8 +2711,6 @@ export const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: 
                     ))}
                 </div>
             </main>
-            </>
-            )}
             <UserModal
                 isOpen={isUserModalOpen}
                 onClose={handleCloseModal}
@@ -2846,6 +2835,150 @@ const LivePlexStats: React.FC = () => {
                     <span className="text-plex font-bold text-lg flex items-center gap-2"><span className="text-orange-500">⚡</span> {stats.fourKPercent !== undefined ? stats.fourKPercent : 30}%</span>
                     <span className="text-muted text-[10px] uppercase tracking-wider font-bold">Available in 4K</span>
                 </div>
+            </div>
+        </div>
+    );
+};
+
+const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
+    const [token, setToken] = useState('');
+    const [serverIdentifier, setServerIdentifier] = useState('');
+    const [servers, setServers] = useState<PlexServer[]>([]);
+    const [sonarrUrl, setSonarrUrl] = useState('');
+    const [sonarrApiKey, setSonarrApiKey] = useState('');
+    const [radarrUrl, setRadarrUrl] = useState('');
+    const [radarrApiKey, setRadarrApiKey] = useState('');
+    const [tautulliUrl, setTautulliUrl] = useState('');
+    const [tautulliApiKey, setTautulliApiKey] = useState('');
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleFetchServers = async () => {
+        if (!token) {
+            setError('Please enter a Plex token first.');
+            return;
+        }
+        setIsLoading(true);
+        setError('');
+        try {
+            const foundServers = await apiFetch('/api/plex/servers', {
+                method: 'POST',
+                body: JSON.stringify({ token })
+            });
+
+            setServers(foundServers);
+
+            if (foundServers.length > 0) {
+                setServerIdentifier(foundServers[0].identifier);
+            } else {
+                setError('No owned servers found for this token. Make sure you are the owner.');
+                setServerIdentifier('');
+            }
+        } catch (error) {
+            setError(error instanceof Error ? error.message : 'An unknown error occurred.');
+            setServers([]);
+            setServerIdentifier('');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError('');
+        try {
+            const res = await apiFetch('/api/config', {
+                method: 'POST',
+                body: JSON.stringify({ token, serverIdentifier, sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, tautulliUrl, tautulliApiKey })
+            });
+            if (res.error) throw new Error(res.error);
+            onComplete();
+        } catch (err: any) {
+            setError(err.message || 'Failed to save configuration');
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="w-full max-w-2xl mx-auto px-4 py-12 md:py-20">
+            <div className="bg-card rounded-2xl shadow-2xl border border-white/10 p-5 md:p-8 lg:p-12 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-plex to-[#e5a00d]"></div>
+                <div className="flex flex-col items-center text-center mb-8">
+                    <div className="w-16 h-16 bg-plex/10 rounded-full flex items-center justify-center mb-4 border border-plex/20">
+                        <Settings className="w-8 h-8 text-plex" />
+                    </div>
+                    <h1 className="text-3xl font-bold text-text mb-2">Initial Setup</h1>
+                    <p className="text-muted">Configure your Plex server details to get started.</p>
+                </div>
+
+                {error && <div className="p-4 bg-status-expiring/20 border border-status-expiring/50 rounded-lg text-status-expiring mb-6">{error}</div>}
+
+                <div className="mb-8 p-4 bg-plex/5 border border-plex/20 rounded-xl text-sm text-muted">
+                    <h3 className="text-plex font-bold mb-2 flex items-center gap-2"><Sparkles className="w-4 h-4" /> Need help finding these?</h3>
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li><strong>Plex Token:</strong> Log into Plex Web, view the XML of any library item, and look for <code className="bg-background px-1 rounded">X-Plex-Token=...</code> in the URL.</li>
+                        <li><strong>Server Identifier:</strong> You can automatically fetch this by entering your token and clicking <strong>Fetch Servers</strong>.</li>
+                    </ul>
+                </div>
+
+                <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-muted uppercase tracking-wider">Plex Token</label>
+                        <div className="flex gap-2">
+                            <input type="text" className="w-full p-4 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="Enter your Plex Token" value={token} onChange={e => setToken(e.target.value)} required />
+                            <button type="button" onClick={handleFetchServers} disabled={isLoading || !token} className="px-6 bg-plex/20 text-plex rounded-lg font-bold hover:bg-plex/30 transition-colors whitespace-nowrap">
+                                Fetch Servers
+                            </button>
+                        </div>
+                    </div>
+                    {servers.length > 0 ? (
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-bold text-muted uppercase tracking-wider">Select Server</label>
+                            <select className="w-full p-4 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors appearance-none" value={serverIdentifier} onChange={e => setServerIdentifier(e.target.value)} required>
+                                {servers.map(s => (
+                                    <option key={s.identifier} value={s.identifier}>{s.name} ({s.identifier})</option>
+                                ))}
+                            </select>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-bold text-muted uppercase tracking-wider">Server Identifier</label>
+                            <input type="text" className="w-full p-4 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="Enter your Server Identifier (or Fetch above)" value={serverIdentifier} onChange={e => setServerIdentifier(e.target.value)} required />
+                        </div>
+                    )}
+
+                    <div className="border-t border-border pt-6 mt-2">
+                        <h3 className="text-lg font-bold text-plex mb-4">Optional: Media Stack Integration</h3>
+                        <div className="flex flex-col gap-4">
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-bold text-muted uppercase tracking-wider">Sonarr URL & API Key</label>
+                                <div className="flex gap-2">
+                                    <input type="text" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="http://localhost:8989" value={sonarrUrl} onChange={e => setSonarrUrl(e.target.value)} />
+                                    <input type="password" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="Sonarr API Key" value={sonarrApiKey} onChange={e => setSonarrApiKey(e.target.value)} />
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-bold text-muted uppercase tracking-wider">Radarr URL & API Key</label>
+                                <div className="flex gap-2">
+                                    <input type="text" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="http://localhost:7878" value={radarrUrl} onChange={e => setRadarrUrl(e.target.value)} />
+                                    <input type="password" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="Radarr API Key" value={radarrApiKey} onChange={e => setRadarrApiKey(e.target.value)} />
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-bold text-muted uppercase tracking-wider">Tautulli URL & API Key</label>
+                                <div className="flex gap-2">
+                                    <input type="text" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="http://localhost:8181" value={tautulliUrl} onChange={e => setTautulliUrl(e.target.value)} />
+                                    <input type="password" className="w-1/2 p-3 rounded-lg bg-background border border-border text-text focus:border-plex outline-none transition-colors" placeholder="Tautulli API Key" value={tautulliApiKey} onChange={e => setTautulliApiKey(e.target.value)} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" disabled={isLoading || !token || !serverIdentifier} className="w-full py-4 mt-2 bg-plex text-background rounded-lg font-bold text-lg hover:bg-plex-hover transition-colors disabled:opacity-50">
+                        {isLoading ? 'Saving...' : 'Complete Setup'}
+                    </button>
+                </form>
             </div>
         </div>
     );
@@ -3722,7 +3855,6 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     const [wrapUpDaysOpen, setWrapUpDaysOpen] = useState(false);
     const [reportItem, setReportItem] = useState<any>(null);
     const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
-    const [shareWrapUpOpen, setShareWrapUpOpen] = useState(false);
 
     const user = sessionInfo.account;
     const showQualityBadges = publicConfig?.showPosterQualityBadges !== false;
@@ -3927,16 +4059,6 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
             {selectedMetric && analytics && (
                 <WrapUpModal metric={selectedMetric} analytics={analytics} days={analyticsDays} onClose={() => setSelectedMetric(null)} />
             )}
-            {shareWrapUpOpen && analytics && (
-                <ShareWrapUpModal
-                    analytics={analytics}
-                    days={analyticsDays}
-                    serverName={sessionInfo?.serverName || 'Server Portal'}
-                    username={sessionInfo?.session?.username || user?.username}
-                    onClose={() => setShareWrapUpOpen(false)}
-                    onToast={(message, type) => setToast({ id: Date.now(), message, type })}
-                />
-            )}
 
             {/* Personal Wrap-Up */}
             {(sessionInfo.session.isAdmin || user) && analyticsLoading && (
@@ -3946,19 +4068,10 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                 <div className="bg-card border border-border rounded-2xl p-6 shadow-xl mb-2">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                         <h3 className="text-xl font-bold text-text">Your Personal Wrap-Up</h3>
-                        <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setShareWrapUpOpen(true)}
-                                className="flex items-center justify-center gap-2 h-9 min-w-[10.5rem] px-4 rounded-lg text-sm font-medium bg-plex/10 border border-plex/30 text-plex hover:bg-plex/20 transition-colors shadow-sm"
-                            >
-                                <Share2 className="w-4 h-4 flex-shrink-0" />
-                                Share
-                            </button>
-                            <div className="relative">
+                        <div className="relative">
                             <button
                                 onClick={() => setWrapUpDaysOpen(!wrapUpDaysOpen)}
-                                className="flex items-center justify-center gap-2 h-9 min-w-[10.5rem] px-4 rounded-lg text-sm font-medium text-text bg-background border border-border/50 focus:outline-none hover:border-plex/50 transition-colors cursor-pointer shadow-sm"
+                                className="flex items-center gap-2 bg-background border border-border/50 rounded-lg px-3 py-1.5 text-sm font-medium text-text focus:outline-none hover:border-plex/50 transition-colors cursor-pointer shadow-sm"
                             >
                                 <span>
                                     {analyticsDays === 7 ? 'Last 7 Days' :
@@ -3997,7 +4110,6 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                     </div>
                                 </>
                             )}
-                        </div>
                         </div>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -4668,7 +4780,7 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
     const [statusData, setStatusData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
-    const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'analytics' | 'speedtest'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'analytics'>('overview');
     const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
 
     const fetchStatus = useCallback(async () => {
@@ -4742,8 +4854,7 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
                 {[
                     { id: 'overview', label: 'Overview' },
                     { id: 'history', label: 'Detailed History' },
-                    { id: 'analytics', label: 'Analytics' },
-                    ...(!isPublic ? [{ id: 'speedtest', label: 'Speed Test' }] : []),
+                    { id: 'analytics', label: 'Analytics' }
                 ].map(tab => (
                     <button
                         key={tab.id}
@@ -4946,12 +5057,6 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
                                 </div>
                             </div>
                         )}
-                    </div>
-                )}
-
-                {activeTab === 'speedtest' && !isPublic && (
-                    <div className="animate-fade-in max-w-2xl mx-auto w-full">
-                        <SpeedTestPanel />
                     </div>
                 )}
             </main>

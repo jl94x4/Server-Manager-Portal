@@ -12,8 +12,6 @@ import { StreamKillRulesPanel } from './StreamKillRulesPanel';
 import { InvitesSettings } from './InvitesSettings';
 import { StatusMonitorSettings } from './StatusMonitorSettings';
 import { BroadcastSettingsTab } from './BroadcastSettingsTab';
-import { IntegrationTestButton } from '../shared/IntegrationTestButton';
-import { REQUEST_APP_OPTIONS, normalizeRequestAppType } from '../shared/requestApps';
 export const SettingsDashboard: React.FC = () => {
     const SETTINGS_TABS = ['plex', 'smtp', 'newsletter', 'cleanup', 'mediastack', 'branding', 'navigation', 'status', 'invites', 'tasks', 'system', 'contact', 'broadcast', 'stream-rules', 'logs'] as const;
     const [statusDraft, setStatusDraft] = useState<any>(null);
@@ -639,7 +637,7 @@ export const SettingsDashboard: React.FC = () => {
             setRadarrApiKey(initialSettings.radarrApiKey || '');
             setTautulliUrl(initialSettings.tautulliUrl || '');
             setTautulliApiKey(initialSettings.tautulliApiKey || '');
-            setRequestAppType(normalizeRequestAppType(initialSettings.requestAppType));
+            setRequestAppType(initialSettings.requestAppType || 'none');
             setRequestAppUrl(initialSettings.requestAppUrl || '');
             setRequestAppApiKey(initialSettings.requestAppApiKey || '');
             setPrimaryColor(initialSettings.primaryColor || '#E5A00D');
@@ -912,14 +910,6 @@ export const SettingsDashboard: React.FC = () => {
                                     </div>
                                 </div>
                                 <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={handleFetchServers} disabled={!token}>Fetch Servers</button>
-                                {token && selectedServer && (
-                                    <IntegrationTestButton
-                                        type="plex"
-                                        payload={{ token, serverIdentifier: selectedServer }}
-                                        className="mt-3"
-                                        onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
-                                    />
-                                )}
                                 {servers.length > 0 && (
                                     <div className="mb-4" style={{ marginTop: '1rem' }}>
                                         <label htmlFor="serverSelect">Select Server</label>
@@ -1187,9 +1177,6 @@ export const SettingsDashboard: React.FC = () => {
                                 <label htmlFor="sonarrApiKey">Sonarr API Key</label>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="sonarrApiKey" type="password" value={sonarrApiKey} onChange={(e) => setSonarrApiKey(e.target.value)} placeholder="API Key from Sonarr Settings -> General" />
                             </div>
-                            {(sonarrUrl || initialSettings.sonarrUrl) && (sonarrApiKey || initialSettings.sonarrApiKey) && (
-                                <IntegrationTestButton type="sonarr" payload={{ sonarrUrl, sonarrApiKey }} className="mb-6" onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')} />
-                            )}
 
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8">Radarr Integration</h3>
                             <div className="mb-4">
@@ -1203,9 +1190,6 @@ export const SettingsDashboard: React.FC = () => {
                                 <label htmlFor="radarrApiKey">Radarr API Key</label>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="radarrApiKey" type="password" value={radarrApiKey} onChange={(e) => setRadarrApiKey(e.target.value)} placeholder="Enter Radarr API Key" />
                             </div>
-                            {(radarrUrl || initialSettings.radarrUrl) && (radarrApiKey || initialSettings.radarrApiKey) && (
-                                <IntegrationTestButton type="radarr" payload={{ radarrUrl, radarrApiKey }} className="mb-6" onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')} />
-                            )}
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8">Tautulli Integration (Optional)</h3>
                             <div className="mb-4">
                                 <label htmlFor="tautulliUrl">Tautulli URL</label>
@@ -1215,9 +1199,6 @@ export const SettingsDashboard: React.FC = () => {
                                 <label htmlFor="tautulliApiKey">Tautulli API Key</label>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="tautulliApiKey" type="password" value={tautulliApiKey} onChange={(e) => setTautulliApiKey(e.target.value)} placeholder="Enter Tautulli API Key" />
                             </div>
-                            {(tautulliUrl || initialSettings.tautulliUrl) && (tautulliApiKey || initialSettings.tautulliApiKey) && (
-                                <IntegrationTestButton type="tautulli" payload={{ tautulliUrl, tautulliApiKey }} className="mb-6" onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')} />
-                            )}
 
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8">Request App Integration</h3>
                             <div className="mb-4">
@@ -1226,10 +1207,15 @@ export const SettingsDashboard: React.FC = () => {
                                     id="requestAppType"
                                     value={requestAppType}
                                     onChange={(val) => setRequestAppType(val)}
-                                    options={[...REQUEST_APP_OPTIONS]}
+                                    options={[
+                                        { label: 'Disabled', value: 'none' },
+                                        { label: 'Overseerr', value: 'overseerr' },
+                                        { label: 'Jellyseerr', value: 'jellyseerr' },
+                                        { label: 'Ombi', value: 'ombi' }
+                                    ]}
                                 />
                                 <div className="mt-2">
-                                    <SettingHint>Seerr is the merged successor to Overseerr and Jellyseerr. Used by Library Maintenance rules for request-age/status filtering.</SettingHint>
+                                    <SettingHint>Used by Library Maintenance rules for request-age/status filtering and cleanup workflows.</SettingHint>
                                 </div>
                             </div>
                             <div className="mb-4">
@@ -1240,9 +1226,6 @@ export const SettingsDashboard: React.FC = () => {
                                 <label htmlFor="requestAppApiKey">Request App API Key</label>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="requestAppApiKey" type="password" value={requestAppApiKey} onChange={(e) => setRequestAppApiKey(e.target.value)} placeholder="API key from request app settings" />
                             </div>
-                            {requestAppType !== 'none' && (requestAppUrl || initialSettings.requestAppUrl) && (requestAppApiKey || initialSettings.requestAppApiKey) && (
-                                <IntegrationTestButton type="requestApp" payload={{ requestAppType, requestAppUrl, requestAppApiKey }} onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')} />
-                            )}
                         </div>
                     )}
 
