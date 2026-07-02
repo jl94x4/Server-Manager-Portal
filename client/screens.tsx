@@ -4136,7 +4136,6 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
 
                     {/* Subscription Status */}
                     {sessionInfo.session.isAdmin ? (
-                        <div className="flex flex-col gap-6">
                             <div className="bg-card border border-border rounded-2xl p-6 shadow-xl flex flex-col items-center justify-center text-center md:h-[240px]">
                                 <div className="w-16 h-16 bg-plex/10 rounded-full flex items-center justify-center mb-4 border border-plex/30 shadow-[0_0_15px_rgba(229,160,13,0.15)]">
                                     <Shield className="w-8 h-8 text-plex drop-shadow-md" />
@@ -4144,22 +4143,6 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                 <h3 className="text-xl md:text-2xl font-black text-text uppercase tracking-widest mb-1">Server Admin</h3>
                                 <div className="mt-2 inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-500/40 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.25)] tracking-widest uppercase"><Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]" /> VIP UNLIMITED</div>
                             </div>
-
-                            <div className="bg-card border border-border rounded-2xl p-6 shadow-xl flex flex-col">
-                                <p className="text-muted text-xs uppercase tracking-widest font-semibold mb-4">Quick Actions</p>
-                                <div className="flex flex-col gap-3 mt-auto">
-                                    <button type="button" onClick={() => onViewAdmin()} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-plex/10 border-plex/30 text-plex hover:bg-plex/20">
-                                        <Users size={16} /> Manage Users
-                                    </button>
-                                    <button type="button" onClick={() => onViewSettings?.()} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
-                                        <Settings size={16} /> Server Settings
-                                    </button>
-                                    <button type="button" onClick={() => onViewLogs?.()} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
-                                        <Activity size={16} /> System Logs
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
                     ) : (
                         user ? (
                             <div className="bg-card border border-border rounded-2xl p-6 shadow-xl flex flex-col justify-center md:h-[240px]">
@@ -4371,11 +4354,34 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                             )}
                         </div>
                     </div>
+                </div>
 
-                    {/* User Analytics Section */}
-                    {(sessionInfo.session.isAdmin || user) && (
-                        <div className="flex flex-col gap-4">
-                            <div className="flex items-center justify-between bg-card border border-border rounded-2xl p-4 shadow-sm">
+                {/* Quick Actions + Your Analytics — shared row so bottoms align */}
+                {sessionInfo.session.isAdmin && (
+                    <div className="lg:col-span-1 flex min-h-0">
+                        <div className="bg-card border border-border rounded-2xl p-4 shadow-xl flex flex-col h-full w-full min-h-0 justify-center gap-3">
+                            <p className="text-muted text-xs uppercase tracking-widest font-semibold flex-shrink-0">Quick Actions</p>
+                            <div className="grid grid-cols-3 gap-2">
+                                <button type="button" onClick={() => onViewAdmin()} className="flex flex-col items-center justify-center gap-1.5 px-2 py-3 rounded-xl font-bold text-[10px] leading-tight text-center transition-all border bg-plex/10 border-plex/30 text-plex hover:bg-plex/20">
+                                    <Users size={18} />
+                                    <span>Manage Users</span>
+                                </button>
+                                <button type="button" onClick={() => onViewSettings?.()} className="flex flex-col items-center justify-center gap-1.5 px-2 py-3 rounded-xl font-bold text-[10px] leading-tight text-center transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
+                                    <Settings size={18} />
+                                    <span>Settings</span>
+                                </button>
+                                <button type="button" onClick={() => onViewLogs?.()} className="flex flex-col items-center justify-center gap-1.5 px-2 py-3 rounded-xl font-bold text-[10px] leading-tight text-center transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
+                                    <Activity size={18} />
+                                    <span>System Logs</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {(sessionInfo.session.isAdmin || user) && (
+                    <div className={`flex min-h-0 ${sessionInfo.session.isAdmin ? 'lg:col-span-2' : 'lg:col-span-2 lg:col-start-2'}`}>
+                        <div className="bg-card border border-border rounded-2xl p-4 shadow-sm flex flex-col h-full w-full min-h-0">
+                            <div className="flex items-center justify-between flex-shrink-0">
                                 <h2 className="text-lg md:text-xl font-bold text-text flex items-center gap-2">
                                     <Activity className="w-5 h-5 text-plex" /> Your Analytics
                                 </h2>
@@ -4425,15 +4431,15 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                             </div>
 
                             {!analyticsLoading && analytics && analytics.totalPlays === 0 && (
-                                <div className="flex flex-col items-center justify-center p-10 bg-card border border-border rounded-2xl shadow-lg text-center min-h-[300px]">
-                                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 text-2xl shadow-inner">🍿</div>
-                                    <h3 className="font-bold text-text mb-2">No watch history yet</h3>
+                                <div className="flex flex-col items-center justify-center p-6 text-center flex-1 min-h-0 mt-4">
+                                    <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3 text-xl shadow-inner">🍿</div>
+                                    <h3 className="font-bold text-text mb-1">No watch history yet</h3>
                                     <p className="text-muted text-sm max-w-sm">Once you start watching content on the server, your personal watch stats and history will appear right here!</p>
                                 </div>
                             )}
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 {/* Recently Watched + Most Watched — shared row so bottoms align */}
                 {(sessionInfo.session.isAdmin || user) && (

@@ -1318,10 +1318,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   min-height: 2rem;
 }
 
-.min-h-\[300px\] {
-  min-height: 300px;
-}
-
 .min-h-\[50vh\] {
   min-height: 50vh;
 }
@@ -2968,10 +2964,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .p-1\.5 {
   padding: 0.375rem;
-}
-
-.p-10 {
-  padding: 2.5rem;
 }
 
 .p-2 {
