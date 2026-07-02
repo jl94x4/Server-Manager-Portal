@@ -3802,6 +3802,18 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     const [reportItem, setReportItem] = useState<any>(null);
     const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
     const [shareWrapUpOpen, setShareWrapUpOpen] = useState(false);
+    const libraryCardRef = useRef<HTMLDivElement>(null);
+    const [libraryCardHeight, setLibraryCardHeight] = useState<number | null>(null);
+
+    useEffect(() => {
+        const el = libraryCardRef.current;
+        if (!el) return;
+        const syncHeight = () => setLibraryCardHeight(el.offsetHeight);
+        syncHeight();
+        const observer = new ResizeObserver(syncHeight);
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [serverStats, serverDataLoading, sessionInfo.session.isAdmin]);
 
     const user = sessionInfo.account;
     const showQualityBadges = publicConfig?.showPosterQualityBadges !== false;
@@ -4084,155 +4096,68 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 items-stretch">
-                {/* Status + Library Size — shared row so heights match */}
-                <div className="col-span-1 lg:col-span-3 grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 items-stretch">
+                {/* Left Column */}
+                <div className="lg:col-span-1 flex flex-col gap-3 md:gap-4">
                     {sessionInfo.session.isAdmin ? (
-                        <div className="lg:col-span-1 flex min-h-0">
-                            <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col items-center justify-center text-center h-full w-full min-h-0">
-                                <div className="w-14 h-14 md:w-16 md:h-16 bg-plex/10 rounded-full flex items-center justify-center mb-2 md:mb-3 border border-plex/30 shadow-[0_0_15px_rgba(229,160,13,0.15)]">
-                                    <Shield className="w-7 h-7 md:w-8 md:h-8 text-plex drop-shadow-md" />
-                                </div>
-                                <h3 className="text-xl md:text-2xl font-black text-text uppercase tracking-widest mb-1">Server Admin</h3>
-                                <div className="mt-2 inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-500/40 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.25)] tracking-widest uppercase"><Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]" /> VIP UNLIMITED</div>
+                        <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col items-center justify-center text-center">
+                            <div className="w-14 h-14 md:w-16 md:h-16 bg-plex/10 rounded-full flex items-center justify-center mb-2 md:mb-3 border border-plex/30 shadow-[0_0_15px_rgba(229,160,13,0.15)]">
+                                <Shield className="w-7 h-7 md:w-8 md:h-8 text-plex drop-shadow-md" />
                             </div>
+                            <h3 className="text-xl md:text-2xl font-black text-text uppercase tracking-widest mb-1">Server Admin</h3>
+                            <div className="mt-2 inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-500/40 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.25)] tracking-widest uppercase"><Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]" /> VIP UNLIMITED</div>
                         </div>
                     ) : user ? (
-                        <div className="lg:col-span-1 flex min-h-0">
-                            <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col justify-center h-full w-full min-h-0">
-                                <div className="flex flex-col gap-3 md:gap-4">
-                                    <div>
-                                        <p className="text-muted text-xs uppercase tracking-widest font-semibold mb-3">Access Status</p>
-                                        <div className="flex flex-wrap items-center gap-3">
-                                            <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-black border uppercase tracking-wider shadow-sm ${isRevoked ? 'bg-red-500/10 border-red-500/30 text-red-400' : isExpiringSoon ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' : 'bg-green-500/10 border-green-500/30 text-green-400'}`}>
-                                                <span className={`w-2 h-2 rounded-full animate-pulse ${isRevoked ? 'bg-red-400' : isExpiringSoon ? 'bg-yellow-400' : 'bg-green-400'}`} />
-                                                {user.plexAccessStatus}{user.isTrial && ' · Temp Access'}
+                        <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col justify-center">
+                            <div className="flex flex-col gap-3 md:gap-4">
+                                <div>
+                                    <p className="text-muted text-xs uppercase tracking-widest font-semibold mb-3">Access Status</p>
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-black border uppercase tracking-wider shadow-sm ${isRevoked ? 'bg-red-500/10 border-red-500/30 text-red-400' : isExpiringSoon ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' : 'bg-green-500/10 border-green-500/30 text-green-400'}`}>
+                                            <span className={`w-2 h-2 rounded-full animate-pulse ${isRevoked ? 'bg-red-400' : isExpiringSoon ? 'bg-yellow-400' : 'bg-green-400'}`} />
+                                            {user.plexAccessStatus}{user.isTrial && ' · Temp Access'}
+                                        </span>
+                                        {user.expiryDate ? (
+                                            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-white/5 border border-white/10 text-text shadow-sm">
+                                                <Calendar size={14} className="text-muted" />
+                                                {new Date(user.expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                                             </span>
-                                            {user.expiryDate ? (
-                                                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-white/5 border border-white/10 text-text shadow-sm">
-                                                    <Calendar size={14} className="text-muted" />
-                                                    {new Date(user.expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-[11px] font-black bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-500/40 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.25)] tracking-widest uppercase"><Star className="w-4 h-4 text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]" /> VIP UNLIMITED</span>
-                                            )}
-                                        </div>
+                                        ) : (
+                                            <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-[11px] font-black bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-500/40 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.25)] tracking-widest uppercase"><Star className="w-4 h-4 text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]" /> VIP UNLIMITED</span>
+                                        )}
                                     </div>
-
-                                    {isRevoked && daysLeft !== null && daysLeft >= 0 && (
-                                        <button className="w-full mt-2 px-6 py-2.5 bg-plex text-background rounded-xl font-bold hover:bg-plex-hover transition-colors shadow-lg" onClick={handleRelink}>
-                                            Re-link Plex Account
-                                        </button>
-                                    )}
-
-                                    {daysLeft !== null && (
-                                        <div className="bg-background/40 rounded-xl p-5 border border-white/5 mt-2">
-                                            <div className="flex justify-between items-baseline mb-3">
-                                                <span className="text-muted text-xs uppercase tracking-widest font-semibold">Time Remaining</span>
-                                                <span className={`font-black text-3xl md:text-4xl leading-none ${isExpiringSoon ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.3)]' : 'text-plex drop-shadow-[0_0_8px_rgba(229,160,13,0.3)]'}`}>
-                                                    {daysLeft}<span className="text-base font-semibold text-muted ml-1.5">{daysLeft === 1 ? 'day' : 'days'}</span>
-                                                </span>
-                                            </div>
-                                            <div className="w-full h-3 bg-black/40 rounded-full overflow-hidden shadow-inner border border-white/5">
-                                                <div className={`h-full rounded-full transition-all duration-1000 relative ${isExpiringSoon ? 'bg-yellow-400' : 'bg-gradient-to-r from-plex via-amber-400 to-orange-500'}`} style={{ width: `${progressPct}%` }}>
-                                                    <div className="absolute top-0 bottom-0 left-0 right-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[shimmer_1s_linear_infinite]" />
-                                                </div>
-                                            </div>
-                                            {isExpiringSoon && <p className="text-yellow-400/90 text-sm font-medium mt-3 flex items-center gap-2">⚠️ Expiring soon — contact admin</p>}
-                                        </div>
-                                    )}
                                 </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="lg:col-span-1 flex min-h-0">
-                            <div className="flex items-center gap-3 text-muted text-sm bg-card p-6 rounded-2xl border border-border shadow-lg h-full w-full min-h-0">
-                                <div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin flex-shrink-0" />
-                                Setting up your 3-Day Temporary Access...
-                            </div>
-                        </div>
-                    )}
 
-                    <div className="lg:col-span-2 flex min-h-0">
-                        <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col justify-center relative overflow-hidden h-full w-full min-h-0">
-                            <div className="absolute -top-10 -right-10 p-8 opacity-5">
-                                <Activity className="w-64 h-64 text-plex" />
-                            </div>
-                            <div className="relative z-10 flex flex-col h-full min-h-0">
-                                <div className="flex items-center justify-between mb-3 md:mb-4 flex-shrink-0">
-                                    <p className="text-muted text-sm uppercase tracking-widest font-semibold">Server Library Size</p>
-                                    {sessionInfo.session.isAdmin && <RebuildLibraryCacheButton />}
-                                </div>
-                                {serverDataLoading && !serverStats ? (
-                                    <LibraryStatsSkeleton />
-                                ) : serverStats?.isBuilding ? (
-                                    <div className="flex flex-col gap-2 flex-1 justify-center">
-                                        <div className="flex gap-3 items-center text-muted"><div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin" /> Building library size cache in background...</div>
-                                        <p className="text-xs text-muted/60">This runs once and may take a few minutes for large libraries. The page will auto-update when ready.</p>
+                                {isRevoked && daysLeft !== null && daysLeft >= 0 && (
+                                    <button className="w-full mt-2 px-6 py-2.5 bg-plex text-background rounded-xl font-bold hover:bg-plex-hover transition-colors shadow-lg" onClick={handleRelink}>
+                                        Re-link Plex Account
+                                    </button>
+                                )}
+
+                                {daysLeft !== null && (
+                                    <div className="bg-background/40 rounded-xl p-5 border border-white/5 mt-2">
+                                        <div className="flex justify-between items-baseline mb-3">
+                                            <span className="text-muted text-xs uppercase tracking-widest font-semibold">Time Remaining</span>
+                                            <span className={`font-black text-3xl md:text-4xl leading-none ${isExpiringSoon ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.3)]' : 'text-plex drop-shadow-[0_0_8px_rgba(229,160,13,0.3)]'}`}>
+                                                {daysLeft}<span className="text-base font-semibold text-muted ml-1.5">{daysLeft === 1 ? 'day' : 'days'}</span>
+                                            </span>
+                                        </div>
+                                        <div className="w-full h-3 bg-black/40 rounded-full overflow-hidden shadow-inner border border-white/5">
+                                            <div className={`h-full rounded-full transition-all duration-1000 relative ${isExpiringSoon ? 'bg-yellow-400' : 'bg-gradient-to-r from-plex via-amber-400 to-orange-500'}`} style={{ width: `${progressPct}%` }}>
+                                                <div className="absolute top-0 bottom-0 left-0 right-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[shimmer_1s_linear_infinite]" />
+                                            </div>
+                                        </div>
+                                        {isExpiringSoon && <p className="text-yellow-400/90 text-sm font-medium mt-3 flex items-center gap-2">⚠️ Expiring soon — contact admin</p>}
                                     </div>
-                                ) : serverStats ? (
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 md:gap-3 flex-1 content-center">
-                                        <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
-                                            <Film className="w-7 h-7 text-plex mb-2 opacity-80" />
-                                            <span className="text-3xl font-black text-text drop-shadow-md mb-1">
-                                                {serverStats.moviesBytes ? (() => {
-                                                    const bytes = serverStats.moviesBytes;
-                                                    if (bytes === 0) return '0 B';
-                                                    const k = 1024;
-                                                    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-                                                    const i = Math.floor(Math.log(bytes) / Math.log(k));
-                                                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-                                                })() : '0 B'}
-                                            </span>
-                                            <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
-                                                <span className="text-plex">{serverStats.movies?.toLocaleString() || 0}</span>
-                                                <span className="text-muted">Movies</span>
-                                            </div>
-                                        </div>
-                                        <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
-                                            <Tv className="w-7 h-7 text-plex mb-2 opacity-80" />
-                                            <span className="text-3xl font-black text-text drop-shadow-md mb-1">
-                                                {serverStats.showsBytes ? (() => {
-                                                    const bytes = serverStats.showsBytes;
-                                                    if (bytes === 0) return '0 B';
-                                                    const k = 1024;
-                                                    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-                                                    const i = Math.floor(Math.log(bytes) / Math.log(k));
-                                                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-                                                })() : '0 B'}
-                                            </span>
-                                            <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
-                                                <span className="text-plex">{serverStats.shows?.toLocaleString() || 0}</span>
-                                                <span className="text-muted">Shows</span>
-                                            </div>
-                                        </div>
-                                        <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
-                                            <Music className="w-7 h-7 text-plex mb-2 opacity-80" />
-                                            <span className="text-3xl font-black text-text drop-shadow-md mb-1">
-                                                {serverStats.musicBytes ? (() => {
-                                                    const bytes = serverStats.musicBytes;
-                                                    if (bytes === 0) return '0 B';
-                                                    const k = 1024;
-                                                    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-                                                    const i = Math.floor(Math.log(bytes) / Math.log(k));
-                                                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-                                                })() : '0 B'}
-                                            </span>
-                                            <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
-                                                <span className="text-plex">{serverStats.music?.toLocaleString() || 0}</span>
-                                                <span className="text-muted">Albums</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="text-muted text-sm bg-background/50 p-4 rounded-xl border border-white/5 flex-1 flex items-center">Could not load server statistics at this time.</div>
                                 )}
                             </div>
                         </div>
-                    </div>
-                </div>
+                    ) : (
+                        <div className="flex items-center gap-3 text-muted text-sm bg-card p-6 rounded-2xl border border-border shadow-lg">
+                            <div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin flex-shrink-0" />
+                            Setting up your 3-Day Temporary Access...
+                        </div>
+                    )}
 
-                {/* Left Column */}
-                <div className="lg:col-span-1 flex flex-col gap-3 md:gap-4">
                     {publicConfig?.announcement && (
                         <div className="bg-plex/10 border border-plex/30 rounded-2xl p-3 md:p-4 shadow-lg">
                             <div className="flex items-start gap-3">
@@ -4311,10 +4236,92 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                     </div>
                 </div>
 
+                {/* Right Column — Server Library Size */}
+                <div className="lg:col-span-2 flex flex-col gap-3 md:gap-4">
+                    <div ref={libraryCardRef} className="glass-card p-4 md:p-5 shadow-xl flex flex-col justify-center relative overflow-hidden flex-shrink-0">
+                        <div className="absolute -top-10 -right-10 p-8 opacity-5">
+                            <Activity className="w-64 h-64 text-plex" />
+                        </div>
+                        <div className="relative z-10">
+                            <div className="flex items-center justify-between mb-3 md:mb-4">
+                                <p className="text-muted text-sm uppercase tracking-widest font-semibold">Server Library Size</p>
+                                {sessionInfo.session.isAdmin && <RebuildLibraryCacheButton />}
+                            </div>
+                            {serverDataLoading && !serverStats ? (
+                                <LibraryStatsSkeleton />
+                            ) : serverStats?.isBuilding ? (
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex gap-3 items-center text-muted"><div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin" /> Building library size cache in background...</div>
+                                    <p className="text-xs text-muted/60">This runs once and may take a few minutes for large libraries. The page will auto-update when ready.</p>
+                                </div>
+                            ) : serverStats ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 md:gap-3">
+                                    <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
+                                        <Film className="w-7 h-7 text-plex mb-2 opacity-80" />
+                                        <span className="text-3xl font-black text-text drop-shadow-md mb-1">
+                                            {serverStats.moviesBytes ? (() => {
+                                                const bytes = serverStats.moviesBytes;
+                                                if (bytes === 0) return '0 B';
+                                                const k = 1024;
+                                                const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+                                                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                                                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                                            })() : '0 B'}
+                                        </span>
+                                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
+                                            <span className="text-plex">{serverStats.movies?.toLocaleString() || 0}</span>
+                                            <span className="text-muted">Movies</span>
+                                        </div>
+                                    </div>
+                                    <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
+                                        <Tv className="w-7 h-7 text-plex mb-2 opacity-80" />
+                                        <span className="text-3xl font-black text-text drop-shadow-md mb-1">
+                                            {serverStats.showsBytes ? (() => {
+                                                const bytes = serverStats.showsBytes;
+                                                if (bytes === 0) return '0 B';
+                                                const k = 1024;
+                                                const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+                                                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                                                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                                            })() : '0 B'}
+                                        </span>
+                                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
+                                            <span className="text-plex">{serverStats.shows?.toLocaleString() || 0}</span>
+                                            <span className="text-muted">Shows</span>
+                                        </div>
+                                    </div>
+                                    <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
+                                        <Music className="w-7 h-7 text-plex mb-2 opacity-80" />
+                                        <span className="text-3xl font-black text-text drop-shadow-md mb-1">
+                                            {serverStats.musicBytes ? (() => {
+                                                const bytes = serverStats.musicBytes;
+                                                if (bytes === 0) return '0 B';
+                                                const k = 1024;
+                                                const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+                                                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                                                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                                            })() : '0 B'}
+                                        </span>
+                                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
+                                            <span className="text-plex">{serverStats.music?.toLocaleString() || 0}</span>
+                                            <span className="text-muted">Albums</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-muted text-sm bg-background/50 p-4 rounded-xl border border-white/5">Could not load server statistics at this time.</div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
                 {/* Quick Actions + Your Analytics — shared row so bottoms align */}
                 {sessionInfo.session.isAdmin && (
                     <div className="lg:col-span-1 flex min-h-0">
-                        <div className="glass-card p-3 md:p-4 shadow-xl flex flex-col h-full w-full min-h-0 justify-center gap-2.5">
+                        <div
+                            className="glass-card p-3 md:p-4 shadow-xl flex flex-col h-full w-full min-h-0 justify-center gap-2.5"
+                            style={libraryCardHeight ? { minHeight: libraryCardHeight } : undefined}
+                        >
                             <p className="text-muted text-xs uppercase tracking-widest font-semibold flex-shrink-0">Quick Actions</p>
                             <div className="grid grid-cols-3 gap-2">
                                 <button type="button" onClick={() => onViewAdmin()} className="flex flex-col items-center justify-center gap-1.5 px-2 py-3 rounded-xl font-bold text-[10px] leading-tight text-center transition-all border bg-plex/10 border-plex/30 text-plex hover:bg-plex/20">
