@@ -436,7 +436,7 @@ export const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'succ
                 {' '}· Request records: <span className="text-text font-semibold">{indexInfo?.requestItemCount || 0}</span>
             </div>
 
-            <div className="bg-card/50 backdrop-blur-md border border-white/5 rounded-xl p-4">
+            <div className="glass-card-sm p-4">
                 <p className="text-xs text-muted uppercase tracking-wider font-bold mb-3">Saved Filters</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {rules.map((rule: any) => {
@@ -514,7 +514,7 @@ export const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'succ
             </div>
 
             {selectedRule && (
-                <div className="bg-card/50 backdrop-blur-md border border-white/5 rounded-xl p-4 space-y-4 w-full">
+                <div className="glass-card-sm p-4 space-y-4 w-full">
                     {isRuleDirty(selectedRule.id) && (
                         <div className="bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs rounded-lg px-3 py-2">
                             You have unsaved changes. Save the filter before previewing or running against production rules.
@@ -595,7 +595,7 @@ export const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'succ
                 </div>
             )}
 
-            <div className="bg-card/50 backdrop-blur-md border border-white/5 rounded-xl p-4">
+            <div className="glass-card-sm p-4">
                 <div className="flex items-center justify-between mb-3">
                     <h4 className="font-bold text-text">Matched Titles</h4>
                     <div className="text-right">

@@ -30,7 +30,6 @@
   @apply bg-plex;
 }
 
-/* Base Loader Animation */
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
@@ -41,13 +40,117 @@
   100% { transform: translateY(-50%); }
 }
 
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 @layer components {
+  /* —— Cards —— */
+  .glass-card {
+    @apply rounded-2xl border border-white/10 bg-card/70 backdrop-blur-xl;
+    box-shadow: 0 16px 48px -12px rgba(0, 0, 0, 0.45);
+  }
+
+  .glass-card-sm {
+    @apply rounded-xl border border-white/10 bg-card/60 backdrop-blur-lg;
+    box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.4);
+  }
+
+  .glass-card-lg {
+    @apply rounded-3xl border border-white/10 bg-card/75 backdrop-blur-2xl;
+    box-shadow: 0 32px 100px -16px rgba(0, 0, 0, 0.65);
+  }
+
+  .section-card {
+    @apply rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent;
+  }
+
+  /* —— Buttons —— */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm;
+    @apply bg-gradient-to-r from-plex to-amber-500 text-background;
+    @apply hover:brightness-110 active:scale-[0.98] transition-all;
+    @apply disabled:opacity-50 disabled:pointer-events-none;
+    box-shadow: 0 8px 28px rgba(229, 160, 13, 0.35);
+  }
+
+  .btn-primary-lg {
+    @apply inline-flex items-center justify-center gap-2 w-full px-8 py-4 rounded-xl font-bold text-base;
+    @apply bg-gradient-to-r from-plex to-amber-500 text-background;
+    @apply hover:brightness-110 active:scale-[0.98] transition-all;
+    @apply disabled:opacity-50 disabled:pointer-events-none;
+    box-shadow: 0 8px 28px rgba(229, 160, 13, 0.35);
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm;
+    @apply border border-white/10 bg-white/[0.04] text-text;
+    @apply hover:bg-white/10 hover:border-white/20 active:scale-[0.98] transition-all;
+    @apply disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  /* —— Forms —— */
+  .input-premium {
+    @apply w-full px-4 py-3.5 rounded-xl bg-background/70 border border-white/10 text-text;
+    @apply placeholder:text-muted/40 focus:border-plex/50 focus:ring-2 focus:ring-plex/15 outline-none transition-all;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .label-premium {
+    @apply text-[11px] font-bold text-muted uppercase tracking-[0.14em];
+  }
+
+  .badge-plex {
+    @apply inline-flex items-center gap-2 px-3 py-1 rounded-full bg-plex/10 border border-plex/25 text-plex;
+    @apply text-[11px] font-bold uppercase tracking-widest;
+  }
+
+  /* —— Layout —— */
+  .page-header {
+    @apply hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0;
+  }
+
+  .page-title {
+    @apply text-xl md:text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-plex to-amber-400;
+  }
+
+  .nav-item-active {
+    @apply bg-plex/15 text-plex shadow-[0_0_15px_rgba(229,160,13,0.1)];
+  }
+
+  .nav-shell {
+    @apply bg-card/80 backdrop-blur-2xl border-white/10;
+  }
+
+  .modal-glass {
+    @apply glass-card-lg p-6 max-w-sm w-full;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.2s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.25s ease-out;
+  }
+
   .settings-panel {
-    @apply rounded-2xl border border-border/50 bg-card/30 backdrop-blur-sm shadow-sm;
-    @apply p-5 sm:p-6 md:p-8 lg:p-10 w-full min-w-0;
+    @apply glass-card p-5 sm:p-6 md:p-8 lg:p-10 w-full min-w-0;
   }
   .settings-panel > label:not([class]),
   .settings-panel .mb-4 > label:first-child {
@@ -64,9 +167,4 @@
     @apply pb-3 border-border/60;
     margin-bottom: 1.5rem;
   }
-}
-
-.hide-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
 }

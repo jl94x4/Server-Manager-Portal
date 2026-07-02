@@ -36,15 +36,15 @@ export const PosterRowSkeleton: React.FC<{ count?: number; aspect?: '2/3' | 'squ
 
 export const HomeRecentlyAddedSkeleton: React.FC = () => (
     <div className="flex flex-col gap-6 w-full" aria-busy="true" aria-label="Loading recently added">
-        <div className="bg-card border border-border rounded-2xl p-6 shadow-xl overflow-hidden w-full">
+        <div className="glass-card p-6 shadow-xl overflow-hidden w-full">
             <h3 className="text-xl font-bold text-text mb-4">Recently Added Movies</h3>
             <PosterRowSkeleton count={6} />
         </div>
-        <div className="bg-card border border-border rounded-2xl p-6 shadow-xl overflow-hidden w-full">
+        <div className="glass-card p-6 shadow-xl overflow-hidden w-full">
             <h3 className="text-xl font-bold text-text mb-4">Recently Added TV Shows</h3>
             <PosterRowSkeleton count={6} />
         </div>
-        <div className="bg-card border border-border rounded-2xl p-6 shadow-xl overflow-hidden w-full">
+        <div className="glass-card p-6 shadow-xl overflow-hidden w-full">
             <h3 className="text-xl font-bold text-text mb-4">Recently Added Music</h3>
             <PosterRowSkeleton count={6} aspect="square" />
         </div>
@@ -106,7 +106,7 @@ export const LibraryStatsSkeleton: React.FC = () => (
 );
 
 export const WrapUpCardsSkeleton: React.FC = () => (
-    <div className="bg-card border border-border rounded-2xl p-6 shadow-xl mb-2" aria-busy="true" aria-label="Loading personal wrap-up">
+    <div className="glass-card p-6 shadow-xl mb-2" aria-busy="true" aria-label="Loading personal wrap-up">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <SkeletonBlock className="h-6 w-48 rounded" />
             <SkeletonBlock className="h-9 w-32 rounded-lg" />
@@ -147,7 +147,7 @@ export const ActivityGridSkeleton: React.FC<{ count?: number }> = ({ count = 3 }
 );
 
 export const TopWatchedGridSkeleton: React.FC = () => (
-    <div className="bg-card border border-border rounded-2xl p-6 shadow-xl flex-1 flex flex-col h-full w-full min-h-0" aria-busy="true" aria-label="Loading analytics">
+    <div className="glass-card flex-1 flex flex-col h-full w-full min-h-0 p-6 shadow-xl" aria-busy="true" aria-label="Loading analytics">
         <div className="mb-6">
             <SkeletonBlock className="h-6 w-40 rounded mb-2" />
             <SkeletonBlock className="h-4 w-56 rounded" />

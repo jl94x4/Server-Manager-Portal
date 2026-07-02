@@ -870,7 +870,7 @@ export const SettingsDashboard: React.FC = () => {
                     </div>
 
                     {/* Desktop Sidebar Navigation — matches main app nav width (w-72) */}
-                    <aside className="hidden md:flex md:flex-col w-72 shrink-0 h-fit sticky top-20 rounded-xl border border-border bg-card p-6 shadow-2xl">
+                    <aside className="hidden md:flex md:flex-col w-72 shrink-0 h-fit sticky top-20 glass-card nav-shell p-6 shadow-2xl">
                         <label className="text-muted text-xs uppercase tracking-wider font-bold mb-2 block">Find Setting</label>
                         <input
                             type="text"
@@ -892,7 +892,7 @@ export const SettingsDashboard: React.FC = () => {
                                                     key={tab.id}
                                                     onClick={() => setActiveTab(tab.id)}
                                                     className={`w-full text-left px-3 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === tab.id
-                                                        ? 'bg-plex/15 text-plex shadow-[0_0_15px_rgba(229,160,13,0.1)]'
+                                                        ? 'nav-item-active'
                                                         : 'text-muted hover:text-text hover:bg-white/5'
                                                         }`}
                                                 >

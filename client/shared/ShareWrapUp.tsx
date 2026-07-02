@@ -197,7 +197,7 @@ export const ShareWrapUpModal: React.FC<ShareWrapUpModalProps> = ({
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-card border border-border rounded-2xl shadow-2xl max-w-lg w-full p-6 relative" onClick={(e) => e.stopPropagation()}>
+            <div className="glass-card shadow-2xl max-w-lg w-full p-6 relative" onClick={(e) => e.stopPropagation()}>
                 <button type="button" onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-muted hover:text-text transition-colors">
                     <X className="w-5 h-5" />
                 </button>

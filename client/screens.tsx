@@ -21,6 +21,7 @@ import {
 import type { User, PlexConfig, AppSettings, PlexServer, ToastMessage, DeletedUser, AuditEntry, UserStatus } from './shared/types';
 import { ShareWrapUpModal } from './shared/ShareWrapUp';
 import { SetupWizard } from './setup/SetupWizard';
+import { AuthPageBackground, themeClasses } from './shared/theme';
 
 declare global {
     interface Window {
@@ -466,7 +467,7 @@ const ReportIssueModal: React.FC<{ item: any, onClose: () => void }> = ({ item, 
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="glass-card p-6 w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-bold flex items-center gap-2">
                         <AlertTriangle className="w-5 h-5 text-plex" />
@@ -1288,7 +1289,7 @@ const TautulliGraphsTab: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="flex justify-center items-center h-64 bg-card/50 backdrop-blur-md rounded-xl border border-border mt-6">
+            <div className="flex justify-center items-center h-64 glass-card-sm mt-6">
                 <RefreshCw className="w-8 h-8 text-plex animate-spin" />
             </div>
         );
@@ -1408,7 +1409,7 @@ const TautulliGraphsTab: React.FC = () => {
             </div>
 
             {/* Daily Play Count by Media Type */}
-            <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden">
+            <div className="glass-card-sm p-4 md:p-6 relative overflow-hidden">
                 <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
                     <LucideLineChart className="w-5 h-5 text-[#3b82f6]" /> {yAxis === 'plays' ? 'Daily Play Count by Media Type' : 'Daily Watch Duration by Media Type (Hours)'}
                 </h3>
@@ -1431,7 +1432,7 @@ const TautulliGraphsTab: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Play count by day of week */}
-                <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden">
+                <div className="glass-card-sm p-4 md:p-6 relative overflow-hidden">
                     <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
                         <Calendar className="w-5 h-5 text-green-400" /> {yAxis === 'plays' ? 'Play Count by Day of Week' : 'Watch Duration by Day of Week (Hours)'}
                     </h3>
@@ -1452,7 +1453,7 @@ const TautulliGraphsTab: React.FC = () => {
                 </div>
 
                 {/* Play count by hour of day */}
-                <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden">
+                <div className="glass-card-sm p-4 md:p-6 relative overflow-hidden">
                     <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
                         <Clock className="w-5 h-5 text-orange-400" /> {yAxis === 'plays' ? 'Play Count by Hour of Day' : 'Watch Duration by Hour of Day (Hours)'}
                     </h3>
@@ -1473,7 +1474,7 @@ const TautulliGraphsTab: React.FC = () => {
                 </div>
 
                 {/* Play count by stream type */}
-                <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden">
+                <div className="glass-card-sm p-4 md:p-6 relative overflow-hidden">
                     <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
                         <Activity className="w-5 h-5 text-sky-400" /> {yAxis === 'plays' ? 'Daily Stream Type Breakdown' : 'Daily Stream Type Duration Breakdown (Hours)'}
                     </h3>
@@ -1494,7 +1495,7 @@ const TautulliGraphsTab: React.FC = () => {
                 </div>
 
                 {/* Concurrent streams by stream type */}
-                <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden">
+                <div className="glass-card-sm p-4 md:p-6 relative overflow-hidden">
                     <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
                         <TrendingUp className="w-5 h-5 text-plex" /> Daily Concurrent Stream Count by Stream Type
                     </h3>
@@ -1517,7 +1518,7 @@ const TautulliGraphsTab: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Play count by stream resolution */}
-                <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden">
+                <div className="glass-card-sm p-4 md:p-6 relative overflow-hidden">
                     <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
                         <MonitorSmartphone className="w-5 h-5 text-purple-400" /> {yAxis === 'plays' ? 'Stream Resolution Breakdown' : 'Stream Resolution Duration Breakdown (Hours)'}
                     </h3>
@@ -1538,7 +1539,7 @@ const TautulliGraphsTab: React.FC = () => {
                 </div>
 
                 {/* Play count by platform */}
-                <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden flex flex-col justify-between">
+                <div className="glass-card-sm p-4 md:p-6 relative overflow-hidden flex flex-col justify-between">
                     <div>
                         <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
                             <Users className="w-5 h-5 text-teal-400" /> {yAxis === 'plays' ? 'Top 10 Streaming Platforms' : 'Top 10 Platforms by Watch Duration (Hours)'}
@@ -1563,7 +1564,7 @@ const TautulliGraphsTab: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Play count by source resolution */}
-                <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden">
+                <div className="glass-card-sm p-4 md:p-6 relative overflow-hidden">
                     <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
                         <Layers className="w-5 h-5 text-indigo-400" /> {yAxis === 'plays' ? 'Source File Resolution Breakdown' : 'Source File Resolution Duration Breakdown (Hours)'}
                     </h3>
@@ -1584,7 +1585,7 @@ const TautulliGraphsTab: React.FC = () => {
                 </div>
 
                 {/* Play count by top 10 users */}
-                <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border relative overflow-hidden flex flex-col justify-between">
+                <div className="glass-card-sm p-4 md:p-6 relative overflow-hidden flex flex-col justify-between">
                     <div>
                         <h3 className="text-lg font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2">
                             <Trophy className="w-5 h-5 text-amber-400" /> {yAxis === 'plays' ? 'Top 10 Active Users Breakdown' : 'Top 10 Users by Watch Duration (Hours)'}
@@ -1781,7 +1782,7 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
                 <>
                     {/* High Level Stats Overview */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div className="bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border flex items-center gap-4">
+                        <div className="glass-card-sm p-6 flex items-center gap-4">
                             <div className="bg-plex/10 p-4 rounded-full">
                                 <PlaySquare className="text-plex w-8 h-8" />
                             </div>
@@ -1791,7 +1792,7 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
                                 {renderDelta(compare?.totalPlaybacks)}
                             </div>
                         </div>
-                        <div className="bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border flex items-center gap-4">
+                        <div className="glass-card-sm p-6 flex items-center gap-4">
                             <div className="bg-plex/10 p-4 rounded-full">
                                 <Users className="text-plex w-8 h-8" />
                             </div>
@@ -1801,7 +1802,7 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
                                 {renderDelta(compare?.uniqueViewers)}
                             </div>
                         </div>
-                        <div className="bg-card/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-border flex items-center gap-4 col-span-1 sm:col-span-2">
+                        <div className="glass-card-sm p-6 flex items-center gap-4 col-span-1 sm:col-span-2">
                             <div className="w-full h-full flex flex-col justify-center">
                                 <p className="text-muted text-sm uppercase tracking-wider font-bold mb-2 flex items-center gap-2"><Clock className="w-4 h-4 text-plex" /> Peak Viewing Hours</p>
                                 <div className="flex items-end gap-1 h-12 w-full mt-auto">
@@ -1821,21 +1822,21 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
                     </div>
                     {libraryHealth && (
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 border border-border">
+                            <div className="glass-card-sm p-4">
                                 <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Library Balance</p>
                                 <p className="text-xl font-black text-plex">{libraryHealth.healthLabel}</p>
                                 <p className="text-[10px] text-muted mt-1 leading-snug">How evenly viewing is spread across libraries — not server health.</p>
                             </div>
-                            <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 border border-border">
+                            <div className="glass-card-sm p-4">
                                 <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Active Libraries</p>
                                 <p className="text-xl font-black text-text">{libraryHealth.activeLibraries}</p>
                             </div>
-                            <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 border border-border">
+                            <div className="glass-card-sm p-4">
                                 <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Catalog Size</p>
                                 <p className="text-xl font-black text-text">{libraryHealth.totalCatalogItems.toLocaleString()}</p>
                                 <p className="text-[11px] text-muted">{formatSizeCeil(libraryHealth.totalCatalogBytes ?? libraryHealth.sizeGB * 1024 ** 3)}</p>
                             </div>
-                            <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 border border-border">
+                            <div className="glass-card-sm p-4">
                                 <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Usage Concentration</p>
                                 <p className="text-xl font-black text-text">{libraryHealth.concentrationPct}%</p>
                                 <p className="text-[11px] text-muted">4K Coverage: {libraryHealth.fourKPercent}%</p>
@@ -1846,7 +1847,7 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                         {/* Top Users Card */}
-                        <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border lg:col-span-2">
+                        <div className="glass-card-sm p-4 md:p-6 lg:col-span-2">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
                                 <h2 className="text-xl font-bold text-text uppercase tracking-wider flex items-center gap-2 whitespace-nowrap"><Users className="text-plex w-5 h-5" /> Top Viewers</h2>
                                 {isAdmin && (
@@ -1936,7 +1937,7 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
                         {/* Top Devices & Libraries Container */}
                         <div className="flex flex-col gap-6 lg:col-span-1">
                             {/* Popular Libraries Card */}
-                            <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border">
+                            <div className="glass-card-sm p-4 md:p-6">
                                 <h2 className="text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><PlaySquare className="text-plex w-5 h-5" /> Popular Libraries</h2>
                                 <div className="flex flex-col gap-5 mt-2">
                                     {topLibraries.length === 0 ? <p className="text-muted text-sm">No data available.</p> : topLibraries.map((lib, idx) => (
@@ -1955,7 +1956,7 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
 
                             {/* Top Devices Card */}
                             {topDevices && topDevices.length > 0 && (
-                                <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border mt-6">
+                                <div className="glass-card-sm p-4 md:p-6 mt-6">
                                     <h2 className="text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><MonitorSmartphone className="text-plex w-5 h-5" /> Top Devices</h2>
                                     <div className="flex flex-col gap-4">
                                         {topDevices.slice(0, 5).map((device: any, idx: number) => (
@@ -1978,7 +1979,7 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
 
                         {/* Tautulli Insights Card */}
                         {tautulliData && (
-                            <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border col-span-full relative overflow-hidden">
+                            <div className="glass-card-sm p-4 md:p-6 col-span-full relative overflow-hidden">
                                 <div className="absolute top-0 right-0 p-3 opacity-10 pointer-events-none">
                                     <Activity className="w-32 h-32 text-[#3b82f6]" />
                                 </div>
@@ -2021,7 +2022,7 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
                         )}
 
                         {/* Trending Content Card */}
-                        <div className="bg-card/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-xl border border-border col-span-full">
+                        <div className="glass-card-sm p-4 md:p-6 col-span-full">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                                 <h2 className="text-xl font-bold text-text uppercase tracking-wider flex items-center gap-2"><TrendingUp className="text-plex w-5 h-5" /> Trending Content</h2>
                                 <div className="flex items-center gap-2 bg-black/30 p-1 rounded-lg border border-border">
@@ -2170,12 +2171,12 @@ export const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
         <div className="w-full flex flex-col">
             <Loader isLoading={isLoading} />
             <ToastContainer toasts={toasts} setToasts={setToasts} />
-            <header className="hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0">
-                <h1 className="text-xl md:text-3xl font-bold text-plex">System Logs</h1>
+            <header className="page-header">
+                <h1 className="page-title">System Logs</h1>
             </header>
             <main>
                 <div className="flex flex-col gap-6 mb-8">
-                    <section className="bg-card border border-border rounded-xl p-4 md:p-5 shadow-md">
+                    <section className="glass-card-sm p-4 md:p-5 shadow-md">
                         <div className="flex items-center justify-between gap-4 mb-4">
                             <div>
                                 <h2 className="text-lg font-bold text-text">Deleted User Blocklist</h2>
@@ -2203,7 +2204,7 @@ export const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
                         </div>
                     </section>
 
-                    <section className="bg-card border border-border rounded-xl p-4 md:p-5 shadow-md">
+                    <section className="glass-card-sm p-4 md:p-5 shadow-md">
                         <div className="flex items-center justify-between gap-4 mb-4">
                             <div>
                                 <h2 className="text-lg font-bold text-text">Audit Log</h2>
@@ -2254,7 +2255,7 @@ export const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
                         </div>
                     </section>
 
-                    <section className="bg-card border border-border rounded-xl p-4 md:p-5 shadow-md">
+                    <section className="glass-card-sm p-4 md:p-5 shadow-md">
                         <div className="flex items-center justify-between gap-4 mb-4">
                             <div>
                                 <h2 className="text-lg font-bold text-text">Email Log</h2>
@@ -2594,12 +2595,12 @@ export const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: 
             <Loader isLoading={isLoading} />
             <ToastContainer toasts={toasts} setToasts={setToasts} />
 
-            <header className="hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0">
-                <h1 className="text-xl md:text-3xl font-bold text-plex">Users Management</h1>
+            <header className="page-header">
+                <h1 className="page-title">Users Management</h1>
             </header>
             <main>
                 {isConfigured && (
-                    <div className="flex flex-col md:flex-row gap-4 md:items-center mb-8 bg-card border border-border p-4 rounded-xl shadow-md">
+                    <div className="flex flex-col md:flex-row gap-4 md:items-center mb-8 glass-card-sm p-4 shadow-md">
                         <span className="font-bold text-muted uppercase tracking-wider text-sm hidden md:inline-block mr-2">Quick Actions:</span>
                         <div className="grid grid-cols-2 md:flex md:flex-row gap-3 w-full md:w-auto flex-1">
                             <button className="col-span-2 md:col-span-1 px-3 py-2 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2 text-sm md:text-base" onClick={handleImportUsers} disabled={isLoading}>
@@ -2657,7 +2658,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: 
                 )}
 
                 {selectedUserIds.length > 0 && (
-                    <div className="bg-card border border-border p-4 rounded-xl flex justify-between items-center mb-8 flex-wrap gap-4 w-full">
+                    <div className="glass-card-sm p-4 flex justify-between items-center mb-8 flex-wrap gap-4 w-full">
                         <div className="flex items-center flex-wrap gap-4 text-sm font-medium">
                             <span className="text-plex">{selectedUserIds.length} selected</span>
                             {allFilteredSelected ? (
@@ -2725,18 +2726,8 @@ export const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: 
 
 // --- User Portal Components ---
 
-const AuthPageBackground: React.FC = () => (
-    <div className="pointer-events-none absolute inset-0 bg-background">
-        <div className="absolute -top-32 -left-32 w-[520px] h-[520px] rounded-full bg-plex/10 blur-[120px]" />
-        <div className="absolute top-1/3 -right-24 w-[480px] h-[480px] rounded-full bg-amber-500/8 blur-[100px]" />
-        <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] rounded-full bg-plex/5 blur-[90px]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(229,160,13,0.12),transparent)]" />
-        <div className="absolute inset-0 opacity-[0.025]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'1\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")' }} />
-    </div>
-);
-
-const loginPrimaryBtnClass = 'inline-flex items-center justify-center gap-2 w-full px-8 py-4 rounded-xl font-bold text-base bg-gradient-to-r from-plex to-amber-500 text-background shadow-[0_8px_28px_rgba(229,160,13,0.35)] hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none';
-const loginSecondaryBtnClass = 'inline-flex items-center justify-center gap-2 w-full px-8 py-4 rounded-xl font-bold text-base border border-white/10 bg-white/[0.04] text-text hover:bg-white/10 hover:border-white/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none';
+const loginPrimaryBtnClass = themeClasses.btnPrimaryLg;
+const loginSecondaryBtnClass = `${themeClasses.btnSecondary} w-full px-8 py-4 text-base`;
 
 const PublicUptimeBanner: React.FC = () => {
     const [healthData, setHealthData] = useState<Record<string, any>>({});
@@ -2833,7 +2824,7 @@ const LivePlexStats: React.FC = () => {
         </div>
     );
 
-    const statCardClass = 'rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] to-transparent p-4 flex flex-col items-center justify-center gap-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]';
+    const statCardClass = 'section-card p-4 flex flex-col items-center justify-center gap-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]';
 
     return (
         <div className="w-full flex flex-col">
@@ -2963,7 +2954,7 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
             <Loader isLoading={isLoading} />
 
             <div className="relative z-10 w-full max-w-6xl flex flex-col gap-6">
-                <div className={`rounded-3xl border border-white/10 bg-card/75 backdrop-blur-2xl shadow-[0_32px_100px_-16px_rgba(0,0,0,0.65)] overflow-hidden flex flex-col ${showTrialAccess ? 'lg:flex-row min-h-[min(680px,calc(100vh-3rem))]' : 'max-w-xl mx-auto w-full'}`}>
+                <div className={`glass-card-lg overflow-hidden flex flex-col ${showTrialAccess ? 'lg:flex-row min-h-[min(680px,calc(100vh-3rem))]' : 'max-w-xl mx-auto w-full'}`}>
                     {showTrialAccess && (
                         <div className="flex-1 flex flex-col justify-center p-6 sm:p-8 lg:p-10 xl:p-12 border-b lg:border-b-0 lg:border-r border-white/10 bg-gradient-to-br from-plex/[0.08] via-plex/[0.03] to-transparent min-w-0">
                             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-plex/10 border border-plex/25 text-plex text-[11px] font-bold uppercase tracking-widest mb-5 w-fit">
@@ -4030,7 +4021,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                 <WrapUpCardsSkeleton />
             )}
             {(sessionInfo.session.isAdmin || user) && !analyticsLoading && analytics && (
-                <div className="bg-card border border-border rounded-2xl p-6 shadow-xl mb-2">
+                <div className="glass-card p-6 shadow-xl mb-2">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                         <h3 className="text-xl font-bold text-text">Your Personal Wrap-Up</h3>
                         <div className="flex items-center gap-2">
@@ -4212,7 +4203,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
 
                     {/* Subscription Status */}
                     {sessionInfo.session.isAdmin ? (
-                            <div className="bg-card border border-border rounded-2xl p-6 shadow-xl flex flex-col items-center justify-center text-center md:h-[240px]">
+                            <div className="glass-card p-6 shadow-xl flex flex-col items-center justify-center text-center md:h-[240px]">
                                 <div className="w-16 h-16 bg-plex/10 rounded-full flex items-center justify-center mb-4 border border-plex/30 shadow-[0_0_15px_rgba(229,160,13,0.15)]">
                                     <Shield className="w-8 h-8 text-plex drop-shadow-md" />
                                 </div>
@@ -4221,7 +4212,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                             </div>
                     ) : (
                         user ? (
-                            <div className="bg-card border border-border rounded-2xl p-6 shadow-xl flex flex-col justify-center md:h-[240px]">
+                            <div className="glass-card p-6 shadow-xl flex flex-col justify-center md:h-[240px]">
                                 <div className="flex flex-col gap-4">
                                     <div>
                                         <p className="text-muted text-xs uppercase tracking-widest font-semibold mb-3">Access Status</p>
@@ -4288,7 +4279,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
 
                     {/* Referral Link */}
                     {publicConfig?.referralEnabled && user && !sessionInfo.session.isAdmin && (
-                        <div className="bg-card border border-border rounded-2xl p-4 md:p-6 shadow-lg">
+                        <div className="glass-card p-4 md:p-6 shadow-lg">
                             <p className="text-plex font-bold text-base mb-1">🎁 Invite Friends</p>
                             <p className="text-muted text-sm leading-relaxed mb-4">Share this link. They get temporary access, and you get reward days!</p>
                             <div className="flex flex-col gap-2">
@@ -4302,7 +4293,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                     <div className="flex flex-col gap-6">
                         {/* Newsletter preferences */}
                         {user && !sessionInfo.session.isAdmin && (
-                            <div className="bg-card border border-border rounded-2xl p-6 shadow-lg flex flex-col">
+                            <div className="glass-card p-6 shadow-lg flex flex-col">
                                 <p className="text-muted text-xs uppercase tracking-widest font-semibold mb-4 flex-shrink-0">Preferences</p>
                                 <div className="flex items-center justify-between gap-4">
                                     <div>
@@ -4319,7 +4310,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
 
                         {/* Support card */}
                         {!sessionInfo?.session?.isAdmin && (
-                            <div className="bg-card border border-border rounded-2xl p-6 shadow-lg flex flex-col">
+                            <div className="glass-card p-6 shadow-lg flex flex-col">
                                 {user?.isTrial ? (
                                     <div className="mb-5 flex-shrink-0">
                                         <p className="text-plex font-bold text-base mb-1">🍿 Enjoying your Temporary Access?</p>
@@ -4355,7 +4346,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                 {/* Right Column */}
                 <div className="lg:col-span-2 flex flex-col gap-6">
                     {/* Server Stats Card */}
-                    <div className="bg-card border border-border rounded-2xl p-6 shadow-xl flex flex-col justify-center relative overflow-hidden flex-shrink-0 md:h-[240px]">
+                    <div className="glass-card p-6 shadow-xl flex flex-col justify-center relative overflow-hidden flex-shrink-0 md:h-[240px]">
                         <div className="absolute -top-10 -right-10 p-8 opacity-5">
                             <Activity className="w-64 h-64 text-plex" />
                         </div>
@@ -4435,7 +4426,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                 {/* Quick Actions + Your Analytics — shared row so bottoms align */}
                 {sessionInfo.session.isAdmin && (
                     <div className="lg:col-span-1 flex min-h-0">
-                        <div className="bg-card border border-border rounded-2xl p-4 shadow-xl flex flex-col h-full w-full min-h-0 justify-center gap-3">
+                        <div className="glass-card p-4 shadow-xl flex flex-col h-full w-full min-h-0 justify-center gap-3">
                             <p className="text-muted text-xs uppercase tracking-widest font-semibold flex-shrink-0">Quick Actions</p>
                             <div className="grid grid-cols-3 gap-2">
                                 <button type="button" onClick={() => onViewAdmin()} className="flex flex-col items-center justify-center gap-1.5 px-2 py-3 rounded-xl font-bold text-[10px] leading-tight text-center transition-all border bg-plex/10 border-plex/30 text-plex hover:bg-plex/20">
@@ -4456,7 +4447,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                 )}
                 {(sessionInfo.session.isAdmin || user) && (
                     <div className={`flex min-h-0 ${sessionInfo.session.isAdmin ? 'lg:col-span-2' : 'lg:col-span-2 lg:col-start-2'}`}>
-                        <div className="bg-card border border-border rounded-2xl p-4 shadow-sm flex flex-col h-full w-full min-h-0">
+                        <div className="glass-card p-4 shadow-sm flex flex-col h-full w-full min-h-0">
                             <div className="flex items-center justify-between flex-shrink-0">
                                 <h2 className="text-lg md:text-xl font-bold text-text flex items-center gap-2">
                                     <Activity className="w-5 h-5 text-plex" /> Your Analytics
@@ -4522,7 +4513,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                     <>
                         {!analyticsLoading && analytics?.recentHistory && analytics.recentHistory.length > 0 && (
                             <div className="lg:col-span-1 flex min-h-0">
-                                <div className="bg-card border border-border rounded-2xl p-6 shadow-xl flex flex-col h-full w-full min-h-0">
+                                <div className="glass-card p-6 shadow-xl flex flex-col h-full w-full min-h-0">
                                     <div className="flex items-center justify-between mb-6 flex-shrink-0">
                                         <h3 className="text-xl font-bold text-text">Recently Watched</h3>
                                         {analytics.recentHistory.length > RECENT_HISTORY_PAGE_SIZE && (
@@ -4588,7 +4579,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                             </div>
                         ) : analytics && analytics.totalPlays > 0 && analytics.topWatched && analytics.topWatched.length > 0 ? (
                             <div className={`flex min-h-0 ${analytics.recentHistory?.length ? 'lg:col-span-2' : 'lg:col-span-2 lg:col-start-2'}`}>
-                                <div className="bg-card border border-border rounded-2xl p-6 shadow-xl flex flex-col h-full w-full min-h-0">
+                                <div className="glass-card p-6 shadow-xl flex flex-col h-full w-full min-h-0">
                                     <div className="flex items-center justify-between mb-6 flex-shrink-0">
                                         <div>
                                             <h3 className="text-xl font-bold text-text mb-1">Your Most Watched</h3>
@@ -4648,7 +4639,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
             ) : dashboardData && (
                 <div className="flex flex-col gap-6 w-full">
                     {dashboardData.recentMovies?.length > 0 && (
-                        <div className="bg-card border border-border rounded-2xl p-6 shadow-xl overflow-hidden w-full">
+                        <div className="glass-card p-6 shadow-xl overflow-hidden w-full">
                             <h3 className="text-xl font-bold text-text mb-4">Recently Added Movies</h3>
                             <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth">
                                 {dashboardData.recentMovies.map((item: any, idx: number) => (
@@ -4671,7 +4662,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                     )}
 
                     {dashboardData.recentShows?.length > 0 && (
-                        <div className="bg-card border border-border rounded-2xl p-6 shadow-xl overflow-hidden w-full">
+                        <div className="glass-card p-6 shadow-xl overflow-hidden w-full">
                             <h3 className="text-xl font-bold text-text mb-4">Recently Added TV Shows</h3>
                             <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth">
                                 {dashboardData.recentShows.map((item: any, idx: number) => (
@@ -4694,7 +4685,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                     )}
 
                     {dashboardData.recentMusic?.length > 0 && (
-                        <div className="bg-card border border-border rounded-2xl p-6 shadow-xl overflow-hidden w-full">
+                        <div className="glass-card p-6 shadow-xl overflow-hidden w-full">
                             <h3 className="text-xl font-bold text-text mb-4">Recently Added Music</h3>
                             <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth">
                                 {dashboardData.recentMusic.map((item: any, idx: number) => (
@@ -5864,7 +5855,7 @@ export const MaintenanceDashboard: React.FC = () => {
     }, [calendarEligibility, selectedCalendarDate]);
 
     const renderScaffoldPage = (title: string, description: string, bullets: string[]) => (
-        <div className="bg-card/50 backdrop-blur-md border border-white/5 rounded-xl p-5">
+        <div className="glass-card-sm p-5">
             <h3 className="text-xl font-bold text-plex mb-2">{title}</h3>
             <p className="text-sm text-muted mb-4">{description}</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -5881,10 +5872,10 @@ export const MaintenanceDashboard: React.FC = () => {
         <div className="w-full flex flex-col">
             <Loader isLoading={loading} />
             <ToastContainer toasts={toasts} setToasts={setToasts} />
-            <header className="hidden md:flex items-center justify-between w-full mb-6 mt-2 md:mt-0">
-                <h1 className="text-xl md:text-3xl font-bold text-plex">Maintenance</h1>
+            <header className="page-header">
+                <h1 className="page-title">Maintenance</h1>
             </header>
-            <div className="w-full flex flex-col p-0 md:p-8 bg-transparent md:bg-card/50 md:backdrop-blur-md rounded-none md:rounded-2xl border-0 md:border border-white/5 shadow-none md:shadow-2xl">
+            <div className="w-full flex flex-col p-0 md:p-8 bg-transparent md:glass-card rounded-none md:rounded-2xl border-0 md:border shadow-none">
                 <div className="md:hidden mb-3">
                     <label className="text-[10px] text-muted font-bold uppercase tracking-wider mb-1 block">Module Page</label>
                     <CustomSelect
@@ -5896,7 +5887,7 @@ export const MaintenanceDashboard: React.FC = () => {
                     />
                 </div>
                 <div className="md:grid md:grid-cols-[280px_minmax(0,1fr)] md:gap-6">
-                    <aside className="hidden md:block bg-card/50 border border-white/5 rounded-xl p-3 h-fit sticky top-20 backdrop-blur-md">
+                    <aside className="hidden md:block glass-card-sm p-3 h-fit sticky top-20">
                         <p className="text-muted text-xs uppercase tracking-wider font-bold mb-2 px-2">Module Pages</p>
                         <div className="space-y-1">
                             {sections.map((section) => (
@@ -5913,7 +5904,7 @@ export const MaintenanceDashboard: React.FC = () => {
                     </aside>
                     <div className="overflow-y-auto flex-grow mb-4 custom-scrollbar space-y-4 md:pr-2">
                         {!maintenanceFeatureEnabled && (
-                            <div className="bg-card/50 backdrop-blur-md border border-yellow-500/30 rounded-xl p-5">
+                            <div className="glass-card-sm border-yellow-500/30 p-5">
                                 <h3 className="text-xl font-bold text-plex mb-2">Maintenance Disabled</h3>
                                 <p className="text-sm text-muted mb-3">Experimental Maintenance Mode is currently OFF.</p>
                                 <p className="text-xs text-muted">Enable it in `Settings` → `System` under `Maintenance Experimental Mode`, then click Save Settings.</p>
@@ -5930,7 +5921,7 @@ export const MaintenanceDashboard: React.FC = () => {
                         <>
                         {activeSection === 'overview' && (
                             <div className="space-y-4">
-                                <div className="bg-card/50 backdrop-blur-md border border-white/5 rounded-xl p-5">
+                                <div className="glass-card-sm p-5">
                                     <h3 className="text-xl font-bold text-plex mb-2">Maintenance Control Center</h3>
                                     <p className="text-sm text-muted mb-4">Dedicated module for library maintenance automation: rules, collections, candidates, execution timeline, calendar, storage, and governance.</p>
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -5952,7 +5943,7 @@ export const MaintenanceDashboard: React.FC = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="bg-card/50 backdrop-blur-md border border-white/5 rounded-xl p-5 space-y-4">
+                                <div className="glass-card-sm p-5 space-y-4">
                                     <h4 className="font-bold text-text">Reclaim & Impact Overview</h4>
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                                         <div className="bg-background/30 rounded-lg p-3 border border-white/5">
@@ -6004,7 +5995,7 @@ export const MaintenanceDashboard: React.FC = () => {
                         )}
                         {activeSection === 'rules' && <LibraryMaintenancePanel addToast={addToast} onRulesUpdated={() => loadOverview(true)} />}
                         {activeSection === 'collections' && (
-                            <div className="bg-card/50 backdrop-blur-md border border-white/5 rounded-xl p-5 space-y-3">
+                            <div className="glass-card-sm p-5 space-y-3">
                                 <h3 className="text-xl font-bold text-plex">Collections</h3>
                                 <p className="text-sm text-muted">Manage collection behavior per rule. Changes save directly to each ruleset.</p>
                                 <div className="space-y-2">
@@ -6048,7 +6039,7 @@ export const MaintenanceDashboard: React.FC = () => {
                             </div>
                         )}
                         {activeSection === 'candidates' && (
-                            <div className="bg-card/50 backdrop-blur-md border border-white/5 rounded-xl p-3 md:p-5 space-y-3">
+                            <div className="glass-card-sm p-3 md:p-5 space-y-3">
                                 <div className="flex flex-wrap items-center justify-between gap-3">
                                     <h3 className="text-xl font-bold text-plex">Candidates</h3>
                                     <div className="flex items-center gap-2">
@@ -6101,7 +6092,7 @@ export const MaintenanceDashboard: React.FC = () => {
                             </div>
                         )}
                         {activeSection === 'runs' && (
-                            <div className="bg-card/50 backdrop-blur-md border border-white/5 rounded-xl p-5 space-y-3">
+                            <div className="glass-card-sm p-5 space-y-3">
                                 <h3 className="text-xl font-bold text-plex">Logs</h3>
                                 <div className="space-y-2 max-h-[620px] overflow-y-auto custom-scrollbar pr-1">
                                     {runs.map((run: any) => (
@@ -6138,7 +6129,7 @@ export const MaintenanceDashboard: React.FC = () => {
                             </div>
                         )}
                         {activeSection === 'calendar' && (
-                            <div className="bg-card/50 backdrop-blur-md border border-white/5 rounded-xl p-5 space-y-3">
+                            <div className="glass-card-sm p-5 space-y-3">
                                 <h3 className="text-xl font-bold text-plex">Calendar</h3>
                                 <p className="text-sm text-muted">Rule-based eligibility schedule. Grace days are applied from this rule's creation date.</p>
                                 <div className="flex flex-wrap gap-2">
@@ -6272,7 +6263,7 @@ export const MaintenanceDashboard: React.FC = () => {
                             </div>
                         )}
                         {activeSection === 'storage' && (
-                            <div className="bg-card/50 backdrop-blur-md border border-white/5 rounded-xl p-5 space-y-4">
+                            <div className="glass-card-sm p-5 space-y-4">
                                 <h3 className="text-xl font-bold text-plex">Storage Metrics</h3>
                                 <p className="text-sm text-muted">Deep storage projection per library based on indexed size and current rule matches.</p>
                                 <div className="flex items-center gap-2">
@@ -6356,7 +6347,7 @@ export const MaintenanceDashboard: React.FC = () => {
                             </div>
                         )}
                         {activeSection === 'library' && (
-                            <div className="bg-card/50 backdrop-blur-md border border-white/5 rounded-xl p-5 space-y-3">
+                            <div className="glass-card-sm p-5 space-y-3">
                                 <h3 className="text-xl font-bold text-plex">Rule Library</h3>
                                 <div className="flex flex-wrap gap-2">
                                     <button
@@ -6401,7 +6392,7 @@ export const MaintenanceDashboard: React.FC = () => {
                             </div>
                         )}
                         {activeSection === 'exclusions' && (
-                            <div className="bg-card/50 backdrop-blur-md border border-white/5 rounded-xl p-4 md:p-5 space-y-3">
+                            <div className="glass-card-sm p-4 md:p-5 space-y-3">
                                 <h3 className="text-xl font-bold text-plex">Exclusions</h3>
                                 <p className="text-sm text-muted">Click posters to select them for bulk actions. Selected items show a checkmark overlay. Use the Exclude link under each title for one-off changes.</p>
                                 <div className="bg-background/30 border border-white/5 rounded-lg p-3 md:p-4 space-y-2.5">
@@ -6654,7 +6645,7 @@ export const MaintenanceDashboard: React.FC = () => {
                             </div>
                         )}
                         {activeSection === 'settings' && (
-                            <div className="bg-card/50 backdrop-blur-md border border-white/5 rounded-xl p-5 space-y-4">
+                            <div className="glass-card-sm p-5 space-y-4">
                                 <h3 className="text-xl font-bold text-plex">Maintenance Settings</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                     <div className="bg-background/30 border border-white/5 rounded-lg p-3">
@@ -6735,7 +6726,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         <>
 
             {/* Mobile Top Nav */}
-            <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-[#161b22] border-b border-[#30363d] z-50 flex items-center justify-between px-4 shadow-md">
+            <div className="md:hidden fixed top-0 left-0 right-0 h-16 nav-shell border-b z-50 flex items-center justify-between px-4 shadow-lg">
                 <div className="flex items-center gap-3">
                     <img
                         src={adminThumb ? (adminThumb.startsWith('http') ? adminThumb : `/api/plex/image?path=${encodeURIComponent(adminThumb)}&width=64&height=64`) : '/static/logo.png'}
@@ -6761,7 +6752,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
 
 
             {/* Desktop Sidebar */}
-            <div className="hidden md:flex flex-col w-72 bg-card border-r border-border p-6 sticky top-0 h-screen overflow-y-auto custom-scrollbar shadow-2xl">
+            <div className="hidden md:flex flex-col w-72 nav-shell border-r p-6 sticky top-0 h-screen overflow-y-auto custom-scrollbar shadow-2xl">
                 <div className="flex flex-col gap-2 mt-4">
                     {normalizedNavOrder.map((key) => {
                         const item = navItemsConfig[key];
@@ -6780,7 +6771,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                         }
 
                         return (
-                            <a key={key} href="#" className={`flex items-center gap-4 p-3 no-underline rounded-lg transition-all font-medium ${isCurrent ? 'bg-plex/15 text-plex shadow-[0_0_15px_rgba(229,160,13,0.1)]' : 'text-muted hover:bg-white/5 hover:text-text'}`} onClick={(e) => { e.preventDefault(); if (item.onClick) item.onClick(e); else onNavigate(item.route as any); }}>
+                            <a key={key} href="#" className={`flex items-center gap-4 p-3 no-underline rounded-xl transition-all font-medium ${isCurrent ? 'nav-item-active' : 'text-muted hover:bg-white/5 hover:text-text'}`} onClick={(e) => { e.preventDefault(); if (item.onClick) item.onClick(e); else onNavigate(item.route as any); }}>
                                 <item.icon className="w-5 h-5 flex-shrink-0" /> {item.label}
                             </a>
                         );
@@ -6829,7 +6820,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
             </div>
 
             {/* Mobile Bottom Nav */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 w-full bg-[#161b22] border-t border-[#30363d] z-50 pb-[env(safe-area-inset-bottom)]">
+            <div className="md:hidden fixed bottom-0 left-0 right-0 w-full nav-shell border-t z-50 pb-[env(safe-area-inset-bottom)]">
                 <div className="flex justify-around items-center h-16">
                     {normalizedNavOrder.map((key) => {
                         const item = navItemsConfig[key];

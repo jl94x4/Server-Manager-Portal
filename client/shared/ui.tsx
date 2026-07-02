@@ -84,12 +84,12 @@ export const ConfirmModal: React.FC<{ isOpen: boolean; message: string; onConfir
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-background border border-border rounded-xl shadow-2xl p-6 max-w-sm w-full animate-slide-up">
-                <h3 className="text-xl font-bold mb-4 text-text">Are you sure?</h3>
-                <p className="text-muted mb-8 text-sm">{message}</p>
-                <div className="flex gap-4 justify-end">
-                    <button className="px-4 py-2 rounded-lg font-medium bg-black/20 hover:bg-black/40 transition-colors text-text border border-border" onClick={onCancel}>Cancel</button>
-                    <button className="px-4 py-2 rounded-lg font-medium bg-plex hover:bg-plex-hover transition-colors text-background" onClick={onConfirm}>Confirm</button>
+            <div className="modal-glass animate-slide-up">
+                <h3 className="text-xl font-black mb-4 text-text tracking-tight">Are you sure?</h3>
+                <p className="text-muted mb-8 text-sm leading-relaxed">{message}</p>
+                <div className="flex gap-3 justify-end">
+                    <button type="button" className="btn-secondary px-4 py-2.5 text-sm" onClick={onCancel}>Cancel</button>
+                    <button type="button" className="btn-primary px-4 py-2.5 text-sm" onClick={onConfirm}>Confirm</button>
                 </div>
             </div>
         </div>

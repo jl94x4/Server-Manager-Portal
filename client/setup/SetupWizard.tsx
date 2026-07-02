@@ -5,6 +5,7 @@ import {
 import { apiFetch } from '../shared/api';
 import { IntegrationTestButton } from '../shared/IntegrationTestButton';
 import { CustomSelect } from '../shared/ui';
+import { AuthPageBackground, themeClasses } from '../shared/theme';
 import type { PlexServer } from '../shared/types';
 
 const STEPS = [
@@ -262,10 +263,10 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
     };
 
     const progressPct = Math.round(((stepIndex + 1) / STEPS.length) * 100);
-    const inputClass = 'w-full px-4 py-3.5 rounded-xl bg-background/70 border border-white/10 text-text placeholder:text-muted/40 focus:border-plex/50 focus:ring-2 focus:ring-plex/15 outline-none transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]';
-    const labelClass = 'text-[11px] font-bold text-muted uppercase tracking-[0.14em]';
-    const primaryBtnClass = 'inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-bold text-sm bg-gradient-to-r from-plex to-amber-500 text-background shadow-[0_8px_28px_rgba(229,160,13,0.35)] hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none';
-    const sectionCardClass = 'rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent p-5 md:p-6';
+    const inputClass = themeClasses.inputPremium;
+    const labelClass = themeClasses.labelPremium;
+    const primaryBtnClass = themeClasses.btnPrimary;
+    const sectionCardClass = `${themeClasses.sectionCard} p-5 md:p-6`;
 
     const renderStepNav = (compact = false) => (
         STEPS.map((s, i) => {
@@ -296,17 +297,10 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
 
     return (
         <div className="relative min-h-screen w-full flex items-center justify-center p-4 sm:p-6 md:p-8 lg:p-10 overflow-hidden">
-            {/* Ambient background */}
-            <div className="pointer-events-none absolute inset-0 bg-background">
-                <div className="absolute -top-32 -left-32 w-[520px] h-[520px] rounded-full bg-plex/10 blur-[120px]" />
-                <div className="absolute top-1/3 -right-24 w-[480px] h-[480px] rounded-full bg-amber-500/8 blur-[100px]" />
-                <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] rounded-full bg-plex/5 blur-[90px]" />
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(229,160,13,0.12),transparent)]" />
-                <div className="absolute inset-0 opacity-[0.025]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'1\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")' }} />
-            </div>
+            <AuthPageBackground />
 
             <div className="relative z-10 w-full max-w-6xl">
-                <div className="rounded-3xl border border-white/10 bg-card/75 backdrop-blur-2xl shadow-[0_32px_100px_-16px_rgba(0,0,0,0.65)] overflow-hidden flex flex-col lg:flex-row min-h-[min(720px,calc(100vh-3rem))]">
+                <div className="glass-card-lg overflow-hidden flex flex-col lg:flex-row min-h-[min(720px,calc(100vh-3rem))]">
                     {/* Sidebar stepper — desktop */}
                     <aside className="hidden lg:flex flex-col w-[320px] xl:w-[360px] flex-shrink-0 border-r border-white/10 bg-gradient-to-b from-plex/[0.08] via-plex/[0.03] to-transparent p-8">
                         <div className="mb-8">
