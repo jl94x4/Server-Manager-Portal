@@ -3802,18 +3802,6 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     const [reportItem, setReportItem] = useState<any>(null);
     const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
     const [shareWrapUpOpen, setShareWrapUpOpen] = useState(false);
-    const libraryCardRef = useRef<HTMLDivElement>(null);
-    const [libraryCardHeight, setLibraryCardHeight] = useState<number | null>(null);
-
-    useEffect(() => {
-        const el = libraryCardRef.current;
-        if (!el) return;
-        const syncHeight = () => setLibraryCardHeight(el.offsetHeight);
-        syncHeight();
-        const observer = new ResizeObserver(syncHeight);
-        observer.observe(el);
-        return () => observer.disconnect();
-    }, [serverStats, serverDataLoading, sessionInfo.session.isAdmin]);
 
     const user = sessionInfo.account;
     const showQualityBadges = publicConfig?.showPosterQualityBadges !== false;
@@ -4096,10 +4084,10 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 items-stretch">
-                {/* Left Column */}
-                <div className="lg:col-span-1 flex flex-col gap-3 md:gap-4">
+                {/* Left Column — Admin + Quick Actions stacked */}
+                <div className="lg:col-span-1 flex flex-col gap-3 md:gap-4 min-h-0">
                     {sessionInfo.session.isAdmin ? (
-                        <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col items-center justify-center text-center">
+                        <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col items-center justify-center text-center flex-shrink-0">
                             <div className="w-14 h-14 md:w-16 md:h-16 bg-plex/10 rounded-full flex items-center justify-center mb-2 md:mb-3 border border-plex/30 shadow-[0_0_15px_rgba(229,160,13,0.15)]">
                                 <Shield className="w-7 h-7 md:w-8 md:h-8 text-plex drop-shadow-md" />
                             </div>
@@ -4107,7 +4095,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                             <div className="mt-2 inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-500/40 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.25)] tracking-widest uppercase"><Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]" /> VIP UNLIMITED</div>
                         </div>
                     ) : user ? (
-                        <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col justify-center">
+                        <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col justify-center flex-shrink-0">
                             <div className="flex flex-col gap-3 md:gap-4">
                                 <div>
                                     <p className="text-muted text-xs uppercase tracking-widest font-semibold mb-3">Access Status</p>
@@ -4152,9 +4140,29 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                             </div>
                         </div>
                     ) : (
-                        <div className="flex items-center gap-3 text-muted text-sm bg-card p-6 rounded-2xl border border-border shadow-lg">
+                        <div className="flex items-center gap-3 text-muted text-sm bg-card p-6 rounded-2xl border border-border shadow-lg flex-shrink-0">
                             <div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin flex-shrink-0" />
                             Setting up your 3-Day Temporary Access...
+                        </div>
+                    )}
+
+                    {sessionInfo.session.isAdmin && (
+                        <div className="glass-card p-3 md:p-4 shadow-xl flex flex-col flex-1 min-h-0 justify-center gap-2.5">
+                            <p className="text-muted text-xs uppercase tracking-widest font-semibold flex-shrink-0">Quick Actions</p>
+                            <div className="grid grid-cols-3 gap-2">
+                                <button type="button" onClick={() => onViewAdmin()} className="flex flex-col items-center justify-center gap-1.5 px-2 py-3 rounded-xl font-bold text-[10px] leading-tight text-center transition-all border bg-plex/10 border-plex/30 text-plex hover:bg-plex/20">
+                                    <Users size={18} />
+                                    <span>Manage Users</span>
+                                </button>
+                                <button type="button" onClick={() => onViewSettings?.()} className="flex flex-col items-center justify-center gap-1.5 px-2 py-3 rounded-xl font-bold text-[10px] leading-tight text-center transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
+                                    <Settings size={18} />
+                                    <span>Settings</span>
+                                </button>
+                                <button type="button" onClick={() => onViewLogs?.()} className="flex flex-col items-center justify-center gap-1.5 px-2 py-3 rounded-xl font-bold text-[10px] leading-tight text-center transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
+                                    <Activity size={18} />
+                                    <span>System Logs</span>
+                                </button>
+                            </div>
                         </div>
                     )}
 
@@ -4236,113 +4244,81 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                     </div>
                 </div>
 
-                {/* Right Column — Server Library Size */}
-                <div className="lg:col-span-2 flex flex-col gap-3 md:gap-4">
-                    <div ref={libraryCardRef} className="glass-card p-4 md:p-5 shadow-xl flex flex-col justify-center relative overflow-hidden flex-shrink-0">
-                        <div className="absolute -top-10 -right-10 p-8 opacity-5">
-                            <Activity className="w-64 h-64 text-plex" />
+                {/* Right Column — Library + Analytics stacked */}
+                <div className="lg:col-span-2 flex flex-col gap-3 md:gap-4 min-h-0">
+                    <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col justify-center flex-shrink-0">
+                        <div className="flex items-center justify-between mb-3 md:mb-4">
+                            <p className="text-muted text-sm uppercase tracking-widest font-semibold">Server Library Size</p>
+                            {sessionInfo.session.isAdmin && <RebuildLibraryCacheButton />}
                         </div>
-                        <div className="relative z-10">
-                            <div className="flex items-center justify-between mb-3 md:mb-4">
-                                <p className="text-muted text-sm uppercase tracking-widest font-semibold">Server Library Size</p>
-                                {sessionInfo.session.isAdmin && <RebuildLibraryCacheButton />}
+                        {serverDataLoading && !serverStats ? (
+                            <LibraryStatsSkeleton />
+                        ) : serverStats?.isBuilding ? (
+                            <div className="flex flex-col gap-2">
+                                <div className="flex gap-3 items-center text-muted"><div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin" /> Building library size cache in background...</div>
+                                <p className="text-xs text-muted/60">This runs once and may take a few minutes for large libraries. The page will auto-update when ready.</p>
                             </div>
-                            {serverDataLoading && !serverStats ? (
-                                <LibraryStatsSkeleton />
-                            ) : serverStats?.isBuilding ? (
-                                <div className="flex flex-col gap-2">
-                                    <div className="flex gap-3 items-center text-muted"><div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin" /> Building library size cache in background...</div>
-                                    <p className="text-xs text-muted/60">This runs once and may take a few minutes for large libraries. The page will auto-update when ready.</p>
-                                </div>
-                            ) : serverStats ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 md:gap-3">
-                                    <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
-                                        <Film className="w-7 h-7 text-plex mb-2 opacity-80" />
-                                        <span className="text-3xl font-black text-text drop-shadow-md mb-1">
-                                            {serverStats.moviesBytes ? (() => {
-                                                const bytes = serverStats.moviesBytes;
-                                                if (bytes === 0) return '0 B';
-                                                const k = 1024;
-                                                const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-                                                const i = Math.floor(Math.log(bytes) / Math.log(k));
-                                                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-                                            })() : '0 B'}
-                                        </span>
-                                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
-                                            <span className="text-plex">{serverStats.movies?.toLocaleString() || 0}</span>
-                                            <span className="text-muted">Movies</span>
-                                        </div>
-                                    </div>
-                                    <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
-                                        <Tv className="w-7 h-7 text-plex mb-2 opacity-80" />
-                                        <span className="text-3xl font-black text-text drop-shadow-md mb-1">
-                                            {serverStats.showsBytes ? (() => {
-                                                const bytes = serverStats.showsBytes;
-                                                if (bytes === 0) return '0 B';
-                                                const k = 1024;
-                                                const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-                                                const i = Math.floor(Math.log(bytes) / Math.log(k));
-                                                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-                                            })() : '0 B'}
-                                        </span>
-                                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
-                                            <span className="text-plex">{serverStats.shows?.toLocaleString() || 0}</span>
-                                            <span className="text-muted">Shows</span>
-                                        </div>
-                                    </div>
-                                    <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
-                                        <Music className="w-7 h-7 text-plex mb-2 opacity-80" />
-                                        <span className="text-3xl font-black text-text drop-shadow-md mb-1">
-                                            {serverStats.musicBytes ? (() => {
-                                                const bytes = serverStats.musicBytes;
-                                                if (bytes === 0) return '0 B';
-                                                const k = 1024;
-                                                const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-                                                const i = Math.floor(Math.log(bytes) / Math.log(k));
-                                                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-                                            })() : '0 B'}
-                                        </span>
-                                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
-                                            <span className="text-plex">{serverStats.music?.toLocaleString() || 0}</span>
-                                            <span className="text-muted">Albums</span>
-                                        </div>
+                        ) : serverStats ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 md:gap-3">
+                                <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
+                                    <Film className="w-7 h-7 text-plex mb-2 opacity-80" />
+                                    <span className="text-3xl font-black text-text drop-shadow-md mb-1">
+                                        {serverStats.moviesBytes ? (() => {
+                                            const bytes = serverStats.moviesBytes;
+                                            if (bytes === 0) return '0 B';
+                                            const k = 1024;
+                                            const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+                                            const i = Math.floor(Math.log(bytes) / Math.log(k));
+                                            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                                        })() : '0 B'}
+                                    </span>
+                                    <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
+                                        <span className="text-plex">{serverStats.movies?.toLocaleString() || 0}</span>
+                                        <span className="text-muted">Movies</span>
                                     </div>
                                 </div>
-                            ) : (
-                                <div className="text-muted text-sm bg-background/50 p-4 rounded-xl border border-white/5">Could not load server statistics at this time.</div>
-                            )}
-                        </div>
+                                <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
+                                    <Tv className="w-7 h-7 text-plex mb-2 opacity-80" />
+                                    <span className="text-3xl font-black text-text drop-shadow-md mb-1">
+                                        {serverStats.showsBytes ? (() => {
+                                            const bytes = serverStats.showsBytes;
+                                            if (bytes === 0) return '0 B';
+                                            const k = 1024;
+                                            const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+                                            const i = Math.floor(Math.log(bytes) / Math.log(k));
+                                            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                                        })() : '0 B'}
+                                    </span>
+                                    <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
+                                        <span className="text-plex">{serverStats.shows?.toLocaleString() || 0}</span>
+                                        <span className="text-muted">Shows</span>
+                                    </div>
+                                </div>
+                                <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
+                                    <Music className="w-7 h-7 text-plex mb-2 opacity-80" />
+                                    <span className="text-3xl font-black text-text drop-shadow-md mb-1">
+                                        {serverStats.musicBytes ? (() => {
+                                            const bytes = serverStats.musicBytes;
+                                            if (bytes === 0) return '0 B';
+                                            const k = 1024;
+                                            const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+                                            const i = Math.floor(Math.log(bytes) / Math.log(k));
+                                            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                                        })() : '0 B'}
+                                    </span>
+                                    <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
+                                        <span className="text-plex">{serverStats.music?.toLocaleString() || 0}</span>
+                                        <span className="text-muted">Albums</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-muted text-sm bg-background/50 p-4 rounded-xl border border-white/5">Could not load server statistics at this time.</div>
+                        )}
                     </div>
-                </div>
 
-                {/* Quick Actions + Your Analytics — shared row so bottoms align */}
-                {sessionInfo.session.isAdmin && (
-                    <div className="lg:col-span-1 flex min-h-0">
-                        <div
-                            className="glass-card p-3 md:p-4 shadow-xl flex flex-col h-full w-full min-h-0 justify-center gap-2.5"
-                            style={libraryCardHeight ? { minHeight: libraryCardHeight } : undefined}
-                        >
-                            <p className="text-muted text-xs uppercase tracking-widest font-semibold flex-shrink-0">Quick Actions</p>
-                            <div className="grid grid-cols-3 gap-2">
-                                <button type="button" onClick={() => onViewAdmin()} className="flex flex-col items-center justify-center gap-1.5 px-2 py-3 rounded-xl font-bold text-[10px] leading-tight text-center transition-all border bg-plex/10 border-plex/30 text-plex hover:bg-plex/20">
-                                    <Users size={18} />
-                                    <span>Manage Users</span>
-                                </button>
-                                <button type="button" onClick={() => onViewSettings?.()} className="flex flex-col items-center justify-center gap-1.5 px-2 py-3 rounded-xl font-bold text-[10px] leading-tight text-center transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
-                                    <Settings size={18} />
-                                    <span>Settings</span>
-                                </button>
-                                <button type="button" onClick={() => onViewLogs?.()} className="flex flex-col items-center justify-center gap-1.5 px-2 py-3 rounded-xl font-bold text-[10px] leading-tight text-center transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
-                                    <Activity size={18} />
-                                    <span>System Logs</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-                {(sessionInfo.session.isAdmin || user) && (
-                    <div className={`flex min-h-0 ${sessionInfo.session.isAdmin ? 'lg:col-span-2' : 'lg:col-span-2 lg:col-start-2'}`}>
-                        <div className="glass-card p-3 md:p-4 shadow-sm flex flex-col h-full w-full min-h-0">
+                    {(sessionInfo.session.isAdmin || user) && (
+                        <div className="glass-card p-3 md:p-4 shadow-xl flex flex-col flex-1 min-h-0">
                             <div className="flex items-center justify-between flex-shrink-0">
                                 <h2 className="text-lg md:text-xl font-bold text-text flex items-center gap-2">
                                     <Activity className="w-5 h-5 text-plex" /> Your Analytics
@@ -4400,8 +4376,8 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                 </div>
                             )}
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
 
                 {/* Recently Watched + Most Watched — shared row so bottoms align */}
                 {(sessionInfo.session.isAdmin || user) && (
