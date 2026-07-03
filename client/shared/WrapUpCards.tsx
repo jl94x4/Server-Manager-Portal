@@ -155,46 +155,102 @@ type WrapUpCardGridProps = {
     minCardHeight?: number;
     className?: string;
     valueClassName?: string;
+    /** Stable layout for html2canvas export — avoids line-clamp/SVG bleed on some browsers */
+    variant?: 'default' | 'export';
+};
+
+const exportValueClassName = 'text-sm font-bold leading-normal';
+
+const exportSubValue = (card: WrapUpCardDef, analytics: any): React.ReactNode => {
+    if (card.metric === 'Total Streams') {
+        const parts = [
+            `Movies ${analytics.moviesCount || 0}`,
+            `TV ${analytics.showsCount || 0}`,
+        ];
+        if ((analytics.musicCount || 0) > 0) parts.push(`Music ${analytics.musicCount}`);
+        return parts.join(' · ');
+    }
+    return card.subValue;
 };
 
 export const WrapUpCardGrid: React.FC<WrapUpCardGridProps> = ({
     analytics,
     interactive = false,
     onCardClick,
-    minCardHeight = 112,
+    minCardHeight,
     className = '',
     valueClassName: defaultValueClassName = 'text-sm font-bold leading-tight',
+    variant = 'default',
 }) => {
     const cards = buildWrapUpCards(analytics);
+    const isExport = variant === 'export';
+    const resolvedMinHeight = minCardHeight ?? (isExport ? 136 : 112);
 
     return (
         <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 md:gap-3 ${className}`}>
             {cards.map((card) => {
                 const Icon = card.icon;
-                const valueClass = card.valueClassName || defaultValueClassName;
+                const valueClass = isExport
+                    ? (card.metric === 'Server Rank' || card.metric === 'Total Streams'
+                        ? 'text-2xl font-black leading-normal'
+                        : exportValueClassName)
+                    : (card.valueClassName || defaultValueClassName);
+                const subValue = isExport ? exportSubValue(card, analytics) : card.subValue;
                 return (
                     <div
                         key={card.metric}
+                        data-wrap-up-card=""
                         onClick={interactive && onCardClick ? () => onCardClick(card.metric) : undefined}
-                        className={`rounded-xl overflow-hidden relative border border-border/50 flex flex-col ${interactive ? 'cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all group' : ''}`}
-                        style={{ minHeight: `${minCardHeight}px` }}
+                        className={`rounded-xl relative border border-border/50 flex flex-col ${isExport ? 'isolate' : 'overflow-hidden'} ${interactive ? 'cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all group' : ''}`}
+                        style={{ minHeight: `${resolvedMinHeight}px` }}
                     >
-                        <img
-                            src={card.bgImage}
-                            alt=""
-                            className={`absolute inset-0 w-full h-full object-cover z-0 opacity-60 ${interactive ? 'transition-transform duration-700 group-hover:scale-110' : ''}`}
-                        />
-                        <div className="absolute inset-0 bg-black/60 z-10" />
-                        <div className="relative z-20 p-3 md:p-4 flex-1 flex flex-col items-center justify-center text-center">
-                            <Icon className="w-6 h-6 text-plex mb-2 drop-shadow-md flex-shrink-0" />
-                            <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">{card.label}</p>
-                            <p className={`text-white drop-shadow-lg mb-1 ${valueClass}`}>
-                                {card.value}
-                            </p>
-                            {card.subValue && (
-                                <p className={`text-[10px] font-bold tracking-wider ${card.metric === 'Top Binge' || card.metric === 'Top Movie' ? 'text-plex' : 'text-gray-400'}`}>{card.subValue}</p>
-                            )}
-                        </div>
+                        {isExport ? (
+                            <>
+                                <div className="absolute inset-0 z-0 overflow-hidden rounded-xl">
+                                    <img
+                                        src={card.bgImage}
+                                        alt=""
+                                        crossOrigin="anonymous"
+                                        className={`absolute inset-0 w-full h-full object-cover opacity-60 ${interactive ? 'transition-transform duration-700 group-hover:scale-110' : ''}`}
+                                    />
+                                    <div className="absolute inset-0 bg-black/60" />
+                                </div>
+                                <div className="relative z-10 p-3 md:p-4 flex-1 flex flex-col items-center justify-center text-center">
+                                    <div className="mb-2 flex h-6 w-6 flex-shrink-0 items-center justify-center">
+                                        <Icon className="h-6 w-6 text-plex" />
+                                    </div>
+                                    <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1">{card.label}</p>
+                                    <p
+                                        className={`text-white mb-1 w-full px-0.5 overflow-visible ${valueClass}`}
+                                        style={{ lineHeight: 1.35, WebkitLineClamp: 'unset' }}
+                                    >
+                                        {card.value}
+                                    </p>
+                                    {subValue && (
+                                        <p className={`text-[10px] font-bold tracking-wider ${card.metric === 'Top Binge' || card.metric === 'Top Movie' ? 'text-plex' : 'text-gray-400'}`}>{subValue}</p>
+                                    )}
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <img
+                                    src={card.bgImage}
+                                    alt=""
+                                    className={`absolute inset-0 w-full h-full object-cover z-0 opacity-60 ${interactive ? 'transition-transform duration-700 group-hover:scale-110' : ''}`}
+                                />
+                                <div className="absolute inset-0 bg-black/60 z-10" />
+                                <div className="relative z-20 p-3 md:p-4 flex-1 flex flex-col items-center justify-center text-center">
+                                    <Icon className="w-6 h-6 text-plex mb-2 drop-shadow-md flex-shrink-0" />
+                                    <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">{card.label}</p>
+                                    <p className={`text-white drop-shadow-lg mb-1 ${valueClass}`}>
+                                        {card.value}
+                                    </p>
+                                    {subValue && (
+                                        <p className={`text-[10px] font-bold tracking-wider ${card.metric === 'Top Binge' || card.metric === 'Top Movie' ? 'text-plex' : 'text-gray-400'}`}>{subValue}</p>
+                                    )}
+                                </div>
+                            </>
+                        )}
                     </div>
                 );
             })}

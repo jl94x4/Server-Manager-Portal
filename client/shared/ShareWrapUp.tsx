@@ -60,18 +60,43 @@ export const ShareWrapUpModal: React.FC<ShareWrapUpModalProps> = ({
     const renderExportBlob = useCallback(async (): Promise<Blob | null> => {
         const node = exportRef.current;
         if (!node) return null;
+        if (document.fonts?.ready) {
+            await document.fonts.ready;
+        }
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
         const canvas = await html2canvas(node, {
             useCORS: true,
             allowTaint: true,
             backgroundColor: '#0d0e10',
             scale: 2,
             logging: false,
+            scrollX: 0,
+            scrollY: -window.scrollY,
             onclone: (clonedDoc) => {
                 clonedDoc.querySelectorAll('img').forEach((img) => {
                     const src = img.getAttribute('src') || '';
                     if (src.startsWith('http') && !src.startsWith(window.location.origin)) {
                         img.style.visibility = 'hidden';
                     }
+                });
+                clonedDoc.querySelectorAll('[data-wrap-up-card]').forEach((card) => {
+                    const el = card as HTMLElement;
+                    el.style.isolation = 'isolate';
+                    el.style.contain = 'layout paint';
+                    el.style.overflow = 'visible';
+                });
+                clonedDoc.querySelectorAll('svg').forEach((svg) => {
+                    const el = svg as SVGElement;
+                    el.style.overflow = 'hidden';
+                    el.setAttribute('overflow', 'hidden');
+                });
+                clonedDoc.querySelectorAll('[class*="line-clamp"]').forEach((el) => {
+                    const node = el as HTMLElement;
+                    node.style.display = 'block';
+                    node.style.overflow = 'visible';
+                    node.style.webkitLineClamp = 'unset';
+                    node.style.lineHeight = '1.35';
                 });
             },
         });
@@ -179,7 +204,7 @@ export const ShareWrapUpModal: React.FC<ShareWrapUpModalProps> = ({
                             </p>
                         </div>
 
-                        <WrapUpCardGrid analytics={analytics} minCardHeight={128} className="lg:grid-cols-5" />
+                        <WrapUpCardGrid analytics={analytics} variant="export" className="lg:grid-cols-5" />
 
                         <p className="text-[10px] text-muted/70 mt-4 truncate">{window.location.origin}</p>
                     </div>
