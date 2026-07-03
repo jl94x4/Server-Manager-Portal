@@ -34,6 +34,46 @@ const ALLOW_PRIVATE_INTEGRATION_URLS = String(process.env.ALLOW_PRIVATE_INTEGRAT
 const FORCE_SECURE_COOKIES = String(process.env.FORCE_SECURE_COOKIES || '').toLowerCase() === 'true';
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || '';
 
+const normalizeBasePath = (raw = '') => {
+    const value = String(raw || '').trim();
+    if (!value || value === '/') return '';
+    const withLeading = value.startsWith('/') ? value : `/${value}`;
+    return withLeading.replace(/\/+$/, '');
+};
+
+const deriveBasePath = () => {
+    if (process.env.BASE_PATH != null && String(process.env.BASE_PATH).trim() !== '') {
+        return normalizeBasePath(process.env.BASE_PATH);
+    }
+    if (PUBLIC_BASE_URL) {
+        try {
+            return normalizeBasePath(new URL(PUBLIC_BASE_URL).pathname);
+        } catch (_) { /* fall through */ }
+    }
+    return '';
+};
+
+const BASE_PATH = deriveBasePath();
+
+const withBasePath = (route = '/') => {
+    const path = route.startsWith('/') ? route : `/${route}`;
+    return BASE_PATH ? `${BASE_PATH}${path}` : path;
+};
+
+const stripBasePathFromUrl = (url = '/') => {
+    const [pathname, ...queryParts] = String(url).split('?');
+    const query = queryParts.length ? `?${queryParts.join('?')}` : '';
+    if (!BASE_PATH) return url;
+    if (pathname === BASE_PATH || pathname === `${BASE_PATH}/`) {
+        return `/${query}`;
+    }
+    if (pathname.startsWith(`${BASE_PATH}/`)) {
+        const rest = pathname.slice(BASE_PATH.length) || '/';
+        return `${rest}${query}`;
+    }
+    return url;
+};
+
 // Sentinel sent to the admin UI in place of stored secrets so raw credentials
 // never leave the server. When the UI posts this value back unchanged on save,
 // the existing stored secret is preserved instead of being overwritten.
@@ -176,7 +216,7 @@ const sessionCookieBase = () => ({
     httpOnly: true,
     secure: FORCE_SECURE_COOKIES,
     sameSite: 'lax',
-    path: '/',
+    path: BASE_PATH || '/',
 });
 
 const clearSessionCookie = (req, res) => {
@@ -195,6 +235,13 @@ app.use(cookieParser()); // Middleware to parse cookies
 
 // Trust the first proxy (e.g. Nginx/Caddy) so req.secure reflects HTTPS correctly
 app.set('trust proxy', 1);
+
+if (BASE_PATH) {
+    app.use((req, res, next) => {
+        req.url = stripBasePathFromUrl(req.url);
+        next();
+    });
+}
 
 // --- In-Memory Cache for Plex Metadata ---
 const plexMetadataCache = new Map();
@@ -1284,7 +1331,7 @@ const handlePlexPinLogin = async (req, res, pinId, ref, { redirectOnSuccess = fa
         const message = 'Plex sign-in did not complete in time — please try again';
         log(`Plex login failed for pin ${pinId}: authToken not ready`);
         if (redirectOnSuccess) {
-            return res.redirect('/?loginError=' + encodeURIComponent(message));
+            return res.redirect(withBasePath('/?loginError=' + encodeURIComponent(message)));
         }
         return res.status(400).json({ error: message });
     }
@@ -1313,7 +1360,7 @@ const handlePlexPinLogin = async (req, res, pinId, ref, { redirectOnSuccess = fa
         clearSessionCookie(req, res);
         const message = 'Your portal session has expired. Please contact the admin for access.';
         if (redirectOnSuccess) {
-            return res.redirect('/?loginError=' + encodeURIComponent(message));
+            return res.redirect(withBasePath('/?loginError=' + encodeURIComponent(message)));
         }
         return res.status(403).json({ error: message });
     }
@@ -1328,7 +1375,7 @@ const handlePlexPinLogin = async (req, res, pinId, ref, { redirectOnSuccess = fa
             log(`Plex login blocked for ${sessionUser.username}: not a portal member (admin=${isAdmin}, adminPlexId=${config.adminPlexId || 'unset'})`);
             const message = 'Your account is not registered for this portal.';
             if (redirectOnSuccess) {
-                return res.redirect('/?loginError=' + encodeURIComponent(message));
+                return res.redirect(withBasePath('/?loginError=' + encodeURIComponent(message)));
             }
             return res.status(403).json({ error: message });
         }
@@ -1382,7 +1429,7 @@ const handlePlexPinLogin = async (req, res, pinId, ref, { redirectOnSuccess = fa
     log(`Plex login success for ${sessionUser.username} (admin=${isAdmin}, secureCookie=${FORCE_SECURE_COOKIES})`);
 
     if (redirectOnSuccess) {
-        return res.redirect('/portal');
+        return res.redirect(withBasePath('/portal'));
     }
     return res.json({ message: 'Logged in successfully', user: sessionUser });
 };
@@ -1434,14 +1481,14 @@ app.post('/api/auth/plex/callback', authCallbackRateLimit, async (req, res) => {
 
 app.get('/api/auth/plex/callback', authCallbackRateLimit, async (req, res) => {
     const { pinId, ref } = req.query;
-    if (!pinId) return res.redirect('/?loginError=' + encodeURIComponent('Missing pin ID'));
+    if (!pinId) return res.redirect(withBasePath('/?loginError=' + encodeURIComponent('Missing pin ID')));
 
     try {
         await handlePlexPinLogin(req, res, String(pinId), ref, { redirectOnSuccess: true });
     } catch (err) {
         log('Error in plex GET callback: ' + err.message);
         clearSessionCookie(req, res);
-        res.redirect('/?loginError=' + encodeURIComponent('Login failed. Please try again.'));
+        res.redirect(withBasePath('/?loginError=' + encodeURIComponent('Login failed. Please try again.')));
     }
 });
 
@@ -1914,7 +1961,8 @@ app.get('/api/config/public', async (req, res) => {
             use24HourClock: !!config.use24HourClock,
             allowTemporaryAccess: !!config.allowTemporaryAccess,
             showPosterQualityBadges: config.showPosterQualityBadges !== false,
-            dashboardLayout: normalizeSectionLayout(config.dashboardLayout)
+            dashboardLayout: normalizeSectionLayout(config.dashboardLayout),
+            basePath: BASE_PATH,
         });
     } catch (error) {
         res.json({
@@ -1926,7 +1974,8 @@ app.get('/api/config/public', async (req, res) => {
             use24HourClock: false,
             allowTemporaryAccess: false,
             showPosterQualityBadges: true,
-            dashboardLayout: DEFAULT_DASHBOARD_LAYOUT
+            dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
+            basePath: BASE_PATH,
         });
     }
 });
@@ -5498,14 +5547,25 @@ const getRequestBaseUrl = (req) => {
         return `${req.secure ? 'https' : 'http'}://localhost:${PORT}`;
     }
     const proto = req.secure ? 'https' : 'http';
-    return `${proto}://${normalizedHost}`;
+    return `${proto}://${normalizedHost}${BASE_PATH}`;
+};
+
+const injectBasePathHtml = (html) => {
+    const baseScript = `<script>window.__BASE_PATH__=${JSON.stringify(BASE_PATH)};</script>`;
+    let updated = html.replace('</head>', `    ${baseScript}\n</head>`);
+    if (BASE_PATH) {
+        updated = updated
+            .replace(/href="\/static\//g, `href="${BASE_PATH}/static/`)
+            .replace(/src="\/static\//g, `src="${BASE_PATH}/static/`);
+    }
+    return updated;
 };
 
 const buildSocialMetaTags = async (req) => {
     const config = await loadFile(CONFIG_PATH, {});
     const profile = await getAdminProfile(config);
     const baseUrl = getRequestBaseUrl(req);
-    const pageUrl = `${baseUrl}${req.originalUrl || '/'}`;
+    const pageUrl = `${baseUrl}${stripBasePathFromUrl(req.originalUrl || '/')}`;
     const serverName = profile.serverName || 'Server Portal';
     const serverId = config.serverIdentifier || 'unconfigured';
     const description = `Live Plex portal for ${serverName} (${serverId}).`;
@@ -5542,9 +5602,9 @@ app.get(['/', '/portal', '/status', '/admin', '/users', '/dashboard', '/settings
         const indexPath = path.join(process.cwd(), 'index.html');
         const html = await fs.readFile(indexPath, 'utf8');
         const socialMeta = await buildSocialMetaTags(req);
-        const updatedHtml = html
+        const updatedHtml = injectBasePathHtml(html
             .replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtmlAttr(socialMeta.title)}</title>`)
-            .replace('</head>', `    ${socialMeta.tags}\n</head>`);
+            .replace('</head>', `    ${socialMeta.tags}\n</head>`));
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -8325,7 +8385,7 @@ async function monitorConcurrentSessions() {
 
 app.listen(PORT, BIND_HOST, async () => {
     log(`--- Server Manager Portal Service starting on http://${BIND_HOST}:${PORT} ---`);
-    log(`Runtime: CONFIG_DIR=${CONFIG_DIR}, FORCE_SECURE_COOKIES=${FORCE_SECURE_COOKIES}, appVersion=${appVersion}`);
+    log(`Runtime: CONFIG_DIR=${CONFIG_DIR}, FORCE_SECURE_COOKIES=${FORCE_SECURE_COOKIES}, BASE_PATH=${BASE_PATH || '/'}, appVersion=${appVersion}`);
     if (FORCE_SECURE_COOKIES) {
         log('WARNING: FORCE_SECURE_COOKIES=true — plain HTTP logins (http://LAN-IP:2121) will fail until this is set to false.');
     }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Copy, ChevronUp, ChevronDown } from 'lucide-react';
 import { apiFetch } from '../shared/api';
+import { getPublicOrigin } from '../shared/basePath';
 import { appConfirm } from '../shared/confirm';
 import { CustomSelect } from '../shared/ui';
 import { Loader, ToastContainer, pushToast, type ToastMessage } from '../shared/toast';
@@ -76,7 +77,7 @@ export const InvitesSettings: React.FC<{ addToast: (msg: string, type: 'success'
     };
 
     const handleCopy = (code: string) => {
-        navigator.clipboard.writeText(`${window.location.origin}/invite/${code}`);
+        navigator.clipboard.writeText(`${getPublicOrigin()}/invite/${code}`);
         addToast('Invite link copied to clipboard!', 'success');
     };
 
@@ -157,7 +158,7 @@ export const InvitesSettings: React.FC<{ addToast: (msg: string, type: 'success'
                             <tr key={inv.code} className="border-b border-border/50 hover:bg-white/5 transition-colors">
                                 <td className="p-3">
                                     <div className="flex items-center gap-2">
-                                        <span className="font-mono text-sm text-plex select-all">{window.location.origin}/invite/{inv.code}</span>
+                                        <span className="font-mono text-sm text-plex select-all">{getPublicOrigin()}/invite/{inv.code}</span>
                                         <button onClick={() => handleCopy(inv.code)} className="text-muted hover:text-plex transition-colors p-1" title="Copy Link">
                                             <Copy size={16} />
                                         </button>

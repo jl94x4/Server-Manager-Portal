@@ -6,6 +6,7 @@ import { SettingsDashboard } from './settings/SettingsDashboard';
 import { LibraryMaintenancePanel } from './maintenance/LibraryMaintenancePanel';
 import { appConfirm } from './shared/confirm';
 import { apiFetch } from './shared/api';
+import { getPublicOrigin, logoUrl, portalUrl, stripBasePath } from './shared/basePath';
 import { formatDate, getDaysUntilExpiry, getAccessProgressPct, addMonths, addYears, formatTime, formatEventName, formatDateTime, hexToRgb, formatSizeCeil, formatStreamingHour } from './shared/format';
 import { CustomSelect, ConfirmModal, StyledCheckbox } from './shared/ui';
 import { PeriodDropdown } from './shared/PeriodDropdown';
@@ -44,9 +45,9 @@ export const updateFavicon = (thumbUrl: string | null | undefined) => {
         document.head.appendChild(link);
     }
     if (thumbUrl) {
-        link.href = thumbUrl.startsWith('http') ? thumbUrl : `/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=32&height=32`;
+        link.href = thumbUrl.startsWith('http') ? thumbUrl : portalUrl(`/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=32&height=32`);
     } else {
-        link.href = '/static/logo.png';
+        link.href = logoUrl();
     }
 };
 
@@ -283,7 +284,7 @@ const UserAnalyticsModal: React.FC<{ userId: string, username: string, thumb: st
                 <div className="p-6 border-b border-border flex items-center justify-between bg-black/20 flex-shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-r from-plex to-[#e5a00d]">
-                            <img src={thumb ? (thumb.startsWith('http') ? thumb : `/api/plex/image?path=${encodeURIComponent(thumb)}&width=128&height=128`) : '/static/logo.png'} alt={username} className="w-full h-full rounded-full object-cover bg-card" onError={(e) => { (e.target as HTMLImageElement).src = '/static/logo.png'; }} />
+                            <img src={thumb ? (thumb.startsWith('http') ? thumb : portalUrl(`/api/plex/image?path=${encodeURIComponent(thumb)}&width=128&height=128`)) : logoUrl()} alt={username} className="w-full h-full rounded-full object-cover bg-card" onError={(e) => { (e.target as HTMLImageElement).src = logoUrl(); }} />
                         </div>
                         <div>
                             <h2 className="text-2xl font-bold text-text">{username}</h2>
@@ -574,7 +575,7 @@ const PersonalAnalyticsDashboard: React.FC<{ username: string, thumb: string | n
                 <div className="p-6 border-b border-border flex items-center justify-between bg-black/20 flex-shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-r from-plex to-[#e5a00d]">
-                            <img src={thumb ? (thumb.startsWith('http') ? thumb : `/api/plex/image?path=${encodeURIComponent(thumb)}&width=128&height=128`) : '/static/logo.png'} alt={username} className="w-full h-full rounded-full object-cover bg-card" onError={(e) => { (e.target as HTMLImageElement).src = '/static/logo.png'; }} />
+                            <img src={thumb ? (thumb.startsWith('http') ? thumb : portalUrl(`/api/plex/image?path=${encodeURIComponent(thumb)}&width=128&height=128`)) : logoUrl()} alt={username} className="w-full h-full rounded-full object-cover bg-card" onError={(e) => { (e.target as HTMLImageElement).src = logoUrl(); }} />
                         </div>
                         <div>
                             <h2 className="text-2xl font-bold text-text">{username}</h2>
@@ -1916,7 +1917,7 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
                                                         }}
                                                     >
                                                         {u.thumb ? (
-                                                            <img src={u.thumb.startsWith('http') ? u.thumb : `/api/plex/image?path=${encodeURIComponent(u.thumb)}&width=32&height=32`} className="w-8 h-8 rounded-full object-cover border border-border flex-shrink-0" />
+                                                            <img src={u.thumb.startsWith('http') ? u.thumb : portalUrl(`/api/plex/image?path=${encodeURIComponent(u.thumb)}&width=32&height=32`)} className="w-8 h-8 rounded-full object-cover border border-border flex-shrink-0" />
                                                         ) : (
                                                             <div className="w-8 h-8 rounded-full bg-border flex items-center justify-center text-[10px] font-bold border border-border/50 flex-shrink-0">{u.username.substring(0, 2).toUpperCase()}</div>
                                                         )}
@@ -1937,7 +1938,7 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
                                         <div className="flex items-center gap-4">
                                             <div className="relative">
                                                 <div className="w-10 h-10 rounded-full p-[2px] bg-gradient-to-r from-plex to-[#e5a00d]">
-                                                    <img src={user.thumb ? (user.thumb.startsWith('http') ? user.thumb : `/api/plex/image?path=${encodeURIComponent(user.thumb)}&width=80&height=80`) : '/static/logo.png'} alt={user.username} className="w-full h-full rounded-full object-cover bg-card" onError={(e) => { (e.target as HTMLImageElement).src = '/static/logo.png'; }} />
+                                                    <img src={user.thumb ? (user.thumb.startsWith('http') ? user.thumb : portalUrl(`/api/plex/image?path=${encodeURIComponent(user.thumb)}&width=80&height=80`)) : logoUrl()} alt={user.username} className="w-full h-full rounded-full object-cover bg-card" onError={(e) => { (e.target as HTMLImageElement).src = logoUrl(); }} />
                                                 </div>
                                                 <div className="absolute -top-2 -right-2 bg-plex text-black font-bold text-[10px] w-5 h-5 rounded-full flex items-center justify-center">#{((viewerPageSafe - 1) * viewersPerPage) + idx + 1}</div>
                                             </div>
@@ -2791,7 +2792,7 @@ const PublicUptimeBanner: React.FC = () => {
         <div className="rounded-2xl border border-white/10 bg-card/40 backdrop-blur-xl px-4 py-5 sm:px-6 w-full">
             <div className="w-full flex flex-col">
                 <div className="flex flex-col items-center text-center mb-4">
-                    <a href="/status" className="text-plex hover:text-plex-hover font-bold text-[10px] tracking-[0.16em] uppercase mb-1.5 transition-colors">
+                    <a href={portalUrl('/status')} className="text-plex hover:text-plex-hover font-bold text-[10px] tracking-[0.16em] uppercase mb-1.5 transition-colors">
                         View Full Status Page &rarr;
                     </a>
                     <h3 className="text-text font-bold uppercase tracking-[0.14em] text-xs">Live System Status</h3>
@@ -2822,7 +2823,7 @@ const LivePlexStats: React.FC = () => {
 
     useEffect(() => {
         const fetchStats = async () => {
-            const endpoints = ['/api/public/plex/stats', '/api/plex/stats'];
+            const endpoints = [portalUrl('/api/public/plex/stats'), portalUrl('/api/plex/stats')];
 
             for (const endpoint of endpoints) {
                 try {
@@ -2922,19 +2923,19 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
 
     useEffect(() => {
         if (initialError) {
-            window.history.replaceState({}, '', '/');
+            window.history.replaceState({}, '', portalUrl('/'));
         }
     }, [initialError]);
 
     useEffect(() => {
         fetchPublicInfo();
 
-        const path = window.location.pathname;
+        const path = stripBasePath(window.location.pathname);
         const params = new URLSearchParams(window.location.search);
         const loginError = params.get('loginError');
         if (loginError) {
             setError(loginError);
-            window.history.replaceState({}, '', '/');
+            window.history.replaceState({}, '', portalUrl('/'));
             return;
         }
 
@@ -2946,7 +2947,7 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
         if (path.startsWith('/auth/')) {
             const pinId = path.split('/')[2];
             setIsLoading(true);
-            window.history.replaceState({}, '', '/');
+            window.history.replaceState({}, '', portalUrl('/'));
             apiFetch('/api/auth/plex/callback', {
                 method: 'POST',
                 body: JSON.stringify({ pinId }),
@@ -2964,7 +2965,7 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
         try {
             const data = await apiFetch('/api/auth/plex/login', { method: 'POST' });
             const clientId = data.clientIdentifier || data.clientId || '';
-            const forwardUrl = window.location.origin + '/api/auth/plex/callback?pinId=' + data.id;
+            const forwardUrl = window.location.origin + portalUrl('/api/auth/plex/callback?pinId=' + data.id);
             const authUrl = `https://app.plex.tv/auth#?clientID=${encodeURIComponent(clientId)}&code=${data.code}&context[device][product]=Server%20Manager%20Portal&forwardUrl=${encodeURIComponent(forwardUrl)}`;
             window.location.href = authUrl;
         } catch (e) {
@@ -2973,7 +2974,7 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
         }
     };
 
-    if (publicInfo.isConfigured === false || (typeof window !== 'undefined' && window.location.pathname.startsWith('/auth/setup/'))) {
+    if (publicInfo.isConfigured === false || (typeof window !== 'undefined' && stripBasePath(window.location.pathname).startsWith('/auth/setup/'))) {
         return <SetupWizard onComplete={fetchPublicInfo} />;
     }
 
@@ -3013,7 +3014,7 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
                                 You&apos;ll need a free Plex account to continue. You can create one securely on the next screen.
                             </p>
                             <button type="button" className={loginPrimaryBtnClass} onClick={handlePlexLogin} disabled={isLoading}>
-                                <img src="/static/logo.png" alt="" className="w-5 h-5 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                                <img src={logoUrl()} alt="" className="w-5 h-5 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                                 Request Temporary Access
                             </button>
                         </div>
@@ -3028,12 +3029,12 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
                                     alt="Server Logo"
                                     className="w-28 h-28 sm:w-32 sm:h-32 object-cover rounded-full border-2 border-plex/40 shadow-[0_0_40px_rgba(229,160,13,0.25)] relative z-10"
                                     onError={(e) => {
-                                        e.currentTarget.src = '/static/logo.png';
+                                        e.currentTarget.src = logoUrl();
                                         e.currentTarget.className = 'w-28 h-28 sm:w-32 sm:h-32 object-cover rounded-full border-2 border-plex/40 shadow-[0_0_40px_rgba(229,160,13,0.25)] relative z-10';
                                     }}
                                 />
                             ) : (
-                                <img src="/static/logo.png" alt="Server Logo" className="w-28 h-28 sm:w-32 sm:h-32 object-cover rounded-full border-2 border-plex/40 shadow-[0_0_40px_rgba(229,160,13,0.25)] relative z-10" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                                <img src={logoUrl()} alt="Server Logo" className="w-28 h-28 sm:w-32 sm:h-32 object-cover rounded-full border-2 border-plex/40 shadow-[0_0_40px_rgba(229,160,13,0.25)] relative z-10" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                             )}
                         </div>
 
@@ -3059,7 +3060,7 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
                         )}
 
                         <button type="button" className={loginSecondaryBtnClass} onClick={handlePlexLogin} disabled={isLoading}>
-                            <img src="/static/logo.png" alt="" className="w-5 h-5 object-contain opacity-80" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            <img src={logoUrl()} alt="" className="w-5 h-5 object-contain opacity-80" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                             Login with Plex
                         </button>
 
@@ -3763,7 +3764,7 @@ const DiscoverPosterCard: React.FC<{
             <div className={`${posterShell} ${aspect === 'square' ? 'aspect-square' : 'aspect-[2/3]'} w-full`}>
                 {item.thumb ? (
                     <img
-                        src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=${aspect === 'square' ? 300 : 450}`}
+                        src={portalUrl(`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=${aspect === 'square' ? 300 : 450}`)}
                         alt={item.title}
                         loading="lazy"
                         className={`w-full h-full object-cover ${variant === 'home' ? 'transition-[transform,opacity] duration-300 group-hover:scale-105 group-hover:opacity-80' : ''}`}
@@ -4085,7 +4086,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                             {[...Array(6)].map((_, colIdx) => (
                                 <div key={colIdx} className={`flex flex-col gap-4 ${colIdx % 2 === 0 ? 'animate-[scrollVertical_40s_linear_infinite]' : 'animate-[scrollVertical_50s_linear_infinite_reverse]'}`}>
                                     {[...dashboardData.recentMovies, ...dashboardData.recentMovies].sort(() => 0.5 - Math.random()).map((m: any, i: number) => m.thumb && (
-                                        <img key={`c${colIdx}-${i}`} src={`/api/plex/image?path=${encodeURIComponent(m.thumb)}&width=200&height=300`} className="w-32 md:w-48 rounded-xl object-cover" alt="" />
+                                        <img key={`c${colIdx}-${i}`} src={portalUrl(`/api/plex/image?path=${encodeURIComponent(m.thumb)}&width=200&height=300`)} className="w-32 md:w-48 rounded-xl object-cover" alt="" />
                                     ))}
                                 </div>
                             ))}
@@ -4109,7 +4110,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                 return (
                                     <div className="relative">
                                         <img
-                                            src={thumbUrl.startsWith('http') ? thumbUrl : `/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=256&height=256`}
+                                            src={thumbUrl.startsWith('http') ? thumbUrl : portalUrl(`/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=256&height=256`)}
                                             alt={sessionInfo.session.username}
                                             className="relative w-28 h-28 md:w-32 md:h-32 rounded-full object-cover border-4 border-plex shadow-2xl bg-card"
                                             onError={(e) => {
@@ -4699,7 +4700,7 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
                 {/* Poster Side */}
                 <div className="w-full md:w-1/3 relative bg-black flex-shrink-0">
                     <div className="w-full pb-[150%] md:pb-0 md:h-full relative">
-                        <img src={`/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=400&height=600`} alt={session.title} className="absolute inset-0 w-full h-full object-cover opacity-80" />
+                        <img src={portalUrl(`/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=400&height=600`)} alt={session.title} className="absolute inset-0 w-full h-full object-cover opacity-80" />
                         <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent md:bg-gradient-to-r"></div>
                     </div>
                     {/* User Avatar Badge */}
@@ -4917,7 +4918,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                     <div className="flex flex-row flex-grow relative">
                                         <div className={`${activityCols === 4 ? 'w-28 md:w-32' : 'w-32 md:w-40'} flex-shrink-0 relative overflow-hidden bg-card`}>
                                             <div className="w-full pb-[127%]"></div>
-                                            <img src={`/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=300&height=500`} alt={session.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover drop-shadow-2xl" />
+                                            <img src={portalUrl(`/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=300&height=500`)} alt={session.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover drop-shadow-2xl" />
                                         </div>
                                         <div className="p-2 md:p-3 flex flex-col flex-grow min-w-0 justify-center relative">
                                             {session.user && (
@@ -5561,7 +5562,7 @@ export const MaintenanceDashboard: React.FC = () => {
                                 <p className="text-xs text-muted">Enable it in `Settings` → `System` under `Maintenance Experimental Mode`, then click Save Settings.</p>
                                 <button
                                     type="button"
-                                    onClick={() => { window.location.href = '/settings?focus=maintenance-toggle#system'; }}
+                                    onClick={() => { window.location.href = portalUrl('/settings?focus=maintenance-toggle#system'); }}
                                     className="mt-3 px-3 py-1.5 bg-plex text-background rounded-md text-xs font-semibold hover:bg-plex-hover transition-colors"
                                 >
                                     Open Settings
@@ -5726,7 +5727,7 @@ export const MaintenanceDashboard: React.FC = () => {
                                             <div key={`candidate-${item._ruleId || candidateRuleId}-${item.ratingKey}`} className="bg-background/30 border border-white/5 rounded-lg overflow-hidden">
                                                 <div className="aspect-[2/3] bg-black/40">
                                                     {item.thumb ? (
-                                                        <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=220&height=330`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
+                                                        <img src={portalUrl(`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=220&height=330`)} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
                                                     ) : (
                                                         <div className="w-full h-full flex items-center justify-center text-xs text-muted">No Poster</div>
                                                     )}
@@ -5847,7 +5848,7 @@ export const MaintenanceDashboard: React.FC = () => {
                                                         <div key={`calendar-preview-${day.date}-${item.ratingKey}-${idx}`} className="w-8 h-8 rounded-full overflow-hidden border border-white/5 bg-black/50" title={`${item.title || 'Unknown Title'} • ${getEligibilityTooltip(item)}`}>
                                                             {item.thumb ? (
                                                                 <img
-                                                                    src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=64&height=64`}
+                                                                    src={portalUrl(`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=64&height=64`)}
                                                                     alt={item.title}
                                                                     className="w-full h-full object-cover"
                                                                     loading="lazy"
@@ -5891,7 +5892,7 @@ export const MaintenanceDashboard: React.FC = () => {
                                                 <div className="aspect-[2/3] bg-black/40">
                                                     {item.thumb ? (
                                                         <img
-                                                            src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=240&height=360`}
+                                                            src={portalUrl(`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=240&height=360`)}
                                                             alt={item.title}
                                                             loading="lazy"
                                                             className="w-full h-full object-cover"
@@ -6159,7 +6160,7 @@ export const MaintenanceDashboard: React.FC = () => {
                                                         >
                                                             <div className="aspect-[2/3] bg-black/40 relative">
                                                                 {item.thumb ? (
-                                                                    <img src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=220&height=330`} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
+                                                                    <img src={portalUrl(`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=220&height=330`)} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
                                                                 ) : (
                                                                     <div className="w-full h-full flex items-center justify-center text-xs text-muted">No Poster</div>
                                                                 )}
@@ -6224,7 +6225,7 @@ export const MaintenanceDashboard: React.FC = () => {
                                                     <div key={`resolved-key-${entry.ratingKey}`} className="flex items-center gap-2 bg-background/30 border border-white/5 rounded-md p-2">
                                                         <div className="w-10 h-14 rounded overflow-hidden bg-black/40 flex-shrink-0">
                                                             {entry.thumb ? (
-                                                                <img src={`/api/plex/image?path=${encodeURIComponent(entry.thumb)}&width=80&height=120`} alt={entry.title} className="w-full h-full object-cover" />
+                                                                <img src={portalUrl(`/api/plex/image?path=${encodeURIComponent(entry.thumb)}&width=80&height=120`)} alt={entry.title} className="w-full h-full object-cover" />
                                                             ) : (
                                                                 <div className="w-full h-full flex items-center justify-center text-[9px] text-muted">No Poster</div>
                                                             )}
@@ -6380,11 +6381,11 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
             <div className="md:hidden fixed top-0 left-0 right-0 h-16 nav-shell border-b z-50 flex items-center justify-between px-4 shadow-lg">
                 <div className="flex items-center gap-3">
                     <img
-                        src={adminThumb ? (adminThumb.startsWith('http') ? adminThumb : `/api/plex/image?path=${encodeURIComponent(adminThumb)}&width=64&height=64`) : '/static/logo.png'}
+                        src={adminThumb ? (adminThumb.startsWith('http') ? adminThumb : portalUrl(`/api/plex/image?path=${encodeURIComponent(adminThumb)}&width=64&height=64`)) : logoUrl()}
                         alt="Logo"
                         className="w-8 h-8 rounded-full object-cover"
                         onError={(e) => {
-                            (e.target as HTMLImageElement).src = '/static/logo.png';
+                            (e.target as HTMLImageElement).src = logoUrl();
                         }}
                     />
                     <span className="font-bold text-text uppercase tracking-widest text-sm">{serverName}</span>
@@ -6439,11 +6440,11 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                         <div className="relative w-28 h-28 rounded-full p-[4px] shadow-2xl bg-card">
                             <div className="w-full h-full rounded-full overflow-hidden bg-background">
                                 <img
-                                    src={adminThumb ? (adminThumb.startsWith('http') ? adminThumb : `/api/plex/image?path=${encodeURIComponent(adminThumb)}&width=256&height=256`) : '/static/logo.png'}
+                                    src={adminThumb ? (adminThumb.startsWith('http') ? adminThumb : portalUrl(`/api/plex/image?path=${encodeURIComponent(adminThumb)}&width=256&height=256`)) : logoUrl()}
                                     alt="Server Logo"
                                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
                                     onError={(e) => {
-                                        (e.target as HTMLImageElement).src = '/static/logo.png';
+                                        (e.target as HTMLImageElement).src = logoUrl();
                                     }}
                                 />
                             </div>
@@ -6545,7 +6546,7 @@ export const PublicInviteClaim: React.FC<{ code: string }> = ({ code }) => {
         try {
             const data = await apiFetch('/api/auth/plex/login', { method: 'POST' });
             const clientId = data.clientIdentifier || data.clientId || '';
-            const forwardUrl = window.location.origin + '/invite/' + code + '#auth/' + data.id;
+            const forwardUrl = window.location.origin + portalUrl('/invite/' + code) + '#auth/' + data.id;
             const authUrl = `https://app.plex.tv/auth#?clientID=${encodeURIComponent(clientId)}&code=${data.code}&context[device][product]=Server%20Manager%20Portal&forwardUrl=${encodeURIComponent(forwardUrl)}`;
             window.location.href = authUrl;
         } catch (error) {
@@ -6559,7 +6560,7 @@ export const PublicInviteClaim: React.FC<{ code: string }> = ({ code }) => {
             <div className="bg-red-500/10 border border-red-500/30 p-8 rounded-2xl w-full">
                 <h2 className="text-2xl font-bold text-red-500 mb-4">Invite Error</h2>
                 <p className="text-text">{error}</p>
-                <a href="/" className="mt-6 inline-block text-plex hover:underline font-bold">Return to Home</a>
+                <a href={portalUrl('/')} className="mt-6 inline-block text-plex hover:underline font-bold">Return to Home</a>
             </div>
         </div>
     );
@@ -6569,7 +6570,7 @@ export const PublicInviteClaim: React.FC<{ code: string }> = ({ code }) => {
             <div className="bg-green-500/10 border border-green-500/30 p-8 rounded-2xl w-full">
                 <h2 className="text-3xl font-bold text-green-500 mb-4">Success!</h2>
                 <p className="text-text mb-6">You have successfully claimed your invite to <strong className="text-plex">{info?.serverName}</strong>. Check your email or open Plex to accept the shared server invite!</p>
-                <a href="/" className="inline-block px-6 py-3 bg-plex text-background font-bold rounded-lg hover:bg-plex-hover transition-colors shadow-lg">Go to Dashboard</a>
+                <a href={portalUrl('/')} className="inline-block px-6 py-3 bg-plex text-background font-bold rounded-lg hover:bg-plex-hover transition-colors shadow-lg">Go to Dashboard</a>
             </div>
         </div>
     );
@@ -6581,9 +6582,9 @@ export const PublicInviteClaim: React.FC<{ code: string }> = ({ code }) => {
             <div className="relative mb-8">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-plex rounded-full blur-[50px] opacity-20 pointer-events-none"></div>
                 {info.customLogoUrl || info.thumb ? (
-                    <img src={info.customLogoUrl || info.thumb} alt="Server Logo" className="w-32 h-32 object-cover rounded-full border-2 border-plex drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10" onError={(e) => { e.currentTarget.src = '/static/logo.png'; e.currentTarget.className = 'w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10'; }} />
+                    <img src={info.customLogoUrl || info.thumb} alt="Server Logo" className="w-32 h-32 object-cover rounded-full border-2 border-plex drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10" onError={(e) => { e.currentTarget.src = logoUrl(); e.currentTarget.className = 'w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10'; }} />
                 ) : (
-                    <img src="/static/logo.png" alt="Server Logo" className="w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10" onError={(e) => e.currentTarget.style.display = 'none'} />
+                    <img src={logoUrl()} alt="Server Logo" className="w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10" onError={(e) => e.currentTarget.style.display = 'none'} />
                 )}
             </div>
 

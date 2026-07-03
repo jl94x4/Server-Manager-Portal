@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { SettingsDashboard } from './settings/SettingsDashboard';
 import { bindAppConfirm } from './shared/confirm';
 import { apiFetch } from './shared/api';
+import { getPublicOrigin, portalUrl, stripBasePath } from './shared/basePath';
 import { hexToRgb } from './shared/format';
 import { ConfirmModal } from './shared/ui';
 import { Loader } from './shared/toast';
@@ -63,6 +64,9 @@ export const MainApp: React.FC = () => {
         try {
             const data = await apiFetch('/api/config/public');
             window.__USE_24_HOUR_CLOCK__ = data.use24HourClock === true;
+            if (typeof data.basePath === 'string') {
+                window.__BASE_PATH__ = data.basePath;
+            }
             setPublicConfig(data);
             if (data.primaryColor) {
                 document.documentElement.style.setProperty('--color-plex', hexToRgb(data.primaryColor));
@@ -86,7 +90,7 @@ export const MainApp: React.FC = () => {
     const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'maintenance' | 'invite' | 'loading') => {
         if (route === 'logs') {
             setCurrentRoute('settings');
-            window.history.pushState({}, '', '/settings#logs');
+            window.history.pushState({}, '', portalUrl('/settings#logs'));
             return;
         }
         setCurrentRoute(route);
@@ -101,12 +105,12 @@ export const MainApp: React.FC = () => {
             if (route === 'analytics') path = '/analytics';
             if (route === 'mediastack') path = '/mediastack';
             if (route === 'maintenance') path = '/maintenance';
-            window.history.pushState({}, '', path);
+            window.history.pushState({}, '', portalUrl(path));
         }
     }, []);
 
     const checkSession = useCallback(async () => {
-        const path = window.location.pathname;
+        const path = stripBasePath(window.location.pathname);
         if (path.startsWith('/invite/')) {
             setCurrentRoute('invite');
             return;
@@ -131,7 +135,7 @@ export const MainApp: React.FC = () => {
             else if (path === '/dashboard') setCurrentRoute('dashboard');
             else if (path === '/settings' && data.session.isAdmin) setCurrentRoute('settings');
             else if (path === '/logs' && data.session.isAdmin) {
-                window.history.replaceState({}, '', '/settings#logs');
+                window.history.replaceState({}, '', portalUrl('/settings#logs'));
                 setCurrentRoute('settings');
             }
             else if (path === '/mediastack') setCurrentRoute('mediastack');
@@ -142,8 +146,7 @@ export const MainApp: React.FC = () => {
             else if (path === '/admin') setCurrentRoute('users');
             else if (path === '/users') setCurrentRoute('users');
             else {
-                // If at root or unknown, push to default route
-                window.history.replaceState({}, '', '/portal');
+                window.history.replaceState({}, '', portalUrl('/portal'));
                 setCurrentRoute('user');
             }
         } catch {
@@ -188,7 +191,7 @@ export const MainApp: React.FC = () => {
 
     const renderView = () => {
         if (currentRoute === 'invite') {
-            const code = window.location.pathname.split('/')[2];
+            const code = stripBasePath(window.location.pathname).split('/')[2];
             return <PublicInviteClaim code={code} />;
         }
         if (currentRoute === 'status') return <StatusDashboard onBack={() => isPublicStatus ? setRoute('login') : setRoute('user')} isAdmin={isAdmin} isPublic={isPublicStatus} />;

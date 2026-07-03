@@ -3,6 +3,7 @@ import {
     Settings, Sparkles, ChevronRight, ChevronLeft, Check, Palette, Mail, Layers, Server, PartyPopper,
 } from 'lucide-react';
 import { apiFetch } from '../shared/api';
+import { getPublicOrigin, logoUrl, portalUrl, stripBasePath } from '../shared/basePath';
 import { IntegrationTestButton } from '../shared/IntegrationTestButton';
 import { CustomSelect } from '../shared/ui';
 import { AuthPageBackground, themeClasses } from '../shared/theme';
@@ -54,7 +55,7 @@ const readStoredSetupPlex = () => {
 
 export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
     const storedPlex = readStoredSetupPlex();
-    const isOAuthReturn = typeof window !== 'undefined' && window.location.pathname.startsWith('/auth/setup/');
+    const isOAuthReturn = typeof window !== 'undefined' && stripBasePath(window.location.pathname).startsWith('/auth/setup/');
 
     const [step, setStep] = useState<StepId>(() => {
         if (isOAuthReturn) return 'plex';
@@ -72,7 +73,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
     const [plexUsername, setPlexUsername] = useState(storedPlex?.username || '');
     const [showManualToken, setShowManualToken] = useState(false);
 
-    const [publicDomain, setPublicDomain] = useState(typeof window !== 'undefined' ? window.location.origin : '');
+    const [publicDomain, setPublicDomain] = useState(typeof window !== 'undefined' ? getPublicOrigin() : '');
     const [primaryColor, setPrimaryColor] = useState('#E5A00D');
     const [customLogoUrl, setCustomLogoUrl] = useState('');
 
@@ -111,13 +112,13 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
     };
 
     useEffect(() => {
-        const path = window.location.pathname;
+        const path = stripBasePath(window.location.pathname);
         if (!path.startsWith('/auth/setup/')) return;
 
         const pinId = path.split('/').filter(Boolean).pop();
         if (!pinId || pinId === 'setup') return;
 
-        const returnPath = sessionStorage.getItem('setupReturnPath') || '/';
+        const returnPath = sessionStorage.getItem('setupReturnPath') || portalUrl('/');
 
         setIsLoading(true);
         setError('');
@@ -156,7 +157,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
             sessionStorage.setItem(SETUP_PLEX_STORAGE_KEY, JSON.stringify({ step: 'plex' }));
             const data = await apiFetch('/api/auth/plex/login', { method: 'POST' });
             const clientId = data.clientIdentifier || data.clientId || '';
-            const forwardUrl = `${window.location.origin}/auth/setup/${data.id}`;
+            const forwardUrl = `${window.location.origin}${portalUrl(`/auth/setup/${data.id}`)}`;
             const authUrl = `https://app.plex.tv/auth#?clientID=${encodeURIComponent(clientId)}&code=${data.code}&context[device][product]=Server%20Manager%20Portal&forwardUrl=${encodeURIComponent(forwardUrl)}`;
             window.location.href = authUrl;
         } catch (e) {
@@ -389,7 +390,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                                         disabled={isLoading}
                                         className={`${primaryBtnClass} w-full sm:w-auto text-base py-4`}
                                     >
-                                        <img src="/static/logo.png" alt="" className="w-5 h-5 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                                        <img src={logoUrl()} alt="" className="w-5 h-5 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                                         {isLoading ? 'Redirecting to Plex…' : 'Sign in with Plex'}
                                     </button>
                                     <p className="text-xs text-muted leading-relaxed">Uses secure Plex OAuth — we&apos;ll fetch your owned servers automatically. No password stored.</p>

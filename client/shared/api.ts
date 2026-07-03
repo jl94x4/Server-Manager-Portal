@@ -1,5 +1,7 @@
+import { portalUrl } from './basePath';
+
 export const apiFetch = async (url: string, options: RequestInit = {}) => {
-    const response = await fetch(url, {
+    const response = await fetch(portalUrl(url), {
         credentials: 'same-origin',
         headers: {
             'Content-Type': 'application/json',

@@ -12,6 +12,7 @@ import {
     Tv,
     Users,
 } from 'lucide-react';
+import { getPublicOrigin } from '../shared/basePath';
 import type { MainGridWidgetId, RecentlyAddedWidgetId } from '../shared/dashboardLayout';
 import { LibraryStatsSkeleton } from '../shared/skeletons';
 import { PeriodDropdown } from '../shared/PeriodDropdown';
@@ -207,8 +208,8 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                         <p className="text-plex font-bold text-base mb-1">🎁 Invite Friends</p>
                         <p className="text-muted text-sm leading-relaxed mb-4">Share this link. They get temporary access, and you get reward days!</p>
                         <div className="flex flex-col gap-2">
-                            <input type="text" readOnly value={`${window.location.origin}/?ref=${user.id}`} className="w-full p-3 rounded-lg border border-border bg-background text-text text-sm outline-none" />
-                            <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/?ref=${user.id}`); setToast({ id: 99, message: 'Copied to clipboard!', type: 'success' }); }} className="w-full py-2.5 bg-plex text-background rounded-lg font-bold hover:bg-plex-hover transition-colors shadow-md">Copy Link</button>
+                            <input type="text" readOnly value={`${getPublicOrigin()}/?ref=${user.id}`} className="w-full p-3 rounded-lg border border-border bg-background text-text text-sm outline-none" />
+                            <button onClick={() => { navigator.clipboard.writeText(`${getPublicOrigin()}/?ref=${user.id}`); setToast({ id: 99, message: 'Copied to clipboard!', type: 'success' }); }} className="w-full py-2.5 bg-plex text-background rounded-lg font-bold hover:bg-plex-hover transition-colors shadow-md">Copy Link</button>
                         </div>
                     </div>
                 );
