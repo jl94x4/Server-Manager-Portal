@@ -3846,7 +3846,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     );
     const topWatchedPageSize = isDesktopMostWatched ? 18 : 12;
     const [recentHistoryPage, setRecentHistoryPage] = useState(0);
-    const recentHistoryPageSize = isDesktopMostWatched ? 22 : 11;
+    const recentHistoryPageSize = isDesktopMostWatched ? 24 : 12;
     const [analyticsDays, setAnalyticsDays] = useState<number | 'all'>(30);
     const [analyticsDaysOpen, setAnalyticsDaysOpen] = useState(false);
     const [wrapUpDaysOpen, setWrapUpDaysOpen] = useState(false);
