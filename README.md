@@ -16,6 +16,8 @@ Built with Node.js · Express · React · Tailwind CSS
 
 Server Portal is a self-hosted web application that turns your Plex Media Server into a fully managed streaming service. It handles everything from user onboarding and automated access management, to real-time analytics, live session monitoring, trending content discovery, and beautiful personalized wrap-ups for every user, all from one polished, mobile-first dashboard with a premium glass UI.
 
+Once setup your users will be able to login using their own Plex account to see their own stats! 
+
 ---
 <img width="2294" height="1218" alt="image" src="https://github.com/user-attachments/assets/16d548fb-c07c-4967-bd39-12ffdfac45c0" />
 <img width="1956" height="972" alt="image" src="https://github.com/user-attachments/assets/c15bb979-b759-4fa1-ae88-772f6a04e34b" />
