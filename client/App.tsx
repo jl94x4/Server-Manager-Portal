@@ -6,6 +6,7 @@ import { hexToRgb } from './shared/format';
 import { ConfirmModal } from './shared/ui';
 import { Loader } from './shared/toast';
 import { AppAmbientBackground } from './shared/theme';
+import { PORTAL_WIDE_LAYOUT_THRESHOLD } from './shared/portalLayout';
 import {
     updateFavicon,
     Login,
@@ -36,9 +37,7 @@ export const MainApp: React.FC = () => {
             const screenWidth = window.screen?.width || window.innerWidth;
             const screenHeight = window.screen?.height || window.innerHeight;
             const screenRatio = screenWidth / Math.max(1, screenHeight);
-            const wideThreshold = (16 / 9) + 0.03;
-
-            if (screenRatio > wideThreshold) {
+            if (screenRatio > PORTAL_WIDE_LAYOUT_THRESHOLD) {
                 setContentMaxWidth(`${Math.round(screenHeight * (16 / 9))}px`);
             } else {
                 setContentMaxWidth('100%');

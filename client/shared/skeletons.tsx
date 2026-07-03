@@ -18,8 +18,8 @@ export const PosterCardSkeleton: React.FC<{
     </div>
 );
 
-export const PosterGridSkeleton: React.FC<{ count?: number; aspect?: '2/3' | 'square' }> = ({ count = 12, aspect = '2/3' }) => (
-    <div className="grid grid-cols-3 sm:grid-cols-4 md:[grid-template-columns:repeat(auto-fill,minmax(150px,150px))] md:justify-start gap-3 w-full pb-4" aria-hidden="true">
+export const PosterGridSkeleton: React.FC<{ count?: number; aspect?: '2/3' | 'square' }> = ({ count = 20, aspect = '2/3' }) => (
+    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-10 gap-3 w-full pb-4" aria-hidden="true">
         {Array.from({ length: count }, (_, i) => (
             <PosterCardSkeleton key={i} aspect={aspect} variant="discover" />
         ))}
@@ -58,14 +58,14 @@ export const DiscoverSectionSkeleton: React.FC<{ title: string; count?: number; 
     </div>
 );
 
-export const DiscoverPageSkeleton: React.FC<{ recentLimit?: number }> = ({ recentLimit = 12 }) => {
-    const count = Math.min(recentLimit, 12);
+export const DiscoverPageSkeleton: React.FC<{ recentLimit?: number; wideLayout?: boolean }> = ({ recentLimit = 20, wideLayout = false }) => {
+    const count = recentLimit;
     return (
         <div className="w-full flex flex-col min-h-screen" aria-busy="true" aria-label="Loading discover">
             <main className="w-full pb-8 mt-4 md:mt-0">
                 <section className="mb-12 w-full">
                     <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">ACTIVITY</h2>
-                    <ActivityGridSkeleton count={3} />
+                    <ActivityGridSkeleton count={wideLayout ? 4 : 3} wideLayout={wideLayout} />
                 </section>
 
                 <div className="flex justify-end gap-4 items-center mb-8">
@@ -121,7 +121,7 @@ export const WrapUpCardsSkeleton: React.FC = () => (
 
 export const ActivityCardSkeleton: React.FC = () => (
     <div className="bg-card rounded-xl border border-border flex flex-row overflow-hidden shadow-lg" aria-hidden="true">
-        <SkeletonBlock className="w-36 md:w-44 flex-shrink-0 self-stretch min-h-[216px] rounded-none" />
+        <SkeletonBlock className="w-32 md:w-40 flex-shrink-0 self-stretch min-h-[184px] rounded-none" />
         <div className="p-4 flex flex-col flex-grow gap-3 justify-center min-w-0">
             <SkeletonBlock className="h-4 w-3/4 rounded" />
             <SkeletonBlock className="h-3 w-1/2 rounded" />
@@ -138,8 +138,8 @@ export const ActivityCardSkeleton: React.FC = () => (
     </div>
 );
 
-export const ActivityGridSkeleton: React.FC<{ count?: number }> = ({ count = 3 }) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-6" aria-hidden="true">
+export const ActivityGridSkeleton: React.FC<{ count?: number; wideLayout?: boolean }> = ({ count = 3, wideLayout = false }) => (
+    <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6 ${wideLayout ? 'xl:grid-cols-4' : 'xl:grid-cols-3'}`} aria-hidden="true">
         {Array.from({ length: count }, (_, i) => (
             <ActivityCardSkeleton key={i} />
         ))}
@@ -163,7 +163,7 @@ export const TopWatchedGridSkeleton: React.FC = () => (
     </div>
 );
 
-export const TrendingSectionsSkeleton: React.FC<{ count?: number; sections?: number }> = ({ count = 12, sections = 3 }) => (
+export const TrendingSectionsSkeleton: React.FC<{ count?: number; sections?: number }> = ({ count = 20, sections = 3 }) => (
     <div className="mt-16 w-full flex flex-col gap-12" aria-busy="true" aria-label="Loading trending">
         <div className="flex flex-col gap-2 items-center text-center mb-4">
             <SkeletonBlock className="h-10 w-72 max-w-full rounded" />
