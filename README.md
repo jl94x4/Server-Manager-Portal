@@ -14,7 +14,7 @@ Built with Node.js · Express · React · Tailwind CSS
 
 ---
 
-Server Portal is a self-hosted web application that turns your Plex Media Server into a fully managed streaming service. It handles everything from user onboarding and automated access management, to real-time analytics, live session monitoring, trending content discovery, and beautiful personalized wrap-ups for every user - all from one polished, mobile-first dashboard.
+Server Portal is a self-hosted web application that turns your Plex Media Server into a fully managed streaming service. It handles everything from user onboarding and automated access management, to real-time analytics, live session monitoring, trending content discovery, and beautiful personalized wrap-ups for every user, all from one polished, mobile-first dashboard with a premium glass UI.
 
 ---
 
@@ -43,6 +43,10 @@ Every user gets a rich, personalized dashboard packed with insights about their 
 
 All cards open into detailed modals loaded with contextual data, Plex artwork, and dynamic charts.
 
+**Shareable wrap-up** - Export your personal wrap-up as a PNG image from the home dashboard. The share modal previews the real card grid and supports native share on supported devices, with download as a fallback.
+
+**Paginated watch history** - Recently Watched and Your Most Watched use responsive pagination (18 items per page on desktop, 12 on mobile) so large libraries stay fast and readable.
+
 ---
 
 ### Admin Dashboard
@@ -54,13 +58,43 @@ A comprehensive control panel for the server owner:
 - **Server Leaderboard** - Server-wide play count rankings across all time periods, updated automatically in the background
 - **Audit Log** - Timestamped record of all system actions (access granted, revoked, extended, expired)
 - **Settings UI** - Configure every aspect of the portal from the browser without touching config files
+- **Customizable Home Layout** - Reorder home page sections and show or hide whole blocks (Personal Wrap-Up, Main grid, Recently / Most Watched, Recently Added) from **Settings → Home Layout**, with a live preview before saving. The main dashboard grid keeps a fixed balanced two-column layout so card heights stay aligned
+- **Library Maintenance** - Scan libraries for missing or empty media, manage exclusions, and run cleanup tasks from the Maintenance page
+
+---
+
+### Customizable Home Layout
+
+Admins can tailor the home page for their community without editing code:
+
+| Control | What it does |
+|---|---|
+| **Section order** | Drag and drop the four major home sections into any order |
+| **Section visibility** | Toggle each section Shown or Hidden with one click |
+| **Live preview** | See exactly how the layout will look before you save |
+| **Locked main grid** | Left and right dashboard columns stay balanced; individual widget order inside the grid is fixed to prevent uneven card heights |
+
+Layout settings are saved server-wide, validated on the backend, and applied to every user on the next page load. Admin-only widgets (Quick Actions, Server Admin badge) cannot be hidden through layout tampering.
 
 ---
 
 ### Discover Page
 
-A curated content discovery experience for all users, powered by server-wide watch history:
+A curated content discovery experience for all users, powered by server-wide watch history and live Plex activity:
 
+**Live activity**
+- Real-time stream summary cards (total streams, direct play, transcoding, bandwidth)
+- Now playing cards with poster art, quality badges, player info, progress bar, and ETA
+- Responsive layout: 3 stretched cards by default, up to 4 across on ultra-wide displays when 4 or more streams are active
+- Activity refreshes every second while the page is open
+
+**Recently added**
+- Movies, TV shows, and music grids with poster quality badges
+- 20 items per section on desktop and 12 on mobile by default
+- 10-column poster grid on large screens
+- Configurable limit dropdown (12, 20, 50, 100, 150, 200, 250 items) with preference saved in the browser
+
+**Trending and community picks**
 - **Trending This Week** - What the whole server has been watching in the last 7 days
 - **Top Movies / Top Shows** - The most-played movies and shows over the past month
 - **Weekend Warriors** - Content that spikes on Fridays, Saturdays, and Sundays
@@ -69,7 +103,7 @@ A curated content discovery experience for all users, powered by server-wide wat
 - **Cult Classics** - Niche content with extremely high plays relative to its tiny viewer count
 - **Blast from the Past** - Pre-2000 titles getting recent love
 
-All discover items display Plex artwork, play counts, and quality badges (4K, HDR, AV1/HEVC, Atmos, and more).
+All discover items display Plex artwork, play counts, and quality badges (4K, HDR, AV1/HEVC, Atmos, and more). Trending and analytics caches are reused on startup when still fresh, so the portal loads quickly after restarts.
 
 ---
 
@@ -146,10 +180,10 @@ Beautiful, responsive HTML emails sent automatically:
 ## Security
 
 - **No Passwords** - Authentication is handled 100% by Plex.tv. The app only stores Plex Account IDs, usernames, and emails
-- **JWT Session Security** - Cookies use `httpOnly`, `secure`, and `sameSite: strict` flags to prevent XSS and CSRF attacks
+- **JWT Session Security** - Cookies use `httpOnly`, `secure`, and `sameSite: lax` flags to reduce XSS and CSRF risk while keeping Plex OAuth redirects reliable
 - **Rate Limiting** - Authentication endpoints have strict rate limiting to prevent brute-force attacks
 - **HTTP Security Headers** - HSTS, X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, and Permissions-Policy enforced on every response
-- **Admin Protection** - All admin routes are verified against live Plex server ownership, not just a stored flag
+- **Admin Protection** - All admin routes are verified against live Plex server ownership, not just a stored flag. Home layout changes are admin-only and validated server-side
 - **Reverse Proxy Ready** - Supports Nginx, Caddy, and Cloudflare via `X-Forwarded-Proto` / `X-Forwarded-For` header trust
 - **Injection Proof** - Uses a flat-file JSON system, making SQL injection structurally impossible
 
@@ -200,6 +234,32 @@ npm start
 ## Docker Deployment
 
 The recommended way to run Server Portal in production is Docker with a persistent volume for `config/`.
+
+### Pre-built images (GHCR)
+
+Official images are published automatically on every push to `main` and `beta`:
+
+| Tag | Branch | Image |
+|---|---|---|
+| `latest` | `main` | `ghcr.io/jl94x4/server-manager-portal:latest` |
+| `beta` | `beta` | `ghcr.io/jl94x4/server-manager-portal:beta` |
+
+Pull and run without building locally:
+
+```bash
+docker pull ghcr.io/jl94x4/server-manager-portal:latest
+docker run -d \
+  --name server-manager-portal \
+  -p 2121:2121 \
+  -e JWT_SECRET="your-secret-at-least-32-chars" \
+  -e FORCE_SECURE_COOKIES=true \
+  -e PUBLIC_BASE_URL=https://portal.example.com \
+  -v "$(pwd)/config:/app/config" \
+  -v "$(pwd)/backup:/app/backup" \
+  ghcr.io/jl94x4/server-manager-portal:latest
+```
+
+Use the `beta` tag to test upcoming features before they land on `latest`.
 
 ### Quick start (Docker Compose)
 
@@ -277,7 +337,7 @@ Use the Community Applications-compatible template in [`unraid/server-manager-po
 2. Set **JWT Secret** and adjust appdata paths (defaults: `/mnt/user/appdata/server-manager-portal/`)
 3. Apply and open the WebUI
 
-See [`unraid/README.md`](unraid/README.md) for full Unraid install steps and Community Applications submission notes.
+The template uses `ghcr.io/jl94x4/server-manager-portal:latest` by default.
 
 ### Environment variables
 
@@ -305,10 +365,12 @@ All configuration is managed through the **Settings UI** in the browser. Key opt
 |---|---|
 | Plex Token | Your Plex admin token for API access |
 | Plex Server URL | Local or remote address of your Plex server |
+| Direct Plex URL | LAN URL for faster Plex image and history fetches (recommended in Docker) |
 | Temporary Access Duration | Number of days new users get for free |
 | Inactivity Threshold | Days of inactivity before auto-removal |
 | SMTP Settings | Host, port, username, password, from address |
 | Newsletter Schedule | Weekly or monthly, with day/time selection |
+| Home Layout | Section order and visibility for the user home page |
 | Sonarr / Radarr URLs | For embedding media request tools |
 | Status Page Services | Define services and their health check URLs |
 
@@ -318,8 +380,16 @@ All configuration is managed through the **Settings UI** in the browser. Key opt
 
 ```
 Server-Manager-Portal/
-├── index.js            # Backend - Express API, Plex integration, auth, email, scheduling
-├── index.tsx           # Frontend - React application (all UI components)
+├── index.js            # Backend: Express API, Plex integration, auth, email, scheduling
+├── index.tsx           # Frontend entry point
+├── client/             # React application source
+│   ├── App.tsx         # App shell, routing, responsive layout
+│   ├── screens.tsx     # Dashboards, Discover, login, and shared screens
+│   ├── home/           # User dashboard layout and widget renderers
+│   ├── settings/       # Settings UI (including Home Layout editor)
+│   ├── shared/         # API helpers, types, theme, skeletons, wrap-up cards
+│   ├── setup/          # First-time setup wizard
+│   └── maintenance/    # Library maintenance panel
 ├── input.css           # Tailwind CSS source
 ├── static/
 │   ├── bundle.js       # Built React frontend
@@ -327,14 +397,16 @@ Server-Manager-Portal/
 │   └── logo.png        # Server logo
 ├── lib/
 │   └── data-paths.js   # Data file locations + legacy migration
-├── config/             # Runtime JSON data (gitignored — created on first run)
+├── config/             # Runtime JSON data (gitignored, created on first run)
 ├── Dockerfile          # Multi-stage production image
 ├── docker-compose.yml  # One-command Docker deployment
+├── .github/workflows/
+│   └── docker-publish.yml  # Publishes :latest and :beta to GHCR
 ├── ca_profile.xml      # Unraid Community Applications maintainer profile
 ├── unraid/
 │   └── server-manager-portal.xml  # Unraid Docker template
 ├── .env.example        # Environment variable template
-├── build-version.js    # Auto-increments version.txt on each build
+├── build-version.js    # Stamps version.txt and cache-bust query strings on build
 ├── package.json
 └── .env                # JWT_SECRET (not committed to git)
 ```
