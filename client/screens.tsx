@@ -23,6 +23,7 @@ import { ShareWrapUpModal } from './shared/ShareWrapUp';
 import { WrapUpCardGrid } from './shared/WrapUpCards';
 import { SetupWizard } from './setup/SetupWizard';
 import { AuthPageBackground, themeClasses } from './shared/theme';
+import { activityStreamGridClass, usePortalWideContentLayout } from './shared/portalLayout';
 import { UserDashboardLayout } from './home/UserDashboardLayout';
 import { createMainGridWidgetRenderer, createRecentlyAddedWidgetRenderer } from './home/userDashboardWidgetRenderers';
 
@@ -4768,6 +4769,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
     const [dashboardLoading, setDashboardLoading] = useState(true);
     const [trendingLoading, setTrendingLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const isWidePortalLayout = usePortalWideContentLayout();
     const [isDiscoverDesktop, setIsDiscoverDesktop] = useState(
         () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
     );
@@ -4842,7 +4844,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
     }, [fetchDashboardOnly, fetchData]);
 
     if (dashboardLoading && !dashboardData) {
-        return <DiscoverPageSkeleton recentLimit={recentLimit} />;
+        return <DiscoverPageSkeleton recentLimit={recentLimit} wideLayout={isWidePortalLayout} />;
     }
 
     const totalStreams = dashboardData?.activeSessions?.length || 0;
@@ -4884,11 +4886,11 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                     <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">ACTIVITY</h2>
                     {dashboardData && dashboardData.activeSessions && dashboardData.activeSessions.length > 0 ? (
                         <div className="w-full">
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-6">
+                            <div className={activityStreamGridClass(isWidePortalLayout)}>
                             {dashboardData.activeSessions.map((session, i) => (
                                 <div key={session.sessionId ?? i} onClick={() => setSelectedSession(session)} className="bg-card rounded-xl border border-border flex flex-col overflow-hidden shadow-lg hover:border-plex/50 hover:shadow-plex/20 transition-all cursor-pointer select-none">
                                     <div className="flex flex-row flex-grow relative">
-                                        <div className="w-32 md:w-40 flex-shrink-0 relative overflow-hidden bg-card">
+                                        <div className={`${isWidePortalLayout ? 'w-28 md:w-32' : 'w-32 md:w-40'} flex-shrink-0 relative overflow-hidden bg-card`}>
                                             <div className="w-full pb-[127%]"></div>
                                             <img src={`/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=300&height=500`} alt={session.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover drop-shadow-2xl" />
                                         </div>
