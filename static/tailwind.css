@@ -2235,16 +2235,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
           appearance: none;
 }
 
-.columns-2 {
-  -moz-columns: 2;
-       columns: 2;
-}
-
-.break-inside-avoid {
-  -moz-column-break-inside: avoid;
-       break-inside: avoid;
-}
-
 .grid-cols-1 {
   grid-template-columns: repeat(1, minmax(0, 1fr));
 }
@@ -2375,11 +2365,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .gap-\[2px\] {
   gap: 2px;
-}
-
-.gap-x-2\.5 {
-  -moz-column-gap: 0.625rem;
-       column-gap: 0.625rem;
 }
 
 .gap-x-3 {
@@ -5501,10 +5486,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     grid-column: span 2 / span 2;
   }
 
-  .sm\:mb-3 {
-    margin-bottom: 0.75rem;
-  }
-
   .sm\:line-clamp-3 {
     overflow: hidden;
     display: -webkit-box;
@@ -5520,12 +5501,20 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     display: flex;
   }
 
+  .sm\:h-2 {
+    height: 0.5rem;
+  }
+
   .sm\:h-32 {
     height: 8rem;
   }
 
   .sm\:h-5 {
     height: 1.25rem;
+  }
+
+  .sm\:w-2 {
+    width: 0.5rem;
   }
 
   .sm\:w-32 {
@@ -5550,11 +5539,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .sm\:w-auto {
     width: auto;
-  }
-
-  .sm\:columns-3 {
-    -moz-columns: 3;
-         columns: 3;
   }
 
   .sm\:grid-cols-2 {
@@ -5585,13 +5569,16 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     justify-content: space-between;
   }
 
+  .sm\:gap-2\.5 {
+    gap: 0.625rem;
+  }
+
   .sm\:gap-3 {
     gap: 0.75rem;
   }
 
-  .sm\:gap-x-3 {
-    -moz-column-gap: 0.75rem;
-         column-gap: 0.75rem;
+  .sm\:rounded-xl {
+    border-radius: 0.75rem;
   }
 
   .sm\:p-5 {
@@ -5624,6 +5611,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   .sm\:py-12 {
     padding-top: 3rem;
     padding-bottom: 3rem;
+  }
+
+  .sm\:py-2\.5 {
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
   }
 
   .sm\:text-3xl {

@@ -2787,7 +2787,7 @@ const PublicUptimeBanner: React.FC = () => {
                     </a>
                     <h3 className="text-text font-bold uppercase tracking-[0.14em] text-xs">Live System Status</h3>
                 </div>
-                <div className="columns-2 sm:columns-3 gap-x-2.5 sm:gap-x-3 w-full">
+                <div className="flex flex-wrap justify-center gap-2 sm:gap-3 w-full">
                     {visibleServices.map((service: any) => {
                         const health = healthData[service.id];
                         const isUp = health.currentStatus === 'online';
@@ -2795,10 +2795,10 @@ const PublicUptimeBanner: React.FC = () => {
                         const dotClass = isUp ? 'bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]';
 
                         return (
-                            <div key={service.id} className={`flex items-start gap-2 w-full mb-2.5 sm:mb-3 break-inside-avoid px-3 py-2.5 sm:px-4 rounded-xl border ${colorClass} backdrop-blur-sm`}>
-                                <span className={`w-2 h-2 rounded-full shrink-0 mt-1.5 ${dotClass}`} />
-                                <span className="text-xs sm:text-sm font-bold text-text flex-1 leading-snug break-words">{service.name}</span>
-                                <span className="text-[10px] sm:text-xs font-bold text-muted shrink-0 tabular-nums mt-0.5">{health.uptimePercentage}%</span>
+                            <div key={service.id} className={`inline-flex items-center gap-1.5 sm:gap-2.5 px-2.5 py-1.5 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl border ${colorClass} backdrop-blur-sm`}>
+                                <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${dotClass}`} />
+                                <span className="text-[11px] sm:text-sm font-bold text-text leading-tight">{service.name}</span>
+                                <span className="text-[10px] sm:text-xs font-bold text-muted tabular-nums">{health.uptimePercentage}%</span>
                             </div>
                         );
                     })}
