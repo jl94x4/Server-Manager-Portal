@@ -3789,7 +3789,18 @@ const discoverViewsOverlay = (views: number) => (
     </div>
 );
 
-const DISCOVER_DEFAULT_ITEM_LIMIT = 20;
+const DISCOVER_DESKTOP_ITEM_LIMIT = 20;
+const DISCOVER_MOBILE_ITEM_LIMIT = 12;
+const DISCOVER_LIMIT_OPTIONS = [
+    { value: '12', label: '12 Items' },
+    { value: '20', label: '20 Items' },
+    { value: '25', label: '25 Items' },
+    { value: '50', label: '50 Items' },
+    { value: '100', label: '100 Items' },
+    { value: '150', label: '150 Items' },
+    { value: '200', label: '200 Items' },
+    { value: '250', label: '250 Items' },
+];
 const discoverPosterGridClass = 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-10 gap-3 w-full pb-4';
 
 const TrendingDiscoverSection: React.FC<{ title: string; items: any[]; limit: number; showQualityBadges?: boolean }> = ({ title, items, limit, showQualityBadges = true }) => {
@@ -4757,18 +4768,33 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
     const [dashboardLoading, setDashboardLoading] = useState(true);
     const [trendingLoading, setTrendingLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [recentLimit, setRecentLimit] = useState(() => {
-        const saved = localStorage.getItem('discoverRecentLimit');
-        return saved ? Number(saved) : DISCOVER_DEFAULT_ITEM_LIMIT;
+    const [isDiscoverDesktop, setIsDiscoverDesktop] = useState(
+        () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
+    );
+    const [recentLimitOverride, setRecentLimitOverride] = useState<number | null>(() => {
+        const saved = localStorage.getItem('discoverRecentLimitOverride');
+        return saved ? Number(saved) : null;
     });
+    const responsiveRecentLimit = isDiscoverDesktop ? DISCOVER_DESKTOP_ITEM_LIMIT : DISCOVER_MOBILE_ITEM_LIMIT;
+    const recentLimit = recentLimitOverride ?? responsiveRecentLimit;
     const [selectedSession, setSelectedSession] = useState<any | null>(null);
     const showQualityBadges = publicConfig?.showPosterQualityBadges !== false;
     const hasLoadedDashboard = useRef(false);
     const hasLoadedTrending = useRef(false);
 
     useEffect(() => {
-        localStorage.setItem('discoverRecentLimit', String(recentLimit));
-    }, [recentLimit]);
+        const mq = window.matchMedia('(min-width: 1024px)');
+        const onChange = (e: MediaQueryListEvent) => setIsDiscoverDesktop(e.matches);
+        mq.addEventListener('change', onChange);
+        return () => mq.removeEventListener('change', onChange);
+    }, []);
+
+    const handleRecentLimitChange = useCallback((value: string) => {
+        const next = Number(value);
+        setRecentLimitOverride(next);
+        localStorage.setItem('discoverRecentLimitOverride', String(next));
+        localStorage.removeItem('discoverRecentLimit');
+    }, []);
 
     const fetchDashboardOnly = useCallback(async () => {
         try {
@@ -4862,19 +4888,19 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                             {dashboardData.activeSessions.map((session, i) => (
                                 <div key={session.sessionId ?? i} onClick={() => setSelectedSession(session)} className="bg-card rounded-xl border border-border flex flex-col overflow-hidden shadow-lg hover:border-plex/50 hover:shadow-plex/20 transition-all cursor-pointer select-none">
                                     <div className="flex flex-row flex-grow relative">
-                                        <div className="w-36 md:w-44 flex-shrink-0 relative overflow-hidden bg-card">
-                                            <div className="w-full pb-[150%]"></div>
+                                        <div className="w-32 md:w-40 flex-shrink-0 relative overflow-hidden bg-card">
+                                            <div className="w-full pb-[127%]"></div>
                                             <img src={`/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=300&height=500`} alt={session.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover drop-shadow-2xl" />
                                         </div>
-                                        <div className="p-3 md:p-4 flex flex-col flex-grow min-w-0 justify-center relative">
+                                        <div className="p-2 md:p-3 flex flex-col flex-grow min-w-0 justify-center relative">
                                             {session.user && (
-                                                <div className="absolute top-3 right-3 flex items-center gap-2 bg-black/50 backdrop-blur-md rounded-full pr-3 p-1 shadow-md border border-white/5">
+                                                <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-black/50 backdrop-blur-md rounded-full pr-2.5 p-0.5 shadow-md border border-white/5">
                                                     <img src={session.userThumb ? session.userThumb : 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'} alt={session.user} className="w-5 h-5 rounded-full object-cover" onError={(e) => { e.currentTarget.src = 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'; }} />
                                                     <span className="text-[10px] font-bold text-white/90 truncate max-w-[80px] md:max-w-[100px]">{session.user}</span>
                                                 </div>
                                             )}
 
-                                            <div className="activity-header mb-1 pr-24 md:pr-32">
+                                            <div className="activity-header mb-0.5 pr-20 md:pr-28">
                                                 <div className="activity-title-group">
                                                     <div className="text-sm md:text-base font-bold text-text line-clamp-2 leading-tight">{session.grandparentTitle ? session.grandparentTitle : session.title}</div>
                                                     {session.type === 'episode' && session.season !== undefined && session.episode !== undefined ? (
@@ -4887,7 +4913,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                                 </div>
                                             </div>
 
-                                            <div className="flex flex-wrap gap-1.5 mb-3 mt-1">
+                                            <div className="flex flex-wrap gap-1 mb-2 mt-0.5">
                                                 {session.resolution && (
                                                     <span className="bg-white/10 text-white/90 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide border border-white/10">{session.resolution.includes('p') || session.resolution.includes('k') ? session.resolution : `${session.resolution}p`}</span>
                                                 )}
@@ -4896,18 +4922,18 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                                 </span>
                                             </div>
 
-                                            <div className="activity-details flex flex-col gap-1 mt-auto">
-                                                <div className="flex justify-between items-start text-[10px] md:text-xs border-b border-white/5 pb-1">
+                                            <div className="activity-details flex flex-col gap-0.5 mt-auto">
+                                                <div className="flex justify-between items-start text-[10px] md:text-xs border-b border-white/5 pb-0.5">
                                                     <span className="text-muted uppercase tracking-wider font-bold mt-0.5">PLAYER</span>
                                                     <span className="detail-value text-right break-words max-w-[130px] md:max-w-[180px]">{session.playerTitle}</span>
                                                 </div>
-                                                <div className="flex justify-between items-center text-[10px] md:text-xs border-b border-white/5 pb-1">
+                                                <div className="flex justify-between items-center text-[10px] md:text-xs border-b border-white/5 pb-0.5">
                                                     <span className="text-muted uppercase tracking-wider font-bold">STREAM</span>
                                                     <span className={`font-bold ${session.isTranscoding ? 'text-status-expiring' : 'text-status-active'}`}>
                                                         {session.isTranscoding ? 'Transcode' : 'Direct Play'}
                                                     </span>
                                                 </div>
-                                                <div className="flex justify-between items-center text-[10px] md:text-xs border-b border-white/5 pb-1">
+                                                <div className="flex justify-between items-center text-[10px] md:text-xs border-b border-white/5 pb-0.5">
                                                     <span className="text-muted uppercase tracking-wider font-bold">STATE</span>
                                                     <div className="flex items-center gap-1.5">
                                                         <span className="detail-value font-bold">{session.state.charAt(0).toUpperCase() + session.state.slice(1)}</span>
@@ -4919,7 +4945,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                                         )}
                                                     </div>
                                                 </div>
-                                                <div className="flex justify-between items-center text-[10px] md:text-xs pb-1">
+                                                <div className="flex justify-between items-center text-[10px] md:text-xs pb-0.5">
                                                     <span className="text-muted uppercase tracking-wider font-bold">BANDWIDTH</span>
                                                     <span className="detail-value">{(session.bandwidth / 1000).toFixed(1)} Mbps</span>
                                                 </div>
@@ -4930,13 +4956,13 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                     {(() => {
                                         const progressBarText = `${Math.round(session.progress)}%${session.timeRemaining > 0 && session.state === 'playing' ? ` • ETA ${formatTime(new Date(Date.now() + session.timeRemaining))}` : ''}`;
                                         return (
-                                            <div className="w-full h-5 bg-background/80 relative mt-auto z-10 overflow-hidden rounded-b-lg">
+                                            <div className="w-full h-4 bg-background/80 relative mt-auto z-10 overflow-hidden rounded-b-lg">
                                                 {/* Progress fill */}
                                                 <div className="h-full bg-plex absolute top-0 left-0 transition-all duration-1000 z-10" style={{ width: `${session.progress}%` }}></div>
 
                                                 {/* Text visible on black background (white text) */}
                                                 <div
-                                                    className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-white z-20 pointer-events-none whitespace-nowrap"
+                                                    className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white z-20 pointer-events-none whitespace-nowrap"
                                                     style={{ clipPath: `inset(0 0 0 ${session.progress}%)` }}
                                                 >
                                                     {progressBarText}
@@ -4962,17 +4988,14 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                 </section>
 
                 <div className="flex justify-end gap-4 items-center mb-8">
-                    <span style={{ fontSize: '0.85rem', color: '#999' }}>RECENTLY ADDED LIMIT</span>
-                    <select className="w-full md:w-32 p-2 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all cursor-pointer text-sm" value={recentLimit} onChange={(e) => setRecentLimit(Number(e.target.value))}>
-                        <option value={20}>20 Items</option>
-                        <option value={12}>12 Items</option>
-                        <option value={25}>25 Items</option>
-                        <option value={50}>50 Items</option>
-                        <option value={100}>100 Items</option>
-                        <option value={150}>150 Items</option>
-                        <option value={200}>200 Items</option>
-                        <option value={250}>250 Items</option>
-                    </select>
+                    <span className="text-xs uppercase tracking-wider text-muted font-semibold">Recently Added Limit</span>
+                    <CustomSelect
+                        compact
+                        className="w-32"
+                        value={String(recentLimit)}
+                        onChange={handleRecentLimitChange}
+                        options={DISCOVER_LIMIT_OPTIONS}
+                    />
                 </div>
 
                 <div className="flex flex-col gap-12 w-full">
