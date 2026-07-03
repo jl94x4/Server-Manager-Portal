@@ -2779,15 +2779,15 @@ const PublicUptimeBanner: React.FC = () => {
     if (visibleServices.length === 0) return null;
 
     return (
-        <div className="rounded-2xl border border-white/10 bg-card/40 backdrop-blur-xl px-6 py-5 w-full">
-            <div className="w-full flex flex-col items-center">
+        <div className="rounded-2xl border border-white/10 bg-card/40 backdrop-blur-xl px-4 py-5 sm:px-6 w-full">
+            <div className="w-full flex flex-col">
                 <div className="flex flex-col items-center text-center mb-4">
                     <a href="/status" className="text-plex hover:text-plex-hover font-bold text-[10px] tracking-[0.16em] uppercase mb-1.5 transition-colors">
                         View Full Status Page &rarr;
                     </a>
                     <h3 className="text-text font-bold uppercase tracking-[0.14em] text-xs">Live System Status</h3>
                 </div>
-                <div className="flex flex-wrap justify-center gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3 w-full">
                     {visibleServices.map((service: any) => {
                         const health = healthData[service.id];
                         const isUp = health.currentStatus === 'online';
@@ -2795,10 +2795,10 @@ const PublicUptimeBanner: React.FC = () => {
                         const dotClass = isUp ? 'bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]';
 
                         return (
-                            <div key={service.id} className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border ${colorClass} backdrop-blur-sm`}>
-                                <span className={`w-2 h-2 rounded-full ${dotClass}`} />
-                                <span className="text-sm font-bold text-text">{service.name}</span>
-                                <span className="text-xs font-bold text-muted">{health.uptimePercentage}%</span>
+                            <div key={service.id} className={`flex items-start gap-2 w-full px-3 py-2.5 sm:px-4 rounded-xl border ${colorClass} backdrop-blur-sm`}>
+                                <span className={`w-2 h-2 rounded-full shrink-0 mt-1.5 ${dotClass}`} />
+                                <span className="text-xs sm:text-sm font-bold text-text flex-1 leading-snug break-words">{service.name}</span>
+                                <span className="text-[10px] sm:text-xs font-bold text-muted shrink-0 tabular-nums mt-0.5">{health.uptimePercentage}%</span>
                             </div>
                         );
                     })}
