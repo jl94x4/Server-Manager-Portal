@@ -4,6 +4,7 @@ import {
     type LucideIcon,
 } from 'lucide-react';
 import { formatStreamingHour } from './format';
+import { portalUrl } from './basePath';
 
 export const periodLabel = (days: number | string) => {
     if (days === 'all') return 'All Time';
@@ -37,6 +38,8 @@ export type WrapUpCardDef = {
     subValue?: React.ReactNode;
     valueClassName?: string;
 };
+
+const resolveCardImage = (url: string) => portalUrl(url);
 
 export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
     const topDayStreams = analytics.dayOfWeekCounts
@@ -199,6 +202,7 @@ export const WrapUpCardGrid: React.FC<WrapUpCardGridProps> = ({
                         : exportValueClassName)
                     : (card.valueClassName || defaultValueClassName);
                 const subValue = isExport ? exportSubValue(card, analytics) : card.subValue;
+                const bgImage = resolveCardImage(card.bgImage);
                 return (
                     <div
                         key={card.metric}
@@ -211,7 +215,7 @@ export const WrapUpCardGrid: React.FC<WrapUpCardGridProps> = ({
                             <>
                                 <div className="absolute inset-0 z-0 overflow-hidden rounded-xl">
                                     <img
-                                        src={card.bgImage}
+                                        src={bgImage}
                                         alt=""
                                         crossOrigin="anonymous"
                                         className={`absolute inset-0 w-full h-full object-cover opacity-60 ${interactive ? 'transition-transform duration-700 group-hover:scale-110' : ''}`}
@@ -237,7 +241,7 @@ export const WrapUpCardGrid: React.FC<WrapUpCardGridProps> = ({
                         ) : (
                             <>
                                 <img
-                                    src={card.bgImage}
+                                    src={bgImage}
                                     alt=""
                                     className={`absolute inset-0 w-full h-full object-cover z-0 opacity-60 ${interactive ? 'transition-transform duration-700 group-hover:scale-110' : ''}`}
                                 />

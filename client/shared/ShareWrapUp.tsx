@@ -7,6 +7,17 @@ import { getPublicOrigin } from './basePath';
 
 const EXPORT_WIDTH_PX = 1080;
 
+const waitForExportImages = (root: HTMLElement) => Promise.all(
+    Array.from(root.querySelectorAll('img')).map((img) => {
+        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+        return new Promise<void>((resolve) => {
+            const done = () => resolve();
+            img.addEventListener('load', done, { once: true });
+            img.addEventListener('error', done, { once: true });
+        });
+    }),
+);
+
 export const buildWrapUpShareText = (analytics: any, days: number | string, serverName: string, username?: string) => {
     const period = periodLabel(days);
     const rank = analytics.leaderboardRank
@@ -73,6 +84,7 @@ export const ShareWrapUpModal: React.FC<ShareWrapUpModalProps> = ({
             if (document.fonts?.ready) {
                 await document.fonts.ready;
             }
+            await waitForExportImages(node);
             await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
             const canvas = await html2canvas(node, {
@@ -92,16 +104,9 @@ export const ShareWrapUpModal: React.FC<ShareWrapUpModalProps> = ({
                     exportRoot.style.maxWidth = 'none';
                     exportRoot.style.paddingBottom = '1.5rem';
 
-                    clonedDoc.querySelectorAll('img').forEach((img) => {
-                        const src = img.getAttribute('src') || '';
-                        if (src.startsWith('http') && !src.startsWith(window.location.origin)) {
-                            img.style.visibility = 'hidden';
-                        }
-                    });
                     clonedDoc.querySelectorAll('[data-wrap-up-card]').forEach((card) => {
                         const el = card as HTMLElement;
                         el.style.isolation = 'isolate';
-                        el.style.contain = 'layout paint';
                         el.style.overflow = 'visible';
                     });
                     clonedDoc.querySelectorAll('svg').forEach((svg) => {
