@@ -23,7 +23,7 @@ import { ShareWrapUpModal } from './shared/ShareWrapUp';
 import { WrapUpCardGrid } from './shared/WrapUpCards';
 import { SetupWizard } from './setup/SetupWizard';
 import { AuthPageBackground, themeClasses } from './shared/theme';
-import { activityStreamGridClass, usePortalWideContentLayout } from './shared/portalLayout';
+import { activityStreamColumnCount, activityStreamGridClass, usePortalWideContentLayout } from './shared/portalLayout';
 import { UserDashboardLayout } from './home/UserDashboardLayout';
 import { createMainGridWidgetRenderer, createRecentlyAddedWidgetRenderer } from './home/userDashboardWidgetRenderers';
 
@@ -4884,13 +4884,16 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                 {/* ACTIVITY CARDS */}
                 <section className="mb-12 w-full">
                     <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">ACTIVITY</h2>
-                    {dashboardData && dashboardData.activeSessions && dashboardData.activeSessions.length > 0 ? (
+                    {dashboardData && dashboardData.activeSessions && dashboardData.activeSessions.length > 0 ? (() => {
+                        const sessionCount = dashboardData.activeSessions.length;
+                        const activityCols = activityStreamColumnCount(isWidePortalLayout, sessionCount);
+                        return (
                         <div className="w-full">
-                            <div className={activityStreamGridClass(isWidePortalLayout)}>
+                            <div className={activityStreamGridClass(isWidePortalLayout, sessionCount)}>
                             {dashboardData.activeSessions.map((session, i) => (
                                 <div key={session.sessionId ?? i} onClick={() => setSelectedSession(session)} className="bg-card rounded-xl border border-border flex flex-col overflow-hidden shadow-lg hover:border-plex/50 hover:shadow-plex/20 transition-all cursor-pointer select-none">
                                     <div className="flex flex-row flex-grow relative">
-                                        <div className={`${isWidePortalLayout ? 'w-28 md:w-32' : 'w-32 md:w-40'} flex-shrink-0 relative overflow-hidden bg-card`}>
+                                        <div className={`${activityCols === 4 ? 'w-28 md:w-32' : 'w-32 md:w-40'} flex-shrink-0 relative overflow-hidden bg-card`}>
                                             <div className="w-full pb-[127%]"></div>
                                             <img src={`/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=300&height=500`} alt={session.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover drop-shadow-2xl" />
                                         </div>
@@ -4984,7 +4987,8 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                             ))}
                             </div>
                         </div>
-                    ) : (
+                        );
+                    })() : (
                         <div className="text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full">No active streams</div>
                     )}
                 </section>

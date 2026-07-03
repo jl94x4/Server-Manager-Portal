@@ -24,5 +24,10 @@ export const usePortalWideContentLayout = () => {
     return isWide;
 };
 
-export const activityStreamGridClass = (wideLayout: boolean) =>
-    `grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6 ${wideLayout ? 'xl:grid-cols-4' : 'xl:grid-cols-3'}`;
+export const activityStreamColumnCount = (wideLayout: boolean, sessionCount: number) =>
+    wideLayout && sessionCount >= 4 ? 4 : 3;
+
+export const activityStreamGridClass = (wideLayout: boolean, sessionCount: number) => {
+    const useFourCols = activityStreamColumnCount(wideLayout, sessionCount) === 4;
+    return `grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6 ${useFourCols ? 'xl:grid-cols-4' : 'xl:grid-cols-3'}`;
+};
