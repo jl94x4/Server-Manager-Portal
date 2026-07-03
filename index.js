@@ -1578,6 +1578,43 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
     });
 });
 
+const DEFAULT_DASHBOARD_LAYOUT = {
+    version: 1,
+    sections: ['wrapUp', 'mainGrid', 'watchRow', 'recentlyAdded'],
+    mainGridOrder: [
+        'adminBadge', 'quickActions', 'accessStatus', 'announcement', 'referral',
+        'newsletterPrefs', 'support', 'libraryStats', 'analytics'
+    ],
+    recentlyAddedOrder: ['recentMovies', 'recentShows', 'recentMusic'],
+    hiddenSections: [],
+    hiddenWidgets: []
+};
+
+const normalizeDashboardLayout = (raw) => {
+    const ALL_SECTIONS = ['wrapUp', 'mainGrid', 'watchRow', 'recentlyAdded'];
+    const uniqueValid = (values, allowed, fallback) => {
+        if (!Array.isArray(values)) return [...fallback];
+        const seen = new Set();
+        const result = [];
+        values.forEach((value) => {
+            if (typeof value !== 'string' || !allowed.includes(value) || seen.has(value)) return;
+            seen.add(value);
+            result.push(value);
+        });
+        allowed.forEach((id) => { if (!seen.has(id)) result.push(id); });
+        return result;
+    };
+    const input = raw && typeof raw === 'object' ? raw : {};
+    return {
+        version: 1,
+        sections: uniqueValid(input.sections, ALL_SECTIONS, DEFAULT_DASHBOARD_LAYOUT.sections),
+        mainGridOrder: [...DEFAULT_DASHBOARD_LAYOUT.mainGridOrder],
+        recentlyAddedOrder: [...DEFAULT_DASHBOARD_LAYOUT.recentlyAddedOrder],
+        hiddenSections: uniqueValid(input.hiddenSections, ALL_SECTIONS, []),
+        hiddenWidgets: []
+    };
+};
+
 // Config endpoints
 app.get('/api/config', requireAdmin, async (req, res) => {
     const config = await loadFile(CONFIG_PATH, {});
@@ -1633,7 +1670,8 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 autoBackupEnabled: !!config.autoBackupEnabled,
                 autoBackupIntervalDays: Number(config.autoBackupIntervalDays) > 0 ? Number(config.autoBackupIntervalDays) : 2,
                 autoBackupRetentionCount: Number(config.autoBackupRetentionCount) > 0 ? Number(config.autoBackupRetentionCount) : 10,
-                maintenanceExperimentalEnabled: !!config.maintenanceExperimentalEnabled
+                maintenanceExperimentalEnabled: !!config.maintenanceExperimentalEnabled,
+                dashboardLayout: normalizeDashboardLayout(config.dashboardLayout)
             },
         });
     } else {
@@ -1682,7 +1720,8 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 autoBackupEnabled: false,
                 autoBackupIntervalDays: 2,
                 autoBackupRetentionCount: 10,
-                maintenanceExperimentalEnabled: false
+                maintenanceExperimentalEnabled: false,
+                dashboardLayout: DEFAULT_DASHBOARD_LAYOUT
             },
         });
     }
@@ -1698,7 +1737,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         requestAppType, requestAppUrl, requestAppApiKey,
         inactiveCleanupEnabled, inactiveCleanupDays,
         primaryColor, customLogoUrl, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges,
-        autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled
+        autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, dashboardLayout
     } = req.body;
 
     if (!token || !serverIdentifier) {
@@ -1816,7 +1855,8 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         autoBackupEnabled: !!autoBackupEnabled,
         autoBackupIntervalDays: Math.max(1, parseInt(autoBackupIntervalDays, 10) || 2),
         autoBackupRetentionCount: Math.max(1, parseInt(autoBackupRetentionCount, 10) || 10),
-        maintenanceExperimentalEnabled: maintenanceExperimentalEnabled !== undefined ? !!maintenanceExperimentalEnabled : !!existingConfig.maintenanceExperimentalEnabled
+        maintenanceExperimentalEnabled: maintenanceExperimentalEnabled !== undefined ? !!maintenanceExperimentalEnabled : !!existingConfig.maintenanceExperimentalEnabled,
+        dashboardLayout: normalizeDashboardLayout(dashboardLayout !== undefined ? dashboardLayout : existingConfig.dashboardLayout)
     };
     await saveFile(CONFIG_PATH, config);
     await syncAdminPlexIdFromConfigToken(config, { persist: true });
@@ -1859,7 +1899,8 @@ app.get('/api/config/public', async (req, res) => {
             appVersion: appVersion,
             use24HourClock: !!config.use24HourClock,
             allowTemporaryAccess: !!config.allowTemporaryAccess,
-            showPosterQualityBadges: config.showPosterQualityBadges !== false
+            showPosterQualityBadges: config.showPosterQualityBadges !== false,
+            dashboardLayout: normalizeDashboardLayout(config.dashboardLayout)
         });
     } catch (error) {
         res.json({
@@ -1870,7 +1911,8 @@ app.get('/api/config/public', async (req, res) => {
             appVersion: appVersion,
             use24HourClock: false,
             allowTemporaryAccess: false,
-            showPosterQualityBadges: true
+            showPosterQualityBadges: true,
+            dashboardLayout: DEFAULT_DASHBOARD_LAYOUT
         });
     }
 });

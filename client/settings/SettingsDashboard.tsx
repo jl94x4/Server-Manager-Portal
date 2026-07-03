@@ -13,6 +13,8 @@ import { InvitesSettings } from './InvitesSettings';
 import { StatusMonitorSettings } from './StatusMonitorSettings';
 import { BroadcastSettingsTab } from './BroadcastSettingsTab';
 import { IntegrationTestButton } from '../shared/IntegrationTestButton';
+import { HomeLayoutSettings } from './HomeLayoutSettings';
+import { DEFAULT_DASHBOARD_LAYOUT, normalizeSectionLayout, type DashboardLayoutConfig } from '../shared/dashboardLayout';
 
 const hasIntegrationCredentials = (
     url: string | undefined,
@@ -26,7 +28,7 @@ const hasIntegrationCredentials = (
 };
 
 export const SettingsDashboard: React.FC = () => {
-    const SETTINGS_TABS = ['plex', 'smtp', 'newsletter', 'cleanup', 'mediastack', 'branding', 'navigation', 'status', 'invites', 'tasks', 'system', 'contact', 'broadcast', 'stream-rules', 'logs'] as const;
+    const SETTINGS_TABS = ['plex', 'smtp', 'newsletter', 'cleanup', 'mediastack', 'branding', 'navigation', 'home-layout', 'status', 'invites', 'tasks', 'system', 'contact', 'broadcast', 'stream-rules', 'logs'] as const;
     const [statusDraft, setStatusDraft] = useState<any>(null);
     const [isLoading, setLoading] = useState(true);
     const [configLoadError, setConfigLoadError] = useState<string | null>(null);
@@ -108,7 +110,8 @@ export const SettingsDashboard: React.FC = () => {
             tabs: [
                 { id: 'branding', label: 'Portal UI', keywords: ['theme', 'logo', 'color', 'announcement', 'referral', 'quality', 'badges', 'poster', 'hdr', 'codec'] },
                 { id: 'contact', label: 'Contact Details', keywords: ['email', 'whatsapp', 'support'] },
-                { id: 'navigation', label: 'Navigation', keywords: ['menu', 'order', 'sidebar'] }
+                { id: 'navigation', label: 'Navigation', keywords: ['menu', 'order', 'sidebar'] },
+                { id: 'home-layout', label: 'Home Layout', keywords: ['dashboard', 'widgets', 'sections', 'home', 'layout', 'reorder', 'hide'] }
             ]
         },
         {
@@ -221,6 +224,7 @@ export const SettingsDashboard: React.FC = () => {
     const [requestAppUrl, setRequestAppUrl] = useState('');
     const [requestAppApiKey, setRequestAppApiKey] = useState('');
     const [maintenanceExperimentalEnabled, setMaintenanceExperimentalEnabled] = useState(false);
+    const [dashboardLayout, setDashboardLayout] = useState<DashboardLayoutConfig>(DEFAULT_DASHBOARD_LAYOUT);
 
     // Branding & UI States
     const [primaryColor, setPrimaryColor] = useState('#E5A00D');
@@ -671,6 +675,7 @@ export const SettingsDashboard: React.FC = () => {
             if (initialSettings.autoBackupIntervalDays !== undefined) setAutoBackupIntervalDays(Number(initialSettings.autoBackupIntervalDays) || 2);
             if (initialSettings.autoBackupRetentionCount !== undefined) setAutoBackupRetentionCount(Number(initialSettings.autoBackupRetentionCount) || 10);
             if (initialSettings.maintenanceExperimentalEnabled !== undefined) setMaintenanceExperimentalEnabled(!!initialSettings.maintenanceExperimentalEnabled);
+            setDashboardLayout(normalizeSectionLayout(initialSettings.dashboardLayout));
             setTestRecipient('');
             setServers([]);
         }
@@ -781,7 +786,8 @@ export const SettingsDashboard: React.FC = () => {
             autoBackupEnabled,
             autoBackupIntervalDays,
             autoBackupRetentionCount,
-            maintenanceExperimentalEnabled
+            maintenanceExperimentalEnabled,
+            dashboardLayout: normalizeSectionLayout(dashboardLayout)
         });
         document.documentElement.style.setProperty('--color-plex', hexToRgb(primaryColor));
     };
@@ -1308,6 +1314,10 @@ export const SettingsDashboard: React.FC = () => {
                                 onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
                             />
                         </div>
+                    )}
+
+                    {activeTab === 'home-layout' && (
+                        <HomeLayoutSettings layout={dashboardLayout} onChange={setDashboardLayout} />
                     )}
 
                     {activeTab === 'navigation' && (

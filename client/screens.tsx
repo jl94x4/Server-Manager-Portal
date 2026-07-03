@@ -23,6 +23,8 @@ import { ShareWrapUpModal } from './shared/ShareWrapUp';
 import { WrapUpCardGrid } from './shared/WrapUpCards';
 import { SetupWizard } from './setup/SetupWizard';
 import { AuthPageBackground, themeClasses } from './shared/theme';
+import { UserDashboardLayout } from './home/UserDashboardLayout';
+import { createMainGridWidgetRenderer, createRecentlyAddedWidgetRenderer } from './home/userDashboardWidgetRenderers';
 
 declare global {
     interface Window {
@@ -3951,6 +3953,48 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
 
     const heroBg = analytics?.recentHistory?.[0]?.thumbUrl || publicConfig?.customLogoUrl || '';
 
+    const layoutCtx = useMemo(() => ({
+        isAdmin: !!sessionInfo.session.isAdmin,
+        hasUser: !!user,
+        referralEnabled: !!publicConfig?.referralEnabled,
+    }), [sessionInfo.session.isAdmin, user, publicConfig?.referralEnabled]);
+
+    const widgetDeps = useMemo(() => ({
+        sessionInfo,
+        publicConfig,
+        user,
+        isRevoked,
+        isExpiringSoon,
+        daysLeft,
+        progressPct,
+        optOutNewsletter,
+        serverStats,
+        serverDataLoading,
+        analytics,
+        analyticsLoading,
+        analyticsDays,
+        analyticsDaysOpen,
+        setAnalyticsDays,
+        setAnalyticsDaysOpen,
+        showQualityBadges,
+        dashboardData,
+        handleRelink,
+        handleToggleNewsletter,
+        onViewAdmin,
+        onViewSettings,
+        onViewLogs,
+        setToast,
+        DiscoverPosterCard,
+        RebuildLibraryCacheButton,
+    }), [
+        sessionInfo, publicConfig, user, isRevoked, isExpiringSoon, daysLeft, progressPct, optOutNewsletter,
+        serverStats, serverDataLoading, analytics, analyticsLoading, analyticsDays, analyticsDaysOpen,
+        showQualityBadges, dashboardData, onViewAdmin, onViewSettings, onViewLogs,
+    ]);
+
+    const renderMainGridWidget = useMemo(() => createMainGridWidgetRenderer(widgetDeps), [widgetDeps]);
+    const renderRecentlyAddedWidget = useMemo(() => createRecentlyAddedWidgetRenderer(widgetDeps), [widgetDeps]);
+
     return (
         <div className="w-full flex flex-col gap-3 md:gap-4">
             <Loader isLoading={isLoading} />
@@ -4040,569 +4084,212 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                 />
             )}
 
-            {/* Personal Wrap-Up */}
-            {(sessionInfo.session.isAdmin || user) && analyticsLoading && (
-                <WrapUpCardsSkeleton />
-            )}
-            {(sessionInfo.session.isAdmin || user) && !analyticsLoading && analytics && (
-                <div className="glass-card p-4 md:p-5 shadow-xl">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 md:mb-4">
+            <UserDashboardLayout
+                layoutConfig={publicConfig?.dashboardLayout}
+                layoutCtx={layoutCtx}
+                renderMainGridWidget={renderMainGridWidget}
+                renderRecentlyAddedWidget={renderRecentlyAddedWidget}
+                recentlyAddedLoading={serverDataLoading}
+                hasDashboardData={!!dashboardData}
+                renderRecentlyAddedSkeleton={() => <HomeRecentlyAddedSkeleton />}
+                renderWrapUp={() => (
+                    <>
+                        {/* Personal Wrap-Up */}
+                        {(sessionInfo.session.isAdmin || user) && analyticsLoading && (
+                        <WrapUpCardsSkeleton />
+                        )}
+                        {(sessionInfo.session.isAdmin || user) && !analyticsLoading && analytics && (
+                        <div className="glass-card p-4 md:p-5 shadow-xl">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 md:mb-4">
                         <h3 className="text-xl font-bold text-text">Your Personal Wrap-Up</h3>
                         <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setShareWrapUpOpen(true)}
-                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-plex/10 border border-plex/30 text-plex hover:bg-plex/20 transition-colors shadow-sm"
-                            >
-                                <Share2 className="w-4 h-4 flex-shrink-0" />
-                                Share
-                            </button>
-                            <div className="relative">
-                            <button
-                                onClick={() => setWrapUpDaysOpen(!wrapUpDaysOpen)}
-                                className="flex items-center gap-2 bg-background border border-border/50 rounded-lg px-3 py-1.5 text-sm font-medium text-text focus:outline-none hover:border-plex/50 transition-colors cursor-pointer shadow-sm"
-                            >
-                                <span>
-                                    {analyticsDays === 7 ? 'Last 7 Days' :
-                                        analyticsDays === 30 ? 'Last 30 Days' :
-                                            analyticsDays === 60 ? 'Last 60 Days' :
-                                                analyticsDays === 90 ? 'Last 90 Days' :
-                                                    analyticsDays === 180 ? 'Last 180 Days' :
-                                                        'All Time'}
-                                </span>
-                                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${wrapUpDaysOpen ? 'rotate-180 text-plex' : 'text-muted'}`} />
-                            </button>
-
-                            {wrapUpDaysOpen && (
-                                <>
-                                    <div className="fixed inset-0 z-40" onClick={() => setWrapUpDaysOpen(false)} />
-                                    <div className="absolute right-0 mt-2 w-40 bg-card border border-border rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] z-50 overflow-hidden flex flex-col py-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                                        {[
-                                            { value: 7, label: 'Last 7 Days' },
-                                            { value: 30, label: 'Last 30 Days' },
-                                            { value: 60, label: 'Last 60 Days' },
-                                            { value: 90, label: 'Last 90 Days' },
-                                            { value: 180, label: 'Last 180 Days' },
-                                            { value: 'all', label: 'All Time' }
-                                        ].map(opt => (
-                                            <button
-                                                key={opt.value}
-                                                onClick={() => {
-                                                    setAnalyticsDays(opt.value as any);
-                                                    setWrapUpDaysOpen(false);
-                                                }}
-                                                className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${analyticsDays === opt.value ? 'bg-plex/10 text-plex font-bold border-l-2 border-plex' : 'text-text hover:bg-white/5 border-l-2 border-transparent'}`}
-                                            >
-                                                {opt.label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </>
-                            )}
-                            </div>
+                        <button
+                        type="button"
+                        onClick={() => setShareWrapUpOpen(true)}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-plex/10 border border-plex/30 text-plex hover:bg-plex/20 transition-colors shadow-sm"
+                        >
+                        <Share2 className="w-4 h-4 flex-shrink-0" />
+                        Share
+                        </button>
+                        <div className="relative">
+                        <button
+                        onClick={() => setWrapUpDaysOpen(!wrapUpDaysOpen)}
+                        className="flex items-center gap-2 bg-background border border-border/50 rounded-lg px-3 py-1.5 text-sm font-medium text-text focus:outline-none hover:border-plex/50 transition-colors cursor-pointer shadow-sm"
+                        >
+                        <span>
+                        {analyticsDays === 7 ? 'Last 7 Days' :
+                        analyticsDays === 30 ? 'Last 30 Days' :
+                        analyticsDays === 60 ? 'Last 60 Days' :
+                        analyticsDays === 90 ? 'Last 90 Days' :
+                        analyticsDays === 180 ? 'Last 180 Days' :
+                        'All Time'}
+                        </span>
+                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${wrapUpDaysOpen ? 'rotate-180 text-plex' : 'text-muted'}`} />
+                        </button>
+                        
+                        {wrapUpDaysOpen && (
+                        <>
+                        <div className="fixed inset-0 z-40" onClick={() => setWrapUpDaysOpen(false)} />
+                        <div className="absolute right-0 mt-2 w-40 bg-card border border-border rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] z-50 overflow-hidden flex flex-col py-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                        {[
+                        { value: 7, label: 'Last 7 Days' },
+                        { value: 30, label: 'Last 30 Days' },
+                        { value: 60, label: 'Last 60 Days' },
+                        { value: 90, label: 'Last 90 Days' },
+                        { value: 180, label: 'Last 180 Days' },
+                        { value: 'all', label: 'All Time' }
+                        ].map(opt => (
+                        <button
+                        key={opt.value}
+                        onClick={() => {
+                        setAnalyticsDays(opt.value as any);
+                        setWrapUpDaysOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${analyticsDays === opt.value ? 'bg-plex/10 text-plex font-bold border-l-2 border-plex' : 'text-text hover:bg-white/5 border-l-2 border-transparent'}`}
+                        >
+                        {opt.label}
+                        </button>
+                        ))}
                         </div>
-                    </div>
-                    <WrapUpCardGrid analytics={analytics} interactive onCardClick={setSelectedMetric} minCardHeight={112} />
-                </div>
-            )}
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 items-stretch">
-                {/* Left Column — Admin + Quick Actions stacked */}
-                <div className="lg:col-span-1 flex flex-col gap-3 md:gap-4 min-h-0">
-                    {sessionInfo.session.isAdmin ? (
-                        <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col items-center justify-center text-center flex-shrink-0">
-                            <div className="w-14 h-14 md:w-16 md:h-16 bg-plex/10 rounded-full flex items-center justify-center mb-2 md:mb-3 border border-plex/30 shadow-[0_0_15px_rgba(229,160,13,0.15)]">
-                                <Shield className="w-7 h-7 md:w-8 md:h-8 text-plex drop-shadow-md" />
-                            </div>
-                            <h3 className="text-xl md:text-2xl font-black text-text uppercase tracking-widest mb-1">Server Admin</h3>
-                            <div className="mt-2 inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-500/40 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.25)] tracking-widest uppercase"><Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]" /> VIP UNLIMITED</div>
-                        </div>
-                    ) : user ? (
-                        <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col justify-center flex-shrink-0">
-                            <div className="flex flex-col gap-3 md:gap-4">
-                                <div>
-                                    <p className="text-muted text-xs uppercase tracking-widest font-semibold mb-3">Access Status</p>
-                                    <div className="flex flex-wrap items-center gap-3">
-                                        <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-black border uppercase tracking-wider shadow-sm ${isRevoked ? 'bg-red-500/10 border-red-500/30 text-red-400' : isExpiringSoon ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' : 'bg-green-500/10 border-green-500/30 text-green-400'}`}>
-                                            <span className={`w-2 h-2 rounded-full animate-pulse ${isRevoked ? 'bg-red-400' : isExpiringSoon ? 'bg-yellow-400' : 'bg-green-400'}`} />
-                                            {user.plexAccessStatus}{user.isTrial && ' · Temp Access'}
-                                        </span>
-                                        {user.expiryDate ? (
-                                            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-white/5 border border-white/10 text-text shadow-sm">
-                                                <Calendar size={14} className="text-muted" />
-                                                {new Date(user.expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                            </span>
-                                        ) : (
-                                            <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-[11px] font-black bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-500/40 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.25)] tracking-widest uppercase"><Star className="w-4 h-4 text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]" /> VIP UNLIMITED</span>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {isRevoked && daysLeft !== null && daysLeft >= 0 && (
-                                    <button className="w-full mt-2 px-6 py-2.5 bg-plex text-background rounded-xl font-bold hover:bg-plex-hover transition-colors shadow-lg" onClick={handleRelink}>
-                                        Re-link Plex Account
-                                    </button>
-                                )}
-
-                                {daysLeft !== null && (
-                                    <div className="bg-background/40 rounded-xl p-5 border border-white/5 mt-2">
-                                        <div className="flex justify-between items-baseline mb-3">
-                                            <span className="text-muted text-xs uppercase tracking-widest font-semibold">Time Remaining</span>
-                                            <span className={`font-black text-3xl md:text-4xl leading-none ${isExpiringSoon ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.3)]' : 'text-plex drop-shadow-[0_0_8px_rgba(229,160,13,0.3)]'}`}>
-                                                {daysLeft}<span className="text-base font-semibold text-muted ml-1.5">{daysLeft === 1 ? 'day' : 'days'}</span>
-                                            </span>
-                                        </div>
-                                        <div className="w-full h-3 bg-black/40 rounded-full overflow-hidden shadow-inner border border-white/5">
-                                            <div className={`h-full rounded-full transition-all duration-1000 relative ${isExpiringSoon ? 'bg-yellow-400' : 'bg-gradient-to-r from-plex via-amber-400 to-orange-500'}`} style={{ width: `${progressPct}%` }}>
-                                                <div className="absolute top-0 bottom-0 left-0 right-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[shimmer_1s_linear_infinite]" />
-                                            </div>
-                                        </div>
-                                        {isExpiringSoon && <p className="text-yellow-400/90 text-sm font-medium mt-3 flex items-center gap-2">⚠️ Expiring soon — contact admin</p>}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-3 text-muted text-sm bg-card p-6 rounded-2xl border border-border shadow-lg flex-shrink-0">
-                            <div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin flex-shrink-0" />
-                            Setting up your 3-Day Temporary Access...
-                        </div>
-                    )}
-
-                    {sessionInfo.session.isAdmin && (
-                        <div className="glass-card p-3 md:p-4 shadow-xl flex flex-col flex-shrink-0 justify-center gap-2.5">
-                            <p className="text-muted text-xs uppercase tracking-widest font-semibold flex-shrink-0">Quick Actions</p>
-                            <div className="grid grid-cols-3 gap-2">
-                                <button type="button" onClick={() => onViewAdmin()} className="flex flex-col items-center justify-center gap-1.5 px-2 py-3 rounded-xl font-bold text-[10px] leading-tight text-center transition-all border bg-plex/10 border-plex/30 text-plex hover:bg-plex/20">
-                                    <Users size={18} />
-                                    <span>Manage Users</span>
-                                </button>
-                                <button type="button" onClick={() => onViewSettings?.()} className="flex flex-col items-center justify-center gap-1.5 px-2 py-3 rounded-xl font-bold text-[10px] leading-tight text-center transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
-                                    <Settings size={18} />
-                                    <span>Settings</span>
-                                </button>
-                                <button type="button" onClick={() => onViewLogs?.()} className="flex flex-col items-center justify-center gap-1.5 px-2 py-3 rounded-xl font-bold text-[10px] leading-tight text-center transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
-                                    <Activity size={18} />
-                                    <span>System Logs</span>
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {publicConfig?.announcement && (
-                        <div className="bg-plex/10 border border-plex/30 rounded-2xl p-3 md:p-4 shadow-lg">
-                            <div className="flex items-start gap-3">
-                                <span className="text-xl mt-0.5">📢</span>
-                                <div>
-                                    <h3 className="text-plex font-bold text-sm uppercase tracking-wider mb-1">Announcement</h3>
-                                    <p className="text-text whitespace-pre-wrap text-sm leading-relaxed">{publicConfig.announcement}</p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Referral Link */}
-                    {publicConfig?.referralEnabled && user && !sessionInfo.session.isAdmin && (
-                        <div className="glass-card p-4 md:p-5 shadow-lg">
-                            <p className="text-plex font-bold text-base mb-1">🎁 Invite Friends</p>
-                            <p className="text-muted text-sm leading-relaxed mb-4">Share this link. They get temporary access, and you get reward days!</p>
-                            <div className="flex flex-col gap-2">
-                                <input type="text" readOnly value={`${window.location.origin}/?ref=${user.id}`} className="w-full p-3 rounded-lg border border-border bg-background text-text text-sm outline-none" />
-                                <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/?ref=${user.id}`); setToast({ id: 99, message: 'Copied to clipboard!', type: 'success' }); }} className="w-full py-2.5 bg-plex text-background rounded-lg font-bold hover:bg-plex-hover transition-colors shadow-md">Copy Link</button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Footer sections: Preferences & Support (Moved to Left Column) */}
-                    <div className="flex flex-col gap-3 md:gap-4">
-                        {/* Newsletter preferences */}
-                        {user && !sessionInfo.session.isAdmin && (
-                            <div className="glass-card p-4 md:p-5 shadow-lg flex flex-col">
-                                <p className="text-muted text-xs uppercase tracking-widest font-semibold mb-3 flex-shrink-0">Preferences</p>
-                                <div className="flex items-center justify-between gap-4">
-                                    <div>
-                                        <p className="text-text font-bold text-sm">Weekly Newsletter</p>
-                                        <p className="text-muted text-xs mt-1 leading-relaxed">Automated library updates delivered to your inbox</p>
-                                    </div>
-                                    <button onClick={handleToggleNewsletter} aria-label="Toggle newsletter"
-                                        className={`relative inline-flex items-center w-14 h-7 rounded-full transition-all flex-shrink-0 border-2 ${!optOutNewsletter ? 'bg-plex border-plex' : 'bg-background border-border'}`}>
-                                        <span className={`inline-block w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-300 ${!optOutNewsletter ? 'translate-x-8' : 'translate-x-1'}`} />
-                                    </button>
-                                </div>
-                            </div>
+                        </>
                         )}
-
-                        {/* Support card */}
-                        {!sessionInfo?.session?.isAdmin && (
-                            <div className="glass-card p-4 md:p-5 shadow-lg flex flex-col">
-                                {user?.isTrial ? (
-                                    <div className="mb-3 md:mb-4 flex-shrink-0">
-                                        <p className="text-plex font-bold text-base mb-1">🍿 Enjoying your Temporary Access?</p>
-                                        <p className="text-muted text-sm leading-relaxed">Once your 3-day access ends, you'll lose access. Get in touch with the admin to extend your access!</p>
-                                    </div>
-                                ) : (
-                                    <div className="mb-3 md:mb-4 flex-shrink-0">
-                                        <p className="text-text font-bold text-base mb-1">💬 Need Help?</p>
-                                        <p className="text-muted text-sm leading-relaxed">Contact the admin to extend your access, report an issue, or get support.</p>
-                                    </div>
-                                )}
-                                <div className="flex flex-col gap-3 mt-auto">
-                                    {publicConfig.contactWhatsApp && (
-                                        <a href={`https://wa.me/${publicConfig.contactWhatsApp}`} target="_blank" rel="noreferrer"
-                                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-[#25D366]/10 border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366]/20">
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12.031 21.972c-1.63 0-3.21-.42-4.606-1.21l-5.111 1.34 1.36-4.972a9.92 9.92 0 0 1-1.34-4.978C2.334 6.64 6.685 2.28 12.031 2.28c5.344 0 9.697 4.36 9.697 9.872 0 5.512-4.353 9.82-9.697 9.82zm0-18.062c-4.47 0-8.115 3.65-8.115 8.13 0 1.48.39 2.92 1.12 4.19l-1.02 3.73 3.82-1a8.13 8.13 0 0 0 4.195 1.15c4.475 0 8.115-3.65 8.115-8.13s-3.64-8.07-8.115-8.07zm4.332 11.23c-.237-.12-1.405-.69-1.62-.77-.216-.08-.372-.12-.53.12-.158.24-.616.77-.754.93-.138.16-.276.18-.513.06-1.124-.55-2.062-1.28-2.812-2.19-.214-.26-.14-.4.08-.56.12-.08.27-.3.41-.45.14-.15.19-.25.28-.42.1-.17.05-.32 0-.44-.05-.12-.53-1.28-.73-1.75-.19-.46-.38-.4-.53-.41h-.45c-.16 0-.41.06-.63.3-.22.24-.85.83-.85 2.02 0 1.19.87 2.34.99 2.5.12.16 1.7 2.6 4.12 3.64 1.38.59 2.05.65 2.8.55.75-.1 1.4-.57 1.6-1.12.2-.55.2-.102.14-1.12-.06-.1-.22-.16-.46-.28z" /></svg>
-                                            WhatsApp
-                                        </a>
-                                    )}
-                                    {publicConfig.contactEmail && (
-                                        <a href={`mailto:${publicConfig.contactEmail}`}
-                                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
-                                            Email
-                                        </a>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Right Column — Library + Analytics stacked */}
-                <div className="lg:col-span-2 flex flex-col gap-3 md:gap-4 min-h-0">
-                    <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col justify-center flex-shrink-0">
-                        <div className="flex items-center justify-between mb-3 md:mb-4">
-                            <p className="text-muted text-sm uppercase tracking-widest font-semibold">Server Library Size</p>
-                            {sessionInfo.session.isAdmin && <RebuildLibraryCacheButton />}
                         </div>
-                        {serverDataLoading && !serverStats ? (
-                            <LibraryStatsSkeleton />
-                        ) : serverStats?.isBuilding ? (
-                            <div className="flex flex-col gap-2">
-                                <div className="flex gap-3 items-center text-muted"><div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin" /> Building library size cache in background...</div>
-                                <p className="text-xs text-muted/60">This runs once and may take a few minutes for large libraries. The page will auto-update when ready.</p>
-                            </div>
-                        ) : serverStats ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 md:gap-3">
-                                <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
-                                    <Film className="w-7 h-7 text-plex mb-2 opacity-80" />
-                                    <span className="text-3xl font-black text-text drop-shadow-md mb-1">
-                                        {serverStats.moviesBytes ? (() => {
-                                            const bytes = serverStats.moviesBytes;
-                                            if (bytes === 0) return '0 B';
-                                            const k = 1024;
-                                            const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-                                            const i = Math.floor(Math.log(bytes) / Math.log(k));
-                                            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-                                        })() : '0 B'}
-                                    </span>
-                                    <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
-                                        <span className="text-plex">{serverStats.movies?.toLocaleString() || 0}</span>
-                                        <span className="text-muted">Movies</span>
-                                    </div>
-                                </div>
-                                <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
-                                    <Tv className="w-7 h-7 text-plex mb-2 opacity-80" />
-                                    <span className="text-3xl font-black text-text drop-shadow-md mb-1">
-                                        {serverStats.showsBytes ? (() => {
-                                            const bytes = serverStats.showsBytes;
-                                            if (bytes === 0) return '0 B';
-                                            const k = 1024;
-                                            const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-                                            const i = Math.floor(Math.log(bytes) / Math.log(k));
-                                            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-                                        })() : '0 B'}
-                                    </span>
-                                    <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
-                                        <span className="text-plex">{serverStats.shows?.toLocaleString() || 0}</span>
-                                        <span className="text-muted">Shows</span>
-                                    </div>
-                                </div>
-                                <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
-                                    <Music className="w-7 h-7 text-plex mb-2 opacity-80" />
-                                    <span className="text-3xl font-black text-text drop-shadow-md mb-1">
-                                        {serverStats.musicBytes ? (() => {
-                                            const bytes = serverStats.musicBytes;
-                                            if (bytes === 0) return '0 B';
-                                            const k = 1024;
-                                            const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-                                            const i = Math.floor(Math.log(bytes) / Math.log(k));
-                                            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-                                        })() : '0 B'}
-                                    </span>
-                                    <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
-                                        <span className="text-plex">{serverStats.music?.toLocaleString() || 0}</span>
-                                        <span className="text-muted">Albums</span>
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="text-muted text-sm bg-background/50 p-4 rounded-xl border border-white/5">Could not load server statistics at this time.</div>
-                        )}
-                    </div>
-
-                    {(sessionInfo.session.isAdmin || user) && (
-                        <div className="glass-card p-3 md:p-4 shadow-xl flex flex-col flex-1 min-h-0">
-                            <div className="flex items-center justify-between flex-shrink-0">
-                                <h2 className="text-lg md:text-xl font-bold text-text flex items-center gap-2">
-                                    <Activity className="w-5 h-5 text-plex" /> Your Analytics
-                                </h2>
-                                <div className="relative">
-                                    <button
-                                        onClick={() => setAnalyticsDaysOpen(!analyticsDaysOpen)}
-                                        className="flex items-center gap-2 bg-background border border-border rounded-lg px-3 py-1.5 text-sm font-medium text-text focus:outline-none focus:border-plex hover:border-plex/50 transition-colors cursor-pointer"
-                                    >
-                                        <span>
-                                            {analyticsDays === 7 ? 'Last 7 Days' :
-                                                analyticsDays === 30 ? 'Last 30 Days' :
-                                                    analyticsDays === 60 ? 'Last 60 Days' :
-                                                        analyticsDays === 90 ? 'Last 90 Days' :
-                                                            analyticsDays === 180 ? 'Last 180 Days' :
-                                                                'All Time'}
-                                        </span>
-                                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${analyticsDaysOpen ? 'rotate-180 text-plex' : 'text-muted'}`} />
-                                    </button>
-
-                                    {analyticsDaysOpen && (
-                                        <>
-                                            <div className="fixed inset-0 z-40" onClick={() => setAnalyticsDaysOpen(false)} />
-                                            <div className="absolute right-0 mt-2 w-40 bg-card border border-border rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] z-50 overflow-hidden flex flex-col py-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                                                {[
-                                                    { value: 7, label: 'Last 7 Days' },
-                                                    { value: 30, label: 'Last 30 Days' },
-                                                    { value: 60, label: 'Last 60 Days' },
-                                                    { value: 90, label: 'Last 90 Days' },
-                                                    { value: 180, label: 'Last 180 Days' },
-                                                    { value: 'all', label: 'All Time' }
-                                                ].map(opt => (
-                                                    <button
-                                                        key={opt.value}
-                                                        onClick={() => {
-                                                            setAnalyticsDays(opt.value as any);
-                                                            setAnalyticsDaysOpen(false);
-                                                        }}
-                                                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${analyticsDays === opt.value ? 'bg-plex/10 text-plex font-bold border-l-2 border-plex' : 'text-text hover:bg-white/5 border-l-2 border-transparent'}`}
-                                                    >
-                                                        {opt.label}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-
-                            {!analyticsLoading && analytics && analytics.totalPlays === 0 && (
-                                <div className="flex flex-col items-center justify-center p-4 md:p-5 text-center flex-1 min-h-0 mt-2 md:mt-3">
-                                    <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3 text-xl shadow-inner">🍿</div>
-                                    <h3 className="font-bold text-text mb-1">No watch history yet</h3>
-                                    <p className="text-muted text-sm max-w-sm">Once you start watching content on the server, your personal watch stats and history will appear right here!</p>
-                                </div>
-                            )}
                         </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Recently Watched + Most Watched */}
-            {(sessionInfo.session.isAdmin || user) && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 items-stretch">
+                        </div>
+                        <WrapUpCardGrid analytics={analytics} interactive onCardClick={setSelectedMetric} minCardHeight={112} />
+                        </div>
+                        )}
+                    </>
+                )}
+                renderWatchRow={() => (
+                    <>
+                        {/* Recently Watched + Most Watched */}
+                        {(sessionInfo.session.isAdmin || user) && (
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 items-stretch">
                         {!analyticsLoading && analytics?.recentHistory && analytics.recentHistory.length > 0 && (
-                            <div className="lg:col-span-1 flex min-h-0">
-                                <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col h-full w-full min-h-0">
-                                    <div className="flex items-center justify-between mb-3 md:mb-4 flex-shrink-0">
-                                        <h3 className="text-lg md:text-xl font-bold text-text">Recently Watched</h3>
-                                        {analytics.recentHistory.length > RECENT_HISTORY_PAGE_SIZE && (
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={() => setRecentHistoryPage(p => Math.max(0, p - 1))}
-                                                    disabled={recentHistoryPage === 0}
-                                                    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
-                                                >
-                                                    <ChevronUp className="w-4 h-4 -rotate-90" />
-                                                </button>
-                                                <span className="text-xs text-muted font-medium w-8 text-center">
-                                                    {recentHistoryPage + 1} / {Math.ceil(analytics.recentHistory.length / RECENT_HISTORY_PAGE_SIZE)}
-                                                </span>
-                                                <button
-                                                    onClick={() => setRecentHistoryPage(p => Math.min(Math.ceil(analytics.recentHistory.length / RECENT_HISTORY_PAGE_SIZE) - 1, p + 1))}
-                                                    disabled={recentHistoryPage >= Math.ceil(analytics.recentHistory.length / RECENT_HISTORY_PAGE_SIZE) - 1}
-                                                    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
-                                                >
-                                                    <ChevronDown className="w-4 h-4 -rotate-90" />
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 items-stretch flex-1 min-h-0 content-start">
-                                        {analytics.recentHistory.slice(recentHistoryPage * RECENT_HISTORY_PAGE_SIZE, (recentHistoryPage + 1) * RECENT_HISTORY_PAGE_SIZE).map((item: any, idx: number) => (
-                                            <div key={idx} className="flex items-center self-stretch gap-3 p-2 bg-black/20 rounded-xl border border-white/5 hover:border-plex/50 hover:bg-black/40 hover:shadow-[0_0_15px_rgba(229,160,13,0.15)] transition-all group relative">
-                                                <a href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center flex-1 min-w-0 gap-3">
-                                                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-background flex-shrink-0 shadow-md">
-                                                        {item.thumbUrl ? (
-                                                            <img src={item.thumbUrl} alt={item.title} className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            <div className="w-full h-full flex items-center justify-center">
-                                                                <PlaySquare className="w-5 h-5 text-muted/50" />
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <h4 className="font-bold text-text text-sm truncate group-hover:text-plex transition-colors">{item.title}</h4>
-                                                        {item.episodeTitle && <p className="text-xs text-muted truncate mt-0.5">{item.episodeTitle}</p>}
-                                                        <div className="flex items-center gap-1 mt-1">
-                                                            <Clock className="w-3 h-3 text-muted" />
-                                                            <p className="text-[10px] text-muted">{new Date(item.viewedAt * 1000).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
-                                                        </div>
-                                                    </div>
-                                                </a>
-                                                <button
-                                                    onClick={(e) => { e.preventDefault(); setReportItem(item); }}
-                                                    className="opacity-0 group-hover:opacity-100 p-2 text-muted hover:text-red-400 hover:bg-red-400/10 rounded-full transition-all focus:outline-none"
-                                                    title="Report a playback issue"
-                                                >
-                                                    <AlertTriangle className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
+                        <div className="lg:col-span-1 flex min-h-0">
+                        <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col h-full w-full min-h-0">
+                        <div className="flex items-center justify-between mb-3 md:mb-4 flex-shrink-0">
+                        <h3 className="text-lg md:text-xl font-bold text-text">Recently Watched</h3>
+                        {analytics.recentHistory.length > RECENT_HISTORY_PAGE_SIZE && (
+                        <div className="flex items-center gap-2">
+                        <button
+                        onClick={() => setRecentHistoryPage(p => Math.max(0, p - 1))}
+                        disabled={recentHistoryPage === 0}
+                        className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
+                        >
+                        <ChevronUp className="w-4 h-4 -rotate-90" />
+                        </button>
+                        <span className="text-xs text-muted font-medium w-8 text-center">
+                        {recentHistoryPage + 1} / {Math.ceil(analytics.recentHistory.length / RECENT_HISTORY_PAGE_SIZE)}
+                        </span>
+                        <button
+                        onClick={() => setRecentHistoryPage(p => Math.min(Math.ceil(analytics.recentHistory.length / RECENT_HISTORY_PAGE_SIZE) - 1, p + 1))}
+                        disabled={recentHistoryPage >= Math.ceil(analytics.recentHistory.length / RECENT_HISTORY_PAGE_SIZE) - 1}
+                        className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
+                        >
+                        <ChevronDown className="w-4 h-4 -rotate-90" />
+                        </button>
+                        </div>
+                        )}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 items-stretch flex-1 min-h-0 content-start">
+                        {analytics.recentHistory.slice(recentHistoryPage * RECENT_HISTORY_PAGE_SIZE, (recentHistoryPage + 1) * RECENT_HISTORY_PAGE_SIZE).map((item: any, idx: number) => (
+                        <div key={idx} className="flex items-center self-stretch gap-3 p-2 bg-black/20 rounded-xl border border-white/5 hover:border-plex/50 hover:bg-black/40 hover:shadow-[0_0_15px_rgba(229,160,13,0.15)] transition-all group relative">
+                        <a href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center flex-1 min-w-0 gap-3">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-background flex-shrink-0 shadow-md">
+                        {item.thumbUrl ? (
+                        <img src={item.thumbUrl} alt={item.title} className="w-full h-full object-cover" />
+                        ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                        <PlaySquare className="w-5 h-5 text-muted/50" />
+                        </div>
+                        )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-text text-sm truncate group-hover:text-plex transition-colors">{item.title}</h4>
+                        {item.episodeTitle && <p className="text-xs text-muted truncate mt-0.5">{item.episodeTitle}</p>}
+                        <div className="flex items-center gap-1 mt-1">
+                        <Clock className="w-3 h-3 text-muted" />
+                        <p className="text-[10px] text-muted">{new Date(item.viewedAt * 1000).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
+                        </div>
+                        </div>
+                        </a>
+                        <button
+                        onClick={(e) => { e.preventDefault(); setReportItem(item); }}
+                        className="opacity-0 group-hover:opacity-100 p-2 text-muted hover:text-red-400 hover:bg-red-400/10 rounded-full transition-all focus:outline-none"
+                        title="Report a playback issue"
+                        >
+                        <AlertTriangle className="w-4 h-4" />
+                        </button>
+                        </div>
+                        ))}
+                        </div>
+                        </div>
+                        </div>
                         )}
                         {analyticsLoading ? (
-                            <div className="lg:col-span-2 lg:col-start-2 flex min-h-0">
-                                <TopWatchedGridSkeleton />
-                            </div>
+                        <div className="lg:col-span-2 lg:col-start-2 flex min-h-0">
+                        <TopWatchedGridSkeleton />
+                        </div>
                         ) : analytics && analytics.totalPlays > 0 && analytics.topWatched && analytics.topWatched.length > 0 ? (
-                            <div className={`flex min-h-0 ${analytics.recentHistory?.length ? 'lg:col-span-2' : 'lg:col-span-2 lg:col-start-2'}`}>
-                                <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col h-full w-full min-h-0">
-                                    <div className="flex items-center justify-between mb-3 md:mb-4 flex-shrink-0">
-                                        <div>
-                                            <h3 className="text-lg md:text-xl font-bold text-text mb-0.5">Your Most Watched</h3>
-                                            <p className="text-muted text-sm">Based on your {analytics.totalPlays} total plays</p>
-                                        </div>
-                                        {analytics.topWatched.length > TOP_CONTENT_PAGE_SIZE && (
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={() => setTopContentPage(p => Math.max(0, p - 1))}
-                                                    disabled={topContentPage === 0}
-                                                    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
-                                                >
-                                                    <ChevronUp className="w-4 h-4 -rotate-90" />
-                                                </button>
-                                                <span className="text-xs text-muted font-medium w-8 text-center">
-                                                    {topContentPage + 1} / {Math.ceil(analytics.topWatched.length / TOP_CONTENT_PAGE_SIZE)}
-                                                </span>
-                                                <button
-                                                    onClick={() => setTopContentPage(p => Math.min(Math.ceil(analytics.topWatched.length / TOP_CONTENT_PAGE_SIZE) - 1, p + 1))}
-                                                    disabled={topContentPage >= Math.ceil(analytics.topWatched.length / TOP_CONTENT_PAGE_SIZE) - 1}
-                                                    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
-                                                >
-                                                    <ChevronDown className="w-4 h-4 -rotate-90" />
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 md:gap-3.5 flex-1 min-h-0 content-start">
-                                        {analytics.topWatched.slice(topContentPage * TOP_CONTENT_PAGE_SIZE, (topContentPage + 1) * TOP_CONTENT_PAGE_SIZE).map((item: any) => (
-                                            <a key={item.key} href={item.plexUrl} target="_blank" rel="noreferrer" className="group flex flex-col gap-1.5">
-                                                <div className="relative rounded-lg overflow-hidden aspect-[2/3] bg-background border border-white/5 transition-[box-shadow,border-color] duration-300 group-hover:shadow-xl group-hover:border-plex/50">
-                                                    {item.thumbUrl ? (
-                                                        <img src={item.thumbUrl} alt={item.title} className="w-full h-full object-cover transition-[transform,opacity] duration-300 group-hover:scale-105 group-hover:opacity-80" />
-                                                    ) : (
-                                                        <div className="w-full h-full flex items-center justify-center p-4 text-center bg-white/5">
-                                                            <span className="text-xs font-bold text-muted line-clamp-3">{item.title}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="flex flex-col px-0.5">
-                                                    <p className="text-xs sm:text-sm font-bold text-text truncate group-hover:text-plex transition-colors">{item.title}</p>
-                                                    <p className="text-[10px] sm:text-xs text-plex font-black mt-0.5 uppercase tracking-wider">{item.plays} plays</p>
-                                                </div>
-                                            </a>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
+                        <div className={`flex min-h-0 ${analytics.recentHistory?.length ? 'lg:col-span-2' : 'lg:col-span-2 lg:col-start-2'}`}>
+                        <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col h-full w-full min-h-0">
+                        <div className="flex items-center justify-between mb-3 md:mb-4 flex-shrink-0">
+                        <div>
+                        <h3 className="text-lg md:text-xl font-bold text-text mb-0.5">Your Most Watched</h3>
+                        <p className="text-muted text-sm">Based on your {analytics.totalPlays} total plays</p>
+                        </div>
+                        {analytics.topWatched.length > TOP_CONTENT_PAGE_SIZE && (
+                        <div className="flex items-center gap-2">
+                        <button
+                        onClick={() => setTopContentPage(p => Math.max(0, p - 1))}
+                        disabled={topContentPage === 0}
+                        className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
+                        >
+                        <ChevronUp className="w-4 h-4 -rotate-90" />
+                        </button>
+                        <span className="text-xs text-muted font-medium w-8 text-center">
+                        {topContentPage + 1} / {Math.ceil(analytics.topWatched.length / TOP_CONTENT_PAGE_SIZE)}
+                        </span>
+                        <button
+                        onClick={() => setTopContentPage(p => Math.min(Math.ceil(analytics.topWatched.length / TOP_CONTENT_PAGE_SIZE) - 1, p + 1))}
+                        disabled={topContentPage >= Math.ceil(analytics.topWatched.length / TOP_CONTENT_PAGE_SIZE) - 1}
+                        className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
+                        >
+                        <ChevronDown className="w-4 h-4 -rotate-90" />
+                        </button>
+                        </div>
+                        )}
+                        </div>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 md:gap-3.5 flex-1 min-h-0 content-start">
+                        {analytics.topWatched.slice(topContentPage * TOP_CONTENT_PAGE_SIZE, (topContentPage + 1) * TOP_CONTENT_PAGE_SIZE).map((item: any) => (
+                        <a key={item.key} href={item.plexUrl} target="_blank" rel="noreferrer" className="group flex flex-col gap-1.5">
+                        <div className="relative rounded-lg overflow-hidden aspect-[2/3] bg-background border border-white/5 transition-[box-shadow,border-color] duration-300 group-hover:shadow-xl group-hover:border-plex/50">
+                        {item.thumbUrl ? (
+                        <img src={item.thumbUrl} alt={item.title} className="w-full h-full object-cover transition-[transform,opacity] duration-300 group-hover:scale-105 group-hover:opacity-80" />
+                        ) : (
+                        <div className="w-full h-full flex items-center justify-center p-4 text-center bg-white/5">
+                        <span className="text-xs font-bold text-muted line-clamp-3">{item.title}</span>
+                        </div>
+                        )}
+                        </div>
+                        <div className="flex flex-col px-0.5">
+                        <p className="text-xs sm:text-sm font-bold text-text truncate group-hover:text-plex transition-colors">{item.title}</p>
+                        <p className="text-[10px] sm:text-xs text-plex font-black mt-0.5 uppercase tracking-wider">{item.plays} plays</p>
+                        </div>
+                        </a>
+                        ))}
+                        </div>
+                        </div>
+                        </div>
                         ) : null}
-                </div>
-            )}
-
-            {/* Recently Added Section (Full Width below Grid) */}
-            {serverDataLoading && !dashboardData ? (
-                <HomeRecentlyAddedSkeleton />
-            ) : dashboardData && (
-                <div className="flex flex-col gap-3 md:gap-4 w-full">
-                    {dashboardData.recentMovies?.length > 0 && (
-                        <div className="glass-card p-4 md:p-5 shadow-xl overflow-hidden w-full">
-                            <h3 className="text-lg md:text-xl font-bold text-text mb-3">Recently Added Movies</h3>
-                            <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth">
-                                {dashboardData.recentMovies.map((item: any, idx: number) => (
-                                    <DiscoverPosterCard
-                                        key={idx}
-                                        variant="home"
-                                        className="snap-start shrink-0 w-32 md:w-40"
-                                        item={item}
-                                        showQualityBadges={showQualityBadges}
-                                        footer={(
-                                            <div className="flex flex-col px-1">
-                                                <p className="text-xs font-bold text-text truncate group-hover:text-plex transition-colors">{item.title}</p>
-                                                {item.year && <p className="text-[10px] text-muted font-semibold mt-0.5">{item.year}</p>}
-                                            </div>
-                                        )}
-                                    />
-                                ))}
-                            </div>
                         </div>
-                    )}
+                        )}
+                    </>
+                )}
+            />
 
-                    {dashboardData.recentShows?.length > 0 && (
-                        <div className="glass-card p-4 md:p-5 shadow-xl overflow-hidden w-full">
-                            <h3 className="text-lg md:text-xl font-bold text-text mb-3">Recently Added TV Shows</h3>
-                            <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth">
-                                {dashboardData.recentShows.map((item: any, idx: number) => (
-                                    <DiscoverPosterCard
-                                        key={idx}
-                                        variant="home"
-                                        className="snap-start shrink-0 w-32 md:w-40"
-                                        item={item}
-                                        showQualityBadges={showQualityBadges}
-                                        footer={(
-                                            <div className="flex flex-col px-1">
-                                                <p className="text-xs font-bold text-text truncate group-hover:text-plex transition-colors">{item.title}</p>
-                                                {item.year && <p className="text-[10px] text-muted font-semibold mt-0.5">{item.year}</p>}
-                                            </div>
-                                        )}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {dashboardData.recentMusic?.length > 0 && (
-                        <div className="glass-card p-4 md:p-5 shadow-xl overflow-hidden w-full">
-                            <h3 className="text-lg md:text-xl font-bold text-text mb-3">Recently Added Music</h3>
-                            <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth">
-                                {dashboardData.recentMusic.map((item: any, idx: number) => (
-                                    <DiscoverPosterCard
-                                        key={idx}
-                                        variant="home"
-                                        aspect="square"
-                                        className="snap-start shrink-0 w-32 md:w-40"
-                                        item={item}
-                                        showQualityBadges={showQualityBadges}
-                                        footer={(
-                                            <div className="flex flex-col px-1">
-                                                <p className="text-xs font-bold text-text truncate group-hover:text-plex transition-colors">{item.title}</p>
-                                                {item.parentTitle && <p className="text-[10px] text-muted font-semibold mt-0.5 truncate">{item.parentTitle}</p>}
-                                            </div>
-                                        )}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
             {reportItem && (
                 <ReportIssueModal item={reportItem} onClose={() => setReportItem(null)} />
             )}

@@ -1045,10 +1045,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   left: -8rem;
 }
 
-.-right-10 {
-  right: -2.5rem;
-}
-
 .-right-2 {
   right: -0.5rem;
 }
@@ -1059,10 +1055,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .-right-32 {
   right: -8rem;
-}
-
-.-top-10 {
-  top: -2.5rem;
 }
 
 .-top-2 {
@@ -1271,9 +1263,19 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   margin-right: -1rem;
 }
 
+.mx-2 {
+  margin-left: 0.5rem;
+  margin-right: 0.5rem;
+}
+
 .mx-auto {
   margin-left: auto;
   margin-right: auto;
+}
+
+.my-2 {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .-mr-4 {
@@ -1467,6 +1469,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .grid {
   display: grid;
+}
+
+.\!hidden {
+  display: none !important;
 }
 
 .hidden {
@@ -1794,6 +1800,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   width: 0.625rem;
 }
 
+.w-2\/3 {
+  width: 66.666667%;
+}
+
 .w-20 {
   width: 5rem;
 }
@@ -1856,10 +1866,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .w-6 {
   width: 1.5rem;
-}
-
-.w-64 {
-  width: 16rem;
 }
 
 .w-7 {
@@ -1978,6 +1984,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .max-w-4xl {
   max-width: 56rem;
+}
+
+.max-w-5xl {
+  max-width: 64rem;
 }
 
 .max-w-6xl {
@@ -2123,6 +2133,12 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
+.scale-\[0\.98\] {
+  --tw-scale-x: 0.98;
+  --tw-scale-y: 0.98;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
 .scale-\[1\.01\] {
   --tw-scale-x: 1.01;
   --tw-scale-y: 1.01;
@@ -2171,6 +2187,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .cursor-default {
   cursor: default;
+}
+
+.cursor-grab {
+  cursor: grab;
 }
 
 .cursor-not-allowed {
@@ -2253,10 +2273,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .flex-wrap {
   flex-wrap: wrap;
-}
-
-.content-center {
-  align-content: center;
 }
 
 .content-start {
@@ -2840,6 +2856,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   background-color: rgb(13 17 23 / var(--tw-bg-opacity, 1));
 }
 
+.bg-background\/20 {
+  background-color: rgb(13 17 23 / 0.2);
+}
+
 .bg-background\/30 {
   background-color: rgb(13 17 23 / 0.3);
 }
@@ -3122,6 +3142,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .bg-white\/5 {
   background-color: rgb(255 255 255 / 0.05);
+}
+
+.bg-white\/\[0\.02\] {
+  background-color: rgb(255 255 255 / 0.02);
 }
 
 .bg-yellow-400 {
@@ -4214,6 +4238,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   text-decoration-line: underline;
 }
 
+.line-through {
+  text-decoration-line: line-through;
+}
+
 .no-underline {
   text-decoration-line: none;
 }
@@ -4256,6 +4284,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .opacity-30 {
   opacity: 0.3;
+}
+
+.opacity-35 {
+  opacity: 0.35;
 }
 
 .opacity-40 {
@@ -4600,6 +4632,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 .ring-plex {
   --tw-ring-opacity: 1;
   --tw-ring-color: rgb(var(--color-plex) / var(--tw-ring-opacity, 1));
+}
+
+.ring-plex\/30 {
+  --tw-ring-color: rgb(var(--color-plex) / 0.3);
 }
 
 .ring-plex\/50 {
@@ -5308,6 +5344,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
+.active\:cursor-grabbing:active {
+  cursor: grabbing;
+}
+
 .disabled\:pointer-events-none:disabled {
   pointer-events: none;
 }
@@ -5489,8 +5529,16 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     flex-direction: row;
   }
 
+  .sm\:items-start {
+    align-items: flex-start;
+  }
+
   .sm\:items-center {
     align-items: center;
+  }
+
+  .sm\:justify-between {
+    justify-content: space-between;
   }
 
   .sm\:gap-3 {
@@ -6072,16 +6120,16 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     grid-column: span 2 / span 2;
   }
 
-  .lg\:col-span-3 {
-    grid-column: span 3 / span 3;
-  }
-
   .lg\:col-start-2 {
     grid-column-start: 2;
   }
 
   .lg\:flex {
     display: flex;
+  }
+
+  .lg\:grid {
+    display: grid;
   }
 
   .lg\:hidden {
@@ -6157,6 +6205,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .xl\:flex-1 {
     flex: 1 1 0%;
+  }
+
+  .xl\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .xl\:grid-cols-3 {
