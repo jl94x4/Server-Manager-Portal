@@ -4907,17 +4907,54 @@ const summarizeLibraryHealth = (topLibraries = [], stats = {}) => {
 
 const getUniqueActiveViewers = (users = []) => (users || []).filter(u => toNumber(u.plays, 0) > 0).length;
 
+const fetchPlexAccountHistory = async (uri, config, accountID, { maxItems = 250000 } = {}) => {
+    const pageSize = 5000;
+    let historyItems = [];
+    let start = 0;
+
+    while (start < maxItems) {
+        const pageRes = await fetch(
+            `${uri}/status/sessions/history/all?accountID=${accountID}&X-Plex-Token=${config.plexToken}&sort=viewedAt:desc&X-Plex-Container-Start=${start}&X-Plex-Container-Size=${pageSize}`,
+            { headers: { Accept: 'application/json' } },
+        ).then((r) => r.json()).catch(() => null);
+
+        const pageContainer = pageRes?.MediaContainer;
+        const pageItems = Array.isArray(pageContainer?.Metadata) ? pageContainer.Metadata : [];
+        if (pageItems.length === 0) break;
+
+        historyItems = historyItems.concat(pageItems);
+        start += pageItems.length;
+
+        const totalSize = Number(pageContainer.totalSize || 0);
+        if ((totalSize > 0 && start >= totalSize) || pageItems.length < pageSize) break;
+    }
+
+    if (historyItems.length >= maxItems) {
+        log(`Personal analytics history fetch reached safety cap (${maxItems}) for account ${accountID}.`);
+    }
+
+    return historyItems;
+};
+
 app.get('/api/plex/analytics', requireAuth, requireMember, async (req, res) => {
     try {
         const statsData = await loadFile(ANALYTICS_CACHE_PATH, {});
         const reqDays = req.query.days || 30;
+        const hasRequestedPeriod = statsData[reqDays] != null;
+        const cachedPeriod = hasRequestedPeriod ? reqDays : (statsData[30] != null ? 30 : null);
         const cachedData = statsData[reqDays] || statsData[30] || { topUsers: [], topLibraries: [], topMovies: [], topShows: [], topMusic: [], topDevices: [], peakHours: new Array(24).fill(0), totalPlaybacks: 0 };
         const shouldObfuscateUsernames = !req.user?.isAdmin;
         const topUsers = (cachedData.topUsers || []).map((user, index) => ({
             ...user,
             username: shouldObfuscateUsernames ? `Viewer ${index + 1}` : (user.username || `User ${index + 1}`)
         }));
-        const data = { ...cachedData, topUsers };
+        const data = {
+            ...cachedData,
+            topUsers,
+            requestedPeriodDays: reqDays,
+            cachePeriodDays: cachedPeriod,
+            cacheFallback: cachedPeriod != null && String(cachedPeriod) !== String(reqDays),
+        };
         
         // attach max stats dynamically
         const stats = await loadFile(PLEX_STATS_CACHE_PATH, {});
@@ -4964,12 +5001,11 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
         if (!accountID) {
             return res.json({ totalPlays: 0, topLibraries: [], topWatched: [], topMusic: [], recentHistory: [] });
         }
-        const limit = req.query.days === 'all' ? 999999 : 5000;
 
-        const historyRes = await fetch(`${uri}/status/sessions/history/all?accountID=${accountID}&X-Plex-Token=${config.plexToken}&sort=viewedAt:desc&limit=${limit}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+        const historyItems = await fetchPlexAccountHistory(uri, config, accountID);
         const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
 
-        if (!historyRes || !historyRes.MediaContainer || !historyRes.MediaContainer.Metadata) {
+        if (!historyItems.length) {
             return res.json({ totalPlays: 0, topLibraries: [], topWatched: [], topMusic: [], recentHistory: [] });
         }
 
@@ -5007,7 +5043,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
         const { list: plexAccounts } = await fetchPlexServerAccounts(uri, config);
         const plexAccountName = plexAccounts.find((a) => String(a.id) === String(accountID))?.name || null;
 
-        historyRes.MediaContainer.Metadata.forEach(item => {
+        historyItems.forEach(item => {
             if (cutoffDate > 0 && item.viewedAt < cutoffDate) return;
             totalPlays++;
 
@@ -5065,7 +5101,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
             plexAccountName,
             days: req.query.days || 30,
             afterUnixSec: cutoffDate,
-            maxItems: limit,
+            maxItems: historyItems.length,
             plexPlayCount: totalPlays,
         });
         if (tautulliHourStats?.hourCount > 0) {

@@ -6,8 +6,9 @@ import { SettingsDashboard } from './settings/SettingsDashboard';
 import { LibraryMaintenancePanel } from './maintenance/LibraryMaintenancePanel';
 import { appConfirm } from './shared/confirm';
 import { apiFetch } from './shared/api';
-import { formatDate, getDaysUntilExpiry, addMonths, addYears, formatTime, formatEventName, formatDateTime, hexToRgb, formatSizeCeil, formatStreamingHour } from './shared/format';
+import { formatDate, getDaysUntilExpiry, getAccessProgressPct, addMonths, addYears, formatTime, formatEventName, formatDateTime, hexToRgb, formatSizeCeil, formatStreamingHour } from './shared/format';
 import { CustomSelect, ConfirmModal, StyledCheckbox } from './shared/ui';
+import { PeriodDropdown } from './shared/PeriodDropdown';
 import { Loader, Toast, ToastContainer, pushToast } from './shared/toast';
 import {
     ActivityGridSkeleton,
@@ -1642,7 +1643,10 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
             sizeGB: number,
             fourKPercent: number,
             healthLabel: string
-        }
+        },
+        requestedPeriodDays?: string | number,
+        cachePeriodDays?: string | number | null,
+        cacheFallback?: boolean,
     } | null>(null);
     const [tautulliData, setTautulliData] = useState<{ streamsRecord: number, transcodeRecord: number, directPlayRecord: number, directStreamRecord: number, totalPlays: number, tvPlays: number, moviePlays: number, musicPlays: number, totalTimeStr: string } | null>(null);
     const [isLoading, setLoading] = useState(true);
@@ -1807,6 +1811,11 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
 
             {viewTab === 'overview' && (
                 <>
+                    {analyticsData.cacheFallback && (
+                        <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">
+                            Analytics cache for this period is still building. Showing cached data from the last {analyticsData.cachePeriodDays} day period instead.
+                        </div>
+                    )}
                     {/* High Level Stats Overview */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div className="glass-card-sm p-6 flex items-center gap-4">
@@ -3841,6 +3850,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     const [analyticsDays, setAnalyticsDays] = useState<number | 'all'>(30);
     const [analyticsDaysOpen, setAnalyticsDaysOpen] = useState(false);
     const [wrapUpDaysOpen, setWrapUpDaysOpen] = useState(false);
+    const [analyticsError, setAnalyticsError] = useState<string | null>(null);
     const [reportItem, setReportItem] = useState<any>(null);
     const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
     const [shareWrapUpOpen, setShareWrapUpOpen] = useState(false);
@@ -3867,28 +3877,31 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
         }
     };
 
-    const handleRequestInvite = async () => {
+    const handleRequestInvite = async (): Promise<boolean> => {
         setIsLoading(true);
         try {
             await apiFetch('/api/users/request-invite', { method: 'POST' });
             setToast({ id: 1, message: 'Invite requested successfully! Check your email.', type: 'success' });
             refreshSession();
+            return true;
         } catch (e: any) {
             setToast({ id: 1, message: e.message || 'Failed to request invite', type: 'error' });
+            return false;
         } finally {
             setIsLoading(false);
         }
     };
 
-    // Auto-request invite if user is totally new — but only once per browser
-    // session, so remounts/navigation don't repeatedly POST invite requests.
+    // Auto-request invite if user is totally new — retry if the first attempt fails.
     useEffect(() => {
         if (!user && !isLoading && !sessionInfo.session.isAdmin) {
-            const alreadyRequested = sessionStorage.getItem('autoInviteRequested') === 'true';
-            if (!alreadyRequested) {
-                sessionStorage.setItem('autoInviteRequested', 'true');
-                handleRequestInvite();
-            }
+            if (sessionStorage.getItem('autoInviteSucceeded') === 'true') return;
+            if (sessionStorage.getItem('autoInviteRequested') === 'true') return;
+            sessionStorage.setItem('autoInviteRequested', 'true');
+            handleRequestInvite().then((ok) => {
+                if (ok) sessionStorage.setItem('autoInviteSucceeded', 'true');
+                else sessionStorage.removeItem('autoInviteRequested');
+            });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -3902,13 +3915,19 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
             }
             try {
                 setAnalyticsLoading(true);
+                setAnalyticsError(null);
                 const res = await apiFetch(`/api/plex/analytics/me?days=${analyticsDays}`);
                 if (cancelled) return;
                 setAnalytics(res);
                 setTopContentPage(0);
                 setRecentHistoryPage(0);
-            } catch (e) {
-                if (!cancelled) console.error("Failed to fetch analytics", e);
+            } catch (e: any) {
+                if (!cancelled) {
+                    const message = e?.message || 'Failed to load your analytics';
+                    setAnalyticsError(message);
+                    setAnalytics(null);
+                    setToast({ id: Date.now(), message, type: 'error' });
+                }
             } finally {
                 if (!cancelled) setAnalyticsLoading(false);
             }
@@ -3931,8 +3950,20 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     }, [topWatchedPageSize, analytics?.topWatched?.length]);
 
     useEffect(() => {
-        let pollTimer: any = null;
+        let pollTimer: ReturnType<typeof setTimeout> | null = null;
+        let dashboardTimer: ReturnType<typeof setInterval> | null = null;
         let isMounted = true;
+        const DASHBOARD_REFRESH_MS = 5 * 60 * 1000;
+
+        const fetchDashboard = async () => {
+            if (!isMounted) return;
+            try {
+                const res = await apiFetch('/api/plex/dashboard?limit=15');
+                if (isMounted) setDashboardData(res);
+            } catch (e) {
+                console.error('Failed to refresh dashboard data', e);
+            }
+        };
 
         const fetchServerData = async () => {
             if (!isMounted) return;
@@ -3946,21 +3977,20 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                     }
                 }).catch(e => console.error("Failed to fetch server stats", e));
 
-                const p2 = dashboardData ? Promise.resolve() : apiFetch('/api/plex/dashboard?limit=15').then(res => {
-                    if (isMounted) setDashboardData(res);
-                }).catch(e => console.error("Failed to fetch dashboard data", e));
-
+                const p2 = fetchDashboard();
                 await Promise.all([p1, p2]);
             } finally {
                 if (isMounted) setServerDataLoading(false);
             }
         };
         fetchServerData();
+        dashboardTimer = setInterval(fetchDashboard, DASHBOARD_REFRESH_MS);
         return () => {
             isMounted = false;
             if (pollTimer) clearTimeout(pollTimer);
+            if (dashboardTimer) clearInterval(dashboardTimer);
         };
-    }, [dashboardData]);
+    }, []);
 
     const handleRelink = async () => {
         setIsLoading(true);
@@ -3976,12 +4006,21 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     };
 
     const daysLeft = user?.expiryDate ? getDaysUntilExpiry(user.expiryDate) : null;
-    const progressPct = daysLeft !== null ? Math.min(100, Math.max(0, (daysLeft / 365) * 100)) : 100;
+    const progressPct = getAccessProgressPct(user?.expiryDate || null, user?.joiningDate || null);
     const isExpiringSoon = daysLeft !== null && daysLeft <= 7;
     const isRevoked = user?.plexAccessStatus === 'revoked';
     const isPending = user?.plexAccessStatus?.toLowerCase() === 'pending';
 
     const heroBg = analytics?.recentHistory?.[0]?.thumbUrl || publicConfig?.customLogoUrl || '';
+
+    const wrapUpDaysOptions = [
+        { value: 7, label: 'Last 7 Days' },
+        { value: 30, label: 'Last 30 Days' },
+        { value: 60, label: 'Last 60 Days' },
+        { value: 90, label: 'Last 90 Days' },
+        { value: 180, label: 'Last 180 Days' },
+        { value: 'all', label: 'All Time' },
+    ];
 
     const layoutCtx = useMemo(() => ({
         isAdmin: !!sessionInfo.session.isAdmin,
@@ -4128,6 +4167,11 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                         {(sessionInfo.session.isAdmin || user) && analyticsLoading && (
                         <WrapUpCardsSkeleton />
                         )}
+                        {(sessionInfo.session.isAdmin || user) && !analyticsLoading && analyticsError && (
+                        <div className="glass-card p-4 md:p-5 shadow-xl border border-red-500/30 bg-red-500/5">
+                            <p className="text-red-300 text-sm font-medium">{analyticsError}</p>
+                        </div>
+                        )}
                         {(sessionInfo.session.isAdmin || user) && !analyticsLoading && analytics && (
                         <div className="glass-card p-4 md:p-5 shadow-xl">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 md:mb-4">
@@ -4141,49 +4185,15 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                         <Share2 className="w-4 h-4 flex-shrink-0" />
                         Share
                         </button>
-                        <div className="relative">
-                        <button
-                        onClick={() => setWrapUpDaysOpen(!wrapUpDaysOpen)}
-                        className="flex items-center gap-2 bg-background border border-border/50 rounded-lg px-3 py-1.5 text-sm font-medium text-text focus:outline-none hover:border-plex/50 transition-colors cursor-pointer shadow-sm"
-                        >
-                        <span>
-                        {analyticsDays === 7 ? 'Last 7 Days' :
-                        analyticsDays === 30 ? 'Last 30 Days' :
-                        analyticsDays === 60 ? 'Last 60 Days' :
-                        analyticsDays === 90 ? 'Last 90 Days' :
-                        analyticsDays === 180 ? 'Last 180 Days' :
-                        'All Time'}
-                        </span>
-                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${wrapUpDaysOpen ? 'rotate-180 text-plex' : 'text-muted'}`} />
-                        </button>
-                        
-                        {wrapUpDaysOpen && (
-                        <>
-                        <div className="fixed inset-0 z-40" onClick={() => setWrapUpDaysOpen(false)} />
-                        <div className="absolute right-0 mt-2 w-40 bg-card border border-border rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] z-50 overflow-hidden flex flex-col py-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                        {[
-                        { value: 7, label: 'Last 7 Days' },
-                        { value: 30, label: 'Last 30 Days' },
-                        { value: 60, label: 'Last 60 Days' },
-                        { value: 90, label: 'Last 90 Days' },
-                        { value: 180, label: 'Last 180 Days' },
-                        { value: 'all', label: 'All Time' }
-                        ].map(opt => (
-                        <button
-                        key={opt.value}
-                        onClick={() => {
-                        setAnalyticsDays(opt.value as any);
-                        setWrapUpDaysOpen(false);
-                        }}
-                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${analyticsDays === opt.value ? 'bg-plex/10 text-plex font-bold border-l-2 border-plex' : 'text-text hover:bg-white/5 border-l-2 border-transparent'}`}
-                        >
-                        {opt.label}
-                        </button>
-                        ))}
-                        </div>
-                        </>
-                        )}
-                        </div>
+                        <PeriodDropdown
+                        value={analyticsDays}
+                        open={wrapUpDaysOpen}
+                        onToggle={() => setWrapUpDaysOpen(!wrapUpDaysOpen)}
+                        onClose={() => setWrapUpDaysOpen(false)}
+                        onChange={(value) => setAnalyticsDays(value as number | 'all')}
+                        options={wrapUpDaysOptions}
+                        buttonClassName="flex items-center gap-2 bg-background border border-border/50 rounded-lg px-3 py-1.5 text-sm font-medium text-text focus:outline-none hover:border-plex/50 transition-colors cursor-pointer shadow-sm"
+                        />
                         </div>
                         </div>
                         <WrapUpCardGrid analytics={analytics} interactive onCardClick={setSelectedMetric} minCardHeight={112} />
@@ -4247,7 +4257,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                         </a>
                         <button
                         onClick={(e) => { e.preventDefault(); setReportItem(item); }}
-                        className="opacity-0 group-hover:opacity-100 p-2 text-muted hover:text-red-400 hover:bg-red-400/10 rounded-full transition-all focus:outline-none"
+                        className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-2 text-muted hover:text-red-400 hover:bg-red-400/10 rounded-full transition-all focus:outline-none"
                         title="Report a playback issue"
                         >
                         <AlertTriangle className="w-4 h-4" />
@@ -4769,6 +4779,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
     const [dashboardLoading, setDashboardLoading] = useState(true);
     const [trendingLoading, setTrendingLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [pollError, setPollError] = useState<string | null>(null);
     const isWidePortalLayout = usePortalWideContentLayout();
     const [isDiscoverDesktop, setIsDiscoverDesktop] = useState(
         () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
@@ -4801,11 +4812,14 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
     const fetchDashboardOnly = useCallback(async () => {
         try {
             const res = await apiFetch(`/api/plex/dashboard?limit=${recentLimit}`);
-            if (!res.error) {
-                setDashboardData(res);
+            if (res.error) {
+                setPollError(res.error);
+                return;
             }
-        } catch (err) {
-            // Ignore background polling errors
+            setDashboardData(res);
+            setPollError(null);
+        } catch (err: any) {
+            setPollError(err?.message || 'Live dashboard update failed');
         }
     }, [recentLimit]);
 
@@ -4839,7 +4853,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
 
     useEffect(() => {
         fetchData();
-        const liveInterval = setInterval(fetchDashboardOnly, 1000);
+        const liveInterval = setInterval(fetchDashboardOnly, 10000);
         return () => clearInterval(liveInterval);
     }, [fetchDashboardOnly, fetchData]);
 
@@ -4858,6 +4872,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
         <div className="w-full flex flex-col min-h-screen">
             <main className="w-full pb-8 mt-4 md:mt-0">
                 {error && <div className="toast error show">{error}</div>}
+                {pollError && !error && <div className="toast error show">{pollError}</div>}
 
                 {/* SUMMARY CARDS */}
                 {dashboardData && totalStreams > 0 && (

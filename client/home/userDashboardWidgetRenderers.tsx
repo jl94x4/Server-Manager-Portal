@@ -1,8 +1,7 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React from 'react';
 import {
     Activity,
     Calendar,
-    ChevronDown,
     Film,
     Music,
     Settings,
@@ -13,6 +12,7 @@ import {
 } from 'lucide-react';
 import type { MainGridWidgetId, RecentlyAddedWidgetId } from '../shared/dashboardLayout';
 import { LibraryStatsSkeleton } from '../shared/skeletons';
+import { PeriodDropdown } from '../shared/PeriodDropdown';
 
 type PosterCardProps = {
     item: { title: string; thumb?: string; plexUrl: string; tags?: string[]; year?: number | string; parentTitle?: string };
@@ -58,69 +58,6 @@ const formatBytes = (bytes: number) => {
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
-};
-
-type AnalyticsDaysOption = { value: number | 'all'; label: string };
-
-const AnalyticsDaysDropdown: React.FC<{
-    analyticsDays: number | 'all';
-    analyticsDaysOpen: boolean;
-    setAnalyticsDays: (days: number | 'all') => void;
-    setAnalyticsDaysOpen: (open: boolean) => void;
-    options: AnalyticsDaysOption[];
-}> = ({ analyticsDays, analyticsDaysOpen, setAnalyticsDays, setAnalyticsDaysOpen, options }) => {
-    const buttonRef = useRef<HTMLButtonElement>(null);
-    const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 160 });
-
-    useLayoutEffect(() => {
-        if (!analyticsDaysOpen || !buttonRef.current) return;
-        const rect = buttonRef.current.getBoundingClientRect();
-        const width = 160;
-        setMenuPos({
-            top: rect.bottom + 8,
-            left: Math.max(8, rect.right - width),
-            width,
-        });
-    }, [analyticsDaysOpen]);
-
-    return (
-        <div className="relative">
-            <button
-                ref={buttonRef}
-                type="button"
-                onClick={() => setAnalyticsDaysOpen(!analyticsDaysOpen)}
-                className="flex items-center gap-2 bg-background border border-border rounded-lg px-3 py-1.5 text-sm font-medium text-text focus:outline-none focus:border-plex hover:border-plex/50 transition-colors cursor-pointer"
-            >
-                <span>
-                    {options.find((opt) => opt.value === analyticsDays)?.label || 'Last 30 Days'}
-                </span>
-                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${analyticsDaysOpen ? 'rotate-180 text-plex' : 'text-muted'}`} />
-            </button>
-            {analyticsDaysOpen && (
-                <>
-                    <div className="fixed inset-0 z-[190]" onClick={() => setAnalyticsDaysOpen(false)} />
-                    <div
-                        className="fixed z-[200] bg-card border border-border rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] overflow-hidden flex flex-col py-1 animate-in fade-in slide-in-from-top-2 duration-200"
-                        style={{ top: menuPos.top, left: menuPos.left, width: menuPos.width }}
-                    >
-                        {options.map((opt) => (
-                            <button
-                                key={String(opt.value)}
-                                type="button"
-                                onClick={() => {
-                                    setAnalyticsDays(opt.value);
-                                    setAnalyticsDaysOpen(false);
-                                }}
-                                className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${analyticsDays === opt.value ? 'bg-plex/10 text-plex font-bold border-l-2 border-plex' : 'text-text hover:bg-white/5 border-l-2 border-transparent'}`}
-                            >
-                                {opt.label}
-                            </button>
-                        ))}
-                    </div>
-                </>
-            )}
-        </div>
-    );
 };
 
 export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
@@ -374,11 +311,12 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                             <h2 className="text-lg md:text-xl font-bold text-text flex items-center gap-2">
                                 <Activity className="w-5 h-5 text-plex" /> Your Analytics
                             </h2>
-                            <AnalyticsDaysDropdown
-                                analyticsDays={analyticsDays}
-                                analyticsDaysOpen={analyticsDaysOpen}
-                                setAnalyticsDays={setAnalyticsDays}
-                                setAnalyticsDaysOpen={setAnalyticsDaysOpen}
+                            <PeriodDropdown
+                                value={analyticsDays}
+                                open={analyticsDaysOpen}
+                                onToggle={() => setAnalyticsDaysOpen(!analyticsDaysOpen)}
+                                onClose={() => setAnalyticsDaysOpen(false)}
+                                onChange={(value) => setAnalyticsDays(value as number | 'all')}
                                 options={analyticsDaysOptions}
                             />
                         </div>

@@ -3087,6 +3087,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   background-color: rgb(239 68 68 / 0.2);
 }
 
+.bg-red-500\/5 {
+  background-color: rgb(239 68 68 / 0.05);
+}
+
 .bg-red-600 {
   --tw-bg-opacity: 1;
   background-color: rgb(220 38 38 / var(--tw-bg-opacity, 1));
@@ -5659,6 +5663,14 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   .sm\:text-xs {
     font-size: 0.75rem;
     line-height: 1rem;
+  }
+
+  .sm\:opacity-0 {
+    opacity: 0;
+  }
+
+  .group:hover .sm\:group-hover\:opacity-100 {
+    opacity: 1;
   }
 }
 

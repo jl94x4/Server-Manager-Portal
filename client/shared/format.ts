@@ -29,6 +29,23 @@ export const addYears = (date: Date, years: number): Date => {
     return d;
 };
 
+export const getAccessProgressPct = (
+    expiryDate: string | null,
+    joiningDate?: string | null,
+): number => {
+    const daysLeft = getDaysUntilExpiry(expiryDate);
+    if (daysLeft === null) return 100;
+    if (expiryDate && joiningDate) {
+        const join = new Date(joiningDate);
+        join.setHours(0, 0, 0, 0);
+        const expiry = new Date(expiryDate.split('T')[0]);
+        expiry.setHours(0, 0, 0, 0);
+        const totalDays = Math.max(1, Math.round((expiry.getTime() - join.getTime()) / (1000 * 60 * 60 * 24)));
+        return Math.min(100, Math.max(0, (daysLeft / totalDays) * 100));
+    }
+    return Math.min(100, Math.max(0, (daysLeft / 365) * 100));
+};
+
 /** Format a 0–23 hour for streaming stats (e.g. 22 → "10:00 PM"). */
 export const formatStreamingHour = (hour24: number | null | undefined): string => {
     if (hour24 == null || Number.isNaN(hour24)) return 'Unknown';
