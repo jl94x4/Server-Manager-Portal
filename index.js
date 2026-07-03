@@ -4398,6 +4398,90 @@ app.post('/api/announcements/push', requireAdmin, async (req, res) => {
     }
 });
 
+const TAUTULLI_HISTORY_PAGE_SIZE = 500;
+
+const buildHourStatsFromUnixTimestamps = (timestamps) => {
+    const hourDistribution = new Array(24).fill(0);
+    let totalHourOfDay = 0;
+    for (const ts of timestamps) {
+        const hour = new Date(ts * 1000).getHours();
+        totalHourOfDay += hour;
+        hourDistribution[hour]++;
+    }
+    return {
+        totalHourOfDay,
+        hourCount: timestamps.length,
+        hourDistribution,
+    };
+};
+
+const fetchTautulliUserHistoryStarts = async (config, tUrl, filter, { afterUnixSec = 0, maxItems = 5000 } = {}) => {
+    const startedTimestamps = [];
+    let offset = 0;
+    let done = false;
+
+    while (!done && startedTimestamps.length < maxItems) {
+        const length = Math.min(TAUTULLI_HISTORY_PAGE_SIZE, maxItems - startedTimestamps.length);
+        const params = new URLSearchParams({
+            apikey: config.tautulliApiKey,
+            cmd: 'get_history',
+            order_column: 'started',
+            order_dir: 'desc',
+            start: String(offset),
+            length: String(length),
+        });
+        for (const [key, value] of Object.entries(filter)) {
+            if (value != null && value !== '') params.set(key, String(value));
+        }
+
+        const response = await fetch(`${tUrl}/api/v2?${params.toString()}`, { headers: { Accept: 'application/json' } })
+            .then((r) => r.json())
+            .catch(() => null);
+
+        const rows = response?.response?.data?.data;
+        if (!Array.isArray(rows) || rows.length === 0) break;
+
+        for (const row of rows) {
+            const started = Number(row.started || 0);
+            if (!started) continue;
+            if (afterUnixSec > 0 && started < afterUnixSec) {
+                done = true;
+                break;
+            }
+            startedTimestamps.push(started);
+            if (startedTimestamps.length >= maxItems) {
+                done = true;
+                break;
+            }
+        }
+
+        if (rows.length < length) break;
+        offset += rows.length;
+    }
+
+    return startedTimestamps;
+};
+
+const resolveTautulliHourStats = async (config, { username, userId, afterUnixSec, maxItems = 5000 }) => {
+    if (!config?.tautulliUrl || !config?.tautulliApiKey) return null;
+    const tUrl = resolveIntegrationUrlForFetch(config.tautulliUrl);
+    if (!tUrl) return null;
+
+    const filters = [];
+    if (username) filters.push({ user: username });
+    if (userId) filters.push({ user_id: userId });
+
+    for (const filter of filters) {
+        try {
+            const starts = await fetchTautulliUserHistoryStarts(config, tUrl, filter, { afterUnixSec, maxItems });
+            if (starts.length > 0) return buildHourStatsFromUnixTimestamps(starts);
+        } catch (e) {
+            log(`Tautulli hour stats lookup failed (${JSON.stringify(filter)}): ${e.message}`);
+        }
+    }
+    return null;
+};
+
 app.get('/api/tautulli/stats', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, null);
@@ -4751,6 +4835,9 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
         const contentCounts = {};
         const recentHistory = [];
 
+        let plexTotalHourOfDay = 0;
+        let plexHourCount = 0;
+        const plexHourDistribution = new Array(24).fill(0);
         let totalHourOfDay = 0;
         let hourCount = 0;
         const hourDistribution = new Array(24).fill(0);
@@ -4766,9 +4853,9 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
 
             const viewDate = new Date(item.viewedAt * 1000);
             const hour = viewDate.getHours();
-            totalHourOfDay += hour;
-            hourCount++;
-            hourDistribution[hour]++;
+            plexTotalHourOfDay += hour;
+            plexHourCount++;
+            plexHourDistribution[hour]++;
             dayOfWeekCounts[viewDate.getDay()]++;
 
             if (item.type === 'movie') moviesCount++;
@@ -4812,6 +4899,22 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
                 contentCounts[contentKey].plays++;
             }
         });
+
+        const tautulliHourStats = await resolveTautulliHourStats(config, {
+            username: req.user?.username,
+            userId: accountID,
+            afterUnixSec: cutoffDate,
+            maxItems: limit,
+        });
+        if (tautulliHourStats?.hourCount > 0) {
+            totalHourOfDay = tautulliHourStats.totalHourOfDay;
+            hourCount = tautulliHourStats.hourCount;
+            hourDistribution.splice(0, 24, ...tautulliHourStats.hourDistribution);
+        } else {
+            totalHourOfDay = plexTotalHourOfDay;
+            hourCount = plexHourCount;
+            hourDistribution.splice(0, 24, ...plexHourDistribution);
+        }
 
         const allLibraries = Object.values(libraryCounts).sort((a, b) => b.plays - a.plays);
         const topLibraries = allLibraries.slice(0, 5);
