@@ -1,13 +1,38 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { Check } from 'lucide-react';
 import type { CustomSelectProps } from './types';
 
+export type DropdownPosition = { top: number; left: number; width: number };
+
+export const getFixedDropdownPosition = (
+    rect: DOMRect,
+    { width = 160, itemCount = 6, align = 'right' }: { width?: number; itemCount?: number; align?: 'left' | 'right' } = {},
+): DropdownPosition | null => {
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    const padding = 8;
+    const menuWidth = Math.max(width, rect.width);
+    const menuHeight = itemCount * 42 + 8;
+    let top = rect.bottom + padding;
+    let left = align === 'right' ? rect.right - menuWidth : rect.left;
+    left = Math.max(padding, Math.min(left, window.innerWidth - menuWidth - padding));
+    if (top + menuHeight > window.innerHeight - padding) {
+        top = Math.max(padding, rect.top - menuHeight - padding);
+    }
+    return { top, left, width: menuWidth };
+};
+
 export const CustomSelect: React.FC<CustomSelectProps> = ({ id, value, onChange, options, className, compact = false }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [dropPos, setDropPos] = useState<{ top: number; left: number; width: number } | null>(null);
+    const [dropPos, setDropPos] = useState<DropdownPosition | null>(null);
     const triggerRef = useRef<HTMLDivElement>(null);
     const dropRef = useRef<HTMLDivElement>(null);
+
+    const updatePosition = useCallback(() => {
+        if (!triggerRef.current) return;
+        const rect = triggerRef.current.getBoundingClientRect();
+        setDropPos(getFixedDropdownPosition(rect, { itemCount: options.length, align: 'left' }));
+    }, [options.length]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -21,12 +46,23 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({ id, value, onChange,
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const openDropdown = () => {
-        if (triggerRef.current) {
-            const rect = triggerRef.current.getBoundingClientRect();
-            setDropPos({ top: rect.bottom + window.scrollY + 6, left: rect.left + window.scrollX, width: rect.width });
+    useLayoutEffect(() => {
+        if (!isOpen) {
+            setDropPos(null);
+            return;
         }
-        setIsOpen(v => !v);
+        updatePosition();
+        const onReflow = () => updatePosition();
+        window.addEventListener('resize', onReflow);
+        window.addEventListener('scroll', onReflow, true);
+        return () => {
+            window.removeEventListener('resize', onReflow);
+            window.removeEventListener('scroll', onReflow, true);
+        };
+    }, [isOpen, updatePosition]);
+
+    const openDropdown = () => {
+        setIsOpen((v) => !v);
     };
 
     const selectedOption = options.find(opt => String(opt.value) === String(value)) || options[0];
@@ -34,7 +70,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({ id, value, onChange,
     const dropdown = isOpen && dropPos ? ReactDOM.createPortal(
         <div
             ref={dropRef}
-            style={{ position: 'absolute', top: dropPos.top, left: dropPos.left, minWidth: dropPos.width, zIndex: 99999 }}
+            style={{ position: 'fixed', top: dropPos.top, left: dropPos.left, minWidth: dropPos.width, zIndex: 99999 }}
             className="bg-[#1e2329] border border-border rounded-lg shadow-2xl py-1 max-h-64 overflow-y-auto custom-scrollbar"
         >
             {options.map(opt => (

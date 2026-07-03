@@ -62,10 +62,18 @@ export const ShareWrapUpModal: React.FC<ShareWrapUpModalProps> = ({
         if (!node) return null;
         const canvas = await html2canvas(node, {
             useCORS: true,
-            allowTaint: false,
+            allowTaint: true,
             backgroundColor: '#0d0e10',
             scale: 2,
             logging: false,
+            onclone: (clonedDoc) => {
+                clonedDoc.querySelectorAll('img').forEach((img) => {
+                    const src = img.getAttribute('src') || '';
+                    if (src.startsWith('http') && !src.startsWith(window.location.origin)) {
+                        img.style.visibility = 'hidden';
+                    }
+                });
+            },
         });
         return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
     }, []);

@@ -110,7 +110,7 @@ export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
             subValue: `${topDayStreams} streams`,
         },
         {
-            metric: 'Media Profile',
+            metric: 'Top Library',
             label: 'Top Library',
             bgImage: FALLBACK_IMAGES.library,
             icon: Layers,
@@ -119,7 +119,7 @@ export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
             subValue: `${analytics.topLibraries?.[0]?.plays || 0} plays`,
         },
         {
-            metric: 'Top Library',
+            metric: 'Media Profile',
             label: 'Media Profile',
             bgImage: FALLBACK_IMAGES.profile,
             icon: PieChart,
@@ -182,7 +182,6 @@ export const WrapUpCardGrid: React.FC<WrapUpCardGridProps> = ({
                         <img
                             src={card.bgImage}
                             alt=""
-                            crossOrigin="anonymous"
                             className={`absolute inset-0 w-full h-full object-cover z-0 opacity-60 ${interactive ? 'transition-transform duration-700 group-hover:scale-110' : ''}`}
                         />
                         <div className="absolute inset-0 bg-black/60 z-10" />

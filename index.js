@@ -4191,7 +4191,7 @@ app.get('/api/plex/dashboard', requireAuth, requireMember, async (req, res) => {
         const uri = await getPlexConnectionUri(config);
         if (!uri) return res.status(503).json({ error: 'Cannot connect to Plex' });
 
-        const limit = parseInt(req.query.limit) || 50;
+        const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 250);
 
         const cacheKey = `plex_dashboard_data_${limit}`;
         const cachedData = await withCache(cacheKey, 800, async () => {
@@ -4268,10 +4268,12 @@ app.get('/api/plex/dashboard', requireAuth, requireMember, async (req, res) => {
                 if (data && data.MediaContainer && data.MediaContainer.Metadata) {
                     data.MediaContainer.Metadata.forEach(m => {
                         const ratingKey = String(m.grandparentRatingKey || m.parentRatingKey || m.ratingKey || '');
+                        const isMusic = sectionType === 'artist';
                         const item = {
                             ratingKey,
                             sourceRatingKey: String(m.ratingKey || ''),
-                            title: m.grandparentTitle || m.parentTitle || m.title,
+                            title: isMusic ? (m.title || m.parentTitle || m.grandparentTitle) : (m.grandparentTitle || m.parentTitle || m.title),
+                            parentTitle: isMusic ? (m.parentTitle || m.grandparentTitle || null) : undefined,
                             type: m.type,
                             year: m.year,
                             thumb: m.grandparentThumb || m.parentThumb || m.thumb,
@@ -4292,8 +4294,9 @@ app.get('/api/plex/dashboard', requireAuth, requireMember, async (req, res) => {
                 const seen = new Set();
                 list.sort((a, b) => b.addedAt - a.addedAt);
                 for (const item of list) {
-                    if (!seen.has(item.title)) {
-                        seen.add(item.title);
+                    const dedupeKey = item.ratingKey || item.title;
+                    if (!seen.has(dedupeKey)) {
+                        seen.add(dedupeKey);
                         unique.push(item);
                         if (unique.length >= limit) break;
                     }
@@ -4907,17 +4910,54 @@ const summarizeLibraryHealth = (topLibraries = [], stats = {}) => {
 
 const getUniqueActiveViewers = (users = []) => (users || []).filter(u => toNumber(u.plays, 0) > 0).length;
 
+const fetchPlexAccountHistory = async (uri, config, accountID, { maxItems = 250000 } = {}) => {
+    const pageSize = 5000;
+    let historyItems = [];
+    let start = 0;
+
+    while (start < maxItems) {
+        const pageRes = await fetch(
+            `${uri}/status/sessions/history/all?accountID=${accountID}&X-Plex-Token=${config.plexToken}&sort=viewedAt:desc&X-Plex-Container-Start=${start}&X-Plex-Container-Size=${pageSize}`,
+            { headers: { Accept: 'application/json' } },
+        ).then((r) => r.json()).catch(() => null);
+
+        const pageContainer = pageRes?.MediaContainer;
+        const pageItems = Array.isArray(pageContainer?.Metadata) ? pageContainer.Metadata : [];
+        if (pageItems.length === 0) break;
+
+        historyItems = historyItems.concat(pageItems);
+        start += pageItems.length;
+
+        const totalSize = Number(pageContainer.totalSize || 0);
+        if ((totalSize > 0 && start >= totalSize) || pageItems.length < pageSize) break;
+    }
+
+    if (historyItems.length >= maxItems) {
+        log(`Personal analytics history fetch reached safety cap (${maxItems}) for account ${accountID}.`);
+    }
+
+    return historyItems;
+};
+
 app.get('/api/plex/analytics', requireAuth, requireMember, async (req, res) => {
     try {
         const statsData = await loadFile(ANALYTICS_CACHE_PATH, {});
         const reqDays = req.query.days || 30;
+        const hasRequestedPeriod = statsData[reqDays] != null;
+        const cachedPeriod = hasRequestedPeriod ? reqDays : (statsData[30] != null ? 30 : null);
         const cachedData = statsData[reqDays] || statsData[30] || { topUsers: [], topLibraries: [], topMovies: [], topShows: [], topMusic: [], topDevices: [], peakHours: new Array(24).fill(0), totalPlaybacks: 0 };
         const shouldObfuscateUsernames = !req.user?.isAdmin;
         const topUsers = (cachedData.topUsers || []).map((user, index) => ({
             ...user,
             username: shouldObfuscateUsernames ? `Viewer ${index + 1}` : (user.username || `User ${index + 1}`)
         }));
-        const data = { ...cachedData, topUsers };
+        const data = {
+            ...cachedData,
+            topUsers,
+            requestedPeriodDays: reqDays,
+            cachePeriodDays: cachedPeriod,
+            cacheFallback: cachedPeriod != null && String(cachedPeriod) !== String(reqDays),
+        };
         
         // attach max stats dynamically
         const stats = await loadFile(PLEX_STATS_CACHE_PATH, {});
@@ -4964,12 +5004,11 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
         if (!accountID) {
             return res.json({ totalPlays: 0, topLibraries: [], topWatched: [], topMusic: [], recentHistory: [] });
         }
-        const limit = req.query.days === 'all' ? 999999 : 5000;
 
-        const historyRes = await fetch(`${uri}/status/sessions/history/all?accountID=${accountID}&X-Plex-Token=${config.plexToken}&sort=viewedAt:desc&limit=${limit}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+        const historyItems = await fetchPlexAccountHistory(uri, config, accountID);
         const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
 
-        if (!historyRes || !historyRes.MediaContainer || !historyRes.MediaContainer.Metadata) {
+        if (!historyItems.length) {
             return res.json({ totalPlays: 0, topLibraries: [], topWatched: [], topMusic: [], recentHistory: [] });
         }
 
@@ -4989,7 +5028,16 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
         let totalPlays = 0;
         const libraryCounts = {};
         const contentCounts = {};
-        const recentHistory = [];
+
+        const mapHistoryToRecent = (item) => ({
+            title: item.type === 'episode' ? (item.grandparentTitle || item.parentTitle || item.title) : item.type === 'track' ? (item.parentTitle || item.grandparentTitle || item.title) : item.title,
+            episodeTitle: item.type === 'episode' || item.type === 'track' ? item.title : null,
+            viewedAt: item.viewedAt,
+            thumb: item.type === 'episode' ? (item.grandparentThumb || item.parentThumb || item.thumb) : item.type === 'track' ? (item.parentThumb || item.grandparentThumb || item.thumb) : item.thumb,
+            type: item.type,
+            plexUrl: `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent(item.key)}`
+        });
+        const recentHistory = historyItems.slice(0, 50).map(mapHistoryToRecent);
 
         let plexTotalHourOfDay = 0;
         let plexHourCount = 0;
@@ -5007,7 +5055,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
         const { list: plexAccounts } = await fetchPlexServerAccounts(uri, config);
         const plexAccountName = plexAccounts.find((a) => String(a.id) === String(accountID))?.name || null;
 
-        historyRes.MediaContainer.Metadata.forEach(item => {
+        historyItems.forEach(item => {
             if (cutoffDate > 0 && item.viewedAt < cutoffDate) return;
             totalPlays++;
 
@@ -5020,17 +5068,6 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
             if (item.type === 'movie') moviesCount++;
             else if (item.type === 'episode') showsCount++;
             else if (item.type === 'track') musicCount++;
-
-            if (recentHistory.length < 200) {
-                recentHistory.push({
-                    title: item.type === 'episode' ? (item.grandparentTitle || item.parentTitle || item.title) : item.type === 'track' ? (item.parentTitle || item.grandparentTitle || item.title) : item.title,
-                    episodeTitle: item.type === 'episode' || item.type === 'track' ? item.title : null,
-                    viewedAt: item.viewedAt,
-                    thumb: item.type === 'episode' ? (item.grandparentThumb || item.parentThumb || item.thumb) : item.type === 'track' ? (item.parentThumb || item.grandparentThumb || item.thumb) : item.thumb,
-                    type: item.type,
-                    plexUrl: `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent(item.key)}`
-                });
-            }
 
             if (item.librarySectionID) {
                 const libTitle = sectionsMap[item.librarySectionID] || `Library ${item.librarySectionID}`;
@@ -5065,7 +5102,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
             plexAccountName,
             days: req.query.days || 30,
             afterUnixSec: cutoffDate,
-            maxItems: limit,
+            maxItems: historyItems.length,
             plexPlayCount: totalPlays,
         });
         if (tautulliHourStats?.hourCount > 0) {
