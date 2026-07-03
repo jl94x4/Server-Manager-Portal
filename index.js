@@ -5515,8 +5515,11 @@ app.get('/api/speedtest/download', requireAuth, requireMember, speedtestRateLimi
 app.post('/api/speedtest/upload', requireAuth, requireMember, speedtestRateLimit, express.raw({ type: '*/*', limit: '10mb' }), (req, res) => res.sendStatus(200));
 
 // --- Static File Serving ---
-// Serve static assets from the 'static' directory
-app.use('/static', express.static(path.join(process.cwd(), 'static')));
+const staticDir = path.join(process.cwd(), 'static');
+app.use('/static', express.static(staticDir));
+if (BASE_PATH) {
+    app.use(`${BASE_PATH}/static`, express.static(staticDir));
+}
 
 // Serve optional legacy stylesheet from the root directory
 app.get('/style.css', (req, res) => {
@@ -5551,8 +5554,13 @@ const getRequestBaseUrl = (req) => {
 };
 
 const injectBasePathHtml = (html) => {
+    const baseHref = BASE_PATH ? `${BASE_PATH}/` : '/';
+    const baseTag = `<base href="${escapeHtmlAttr(baseHref)}">`;
     const baseScript = `<script>window.__BASE_PATH__=${JSON.stringify(BASE_PATH)};</script>`;
-    let updated = html.replace('</head>', `    ${baseScript}\n</head>`);
+    let updated = html.includes('<base ')
+        ? html
+        : html.replace(/<head([^>]*)>/i, `<head$1>\n    ${baseTag}`);
+    updated = updated.replace('</head>', `    ${baseScript}\n</head>`);
     if (BASE_PATH) {
         updated = updated
             .replace(/href="\/static\//g, `href="${BASE_PATH}/static/`)
@@ -5596,8 +5604,8 @@ const buildSocialMetaTags = async (req) => {
     return { title, tags };
 };
 
-// Serve the main index.html for any other GET request
-app.get(['/', '/portal', '/status', '/admin', '/users', '/dashboard', '/settings', '/analytics', '/logs', '/mediastack', '/maintenance', '/maintenance/*', '/auth/*', '/invite/*'], async (req, res) => {
+// Serve the main index.html for SPA routes (after base-path strip, paths are root-relative)
+app.get(/^\/(?!api\/|static\/).*$/, async (req, res) => {
     try {
         const indexPath = path.join(process.cwd(), 'index.html');
         const html = await fs.readFile(indexPath, 'utf8');
@@ -5610,7 +5618,14 @@ app.get(['/', '/portal', '/status', '/admin', '/users', '/dashboard', '/settings
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.send(updatedHtml);
     } catch (e) {
-        res.sendFile(path.join(process.cwd(), 'index.html'));
+        try {
+            const indexPath = path.join(process.cwd(), 'index.html');
+            const html = await fs.readFile(indexPath, 'utf8');
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.send(injectBasePathHtml(html));
+        } catch {
+            res.status(500).send('Failed to load application shell.');
+        }
     }
 });
 
