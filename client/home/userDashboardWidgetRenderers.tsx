@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     Activity,
     Calendar,
+    ChevronLeft,
+    ChevronRight,
     Film,
     Music,
     Settings,
@@ -335,6 +337,71 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
     };
 };
 
+const RecentlyAddedScrollRow: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => {
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [canScrollLeft, setCanScrollLeft] = useState(false);
+    const [canScrollRight, setCanScrollRight] = useState(false);
+
+    const updateScrollState = useCallback(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        const maxScroll = el.scrollWidth - el.clientWidth;
+        setCanScrollLeft(el.scrollLeft > 4);
+        setCanScrollRight(el.scrollLeft < maxScroll - 4);
+    }, []);
+
+    useEffect(() => {
+        updateScrollState();
+        const el = scrollRef.current;
+        if (!el) return;
+        el.addEventListener('scroll', updateScrollState, { passive: true });
+        const ro = new ResizeObserver(updateScrollState);
+        ro.observe(el);
+        return () => {
+            el.removeEventListener('scroll', updateScrollState);
+            ro.disconnect();
+        };
+    }, [updateScrollState, children]);
+
+    const scroll = (direction: -1 | 1) => {
+        const el = scrollRef.current;
+        if (!el) return;
+        el.scrollBy({ left: direction * el.clientWidth * 0.85, behavior: 'smooth' });
+    };
+
+    return (
+        <div className="glass-card p-4 md:p-5 shadow-xl overflow-hidden w-full">
+            <h3 className="text-lg md:text-xl font-bold text-text mb-3">{title}</h3>
+            <div className="relative">
+                <button
+                    type="button"
+                    onClick={() => scroll(-1)}
+                    disabled={!canScrollLeft}
+                    aria-label={`Scroll ${title} left`}
+                    className="hidden lg:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full bg-black/70 border border-white/10 text-text hover:bg-black/90 hover:border-plex/50 disabled:opacity-0 disabled:pointer-events-none transition-all shadow-lg -ml-1"
+                >
+                    <ChevronLeft className="w-5 h-5" />
+                </button>
+                <div
+                    ref={scrollRef}
+                    className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth lg:px-1"
+                >
+                    {children}
+                </div>
+                <button
+                    type="button"
+                    onClick={() => scroll(1)}
+                    disabled={!canScrollRight}
+                    aria-label={`Scroll ${title} right`}
+                    className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full bg-black/70 border border-white/10 text-text hover:bg-black/90 hover:border-plex/50 disabled:opacity-0 disabled:pointer-events-none transition-all shadow-lg -mr-1"
+                >
+                    <ChevronRight className="w-5 h-5" />
+                </button>
+            </div>
+        </div>
+    );
+};
+
 export const createRecentlyAddedWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
     const { dashboardData, showQualityBadges, DiscoverPosterCard } = deps;
 
@@ -344,75 +411,66 @@ export const createRecentlyAddedWidgetRenderer = (deps: UserDashboardWidgetDeps)
             case 'recentMovies':
                 if (!dashboardData.recentMovies?.length) return null;
                 return (
-                    <div className="glass-card p-4 md:p-5 shadow-xl overflow-hidden w-full">
-                        <h3 className="text-lg md:text-xl font-bold text-text mb-3">Recently Added Movies</h3>
-                        <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth">
-                            {dashboardData.recentMovies.map((item: any, idx: number) => (
-                                <DiscoverPosterCard
-                                    key={idx}
-                                    variant="home"
-                                    className="snap-start shrink-0 w-32 md:w-40"
-                                    item={item}
-                                    showQualityBadges={showQualityBadges}
-                                    footer={(
-                                        <div className="flex flex-col px-1">
-                                            <p className="text-xs font-bold text-text truncate group-hover:text-plex transition-colors">{item.title}</p>
-                                            {item.year && <p className="text-[10px] text-muted font-semibold mt-0.5">{item.year}</p>}
-                                        </div>
-                                    )}
-                                />
-                            ))}
-                        </div>
-                    </div>
+                    <RecentlyAddedScrollRow title="Recently Added Movies">
+                        {dashboardData.recentMovies.map((item: any, idx: number) => (
+                            <DiscoverPosterCard
+                                key={idx}
+                                variant="home"
+                                className="snap-start shrink-0 w-32 md:w-40"
+                                item={item}
+                                showQualityBadges={showQualityBadges}
+                                footer={(
+                                    <div className="flex flex-col px-1">
+                                        <p className="text-xs font-bold text-text truncate group-hover:text-plex transition-colors">{item.title}</p>
+                                        {item.year && <p className="text-[10px] text-muted font-semibold mt-0.5">{item.year}</p>}
+                                    </div>
+                                )}
+                            />
+                        ))}
+                    </RecentlyAddedScrollRow>
                 );
             case 'recentShows':
                 if (!dashboardData.recentShows?.length) return null;
                 return (
-                    <div className="glass-card p-4 md:p-5 shadow-xl overflow-hidden w-full">
-                        <h3 className="text-lg md:text-xl font-bold text-text mb-3">Recently Added TV Shows</h3>
-                        <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth">
-                            {dashboardData.recentShows.map((item: any, idx: number) => (
-                                <DiscoverPosterCard
-                                    key={idx}
-                                    variant="home"
-                                    className="snap-start shrink-0 w-32 md:w-40"
-                                    item={item}
-                                    showQualityBadges={showQualityBadges}
-                                    footer={(
-                                        <div className="flex flex-col px-1">
-                                            <p className="text-xs font-bold text-text truncate group-hover:text-plex transition-colors">{item.title}</p>
-                                            {item.year && <p className="text-[10px] text-muted font-semibold mt-0.5">{item.year}</p>}
-                                        </div>
-                                    )}
-                                />
-                            ))}
-                        </div>
-                    </div>
+                    <RecentlyAddedScrollRow title="Recently Added TV Shows">
+                        {dashboardData.recentShows.map((item: any, idx: number) => (
+                            <DiscoverPosterCard
+                                key={idx}
+                                variant="home"
+                                className="snap-start shrink-0 w-32 md:w-40"
+                                item={item}
+                                showQualityBadges={showQualityBadges}
+                                footer={(
+                                    <div className="flex flex-col px-1">
+                                        <p className="text-xs font-bold text-text truncate group-hover:text-plex transition-colors">{item.title}</p>
+                                        {item.year && <p className="text-[10px] text-muted font-semibold mt-0.5">{item.year}</p>}
+                                    </div>
+                                )}
+                            />
+                        ))}
+                    </RecentlyAddedScrollRow>
                 );
             case 'recentMusic':
                 if (!dashboardData.recentMusic?.length) return null;
                 return (
-                    <div className="glass-card p-4 md:p-5 shadow-xl overflow-hidden w-full">
-                        <h3 className="text-lg md:text-xl font-bold text-text mb-3">Recently Added Music</h3>
-                        <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth">
-                            {dashboardData.recentMusic.map((item: any, idx: number) => (
-                                <DiscoverPosterCard
-                                    key={idx}
-                                    variant="home"
-                                    aspect="square"
-                                    className="snap-start shrink-0 w-32 md:w-40"
-                                    item={item}
-                                    showQualityBadges={showQualityBadges}
-                                    footer={(
-                                        <div className="flex flex-col px-1">
-                                            <p className="text-xs font-bold text-text truncate group-hover:text-plex transition-colors">{item.title}</p>
-                                            {item.parentTitle && <p className="text-[10px] text-muted font-semibold mt-0.5 truncate">{item.parentTitle}</p>}
-                                        </div>
-                                    )}
-                                />
-                            ))}
-                        </div>
-                    </div>
+                    <RecentlyAddedScrollRow title="Recently Added Music">
+                        {dashboardData.recentMusic.map((item: any, idx: number) => (
+                            <DiscoverPosterCard
+                                key={idx}
+                                variant="home"
+                                aspect="square"
+                                className="snap-start shrink-0 w-32 md:w-40"
+                                item={item}
+                                showQualityBadges={showQualityBadges}
+                                footer={(
+                                    <div className="flex flex-col px-1">
+                                        <p className="text-xs font-bold text-text truncate group-hover:text-plex transition-colors">{item.title}</p>
+                                        {item.parentTitle && <p className="text-[10px] text-muted font-semibold mt-0.5 truncate">{item.parentTitle}</p>}
+                                    </div>
+                                )}
+                            />
+                        ))}
+                    </RecentlyAddedScrollRow>
                 );
             default:
                 return null;
