@@ -184,10 +184,13 @@ export const WrapUpCardGrid: React.FC<WrapUpCardGridProps> = ({
 }) => {
     const cards = buildWrapUpCards(analytics);
     const isExport = variant === 'export';
-    const resolvedMinHeight = minCardHeight ?? (isExport ? 136 : 112);
+    const resolvedMinHeight = minCardHeight ?? (isExport ? 128 : 112);
+    const gridClass = isExport
+        ? 'grid grid-cols-5 gap-3'
+        : `grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 md:gap-3 ${className}`;
 
     return (
-        <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 md:gap-3 ${className}`}>
+        <div className={gridClass}>
             {cards.map((card) => {
                 const Icon = card.icon;
                 const valueClass = isExport

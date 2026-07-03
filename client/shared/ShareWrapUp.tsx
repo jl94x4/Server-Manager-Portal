@@ -3,6 +3,9 @@ import { X, Copy, Download, Share2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { WrapUpCardGrid, periodLabel } from './WrapUpCards';
 import { formatStreamingHour } from './format';
+import { getPublicOrigin } from './basePath';
+
+const EXPORT_WIDTH_PX = 1080;
 
 export const buildWrapUpShareText = (analytics: any, days: number | string, serverName: string, username?: string) => {
     const period = periodLabel(days);
@@ -73,7 +76,15 @@ export const ShareWrapUpModal: React.FC<ShareWrapUpModalProps> = ({
             logging: false,
             scrollX: 0,
             scrollY: -window.scrollY,
-            onclone: (clonedDoc) => {
+            width: node.scrollWidth,
+            height: node.scrollHeight,
+            onclone: (clonedDoc, clonedNode) => {
+                const exportRoot = clonedNode as HTMLElement;
+                exportRoot.style.overflow = 'visible';
+                exportRoot.style.width = `${EXPORT_WIDTH_PX}px`;
+                exportRoot.style.maxWidth = 'none';
+                exportRoot.style.paddingBottom = '1.5rem';
+
                 clonedDoc.querySelectorAll('img').forEach((img) => {
                     const src = img.getAttribute('src') || '';
                     if (src.startsWith('http') && !src.startsWith(window.location.origin)) {
@@ -190,23 +201,24 @@ export const ShareWrapUpModal: React.FC<ShareWrapUpModalProps> = ({
                 <h3 className="text-xl font-bold text-text mb-1 pr-10">Share Your Wrap-Up</h3>
                 <p className="text-muted text-sm mb-4">Preview matches what Save Image exports — same cards as your dashboard.</p>
 
-                <div className="overflow-y-auto flex-1 min-h-0 custom-scrollbar -mx-1 px-1 mb-4">
+                <div className="overflow-y-auto overflow-x-auto flex-1 min-h-0 custom-scrollbar -mx-1 px-1 mb-4">
                     <div
                         ref={exportRef}
-                        className="rounded-2xl overflow-hidden border border-white/10 bg-[#0d0e10] p-4 md:p-5"
+                        className="rounded-2xl border border-white/10 bg-[#0d0e10] p-5 pb-6 overflow-visible"
+                        style={{ width: EXPORT_WIDTH_PX, maxWidth: 'none' }}
                     >
                         <div className="mb-4 pb-3 border-b border-white/10">
                             <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-plex mb-1">Personal Wrap-Up</p>
-                            <h4 className="text-xl md:text-2xl font-black text-white">{serverName}</h4>
+                            <h4 className="text-2xl font-black text-white">{serverName}</h4>
                             <p className="text-sm text-muted mt-1">
                                 {periodLabel(days)}
                                 {username ? ` · ${username}` : ''}
                             </p>
                         </div>
 
-                        <WrapUpCardGrid analytics={analytics} variant="export" className="lg:grid-cols-5" />
+                        <WrapUpCardGrid analytics={analytics} variant="export" />
 
-                        <p className="text-[10px] text-muted/70 mt-4 truncate">{window.location.origin}</p>
+                        <p className="text-[10px] text-muted/70 mt-5 leading-normal break-all">{getPublicOrigin()}</p>
                     </div>
 
                     <div className="mt-4 rounded-xl border border-border/50 bg-background/40 p-4 text-sm space-y-2">
