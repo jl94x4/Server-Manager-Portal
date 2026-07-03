@@ -186,7 +186,7 @@ Beautiful, responsive HTML emails sent automatically:
 - **Rate Limiting** - Authentication endpoints have strict rate limiting to prevent brute-force attacks
 - **HTTP Security Headers** - HSTS, X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, and Permissions-Policy enforced on every response
 - **Admin Protection** - All admin routes are verified against live Plex server ownership, not just a stored flag. Home layout changes are admin-only and validated server-side
-- **Reverse Proxy Ready** - Supports Nginx, Caddy, and Cloudflare via `X-Forwarded-Proto` / `X-Forwarded-For` header trust
+- **Reverse Proxy Ready** - Supports Nginx, Caddy, and Cloudflare via `X-Forwarded-Proto` / `X-Forwarded-For` header trust, including optional subpath hosting (e.g. `https://plex.example.com/portal`)
 - **Injection Proof** - Uses a flat-file JSON system, making SQL injection structurally impossible
 
 ---
@@ -321,7 +321,11 @@ docker run -d \
 
 ### Reverse proxy (Nginx / Caddy / Traefik)
 
-Run the container on an internal port and proxy HTTPS to it. Example Caddy:
+Run the container on an internal port and proxy HTTPS to it.
+
+#### Root hosting (recommended)
+
+Example Caddy:
 
 ```caddy
 portal.example.com {
@@ -330,6 +334,32 @@ portal.example.com {
 ```
 
 Set `FORCE_SECURE_COOKIES=true` and `PUBLIC_BASE_URL=https://portal.example.com` so session cookies and email links use the public URL.
+
+#### Subpath hosting
+
+You can also host the portal under a path on an existing domain, for example `https://plex.example.com/portal` alongside Plex or other services.
+
+Example Caddy:
+
+```caddy
+plex.example.com {
+    handle /portal/* {
+        reverse_proxy localhost:2121
+    }
+}
+```
+
+Set these environment variables:
+
+```env
+BASE_PATH=/portal
+PUBLIC_BASE_URL=https://plex.example.com/portal
+FORCE_SECURE_COOKIES=true
+```
+
+`BASE_PATH` can be omitted if `PUBLIC_BASE_URL` already includes the path — the app derives it automatically. Leave both unset for root hosting; existing deployments are unchanged.
+
+The proxy must forward requests **with** the `/portal` prefix intact (do not strip the path before the app). The portal rewrites asset and API URLs internally.
 
 ### Unraid
 
@@ -349,7 +379,8 @@ The template uses `ghcr.io/jl94x4/server-manager-portal:latest` by default.
 | `PORT` | No | Listen port inside the container (default `2121`) |
 | `BIND_HOST` | No | Bind address (default `0.0.0.0`) |
 | `CONFIG_DIR` | No | Runtime data directory (default `/app/config` in Docker) |
-| `PUBLIC_BASE_URL` | Recommended | Public HTTPS URL for links and emails |
+| `PUBLIC_BASE_URL` | Recommended | Public HTTPS URL for links and emails. Include the subpath when using one, e.g. `https://plex.example.com/portal` |
+| `BASE_PATH` | No | URL prefix when hosted under a subpath (e.g. `/portal`). Leave empty for root hosting |
 | `FORCE_SECURE_COOKIES` | Recommended | Set `true` when behind HTTPS |
 | `ALLOW_PRIVATE_INTEGRATION_URLS` | No | Allow LAN/private URLs for Arr stack integrations |
 | `SETUP_TOKEN` | No | Token for remote first-time setup |
