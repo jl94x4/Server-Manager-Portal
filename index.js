@@ -2605,35 +2605,17 @@ const buildPlexStatsCache = async () => {
                         totalMoviesCount += count;
                     } else if (dir.type === 'show') {
                         totalShowsCount += count;
-                        // Also fetch episode count (type 4)
-                        const epCountRes = await fetch(
-                            `${uri}/library/sections/${dir.key}/all?type=4&X-Plex-Container-Start=0&X-Plex-Container-Size=0`,
-                            { headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' }, signal: controller.signal }
-                        );
-                        if (epCountRes.ok) {
-                            const { MediaContainer: epMc } = await epCountRes.json();
-                            totalEpisodesCount += epMc.totalSize || epMc.size || 0;
-                        }
                     } else if (dir.type === 'artist') {
                         totalMusicCount += count;
                         totalArtistsCount += count;
                         // Also fetch album count (type 9)
                         const albCountRes = await fetch(
-                            `${uri}/library/sections/${dir.key}/all?type=9&X-Plex-Container-Start=0&X-Plex-Container-Size=0`,
+                            `${uri}/library/sections/${dir.key}/all?type=9&X-Plex-Container-Start=0&X-Plex-Container-Size=1`,
                             { headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' }, signal: controller.signal }
                         );
                         if (albCountRes.ok) {
                             const { MediaContainer: albMc } = await albCountRes.json();
                             totalAlbumsCount += albMc.totalSize || albMc.size || 0;
-                        }
-                        // Also fetch tracks count (type 10)
-                        const trackCountRes = await fetch(
-                            `${uri}/library/sections/${dir.key}/all?type=10&X-Plex-Container-Start=0&X-Plex-Container-Size=0`,
-                            { headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' }, signal: controller.signal }
-                        );
-                        if (trackCountRes.ok) {
-                            const { MediaContainer: trMc } = await trackCountRes.json();
-                            totalTracksCount += trMc.totalSize || trMc.size || 0;
                         }
                     }
                 }
@@ -2652,6 +2634,10 @@ const buildPlexStatsCache = async () => {
                     if (!pageRes.ok) break;
                     const { MediaContainer: { Metadata: items = [] } } = await pageRes.json();
                     if (items.length === 0) break;
+                    
+                    if (dir.type === 'show') totalEpisodesCount += items.length;
+                    else if (dir.type === 'artist') totalTracksCount += items.length;
+
                     for (const item of items) {
                         let is4k = false;
                         for (const media of item.Media || []) {
