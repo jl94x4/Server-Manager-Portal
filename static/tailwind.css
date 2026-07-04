@@ -1182,6 +1182,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   left: 0.5rem;
 }
 
+.left-3 {
+  left: 0.75rem;
+}
+
 .left-4 {
   left: 1rem;
 }
@@ -1228,6 +1232,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .top-2 {
   top: 0.5rem;
+}
+
+.top-2\.5 {
+  top: 0.625rem;
 }
 
 .top-20 {
@@ -1816,6 +1824,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   min-height: 2rem;
 }
 
+.min-h-\[400px\] {
+  min-height: 400px;
+}
+
 .min-h-\[50vh\] {
   min-height: 50vh;
 }
@@ -1948,6 +1960,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   width: 1.5rem;
 }
 
+.w-64 {
+  width: 16rem;
+}
+
 .w-7 {
   width: 1.75rem;
 }
@@ -2002,6 +2018,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .w-\[90\%\] {
   width: 90%;
+}
+
+.w-\[95\%\] {
+  width: 95%;
 }
 
 .w-\[calc\(100vw-1\.5rem\)\] {
@@ -2681,6 +2701,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .border-b {
   border-bottom-width: 1px;
+}
+
+.border-b-2 {
+  border-bottom-width: 2px;
 }
 
 .border-l-2 {
@@ -3819,6 +3843,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .pb-\[env\(safe-area-inset-bottom\)\] {
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+.pl-10 {
+  padding-left: 2.5rem;
 }
 
 .pl-12 {
