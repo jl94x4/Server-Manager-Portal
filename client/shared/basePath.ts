@@ -33,6 +33,7 @@ export const portalUrl = (path: string): string => {
     if (!path || path.startsWith('http://') || path.startsWith('https://')) return path;
     const base = getBasePath();
     const normalized = path.startsWith('/') ? path : `/${path}`;
+    if (base && (normalized === base || normalized.startsWith(`${base}/`))) return normalized;
     return base ? `${base}${normalized}` : normalized;
 };
 

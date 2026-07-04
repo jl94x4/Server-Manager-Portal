@@ -60,6 +60,8 @@ const withBasePath = (route = '/') => {
     return BASE_PATH ? `${BASE_PATH}${path}` : path;
 };
 
+const plexImageUrl = (mediaPath) => withBasePath(`/api/plex/image?path=${encodeURIComponent(mediaPath)}`);
+
 const stripBasePathFromUrl = (url = '/') => {
     const [pathname, ...queryParts] = String(url).split('?');
     const query = queryParts.length ? `?${queryParts.join('?')}` : '';
@@ -5167,11 +5169,11 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
         const allLibraries = Object.values(libraryCounts).sort((a, b) => b.plays - a.plays);
         const topLibraries = allLibraries.slice(0, 5);
         const topWatched = Object.values(contentCounts).filter(c => c.type !== 'track').sort((a, b) => b.plays - a.plays).slice(0, 30).map(c => {
-            if (c.thumb) c.thumbUrl = `/api/plex/image?path=${encodeURIComponent(c.thumb)}`;
+            if (c.thumb) c.thumbUrl = plexImageUrl(c.thumb);
             return c;
         });
         const topMusic = Object.values(contentCounts).filter(c => c.type === 'track').sort((a, b) => b.plays - a.plays).slice(0, 30).map(c => {
-            if (c.thumb) c.thumbUrl = `/api/plex/image?path=${encodeURIComponent(c.thumb)}`;
+            if (c.thumb) c.thumbUrl = plexImageUrl(c.thumb);
             return c;
         });
 
@@ -5203,7 +5205,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
                 }
             }
         }));
-        const topShows = topShowsRaw.map(s => ({ ...s, artUrl: s.art ? `/api/plex/image?path=${encodeURIComponent(s.art)}` : null, thumbUrl: s.thumb ? `/api/plex/image?path=${encodeURIComponent(s.thumb)}` : null }));
+        const topShows = topShowsRaw.map(s => ({ ...s, artUrl: s.art ? plexImageUrl(s.art) : null, thumbUrl: s.thumb ? plexImageUrl(s.thumb) : null }));
         const topBinge = topShows.length > 0 ? topShows[0] : null;
 
         const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -5252,7 +5254,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
                 }
             }
         }));
-        const topMovies = topMoviesRaw.map(m => ({ ...m, artUrl: m.art ? `/api/plex/image?path=${encodeURIComponent(m.art)}` : null, thumbUrl: m.thumb ? `/api/plex/image?path=${encodeURIComponent(m.thumb)}` : null }));
+        const topMovies = topMoviesRaw.map(m => ({ ...m, artUrl: m.art ? plexImageUrl(m.art) : null, thumbUrl: m.thumb ? plexImageUrl(m.thumb) : null }));
         const topMovie = topMovies.length > 0 ? topMovies[0] : null;
 
         let watchStyle = 'Explorer';
@@ -5337,7 +5339,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
             topShows,
             topMovies,
             recentHistory: recentHistory.map(h => {
-                if (h.thumb) h.thumbUrl = `/api/plex/image?path=${encodeURIComponent(h.thumb)}`;
+                if (h.thumb) h.thumbUrl = plexImageUrl(h.thumb);
                 return h;
             })
         });
@@ -5461,18 +5463,18 @@ app.get('/api/plex/analytics/user/:id', requireAdmin, async (req, res) => {
 
         const topLibraries = Object.values(libraryCounts).sort((a, b) => b.plays - a.plays).slice(0, 5);
         const topMovies = Object.values(contentCounts).filter(c => c.type === 'movie').sort((a, b) => b.plays - a.plays).slice(0, 6).map(c => {
-            if (c.thumb) c.thumbUrl = `/api/plex/image?path=${encodeURIComponent(c.thumb)}`;
-            if (c.art) c.artUrl = `/api/plex/image?path=${encodeURIComponent(c.art)}`;
+            if (c.thumb) c.thumbUrl = plexImageUrl(c.thumb);
+            if (c.art) c.artUrl = plexImageUrl(c.art);
             return c;
         });
         const topShows = Object.values(contentCounts).filter(c => c.type === 'show').sort((a, b) => b.plays - a.plays).slice(0, 6).map(c => {
-            if (c.thumb) c.thumbUrl = `/api/plex/image?path=${encodeURIComponent(c.thumb)}`;
-            if (c.art) c.artUrl = `/api/plex/image?path=${encodeURIComponent(c.art)}`;
+            if (c.thumb) c.thumbUrl = plexImageUrl(c.thumb);
+            if (c.art) c.artUrl = plexImageUrl(c.art);
             return c;
         });
         const topMusic = Object.values(contentCounts).filter(c => c.type === 'track').sort((a, b) => b.plays - a.plays).slice(0, 6).map(c => {
-            if (c.thumb) c.thumbUrl = `/api/plex/image?path=${encodeURIComponent(c.thumb)}`;
-            if (c.art) c.artUrl = `/api/plex/image?path=${encodeURIComponent(c.art)}`;
+            if (c.thumb) c.thumbUrl = plexImageUrl(c.thumb);
+            if (c.art) c.artUrl = plexImageUrl(c.art);
             return c;
         });
 
@@ -5483,7 +5485,7 @@ app.get('/api/plex/analytics/user/:id', requireAdmin, async (req, res) => {
             topShows,
             topMusic,
             recentHistory: recentHistory.map(h => {
-                if (h.thumb) h.thumbUrl = `/api/plex/image?path=${encodeURIComponent(h.thumb)}`;
+                if (h.thumb) h.thumbUrl = plexImageUrl(h.thumb);
                 return h;
             })
         });
@@ -6289,7 +6291,7 @@ async function calculateAnalyticsStats() {
         }
 
         const fetchRichMetadata = async (c) => {
-            if (c.thumb) c.thumbUrl = `/api/plex/image?path=${encodeURIComponent(c.thumb)}`;
+            if (c.thumb) c.thumbUrl = plexImageUrl(c.thumb);
             try {
                 const metadataId = c.key.split('/').pop();
                 const metaRes = await fetch(`${uri}/library/metadata/${metadataId}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);

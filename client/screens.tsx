@@ -331,7 +331,7 @@ const UserAnalyticsModal: React.FC<{ userId: string, username: string, thumb: st
                                         {data.topMovies.map((c: any, i: number) => (
                                             <a key={c.key} href={c.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-black/20 p-2 rounded border border-white/5 hover:bg-white/10 transition-colors">
                                                 <div className="w-8 h-12 bg-black/40 rounded overflow-hidden flex-shrink-0 relative">
-                                                    {c.thumbUrl && <img src={c.thumbUrl} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />}
+                                                    {c.thumbUrl && <img src={resolvePortalAssetUrl(c.thumbUrl)} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />}
                                                     <div className={`absolute inset-0 w-full h-full p-2 opacity-50 flex items-center justify-center ${c.thumbUrl ? 'hidden' : ''}`}>
                                                         <Film className="w-full h-full" />
                                                     </div>
@@ -354,7 +354,7 @@ const UserAnalyticsModal: React.FC<{ userId: string, username: string, thumb: st
                                         {data.topShows.map((c: any, i: number) => (
                                             <a key={c.key} href={c.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-black/20 p-2 rounded border border-white/5 hover:bg-white/10 transition-colors">
                                                 <div className="w-8 h-12 bg-black/40 rounded overflow-hidden flex-shrink-0 relative">
-                                                    {c.thumbUrl && <img src={c.thumbUrl} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />}
+                                                    {c.thumbUrl && <img src={resolvePortalAssetUrl(c.thumbUrl)} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />}
                                                     <div className={`absolute inset-0 w-full h-full p-2 opacity-50 flex items-center justify-center ${c.thumbUrl ? 'hidden' : ''}`}>
                                                         <Film className="w-full h-full" />
                                                     </div>
@@ -376,7 +376,7 @@ const UserAnalyticsModal: React.FC<{ userId: string, username: string, thumb: st
                                         {data.topMusic.map((c: any, i: number) => (
                                             <a key={c.key} href={c.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-black/20 p-2 rounded border border-white/5 hover:bg-white/10 transition-colors">
                                                 <div className="w-12 h-12 bg-black/40 rounded overflow-hidden flex-shrink-0 relative">
-                                                    {c.thumbUrl && <img src={c.thumbUrl} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />}
+                                                    {c.thumbUrl && <img src={resolvePortalAssetUrl(c.thumbUrl)} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />}
                                                     <div className={`absolute inset-0 w-full h-full p-2 opacity-50 flex items-center justify-center ${c.thumbUrl ? 'hidden' : ''}`}>
                                                         <Music className="w-full h-full" />
                                                     </div>
@@ -399,7 +399,7 @@ const UserAnalyticsModal: React.FC<{ userId: string, username: string, thumb: st
                                     {data.recentHistory.length === 0 ? <p className="text-muted text-sm col-span-full">No recent history.</p> : data.recentHistory.map((h: any, i: number) => (
                                         <a key={i} href={h.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white/5 border border-white/5 p-2 rounded-lg hover:bg-white/10 transition-colors">
                                             <div className={`${h.type === 'track' ? 'w-12 h-12' : 'w-10 h-14'} bg-black/40 rounded overflow-hidden flex-shrink-0`}>
-                                                {h.thumbUrl && <img src={h.thumbUrl} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />}
+                                                {h.thumbUrl && <img src={resolvePortalAssetUrl(h.thumbUrl)} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />}
                                                 <div className={`w-full h-full p-2 opacity-50 flex items-center justify-center ${h.thumbUrl ? 'hidden' : ''}`}>
                                                     {h.type === 'track' ? <Music className="w-full h-full" /> : <Film className="w-full h-full" />}
                                                 </div>
@@ -503,7 +503,7 @@ const ReportIssueModal: React.FC<{ item: any, onClose: () => void }> = ({ item, 
                             <p className="text-sm text-muted mb-2">Reporting issue for:</p>
                             <div className="bg-black/20 border border-white/5 p-3 rounded-xl flex items-center gap-3">
                                 {item.thumbUrl ? (
-                                    <img src={item.thumbUrl} className="w-10 h-10 rounded-lg object-cover" />
+                                    <img src={resolvePortalAssetUrl(item.thumbUrl)} className="w-10 h-10 rounded-lg object-cover" />
                                 ) : (
                                     <div className="w-10 h-10 bg-white/5 rounded-lg flex items-center justify-center"><Film className="w-5 h-5 text-muted/50" /></div>
                                 )}
@@ -619,7 +619,7 @@ const PersonalAnalyticsDashboard: React.FC<{ username: string, thumb: string | n
                                         {data.topMovies.map((c: any, i: number) => (
                                             <a key={c.key} href={c.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-black/20 p-2 rounded border border-white/5 hover:bg-white/10 transition-colors">
                                                 <div className="w-8 h-12 bg-black/40 rounded overflow-hidden flex-shrink-0 relative">
-                                                    {c.thumbUrl && <img src={c.thumbUrl} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />}
+                                                    {c.thumbUrl && <img src={resolvePortalAssetUrl(c.thumbUrl)} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />}
                                                     <div className={`absolute inset-0 w-full h-full p-2 opacity-50 flex items-center justify-center ${c.thumbUrl ? 'hidden' : ''}`}>
                                                         <Film className="w-full h-full" />
                                                     </div>
@@ -642,7 +642,7 @@ const PersonalAnalyticsDashboard: React.FC<{ username: string, thumb: string | n
                                         {data.topShows.map((c: any, i: number) => (
                                             <a key={c.key} href={c.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-black/20 p-2 rounded border border-white/5 hover:bg-white/10 transition-colors">
                                                 <div className="w-8 h-12 bg-black/40 rounded overflow-hidden flex-shrink-0 relative">
-                                                    {c.thumbUrl && <img src={c.thumbUrl} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />}
+                                                    {c.thumbUrl && <img src={resolvePortalAssetUrl(c.thumbUrl)} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />}
                                                     <div className={`absolute inset-0 w-full h-full p-2 opacity-50 flex items-center justify-center ${c.thumbUrl ? 'hidden' : ''}`}>
                                                         <Film className="w-full h-full" />
                                                     </div>
@@ -664,7 +664,7 @@ const PersonalAnalyticsDashboard: React.FC<{ username: string, thumb: string | n
                                         {data.topMusic.map((c: any, i: number) => (
                                             <a key={c.key} href={c.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-black/20 p-2 rounded border border-white/5 hover:bg-white/10 transition-colors">
                                                 <div className="w-12 h-12 bg-black/40 rounded overflow-hidden flex-shrink-0 relative">
-                                                    {c.thumbUrl && <img src={c.thumbUrl} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />}
+                                                    {c.thumbUrl && <img src={resolvePortalAssetUrl(c.thumbUrl)} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />}
                                                     <div className={`absolute inset-0 w-full h-full p-2 opacity-50 flex items-center justify-center ${c.thumbUrl ? 'hidden' : ''}`}>
                                                         <Music className="w-full h-full" />
                                                     </div>
@@ -686,7 +686,7 @@ const PersonalAnalyticsDashboard: React.FC<{ username: string, thumb: string | n
                                     {data.recentHistory.length === 0 ? <p className="text-muted text-sm col-span-full">No recent history.</p> : data.recentHistory.map((h: any, i: number) => (
                                         <a key={i} href={h.plexUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white/5 border border-white/5 p-2 rounded-lg hover:bg-white/10 transition-colors">
                                             <div className={`${h.type === 'track' ? 'w-12 h-12' : 'w-10 h-14'} bg-black/40 rounded overflow-hidden flex-shrink-0`}>
-                                                {h.thumbUrl && <img src={h.thumbUrl} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />}
+                                                {h.thumbUrl && <img src={resolvePortalAssetUrl(h.thumbUrl)} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />}
                                                 <div className={`w-full h-full p-2 opacity-50 flex items-center justify-center ${h.thumbUrl ? 'hidden' : ''}`}>
                                                     {h.type === 'track' ? <Music className="w-full h-full" /> : <Film className="w-full h-full" />}
                                                 </div>
@@ -2079,7 +2079,7 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
                                     <a key={item.key} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex flex-col sm:flex-row bg-black/20 rounded-xl overflow-hidden hover:bg-black/40 transition-all cursor-pointer group hover:ring-1 hover:ring-plex shadow-md">
                                         <div className="sm:w-32 lg:w-40 flex-shrink-0 aspect-[2/3] relative">
                                             {item.thumbUrl ? (
-                                                <img src={item.thumbUrl} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                                                <img src={resolvePortalAssetUrl(item.thumbUrl)} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center bg-black/40"><Film className="w-8 h-8 opacity-50 text-muted" /></div>
                                             )}
@@ -3329,7 +3329,7 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | str
                                     {recentItems.map((item: any, i: number) => (
                                         <div key={i} className="flex items-center gap-3 bg-white/5 border border-white/5 rounded-lg px-3 py-2 hover:bg-white/10 transition-colors">
                                             {item.thumbUrl
-                                                ? <img src={item.thumbUrl} className="w-8 h-8 rounded object-cover flex-shrink-0" />
+                                                ? <img src={resolvePortalAssetUrl(item.thumbUrl)} className="w-8 h-8 rounded object-cover flex-shrink-0" />
                                                 : <div className="w-8 h-8 rounded bg-white/10 flex-shrink-0" />}
                                             <div className="flex flex-col text-left overflow-hidden">
                                                 <span className="font-bold text-sm text-gray-200 truncate">{item.title}</span>
@@ -3350,7 +3350,7 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | str
                 return (
                     <div className="flex flex-col items-center justify-center text-center p-6 relative">
                         {analytics.topBinge?.artUrl || analytics.topBinge?.thumbUrl ? (
-                            <div className="w-full h-40 bg-cover bg-center rounded-xl shadow-lg mb-6 border border-white/10 relative overflow-hidden" style={{ backgroundImage: `url('${analytics.topBinge.artUrl || 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?auto=format&fit=crop&q=80&w=600'}')` }}>
+                            <div className="w-full h-40 bg-cover bg-center rounded-xl shadow-lg mb-6 border border-white/10 relative overflow-hidden" style={{ backgroundImage: `url('${resolvePortalAssetUrl(analytics.topBinge.artUrl) || 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?auto=format&fit=crop&q=80&w=600'}')` }}>
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
                                 <div className="absolute bottom-4 left-0 right-0 px-4 flex flex-col items-center">
                                     <h2 className="text-2xl font-black text-white mb-1 line-clamp-1 drop-shadow-md">{analytics.topBinge?.title || 'Nothing yet'}</h2>
@@ -3376,7 +3376,7 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | str
                                         <div key={i} className="flex items-center justify-between bg-white/5 border border-white/5 rounded-lg p-2 hover:bg-white/10 transition-colors">
                                             <div className="flex items-center gap-3">
                                                 <span className="text-gray-500 font-bold w-4 text-right">{i + 2}</span>
-                                                {show.thumbUrl ? <img src={show.thumbUrl} className="w-8 h-12 object-cover rounded shadow-sm" /> : <div className="w-8 h-12 bg-white/10 rounded"></div>}
+                                                {show.thumbUrl ? <img src={resolvePortalAssetUrl(show.thumbUrl)} className="w-8 h-12 object-cover rounded shadow-sm" /> : <div className="w-8 h-12 bg-white/10 rounded"></div>}
                                                 <span className="font-bold text-sm text-gray-200 line-clamp-1 text-left">{show.title}</span>
                                             </div>
                                             <span className="text-xs font-black text-plex whitespace-nowrap">{show.plays} eps</span>
@@ -3396,7 +3396,7 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | str
                 return (
                     <div className="flex flex-col items-center justify-center text-center p-6 relative">
                         {analytics.topMovie?.artUrl || analytics.topMovie?.thumbUrl ? (
-                            <div className="w-full h-40 bg-cover bg-center rounded-xl shadow-lg mb-6 border border-white/10 relative overflow-hidden" style={{ backgroundImage: `url('${analytics.topMovie.artUrl || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=600'}')` }}>
+                            <div className="w-full h-40 bg-cover bg-center rounded-xl shadow-lg mb-6 border border-white/10 relative overflow-hidden" style={{ backgroundImage: `url('${resolvePortalAssetUrl(analytics.topMovie.artUrl) || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=600'}')` }}>
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
                                 <div className="absolute bottom-4 left-0 right-0 px-4 flex flex-col items-center">
                                     <h2 className="text-2xl font-black text-white mb-1 line-clamp-1 drop-shadow-md">{analytics.topMovie?.title || 'Nothing yet'}</h2>
@@ -3423,7 +3423,7 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | str
                                         <div key={i} className="flex items-center justify-between bg-white/5 border border-white/5 rounded-lg p-2 hover:bg-white/10 transition-colors">
                                             <div className="flex items-center gap-3">
                                                 <span className="text-gray-500 font-bold w-4 text-right">{i + 2}</span>
-                                                {movie.thumbUrl ? <img src={movie.thumbUrl} className="w-8 h-12 object-cover rounded shadow-sm" /> : <div className="w-8 h-12 bg-white/10 rounded"></div>}
+                                                {movie.thumbUrl ? <img src={resolvePortalAssetUrl(movie.thumbUrl)} className="w-8 h-12 object-cover rounded shadow-sm" /> : <div className="w-8 h-12 bg-white/10 rounded"></div>}
                                                 <span className="font-bold text-sm text-gray-200 line-clamp-1 text-left">{movie.title}</span>
                                             </div>
                                             <span className="text-xs font-black text-plex whitespace-nowrap">{movie.plays} plays</span>
@@ -3607,7 +3607,7 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | str
                                                 <div key={i} className="flex items-center gap-3 bg-white/5 border border-white/5 rounded-lg p-2 hover:bg-white/10 transition-colors">
                                                     <span className="text-gray-500 font-black text-xs w-4 text-right flex-shrink-0">{i + 1}</span>
                                                     {m.thumbUrl
-                                                        ? <img src={m.thumbUrl} className="w-8 h-12 object-cover rounded shadow-sm flex-shrink-0" />
+                                                        ? <img src={resolvePortalAssetUrl(m.thumbUrl)} className="w-8 h-12 object-cover rounded shadow-sm flex-shrink-0" />
                                                         : <div className="w-8 h-12 bg-white/10 rounded flex-shrink-0" />}
                                                     <div className="flex flex-col text-left overflow-hidden">
                                                         <span className="font-bold text-sm text-gray-200 truncate">{m.title}</span>
@@ -3624,7 +3624,7 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | str
                                                 <div key={i} className="flex items-center gap-3 bg-white/5 border border-white/5 rounded-lg p-2 hover:bg-white/10 transition-colors">
                                                     <span className="text-gray-500 font-black text-xs w-4 text-right flex-shrink-0">{i + 1}</span>
                                                     {s.thumbUrl
-                                                        ? <img src={s.thumbUrl} className="w-8 h-12 object-cover rounded shadow-sm flex-shrink-0" />
+                                                        ? <img src={resolvePortalAssetUrl(s.thumbUrl)} className="w-8 h-12 object-cover rounded shadow-sm flex-shrink-0" />
                                                         : <div className="w-8 h-12 bg-white/10 rounded flex-shrink-0" />}
                                                     <div className="flex flex-col text-left overflow-hidden">
                                                         <span className="font-bold text-sm text-gray-200 truncate">{s.title}</span>
@@ -3686,7 +3686,7 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | str
                                         <div key={i} className="flex items-center justify-between bg-white/5 border border-white/5 rounded-lg p-2 hover:bg-white/10 transition-colors">
                                             <div className="flex items-center gap-3">
                                                 <span className="text-gray-500 font-bold w-4 text-right">{i + 1}</span>
-                                                {item.thumbUrl ? <img src={item.thumbUrl} className="w-8 h-12 object-cover rounded shadow-sm" /> : <div className="w-8 h-12 bg-white/10 rounded"></div>}
+                                                {item.thumbUrl ? <img src={resolvePortalAssetUrl(item.thumbUrl)} className="w-8 h-12 object-cover rounded shadow-sm" /> : <div className="w-8 h-12 bg-white/10 rounded"></div>}
                                                 <div className="flex flex-col text-left">
                                                     <span className="font-bold text-sm text-gray-200 line-clamp-1">{item.title}</span>
                                                     <span className="text-[10px] text-gray-400 font-bold tracking-widest uppercase">{item.type}</span>
@@ -4029,7 +4029,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
 
     const heroBgRaw = analytics?.recentHistory?.[0]?.thumbUrl || publicConfig?.customLogoUrl || '';
     const heroBg = heroBgRaw
-        ? (heroBgRaw.startsWith('http') ? heroBgRaw : resolvePortalAssetUrl(heroBgRaw.startsWith('/api/') ? heroBgRaw : `/api/plex/image?path=${encodeURIComponent(heroBgRaw)}&width=800&height=450`))
+        ? (heroBgRaw.startsWith('http') ? heroBgRaw : resolvePortalAssetUrl(heroBgRaw))
         : '';
 
     const wrapUpDaysOptions = [
@@ -4258,7 +4258,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                         <a href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center flex-1 min-w-0 gap-3">
                         <div className="w-10 h-10 rounded-lg overflow-hidden bg-background flex-shrink-0 shadow-md">
                         {item.thumbUrl ? (
-                        <img src={item.thumbUrl} alt={item.title} className="w-full h-full object-cover" />
+                        <img src={resolvePortalAssetUrl(item.thumbUrl)} alt={item.title} className="w-full h-full object-cover" />
                         ) : (
                         <div className="w-full h-full flex items-center justify-center">
                         <PlaySquare className="w-5 h-5 text-muted/50" />
@@ -4326,7 +4326,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                         <a key={item.key} href={item.plexUrl} target="_blank" rel="noreferrer" className="group flex flex-col gap-1.5">
                         <div className="relative rounded-lg overflow-hidden aspect-[2/3] bg-background border border-white/5 transition-[box-shadow,border-color] duration-300 group-hover:shadow-xl group-hover:border-plex/50">
                         {item.thumbUrl ? (
-                        <img src={item.thumbUrl} alt={item.title} className="w-full h-full object-cover transition-[transform,opacity] duration-300 group-hover:scale-105 group-hover:opacity-80" />
+                        <img src={resolvePortalAssetUrl(item.thumbUrl)} alt={item.title} className="w-full h-full object-cover transition-[transform,opacity] duration-300 group-hover:scale-105 group-hover:opacity-80" />
                         ) : (
                         <div className="w-full h-full flex items-center justify-center p-4 text-center bg-white/5">
                         <span className="text-xs font-bold text-muted line-clamp-3">{item.title}</span>
