@@ -1649,7 +1649,13 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
             totalCatalogBytes?: number,
             sizeGB: number,
             fourKPercent: number,
-            healthLabel: string
+            healthLabel: string,
+            movies?: number,
+            shows?: number,
+            episodes?: number,
+            artists?: number,
+            albums?: number,
+            tracks?: number
         },
         requestedPeriodDays?: string | number,
         cachePeriodDays?: string | number | null,
@@ -1864,27 +1870,46 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
                         </div>
                     </div>
                     {libraryHealth && (
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div className="glass-card-sm p-4">
-                                <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Library Balance</p>
-                                <p className="text-xl font-black text-plex">{libraryHealth.healthLabel}</p>
-                                <p className="text-[10px] text-muted mt-1 leading-snug">How evenly viewing is spread across libraries — not server health.</p>
+                        <>
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <div className="glass-card-sm p-4">
+                                    <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Library Balance</p>
+                                    <p className="text-xl font-black text-plex">{libraryHealth.healthLabel}</p>
+                                    <p className="text-[10px] text-muted mt-1 leading-snug">How evenly viewing is spread across libraries — not server health.</p>
+                                </div>
+                                <div className="glass-card-sm p-4">
+                                    <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Active Libraries</p>
+                                    <p className="text-xl font-black text-text">{libraryHealth.activeLibraries}</p>
+                                </div>
+                                <div className="glass-card-sm p-4">
+                                    <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Catalog Size</p>
+                                    <p className="text-xl font-black text-text">{libraryHealth.totalCatalogItems.toLocaleString()}</p>
+                                    <p className="text-[11px] text-muted">{formatSizeCeil(libraryHealth.totalCatalogBytes ?? libraryHealth.sizeGB * 1024 ** 3)}</p>
+                                </div>
+                                <div className="glass-card-sm p-4">
+                                    <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Usage Concentration</p>
+                                    <p className="text-xl font-black text-text">{libraryHealth.concentrationPct}%</p>
+                                    <p className="text-[11px] text-muted">4K Coverage: {libraryHealth.fourKPercent}%</p>
+                                </div>
                             </div>
-                            <div className="glass-card-sm p-4">
-                                <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Active Libraries</p>
-                                <p className="text-xl font-black text-text">{libraryHealth.activeLibraries}</p>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                                <div className="glass-card-sm p-4 flex flex-col justify-center">
+                                    <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Movies Catalog</p>
+                                    <p className="text-xl font-black text-text">{libraryHealth.movies?.toLocaleString() || '0'}</p>
+                                    <p className="text-[11px] text-muted">Total movies in library</p>
+                                </div>
+                                <div className="glass-card-sm p-4 flex flex-col justify-center">
+                                    <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">TV Shows Catalog</p>
+                                    <p className="text-xl font-black text-text">{libraryHealth.shows?.toLocaleString() || '0'} <span className="text-xs font-semibold text-muted">Shows</span></p>
+                                    <p className="text-[11px] text-muted">{libraryHealth.episodes?.toLocaleString() || '0'} episodes</p>
+                                </div>
+                                <div className="glass-card-sm p-4 flex flex-col justify-center">
+                                    <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Music Catalog</p>
+                                    <p className="text-xl font-black text-text">{libraryHealth.artists?.toLocaleString() || '0'} <span className="text-xs font-semibold text-muted">Artists</span></p>
+                                    <p className="text-[11px] text-muted">{libraryHealth.albums?.toLocaleString() || '0'} albums • {libraryHealth.tracks?.toLocaleString() || '0'} tracks</p>
+                                </div>
                             </div>
-                            <div className="glass-card-sm p-4">
-                                <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Catalog Size</p>
-                                <p className="text-xl font-black text-text">{libraryHealth.totalCatalogItems.toLocaleString()}</p>
-                                <p className="text-[11px] text-muted">{formatSizeCeil(libraryHealth.totalCatalogBytes ?? libraryHealth.sizeGB * 1024 ** 3)}</p>
-                            </div>
-                            <div className="glass-card-sm p-4">
-                                <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Usage Concentration</p>
-                                <p className="text-xl font-black text-text">{libraryHealth.concentrationPct}%</p>
-                                <p className="text-[11px] text-muted">4K Coverage: {libraryHealth.fourKPercent}%</p>
-                            </div>
-                        </div>
+                        </>
                     )}
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -2586,6 +2586,7 @@ const buildPlexStatsCache = async () => {
         const { MediaContainer: { Directory: directories = [] } } = await sectionsRes.json();
 
         let totalMoviesCount = 0, totalShowsCount = 0, totalMusicCount = 0;
+        let totalEpisodesCount = 0, totalArtistsCount = 0, totalAlbumsCount = 0, totalTracksCount = 0;
         let totalMoviesBytes = 0, totalShowsBytes = 0, totalMusicBytes = 0;
         let total4kMovies = 0;
         const fourKShows = new Set();
@@ -2600,9 +2601,41 @@ const buildPlexStatsCache = async () => {
                 if (countRes.ok) {
                     const { MediaContainer: mc } = await countRes.json();
                     const count = mc.totalSize || mc.size || 0;
-                    if (dir.type === 'movie') totalMoviesCount += count;
-                    else if (dir.type === 'show') totalShowsCount += count;
-                    else if (dir.type === 'artist') totalMusicCount += count;
+                    if (dir.type === 'movie') {
+                        totalMoviesCount += count;
+                    } else if (dir.type === 'show') {
+                        totalShowsCount += count;
+                        // Also fetch episode count (type 4)
+                        const epCountRes = await fetch(
+                            `${uri}/library/sections/${dir.key}/all?type=4&X-Plex-Container-Start=0&X-Plex-Container-Size=0`,
+                            { headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' }, signal: controller.signal }
+                        );
+                        if (epCountRes.ok) {
+                            const { MediaContainer: epMc } = await epCountRes.json();
+                            totalEpisodesCount += epMc.totalSize || epMc.size || 0;
+                        }
+                    } else if (dir.type === 'artist') {
+                        totalMusicCount += count;
+                        totalArtistsCount += count;
+                        // Also fetch album count (type 9)
+                        const albCountRes = await fetch(
+                            `${uri}/library/sections/${dir.key}/all?type=9&X-Plex-Container-Start=0&X-Plex-Container-Size=0`,
+                            { headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' }, signal: controller.signal }
+                        );
+                        if (albCountRes.ok) {
+                            const { MediaContainer: albMc } = await albCountRes.json();
+                            totalAlbumsCount += albMc.totalSize || albMc.size || 0;
+                        }
+                        // Also fetch tracks count (type 10)
+                        const trackCountRes = await fetch(
+                            `${uri}/library/sections/${dir.key}/all?type=10&X-Plex-Container-Start=0&X-Plex-Container-Size=0`,
+                            { headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' }, signal: controller.signal }
+                        );
+                        if (trackCountRes.ok) {
+                            const { MediaContainer: trMc } = await trackCountRes.json();
+                            totalTracksCount += trMc.totalSize || trMc.size || 0;
+                        }
+                    }
                 }
 
                 // ── Bytes (paginated) ──
@@ -2648,6 +2681,7 @@ const buildPlexStatsCache = async () => {
         const existingStats = await loadFile(PLEX_STATS_CACHE_PATH, {});
         const stats = {
             movies: totalMoviesCount, shows: totalShowsCount, music: totalMusicCount,
+            episodes: totalEpisodesCount, artists: totalArtistsCount, albums: totalAlbumsCount, tracks: totalTracksCount,
             moviesBytes: totalMoviesBytes, showsBytes: totalShowsBytes, musicBytes: totalMusicBytes,
             fourKPercent: totalVideoTitles > 0 ? Math.round((total4kTitles / totalVideoTitles) * 100) : 0,
             maxConcurrentStreams: existingStats.maxConcurrentStreams || 0,
@@ -2657,7 +2691,7 @@ const buildPlexStatsCache = async () => {
         };
         cachedPlexStats = stats;
         await fs.writeFile(PLEX_STATS_CACHE_PATH, JSON.stringify(stats, null, 2));
-        log(`[PlexStats] Cache built and saved — movies: ${totalMoviesCount}, shows: ${totalShowsCount}, music: ${totalMusicCount}`);
+        log(`[PlexStats] Cache built and saved — movies: ${totalMoviesCount}, shows: ${totalShowsCount}, music: ${totalMusicCount}, episodes: ${totalEpisodesCount}, artists: ${totalArtistsCount}, albums: ${totalAlbumsCount}, tracks: ${totalTracksCount}`);
         markTaskEnd(systemJobs.plexStats, null);
     } catch (e) {
         log(`[PlexStats] Build failed: ${e.message}`);
@@ -4955,7 +4989,13 @@ const summarizeLibraryHealth = (topLibraries = [], stats = {}) => {
         totalCatalogBytes,
         sizeGB,
         fourKPercent,
-        healthLabel
+        healthLabel,
+        movies: toNumber(stats.movies, 0),
+        shows: toNumber(stats.shows, 0),
+        episodes: toNumber(stats.episodes, 0),
+        artists: toNumber(stats.artists || stats.music, 0),
+        albums: toNumber(stats.albums, 0),
+        tracks: toNumber(stats.tracks, 0)
     };
 };
 
@@ -5012,6 +5052,9 @@ app.get('/api/plex/analytics', requireAuth, requireMember, async (req, res) => {
         
         // attach max stats dynamically
         const stats = await loadFile(PLEX_STATS_CACHE_PATH, {});
+        if (stats.episodes === undefined) {
+            buildPlexStatsCache().catch(() => {});
+        }
         data.maxConcurrentStreams = stats.maxConcurrentStreams || 0;
         data.maxDirectPlays = stats.maxDirectPlays || 0;
         data.maxTranscodes = stats.maxTranscodes || 0;
