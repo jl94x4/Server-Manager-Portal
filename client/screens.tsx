@@ -4681,7 +4681,26 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
                             </div>
                         )}
 
-                        {groups.length === 0 && <p style={{ textAlign: 'center', marginTop: '2rem' }}>No status monitors configured.</p>}
+                        {groups.length === 0 && (
+                            <div className="flex flex-col items-center justify-center p-12 text-center border-2 border-dashed border-border rounded-xl bg-card my-8">
+                                <Activity className="w-12 h-12 text-muted mb-4 opacity-50" />
+                                <h3 className="text-xl font-bold text-text mb-2">No Services Monitored</h3>
+                                <p className="text-muted max-w-md">
+                                    The status page is currently blank because no services have been configured yet.
+                                    {isAdmin ? (
+                                        <>
+                                            <br /><br />
+                                            You can add status monitors by going to <strong className="text-text">Settings &gt; Status Page</strong> and adding your services and groups.
+                                        </>
+                                    ) : (
+                                        <>
+                                            <br /><br />
+                                            The server administrator hasn't added any services to monitor yet. Check back later!
+                                        </>
+                                    )}
+                                </p>
+                            </div>
+                        )}
 
                         {groups.map((group: any) => {
                             const groupServices = services.filter((s: any) => s.groupId === group.id);
