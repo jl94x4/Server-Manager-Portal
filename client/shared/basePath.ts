@@ -6,11 +6,26 @@ declare global {
 
 export const LOGO_PATH = '/static/logo.png';
 
+const readBasePathFromBaseTag = (): string => {
+    const baseEl = document.querySelector('base[href]');
+    if (!baseEl) return '';
+    const href = baseEl.getAttribute('href') || '/';
+    try {
+        const path = new URL(href, window.location.origin).pathname.replace(/\/+$/, '');
+        return path === '/' ? '' : path;
+    } catch {
+        return '';
+    }
+};
+
 export const getBasePath = (): string => {
     if (typeof window === 'undefined') return '';
-    const base = window.__BASE_PATH__ || '';
-    if (!base || base === '/') return '';
-    return base.endsWith('/') ? base.replace(/\/+$/, '') : base;
+    if (typeof window.__BASE_PATH__ === 'string' && window.__BASE_PATH__ !== '') {
+        const base = window.__BASE_PATH__;
+        return base === '/' ? '' : base.replace(/\/+$/, '');
+    }
+    // Inline bootstrap script may be blocked by CSP; <base href> is always injected in HTML.
+    return readBasePathFromBaseTag();
 };
 
 /** Prefix an app-root path with the configured base path. */
@@ -19,6 +34,13 @@ export const portalUrl = (path: string): string => {
     const base = getBasePath();
     const normalized = path.startsWith('/') ? path : `/${path}`;
     return base ? `${base}${normalized}` : normalized;
+};
+
+/** Prefix root-relative asset or API paths; leave absolute http(s) URLs unchanged. */
+export const resolvePortalAssetUrl = (url: string | null | undefined): string => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    return portalUrl(url.startsWith('/') ? url : `/${url}`);
 };
 
 /** Strip the configured base path from a pathname for client-side routing. */

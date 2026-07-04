@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Copy, ChevronUp, ChevronDown, Check } from 'lucide-react';
 import { apiFetch } from '../shared/api';
+import { portalUrl } from '../shared/basePath';
 import { appConfirm } from '../shared/confirm';
 import { CustomSelect } from '../shared/ui';
 import { Loader, ToastContainer, pushToast, type ToastMessage } from '../shared/toast';
@@ -344,7 +345,7 @@ export const SettingsDashboard: React.FC = () => {
 
     const handleDownloadBackup = async () => {
         try {
-            const response = await fetch('/api/admin/backup');
+            const response = await fetch(portalUrl('/api/admin/backup'));
             if (!response.ok) throw new Error('Backup download failed');
             const text = await response.text();
             const blob = new Blob([text], { type: 'application/json' });
@@ -381,7 +382,7 @@ export const SettingsDashboard: React.FC = () => {
         appConfirm('Restore backup now? This overwrites current data files.', async () => {
             setIsRestoringBackup(true);
             try {
-                const response = await fetch('/api/admin/backup/restore?confirm=true', {
+                const response = await fetch(portalUrl('/api/admin/backup/restore?confirm=true'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'text/plain',
@@ -737,7 +738,7 @@ export const SettingsDashboard: React.FC = () => {
 
         if (logoFile) {
             try {
-                await fetch('/api/config/logo', { method: 'POST', body: logoFile });
+                await fetch(portalUrl('/api/config/logo'), { method: 'POST', body: logoFile });
             } catch (e) {
                 addToast('Failed to upload logo', 'error');
             }

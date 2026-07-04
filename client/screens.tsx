@@ -6,7 +6,7 @@ import { SettingsDashboard } from './settings/SettingsDashboard';
 import { LibraryMaintenancePanel } from './maintenance/LibraryMaintenancePanel';
 import { appConfirm } from './shared/confirm';
 import { apiFetch } from './shared/api';
-import { getPublicOrigin, logoUrl, portalUrl, stripBasePath } from './shared/basePath';
+import { getPublicOrigin, logoUrl, portalUrl, resolvePortalAssetUrl, stripBasePath } from './shared/basePath';
 import { formatDate, getDaysUntilExpiry, getAccessProgressPct, addMonths, addYears, formatTime, formatEventName, formatDateTime, hexToRgb, formatSizeCeil, formatStreamingHour } from './shared/format';
 import { CustomSelect, ConfirmModal, StyledCheckbox } from './shared/ui';
 import { PeriodDropdown } from './shared/PeriodDropdown';
@@ -45,7 +45,13 @@ export const updateFavicon = (thumbUrl: string | null | undefined) => {
         document.head.appendChild(link);
     }
     if (thumbUrl) {
-        link.href = thumbUrl.startsWith('http') ? thumbUrl : portalUrl(`/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=32&height=32`);
+        if (thumbUrl.startsWith('http://') || thumbUrl.startsWith('https://')) {
+            link.href = thumbUrl;
+        } else if (thumbUrl.startsWith('/api/')) {
+            link.href = resolvePortalAssetUrl(thumbUrl);
+        } else {
+            link.href = portalUrl(`/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=32&height=32`);
+        }
     } else {
         link.href = logoUrl();
     }
@@ -2983,7 +2989,9 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
     }
 
     const showTrialAccess = publicConfig?.allowTemporaryAccess !== false;
-    const logoSrc = publicConfig?.customLogoUrl || publicInfo.thumb;
+    const logoSrc = publicConfig?.customLogoUrl
+        ? resolvePortalAssetUrl(publicConfig.customLogoUrl)
+        : (publicInfo.thumb ? resolvePortalAssetUrl(publicInfo.thumb) : '');
 
     return (
         <div className="relative min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 lg:p-10 overflow-hidden">
@@ -4019,7 +4027,10 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     const isRevoked = user?.plexAccessStatus === 'revoked';
     const isPending = user?.plexAccessStatus?.toLowerCase() === 'pending';
 
-    const heroBg = analytics?.recentHistory?.[0]?.thumbUrl || publicConfig?.customLogoUrl || '';
+    const heroBgRaw = analytics?.recentHistory?.[0]?.thumbUrl || publicConfig?.customLogoUrl || '';
+    const heroBg = heroBgRaw
+        ? (heroBgRaw.startsWith('http') ? heroBgRaw : resolvePortalAssetUrl(heroBgRaw.startsWith('/api/') ? heroBgRaw : `/api/plex/image?path=${encodeURIComponent(heroBgRaw)}&width=800&height=450`))
+        : '';
 
     const wrapUpDaysOptions = [
         { value: 7, label: 'Last 7 Days' },
@@ -6582,7 +6593,7 @@ export const PublicInviteClaim: React.FC<{ code: string }> = ({ code }) => {
             <div className="relative mb-8">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-plex rounded-full blur-[50px] opacity-20 pointer-events-none"></div>
                 {info.customLogoUrl || info.thumb ? (
-                    <img src={info.customLogoUrl || info.thumb} alt="Server Logo" className="w-32 h-32 object-cover rounded-full border-2 border-plex drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10" onError={(e) => { e.currentTarget.src = logoUrl(); e.currentTarget.className = 'w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10'; }} />
+                    <img src={resolvePortalAssetUrl(info.customLogoUrl || info.thumb)} alt="Server Logo" className="w-32 h-32 object-cover rounded-full border-2 border-plex drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10" onError={(e) => { e.currentTarget.src = logoUrl(); e.currentTarget.className = 'w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10'; }} />
                 ) : (
                     <img src={logoUrl()} alt="Server Logo" className="w-40 object-contain drop-shadow-[0_0_15px_rgba(229,160,13,0.25)] relative z-10" onError={(e) => e.currentTarget.style.display = 'none'} />
                 )}
