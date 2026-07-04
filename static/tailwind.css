@@ -985,26 +985,60 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   margin-bottom: 1.5rem;
 }
 
-/* Discover: wrap by container width — never squash fixed column counts */
+/* Discover: column counts follow content width (sidebar-aware), never squash */
 
 .discover-poster-grid {
+  container-type: inline-size;
   display: grid;
   width: 100%;
   padding-bottom: 1rem;
   gap: 0.75rem;
-  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@container (min-width: 28rem) {
+  .discover-poster-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 42rem) {
+  .discover-poster-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 56rem) {
+  .discover-poster-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 1rem;
+  }
+}
+
+@container (min-width: 70rem) {
+  .discover-poster-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
 }
 
 .discover-activity-grid {
+  container-type: inline-size;
   display: grid;
   width: 100%;
-  gap: 0.75rem;
-  grid-template-columns: repeat(auto-fill, minmax(17.5rem, 1fr));
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
 }
 
-@media (min-width: 768px) {
+@container (min-width: 34rem) {
   .discover-activity-grid {
-    gap: 1.5rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 52rem) {
+  .discover-activity-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
   }
 }
 
@@ -1156,6 +1190,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   right: 0.5rem;
 }
 
+.right-2\.5 {
+  right: 0.625rem;
+}
+
 .right-3 {
   right: 0.75rem;
 }
@@ -1186,6 +1224,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .top-2 {
   top: 0.5rem;
+}
+
+.top-2\.5 {
+  top: 0.625rem;
 }
 
 .top-20 {
@@ -1754,6 +1796,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   min-height: 112px;
 }
 
+.min-h-\[11rem\] {
+  min-height: 11rem;
+}
+
 .min-h-\[140px\] {
   min-height: 140px;
 }
@@ -1958,6 +2004,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   width: 520px;
 }
 
+.w-\[7\.5rem\] {
+  width: 7.5rem;
+}
+
 .w-\[90\%\] {
   width: 90%;
 }
@@ -2060,8 +2110,8 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   max-width: 280px;
 }
 
-.max-w-\[80px\] {
-  max-width: 80px;
+.max-w-\[45\%\] {
+  max-width: 45%;
 }
 
 .max-w-full {
@@ -3802,12 +3852,12 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   padding-right: 0.625rem;
 }
 
-.pr-20 {
-  padding-right: 5rem;
-}
-
 .pr-4 {
   padding-right: 1rem;
+}
+
+.pr-\[46\%\] {
+  padding-right: 46%;
 }
 
 .pt-0\.5 {
@@ -5905,6 +5955,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     width: 8rem;
   }
 
+  .md\:w-36 {
+    width: 9rem;
+  }
+
   .md\:w-4 {
     width: 1rem;
   }
@@ -5935,10 +5989,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .md\:w-auto {
     width: auto;
-  }
-
-  .md\:max-w-\[100px\] {
-    max-width: 100px;
   }
 
   .md\:max-w-\[180px\] {
@@ -6080,10 +6130,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     padding: 2.5rem;
   }
 
-  .md\:p-3 {
-    padding: 0.75rem;
-  }
-
   .md\:p-4 {
     padding: 1rem;
   }
@@ -6147,10 +6193,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .md\:pr-2 {
     padding-right: 0.5rem;
-  }
-
-  .md\:pr-28 {
-    padding-right: 7rem;
   }
 
   .md\:pr-8 {

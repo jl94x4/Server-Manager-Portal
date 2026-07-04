@@ -4921,21 +4921,21 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                         <div className="w-full">
                             <div className={activityStreamGridClass}>
                             {dashboardData.activeSessions.map((session, i) => (
-                                <div key={session.sessionId ?? i} onClick={() => setSelectedSession(session)} className="bg-card rounded-xl border border-border flex flex-col overflow-hidden shadow-lg hover:border-plex/50 hover:shadow-plex/20 transition-all cursor-pointer select-none min-w-0">
-                                    <div className="flex flex-row flex-grow relative">
-                                        <div className="w-28 md:w-32 flex-shrink-0 relative overflow-hidden bg-card">
+                                <div key={session.sessionId ?? i} onClick={() => setSelectedSession(session)} className="bg-card rounded-xl border border-border flex flex-col overflow-hidden shadow-lg hover:border-plex/50 hover:shadow-plex/20 transition-all cursor-pointer select-none min-w-0 h-full">
+                                    <div className="flex flex-row flex-grow relative min-h-[11rem]">
+                                        <div className="w-[7.5rem] sm:w-32 md:w-36 flex-shrink-0 relative overflow-hidden bg-card">
                                             <div className="w-full pb-[127%]"></div>
                                             <img src={portalUrl(`/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=300&height=500`)} alt={session.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover drop-shadow-2xl" />
                                         </div>
-                                        <div className="p-2 md:p-3 flex flex-col flex-grow min-w-0 justify-center relative">
+                                        <div className="p-3 flex flex-col flex-grow min-w-0 justify-center relative">
                                             {session.user && (
-                                                <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-black/50 backdrop-blur-md rounded-full pr-2.5 p-0.5 shadow-md border border-white/5">
-                                                    <img src={session.userThumb ? session.userThumb : 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'} alt={session.user} className="w-5 h-5 rounded-full object-cover" onError={(e) => { e.currentTarget.src = 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'; }} />
-                                                    <span className="text-[10px] font-bold text-white/90 truncate max-w-[80px] md:max-w-[100px]">{session.user}</span>
+                                                <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 bg-black/50 backdrop-blur-md rounded-full pr-2.5 p-0.5 shadow-md border border-white/5 max-w-[45%]">
+                                                    <img src={session.userThumb ? session.userThumb : 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'} alt={session.user} className="w-5 h-5 rounded-full object-cover flex-shrink-0" onError={(e) => { e.currentTarget.src = 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'; }} />
+                                                    <span className="text-[10px] font-bold text-white/90 truncate">{session.user}</span>
                                                 </div>
                                             )}
 
-                                            <div className="activity-header mb-0.5 pr-20 md:pr-28">
+                                            <div className="activity-header mb-1 pr-[46%]">
                                                 <div className="activity-title-group">
                                                     <div className="text-sm md:text-base font-bold text-text line-clamp-2 leading-tight">{session.grandparentTitle ? session.grandparentTitle : session.title}</div>
                                                     {session.type === 'episode' && session.season !== undefined && session.episode !== undefined ? (
