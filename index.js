@@ -5548,9 +5548,19 @@ app.get('/api/plex/analytics/user/:id', requireAdmin, async (req, res) => {
         const contentCounts = {};
         const recentHistory = [];
 
+        const dayOfWeekCounts = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+        const hourDistribution = new Array(24).fill(0);
+        const statsTimezone = await fetchTautulliTimezone(config);
+
         historyRes.MediaContainer.Metadata.forEach(item => {
             if (cutoffDate > 0 && item.viewedAt < cutoffDate) return;
             totalPlays++;
+
+            const hour = getHourInTimezone(item.viewedAt, statsTimezone);
+            hourDistribution[hour]++;
+
+            const day = getDayOfWeekInTimezone(item.viewedAt, statsTimezone);
+            if (day >= 0 && day <= 6) dayOfWeekCounts[day]++;
 
             // Recent history
             if (recentHistory.length < 50) {
@@ -5616,6 +5626,8 @@ app.get('/api/plex/analytics/user/:id', requireAdmin, async (req, res) => {
             topMovies,
             topShows,
             topMusic,
+            dayOfWeekCounts,
+            hourDistribution,
             recentHistory: recentHistory.map(h => {
                 if (h.thumb) h.thumbUrl = plexImageUrl(h.thumb);
                 return h;
