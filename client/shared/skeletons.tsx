@@ -121,10 +121,10 @@ export const WrapUpCardsSkeleton: React.FC = () => (
 );
 
 export const ActivityCardSkeleton: React.FC = () => (
-    <div className="bg-card rounded-xl border border-border flex flex-col overflow-hidden shadow-lg h-full" aria-hidden="true">
+    <div className="bg-card rounded-xl border border-border flex flex-col overflow-hidden shadow-lg h-full min-h-[11.5rem] md:min-h-[14.5rem]" aria-hidden="true">
         <div className="flex flex-row flex-1 items-stretch min-h-0">
-            <SkeletonBlock className="w-32 md:w-40 flex-shrink-0 self-stretch rounded-none min-h-[10rem]" />
-            <div className="p-4 flex flex-col flex-1 gap-3 justify-center min-w-0">
+            <SkeletonBlock className="w-32 md:w-40 flex-shrink-0 self-stretch rounded-none min-h-[11.5rem] md:min-h-[14.5rem]" />
+            <div className="p-4 flex flex-col flex-1 gap-3 min-w-0">
             <SkeletonBlock className="h-4 w-3/4 rounded" />
             <SkeletonBlock className="h-3 w-1/2 rounded" />
             <div className="flex gap-2 mt-1">
@@ -136,6 +136,7 @@ export const ActivityCardSkeleton: React.FC = () => (
                 <SkeletonBlock className="h-3 w-4/5 rounded" />
                 <SkeletonBlock className="h-3 w-3/5 rounded" />
             </div>
+        </div>
         </div>
         <SkeletonBlock className="h-4 w-full rounded-none" />
     </div>

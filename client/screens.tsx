@@ -4923,12 +4923,12 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                             {dashboardData.activeSessions.map((session, i) => {
                                 const activityCols = activityStreamColumnCount(isWidePortalLayout, dashboardData.activeSessions.length);
                                 return (
-                                <div key={session.sessionId ?? i} onClick={() => setSelectedSession(session)} className="bg-card rounded-xl border border-border flex flex-col overflow-hidden shadow-lg hover:border-plex/50 hover:shadow-plex/20 transition-all cursor-pointer select-none h-full">
+                                <div key={session.sessionId ?? i} onClick={() => setSelectedSession(session)} className="bg-card rounded-xl border border-border flex flex-col overflow-hidden shadow-lg hover:border-plex/50 hover:shadow-plex/20 transition-all cursor-pointer select-none h-full min-h-[11.5rem] md:min-h-[14.5rem]">
                                     <div className="flex flex-row flex-1 items-stretch min-h-0">
                                         <div className={`${activityCols === 4 ? 'w-28 md:w-32' : 'w-32 md:w-40'} flex-shrink-0 relative overflow-hidden bg-card self-stretch`}>
                                             <img src={portalUrl(`/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=300&height=500`)} alt={session.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover object-top drop-shadow-2xl" />
                                         </div>
-                                        <div className="p-2 md:p-3 flex flex-col flex-1 min-w-0 justify-center relative">
+                                        <div className="p-2 md:p-3 flex flex-col flex-1 min-w-0 relative">
                                             {session.user && (
                                                 <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-black/50 backdrop-blur-md rounded-full pr-2.5 p-0.5 shadow-md border border-white/5">
                                                     <img src={session.userThumb ? session.userThumb : 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'} alt={session.user} className="w-5 h-5 rounded-full object-cover" onError={(e) => { e.currentTarget.src = 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'; }} />
