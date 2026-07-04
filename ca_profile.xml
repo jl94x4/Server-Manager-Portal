@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Maintainer>
-  <Name>jl94x4</Name>
+<CommunityApplications>
+  <Profile>Official repository for the Server Manager Portal docker container template.</Profile>
   <Icon>https://raw.githubusercontent.com/jl94x4/Server-Manager-Portal/main/static/logo.png</Icon>
-  <Profile>https://github.com/jl94x4/Server-Manager-Portal/issues</Profile>
-  <Project>https://github.com/jl94x4/Server-Manager-Portal</Project>
-</Maintainer>
+  <WebPage>https://github.com/jl94x4/Server-Manager-Portal</WebPage>
+  <Forum>https://github.com/jl94x4/Server-Manager-Portal/issues</Forum>
+</CommunityApplications>
