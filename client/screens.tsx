@@ -6861,13 +6861,13 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
 
     const [mobileThemeOpen, setMobileThemeOpen] = useState(false);
     const mobileThemeRef = useRef<HTMLDivElement>(null);
-    const [mobileThemePos, setMobileThemePos] = useState<{ top: number; left: number } | null>(null);
+    const [mobileThemePos, setMobileThemePos] = useState<{ top: number; right: number } | null>(null);
 
     useEffect(() => {
         if (!mobileThemeOpen) { setMobileThemePos(null); return; }
         if (mobileThemeRef.current) {
             const rect = mobileThemeRef.current.getBoundingClientRect();
-            setMobileThemePos({ top: rect.bottom + 6, left: rect.left });
+            setMobileThemePos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
         }
     }, [mobileThemeOpen]);
 
@@ -6932,7 +6932,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                         </button>
                         {mobileThemeOpen && mobileThemePos && ReactDOM.createPortal(
                             <div
-                                style={{ position: 'fixed', top: mobileThemePos.top, left: mobileThemePos.left, zIndex: 99999 }}
+                                style={{ position: 'fixed', top: mobileThemePos.top, right: mobileThemePos.right, zIndex: 99999 }}
                                 className="bg-card border border-border rounded-lg shadow-2xl py-1 min-w-[140px]"
                             >
                                 {[
