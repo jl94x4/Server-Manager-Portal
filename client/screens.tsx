@@ -6951,7 +6951,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                     })}
                 </div>
 
-                <div className="flex flex-col items-center mt-auto pt-10 pb-4 group cursor-default">
+                <div className="flex flex-col items-center w-full mt-auto pt-10 pb-4 group cursor-default">
                     <div className={`relative mb-6 ${customLogoUrl ? 'w-32 flex items-center justify-center' : ''}`}>
                         {customLogoUrl ? (
                             <img
