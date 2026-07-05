@@ -1809,6 +1809,47 @@ const TautulliGraphsTab: React.FC = () => {
     );
 };
 
+const useLibraryDelta = (currentHealth: any) => {
+    const [deltas, setDeltas] = useState<any>({});
+    
+    useEffect(() => {
+        if (!currentHealth) return;
+        
+        try {
+            const stored = localStorage.getItem('lastSeenLibraryHealth');
+            const prevHealth = stored ? JSON.parse(stored) : null;
+            
+            if (prevHealth) {
+                const newDeltas: any = {};
+                const keys = ['movies', 'shows', 'episodes', 'artists', 'albums', 'tracks'];
+                let hasChanges = false;
+                keys.forEach(key => {
+                    const current = currentHealth[key] || 0;
+                    const prev = prevHealth[key] || 0;
+                    if (current !== prev) {
+                        newDeltas[key] = current - prev;
+                        hasChanges = true;
+                    }
+                });
+                if (hasChanges) setDeltas(newDeltas);
+            }
+            
+            localStorage.setItem('lastSeenLibraryHealth', JSON.stringify(currentHealth));
+        } catch (e) {}
+    }, [currentHealth]);
+
+    return deltas;
+};
+
+const LibraryDeltaBadge: React.FC<{ value?: number }> = ({ value }) => {
+    if (!value) return null;
+    const isPos = value > 0;
+    return (
+        <span className={`text-sm font-bold ml-2 ${isPos ? 'text-green-500' : 'text-red-500'} animate-[fade-in_0.5s_ease-out]`}>
+            {isPos ? '+' : ''}{value.toLocaleString()}
+        </span>
+    );
+};
 const AnimatedLeaderboard: React.FC<{ users: any[], resolveAvatar: (thumb: string | null | undefined, w?: number, h?: number) => string, isAdmin: boolean, onUserClick: (u: any) => void }> = ({ users, resolveAvatar, isAdmin, onUserClick }) => {
     const prevUsersRef = useRef<any[]>([]);
     
@@ -1870,10 +1911,12 @@ const AnimatedLeaderboard: React.FC<{ users: any[], resolveAvatar: (thumb: strin
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Podium */}
                 {top3.length > 0 && (
-                    <div className="lg:col-span-1 flex items-end justify-center gap-2 sm:gap-4 pt-8">
-                        {top3[1] && <div className="flex-1 max-w-[120px]">{renderPodiumCard(top3[1], 2)}</div>}
-                        <div className="flex-1 max-w-[140px] z-10">{renderPodiumCard(top3[0], 1)}</div>
-                        {top3[2] && <div className="flex-1 max-w-[120px]">{renderPodiumCard(top3[2], 3)}</div>}
+                    <div className="lg:col-span-1 flex flex-col justify-center h-full pt-8 lg:pt-0">
+                        <div className="flex items-end justify-center gap-2 sm:gap-4">
+                            {top3[1] && <div className="flex-1 max-w-[120px]">{renderPodiumCard(top3[1], 2)}</div>}
+                            <div className="flex-1 max-w-[140px] z-10">{renderPodiumCard(top3[0], 1)}</div>
+                            {top3[2] && <div className="flex-1 max-w-[120px]">{renderPodiumCard(top3[2], 3)}</div>}
+                        </div>
                     </div>
                 )}
 
@@ -1972,6 +2015,9 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
     const mediaServerType = String(sessionInfo?.mediaServerType || 'plex').toLowerCase();
     const isJellyfinPortal = mediaServerType === 'jellyfin';
     const analyticsSourceLabel = isJellyfinPortal ? 'Jellystat' : 'Tautulli';
+    
+    const libraryDeltas = useLibraryDelta(analyticsData?.libraryHealth);
+
     const resolveUserAvatar = (thumb: string | null | undefined, width = 80, height = 80) => {
         if (!thumb) return logoUrl();
         if (thumb.startsWith('http://') || thumb.startsWith('https://') || thumb.startsWith('/api/')) {
@@ -2208,18 +2254,36 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="glass-card-sm p-4 flex flex-col justify-center">
                                     <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Movies Catalog</p>
-                                    <p className="text-xl font-black text-text">{libraryHealth.movies?.toLocaleString() || '0'}</p>
+                                    <div className="flex items-center">
+                                        <p className="text-xl font-black text-text"><CountUp end={libraryHealth.movies || 0} /></p>
+                                        <LibraryDeltaBadge value={libraryDeltas.movies} />
+                                    </div>
                                     <p className="text-[11px] text-muted">Total movies in library</p>
                                 </div>
                                 <div className="glass-card-sm p-4 flex flex-col justify-center">
                                     <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">TV Shows Catalog</p>
-                                    <p className="text-xl font-black text-text">{libraryHealth.shows?.toLocaleString() || '0'} <span className="text-xs font-semibold text-muted">Shows</span></p>
-                                    <p className="text-[11px] text-muted">{libraryHealth.episodes?.toLocaleString() || '0'} episodes</p>
+                                    <div className="flex items-center gap-1">
+                                        <p className="text-xl font-black text-text"><CountUp end={libraryHealth.shows || 0} /></p>
+                                        <span className="text-xs font-semibold text-muted ml-1">Shows</span>
+                                        <LibraryDeltaBadge value={libraryDeltas.shows} />
+                                    </div>
+                                    <div className="flex items-center text-[11px] text-muted mt-0.5">
+                                        <CountUp end={libraryHealth.episodes || 0} /> <span className="ml-1">episodes</span>
+                                        <LibraryDeltaBadge value={libraryDeltas.episodes} />
+                                    </div>
                                 </div>
                                 <div className="glass-card-sm p-4 flex flex-col justify-center">
                                     <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Music Catalog</p>
-                                    <p className="text-xl font-black text-text">{libraryHealth.artists?.toLocaleString() || '0'} <span className="text-xs font-semibold text-muted">Artists</span></p>
-                                    <p className="text-[11px] text-muted">{libraryHealth.albums?.toLocaleString() || '0'} albums • {libraryHealth.tracks?.toLocaleString() || '0'} tracks</p>
+                                    <div className="flex items-center gap-1">
+                                        <p className="text-xl font-black text-text"><CountUp end={libraryHealth.artists || 0} /></p>
+                                        <span className="text-xs font-semibold text-muted ml-1">Artists</span>
+                                        <LibraryDeltaBadge value={libraryDeltas.artists} />
+                                    </div>
+                                    <div className="flex items-center text-[11px] text-muted mt-0.5">
+                                        <CountUp end={libraryHealth.albums || 0} /> <span className="mx-1">albums</span> <LibraryDeltaBadge value={libraryDeltas.albums} />
+                                        <span className="mx-1">•</span> 
+                                        <CountUp end={libraryHealth.tracks || 0} /> <span className="mx-1">tracks</span> <LibraryDeltaBadge value={libraryDeltas.tracks} />
+                                    </div>
                                 </div>
                             </div>
                         </>

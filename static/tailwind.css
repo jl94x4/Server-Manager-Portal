@@ -1411,6 +1411,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   margin-right: -1rem;
 }
 
+.mx-1 {
+  margin-left: 0.25rem;
+  margin-right: 0.25rem;
+}
+
 .mx-2 {
   margin-left: 0.5rem;
   margin-right: 0.5rem;
@@ -2360,6 +2365,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .animate-\[crown-pulse_2s_ease-in-out_infinite\] {
   animation: crown-pulse 2s ease-in-out infinite;
+}
+
+.animate-\[fade-in_0\.5s_ease-out\] {
+  animation: fade-in 0.5s ease-out;
 }
 
 .animate-\[rank-down_0\.3s_ease-out\] {
@@ -6646,6 +6655,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   .lg\:px-10 {
     padding-left: 2.5rem;
     padding-right: 2.5rem;
+  }
+
+  .lg\:pt-0 {
+    padding-top: 0px;
   }
 }
 
