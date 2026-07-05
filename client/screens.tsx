@@ -4753,7 +4753,15 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                         })()}
 
                         <div className="pb-2">
-                            <p className="text-plex text-sm uppercase tracking-[4px] font-bold mb-1 drop-shadow-md">Welcome Back</p>
+                            <p className="text-plex text-sm uppercase tracking-[4px] font-bold mb-1 drop-shadow-md">
+                                {(() => {
+                                    const hour = new Date().getHours();
+                                    if (hour >= 5 && hour < 12) return 'Good Morning';
+                                    if (hour >= 12 && hour < 17) return 'Good Afternoon';
+                                    if (hour >= 17 && hour < 22) return 'Good Evening';
+                                    return 'Good Night';
+                                })()}
+                            </p>
                             <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 leading-tight drop-shadow-lg" style={{ fontSize: 'clamp(1.6rem, 8vw, 3rem)', wordBreak: 'break-word' }}>
                                 {sessionInfo.session.username}
                             </h1>
