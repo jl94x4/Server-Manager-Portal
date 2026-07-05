@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="static/logo.png" alt="Server Portal Logo" width="120" height="120" />
+
 # Server Portal
 
 **A premium, fully-automated management and analytics portal for Plex Media Servers.**
@@ -9,6 +11,10 @@ Built with Node.js · Express · React · Tailwind CSS
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-green.svg)](https://nodejs.org/)
 [![Plex](https://img.shields.io/badge/Plex-Media%20Server-orange.svg)](https://www.plex.tv/)
+[![Docker Image Size](https://ghcr-badge.egpl.dev/jl94x4/server-manager-portal/size?label=docker%20image%20size&color=blue)](https://github.com/jl94x4/Server-Manager-Portal/pkgs/container/server-manager-portal)
+[![GitHub Stars](https://img.shields.io/github/stars/jl94x4/Server-Manager-Portal.svg?style=flat&logo=github&color=gold)](https://github.com/jl94x4/Server-Manager-Portal/stargazers)
+[![GitHub Forks](https://img.shields.io/github/forks/jl94x4/Server-Manager-Portal.svg?style=flat&logo=github)](https://github.com/jl94x4/Server-Manager-Portal/network/members)
+[![GitHub Issues](https://img.shields.io/github/issues/jl94x4/Server-Manager-Portal.svg?style=flat&logo=github&color=red)](https://github.com/jl94x4/Server-Manager-Portal/issues)
 
 </div>
 
