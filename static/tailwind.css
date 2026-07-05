@@ -6555,9 +6555,9 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     padding-right: 0px;
   }
 
-  .md\:px-10 {
-    padding-left: 2.5rem;
-    padding-right: 2.5rem;
+  .md\:px-12 {
+    padding-left: 3rem;
+    padding-right: 3rem;
   }
 
   .md\:px-2 {
@@ -6579,12 +6579,12 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     padding-bottom: 0px;
   }
 
-  .md\:pb-4 {
-    padding-bottom: 1rem;
+  .md\:pb-12 {
+    padding-bottom: 3rem;
   }
 
-  .md\:pb-6 {
-    padding-bottom: 1.5rem;
+  .md\:pb-4 {
+    padding-bottom: 1rem;
   }
 
   .md\:pb-8 {
@@ -6611,8 +6611,8 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     padding-top: 0px;
   }
 
-  .md\:pt-20 {
-    padding-top: 5rem;
+  .md\:pt-32 {
+    padding-top: 8rem;
   }
 
   .md\:pt-8 {

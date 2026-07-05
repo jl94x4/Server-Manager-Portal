@@ -4719,7 +4719,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                     )}
                 </div>
 
-                <div className="relative pt-14 pb-5 px-4 md:pt-20 md:pb-6 md:px-10 flex flex-col items-center md:items-start text-center md:text-left z-10">
+                <div className="relative pt-14 pb-5 px-4 md:pt-32 md:pb-12 md:px-12 flex flex-col items-center md:items-start text-center md:text-left z-10">
                     <div className="flex flex-col md:flex-row items-center md:items-end gap-4 md:gap-6">
                         {/* Avatar */}
                         {(() => {
