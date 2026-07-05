@@ -5830,7 +5830,7 @@ export const MaintenanceDashboard: React.FC = () => {
         { id: 'calendar', label: 'Calendar' },
         { id: 'storage', label: 'Storage Metrics' },
         { id: 'library', label: 'Rule Library' },
-        { id: 'settings', label: 'Maintenance Settings' },
+        { id: 'settings', label: 'Cleaner Settings' },
         { id: 'runs', label: 'Logs' }
     ];
 
@@ -5909,7 +5909,7 @@ export const MaintenanceDashboard: React.FC = () => {
                 setMaintenanceFeatureEnabled(false);
                 return;
             }
-            addToast(e.message || 'Failed to load maintenance overview', 'error');
+            addToast(e.message || 'Failed to load cleaner overview', 'error');
         } finally {
             if (!silent) setLoading(false);
         }
@@ -6194,7 +6194,7 @@ export const MaintenanceDashboard: React.FC = () => {
             <Loader isLoading={loading} />
             <ToastContainer toasts={toasts} setToasts={setToasts} />
             <header className="page-header">
-                <h1 className="page-title">Maintenance</h1>
+                <h1 className="page-title">Cleaner</h1>
             </header>
             <div className="w-full flex flex-col p-0 md:p-8 bg-transparent md:glass-card rounded-none md:rounded-2xl border-0 md:border shadow-none">
                 <div className="md:hidden mb-3">
@@ -6226,8 +6226,8 @@ export const MaintenanceDashboard: React.FC = () => {
                     <div className="overflow-y-auto flex-grow mb-4 custom-scrollbar space-y-4 md:pr-2">
                         {!maintenanceFeatureEnabled && (
                             <div className="glass-card-sm border-yellow-500/30 p-5">
-                                <h3 className="text-xl font-bold text-plex mb-2">Maintenance Disabled</h3>
-                                <p className="text-sm text-muted mb-3">Experimental Maintenance Mode is currently OFF.</p>
+                                <h3 className="text-xl font-bold text-plex mb-2">Cleaner Disabled</h3>
+                                <p className="text-sm text-muted mb-3">Experimental Cleaner Mode is currently OFF.</p>
                                 <p className="text-xs text-muted">Enable it in `Settings` → `System` under `Maintenance Experimental Mode`, then click Save Settings.</p>
                                 <button
                                     type="button"
@@ -6243,7 +6243,7 @@ export const MaintenanceDashboard: React.FC = () => {
                                 {activeSection === 'overview' && (
                                     <div className="space-y-4">
                                         <div className="glass-card-sm p-5">
-                                            <h3 className="text-xl font-bold text-plex mb-2">Maintenance Control Center</h3>
+                                            <h3 className="text-xl font-bold text-plex mb-2">Cleaner Control Center</h3>
                                             <p className="text-sm text-muted mb-4">Dedicated module for library maintenance automation: rules, collections, candidates, execution timeline, calendar, storage, and governance.</p>
                                             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                                                 <div className="bg-background/30 rounded-lg p-3 border border-white/5">
@@ -6967,7 +6967,7 @@ export const MaintenanceDashboard: React.FC = () => {
                                 )}
                                 {activeSection === 'settings' && (
                                     <div className="glass-card-sm p-5 space-y-4">
-                                        <h3 className="text-xl font-bold text-plex">Maintenance Settings</h3>
+                                        <h3 className="text-xl font-bold text-plex">Cleaner Settings</h3>
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                             <div className="bg-background/30 border border-white/5 rounded-lg p-3">
                                                 <label className="text-xs text-muted font-bold uppercase block mb-2">Default Dry-run</label>
@@ -6989,7 +6989,7 @@ export const MaintenanceDashboard: React.FC = () => {
                                             </div>
                                         </div>
                                         <button type="button" className="px-3 py-2 bg-plex text-background rounded-md text-sm font-semibold" onClick={async () => { await savePreferences(preferences); addToast('Maintenance settings saved.'); }}>
-                                            Save Maintenance Settings
+                                            Save Cleaner Settings
                                         </button>
                                     </div>
                                 )}

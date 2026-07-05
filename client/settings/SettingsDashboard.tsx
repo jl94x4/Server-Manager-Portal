@@ -1975,11 +1975,11 @@ export const SettingsDashboard: React.FC = () => {
                                 </div>
                             </section>
                             <section className={`space-y-3 mb-8 transition-all duration-300 ${highlightMaintenanceToggle ? 'ring-2 ring-plex/50 rounded-lg p-3 -m-3' : ''}`}>
-                                <h4 className="font-bold text-text">Maintenance Experimental Mode</h4>
+                                <h4 className="font-bold text-text">Cleaner Experimental Mode</h4>
                                 <div className="flex items-center justify-between gap-3 py-2">
                                     <div>
-                                        <p className="font-semibold text-text">Enable Maintenance Module</p>
-                                        <p className="text-xs text-muted mt-1">Single global toggle for the main `Maintenance` navigation section. OFF by default.</p>
+                                        <p className="font-semibold text-text">Enable Cleaner Module</p>
+                                        <p className="text-xs text-muted mt-1">Single global toggle for the main `Cleaner` navigation section. OFF by default.</p>
                                     </div>
                                     <button
                                         type="button"
