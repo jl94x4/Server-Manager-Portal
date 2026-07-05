@@ -570,7 +570,13 @@ export const SettingsDashboard: React.FC = () => {
         const trackedIntegrations = trackedIntegrationKeys
             .filter((key) => key !== 'requestAppConfigured' || integrations.requestAppEnabled)
             .map((key) => [key, !!integrations[key]] as const);
-        const cacheValues = Object.values(diagnostics.caches || {}).map((entry: any) => !!entry?.exists);
+        const cacheEntries = Object.entries(diagnostics.caches || {}).filter(([key]) => {
+            if (!maintenanceExperimentalEnabled) {
+                return !key.startsWith('maintenance');
+            }
+            return true;
+        });
+        const cacheValues = cacheEntries.map(([, entry]: any) => !!entry?.exists);
         const jobs = Array.isArray(diagnostics.jobs) ? diagnostics.jobs : [];
         const integrationsConfigured = trackedIntegrations.filter(([, configured]) => configured).length;
         const integrationsTotal = trackedIntegrations.length;
@@ -615,7 +621,7 @@ export const SettingsDashboard: React.FC = () => {
             runningJobs,
             failingJobs
         };
-    }, [diagnostics]);
+    }, [diagnostics, maintenanceExperimentalEnabled]);
 
     const auditEventsPerPage = 12;
     const totalAuditLogPages = Math.max(1, Math.ceil(auditLogEntries.length / auditEventsPerPage));
