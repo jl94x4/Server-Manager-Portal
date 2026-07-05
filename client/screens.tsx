@@ -3449,7 +3449,7 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
 
     return (
         <div className="relative min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 lg:p-10 overflow-hidden">
-            <AuthPageBackground backgroundImageUrl={splashBackgroundUrl} />
+            <AuthPageBackground backgroundImageUrl={splashBackgroundUrl} trendingBackgrounds={publicConfig?.trendingBackgrounds} trendingSlideshowInterval={publicConfig?.trendingSlideshowInterval} />
             <Loader isLoading={isLoading} />
 
             <div className="relative z-10 w-full max-w-6xl flex flex-col gap-6">

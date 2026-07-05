@@ -304,6 +304,9 @@ export const SettingsDashboard: React.FC = () => {
     const [primaryColor, setPrimaryColor] = useState(BRAND_THEME_COLORS.plex);
     const [customLogoUrl, setCustomLogoUrl] = useState('');
     const [backgroundImageUrl, setBackgroundImageUrl] = useState('');
+    const [useTrendingSlideshow, setUseTrendingSlideshow] = useState(false);
+    const [trendingSlideshowInterval, setTrendingSlideshowInterval] = useState(30);
+    const [tmdbApiKey, setTmdbApiKey] = useState('');
     const [brandingTheme, setBrandingTheme] = useState('plex');
     const [referralEnabled, setReferralEnabled] = useState(false);
     const [referralTrialDays, setReferralTrialDays] = useState(3);
@@ -757,6 +760,9 @@ export const SettingsDashboard: React.FC = () => {
             setPrimaryColor(initialSettings.primaryColor || BRAND_THEME_COLORS.plex);
             setCustomLogoUrl(initialSettings.customLogoUrl || '');
             setBackgroundImageUrl(initialSettings.backgroundImageUrl || '');
+            setUseTrendingSlideshow(!!initialSettings.useTrendingSlideshow);
+            setTrendingSlideshowInterval(initialSettings.trendingSlideshowInterval || 30);
+            setTmdbApiKey(initialSettings.tmdbApiKey || '');
             setBrandingTheme(initialSettings.brandingTheme || 'plex');
             setReferralEnabled(!!initialSettings.referralEnabled);
             setReferralTrialDays(initialSettings.referralTrialDays || 3);
@@ -883,6 +889,9 @@ export const SettingsDashboard: React.FC = () => {
             customLogoUrl,
             brandingTheme,
             backgroundImageUrl,
+            useTrendingSlideshow,
+            trendingSlideshowInterval,
+            tmdbApiKey,
             referralEnabled,
             referralTrialDays,
             referralRewardDays,
@@ -1436,6 +1445,15 @@ export const SettingsDashboard: React.FC = () => {
                                 className="mb-6"
                                 onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
                             />
+
+                            <IntegrationHeading app="tmdb" title="TMDB Integration" subtitle="Worldwide trending backgrounds" className="mt-8" />
+                            <div className="mb-4">
+                                <label htmlFor="tmdbApiKey">TMDB API Key</label>
+                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="tmdbApiKey" type="password" value={tmdbApiKey} onChange={(e) => setTmdbApiKey(e.target.value)} placeholder="Enter TMDB API Key" />
+                                <div className="mt-2">
+                                    <SettingHint>Used to fetch worldwide trending media backgrounds for the portal slideshow. Get one for free at themoviedb.org.</SettingHint>
+                                </div>
+                            </div>
                             <IntegrationHeading app="tautulli" title="Tautulli Integration" subtitle="Plex activity and analytics" className="mt-8" />
                             <div className="mb-4">
                                 <label htmlFor="tautulliUrl">Tautulli URL</label>
@@ -1690,8 +1708,41 @@ export const SettingsDashboard: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="mb-4">
-                                <label>Splash Background Image</label>
+                            <div className="mb-4 p-4 rounded-lg border border-border bg-card">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div>
+                                        <label className="mb-0">Enable TMDB Trending Slideshow</label>
+                                        <SettingHint>Replaces the static splash background with a fading slideshow of currently trending movies and shows from TMDB. Requires a TMDB API key in Integrations.</SettingHint>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="sr-only peer"
+                                            checked={useTrendingSlideshow}
+                                            onChange={e => setUseTrendingSlideshow(e.target.checked)}
+                                        />
+                                        <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
+                                    </label>
+                                </div>
+                                <div className={`transition-all overflow-hidden ${useTrendingSlideshow ? 'max-h-[100px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                                    <label>Slideshow Interval (Seconds)</label>
+                                    <select
+                                        className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all mt-1"
+                                        value={trendingSlideshowInterval}
+                                        onChange={e => setTrendingSlideshowInterval(parseInt(e.target.value, 10))}
+                                    >
+                                        <option value={10}>10 Seconds</option>
+                                        <option value={20}>20 Seconds</option>
+                                        <option value={30}>30 Seconds</option>
+                                        <option value={40}>40 Seconds</option>
+                                        <option value={50}>50 Seconds</option>
+                                        <option value={60}>60 Seconds</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className={`mb-4 transition-opacity ${useTrendingSlideshow ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+                                <label>Static Splash Background Image</label>
                                 <input
                                     type="url"
                                     className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all"

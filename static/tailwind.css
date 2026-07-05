@@ -1126,6 +1126,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   visibility: visible;
 }
 
+.static {
+  position: static;
+}
+
 .fixed {
   position: fixed;
 }
@@ -1458,6 +1462,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .-mt-5 {
   margin-top: -1.25rem;
+}
+
+.mb-0 {
+  margin-bottom: 0px;
 }
 
 .mb-0\.5 {
@@ -1830,6 +1838,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   height: 100vh;
 }
 
+.max-h-0 {
+  max-height: 0px;
+}
+
 .max-h-24 {
   max-height: 6rem;
 }
@@ -1856,6 +1868,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .max-h-64 {
   max-height: 16rem;
+}
+
+.max-h-\[100px\] {
+  max-height: 100px;
 }
 
 .max-h-\[1240px\] {
@@ -5147,6 +5163,14 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   transition-duration: 700ms;
 }
 
+.duration-\[2000ms\] {
+  transition-duration: 2000ms;
+}
+
+.ease-in-out {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .ease-out {
   transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
 }
@@ -5339,6 +5363,65 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 .file\:text-text::file-selector-button {
   --tw-text-opacity: 1;
   color: rgb(var(--color-text) / var(--tw-text-opacity, 1));
+}
+
+.after\:absolute::after {
+  content: var(--tw-content);
+  position: absolute;
+}
+
+.after\:left-\[2px\]::after {
+  content: var(--tw-content);
+  left: 2px;
+}
+
+.after\:top-\[2px\]::after {
+  content: var(--tw-content);
+  top: 2px;
+}
+
+.after\:h-5::after {
+  content: var(--tw-content);
+  height: 1.25rem;
+}
+
+.after\:w-5::after {
+  content: var(--tw-content);
+  width: 1.25rem;
+}
+
+.after\:rounded-full::after {
+  content: var(--tw-content);
+  border-radius: 9999px;
+}
+
+.after\:border::after {
+  content: var(--tw-content);
+  border-width: 1px;
+}
+
+.after\:border-border::after {
+  content: var(--tw-content);
+  --tw-border-opacity: 1;
+  border-color: rgb(var(--color-border) / var(--tw-border-opacity, 1));
+}
+
+.after\:bg-text::after {
+  content: var(--tw-content);
+  --tw-bg-opacity: 1;
+  background-color: rgb(var(--color-text) / var(--tw-bg-opacity, 1));
+}
+
+.after\:transition-all::after {
+  content: var(--tw-content);
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.after\:content-\[\'\'\]::after {
+  --tw-content: '';
+  content: var(--tw-content);
 }
 
 .last\:mb-0:last-child {
@@ -5858,12 +5941,34 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-color: rgb(var(--color-plex) / var(--tw-border-opacity, 1));
 }
 
+.peer:checked ~ .peer-checked\:bg-plex {
+  --tw-bg-opacity: 1;
+  background-color: rgb(var(--color-plex) / var(--tw-bg-opacity, 1));
+}
+
 .peer:checked ~ .peer-checked\:bg-plex\/20 {
   background-color: rgb(var(--color-plex) / 0.2);
 }
 
 .peer:checked ~ .peer-checked\:opacity-100 {
   opacity: 1;
+}
+
+.peer:checked ~ .peer-checked\:after\:translate-x-full::after {
+  content: var(--tw-content);
+  --tw-translate-x: 100%;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
+.peer:checked ~ .peer-checked\:after\:border-white::after {
+  content: var(--tw-content);
+  --tw-border-opacity: 1;
+  border-color: rgb(255 255 255 / var(--tw-border-opacity, 1));
+}
+
+.peer:focus ~ .peer-focus\:outline-none {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
 }
 
 @media (min-width: 640px) {

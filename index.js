@@ -2100,6 +2100,9 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 customLogoUrl: config.customLogoUrl || '',
                 brandingTheme: config.brandingTheme || 'plex',
                 backgroundImageUrl: config.backgroundImageUrl || '',
+                useTrendingSlideshow: !!config.useTrendingSlideshow,
+                trendingSlideshowInterval: config.trendingSlideshowInterval || 30,
+                tmdbApiKey: config.tmdbApiKey ? SECRET_MASK : '',
                 referralEnabled: !!config.referralEnabled,
                 referralTrialDays: config.referralTrialDays || 3,
                 referralRewardDays: config.referralRewardDays || 7,
@@ -2157,6 +2160,9 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 customLogoUrl: '',
                 brandingTheme: 'plex',
                 backgroundImageUrl: '',
+                useTrendingSlideshow: false,
+                trendingSlideshowInterval: 30,
+                tmdbApiKey: '',
                 referralEnabled: false,
                 referralTrialDays: 3,
                 referralRewardDays: 7,
@@ -2186,7 +2192,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, tautulliUrl, tautulliApiKey, jellystatUrl, jellystatApiKey,
         requestAppType, requestAppUrl, requestAppApiKey,
         inactiveCleanupEnabled, inactiveCleanupDays,
-        primaryColor, customLogoUrl, brandingTheme, backgroundImageUrl, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges,
+        primaryColor, customLogoUrl, brandingTheme, backgroundImageUrl, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges,
         autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, dashboardLayout
     } = req.body;
 
@@ -2311,6 +2317,9 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         customLogoUrl: customLogoUrl || '',
         brandingTheme: ['plex', 'slate', 'nordic'].includes(String(brandingTheme || '').toLowerCase()) ? String(brandingTheme).toLowerCase() : (existingConfig.brandingTheme || 'plex'),
         backgroundImageUrl: backgroundImageUrl || '',
+        useTrendingSlideshow: !!useTrendingSlideshow,
+        trendingSlideshowInterval: parseInt(trendingSlideshowInterval, 10) || 30,
+        tmdbApiKey: resolveSecret(tmdbApiKey, existingConfig.tmdbApiKey),
         referralEnabled: !!referralEnabled,
         referralTrialDays: parseInt(referralTrialDays, 10) || 3,
         referralRewardDays: parseInt(referralRewardDays, 10) || 7,
@@ -2359,6 +2368,30 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
     res.json({ message: 'Configuration saved.' });
 });
 
+let tmdbCache = { data: null, lastFetch: 0 };
+async function fetchTmdbTrendingBackgrounds(apiKey) {
+    if (!apiKey) return [];
+    if (tmdbCache.data && Date.now() - tmdbCache.lastFetch < 12 * 60 * 60 * 1000) {
+        return tmdbCache.data;
+    }
+    try {
+        const res = await fetch(`https://api.themoviedb.org/3/trending/all/week?api_key=${apiKey}`);
+        if (!res.ok) return tmdbCache.data || [];
+        const json = await res.json();
+        if (json && json.results) {
+            const bgs = json.results
+                .filter(i => i.backdrop_path)
+                .map(i => `https://image.tmdb.org/t/p/original${i.backdrop_path}`);
+            tmdbCache.data = bgs;
+            tmdbCache.lastFetch = Date.now();
+            return bgs;
+        }
+    } catch (e) {
+        log(`Failed to fetch TMDB trending: ${e.message}`);
+    }
+    return tmdbCache.data || [];
+}
+
 app.get('/api/config/public', async (req, res) => {
     try {
         const config = (await loadFile(CONFIG_PATH, {})) || {};
@@ -2368,6 +2401,9 @@ app.get('/api/config/public', async (req, res) => {
             customLogoUrl: config.customLogoUrl || '',
             brandingTheme: config.brandingTheme || 'plex',
             backgroundImageUrl: config.backgroundImageUrl || '',
+            useTrendingSlideshow: !!config.useTrendingSlideshow,
+            trendingSlideshowInterval: parseInt(config.trendingSlideshowInterval, 10) || 30,
+            trendingBackgrounds: !!config.useTrendingSlideshow ? await fetchTmdbTrendingBackgrounds(config.tmdbApiKey) : [],
             announcement: config.announcement || '',
             referralEnabled: !!config.referralEnabled,
             appVersion: appVersion,
@@ -2384,6 +2420,9 @@ app.get('/api/config/public', async (req, res) => {
             customLogoUrl: '',
             brandingTheme: 'plex',
             backgroundImageUrl: '',
+            useTrendingSlideshow: false,
+            trendingSlideshowInterval: 30,
+            trendingBackgrounds: [],
             announcement: '',
             referralEnabled: false,
             appVersion: appVersion,
