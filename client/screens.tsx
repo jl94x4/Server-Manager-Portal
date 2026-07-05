@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2, Search } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
 
@@ -4596,7 +4597,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
 
                         <div className="pb-2">
                             <p className="text-plex text-sm uppercase tracking-[4px] font-bold mb-1 drop-shadow-md">Welcome Back</p>
-                            <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 leading-tight drop-shadow-lg truncate max-w-[280px] md:max-w-md">
+                            <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 leading-tight drop-shadow-lg" style={{ fontSize: 'clamp(1.6rem, 8vw, 3rem)', wordBreak: 'break-word' }}>
                                 {sessionInfo.session.username}
                             </h1>
                             {sessionInfo.session.isAdmin && (
@@ -6858,6 +6859,29 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         updateFavicon(serverIcon);
     }, [serverIcon]);
 
+    const [mobileThemeOpen, setMobileThemeOpen] = useState(false);
+    const mobileThemeRef = useRef<HTMLDivElement>(null);
+    const [mobileThemePos, setMobileThemePos] = useState<{ top: number; left: number } | null>(null);
+
+    useEffect(() => {
+        if (!mobileThemeOpen) { setMobileThemePos(null); return; }
+        if (mobileThemeRef.current) {
+            const rect = mobileThemeRef.current.getBoundingClientRect();
+            setMobileThemePos({ top: rect.bottom + 6, left: rect.left });
+        }
+    }, [mobileThemeOpen]);
+
+    useEffect(() => {
+        if (!mobileThemeOpen) return;
+        const handler = (e: MouseEvent) => {
+            if (mobileThemeRef.current && !mobileThemeRef.current.contains(e.target as Node)) {
+                setMobileThemeOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [mobileThemeOpen]);
+
     const navItemsConfig: Record<string, { label: string; icon: React.FC<any>; route: string; adminOnly: boolean; href?: string; onClick?: (e: any) => void }> = {
         'home': { label: 'Home', icon: Home, route: 'user', adminOnly: false },
         'users': { label: 'Users', icon: Users, route: 'users', adminOnly: true },
@@ -6898,22 +6922,38 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                     <span className="font-bold text-text uppercase tracking-widest text-sm">{serverName}</span>
                 </div>
                 <div className="flex items-center gap-4">
-                    <div className="relative w-28 h-8">
-                        <Palette className="w-4 h-4 text-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
-                        <CustomSelect
-                            value={activeTheme}
-                            onChange={setActiveTheme}
-                            compact={true}
-                            className="w-full h-full [&_div]:pl-8"
-                            options={[
-                                { label: 'Plex', value: 'plex' },
-                                { label: 'Slate', value: 'slate' },
-                                { label: 'Frost', value: 'nordic' },
-                                { label: 'Jellyfin', value: 'jellyfin' },
-                                { label: 'Emerald', value: 'emerald' },
-                                { label: 'Midnight', value: 'midnight' },
-                            ]}
-                        />
+                    <div className="relative" ref={mobileThemeRef}>
+                        <button
+                            onClick={() => setMobileThemeOpen(v => !v)}
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all ${mobileThemeOpen ? 'border-plex text-plex ring-1 ring-plex' : 'border-border text-muted hover:border-plex/50 hover:text-text'}`}
+                            title="Change theme"
+                        >
+                            <Palette className="w-4 h-4" />
+                        </button>
+                        {mobileThemeOpen && mobileThemePos && ReactDOM.createPortal(
+                            <div
+                                style={{ position: 'fixed', top: mobileThemePos.top, left: mobileThemePos.left, zIndex: 99999 }}
+                                className="bg-card border border-border rounded-lg shadow-2xl py-1 min-w-[140px]"
+                            >
+                                {[
+                                    { label: 'Plex Dark', value: 'plex' },
+                                    { label: 'Sleek Slate', value: 'slate' },
+                                    { label: 'Nordic Frost', value: 'nordic' },
+                                    { label: 'Jellyfin Purple', value: 'jellyfin' },
+                                    { label: 'Emerald Green', value: 'emerald' },
+                                    { label: 'Neon Midnight', value: 'midnight' },
+                                ].map(opt => (
+                                    <div
+                                        key={opt.value}
+                                        className={`px-4 py-2.5 cursor-pointer text-sm whitespace-nowrap transition-colors ${activeTheme === opt.value ? 'bg-plex/10 text-plex font-bold' : 'text-text hover:bg-border/40'}`}
+                                        onMouseDown={e => { e.preventDefault(); setActiveTheme(opt.value); setMobileThemeOpen(false); }}
+                                    >
+                                        {opt.label}
+                                    </div>
+                                ))}
+                            </div>,
+                            document.body
+                        )}
                     </div>
                     {isAdmin && (
                         <button onClick={(e) => { e.preventDefault(); onNavigate('logs'); }} className={`text-muted hover:text-text transition-colors ${currentRoute === 'logs' ? 'text-plex' : ''}`}>

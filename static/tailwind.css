@@ -1238,10 +1238,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   left: 0.5rem;
 }
 
-.left-2\.5 {
-  left: 0.625rem;
-}
-
 .left-3 {
   left: 0.75rem;
 }
@@ -2142,6 +2138,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   min-width: 130px;
 }
 
+.min-w-\[140px\] {
+  min-width: 140px;
+}
+
 .min-w-\[160px\] {
   min-width: 160px;
 }
@@ -2205,10 +2205,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .max-w-\[250px\] {
   max-width: 250px;
-}
-
-.max-w-\[280px\] {
-  max-width: 280px;
 }
 
 .max-w-\[80px\] {
@@ -6158,10 +6154,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     max-width: 180px;
   }
 
-  .md\:max-w-md {
-    max-width: 28rem;
-  }
-
   .md\:flex-none {
     flex: none;
   }
@@ -6604,10 +6596,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   .\32xl\:grid-cols-5 {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
-}
-
-.\[\&_div\]\:pl-8 div {
-  padding-left: 2rem;
 }
 
 .\[\&_div\]\:pl-9 div {
