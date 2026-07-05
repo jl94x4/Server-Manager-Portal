@@ -83,6 +83,18 @@ export const StatusMonitorSettings: React.FC<{ config: any; onChange: (cfg: any)
         });
     };
 
+    const handleResetStats = () => {
+        appConfirm('Are you sure you want to reset all uptime statistics? This will delete all historical status data.', async () => {
+            try {
+                const res = await apiFetch('/api/status/reset', { method: 'POST' });
+                if (res.error) throw new Error(res.error);
+                addToast('Status statistics reset successfully.', 'success');
+            } catch (e: any) {
+                addToast(e.message || 'Failed to reset statistics.', 'error');
+            }
+        });
+    };
+
     return (
         <div className="flex flex-col gap-8 w-full">
             <div>
@@ -162,6 +174,18 @@ export const StatusMonitorSettings: React.FC<{ config: any; onChange: (cfg: any)
                     ))}
                 </div>
                 {localConfig.services.length === 0 && <p className="text-muted text-sm italic py-2">No services defined. Add some services to monitor.</p>}
+            </div>
+
+            <div className="border-t border-border/40 pt-6 mt-2">
+                <h4 className="font-bold text-xl text-text mb-2">Reset Statistics</h4>
+                <p className="text-sm text-muted mb-4">Resetting the status statistics will clear all historical uptime and latency data for all monitored services. This action cannot be undone.</p>
+                <button
+                    type="button"
+                    onClick={handleResetStats}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-bold transition-colors shadow-lg"
+                >
+                    Reset Uptime Data
+                </button>
             </div>
         </div>
     );

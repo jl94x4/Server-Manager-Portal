@@ -4141,6 +4141,16 @@ app.post('/api/status/config', requireAuth, requireAdmin, async (req, res) => {
     }
 });
 
+app.post('/api/status/reset', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        healthData = {};
+        await saveHealthData();
+        res.json({ success: true, message: 'Status statistics reset successfully.' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to reset status statistics' });
+    }
+});
+
 // --- Plex Dashboard & Image Proxy ---
 
 app.get('/api/plex/libraries', requireAdmin, async (req, res) => {
