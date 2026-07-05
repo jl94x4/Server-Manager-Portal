@@ -8,13 +8,13 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        background: '#0d1117', // Very dark slate/navy
-        card: '#161b22',       // Slightly lighter card background
-        border: '#30363d',     // Subtle border color
+        background: 'rgb(var(--color-bg) / <alpha-value>)',
+        card: 'rgb(var(--color-card) / <alpha-value>)',
+        border: 'rgb(var(--color-border) / <alpha-value>)',
         plex: 'rgb(var(--color-plex) / <alpha-value>)',       // Orange accent
         'plex-hover': 'rgb(var(--color-plex-hover) / <alpha-value>)',
-        text: '#c9d1d9',       // Primary text
-        muted: '#8b949e',      // Secondary/muted text
+        text: 'rgb(var(--color-text) / <alpha-value>)',
+        muted: 'rgb(var(--color-muted) / <alpha-value>)',
         status: {
           active: '#238636',
           expiring: '#d29922',

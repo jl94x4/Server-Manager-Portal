@@ -1718,6 +1718,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 requestAppApiKey: config.requestAppApiKey ? SECRET_MASK : '',
                 primaryColor: config.primaryColor || '#E5A00D',
                 customLogoUrl: config.customLogoUrl || '',
+                brandingTheme: config.brandingTheme || 'plex',
                 referralEnabled: !!config.referralEnabled,
                 referralTrialDays: config.referralTrialDays || 3,
                 referralRewardDays: config.referralRewardDays || 7,
@@ -1768,6 +1769,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 requestAppApiKey: '',
                 primaryColor: '#E5A00D',
                 customLogoUrl: '',
+                brandingTheme: 'plex',
                 referralEnabled: false,
                 referralTrialDays: 3,
                 referralRewardDays: 7,
@@ -1797,7 +1799,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, tautulliUrl, tautulliApiKey,
         requestAppType, requestAppUrl, requestAppApiKey,
         inactiveCleanupEnabled, inactiveCleanupDays,
-        primaryColor, customLogoUrl, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges,
+        primaryColor, customLogoUrl, brandingTheme, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges,
         autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, dashboardLayout
     } = req.body;
 
@@ -1903,6 +1905,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         requestAppApiKey: resolveSecret(requestAppApiKey, existingConfig.requestAppApiKey),
         primaryColor: primaryColor || '#E5A00D',
         customLogoUrl: customLogoUrl || '',
+        brandingTheme: ['plex', 'slate', 'nordic', 'emerald', 'amethyst', 'light'].includes(String(brandingTheme || '').toLowerCase()) ? String(brandingTheme).toLowerCase() : (existingConfig.brandingTheme || 'plex'),
         referralEnabled: !!referralEnabled,
         referralTrialDays: parseInt(referralTrialDays, 10) || 3,
         referralRewardDays: parseInt(referralRewardDays, 10) || 7,
@@ -1957,6 +1960,7 @@ app.get('/api/config/public', async (req, res) => {
         res.json({
             primaryColor: config.primaryColor || '#E5A00D',
             customLogoUrl: config.customLogoUrl || '',
+            brandingTheme: config.brandingTheme || 'plex',
             announcement: config.announcement || '',
             referralEnabled: !!config.referralEnabled,
             appVersion: appVersion,
@@ -1970,6 +1974,7 @@ app.get('/api/config/public', async (req, res) => {
         res.json({
             primaryColor: '#E5A00D',
             customLogoUrl: '',
+            brandingTheme: 'plex',
             announcement: '',
             referralEnabled: false,
             appVersion: appVersion,

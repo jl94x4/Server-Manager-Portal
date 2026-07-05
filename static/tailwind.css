@@ -554,23 +554,88 @@ video {
   display: none;
 }
 
-:root {
+:root, [data-theme="plex"] {
+  --color-bg: 13 17 23;
+  --color-card: 22 27 34;
+  --color-border: 48 54 61;
+  --color-text: 201 209 217;
+  --color-muted: 139 148 158;
   --color-plex: 229 160 13;
   --color-plex-hover: 240 168 16;
 }
 
+[data-theme="slate"] {
+  --color-bg: 15 23 42;
+  --color-card: 30 41 59;
+  --color-border: 51 65 85;
+  --color-text: 241 245 249;
+  --color-muted: 148 163 184;
+  --color-plex: 56 189 248;
+  --color-plex-hover: 14 165 233;
+}
+
+[data-theme="nordic"] {
+  --color-bg: 11 15 25;
+  --color-card: 20 27 45;
+  --color-border: 37 47 70;
+  --color-text: 229 231 235;
+  --color-muted: 156 163 175;
+  --color-plex: 129 140 248;
+  --color-plex-hover: 99 102 241;
+}
+
+[data-theme="emerald"] {
+  --color-bg: 2 44 34;
+  --color-card: 6 78 59;
+  --color-border: 4 120 87;
+  --color-text: 209 250 229;
+  --color-muted: 110 231 183;
+  --color-plex: 16 185 129;
+  --color-plex-hover: 5 150 105;
+}
+
+[data-theme="amethyst"] {
+  --color-bg: 15 23 42;
+  --color-card: 26 15 46;
+  --color-border: 59 38 90;
+  --color-text: 243 232 255;
+  --color-muted: 192 132 252;
+  --color-plex: 168 85 247;
+  --color-plex-hover: 147 51 234;
+}
+
+[data-theme="light"] {
+  --color-bg: 243 244 246;
+  --color-card: 255 255 255;
+  --color-border: 229 231 235;
+  --color-text: 17 24 39;
+  --color-muted: 107 114 128;
+  --color-plex: 229 160 13;
+  --color-plex-hover: 200 130 10;
+}
+
 body {
   --tw-bg-opacity: 1;
-  background-color: rgb(13 17 23 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--color-bg) / var(--tw-bg-opacity, 1));
   font-family: Inter, sans-serif;
   --tw-text-opacity: 1;
-  color: rgb(201 209 217 / var(--tw-text-opacity, 1));
+  color: rgb(var(--color-text) / var(--tw-text-opacity, 1));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
 }
 
 input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"] {
   color-scheme: dark;
+}
+
+[data-theme="light"] input[type="date"],
+  [data-theme="light"] input[type="time"],
+  [data-theme="light"] input[type="datetime-local"],
+  [data-theme="light"] input[type="month"] {
+  color-scheme: light;
 }
 
 .container {
@@ -613,7 +678,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-radius: 1rem;
   border-width: 1px;
   border-color: rgb(255 255 255 / 0.1);
-  background-color: rgb(22 27 34 / 0.7);
+  background-color: rgb(var(--color-card) / 0.7);
   --tw-backdrop-blur: blur(24px);
   backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
   box-shadow: 0 16px 48px -12px rgba(0, 0, 0, 0.45);
@@ -623,7 +688,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-radius: 0.75rem;
   border-width: 1px;
   border-color: rgb(255 255 255 / 0.1);
-  background-color: rgb(22 27 34 / 0.6);
+  background-color: rgb(var(--color-card) / 0.6);
   --tw-backdrop-blur: blur(16px);
   backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
   box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.4);
@@ -633,7 +698,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-radius: 1.5rem;
   border-width: 1px;
   border-color: rgb(255 255 255 / 0.1);
-  background-color: rgb(22 27 34 / 0.75);
+  background-color: rgb(var(--color-card) / 0.75);
   --tw-backdrop-blur: blur(40px);
   backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
   box-shadow: 0 32px 100px -16px rgba(0, 0, 0, 0.65);
@@ -671,7 +736,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
   --tw-gradient-to: #f59e0b var(--tw-gradient-to-position);
   --tw-text-opacity: 1;
-  color: rgb(13 17 23 / var(--tw-text-opacity, 1));
+  color: rgb(var(--color-bg) / var(--tw-text-opacity, 1));
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
@@ -717,7 +782,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
   --tw-gradient-to: #f59e0b var(--tw-gradient-to-position);
   --tw-text-opacity: 1;
-  color: rgb(13 17 23 / var(--tw-text-opacity, 1));
+  color: rgb(var(--color-bg) / var(--tw-text-opacity, 1));
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
@@ -760,7 +825,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-color: rgb(255 255 255 / 0.1);
   background-color: rgb(255 255 255 / 0.04);
   --tw-text-opacity: 1;
-  color: rgb(201 209 217 / var(--tw-text-opacity, 1));
+  color: rgb(var(--color-text) / var(--tw-text-opacity, 1));
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
@@ -789,13 +854,13 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-radius: 0.75rem;
   border-width: 1px;
   border-color: rgb(255 255 255 / 0.1);
-  background-color: rgb(13 17 23 / 0.7);
+  background-color: rgb(var(--color-bg) / 0.7);
   padding-left: 1rem;
   padding-right: 1rem;
   padding-top: 0.875rem;
   padding-bottom: 0.875rem;
   --tw-text-opacity: 1;
-  color: rgb(201 209 217 / var(--tw-text-opacity, 1));
+  color: rgb(var(--color-text) / var(--tw-text-opacity, 1));
   outline: 2px solid transparent;
   outline-offset: 2px;
   transition-property: all;
@@ -804,11 +869,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 }
 
 .input-premium::-moz-placeholder {
-  color: rgb(139 148 158 / 0.4);
+  color: rgb(var(--color-muted) / 0.4);
 }
 
 .input-premium::placeholder {
-  color: rgb(139 148 158 / 0.4);
+  color: rgb(var(--color-muted) / 0.4);
 }
 
 .input-premium:focus {
@@ -829,7 +894,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   text-transform: uppercase;
   letter-spacing: 0.14em;
   --tw-text-opacity: 1;
-  color: rgb(139 148 158 / var(--tw-text-opacity, 1));
+  color: rgb(var(--color-muted) / var(--tw-text-opacity, 1));
 }
 
 .badge-plex {
@@ -903,7 +968,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .nav-shell {
   border-color: rgb(255 255 255 / 0.1);
-  background-color: rgb(22 27 34 / 0.8);
+  background-color: rgb(var(--color-card) / 0.8);
   --tw-backdrop-blur: blur(40px);
   backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
 }
@@ -912,7 +977,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-radius: 1.5rem;
   border-width: 1px;
   border-color: rgb(255 255 255 / 0.1);
-  background-color: rgb(22 27 34 / 0.75);
+  background-color: rgb(var(--color-card) / 0.75);
   --tw-backdrop-blur: blur(40px);
   backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
   box-shadow: 0 32px 100px -16px rgba(0, 0, 0, 0.65);
@@ -933,7 +998,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-radius: 1rem;
   border-width: 1px;
   border-color: rgb(255 255 255 / 0.1);
-  background-color: rgb(22 27 34 / 0.7);
+  background-color: rgb(var(--color-card) / 0.7);
   --tw-backdrop-blur: blur(24px);
   backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
   box-shadow: 0 16px 48px -12px rgba(0, 0, 0, 0.45);
@@ -967,7 +1032,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   font-size: 0.875rem;
   line-height: 1.25rem;
   font-weight: 600;
-  color: rgb(201 209 217 / 0.9);
+  color: rgb(var(--color-text) / 0.9);
 }
 
 .settings-panel .mb-4 {
@@ -980,7 +1045,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 }
 
 .settings-panel h3 {
-  border-color: rgb(48 54 61 / 0.6);
+  border-color: rgb(var(--color-border) / 0.6);
   padding-bottom: 0.75rem;
   margin-bottom: 1.5rem;
 }
@@ -1200,6 +1265,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .right-2 {
   right: 0.5rem;
+}
+
+.right-2\.5 {
+  right: 0.625rem;
 }
 
 .right-3 {
@@ -2572,7 +2641,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 }
 
 .divide-border\/50 > :not([hidden]) ~ :not([hidden]) {
-  border-color: rgb(48 54 61 / 0.5);
+  border-color: rgb(var(--color-border) / 0.5);
 }
 
 .self-center {
@@ -2753,7 +2822,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 }
 
 .border-background\/50 {
-  border-color: rgb(13 17 23 / 0.5);
+  border-color: rgb(var(--color-bg) / 0.5);
 }
 
 .border-blue-500\/20 {
@@ -2766,27 +2835,27 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .border-border {
   --tw-border-opacity: 1;
-  border-color: rgb(48 54 61 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--color-border) / var(--tw-border-opacity, 1));
 }
 
 .border-border\/30 {
-  border-color: rgb(48 54 61 / 0.3);
+  border-color: rgb(var(--color-border) / 0.3);
 }
 
 .border-border\/40 {
-  border-color: rgb(48 54 61 / 0.4);
+  border-color: rgb(var(--color-border) / 0.4);
 }
 
 .border-border\/50 {
-  border-color: rgb(48 54 61 / 0.5);
+  border-color: rgb(var(--color-border) / 0.5);
 }
 
 .border-border\/60 {
-  border-color: rgb(48 54 61 / 0.6);
+  border-color: rgb(var(--color-border) / 0.6);
 }
 
 .border-border\/80 {
-  border-color: rgb(48 54 61 / 0.8);
+  border-color: rgb(var(--color-border) / 0.8);
 }
 
 .border-current {
@@ -2819,7 +2888,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .border-muted {
   --tw-border-opacity: 1;
-  border-color: rgb(139 148 158 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--color-muted) / var(--tw-border-opacity, 1));
 }
 
 .border-orange-500\/20 {
@@ -2978,31 +3047,31 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .bg-background {
   --tw-bg-opacity: 1;
-  background-color: rgb(13 17 23 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--color-bg) / var(--tw-bg-opacity, 1));
 }
 
 .bg-background\/20 {
-  background-color: rgb(13 17 23 / 0.2);
+  background-color: rgb(var(--color-bg) / 0.2);
 }
 
 .bg-background\/30 {
-  background-color: rgb(13 17 23 / 0.3);
+  background-color: rgb(var(--color-bg) / 0.3);
 }
 
 .bg-background\/40 {
-  background-color: rgb(13 17 23 / 0.4);
+  background-color: rgb(var(--color-bg) / 0.4);
 }
 
 .bg-background\/50 {
-  background-color: rgb(13 17 23 / 0.5);
+  background-color: rgb(var(--color-bg) / 0.5);
 }
 
 .bg-background\/60 {
-  background-color: rgb(13 17 23 / 0.6);
+  background-color: rgb(var(--color-bg) / 0.6);
 }
 
 .bg-background\/80 {
-  background-color: rgb(13 17 23 / 0.8);
+  background-color: rgb(var(--color-bg) / 0.8);
 }
 
 .bg-black {
@@ -3070,24 +3139,24 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .bg-border {
   --tw-bg-opacity: 1;
-  background-color: rgb(48 54 61 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--color-border) / var(--tw-bg-opacity, 1));
 }
 
 .bg-card {
   --tw-bg-opacity: 1;
-  background-color: rgb(22 27 34 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--color-card) / var(--tw-bg-opacity, 1));
 }
 
 .bg-card\/40 {
-  background-color: rgb(22 27 34 / 0.4);
+  background-color: rgb(var(--color-card) / 0.4);
 }
 
 .bg-card\/80 {
-  background-color: rgb(22 27 34 / 0.8);
+  background-color: rgb(var(--color-card) / 0.8);
 }
 
 .bg-card\/90 {
-  background-color: rgb(22 27 34 / 0.9);
+  background-color: rgb(var(--color-card) / 0.9);
 }
 
 .bg-emerald-500 {
@@ -3146,7 +3215,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .bg-muted {
   --tw-bg-opacity: 1;
-  background-color: rgb(139 148 158 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--color-muted) / var(--tw-bg-opacity, 1));
 }
 
 .bg-orange-500\/10 {
@@ -3354,8 +3423,8 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 }
 
 .from-card {
-  --tw-gradient-from: #161b22 var(--tw-gradient-from-position);
-  --tw-gradient-to: rgb(22 27 34 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-from: rgb(var(--color-card) / 1) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(var(--color-card) / 0) var(--tw-gradient-to-position);
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
 }
 
@@ -3453,13 +3522,13 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 }
 
 .via-card\/40 {
-  --tw-gradient-to: rgb(22 27 34 / 0)  var(--tw-gradient-to-position);
-  --tw-gradient-stops: var(--tw-gradient-from), rgb(22 27 34 / 0.4) var(--tw-gradient-via-position), var(--tw-gradient-to);
+  --tw-gradient-to: rgb(var(--color-card) / 0)  var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), rgb(var(--color-card) / 0.4) var(--tw-gradient-via-position), var(--tw-gradient-to);
 }
 
 .via-card\/80 {
-  --tw-gradient-to: rgb(22 27 34 / 0)  var(--tw-gradient-to-position);
-  --tw-gradient-stops: var(--tw-gradient-from), rgb(22 27 34 / 0.8) var(--tw-gradient-via-position), var(--tw-gradient-to);
+  --tw-gradient-to: rgb(var(--color-card) / 0)  var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), rgb(var(--color-card) / 0.8) var(--tw-gradient-via-position), var(--tw-gradient-to);
 }
 
 .via-gray-100 {
@@ -3496,7 +3565,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 }
 
 .to-background {
-  --tw-gradient-to: #0d1117 var(--tw-gradient-to-position);
+  --tw-gradient-to: rgb(var(--color-bg) / 1) var(--tw-gradient-to-position);
 }
 
 .to-blue-400 {
@@ -4156,7 +4225,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .text-background {
   --tw-text-opacity: 1;
-  color: rgb(13 17 23 / var(--tw-text-opacity, 1));
+  color: rgb(var(--color-bg) / var(--tw-text-opacity, 1));
 }
 
 .text-black {
@@ -4230,27 +4299,27 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .text-muted {
   --tw-text-opacity: 1;
-  color: rgb(139 148 158 / var(--tw-text-opacity, 1));
+  color: rgb(var(--color-muted) / var(--tw-text-opacity, 1));
 }
 
 .text-muted\/30 {
-  color: rgb(139 148 158 / 0.3);
+  color: rgb(var(--color-muted) / 0.3);
 }
 
 .text-muted\/50 {
-  color: rgb(139 148 158 / 0.5);
+  color: rgb(var(--color-muted) / 0.5);
 }
 
 .text-muted\/60 {
-  color: rgb(139 148 158 / 0.6);
+  color: rgb(var(--color-muted) / 0.6);
 }
 
 .text-muted\/70 {
-  color: rgb(139 148 158 / 0.7);
+  color: rgb(var(--color-muted) / 0.7);
 }
 
 .text-muted\/80 {
-  color: rgb(139 148 158 / 0.8);
+  color: rgb(var(--color-muted) / 0.8);
 }
 
 .text-orange-400 {
@@ -4332,11 +4401,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .text-text {
   --tw-text-opacity: 1;
-  color: rgb(201 209 217 / var(--tw-text-opacity, 1));
+  color: rgb(var(--color-text) / var(--tw-text-opacity, 1));
 }
 
 .text-text\/80 {
-  color: rgb(201 209 217 / 0.8);
+  color: rgb(var(--color-text) / 0.8);
 }
 
 .text-transparent {
@@ -4401,11 +4470,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 }
 
 .placeholder-muted\/50::-moz-placeholder {
-  color: rgb(139 148 158 / 0.5);
+  color: rgb(var(--color-muted) / 0.5);
 }
 
 .placeholder-muted\/50::placeholder {
-  color: rgb(139 148 158 / 0.5);
+  color: rgb(var(--color-muted) / 0.5);
 }
 
 .placeholder-white\/40::-moz-placeholder {
@@ -4995,13 +5064,13 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 ::-webkit-scrollbar-track {
   --tw-bg-opacity: 1;
-  background-color: rgb(13 17 23 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--color-bg) / var(--tw-bg-opacity, 1));
 }
 
 ::-webkit-scrollbar-thumb {
   border-radius: 0.25rem;
   --tw-bg-opacity: 1;
-  background-color: rgb(48 54 61 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--color-border) / var(--tw-bg-opacity, 1));
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -5065,7 +5134,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     border-radius: 1rem;
     border-width: 1px;
     border-color: rgb(255 255 255 / 0.1);
-    background-color: rgb(22 27 34 / 0.7);
+    background-color: rgb(var(--color-card) / 0.7);
     --tw-backdrop-blur: blur(24px);
     backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
     box-shadow: 0 16px 48px -12px rgba(0, 0, 0, 0.45);
@@ -5078,7 +5147,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     font-size: 0.875rem;
     line-height: 1.25rem;
     font-weight: 600;
-    color: rgb(201 209 217 / 0.9);
+    color: rgb(var(--color-text) / 0.9);
   }
 
   .settings-panel .md\:mb-4 {
@@ -5131,7 +5200,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .file\:text-text::file-selector-button {
   --tw-text-opacity: 1;
-  color: rgb(201 209 217 / var(--tw-text-opacity, 1));
+  color: rgb(var(--color-text) / var(--tw-text-opacity, 1));
 }
 
 .last\:mb-0:last-child {
@@ -5210,7 +5279,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 .checked\:after\:bg-background:checked::after {
   content: var(--tw-content);
   --tw-bg-opacity: 1;
-  background-color: rgb(13 17 23 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--color-bg) / var(--tw-bg-opacity, 1));
 }
 
 .checked\:after\:content-\[\'\'\]:checked::after {
@@ -5263,15 +5332,15 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 }
 
 .hover\:bg-background\/50:hover {
-  background-color: rgb(13 17 23 / 0.5);
+  background-color: rgb(var(--color-bg) / 0.5);
 }
 
 .hover\:bg-background\/60:hover {
-  background-color: rgb(13 17 23 / 0.6);
+  background-color: rgb(var(--color-bg) / 0.6);
 }
 
 .hover\:bg-background\/80:hover {
-  background-color: rgb(13 17 23 / 0.8);
+  background-color: rgb(var(--color-bg) / 0.8);
 }
 
 .hover\:bg-black\/30:hover {
@@ -5399,7 +5468,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .hover\:text-text:hover {
   --tw-text-opacity: 1;
-  color: rgb(201 209 217 / var(--tw-text-opacity, 1));
+  color: rgb(var(--color-text) / var(--tw-text-opacity, 1));
 }
 
 .hover\:text-white:hover {
@@ -6320,7 +6389,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .md\:text-text {
     --tw-text-opacity: 1;
-    color: rgb(201 209 217 / var(--tw-text-opacity, 1));
+    color: rgb(var(--color-text) / var(--tw-text-opacity, 1));
   }
 }
 

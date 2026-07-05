@@ -239,6 +239,7 @@ export const SettingsDashboard: React.FC = () => {
     // Branding & UI States
     const [primaryColor, setPrimaryColor] = useState('#E5A00D');
     const [customLogoUrl, setCustomLogoUrl] = useState('');
+    const [brandingTheme, setBrandingTheme] = useState('plex');
     const [referralEnabled, setReferralEnabled] = useState(false);
     const [referralTrialDays, setReferralTrialDays] = useState(3);
     const [referralRewardDays, setReferralRewardDays] = useState(7);
@@ -677,6 +678,7 @@ export const SettingsDashboard: React.FC = () => {
             setRequestAppApiKey(initialSettings.requestAppApiKey || '');
             setPrimaryColor(initialSettings.primaryColor || '#E5A00D');
             setCustomLogoUrl(initialSettings.customLogoUrl || '');
+            setBrandingTheme(initialSettings.brandingTheme || 'plex');
             setReferralEnabled(!!initialSettings.referralEnabled);
             setReferralTrialDays(initialSettings.referralTrialDays || 3);
             setReferralRewardDays(initialSettings.referralRewardDays || 7);
@@ -791,6 +793,7 @@ export const SettingsDashboard: React.FC = () => {
             requestAppApiKey,
             primaryColor,
             customLogoUrl,
+            brandingTheme,
             referralEnabled,
             referralTrialDays,
             referralRewardDays,
@@ -1446,6 +1449,25 @@ export const SettingsDashboard: React.FC = () => {
                                 </div>
                                 <div className="mt-2">
                                     <SettingHint>Provide a URL or upload a file. (Max 5MB)</SettingHint>
+                                </div>
+                            </div>
+                            <div className="mb-4">
+                                <label htmlFor="defaultThemeSelect">Default Portal Theme</label>
+                                <CustomSelect
+                                    id="defaultThemeSelect"
+                                    value={brandingTheme}
+                                    onChange={setBrandingTheme}
+                                    options={[
+                                        { label: 'Plex Dark', value: 'plex' },
+                                        { label: 'Sleek Slate', value: 'slate' },
+                                        { label: 'Nordic Frost', value: 'nordic' },
+                                        { label: 'Vibrant Emerald', value: 'emerald' },
+                                        { label: 'Amethyst', value: 'amethyst' },
+                                        { label: 'Plex Light', value: 'light' },
+                                    ]}
+                                />
+                                <div className="mt-2">
+                                    <SettingHint>The default theme applied to new visitors and users. Users can still customize their local theme preference in the navigation menu.</SettingHint>
                                 </div>
                             </div>
 

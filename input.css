@@ -3,15 +3,79 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root, [data-theme="plex"] {
+    --color-bg: 13 17 23;
+    --color-card: 22 27 34;
+    --color-border: 48 54 61;
+    --color-text: 201 209 217;
+    --color-muted: 139 148 158;
     --color-plex: 229 160 13;
     --color-plex-hover: 240 168 16;
   }
-  body {
-    @apply bg-background text-text font-sans antialiased;
+
+  [data-theme="slate"] {
+    --color-bg: 15 23 42;
+    --color-card: 30 41 59;
+    --color-border: 51 65 85;
+    --color-text: 241 245 249;
+    --color-muted: 148 163 184;
+    --color-plex: 56 189 248;
+    --color-plex-hover: 14 165 233;
   }
+
+  [data-theme="nordic"] {
+    --color-bg: 11 15 25;
+    --color-card: 20 27 45;
+    --color-border: 37 47 70;
+    --color-text: 229 231 235;
+    --color-muted: 156 163 175;
+    --color-plex: 129 140 248;
+    --color-plex-hover: 99 102 241;
+  }
+
+  [data-theme="emerald"] {
+    --color-bg: 2 44 34;
+    --color-card: 6 78 59;
+    --color-border: 4 120 87;
+    --color-text: 209 250 229;
+    --color-muted: 110 231 183;
+    --color-plex: 16 185 129;
+    --color-plex-hover: 5 150 105;
+  }
+
+  [data-theme="amethyst"] {
+    --color-bg: 15 23 42;
+    --color-card: 26 15 46;
+    --color-border: 59 38 90;
+    --color-text: 243 232 255;
+    --color-muted: 192 132 252;
+    --color-plex: 168 85 247;
+    --color-plex-hover: 147 51 234;
+  }
+
+  [data-theme="light"] {
+    --color-bg: 243 244 246;
+    --color-card: 255 255 255;
+    --color-border: 229 231 235;
+    --color-text: 17 24 39;
+    --color-muted: 107 114 128;
+    --color-plex: 229 160 13;
+    --color-plex-hover: 200 130 10;
+  }
+
+  body {
+    @apply bg-background text-text font-sans antialiased transition-colors duration-200;
+  }
+
   input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"] {
     color-scheme: dark;
+  }
+
+  [data-theme="light"] input[type="date"],
+  [data-theme="light"] input[type="time"],
+  [data-theme="light"] input[type="datetime-local"],
+  [data-theme="light"] input[type="month"] {
+    color-scheme: light;
   }
 }
 
