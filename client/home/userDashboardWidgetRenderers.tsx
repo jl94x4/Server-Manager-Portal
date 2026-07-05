@@ -17,6 +17,7 @@ import { getPublicOrigin } from '../shared/basePath';
 import type { MainGridWidgetId, RecentlyAddedWidgetId } from '../shared/dashboardLayout';
 import { LibraryStatsSkeleton } from '../shared/skeletons';
 import { PeriodDropdown } from '../shared/PeriodDropdown';
+import { ScrollReveal } from '../shared/ui';
 
 type PosterCardProps = {
     item: { title: string; thumb?: string; plexUrl: string; tags?: string[]; year?: number | string; parentTitle?: string };
@@ -488,7 +489,7 @@ const RecentlyAddedScrollRow: React.FC<{ title: string; children: React.ReactNod
 };
 
 export const createRecentlyAddedWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
-    const { dashboardData, showQualityBadges, DiscoverPosterCard } = deps;
+    const { dashboardData, showQualityBadges, DiscoverPosterCard, publicConfig } = deps;
 
     return (id: RecentlyAddedWidgetId): React.ReactNode => {
         if (!dashboardData) return null;
@@ -496,7 +497,8 @@ export const createRecentlyAddedWidgetRenderer = (deps: UserDashboardWidgetDeps)
             case 'recentMovies':
                 if (!dashboardData.recentMovies?.length) return null;
                 return (
-                    <RecentlyAddedScrollRow title="Recently Added Movies">
+                    <ScrollReveal enabled={!!publicConfig?.useScrollRevealAnimations}>
+                        <RecentlyAddedScrollRow title="Recently Added Movies">
                         {dashboardData.recentMovies.map((item: any, idx: number) => (
                             <DiscoverPosterCard
                                 key={idx}
@@ -513,11 +515,13 @@ export const createRecentlyAddedWidgetRenderer = (deps: UserDashboardWidgetDeps)
                             />
                         ))}
                     </RecentlyAddedScrollRow>
+                    </ScrollReveal>
                 );
             case 'recentShows':
                 if (!dashboardData.recentShows?.length) return null;
                 return (
-                    <RecentlyAddedScrollRow title="Recently Added TV Shows">
+                    <ScrollReveal enabled={!!publicConfig?.useScrollRevealAnimations}>
+                        <RecentlyAddedScrollRow title="Recently Added TV Shows">
                         {dashboardData.recentShows.map((item: any, idx: number) => (
                             <DiscoverPosterCard
                                 key={idx}
@@ -534,11 +538,13 @@ export const createRecentlyAddedWidgetRenderer = (deps: UserDashboardWidgetDeps)
                             />
                         ))}
                     </RecentlyAddedScrollRow>
+                    </ScrollReveal>
                 );
             case 'recentMusic':
                 if (!dashboardData.recentMusic?.length) return null;
                 return (
-                    <RecentlyAddedScrollRow title="Recently Added Music">
+                    <ScrollReveal enabled={!!publicConfig?.useScrollRevealAnimations}>
+                        <RecentlyAddedScrollRow title="Recently Added Music">
                         {dashboardData.recentMusic.map((item: any, idx: number) => (
                             <DiscoverPosterCard
                                 key={idx}
@@ -556,6 +562,7 @@ export const createRecentlyAddedWidgetRenderer = (deps: UserDashboardWidgetDeps)
                             />
                         ))}
                     </RecentlyAddedScrollRow>
+                    </ScrollReveal>
                 );
             default:
                 return null;

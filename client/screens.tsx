@@ -9,7 +9,7 @@ import { appConfirm } from './shared/confirm';
 import { apiFetch } from './shared/api';
 import { getPublicOrigin, logoUrl, portalUrl, resolvePortalAssetUrl, stripBasePath } from './shared/basePath';
 import { formatDate, getDaysUntilExpiry, getAccessProgressPct, addMonths, addYears, formatTime, formatEventName, formatDateTime, hexToRgb, formatSizeCeil, formatStreamingHour } from './shared/format';
-import { CustomSelect, ConfirmModal, StyledCheckbox } from './shared/ui';
+import { CustomSelect, ConfirmModal, StyledCheckbox, ScrollReveal } from './shared/ui';
 import { PeriodDropdown } from './shared/PeriodDropdown';
 import { Loader, Toast, ToastContainer, pushToast } from './shared/toast';
 import {
@@ -4348,10 +4348,10 @@ const DISCOVER_LIMIT_OPTIONS = [
     { value: '250', label: '250 Items' },
 ];
 
-const TrendingDiscoverSection: React.FC<{ title: string; items: any[]; limit: number; showQualityBadges?: boolean }> = ({ title, items, limit, showQualityBadges = true }) => {
+const TrendingDiscoverSection: React.FC<{ title: string; items: any[]; limit: number; showQualityBadges?: boolean; useScrollRevealAnimations?: boolean }> = ({ title, items, limit, showQualityBadges = true, useScrollRevealAnimations }) => {
     if (!items?.length) return null;
     return (
-        <div className="flex flex-col">
+        <ScrollReveal enabled={!!useScrollRevealAnimations} className="flex flex-col">
             <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">{title}</h3>
             <div className={discoverPosterGridClass}>
                 {items.slice(0, limit).map((item, i) => (
@@ -4363,7 +4363,7 @@ const TrendingDiscoverSection: React.FC<{ title: string; items: any[]; limit: nu
                     />
                 ))}
             </div>
-        </div>
+        </ScrollReveal>
     );
 };
 
@@ -5690,7 +5690,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
 
                 <div className="flex flex-col gap-12 w-full">
                     {/* RECENT MOVIES */}
-                    <div className="flex flex-col">
+                    <ScrollReveal enabled={!!publicConfig?.useScrollRevealAnimations} className="flex flex-col">
                         <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">RECENTLY ADDED MOVIES</h2>
                         <div className={discoverPosterGridClass}>
                             {dashboardData && dashboardData.recentMovies.slice(0, recentLimit).map((item, i) => (
@@ -5698,10 +5698,10 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                             ))}
                             {(!dashboardData || dashboardData.recentMovies.length === 0) && <div className="text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full col-span-full">No recent movies</div>}
                         </div>
-                    </div>
+                    </ScrollReveal>
 
                     {/* RECENT TV SHOWS */}
-                    <div className="flex flex-col">
+                    <ScrollReveal enabled={!!publicConfig?.useScrollRevealAnimations} className="flex flex-col">
                         <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">{isJellyfinPortal ? 'RECENTLY ADDED EPISODES' : 'RECENTLY ADDED TV SHOWS'}</h2>
                         <div className={discoverPosterGridClass}>
                             {dashboardData && dashboardData.recentShows.slice(0, recentLimit).map((item, i) => (
@@ -5709,10 +5709,10 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                             ))}
                             {(!dashboardData || dashboardData.recentShows.length === 0) && <div className="text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full col-span-full">{isJellyfinPortal ? 'No recent episodes' : 'No recent TV shows'}</div>}
                         </div>
-                    </div>
+                    </ScrollReveal>
 
                     {/* RECENT MUSIC */}
-                    <div className="flex flex-col">
+                    <ScrollReveal enabled={!!publicConfig?.useScrollRevealAnimations} className="flex flex-col">
                         <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">RECENTLY ADDED MUSIC</h2>
                         <div className={discoverPosterGridClass}>
                             {dashboardData && dashboardData.recentMusic.slice(0, recentLimit).map((item, i) => (
@@ -5720,7 +5720,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                             ))}
                             {(!dashboardData || dashboardData.recentMusic.length === 0) && <div className="text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full col-span-full">No recent music</div>}
                         </div>
-                    </div>
+                    </ScrollReveal>
                 </div>
 
                 {/* SERVER WIDE STATS SECTION */}
@@ -5733,15 +5733,15 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                             <p className="text-muted text-sm max-w-xl">A look at what the community is currently watching across the entire server.</p>
                         </div>
 
-                        <TrendingDiscoverSection title="🔥 Trending This Week" items={trendingStats.trending7Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection title="🍿 Most Watched Movies (This Month)" items={trendingStats.movies30Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection title="📺 Most Watched Shows (This Month)" items={trendingStats.shows30Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection title="🏆 Top of the Year" items={trendingStats.top365Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection title="🌟 All Time Favorites" items={trendingStats.allTime} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection title="🍿 Weekend Warriors" items={trendingStats.weekendWarriors} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection title="🦇 Night Owl Club" items={trendingStats.nightOwls} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection title="📼 Blast from the Past" items={trendingStats.retroHits} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection title="💎 Cult Classics" items={trendingStats.cultClassics} limit={recentLimit} showQualityBadges={showQualityBadges} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🔥 Trending This Week" items={trendingStats.trending7Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🍿 Most Watched Movies (This Month)" items={trendingStats.movies30Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="📺 Most Watched Shows (This Month)" items={trendingStats.shows30Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🏆 Top of the Year" items={trendingStats.top365Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🌟 All Time Favorites" items={trendingStats.allTime} limit={recentLimit} showQualityBadges={showQualityBadges} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🍿 Weekend Warriors" items={trendingStats.weekendWarriors} limit={recentLimit} showQualityBadges={showQualityBadges} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🦇 Night Owl Club" items={trendingStats.nightOwls} limit={recentLimit} showQualityBadges={showQualityBadges} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="📼 Blast from the Past" items={trendingStats.retroHits} limit={recentLimit} showQualityBadges={showQualityBadges} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="💎 Cult Classics" items={trendingStats.cultClassics} limit={recentLimit} showQualityBadges={showQualityBadges} />
                     </div>
                 )}
             </main>

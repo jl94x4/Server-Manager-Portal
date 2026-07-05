@@ -304,6 +304,7 @@ export const SettingsDashboard: React.FC = () => {
     const [primaryColor, setPrimaryColor] = useState(BRAND_THEME_COLORS.plex);
     const [customLogoUrl, setCustomLogoUrl] = useState('');
     const [backgroundImageUrl, setBackgroundImageUrl] = useState('');
+    const [useScrollRevealAnimations, setUseScrollRevealAnimations] = useState(false);
     const [useTrendingSlideshow, setUseTrendingSlideshow] = useState(false);
     const [trendingSlideshowInterval, setTrendingSlideshowInterval] = useState(30);
     const [tmdbApiKey, setTmdbApiKey] = useState('');
@@ -760,6 +761,7 @@ export const SettingsDashboard: React.FC = () => {
             setPrimaryColor(initialSettings.primaryColor || BRAND_THEME_COLORS.plex);
             setCustomLogoUrl(initialSettings.customLogoUrl || '');
             setBackgroundImageUrl(initialSettings.backgroundImageUrl || '');
+            setUseScrollRevealAnimations(!!initialSettings.useScrollRevealAnimations);
             setUseTrendingSlideshow(!!initialSettings.useTrendingSlideshow);
             setTrendingSlideshowInterval(initialSettings.trendingSlideshowInterval || 30);
             setTmdbApiKey(initialSettings.tmdbApiKey || '');
@@ -889,6 +891,7 @@ export const SettingsDashboard: React.FC = () => {
             customLogoUrl,
             brandingTheme,
             backgroundImageUrl,
+            useScrollRevealAnimations,
             useTrendingSlideshow,
             trendingSlideshowInterval,
             tmdbApiKey,
@@ -1705,6 +1708,24 @@ export const SettingsDashboard: React.FC = () => {
                                 />
                                 <div className="mt-2">
                                     <SettingHint>The default theme applied to new visitors and users. Users can still customize their local theme preference in the navigation menu.</SettingHint>
+                                </div>
+                            </div>
+
+                            <div className="mb-4 p-4 rounded-lg border border-border bg-card">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <label className="mb-0">Enable Scroll Reveal Animations</label>
+                                        <SettingHint>Smoothly slide elements into place as you scroll down the dashboard.</SettingHint>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="sr-only peer"
+                                            checked={useScrollRevealAnimations}
+                                            onChange={e => setUseScrollRevealAnimations(e.target.checked)}
+                                        />
+                                        <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
+                                    </label>
                                 </div>
                             </div>
 
