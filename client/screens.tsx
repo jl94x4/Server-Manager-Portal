@@ -5199,17 +5199,12 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
                 )}
 
                 {activeTab === 'history' && (
-                    <div className="flex flex-col gap-6 animate-fade-in">
-                        <div className="flex flex-col md:flex-row md:items-center gap-4">
-                            <label className="font-bold text-muted uppercase tracking-widest text-sm">Select Service</label>
-                            <ServiceCustomSelect
-                                value={selectedServiceId || ''}
-                                onChange={setSelectedServiceId}
-                                options={services.map((s: any) => ({ id: s.id, name: s.name }))}
-                            />
-                        </div>
-                        {selectedServiceId && (
-                            <div className="bg-card border border-white/5 shadow-2xl rounded-2xl overflow-hidden mt-4">
+                    <div className="flex flex-col gap-8 animate-fade-in">
+                        {services.map((service: any) => (
+                            <div key={service.id} className="bg-card border border-white/5 shadow-2xl rounded-2xl overflow-hidden mt-4">
+                                <div className="p-4 bg-black/20 border-b border-border/50">
+                                    <h3 className="text-lg font-bold text-plex uppercase tracking-wider">{service.name}</h3>
+                                </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left border-collapse">
                                         <thead className="bg-black/40 border-b border-border text-muted text-xs uppercase tracking-wider">
@@ -5221,7 +5216,7 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-border/50">
-                                            {Object.entries(healthData[selectedServiceId]?.dailyHistory || {})
+                                            {Object.entries(healthData[service.id]?.dailyHistory || {})
                                                 .sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime())
                                                 .map(([dateStr, stat]: [string, any]) => {
                                                     const pct = stat.total > 0 ? (stat.up / stat.total) * 100 : 0;
@@ -5242,23 +5237,15 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
                                     </table>
                                 </div>
                             </div>
-                        )}
+                        ))}
                     </div>
                 )}
 
                 {activeTab === 'analytics' && (
-                    <div className="flex flex-col gap-6 animate-fade-in">
-                        <div className="flex flex-col md:flex-row md:items-center gap-4">
-                            <label className="font-bold text-muted uppercase tracking-widest text-sm">Select Service</label>
-                            <ServiceCustomSelect
-                                value={selectedServiceId || ''}
-                                onChange={setSelectedServiceId}
-                                options={services.map((s: any) => ({ id: s.id, name: s.name }))}
-                            />
-                        </div>
-                        {selectedServiceId && (
-                            <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 md:p-10 mt-4">
-                                <h3 className="text-xl font-bold mb-10 text-center text-muted tracking-widest uppercase">90-Day Uptime Trend</h3>
+                    <div className="flex flex-col gap-8 animate-fade-in">
+                        {services.map((service: any) => (
+                            <div key={service.id} className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 md:p-10 mt-4">
+                                <h3 className="text-xl font-bold mb-10 text-center text-muted tracking-widest uppercase">{service.name} - 90-Day Uptime Trend</h3>
                                 <div className="relative h-64 md:h-80 flex items-end gap-1 w-full pl-12 pr-4 md:pr-8">
                                     {/* Grid lines */}
                                     <div className="absolute inset-0 pl-12 pr-4 md:pr-8 flex flex-col justify-between pointer-events-none pb-8">
@@ -5285,7 +5272,7 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
                                             const d = new Date();
                                             d.setDate(d.getDate() - (89 - i));
                                             const dateStr = d.toISOString().split('T')[0];
-                                            const stat = healthData[selectedServiceId]?.dailyHistory?.[dateStr];
+                                            const stat = healthData[service.id]?.dailyHistory?.[dateStr];
                                             const pct = stat && stat.total > 0 ? (stat.up / stat.total) * 100 : 0;
 
                                             return (
@@ -5311,7 +5298,7 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
                                     <span>Today</span>
                                 </div>
                             </div>
-                        )}
+                        ))}
                     </div>
                 )}
             </main>
