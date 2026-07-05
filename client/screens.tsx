@@ -2028,8 +2028,7 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
     const mediaServerType = String(sessionInfo?.mediaServerType || 'plex').toLowerCase();
     const isJellyfinPortal = mediaServerType === 'jellyfin';
     const analyticsSourceLabel = isJellyfinPortal ? 'Jellystat' : 'Tautulli';
-    
-    const libraryDeltas = useLibraryDelta(analyticsData?.libraryHealth);
+    const libraryDeltas = (analyticsData?.libraryHealth as any)?.deltas || {};
 
     const resolveUserAvatar = (thumb: string | null | undefined, width = 80, height = 80) => {
         if (!thumb) return logoUrl();
