@@ -1812,8 +1812,9 @@ const TautulliGraphsTab: React.FC = () => {
 const ServerInsightsWidget: React.FC<{
     peakHours: number[],
     tautulliData: any,
-    compare: any
-}> = ({ peakHours, tautulliData, compare }) => {
+    compare: any,
+    analyticsSourceLabel: string
+}> = ({ peakHours, tautulliData, compare, analyticsSourceLabel }) => {
     
     // Format chart data
     const chartData = peakHours ? peakHours.map((count, hour) => {
@@ -1868,24 +1869,58 @@ const ServerInsightsWidget: React.FC<{
             </div>
 
             {/* Server Records Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="glass-card-sm p-4 flex flex-col justify-center">
-                    <span className="text-muted text-[10px] sm:text-xs uppercase tracking-wider font-bold mb-1 flex items-center gap-1.5"><Tv className="w-3 h-3"/> All-Time Streams</span>
-                    <p className="text-2xl font-black text-text">{tautulliData?.streamsRecord || 0} <span className="text-sm font-normal text-muted">concurrent</span></p>
+            {tautulliData && (
+                <div className="glass-card-sm p-4 md:p-6 w-full flex flex-col relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-3 opacity-5 pointer-events-none">
+                        <Activity className="w-48 h-48 text-[#3b82f6]" />
+                    </div>
+                    <h3 className="text-sm font-bold text-muted uppercase tracking-wider mb-4 flex items-center gap-2 relative z-10">
+                        <Activity className="w-4 h-4 text-[#3b82f6]" /> {analyticsSourceLabel} Records & Period Stats
+                    </h3>
+                    <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 relative z-10">
+                        <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
+                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Users className="w-3 h-3 text-[#3b82f6]"/> Peak Streams</span>
+                            <p className="text-xl font-black text-[#3b82f6]">{tautulliData?.streamsRecord || 0} <span className="text-[9px] font-normal text-muted">concurrent</span></p>
+                        </div>
+                        <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
+                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Clock className="w-3 h-3 text-green-400"/> Watch Time</span>
+                            <p className="text-base font-black text-green-400 leading-tight">{tautulliData?.totalTimeStr || '0 mins'}</p>
+                        </div>
+                        <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
+                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><TrendingUp className="w-3 h-3 text-yellow-400"/> Period Plays</span>
+                            <p className="text-xl font-black text-yellow-400 flex items-center">{compare?.totalPlaybacks?.current || 0} {formatChange(compare?.totalPlaybacks)}</p>
+                        </div>
+                        <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
+                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Users className="w-3 h-3 text-pink-400"/> Unique Viewers</span>
+                            <p className="text-xl font-black text-pink-400 flex items-center">{compare?.uniqueViewers?.current || 0} {formatChange(compare?.uniqueViewers)}</p>
+                        </div>
+                        <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
+                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Monitor className="w-3 h-3 text-cyan-400" /> Peak Direct Plays</span>
+                            <p className="font-mono font-black text-cyan-400 text-xl">{tautulliData?.directPlayRecord || 0}</p>
+                        </div>
+                        <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
+                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Activity className="w-3 h-3 text-orange-400" /> Peak Direct Streams</span>
+                            <p className="font-mono font-black text-orange-400 text-xl">{tautulliData?.directStreamRecord || 0}</p>
+                        </div>
+                        <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
+                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Settings className="w-3 h-3 text-rose-400" /> Peak Transcodes</span>
+                            <p className="font-mono font-black text-rose-400 text-xl">{tautulliData?.transcodeRecord || 0}</p>
+                        </div>
+                        <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
+                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><PlaySquare className="w-3 h-3 text-purple-400" /> TV Shows Played</span>
+                            <p className="font-mono font-black text-purple-400 text-xl">{tautulliData?.tvPlays ? tautulliData.tvPlays.toLocaleString() : 0}</p>
+                        </div>
+                        <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
+                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Film className="w-3 h-3 text-red-400" /> Movies Played</span>
+                            <p className="font-mono font-black text-red-400 text-xl">{tautulliData?.moviePlays ? tautulliData.moviePlays.toLocaleString() : 0}</p>
+                        </div>
+                        <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
+                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Music className="w-3 h-3 text-emerald-400" /> Music Played</span>
+                            <p className="font-mono font-black text-emerald-400 text-xl">{tautulliData?.musicPlays ? tautulliData.musicPlays.toLocaleString() : 0}</p>
+                        </div>
+                    </div>
                 </div>
-                <div className="glass-card-sm p-4 flex flex-col justify-center">
-                    <span className="text-muted text-[10px] sm:text-xs uppercase tracking-wider font-bold mb-1 flex items-center gap-1.5"><Clock className="w-3 h-3"/> Total Watch Time</span>
-                    <p className="text-lg sm:text-xl font-black text-text leading-tight">{tautulliData?.totalTimeStr || '0 mins'}</p>
-                </div>
-                <div className="glass-card-sm p-4 flex flex-col justify-center">
-                    <span className="text-muted text-[10px] sm:text-xs uppercase tracking-wider font-bold mb-1 flex items-center gap-1.5"><TrendingUp className="w-3 h-3"/> Period Plays</span>
-                    <p className="text-2xl font-black text-text flex items-center">{compare?.totalPlaybacks?.current || 0} {formatChange(compare?.totalPlaybacks)}</p>
-                </div>
-                <div className="glass-card-sm p-4 flex flex-col justify-center">
-                    <span className="text-muted text-[10px] sm:text-xs uppercase tracking-wider font-bold mb-1 flex items-center gap-1.5"><Users className="w-3 h-3"/> Unique Viewers</span>
-                    <p className="text-2xl font-black text-text flex items-center">{compare?.uniqueViewers?.current || 0} {formatChange(compare?.uniqueViewers)}</p>
-                </div>
-            </div>
+            )}
         </div>
     );
 };
@@ -2347,6 +2382,7 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
                             peakHours={analyticsData?.peakHours || []} 
                             tautulliData={tautulliData} 
                             compare={analyticsData?.compare} 
+                            analyticsSourceLabel={analyticsSourceLabel}
                         />
 
                         {/* Top Devices & Libraries Container */}
@@ -2392,49 +2428,7 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
                             )}
                         </div>
 
-                        {/* Media Analytics Insights Card */}
-                        {tautulliData && (
-                            <div className="glass-card-sm p-4 md:p-6 col-span-full relative overflow-hidden">
-                                <div className="absolute top-0 right-0 p-3 opacity-10 pointer-events-none">
-                                    <Activity className="w-32 h-32 text-[#3b82f6]" />
-                                </div>
-                                <h2 className="text-xl font-bold text-text mb-6 uppercase tracking-wider flex items-center gap-2 relative z-10"><Activity className="text-[#3b82f6] w-5 h-5" /> {analyticsSourceLabel} Insights</h2>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 relative z-10">
-                                    <div className="flex flex-col p-4 bg-black/20 rounded-lg border border-white/5 shadow-inner">
-                                        <span className="font-bold text-muted text-xs uppercase tracking-wider mb-2 flex items-center gap-2"><Users className="w-4 h-4 text-[#3b82f6]" /> Peak Streams</span>
-                                        <span className="font-mono font-black text-[#3b82f6] text-3xl">{tautulliData.streamsRecord || 0}</span>
-                                    </div>
-                                    <div className="flex flex-col p-4 bg-black/20 rounded-lg border border-white/5 shadow-inner">
-                                        <span className="font-bold text-muted text-xs uppercase tracking-wider mb-2 flex items-center gap-2"><Clock className="w-4 h-4 text-green-400" /> Watch Time</span>
-                                        <span className="font-mono font-black text-green-400 text-sm xl:text-lg leading-tight mt-auto">{tautulliData.totalTimeStr || '0 hrs'}</span>
-                                    </div>
-                                    <div className="flex flex-col p-4 bg-black/20 rounded-lg border border-white/5 shadow-inner">
-                                        <span className="font-bold text-muted text-xs uppercase tracking-wider mb-2 flex items-center gap-2"><PlaySquare className="w-4 h-4 text-purple-400" /> TV Shows Played</span>
-                                        <span className="font-mono font-black text-purple-400 text-3xl">{tautulliData.tvPlays ? tautulliData.tvPlays.toLocaleString() : 0}</span>
-                                    </div>
-                                    <div className="flex flex-col p-4 bg-black/20 rounded-lg border border-white/5 shadow-inner">
-                                        <span className="font-bold text-muted text-xs uppercase tracking-wider mb-2 flex items-center gap-2"><Film className="w-4 h-4 text-red-400" /> Movies Played</span>
-                                        <span className="font-mono font-black text-red-400 text-3xl">{tautulliData.moviePlays ? tautulliData.moviePlays.toLocaleString() : 0}</span>
-                                    </div>
-                                    <div className="flex flex-col p-4 bg-black/20 rounded-lg border border-white/5 shadow-inner">
-                                        <span className="font-bold text-muted text-xs uppercase tracking-wider mb-2 flex items-center gap-2"><Monitor className="w-4 h-4 text-cyan-400" /> Peak Direct Plays</span>
-                                        <span className="font-mono font-black text-cyan-400 text-3xl">{tautulliData.directPlayRecord || 0}</span>
-                                    </div>
-                                    <div className="flex flex-col p-4 bg-black/20 rounded-lg border border-white/5 shadow-inner">
-                                        <span className="font-bold text-muted text-xs uppercase tracking-wider mb-2 flex items-center gap-2"><Activity className="w-4 h-4 text-orange-400" /> Peak Direct Streams</span>
-                                        <span className="font-mono font-black text-orange-400 text-3xl">{tautulliData.directStreamRecord || 0}</span>
-                                    </div>
-                                    <div className="flex flex-col p-4 bg-black/20 rounded-lg border border-white/5 shadow-inner">
-                                        <span className="font-bold text-muted text-xs uppercase tracking-wider mb-2 flex items-center gap-2"><Settings className="w-4 h-4 text-rose-400" /> Peak Transcodes</span>
-                                        <span className="font-mono font-black text-rose-400 text-3xl">{tautulliData.transcodeRecord || 0}</span>
-                                    </div>
-                                    <div className="flex flex-col p-4 bg-black/20 rounded-lg border border-white/5 shadow-inner">
-                                        <span className="font-bold text-muted text-xs uppercase tracking-wider mb-2 flex items-center gap-2"><Music className="w-4 h-4 text-yellow-400" /> Music Played</span>
-                                        <span className="font-mono font-black text-yellow-400 text-3xl">{tautulliData.musicPlays ? tautulliData.musicPlays.toLocaleString() : 0}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+
 
                         {/* Trending Content Card */}
                         <div className="glass-card-sm p-4 md:p-6 col-span-full">

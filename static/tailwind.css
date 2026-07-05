@@ -4396,6 +4396,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   color: rgb(251 146 60 / var(--tw-text-opacity, 1));
 }
 
+.text-pink-400 {
+  --tw-text-opacity: 1;
+  color: rgb(244 114 182 / var(--tw-text-opacity, 1));
+}
+
 .text-plex {
   --tw-text-opacity: 1;
   color: rgb(var(--color-plex) / var(--tw-text-opacity, 1));
@@ -4560,10 +4565,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .opacity-0 {
   opacity: 0;
-}
-
-.opacity-10 {
-  opacity: 0.1;
 }
 
 .opacity-100 {
@@ -6717,11 +6718,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   .xl\:px-12 {
     padding-left: 3rem;
     padding-right: 3rem;
-  }
-
-  .xl\:text-lg {
-    font-size: 1.125rem;
-    line-height: 1.75rem;
   }
 }
 
