@@ -3117,6 +3117,17 @@ const buildPlexStatsCache = async () => {
         const totalVideoTitles = totalMoviesCount + totalShowsCount;
         const total4kTitles = total4kMovies + fourKShows.size;
         const existingStats = await loadFile(PLEX_STATS_CACHE_PATH, {});
+
+        const deltas = existingStats.deltas || {};
+        if (existingStats.movies !== undefined) {
+            deltas.movies = totalMoviesCount - (existingStats.movies || 0);
+            deltas.shows = totalShowsCount - (existingStats.shows || 0);
+            deltas.episodes = totalEpisodesCount - (existingStats.episodes || 0);
+            deltas.artists = totalArtistsCount - (existingStats.artists || 0);
+            deltas.albums = totalAlbumsCount - (existingStats.albums || 0);
+            deltas.tracks = totalTracksCount - (existingStats.tracks || 0);
+        }
+
         const stats = {
             movies: totalMoviesCount, shows: totalShowsCount, music: totalMusicCount,
             episodes: totalEpisodesCount, artists: totalArtistsCount, albums: totalAlbumsCount, tracks: totalTracksCount,
@@ -3125,6 +3136,7 @@ const buildPlexStatsCache = async () => {
             maxConcurrentStreams: existingStats.maxConcurrentStreams || 0,
             maxDirectPlays: existingStats.maxDirectPlays || 0,
             maxTranscodes: existingStats.maxTranscodes || 0,
+            deltas,
             generatedAt: Date.now()
         };
         cachedPlexStats = stats;
@@ -5794,7 +5806,8 @@ const summarizeLibraryHealth = (topLibraries = [], stats = {}, cachedData = {}) 
         episodes: toNumber(stats.episodes, 0),
         artists: toNumber(stats.artists || stats.music, 0),
         albums: toNumber(stats.albums, 0),
-        tracks: toNumber(stats.tracks, 0)
+        tracks: toNumber(stats.tracks, 0),
+        deltas: stats.deltas || {}
     };
 };
 

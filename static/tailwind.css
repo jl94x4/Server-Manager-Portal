@@ -2151,6 +2151,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   min-width: 110px;
 }
 
+.min-w-\[120px\] {
+  min-width: 120px;
+}
+
 .min-w-\[130px\] {
   min-width: 130px;
 }
@@ -2222,10 +2226,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .max-w-\[200px\] {
   max-width: 200px;
-}
-
-.max-w-\[250px\] {
-  max-width: 250px;
 }
 
 .max-w-\[80px\] {
@@ -3083,11 +3083,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 .bg-\[\#1a1f2e\] {
   --tw-bg-opacity: 1;
   background-color: rgb(26 31 46 / var(--tw-bg-opacity, 1));
-}
-
-.bg-\[\#1e2329\] {
-  --tw-bg-opacity: 1;
-  background-color: rgb(30 35 41 / var(--tw-bg-opacity, 1));
 }
 
 .bg-\[\#25D366\]\/10 {
@@ -4911,6 +4906,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
 
+.shadow-black\/50 {
+  --tw-shadow-color: rgb(0 0 0 / 0.5);
+  --tw-shadow: var(--tw-shadow-colored);
+}
+
 .shadow-plex\/10 {
   --tw-shadow-color: rgb(var(--color-plex) / 0.1);
   --tw-shadow: var(--tw-shadow-colored);
@@ -5766,10 +5766,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .disabled\:opacity-30:disabled {
   opacity: 0.3;
-}
-
-.disabled\:opacity-40:disabled {
-  opacity: 0.4;
 }
 
 .disabled\:opacity-50:disabled {
