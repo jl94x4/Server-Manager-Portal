@@ -1461,9 +1461,6 @@ export const SettingsDashboard: React.FC = () => {
                                         { label: 'Plex Dark', value: 'plex' },
                                         { label: 'Sleek Slate', value: 'slate' },
                                         { label: 'Nordic Frost', value: 'nordic' },
-                                        { label: 'Vibrant Emerald', value: 'emerald' },
-                                        { label: 'Amethyst', value: 'amethyst' },
-                                        { label: 'Plex Light', value: 'light' },
                                     ]}
                                 />
                                 <div className="mt-2">

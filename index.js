@@ -1905,7 +1905,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         requestAppApiKey: resolveSecret(requestAppApiKey, existingConfig.requestAppApiKey),
         primaryColor: primaryColor || '#E5A00D',
         customLogoUrl: customLogoUrl || '',
-        brandingTheme: ['plex', 'slate', 'nordic', 'emerald', 'amethyst', 'light'].includes(String(brandingTheme || '').toLowerCase()) ? String(brandingTheme).toLowerCase() : (existingConfig.brandingTheme || 'plex'),
+        brandingTheme: ['plex', 'slate', 'nordic'].includes(String(brandingTheme || '').toLowerCase()) ? String(brandingTheme).toLowerCase() : (existingConfig.brandingTheme || 'plex'),
         referralEnabled: !!referralEnabled,
         referralTrialDays: parseInt(referralTrialDays, 10) || 3,
         referralRewardDays: parseInt(referralRewardDays, 10) || 7,
