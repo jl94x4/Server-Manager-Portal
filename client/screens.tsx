@@ -6909,6 +6909,9 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                 { label: 'Plex', value: 'plex' },
                                 { label: 'Slate', value: 'slate' },
                                 { label: 'Frost', value: 'nordic' },
+                                { label: 'Jellyfin', value: 'jellyfin' },
+                                { label: 'Emerald', value: 'emerald' },
+                                { label: 'Midnight', value: 'midnight' },
                             ]}
                         />
                     </div>
@@ -7007,6 +7010,9 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                     { label: 'Plex Dark', value: 'plex' },
                                     { label: 'Sleek Slate', value: 'slate' },
                                     { label: 'Nordic Frost', value: 'nordic' },
+                                    { label: 'Jellyfin Purple', value: 'jellyfin' },
+                                    { label: 'Emerald Green', value: 'emerald' },
+                                    { label: 'Neon Midnight', value: 'midnight' },
                                 ]}
                             />
                         </div>

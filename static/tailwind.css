@@ -584,6 +584,36 @@ video {
   --color-plex-hover: 99 102 241;
 }
 
+[data-theme="jellyfin"] {
+  --color-bg: 10 8 20;
+  --color-card: 20 16 34;
+  --color-border: 36 28 58;
+  --color-text: 240 238 250;
+  --color-muted: 160 155 180;
+  --color-plex: 170 92 238;
+  --color-plex-hover: 190 120 250;
+}
+
+[data-theme="emerald"] {
+  --color-bg: 10 15 12;
+  --color-card: 18 26 22;
+  --color-border: 32 46 38;
+  --color-text: 230 240 235;
+  --color-muted: 150 170 160;
+  --color-plex: 16 185 129;
+  --color-plex-hover: 52 211 153;
+}
+
+[data-theme="midnight"] {
+  --color-bg: 5 5 5;
+  --color-card: 15 15 15;
+  --color-border: 35 35 35;
+  --color-text: 245 245 245;
+  --color-muted: 140 140 140;
+  --color-plex: 6 182 212;
+  --color-plex-hover: 34 211 238;
+}
+
 body {
   --tw-bg-opacity: 1;
   background-color: rgb(var(--color-bg) / var(--tw-bg-opacity, 1));
