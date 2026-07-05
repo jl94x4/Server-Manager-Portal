@@ -2375,16 +2375,22 @@ async function fetchTmdbTrendingBackgrounds(apiKey) {
         return tmdbCache.data;
     }
     try {
-        const res = await fetch(`https://api.themoviedb.org/3/trending/all/week?api_key=${apiKey}`);
-        if (!res.ok) return tmdbCache.data || [];
-        const json = await res.json();
-        if (json && json.results) {
-            const bgs = json.results
+        let allResults = [];
+        for (let page = 1; page <= 10; page++) {
+            const res = await fetch(`https://api.themoviedb.org/3/trending/all/week?api_key=${apiKey}&page=${page}`);
+            if (!res.ok) continue;
+            const json = await res.json();
+            if (json && json.results) {
+                allResults = allResults.concat(json.results);
+            }
+        }
+        if (allResults.length > 0) {
+            const bgs = allResults
                 .filter(i => i.backdrop_path)
                 .map(i => `https://image.tmdb.org/t/p/original${i.backdrop_path}`);
-            tmdbCache.data = bgs;
+            tmdbCache.data = [...new Set(bgs)].slice(0, 100);
             tmdbCache.lastFetch = Date.now();
-            return bgs;
+            return tmdbCache.data;
         }
     } catch (e) {
         log(`Failed to fetch TMDB trending: ${e.message}`);
