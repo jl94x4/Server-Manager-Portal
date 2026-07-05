@@ -38,11 +38,33 @@ export const ToastContainer: React.FC<{ toasts: ToastMessage[]; setToasts: React
     </div>
 );
 
-export const Loader: React.FC<{ isLoading: boolean }> = ({ isLoading }) => {
+export const Loader: React.FC<{ isLoading: boolean; isCinematic?: boolean }> = ({ isLoading, isCinematic }) => {
     if (!isLoading) return null;
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-[3000]">
-            <div className="border-4 border-border border-t-plex rounded-full w-12 h-12 animate-spin shadow-[0_0_15px_rgba(229,160,13,0.5)]"></div>
+        <div className={`fixed inset-0 ${isCinematic ? 'bg-black/90' : 'bg-black/50 backdrop-blur-sm'} flex justify-center items-center z-[3000]`}>
+            {isCinematic ? (
+                <div className="flex flex-col items-center">
+                    <svg width="100" height="100" viewBox="0 0 100 100" className="animate-pulse">
+                        <path 
+                            style={{ animation: 'cinematic-draw 2s infinite cubic-bezier(0.4, 0, 0.2, 1)' }}
+                            d="M 30 20 L 80 50 L 30 80 Z" 
+                            fill="none" 
+                            stroke="var(--plex-color, #e5a00d)" 
+                            strokeWidth="3" 
+                            strokeLinejoin="round" 
+                            strokeLinecap="round" 
+                        />
+                        <path 
+                            d="M 30 20 L 80 50 L 30 80 Z" 
+                            fill="var(--plex-color, #e5a00d)" 
+                            className="animate-pulse opacity-50" 
+                        />
+                    </svg>
+                    <div className="mt-8 tracking-[0.4em] uppercase text-xs text-plex font-bold animate-pulse drop-shadow-[0_0_8px_rgba(229,160,13,0.8)]">Loading</div>
+                </div>
+            ) : (
+                <div className="border-4 border-border border-t-plex rounded-full w-12 h-12 animate-spin shadow-[0_0_15px_rgba(229,160,13,0.5)]"></div>
+            )}
         </div>
     );
 };

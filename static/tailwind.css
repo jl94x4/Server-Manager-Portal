@@ -2333,6 +2333,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
+.translate-y-12 {
+  --tw-translate-y: 3rem;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
 .translate-y-2 {
   --tw-translate-y: 0.5rem;
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
@@ -3189,6 +3194,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .bg-black\/85 {
   background-color: rgb(0 0 0 / 0.85);
+}
+
+.bg-black\/90 {
+  background-color: rgb(0 0 0 / 0.9);
 }
 
 .bg-blue-500 {
@@ -4260,6 +4269,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   letter-spacing: 0.3em;
 }
 
+.tracking-\[0\.4em\] {
+  letter-spacing: 0.4em;
+}
+
 .tracking-\[2px\] {
   letter-spacing: 2px;
 }
@@ -5067,6 +5080,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
 }
 
+.drop-shadow-\[0_0_8px_rgba\(229\2c 160\2c 13\2c 0\.8\)\] {
+  --tw-drop-shadow: drop-shadow(0 0 8px rgba(229,160,13,0.8));
+  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+
 .drop-shadow-\[0_0_8px_rgba\(245\2c 158\2c 11\2c 0\.8\)\] {
   --tw-drop-shadow: drop-shadow(0 0 8px rgba(245,158,11,0.8));
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
@@ -5329,6 +5347,28 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     rgba(255, 255, 255, 0)
   );
   animation: skeleton-shimmer 2s infinite;
+}
+
+@keyframes cinematic-draw {
+  0% {
+    stroke-dasharray: 0, 300;
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  50% {
+    stroke-dasharray: 300, 0;
+    stroke-dashoffset: 0;
+    opacity: 1;
+    filter: drop-shadow(0 0 10px var(--plex-color, #e5a00d));
+  }
+
+  100% {
+    stroke-dasharray: 300, 0;
+    stroke-dashoffset: 300;
+    opacity: 0;
+    filter: drop-shadow(0 0 2px var(--plex-color, #e5a00d));
+  }
 }
 
 @media (min-width: 768px) {

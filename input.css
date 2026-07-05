@@ -334,3 +334,9 @@
   );
   animation: skeleton-shimmer 2s infinite;
 }
+
+@keyframes cinematic-draw {
+  0% { stroke-dasharray: 0, 300; stroke-dashoffset: 0; opacity: 1; }
+  50% { stroke-dasharray: 300, 0; stroke-dashoffset: 0; opacity: 1; filter: drop-shadow(0 0 10px var(--plex-color, #e5a00d)); }
+  100% { stroke-dasharray: 300, 0; stroke-dashoffset: 300; opacity: 0; filter: drop-shadow(0 0 2px var(--plex-color, #e5a00d)); }
+}

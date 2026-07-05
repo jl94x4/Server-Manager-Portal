@@ -305,6 +305,7 @@ export const SettingsDashboard: React.FC = () => {
     const [customLogoUrl, setCustomLogoUrl] = useState('');
     const [backgroundImageUrl, setBackgroundImageUrl] = useState('');
     const [useScrollRevealAnimations, setUseScrollRevealAnimations] = useState(false);
+    const [useCinematicLoading, setUseCinematicLoading] = useState(false);
     const [useTrendingSlideshow, setUseTrendingSlideshow] = useState(false);
     const [trendingSlideshowInterval, setTrendingSlideshowInterval] = useState(30);
     const [tmdbApiKey, setTmdbApiKey] = useState('');
@@ -762,6 +763,7 @@ export const SettingsDashboard: React.FC = () => {
             setCustomLogoUrl(initialSettings.customLogoUrl || '');
             setBackgroundImageUrl(initialSettings.backgroundImageUrl || '');
             setUseScrollRevealAnimations(!!initialSettings.useScrollRevealAnimations);
+            setUseCinematicLoading(!!initialSettings.useCinematicLoading);
             setUseTrendingSlideshow(!!initialSettings.useTrendingSlideshow);
             setTrendingSlideshowInterval(initialSettings.trendingSlideshowInterval || 30);
             setTmdbApiKey(initialSettings.tmdbApiKey || '');
@@ -892,6 +894,7 @@ export const SettingsDashboard: React.FC = () => {
             brandingTheme,
             backgroundImageUrl,
             useScrollRevealAnimations,
+            useCinematicLoading,
             useTrendingSlideshow,
             trendingSlideshowInterval,
             tmdbApiKey,
@@ -1723,6 +1726,24 @@ export const SettingsDashboard: React.FC = () => {
                                             className="sr-only peer"
                                             checked={useScrollRevealAnimations}
                                             onChange={e => setUseScrollRevealAnimations(e.target.checked)}
+                                        />
+                                        <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="mb-4 p-4 rounded-lg border border-border bg-card">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <label className="mb-0">Enable Cinematic Loading Sequences</label>
+                                        <SettingHint>Replaces the standard loading spinner with a beautiful SVG line-drawing animation.</SettingHint>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="sr-only peer"
+                                            checked={useCinematicLoading}
+                                            onChange={e => setUseCinematicLoading(e.target.checked)}
                                         />
                                         <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
                                     </label>

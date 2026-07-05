@@ -197,7 +197,7 @@ export const MainApp: React.FC = () => {
         setRoute('login');
     };
 
-    if (currentRoute === 'loading') return <Loader isLoading={true} />;
+    if (currentRoute === 'loading') return <Loader isLoading={true} isCinematic={!!publicConfig?.useCinematicLoading} />;
     if (currentRoute === 'login') {
         const initialLoginError = typeof window !== 'undefined'
             ? new URLSearchParams(window.location.search).get('loginError')

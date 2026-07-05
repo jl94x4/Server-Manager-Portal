@@ -3436,7 +3436,7 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
     }
 
     if (publicInfo.isConfigured === null) {
-        return <Loader isLoading={true} />;
+        return <Loader isLoading={true} isCinematic={!!publicConfig?.useCinematicLoading} />;
     }
 
     const mediaServerType = String(publicConfig?.mediaServerType || publicInfo.mediaServerType || 'plex').toLowerCase();
@@ -3450,7 +3450,7 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
     return (
         <div className="relative min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 lg:p-10 overflow-hidden">
             <AuthPageBackground backgroundImageUrl={splashBackgroundUrl} trendingBackgrounds={publicConfig?.trendingBackgrounds} trendingSlideshowInterval={publicConfig?.trendingSlideshowInterval} />
-            <Loader isLoading={isLoading} />
+            <Loader isLoading={isLoading} isCinematic={!!publicConfig?.useCinematicLoading} />
 
             <div className="relative z-10 w-full max-w-6xl flex flex-col gap-6">
                 <div className={`glass-card-lg overflow-hidden flex flex-col ${showTrialAccess ? 'lg:flex-row min-h-[min(680px,calc(100vh-3rem))]' : 'max-w-xl mx-auto w-full'}`}>
@@ -4672,7 +4672,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
 
     return (
         <div className="w-full flex flex-col gap-3 md:gap-4">
-            <Loader isLoading={isLoading} />
+            <Loader isLoading={isLoading} isCinematic={!!publicConfig?.useCinematicLoading} />
             {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
 
             {/* Massive Hero Banner */}
@@ -5061,7 +5061,7 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
                         <button onClick={() => { setIsLoading(true); fetchStatus(); }} className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-text text-sm font-medium transition-colors">Retry</button>
                     </div>
                 ) : (
-                    <Loader isLoading={true} />
+                    <Loader isLoading={true} isCinematic={!!publicConfig?.useCinematicLoading} />
                 )}
             </div>
         );
@@ -6191,7 +6191,7 @@ export const MaintenanceDashboard: React.FC = () => {
 
     return (
         <div className="w-full flex flex-col">
-            <Loader isLoading={loading} />
+            <Loader isLoading={loading} isCinematic={!!publicConfig?.useCinematicLoading} />
             <ToastContainer toasts={toasts} setToasts={setToasts} />
             <header className="page-header">
                 <h1 className="page-title">Maintenance</h1>
