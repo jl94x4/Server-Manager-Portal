@@ -1781,8 +1781,8 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   height: 2.25rem;
 }
 
-.h-\[200px\] {
-  height: 200px;
+.h-\[250px\] {
+  height: 250px;
 }
 
 .h-\[300px\] {
@@ -5902,8 +5902,8 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
     height: 1.25rem;
   }
 
-  .sm\:h-\[250px\] {
-    height: 250px;
+  .sm\:h-\[320px\] {
+    height: 320px;
   }
 
   .sm\:w-10 {

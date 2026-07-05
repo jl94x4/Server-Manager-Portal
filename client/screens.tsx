@@ -1841,11 +1841,11 @@ const ServerInsightsWidget: React.FC<{
             </h2>
 
             {/* Peak Hours Chart */}
-            <div className="glass-card-sm p-4 md:p-6 w-full flex flex-col">
+            <div className="glass-card-sm p-4 md:p-6 w-full flex flex-col flex-1">
                 <h3 className="text-sm font-bold text-muted uppercase tracking-wider mb-4 flex items-center gap-2">
                     <Clock className="w-4 h-4" /> Peak Playback Hours
                 </h3>
-                <div className="w-full h-[200px] sm:h-[250px]">
+                <div className="w-full h-[250px] sm:h-[320px]">
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                             <defs>
@@ -1877,7 +1877,7 @@ const ServerInsightsWidget: React.FC<{
                     <h3 className="text-sm font-bold text-muted uppercase tracking-wider mb-4 flex items-center gap-2 relative z-10">
                         <Activity className="w-4 h-4 text-[#3b82f6]" /> {analyticsSourceLabel} Records & Period Stats
                     </h3>
-                    <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 relative z-10">
+                    <div className="grid grid-cols-2 gap-3 relative z-10">
                         <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
                             <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Users className="w-3 h-3 text-[#3b82f6]"/> Peak Streams</span>
                             <p className="text-xl font-black text-[#3b82f6]">{tautulliData?.streamsRecord || 0} <span className="text-[9px] font-normal text-muted">concurrent</span></p>
@@ -2407,7 +2407,7 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
 
                             {/* Top Devices Card */}
                             {topDevices && topDevices.length > 0 && (
-                                <div className="glass-card-sm p-4 md:p-6 mt-6">
+                                <div className="glass-card-sm p-4 md:p-6">
                                     <h2 className="text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><MonitorSmartphone className="text-plex w-5 h-5" /> Top Devices</h2>
                                     <div className="flex flex-col gap-4">
                                         {topDevices.slice(0, 5).map((device: any, idx: number) => (
