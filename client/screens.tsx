@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2, Search } from 'lucide-react';
-import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
 
 import { SettingsDashboard } from './settings/SettingsDashboard';
 import { LibraryMaintenancePanel } from './maintenance/LibraryMaintenancePanel';
@@ -1809,46 +1809,82 @@ const TautulliGraphsTab: React.FC = () => {
     );
 };
 
-const TrendingContentWidget: React.FC<{
-    movies: any[],
-    shows: any[],
-    resolveAvatar: (thumb: string | null | undefined, w?: number, h?: number) => string
-}> = ({ movies, shows, resolveAvatar }) => {
-    const combined = [...(movies || []).map(m => ({ ...m, _type: 'movie' })), ...(shows || []).map(s => ({ ...s, _type: 'show' }))]
-        .sort((a, b) => (b.plays || 0) - (a.plays || 0))
-        .slice(0, 10);
+const ServerInsightsWidget: React.FC<{
+    peakHours: number[],
+    tautulliData: any,
+    compare: any
+}> = ({ peakHours, tautulliData, compare }) => {
     
+    // Format chart data
+    const chartData = peakHours ? peakHours.map((count, hour) => {
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const h = hour % 12 || 12;
+        return {
+            time: `${h}${ampm}`,
+            plays: count
+        };
+    }) : [];
+
+    const formatChange = (data: any) => {
+        if (!data || data.percent === null) return null;
+        const isPos = data.percent > 0;
+        const color = isPos ? 'text-green-500' : (data.percent < 0 ? 'text-red-500' : 'text-muted');
+        const icon = isPos ? '↑' : (data.percent < 0 ? '↓' : '');
+        return <span className={`text-xs font-bold ${color} ml-2`}>{icon}{Math.abs(data.percent)}%</span>;
+    };
+
     return (
-        <div className="w-full flex flex-col gap-4 lg:col-span-2">
+        <div className="w-full flex flex-col gap-6 lg:col-span-2">
             <h2 className="text-xl font-bold text-text uppercase tracking-wider flex items-center gap-2">
-                <TrendingUp className="text-plex w-5 h-5" /> Trending Now
+                <Activity className="text-plex w-5 h-5" /> Server Insights & Load
             </h2>
-            <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
-                {combined.length === 0 ? (
-                    <div className="glass-card-sm p-4 w-full flex items-center justify-center text-muted text-sm py-8 italic">
-                        No trending content to display.
-                    </div>
-                ) : (
-                    combined.map((item, idx) => (
-                        <div key={`${item._type}-${item.id || idx}`} className="min-w-[120px] max-w-[120px] flex flex-col gap-2 relative group cursor-pointer" title={item.title}>
-                            <div className="w-full aspect-[2/3] rounded-lg overflow-hidden border border-border group-hover:border-plex transition-all shadow-lg relative bg-black/40">
-                                {item.thumb && (
-                                    <img src={resolveAvatar(item.thumb, 240, 360)} alt={item.title} className="w-full h-full object-cover" />
-                                )}
-                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <Play className="w-8 h-8 text-white ml-1" />
-                                </div>
-                                <div className="absolute top-1 right-1 bg-black/80 px-1.5 py-0.5 rounded text-[10px] font-bold text-plex border border-white/10 shadow shadow-black/50">
-                                    {item.plays} plays
-                                </div>
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-xs font-bold text-text truncate group-hover:text-plex transition-colors">{item.title}</span>
-                                <span className="text-[10px] font-semibold text-muted uppercase tracking-wider">{item._type}</span>
-                            </div>
-                        </div>
-                    ))
-                )}
+
+            {/* Peak Hours Chart */}
+            <div className="glass-card-sm p-4 md:p-6 w-full flex flex-col">
+                <h3 className="text-sm font-bold text-muted uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <Clock className="w-4 h-4" /> Peak Playback Hours
+                </h3>
+                <div className="w-full h-[200px] sm:h-[250px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <defs>
+                                <linearGradient id="colorPlays" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#e5a00d" stopOpacity={0.4}/>
+                                    <stop offset="95%" stopColor="#e5a00d" stopOpacity={0}/>
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
+                            <XAxis dataKey="time" stroke="#ffffff40" fontSize={10} tickMargin={10} minTickGap={15} />
+                            <YAxis stroke="#ffffff40" fontSize={10} tickFormatter={(val) => val} />
+                            <RechartsTooltip 
+                                contentStyle={{ backgroundColor: '#111315', borderColor: '#ffffff20', borderRadius: '8px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
+                                itemStyle={{ color: '#e5a00d' }}
+                                formatter={(value: any) => [`${value} plays`, 'Activity']}
+                            />
+                            <Area type="monotone" dataKey="plays" stroke="#e5a00d" strokeWidth={3} fillOpacity={1} fill="url(#colorPlays)" />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+
+            {/* Server Records Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="glass-card-sm p-4 flex flex-col justify-center">
+                    <span className="text-muted text-[10px] sm:text-xs uppercase tracking-wider font-bold mb-1 flex items-center gap-1.5"><Tv className="w-3 h-3"/> All-Time Streams</span>
+                    <p className="text-2xl font-black text-text">{tautulliData?.streamsRecord || 0} <span className="text-sm font-normal text-muted">concurrent</span></p>
+                </div>
+                <div className="glass-card-sm p-4 flex flex-col justify-center">
+                    <span className="text-muted text-[10px] sm:text-xs uppercase tracking-wider font-bold mb-1 flex items-center gap-1.5"><Clock className="w-3 h-3"/> Total Watch Time</span>
+                    <p className="text-lg sm:text-xl font-black text-text leading-tight">{tautulliData?.totalTimeStr || '0 mins'}</p>
+                </div>
+                <div className="glass-card-sm p-4 flex flex-col justify-center">
+                    <span className="text-muted text-[10px] sm:text-xs uppercase tracking-wider font-bold mb-1 flex items-center gap-1.5"><TrendingUp className="w-3 h-3"/> Period Plays</span>
+                    <p className="text-2xl font-black text-text flex items-center">{compare?.totalPlaybacks?.current || 0} {formatChange(compare?.totalPlaybacks)}</p>
+                </div>
+                <div className="glass-card-sm p-4 flex flex-col justify-center">
+                    <span className="text-muted text-[10px] sm:text-xs uppercase tracking-wider font-bold mb-1 flex items-center gap-1.5"><Users className="w-3 h-3"/> Unique Viewers</span>
+                    <p className="text-2xl font-black text-text flex items-center">{compare?.uniqueViewers?.current || 0} {formatChange(compare?.uniqueViewers)}</p>
+                </div>
             </div>
         </div>
     );
@@ -2307,10 +2343,10 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                        <TrendingContentWidget 
-                            movies={analyticsData?.topMovies || []} 
-                            shows={analyticsData?.topShows || []} 
-                            resolveAvatar={resolveUserAvatar} 
+                        <ServerInsightsWidget 
+                            peakHours={analyticsData?.peakHours || []} 
+                            tautulliData={tautulliData} 
+                            compare={analyticsData?.compare} 
                         />
 
                         {/* Top Devices & Libraries Container */}

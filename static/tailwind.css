@@ -1781,6 +1781,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   height: 2.25rem;
 }
 
+.h-\[200px\] {
+  height: 200px;
+}
+
 .h-\[300px\] {
   height: 300px;
 }
@@ -2149,10 +2153,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .min-w-\[110px\] {
   min-width: 110px;
-}
-
-.min-w-\[120px\] {
-  min-width: 120px;
 }
 
 .min-w-\[130px\] {
@@ -4906,11 +4906,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
 
-.shadow-black\/50 {
-  --tw-shadow-color: rgb(0 0 0 / 0.5);
-  --tw-shadow: var(--tw-shadow-colored);
-}
-
 .shadow-plex\/10 {
   --tw-shadow-color: rgb(var(--color-plex) / 0.1);
   --tw-shadow: var(--tw-shadow-colored);
@@ -5904,6 +5899,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
   .sm\:h-5 {
     height: 1.25rem;
+  }
+
+  .sm\:h-\[250px\] {
+    height: 250px;
   }
 
   .sm\:w-10 {
