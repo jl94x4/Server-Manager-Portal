@@ -1,7 +1,7 @@
 import React from 'react';
 import { discoverPosterGridClass } from './portalLayout';
 
-const pulse = 'skeleton-shimmer';
+const pulse = 'skeleton-base';
 
 export const SkeletonBlock: React.FC<{ className?: string }> = ({ className = '' }) => (
     <div className={`${pulse} rounded ${className}`} aria-hidden="true" />

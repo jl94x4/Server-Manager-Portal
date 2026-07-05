@@ -306,6 +306,7 @@ export const SettingsDashboard: React.FC = () => {
     const [backgroundImageUrl, setBackgroundImageUrl] = useState('');
     const [useScrollRevealAnimations, setUseScrollRevealAnimations] = useState(false);
     const [useCinematicLoading, setUseCinematicLoading] = useState(false);
+    const [useBrandedSkeleton, setUseBrandedSkeleton] = useState(true);
     const [useTrendingSlideshow, setUseTrendingSlideshow] = useState(false);
     const [trendingSlideshowInterval, setTrendingSlideshowInterval] = useState(30);
     const [tmdbApiKey, setTmdbApiKey] = useState('');
@@ -764,6 +765,7 @@ export const SettingsDashboard: React.FC = () => {
             setBackgroundImageUrl(initialSettings.backgroundImageUrl || '');
             setUseScrollRevealAnimations(!!initialSettings.useScrollRevealAnimations);
             setUseCinematicLoading(!!initialSettings.useCinematicLoading);
+            setUseBrandedSkeleton(initialSettings.useBrandedSkeleton !== false);
             setUseTrendingSlideshow(!!initialSettings.useTrendingSlideshow);
             setTrendingSlideshowInterval(initialSettings.trendingSlideshowInterval || 30);
             setTmdbApiKey(initialSettings.tmdbApiKey || '');
@@ -895,6 +897,7 @@ export const SettingsDashboard: React.FC = () => {
             backgroundImageUrl,
             useScrollRevealAnimations,
             useCinematicLoading,
+            useBrandedSkeleton,
             useTrendingSlideshow,
             trendingSlideshowInterval,
             tmdbApiKey,
@@ -1744,6 +1747,24 @@ export const SettingsDashboard: React.FC = () => {
                                             className="sr-only peer"
                                             checked={useCinematicLoading}
                                             onChange={e => setUseCinematicLoading(e.target.checked)}
+                                        />
+                                        <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="mb-4 p-4 rounded-lg border border-border bg-card">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <label className="mb-0">Enable Branded Skeleton Loading</label>
+                                        <SettingHint>Use a branded, animated shimmer effect for skeleton loaders instead of the default pulse.</SettingHint>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="sr-only peer"
+                                            checked={useBrandedSkeleton}
+                                            onChange={e => setUseBrandedSkeleton(e.target.checked)}
                                         />
                                         <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
                                     </label>

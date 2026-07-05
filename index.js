@@ -2102,6 +2102,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 backgroundImageUrl: config.backgroundImageUrl || '',
                 useScrollRevealAnimations: !!config.useScrollRevealAnimations,
                 useCinematicLoading: !!config.useCinematicLoading,
+                useBrandedSkeleton: config.useBrandedSkeleton !== false,
                 useTrendingSlideshow: !!config.useTrendingSlideshow,
                 trendingSlideshowInterval: config.trendingSlideshowInterval || 30,
                 tmdbApiKey: config.tmdbApiKey ? SECRET_MASK : '',
@@ -2164,6 +2165,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 backgroundImageUrl: '',
                 useScrollRevealAnimations: false,
                 useCinematicLoading: false,
+                useBrandedSkeleton: true,
                 useTrendingSlideshow: false,
                 trendingSlideshowInterval: 30,
                 tmdbApiKey: '',
@@ -2196,7 +2198,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, tautulliUrl, tautulliApiKey, jellystatUrl, jellystatApiKey,
         requestAppType, requestAppUrl, requestAppApiKey,
         inactiveCleanupEnabled, inactiveCleanupDays,
-        primaryColor, customLogoUrl, brandingTheme, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges,
+        primaryColor, customLogoUrl, brandingTheme, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges,
         autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, dashboardLayout
     } = req.body;
 
@@ -2323,6 +2325,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         backgroundImageUrl: backgroundImageUrl || '',
         useScrollRevealAnimations: !!useScrollRevealAnimations,
         useCinematicLoading: !!useCinematicLoading,
+        useBrandedSkeleton: useBrandedSkeleton !== false,
         useTrendingSlideshow: !!useTrendingSlideshow,
         trendingSlideshowInterval: parseInt(trendingSlideshowInterval, 10) || 30,
         tmdbApiKey: resolveSecret(tmdbApiKey, existingConfig.tmdbApiKey),
@@ -2415,6 +2418,7 @@ app.get('/api/config/public', async (req, res) => {
             backgroundImageUrl: config.backgroundImageUrl || '',
             useScrollRevealAnimations: !!config.useScrollRevealAnimations,
             useCinematicLoading: !!config.useCinematicLoading,
+            useBrandedSkeleton: config.useBrandedSkeleton !== false,
             useTrendingSlideshow: !!config.useTrendingSlideshow,
             trendingSlideshowInterval: parseInt(config.trendingSlideshowInterval, 10) || 30,
             trendingBackgrounds: !!config.useTrendingSlideshow ? await fetchTmdbTrendingBackgrounds(config.tmdbApiKey) : [],
@@ -2436,6 +2440,7 @@ app.get('/api/config/public', async (req, res) => {
             backgroundImageUrl: '',
             useScrollRevealAnimations: false,
             useCinematicLoading: false,
+            useBrandedSkeleton: true,
             useTrendingSlideshow: false,
             trendingSlideshowInterval: 30,
             trendingBackgrounds: [],

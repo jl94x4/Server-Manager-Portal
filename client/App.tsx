@@ -100,6 +100,14 @@ export const MainApp: React.FC = () => {
     }, [activeTheme, publicConfig.primaryColor]);
 
     useEffect(() => {
+        if (publicConfig?.useBrandedSkeleton !== false) {
+            document.documentElement.classList.add('branded-skeleton');
+        } else {
+            document.documentElement.classList.remove('branded-skeleton');
+        }
+    }, [publicConfig?.useBrandedSkeleton]);
+
+    useEffect(() => {
         fetchPublicConfig();
     }, [fetchPublicConfig]);
 
