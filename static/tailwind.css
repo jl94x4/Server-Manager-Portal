@@ -1280,16 +1280,8 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   top: 1rem;
 }
 
-.top-\[14px\] {
-  top: 14px;
-}
-
 .top-\[64px\] {
   top: 64px;
-}
-
-.top-\[8px\] {
-  top: 8px;
 }
 
 .top-full {

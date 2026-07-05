@@ -6899,7 +6899,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                 </div>
                 <div className="flex items-center gap-4">
                     <div className="relative w-28 h-8">
-                        <Palette className="w-4 h-4 text-muted absolute left-2.5 top-[8px] pointer-events-none z-10" />
+                        <Palette className="w-4 h-4 text-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
                         <CustomSelect
                             value={activeTheme}
                             onChange={setActiveTheme}
@@ -6997,7 +6997,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                             <div className="h-px w-6 bg-gradient-to-l from-transparent to-plex/50"></div>
                         </div>
                         <div className="mt-4 mb-2 relative w-full px-2">
-                            <Palette className="w-4 h-4 text-muted absolute left-5 top-[14px] pointer-events-none z-10" />
+                            <Palette className="w-4 h-4 text-muted absolute left-5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
                             <CustomSelect
                                 value={activeTheme}
                                 onChange={setActiveTheme}
