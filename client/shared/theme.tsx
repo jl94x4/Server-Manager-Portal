@@ -71,9 +71,7 @@ export const AuthPageBackground: React.FC<{ backgroundImageUrl?: string, trendin
 };
 
 /** Subtle ambient background for authenticated app shell */
-export const AppAmbientBackground: React.FC<{ backgroundImageUrl?: string, trendingBackgrounds?: string[], trendingSlideshowInterval?: number }> = ({ backgroundImageUrl, trendingBackgrounds, trendingSlideshowInterval }) => {
-    const hasSlideshow = trendingBackgrounds && trendingBackgrounds.length > 0;
-    return (
+export const AppAmbientBackground: React.FC<{ backgroundImageUrl?: string }> = ({ backgroundImageUrl }) => (
     <div className="pointer-events-none fixed inset-0 bg-background z-0">
         <div className="absolute -top-40 -left-20 w-[420px] h-[420px] rounded-full bg-plex/[0.06] blur-[100px]" />
         <div className="absolute top-1/2 -right-32 w-[360px] h-[360px] rounded-full bg-plex/[0.04] blur-[90px]" />
@@ -82,23 +80,18 @@ export const AppAmbientBackground: React.FC<{ backgroundImageUrl?: string, trend
             className="absolute inset-0"
             style={{ backgroundImage: 'radial-gradient(ellipse 70% 40% at 50% 0%, rgb(var(--color-plex) / 0.06), transparent)' }}
         />
-        {hasSlideshow ? (
-            <SlideshowBackground backgrounds={trendingBackgrounds} intervalSeconds={trendingSlideshowInterval} />
-        ) : (
-            backgroundImageUrl && (
-                <div
-                    className="absolute inset-0 bg-center bg-no-repeat opacity-100"
-                    style={{
-                        ...backgroundImageStyle(backgroundImageUrl),
-                        backgroundSize: 'cover',
-                    }}
-                />
-            )
+        {backgroundImageUrl && (
+            <div
+                className="absolute inset-0 bg-center bg-no-repeat opacity-100"
+                style={{
+                    ...backgroundImageStyle(backgroundImageUrl),
+                    backgroundSize: 'cover',
+                }}
+            />
         )}
         <div className="absolute inset-0 opacity-[0.018]" style={{ backgroundImage: GRID_TEXTURE }} />
     </div>
-    );
-};
+);
 
 export const themeClasses = {
     glassCard: 'glass-card',

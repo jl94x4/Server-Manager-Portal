@@ -25,7 +25,7 @@ import type { User, PlexConfig, AppSettings, PlexServer, ToastMessage, DeletedUs
 import { ShareWrapUpModal } from './shared/ShareWrapUp';
 import { WrapUpCardGrid } from './shared/WrapUpCards';
 import { SetupWizard } from './setup/SetupWizard';
-import { AuthPageBackground, themeClasses } from './shared/theme';
+import { AuthPageBackground, themeClasses, SlideshowBackground } from './shared/theme';
 import { activityStreamColumnCount, activityStreamGridClass, discoverPosterGridClass, usePortalWideContentLayout } from './shared/portalLayout';
 import { UserDashboardLayout } from './home/UserDashboardLayout';
 import { createMainGridWidgetRenderer, createRecentlyAddedWidgetRenderer } from './home/userDashboardWidgetRenderers';
@@ -4679,7 +4679,11 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
             <div className="relative w-full rounded-2xl overflow-hidden shadow-2xl bg-card border border-border">
                 {/* Blurred Background */}
                 <div className="absolute inset-0 bg-background overflow-hidden">
-                    {dashboardData?.recentMovies?.length > 0 ? (
+                    {publicConfig?.useTrendingSlideshow && publicConfig?.trendingBackgrounds?.length > 0 ? (
+                        <div className="absolute inset-0 scale-110 blur-[8px] opacity-60">
+                            <SlideshowBackground backgrounds={publicConfig.trendingBackgrounds} intervalSeconds={publicConfig.trendingSlideshowInterval} opacity={1} />
+                        </div>
+                    ) : dashboardData?.recentMovies?.length > 0 ? (
                         <div className="absolute -inset-[50%] opacity-40 transform -rotate-12 scale-110 flex gap-4 overflow-hidden pointer-events-none justify-center">
                             {[...Array(6)].map((_, colIdx) => (
                                 <div key={colIdx} className={`flex flex-col gap-4 ${colIdx % 2 === 0 ? 'animate-[scrollVertical_40s_linear_infinite]' : 'animate-[scrollVertical_50s_linear_infinite_reverse]'}`}>
