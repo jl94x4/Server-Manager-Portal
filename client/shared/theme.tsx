@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 
 const GRID_TEXTURE = 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'1\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")';
 
@@ -13,19 +13,24 @@ const backgroundImageStyle = (url?: string): React.CSSProperties | undefined => 
 export const SlideshowBackground: React.FC<{ backgrounds: string[], intervalSeconds?: number, opacity?: number }> = ({ backgrounds, intervalSeconds = 30, opacity = 1 }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
 
+    const shuffledBackgrounds = useMemo(() => {
+        if (!backgrounds || backgrounds.length === 0) return [];
+        return [...backgrounds].sort(() => 0.5 - Math.random());
+    }, [backgrounds]);
+
     useEffect(() => {
-        if (!backgrounds || backgrounds.length <= 1) return;
+        if (shuffledBackgrounds.length <= 1) return;
         const timer = setInterval(() => {
-            setCurrentIndex((prev) => (prev + 1) % backgrounds.length);
+            setCurrentIndex((prev) => (prev + 1) % shuffledBackgrounds.length);
         }, Math.max(10, intervalSeconds) * 1000);
         return () => clearInterval(timer);
-    }, [backgrounds, intervalSeconds]);
+    }, [shuffledBackgrounds, intervalSeconds]);
 
-    if (!backgrounds || backgrounds.length === 0) return null;
+    if (shuffledBackgrounds.length === 0) return null;
 
     return (
         <div className="absolute inset-0 pointer-events-none" style={{ opacity }}>
-            {backgrounds.map((bg, idx) => (
+            {shuffledBackgrounds.map((bg, idx) => (
                 <div
                     key={bg}
                     className="absolute inset-0 bg-center bg-no-repeat transition-opacity duration-[2000ms] ease-in-out"
