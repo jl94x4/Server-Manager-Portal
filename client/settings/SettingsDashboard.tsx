@@ -1717,7 +1717,7 @@ export const SettingsDashboard: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="mb-4 p-4 rounded-lg border border-border bg-card">
+                            <div className="mb-4">
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <label className="mb-0">Enable Scroll Reveal Animations</label>
@@ -1735,7 +1735,7 @@ export const SettingsDashboard: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="mb-4 p-4 rounded-lg border border-border bg-card">
+                            <div className="mb-4">
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <label className="mb-0">Enable Cinematic Loading Sequences</label>
@@ -1753,7 +1753,7 @@ export const SettingsDashboard: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="mb-4 p-4 rounded-lg border border-border bg-card">
+                            <div className="mb-4">
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <label className="mb-0">Enable Branded Skeleton Loading</label>
@@ -1771,7 +1771,7 @@ export const SettingsDashboard: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="mb-4 p-4 rounded-lg border border-border bg-card">
+                            <div className="mb-4">
                                 <div className="flex items-center justify-between mb-4">
                                     <div>
                                         <label className="mb-0">Enable TMDB Trending Slideshow</label>
