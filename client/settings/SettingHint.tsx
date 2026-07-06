@@ -23,7 +23,7 @@ export const SettingHint: React.FC<{ children: React.ReactNode }> = ({ children 
     }, []);
 
     return (
-        <details ref={detailsRef} className="relative inline-block group">
+        <details ref={detailsRef} className="relative inline-block group ml-2 mt-0.5">
             <summary className="list-none inline-flex items-center gap-1 cursor-pointer text-xs text-plex hover:text-plex-hover font-semibold select-none">
                 <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-plex/60 text-[10px] leading-none">?</span>
                 Hint
