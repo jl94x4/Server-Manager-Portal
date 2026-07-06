@@ -66,25 +66,8 @@ const IntegrationHeading: React.FC<{ app: string; title: string; subtitle?: stri
     </div>
 );
 
-const BRAND_THEME_OPTIONS = [
-    { label: 'Plex', value: 'plex' },
-    { label: 'Jellyfin', value: 'jellyfin' },
-    { label: 'Custom', value: 'custom' },
-];
-
-const BRAND_THEME_COLORS: Record<string, string> = {
-    plex: '#F7C600',
-    jellyfin: '#00A4DC',
-};
 const JELLYFIN_BRAND_LOGO_URL = '/api/jellyfin/branding/icon';
 const JELLYFIN_BRAND_BACKGROUND_URL = '/api/jellyfin/branding/splash';
-
-const inferBrandTheme = (color = '') => {
-    const normalized = color.trim().toUpperCase();
-    if (normalized === BRAND_THEME_COLORS.plex) return 'plex';
-    if (normalized === BRAND_THEME_COLORS.jellyfin) return 'jellyfin';
-    return 'custom';
-};
 
 export const SettingsDashboard: React.FC = () => {
     const SETTINGS_TABS = ['plex', 'smtp', 'newsletter', 'cleanup', 'mediastack', 'branding', 'navigation', 'home-layout', 'status', 'invites', 'tasks', 'system', 'contact', 'broadcast', 'stream-rules', 'logs'] as const;
@@ -92,6 +75,7 @@ export const SettingsDashboard: React.FC = () => {
     const [isLoading, setLoading] = useState(true);
     const [configLoadError, setConfigLoadError] = useState<string | null>(null);
     const [initialSettings, setInitialSettings] = useState<any>({});
+    const [isConfigLoaded, setIsConfigLoaded] = useState(false);
     const [toasts, setToasts] = useState<ToastMessage[]>([]);
     const streamRulesSaveHandlerRef = useRef<(() => Promise<boolean>) | null>(null);
 
@@ -122,6 +106,7 @@ export const SettingsDashboard: React.FC = () => {
                 const usersData = await apiFetch('/api/users');
                 setUsers(usersData);
                 await fetchStatusConfig();
+                setIsConfigLoaded(true);
             } catch (error) {
                 const message = error instanceof Error ? error.message : 'Failed to load config';
                 setConfigLoadError(message);
@@ -300,8 +285,6 @@ export const SettingsDashboard: React.FC = () => {
     }, []);
 
     // Branding & UI States
-    const [brandTheme, setBrandTheme] = useState('plex');
-    const [primaryColor, setPrimaryColor] = useState(BRAND_THEME_COLORS.plex);
     const [customLogoUrl, setCustomLogoUrl] = useState('');
     const [backgroundImageUrl, setBackgroundImageUrl] = useState('');
     const [useScrollRevealAnimations, setUseScrollRevealAnimations] = useState(false);
@@ -316,9 +299,9 @@ export const SettingsDashboard: React.FC = () => {
     const [referralRewardDays, setReferralRewardDays] = useState(7);
     const [announcement, setAnnouncement] = useState('');
     const [isPushingAnnouncement, setIsPushingAnnouncement] = useState(false);
-    const [use24HourClock, setUse24HourClock] = useState(initialSettings.use24HourClock || false);
-    const [showPosterQualityBadges, setShowPosterQualityBadges] = useState(initialSettings.showPosterQualityBadges !== false);
-    const [allowTemporaryAccess, setAllowTemporaryAccess] = useState(initialSettings.allowTemporaryAccess || false);
+    const [use24HourClock, setUse24HourClock] = useState(initialSettings?.use24HourClock || false);
+    const [showPosterQualityBadges, setShowPosterQualityBadges] = useState(initialSettings?.showPosterQualityBadges !== false);
+    const [allowTemporaryAccess, setAllowTemporaryAccess] = useState(initialSettings?.allowTemporaryAccess || false);
     const ensureMaintenanceNavOrder = useCallback((order: string[]) => {
         const base = Array.isArray(order) ? order.filter(Boolean) : ['home', 'discover', 'status', 'analytics', 'mediastack', 'request', 'settings', 'logout'];
         if (!base.includes('maintenance')) {
@@ -724,7 +707,7 @@ export const SettingsDashboard: React.FC = () => {
     };
 
     useEffect(() => {
-        if (initialSettings) {
+        if (isConfigLoaded) {
             setToken(initialSettings.token || '');
             setMediaServerType(initialSettings.mediaServerType === 'jellyfin' ? 'jellyfin' : 'plex');
             setPlexServerUrl(initialSettings.plexServerUrl || '');
@@ -759,8 +742,8 @@ export const SettingsDashboard: React.FC = () => {
             setRequestAppType(initialSettings.requestAppType === 'overseerr' ? 'seerr' : (initialSettings.requestAppType || 'none'));
             setRequestAppUrl(initialSettings.requestAppUrl || '');
             setRequestAppApiKey(initialSettings.requestAppApiKey || '');
-            setBrandTheme(inferBrandTheme(initialSettings.primaryColor || BRAND_THEME_COLORS.plex));
-            setPrimaryColor(initialSettings.primaryColor || BRAND_THEME_COLORS.plex);
+            const savedBrandingTheme = localStorage.getItem('portal-theme') || initialSettings.brandingTheme || 'plex';
+            setBrandingTheme(savedBrandingTheme);
             setCustomLogoUrl(initialSettings.customLogoUrl || '');
             setBackgroundImageUrl(initialSettings.backgroundImageUrl || '');
             setUseScrollRevealAnimations(!!initialSettings.useScrollRevealAnimations);
@@ -769,7 +752,6 @@ export const SettingsDashboard: React.FC = () => {
             setUseTrendingSlideshow(!!initialSettings.useTrendingSlideshow);
             setTrendingSlideshowInterval(initialSettings.trendingSlideshowInterval || 30);
             setTmdbApiKey(initialSettings.tmdbApiKey || '');
-            setBrandingTheme(initialSettings.brandingTheme || 'plex');
             setReferralEnabled(!!initialSettings.referralEnabled);
             setReferralTrialDays(initialSettings.referralTrialDays || 3);
             setReferralRewardDays(initialSettings.referralRewardDays || 7);
@@ -790,7 +772,7 @@ export const SettingsDashboard: React.FC = () => {
             setTestRecipient('');
             setServers([]);
         }
-    }, [initialSettings]);
+    }, [initialSettings, isConfigLoaded]);
 
     const handleFetchServers = async () => {
         if (!token) {
@@ -891,7 +873,7 @@ export const SettingsDashboard: React.FC = () => {
             requestAppType,
             requestAppUrl,
             requestAppApiKey,
-            primaryColor,
+            primaryColor: '',
             customLogoUrl,
             brandingTheme,
             backgroundImageUrl,
@@ -917,29 +899,13 @@ export const SettingsDashboard: React.FC = () => {
             maintenanceExperimentalEnabled,
             dashboardLayout: normalizeSectionLayout(dashboardLayoutRef.current)
         });
-        document.documentElement.style.setProperty('--color-plex', hexToRgb(primaryColor));
     };
-
-    const applyBrandTheme = (theme: string) => {
-        setBrandTheme(theme);
-        if (theme === 'plex' || theme === 'jellyfin') {
-            setPrimaryColor(BRAND_THEME_COLORS[theme]);
-        }
-    };
-
     const applyJellyfinBranding = () => {
-        setBrandTheme('jellyfin');
-        setPrimaryColor(BRAND_THEME_COLORS.jellyfin);
         setCustomLogoUrl(JELLYFIN_BRAND_LOGO_URL);
         setBackgroundImageUrl(JELLYFIN_BRAND_BACKGROUND_URL);
         setLogoFile(null);
         addToast('Jellyfin server icon and splash background applied. Save settings to publish.');
     };
-
-    useEffect(() => {
-        document.documentElement.style.setProperty('--color-plex', hexToRgb(primaryColor));
-        document.documentElement.style.setProperty('--color-plex-hover', accentHoverRgb(primaryColor));
-    }, [primaryColor]);
 
     const handleTestEmail = async () => {
         if (!smtpHost || !smtpUser || !smtpPass || !testRecipient) {
@@ -1636,14 +1602,7 @@ export const SettingsDashboard: React.FC = () => {
                     {activeTab === 'branding' && (
                         <div className="mb-8 animate-fade-in">
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Branding & UI</h3>
-                            <div className="mb-4">
-                                <label>Theme</label>
-                                <CustomSelect
-                                    value={brandTheme}
-                                    onChange={applyBrandTheme}
-                                    options={BRAND_THEME_OPTIONS}
-                                />
-                            </div>
+
                             {mediaServerType === 'jellyfin' && (
                                 <div className="mb-4 rounded-lg border border-plex/30 bg-plex/10 p-4">
                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1666,29 +1625,7 @@ export const SettingsDashboard: React.FC = () => {
                                     </div>
                                 </div>
                             )}
-                            <div className="mb-4">
-                                <label>Primary Accent Color</label>
-                                <div className="flex gap-4">
-                                    <input
-                                        type="color"
-                                        className="w-16 h-12 p-1 rounded-lg border border-border cursor-pointer bg-background"
-                                        value={primaryColor}
-                                        onChange={e => {
-                                            setBrandTheme('custom');
-                                            setPrimaryColor(e.target.value);
-                                        }}
-                                    />
-                                    <input
-                                        type="text"
-                                        className="flex-1 p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all uppercase font-mono"
-                                        value={primaryColor}
-                                        onChange={e => {
-                                            setBrandTheme('custom');
-                                            setPrimaryColor(e.target.value);
-                                        }}
-                                    />
-                                </div>
-                            </div>
+
                             <div className="mb-4">
                                 <label>Custom Logo</label>
                                 <div className="flex flex-col gap-2">
@@ -1700,16 +1637,18 @@ export const SettingsDashboard: React.FC = () => {
                                     <SettingHint>Provide a URL or upload a file. (Max 5MB)</SettingHint>
                                 </div>
                             </div>
-                            <div className="mb-4">
-                                <label htmlFor="defaultThemeSelect">Default Portal Theme</label>
+                            <div className="mb-8 relative z-[50]">
+                                <label>Portal Theme</label>
                                 <CustomSelect
-                                    id="defaultThemeSelect"
                                     value={brandingTheme}
                                     onChange={setBrandingTheme}
                                     options={[
                                         { label: 'Plex Dark', value: 'plex' },
                                         { label: 'Sleek Slate', value: 'slate' },
                                         { label: 'Nordic Frost', value: 'nordic' },
+                                        { label: 'Jellyfin Purple', value: 'jellyfin' },
+                                        { label: 'Emerald Green', value: 'emerald' },
+                                        { label: 'Neon Midnight', value: 'midnight' },
                                     ]}
                                 />
                                 <div className="mt-2">

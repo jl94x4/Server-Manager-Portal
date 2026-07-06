@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { SettingsDashboard } from './settings/SettingsDashboard';
 import { bindAppConfirm } from './shared/confirm';
 import { apiFetch } from './shared/api';
 import { getPublicOrigin, portalUrl, resolvePortalAssetUrl, stripBasePath } from './shared/basePath';
-import { accentHoverRgb, hexToRgb } from './shared/format';
 import { ConfirmModal } from './shared/ui';
 import { Loader } from './shared/toast';
 import { AppAmbientBackground } from './shared/theme';
@@ -81,23 +80,30 @@ export const MainApp: React.FC = () => {
         } catch (e) { }
     }, []);
 
+    const lastBrandingTheme = useRef<string | null>(null);
+
     useEffect(() => {
-        const theme = localStorage.getItem('portal-theme') || publicConfig.brandingTheme || 'plex';
-        setActiveTheme(theme);
+        if (!publicConfig.brandingTheme) return;
+
+        if (lastBrandingTheme.current === null) {
+            // First time config loads - respect user's localStorage choice if any
+            const theme = localStorage.getItem('portal-theme') || publicConfig.brandingTheme || 'plex';
+            setActiveTheme(theme);
+            lastBrandingTheme.current = publicConfig.brandingTheme;
+        } else if (publicConfig.brandingTheme !== lastBrandingTheme.current) {
+            // Default theme setting was changed (e.g. saved in Settings) - override local theme
+            setActiveTheme(publicConfig.brandingTheme);
+            localStorage.setItem('portal-theme', publicConfig.brandingTheme);
+            lastBrandingTheme.current = publicConfig.brandingTheme;
+        }
     }, [publicConfig.brandingTheme]);
 
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', activeTheme);
         localStorage.setItem('portal-theme', activeTheme);
-
-        if ((activeTheme === 'plex' || activeTheme === 'light') && publicConfig.primaryColor) {
-            document.documentElement.style.setProperty('--color-plex', hexToRgb(publicConfig.primaryColor));
-            document.documentElement.style.setProperty('--color-plex-hover', accentHoverRgb(publicConfig.primaryColor));
-        } else {
-            document.documentElement.style.removeProperty('--color-plex');
-            document.documentElement.style.removeProperty('--color-plex-hover');
-        }
-    }, [activeTheme, publicConfig.primaryColor]);
+        document.documentElement.style.removeProperty('--color-plex');
+        document.documentElement.style.removeProperty('--color-plex-hover');
+    }, [activeTheme]);
 
     useEffect(() => {
         if (publicConfig?.useBrandedSkeleton !== false) {
