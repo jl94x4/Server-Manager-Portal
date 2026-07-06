@@ -99,13 +99,14 @@ const UserCard: React.FC<{
     onSelect: (id: string) => void;
     providerLabel?: string;
 }> = ({ user, onEdit, onDelete, onRevoke, isConfigured, isSelected, onSelect, providerLabel = 'Plex' }) => {
-    const { status, statusText, daysRemainingText, pillClass, borderClass } = useMemo(() => {
+    const { status, statusText, daysRemainingText, pillClass, borderClass, glowClass } = useMemo(() => {
         const days = getDaysUntilExpiry(user.expiryDate);
         let status: UserStatus = 'active';
         let statusText = 'Active';
         let daysRemainingText = '';
         let pillClass = 'bg-green-500/10 text-green-400 border border-green-500/20';
-        let borderClass = 'border-green-500/50';
+        let borderClass = 'border-green-500/30';
+        let glowClass = 'hover:border-green-500/50 hover:shadow-[0_0_15px_rgba(34,197,94,0.12)]';
 
         if (days === null) {
             status = 'active';
@@ -116,18 +117,20 @@ const UserCard: React.FC<{
             statusText = 'Expired';
             daysRemainingText = `Expired ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ago.`;
             pillClass = 'bg-red-500/10 text-red-400 border border-red-500/20';
-            borderClass = 'border-red-500/50';
+            borderClass = 'border-red-500/30';
+            glowClass = 'hover:border-red-500/50 hover:shadow-[0_0_15px_rgba(239,68,68,0.12)]';
         } else if (days <= 30) {
             status = 'expiring';
             statusText = 'Expiring Soon';
             daysRemainingText = days === 0 ? 'Expires today.' : `Expires in ${days} day${days === 1 ? '' : 's'}.`;
             pillClass = 'bg-orange-500/10 text-orange-400 border border-orange-500/20';
-            borderClass = 'border-orange-500/50';
+            borderClass = 'border-orange-500/30';
+            glowClass = 'hover:border-orange-500/50 hover:shadow-[0_0_15px_rgba(249,115,22,0.12)]';
         } else {
             daysRemainingText = `Expires in ${days} day${days === 1 ? '' : 's'}.`;
         }
 
-        return { status, statusText, daysRemainingText, pillClass, borderClass };
+        return { status, statusText, daysRemainingText, pillClass, borderClass, glowClass };
     }, [user.expiryDate]);
 
     const handleCardClick = () => {
@@ -135,55 +138,58 @@ const UserCard: React.FC<{
     }
 
     return (
-        <div className={`bg-card rounded-xl p-6 shadow-lg border-l-4 ${borderClass} hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 flex flex-col relative cursor-pointer ${isSelected ? 'selected' : ''}`} onClick={handleCardClick}>
-            <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-3 min-w-0">
-                    <input className="w-5 h-5 flex-shrink-0 appearance-none rounded-full border-2 border-muted checked:bg-plex checked:border-plex transition-colors cursor-pointer relative checked:after:content-[''] checked:after:block checked:after:w-2.5 checked:after:h-2.5 checked:after:bg-background checked:after:rounded-full checked:after:absolute checked:after:top-1/2 checked:after:left-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2"
+        <div className={`bg-card/45 backdrop-blur-md rounded-xl p-5 shadow-lg border border-white/5 border-l-4 ${borderClass} ${glowClass} hover:-translate-y-1 hover:scale-[1.01] transition-all duration-300 flex flex-col relative cursor-pointer ${isSelected ? 'border-plex/40 shadow-[0_0_15px_rgba(229,160,13,0.12)] bg-card/75' : ''}`} onClick={handleCardClick}>
+            <div className="flex justify-between items-start mb-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                    <input className="w-4 h-4 flex-shrink-0 appearance-none rounded-full border border-muted checked:bg-plex checked:border-plex transition-colors cursor-pointer relative checked:after:content-[''] checked:after:block checked:after:w-1.5 checked:after:h-1.5 checked:after:bg-background checked:after:rounded-full checked:after:absolute checked:after:top-1/2 checked:after:left-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2"
                         type="checkbox"
                         checked={isSelected}
                         readOnly
                         style={{ borderRadius: '50%' }}
                     />
                     {user.thumb ? (
-                        <img src={resolvePortalAssetUrl(user.thumb)} alt={user.username} className="w-10 h-10 rounded-full object-cover border border-border flex-shrink-0" />
+                        <img src={resolvePortalAssetUrl(user.thumb)} alt={user.username} className="w-8 h-8 rounded-full object-cover border border-border flex-shrink-0" />
                     ) : (
-                        <div className="w-10 h-10 rounded-full bg-border flex items-center justify-center text-text font-bold text-sm uppercase flex-shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-border flex items-center justify-center text-text font-bold text-xs uppercase flex-shrink-0">
                             {user.username.substring(0, 2)}
                         </div>
                     )}
-                    <div className="flex flex-col min-w-0 pr-2">
-                        <h3 className="text-lg font-bold truncate leading-tight" title={user.username}>{user.username}</h3>
-                        {user.email && <span className="text-xs text-muted truncate mt-0.5" title={user.email}>{user.email}</span>}
+                    <div className="flex flex-col min-w-0 pr-1">
+                        <h3 className="text-sm font-bold truncate leading-tight" title={user.username}>{user.username}</h3>
+                        {user.email && <span className="text-[10px] text-muted truncate mt-0.5" title={user.email}>{user.email}</span>}
                     </div>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${pillClass}`}>{statusText}</span>
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap ${pillClass}`}>{statusText}</span>
             </div>
-            <div className="flex flex-col gap-3 mt-4 flex-grow">
-                <div className="flex justify-between items-center text-sm pb-2 border-b border-white/5 last:border-0 last:pb-0">
-                    <span className="text-muted text-xs uppercase tracking-wider font-bold">Joined</span>
-                    <span className="text-text font-medium flex items-center gap-2">{formatDate(user.joiningDate)}</span>
+            <div className="flex flex-col gap-2 mt-3 flex-grow">
+                <div className="flex justify-between items-center text-xs pb-1.5 border-b border-white/5 last:border-0 last:pb-0">
+                    <span className="text-muted text-[10px] uppercase tracking-wider font-bold">Joined</span>
+                    <span className="text-text font-medium">{formatDate(user.joiningDate)}</span>
                 </div>
-                <div className="flex justify-between md:items-center items-start text-sm pb-2 border-b border-white/5 last:border-0 last:pb-0 gap-2">
-                    <span className="text-muted text-xs uppercase tracking-wider font-bold flex-shrink-0 pt-1 md:pt-0">Expires</span>
-                    <span className="text-text font-medium flex flex-wrap justify-end md:items-center gap-1"><span className="whitespace-nowrap">{formatDate(user.expiryDate)}</span> <span className="text-[0.7rem] text-muted whitespace-nowrap">({daysRemainingText})</span></span>
-                </div>
-                <div className="flex justify-between items-center text-sm pb-2 border-b border-white/5 last:border-0 last:pb-0">
-                    <span className="text-muted text-xs uppercase tracking-wider font-bold">{providerLabel}</span>
-                    <span className="info-value plex-status">
-                        <span className={`plex-status-dot ${user.plexAccessStatus || 'unknown'}`}></span>
-                        {(user.plexAccessStatus || 'unknown').charAt(0).toUpperCase() + (user.plexAccessStatus || 'unknown').slice(1)}
+                <div className="flex justify-between items-start text-xs pb-1.5 border-b border-white/5 last:border-0 last:pb-0 gap-2">
+                    <span className="text-muted text-[10px] uppercase tracking-wider font-bold flex-shrink-0 pt-0.5">Expires</span>
+                    <span className="text-text font-medium flex flex-col items-end text-right">
+                        <span className="whitespace-nowrap font-bold">{formatDate(user.expiryDate)}</span> 
+                        <span className="text-[9px] text-muted mt-0.5">{daysRemainingText}</span>
                     </span>
                 </div>
-                <div className="flex justify-between items-center text-sm pb-2 border-b border-white/5 last:border-0 last:pb-0">
-                    <span className="text-muted text-xs uppercase tracking-wider font-bold">Last Login</span>
+                <div className="flex justify-between items-center text-xs pb-1.5 border-b border-white/5 last:border-0 last:pb-0">
+                    <span className="text-muted text-[10px] uppercase tracking-wider font-bold">{providerLabel}</span>
+                    <span className="info-value plex-status flex items-center gap-1.5">
+                        <span className={`plex-status-dot ${user.plexAccessStatus || 'unknown'}`}></span>
+                        <span className="text-text font-medium text-xs">{(user.plexAccessStatus || 'unknown').charAt(0).toUpperCase() + (user.plexAccessStatus || 'unknown').slice(1)}</span>
+                    </span>
+                </div>
+                <div className="flex justify-between items-center text-xs pb-1.5 border-b border-white/5 last:border-0 last:pb-0">
+                    <span className="text-muted text-[10px] uppercase tracking-wider font-bold">Last Login</span>
                     <span className="text-text font-medium">{user.lastLogin ? formatDate(user.lastLogin) : 'Never'}</span>
                 </div>
             </div>
-            <div className="flex gap-2 mt-auto pt-6" onClick={e => e.stopPropagation()}>
-                <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={onEdit}>Edit</button>
-                <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={onDelete}>Delete</button>
+            <div className="flex gap-2 mt-auto pt-4" onClick={e => e.stopPropagation()}>
+                <button className="px-3 py-1.5 bg-border text-text rounded-md text-xs font-semibold hover:bg-opacity-80 transition-colors flex items-center justify-center gap-1.5" onClick={onEdit}>Edit</button>
+                <button className="px-3 py-1.5 bg-border text-text rounded-md text-xs font-semibold hover:bg-opacity-80 transition-colors flex items-center justify-center gap-1.5" onClick={onDelete}>Delete</button>
                 {status === 'expired' && user.plexAccessStatus !== 'revoked' && (
-                    <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={onRevoke} disabled={!isConfigured}>Revoke Now</button>
+                    <button className="px-3 py-1.5 bg-border text-text rounded-md text-xs font-semibold hover:bg-opacity-80 transition-colors flex items-center justify-center gap-1.5" onClick={onRevoke} disabled={!isConfigured}>Revoke</button>
                 )}
             </div>
         </div>
@@ -1929,7 +1935,10 @@ const LibraryDeltaBadge: React.FC<{ value?: number }> = ({ value }) => {
     if (!value) return null;
     const isPos = value > 0;
     return (
-        <span className={`text-sm font-bold ml-2 ${isPos ? 'text-green-500' : 'text-red-500'} animate-[fade-in_0.5s_ease-out]`}>
+        <span 
+            className={`text-sm font-bold ml-2 ${isPos ? 'text-green-500' : 'text-red-500'} animate-[fade-in_0.5s_ease-out] cursor-help`}
+            title="Added since the last daily library scan"
+        >
             {isPos ? '+' : ''}{value.toLocaleString()}
         </span>
     );
@@ -3110,7 +3119,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: 
                 {isConfigured && filteredAndSortedUsers.length === 0 && !isLoading && (
                     <p className="text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full">No users found matching your filters. Try syncing or widening filters.</p>
                 )}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 w-full">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 w-full">
                     {filteredAndSortedUsers.map((user) => (
                         <UserCard
                             key={user.id}
