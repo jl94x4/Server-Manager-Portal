@@ -66,44 +66,8 @@ const IntegrationHeading: React.FC<{ app: string; title: string; subtitle?: stri
     </div>
 );
 
-const BRAND_THEME_OPTIONS = [
-    { label: 'Theme Default', value: 'default' },
-    { label: 'Plex Dark', value: 'plex' },
-    { label: 'Sleek Slate', value: 'slate' },
-    { label: 'Nordic Frost', value: 'nordic' },
-    { label: 'Neon Midnight', value: 'midnight' },
-    { label: 'Emerald Green', value: 'emerald' },
-    { label: 'Jellyfin Purple', value: 'jellyfin' },
-    { label: 'Custom', value: 'custom' },
-];
-
 const JELLYFIN_BRAND_LOGO_URL = '/api/jellyfin/branding/icon';
 const JELLYFIN_BRAND_BACKGROUND_URL = '/api/jellyfin/branding/splash';
-
-const getThemeDefaultColor = (theme: string) => {
-    switch (theme) {
-        case 'slate': return '#38bdf8';
-        case 'nordic': return '#818cf8';
-        case 'jellyfin': return '#aa5cee';
-        case 'emerald': return '#10b981';
-        case 'midnight': return '#06b6d4';
-        case 'light': return '#e5a00d';
-        case 'plex': return '#e5a00d';
-        default: return '#e5a00d';
-    }
-};
-
-const inferBrandTheme = (color = '') => {
-    const normalized = color.trim().toLowerCase();
-    if (!normalized) return 'default'; // default fallback for UI
-    if (normalized === '#38bdf8') return 'slate';
-    if (normalized === '#818cf8') return 'nordic';
-    if (normalized === '#aa5cee') return 'jellyfin';
-    if (normalized === '#10b981') return 'emerald';
-    if (normalized === '#06b6d4') return 'midnight';
-    if (normalized === '#e5a00d') return 'plex';
-    return 'custom';
-};
 
 export const SettingsDashboard: React.FC = () => {
     const SETTINGS_TABS = ['plex', 'smtp', 'newsletter', 'cleanup', 'mediastack', 'branding', 'navigation', 'home-layout', 'status', 'invites', 'tasks', 'system', 'contact', 'broadcast', 'stream-rules', 'logs'] as const;
@@ -321,8 +285,6 @@ export const SettingsDashboard: React.FC = () => {
     }, []);
 
     // Branding & UI States
-    const [brandTheme, setBrandTheme] = useState('plex');
-    const [primaryColor, setPrimaryColor] = useState('');
     const [customLogoUrl, setCustomLogoUrl] = useState('');
     const [backgroundImageUrl, setBackgroundImageUrl] = useState('');
     const [useScrollRevealAnimations, setUseScrollRevealAnimations] = useState(false);
@@ -782,8 +744,6 @@ export const SettingsDashboard: React.FC = () => {
             setRequestAppApiKey(initialSettings.requestAppApiKey || '');
             const savedBrandingTheme = localStorage.getItem('portal-theme') || initialSettings.brandingTheme || 'plex';
             setBrandingTheme(savedBrandingTheme);
-            setBrandTheme(inferBrandTheme(initialSettings.primaryColor || ''));
-            setPrimaryColor(initialSettings.primaryColor || '');
             setCustomLogoUrl(initialSettings.customLogoUrl || '');
             setBackgroundImageUrl(initialSettings.backgroundImageUrl || '');
             setUseScrollRevealAnimations(!!initialSettings.useScrollRevealAnimations);
@@ -913,7 +873,7 @@ export const SettingsDashboard: React.FC = () => {
             requestAppType,
             requestAppUrl,
             requestAppApiKey,
-            primaryColor,
+            primaryColor: '',
             customLogoUrl,
             brandingTheme,
             backgroundImageUrl,
@@ -939,47 +899,12 @@ export const SettingsDashboard: React.FC = () => {
             maintenanceExperimentalEnabled,
             dashboardLayout: normalizeSectionLayout(dashboardLayoutRef.current)
         });
-        document.documentElement.style.setProperty('--color-plex', hexToRgb(primaryColor));
-    };
-
-    const applyBrandTheme = (theme: string) => {
-        setBrandTheme(theme);
-        if (theme === 'default') {
-            setPrimaryColor('');
-        } else if (theme !== 'custom') {
-            setPrimaryColor(getThemeDefaultColor(theme));
-        } else {
-            setPrimaryColor(''); // unset by default for custom
-        }
-    };
-
     const applyJellyfinBranding = () => {
-        setBrandTheme('jellyfin');
-        setPrimaryColor(getThemeDefaultColor('jellyfin'));
         setCustomLogoUrl(JELLYFIN_BRAND_LOGO_URL);
         setBackgroundImageUrl(JELLYFIN_BRAND_BACKGROUND_URL);
         setLogoFile(null);
         addToast('Jellyfin server icon and splash background applied. Save settings to publish.');
     };
-
-    useEffect(() => {
-        // Cleanup the global color overrides when leaving Settings
-        return () => {
-            document.documentElement.style.removeProperty('--color-plex');
-            document.documentElement.style.removeProperty('--color-plex-hover');
-            window.dispatchEvent(new CustomEvent('portal-public-config-updated'));
-        };
-    }, []);
-
-    useEffect(() => {
-        if (!primaryColor) {
-            document.documentElement.style.removeProperty('--color-plex');
-            document.documentElement.style.removeProperty('--color-plex-hover');
-            return;
-        }
-        document.documentElement.style.setProperty('--color-plex', hexToRgb(primaryColor));
-        document.documentElement.style.setProperty('--color-plex-hover', accentHoverRgb(primaryColor));
-    }, [primaryColor]);
 
     const handleTestEmail = async () => {
         if (!smtpHost || !smtpUser || !smtpPass || !testRecipient) {
@@ -1676,14 +1601,7 @@ export const SettingsDashboard: React.FC = () => {
                     {activeTab === 'branding' && (
                         <div className="mb-8 animate-fade-in">
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Branding & UI</h3>
-                            <div className="mb-4">
-                                <label>Accent Color Preset</label>
-                                <CustomSelect
-                                    value={brandTheme}
-                                    onChange={applyBrandTheme}
-                                    options={BRAND_THEME_OPTIONS}
-                                />
-                            </div>
+
                             {mediaServerType === 'jellyfin' && (
                                 <div className="mb-4 rounded-lg border border-plex/30 bg-plex/10 p-4">
                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1706,30 +1624,7 @@ export const SettingsDashboard: React.FC = () => {
                                     </div>
                                 </div>
                             )}
-                            {brandTheme === 'custom' && (
-                                <div className="mb-4">
-                                    <label>Primary Accent Color</label>
-                                    <div className="flex gap-4">
-                                        <input
-                                            type="color"
-                                            className="w-16 h-12 p-1 rounded-lg border border-border cursor-pointer bg-background"
-                                            value={primaryColor || getThemeDefaultColor(brandingTheme)}
-                                            onChange={e => {
-                                                setPrimaryColor(e.target.value);
-                                            }}
-                                        />
-                                        <input
-                                            type="text"
-                                            className="flex-1 p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all uppercase font-mono"
-                                            value={primaryColor}
-                                            placeholder={getThemeDefaultColor(brandingTheme)}
-                                            onChange={e => {
-                                                setPrimaryColor(e.target.value);
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                            )}
+
                             <div className="mb-4">
                                 <label>Custom Logo</label>
                                 <div className="flex flex-col gap-2">

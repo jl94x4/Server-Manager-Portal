@@ -3,7 +3,6 @@ import { SettingsDashboard } from './settings/SettingsDashboard';
 import { bindAppConfirm } from './shared/confirm';
 import { apiFetch } from './shared/api';
 import { getPublicOrigin, portalUrl, resolvePortalAssetUrl, stripBasePath } from './shared/basePath';
-import { accentHoverRgb, hexToRgb } from './shared/format';
 import { ConfirmModal } from './shared/ui';
 import { Loader } from './shared/toast';
 import { AppAmbientBackground } from './shared/theme';
@@ -102,15 +101,9 @@ export const MainApp: React.FC = () => {
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', activeTheme);
         localStorage.setItem('portal-theme', activeTheme);
-
-        if (publicConfig.primaryColor) {
-            document.documentElement.style.setProperty('--color-plex', hexToRgb(publicConfig.primaryColor));
-            document.documentElement.style.setProperty('--color-plex-hover', accentHoverRgb(publicConfig.primaryColor));
-        } else {
-            document.documentElement.style.removeProperty('--color-plex');
-            document.documentElement.style.removeProperty('--color-plex-hover');
-        }
-    }, [activeTheme, publicConfig.primaryColor]);
+        document.documentElement.style.removeProperty('--color-plex');
+        document.documentElement.style.removeProperty('--color-plex-hover');
+    }, [activeTheme]);
 
     useEffect(() => {
         if (publicConfig?.useBrandedSkeleton !== false) {
