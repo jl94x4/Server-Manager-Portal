@@ -2475,28 +2475,31 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
                                                     const showsPctOfBar = item.total > 0 ? (item.shows / item.total) * 100 : 0;
                                                     
                                                     return (
-                                                        <div key={item.range} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+                                                        <div key={item.range} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group relative">
                                                             <div 
-                                                                className="w-full rounded-t overflow-hidden transition-all duration-500 relative flex flex-col justify-end" 
+                                                                className="w-full relative transition-all duration-500 flex flex-col justify-end" 
                                                                 style={{ height: `${Math.max(totalHeightPct, 4)}%` }}
                                                             >
-                                                                {/* Movies part (Top) */}
-                                                                {item.movies > 0 && (
-                                                                    <div 
-                                                                        className="w-full bg-plex hover:opacity-100 transition-opacity" 
-                                                                        style={{ height: `${moviesPctOfBar}%` }} 
-                                                                    />
-                                                                )}
-                                                                {/* TV Shows part (Bottom) */}
-                                                                {item.shows > 0 && (
-                                                                    <div 
-                                                                        className="w-full bg-plex/30 hover:opacity-100 transition-opacity border-t border-black/10" 
-                                                                        style={{ height: `${showsPctOfBar}%` }} 
-                                                                    />
-                                                                )}
+                                                                {/* Bar container with overflow-hidden for rounded-t corners */}
+                                                                <div className="w-full h-full rounded-t overflow-hidden flex flex-col justify-end">
+                                                                    {/* Movies part (Top) */}
+                                                                    {item.movies > 0 && (
+                                                                        <div 
+                                                                            className="w-full bg-plex hover:opacity-100 transition-opacity" 
+                                                                            style={{ height: `${moviesPctOfBar}%` }} 
+                                                                        />
+                                                                    )}
+                                                                    {/* TV Shows part (Bottom) */}
+                                                                    {item.shows > 0 && (
+                                                                        <div 
+                                                                            className="w-full bg-plex/30 hover:opacity-100 transition-opacity border-t border-black/10" 
+                                                                            style={{ height: `${showsPctOfBar}%` }} 
+                                                                        />
+                                                                    )}
+                                                                </div>
 
-                                                                {/* Detailed Tooltip */}
-                                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 bg-black/95 text-white text-[10px] px-2.5 py-1.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-10 font-mono shadow-md border border-white/5 flex flex-col gap-0.5 leading-none">
+                                                                {/* Detailed Tooltip (Placed outside the overflow-hidden container, inside the height wrapper) */}
+                                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 bg-black/95 text-white text-[10px] px-2.5 py-1.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-20 font-mono shadow-md border border-white/5 flex flex-col gap-0.5 leading-none">
                                                                     <span className="font-bold text-plex mb-1 text-[11px]">{item.range}</span>
                                                                     <span className="flex justify-between gap-4"><span>Movies:</span> <span className="text-white font-bold">{item.movies.toLocaleString()}</span></span>
                                                                     <span className="flex justify-between gap-4"><span>TV Episodes:</span> <span className="text-white font-bold">{item.shows.toLocaleString()}</span></span>
