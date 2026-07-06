@@ -899,6 +899,7 @@ export const SettingsDashboard: React.FC = () => {
             maintenanceExperimentalEnabled,
             dashboardLayout: normalizeSectionLayout(dashboardLayoutRef.current)
         });
+    };
     const applyJellyfinBranding = () => {
         setCustomLogoUrl(JELLYFIN_BRAND_LOGO_URL);
         setBackgroundImageUrl(JELLYFIN_BRAND_BACKGROUND_URL);
