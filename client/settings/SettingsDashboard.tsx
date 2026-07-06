@@ -1676,67 +1676,61 @@ export const SettingsDashboard: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="mb-4">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <label className="mb-0">Enable Scroll Reveal Animations</label>
-                                        <SettingHint>Smoothly slide elements into place as you scroll down the dashboard.</SettingHint>
-                                    </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            className="sr-only peer"
-                                            checked={useScrollRevealAnimations}
-                                            onChange={e => setUseScrollRevealAnimations(e.target.checked)}
-                                        />
-                                        <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
-                                    </label>
+                            <div className="mb-4 mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4 border-b border-border/40">
+                                <div>
+                                    <h4 className="font-bold text-text">Enable Scroll Reveal Animations</h4>
+                                    <SettingHint>Smoothly slide elements into place as you scroll down the dashboard.</SettingHint>
                                 </div>
+                                <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={useScrollRevealAnimations}
+                                        onChange={e => setUseScrollRevealAnimations(e.target.checked)}
+                                    />
+                                    <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
+                                </label>
                             </div>
 
-                            <div className="mb-4">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <label className="mb-0">Enable Cinematic Loading Sequences</label>
-                                        <SettingHint>Replaces the standard loading spinner with a beautiful SVG line-drawing animation.</SettingHint>
-                                    </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            className="sr-only peer"
-                                            checked={useCinematicLoading}
-                                            onChange={e => setUseCinematicLoading(e.target.checked)}
-                                        />
-                                        <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
-                                    </label>
+                            <div className="mb-4 mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4 border-b border-border/40">
+                                <div>
+                                    <h4 className="font-bold text-text">Enable Cinematic Loading Sequences</h4>
+                                    <SettingHint>Replaces the standard loading spinner with a beautiful SVG line-drawing animation.</SettingHint>
                                 </div>
+                                <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={useCinematicLoading}
+                                        onChange={e => setUseCinematicLoading(e.target.checked)}
+                                    />
+                                    <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
+                                </label>
                             </div>
 
-                            <div className="mb-4">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <label className="mb-0">Enable Branded Skeleton Loading</label>
-                                        <SettingHint>Use a branded, animated shimmer effect for skeleton loaders instead of the default pulse.</SettingHint>
-                                    </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            className="sr-only peer"
-                                            checked={useBrandedSkeleton}
-                                            onChange={e => setUseBrandedSkeleton(e.target.checked)}
-                                        />
-                                        <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
-                                    </label>
+                            <div className="mb-4 mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4 border-b border-border/40">
+                                <div>
+                                    <h4 className="font-bold text-text">Enable Branded Skeleton Loading</h4>
+                                    <SettingHint>Use a branded, animated shimmer effect for skeleton loaders instead of the default pulse.</SettingHint>
                                 </div>
+                                <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={useBrandedSkeleton}
+                                        onChange={e => setUseBrandedSkeleton(e.target.checked)}
+                                    />
+                                    <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
+                                </label>
                             </div>
 
-                            <div className="mb-4">
-                                <div className="flex items-center justify-between mb-4">
+                            <div className="py-4 border-b border-border/40 mb-4">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                                     <div>
-                                        <label className="mb-0">Enable TMDB Trending Slideshow</label>
+                                        <h4 className="font-bold text-text">Enable TMDB Trending Slideshow</h4>
                                         <SettingHint>Replaces the static splash background with a fading slideshow of currently trending movies and shows from TMDB. Requires a TMDB API key in Integrations.</SettingHint>
                                     </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
+                                    <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
                                         <input
                                             type="checkbox"
                                             className="sr-only peer"
@@ -1746,7 +1740,7 @@ export const SettingsDashboard: React.FC = () => {
                                         <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
                                     </label>
                                 </div>
-                                <div className={`transition-all overflow-hidden ${useTrendingSlideshow ? 'max-h-[100px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                                <div className={`transition-all overflow-hidden ${useTrendingSlideshow ? 'max-h-[100px] opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
                                     <label>Slideshow Interval (Seconds)</label>
                                     <select
                                         className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all mt-1"
