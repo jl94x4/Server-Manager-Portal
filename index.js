@@ -1968,6 +1968,9 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
     let adminThumb = null;
     let sessionThumb = req.user.thumb || null;
     let requestUrl = config.requestUrl || 'https://yourdomain.com';
+    if ((requestUrl === 'https://yourdomain.com' || !requestUrl) && config.requestAppUrl) {
+        requestUrl = config.requestAppUrl;
+    }
     let navOrder = config.navOrder || ['home', 'discover', 'users', 'status', 'analytics', 'mediastack', 'maintenance', 'request', 'settings', 'logout'];
     try {
         if (isJellyfinPortal && config?.jellyfinUrl && config?.jellyfinApiKey) {
@@ -4632,9 +4635,14 @@ app.get('/api/public/info', publicReadRateLimit, async (req, res) => {
         const isConfigured = isPortalConfigured(config);
         const contactWhatsApp = config.contactWhatsApp || '';
         const contactEmail = config.contactEmail || '';
-        res.json({ ...profile, isConfigured, mediaServerType: config.mediaServerType || 'plex', requestUrl: config.requestUrl || 'https://yourdomain.com', contactWhatsApp, contactEmail });
+        let requestUrl = config.requestUrl || 'https://yourdomain.com';
+        if ((requestUrl === 'https://yourdomain.com' || !requestUrl) && config.requestAppUrl) {
+            requestUrl = config.requestAppUrl;
+        }
+        res.json({ ...profile, isConfigured, mediaServerType: config.mediaServerType || 'plex', requestUrl, contactWhatsApp, contactEmail });
     } catch (e) {
-        res.json({ thumb: null, serverName: 'Server Portal', isConfigured: false, mediaServerType: 'plex', requestUrl: 'https://yourdomain.com' });
+        let requestUrl = 'https://yourdomain.com';
+        res.json({ thumb: null, serverName: 'Server Portal', isConfigured: false, mediaServerType: 'plex', requestUrl });
     }
 });
 
