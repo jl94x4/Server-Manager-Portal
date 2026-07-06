@@ -3108,7 +3108,13 @@ const buildPlexStatsCache = async () => {
 
         const resolutions = { '4K': 0, '1080p': 0, '720p': 0, 'SD': 0, 'Other': 0 };
         const codecs = { 'H.265 / HEVC': 0, 'H.264 / AVC': 0, 'AV1': 0, 'Other': 0 };
-        const fileSizes = { '0 - 500 MB': 0, '500 MB - 1.5 GB': 0, '1.5 GB - 5 GB': 0, '5 GB - 10 GB': 0, '10 GB+': 0 };
+        const fileSizes = {
+            '0 - 500 MB': { movies: 0, shows: 0 },
+            '500 MB - 1.5 GB': { movies: 0, shows: 0 },
+            '1.5 GB - 5 GB': { movies: 0, shows: 0 },
+            '5 GB - 10 GB': { movies: 0, shows: 0 },
+            '10 GB+': { movies: 0, shows: 0 }
+        };
 
         for (const dir of directories) {
             try {
@@ -3182,13 +3188,20 @@ const buildPlexStatsCache = async () => {
                                     const partSize = parseInt(part.size);
                                     bytes += partSize;
 
-                                    if (dir.type === 'movie' || dir.type === 'show') {
+                                    if (dir.type === 'movie') {
                                         const sizeMB = partSize / (1024 * 1024);
-                                        if (sizeMB < 500) fileSizes['0 - 500 MB']++;
-                                        else if (sizeMB < 1500) fileSizes['500 MB - 1.5 GB']++;
-                                        else if (sizeMB < 5000) fileSizes['1.5 GB - 5 GB']++;
-                                        else if (sizeMB < 10000) fileSizes['5 GB - 10 GB']++;
-                                        else fileSizes['10 GB+']++;
+                                        if (sizeMB < 500) fileSizes['0 - 500 MB'].movies++;
+                                        else if (sizeMB < 1500) fileSizes['500 MB - 1.5 GB'].movies++;
+                                        else if (sizeMB < 5000) fileSizes['1.5 GB - 5 GB'].movies++;
+                                        else if (sizeMB < 10000) fileSizes['5 GB - 10 GB'].movies++;
+                                        else fileSizes['10 GB+'].movies++;
+                                    } else if (dir.type === 'show') {
+                                        const sizeMB = partSize / (1024 * 1024);
+                                        if (sizeMB < 500) fileSizes['0 - 500 MB'].shows++;
+                                        else if (sizeMB < 1500) fileSizes['500 MB - 1.5 GB'].shows++;
+                                        else if (sizeMB < 5000) fileSizes['1.5 GB - 5 GB'].shows++;
+                                        else if (sizeMB < 10000) fileSizes['5 GB - 10 GB'].shows++;
+                                        else fileSizes['10 GB+'].shows++;
                                     }
                                 }
                             }

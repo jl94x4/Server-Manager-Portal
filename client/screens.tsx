@@ -2391,8 +2391,18 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
                                 const totalResolutions = sortedResolutions.reduce((sum, item) => sum + item.count, 0) || 1;
 
                                 const fileSizeEntries = Object.entries(libraryHealth.fileSizes || {})
-                                    .map(([range, count]) => ({ range, count: count as number }));
-                                const maxFileSizeCount = Math.max(...fileSizeEntries.map(e => e.count), 1);
+                                    .map(([range, val]) => {
+                                        let movies = 0;
+                                        let shows = 0;
+                                        if (val && typeof val === 'object') {
+                                            movies = (val as any).movies || 0;
+                                            shows = (val as any).shows || 0;
+                                        } else if (typeof val === 'number') {
+                                            shows = val;
+                                        }
+                                        return { range, movies, shows, total: movies + shows };
+                                    });
+                                const maxFileSizeCount = Math.max(...fileSizeEntries.map(e => e.total), 1);
 
                                 return (
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -2441,18 +2451,52 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
                                         </div>
 
                                         <div className="glass-card-sm p-5 flex flex-col">
-                                            <h3 className="text-muted text-xs uppercase tracking-wider font-bold mb-1">File Size Distribution</h3>
+                                            <div className="flex items-center justify-between mb-1">
+                                                <h3 className="text-muted text-xs uppercase tracking-wider font-bold">File Size Distribution</h3>
+                                                <div className="flex items-center gap-3 text-[10px] text-muted font-semibold">
+                                                    <span className="flex items-center gap-1">
+                                                        <span className="w-2 h-2 bg-plex rounded-sm inline-block" />
+                                                        <span>Movies</span>
+                                                    </span>
+                                                    <span className="flex items-center gap-1">
+                                                        <span className="w-2 h-2 bg-plex/30 rounded-sm inline-block border border-plex/20" />
+                                                        <span>TV Shows</span>
+                                                    </span>
+                                                </div>
+                                            </div>
                                             <div className="flex items-end justify-between h-40 pt-4 px-2 w-full gap-3 mt-auto">
                                                 {fileSizeEntries.map((item) => {
-                                                    const heightPct = (item.count / maxFileSizeCount) * 100;
+                                                    const totalHeightPct = (item.total / maxFileSizeCount) * 100;
+                                                    const moviesPctOfBar = item.total > 0 ? (item.movies / item.total) * 100 : 0;
+                                                    const showsPctOfBar = item.total > 0 ? (item.shows / item.total) * 100 : 0;
+                                                    
                                                     return (
                                                         <div key={item.range} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
                                                             <div 
-                                                                className="w-full bg-plex/85 hover:bg-plex hover:shadow-[0_0_10px_rgba(229,160,13,0.3)] rounded-t transition-all duration-500 relative" 
-                                                                style={{ height: `${Math.max(heightPct, 4)}%` }}
+                                                                className="w-full rounded-t overflow-hidden transition-all duration-500 relative flex flex-col justify-end" 
+                                                                style={{ height: `${Math.max(totalHeightPct, 4)}%` }}
                                                             >
-                                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 bg-black/90 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-10 font-mono shadow-md border border-white/5">
-                                                                    {item.count.toLocaleString()}
+                                                                {/* Movies part (Top) */}
+                                                                {item.movies > 0 && (
+                                                                    <div 
+                                                                        className="w-full bg-plex hover:opacity-100 transition-opacity" 
+                                                                        style={{ height: `${moviesPctOfBar}%` }} 
+                                                                    />
+                                                                )}
+                                                                {/* TV Shows part (Bottom) */}
+                                                                {item.shows > 0 && (
+                                                                    <div 
+                                                                        className="w-full bg-plex/30 hover:opacity-100 transition-opacity border-t border-black/10" 
+                                                                        style={{ height: `${showsPctOfBar}%` }} 
+                                                                    />
+                                                                )}
+
+                                                                {/* Detailed Tooltip */}
+                                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 bg-black/95 text-white text-[10px] px-2.5 py-1.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-10 font-mono shadow-md border border-white/5 flex flex-col gap-0.5 leading-none">
+                                                                    <span className="font-bold text-plex mb-1 text-[11px]">{item.range}</span>
+                                                                    <span className="flex justify-between gap-4"><span>Movies:</span> <span className="text-white font-bold">{item.movies.toLocaleString()}</span></span>
+                                                                    <span className="flex justify-between gap-4"><span>TV Episodes:</span> <span className="text-white font-bold">{item.shows.toLocaleString()}</span></span>
+                                                                    <span className="border-t border-white/10 mt-1 pt-1 flex justify-between gap-4"><span>Total:</span> <span className="text-plex font-bold">{item.total.toLocaleString()}</span></span>
                                                                 </div>
                                                             </div>
                                                             <span className="text-[9px] text-muted font-bold tracking-wider text-center line-clamp-1 w-full" title={item.range}>{item.range}</span>
