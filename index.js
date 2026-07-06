@@ -2123,7 +2123,8 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 autoBackupIntervalDays: Number(config.autoBackupIntervalDays) > 0 ? Number(config.autoBackupIntervalDays) : 2,
                 autoBackupRetentionCount: Number(config.autoBackupRetentionCount) > 0 ? Number(config.autoBackupRetentionCount) : 10,
                 maintenanceExperimentalEnabled: !!config.maintenanceExperimentalEnabled,
-                dashboardLayout: normalizeSectionLayout(config.dashboardLayout)
+                dashboardLayout: normalizeSectionLayout(config.dashboardLayout),
+                showUsernamesInAnalytics: !!config.showUsernamesInAnalytics
             },
         });
     } else {
@@ -2202,7 +2203,8 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         requestAppType, requestAppUrl, requestAppApiKey,
         inactiveCleanupEnabled, inactiveCleanupDays,
         primaryColor, customLogoUrl, brandingTheme, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges,
-        autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, dashboardLayout
+        autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, dashboardLayout,
+        showUsernamesInAnalytics
     } = req.body;
 
     const existingConfig = await loadFile(CONFIG_PATH, {});
@@ -2346,6 +2348,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         autoBackupIntervalDays: Math.max(1, parseInt(autoBackupIntervalDays, 10) || 2),
         autoBackupRetentionCount: Math.max(1, parseInt(autoBackupRetentionCount, 10) || 10),
         maintenanceExperimentalEnabled: maintenanceExperimentalEnabled !== undefined ? !!maintenanceExperimentalEnabled : !!existingConfig.maintenanceExperimentalEnabled,
+        showUsernamesInAnalytics: showUsernamesInAnalytics !== undefined ? !!showUsernamesInAnalytics : !!existingConfig.showUsernamesInAnalytics,
         dashboardLayout: ('dashboardLayout' in req.body)
             ? normalizeSectionLayout(req.body.dashboardLayout)
             : normalizeSectionLayout(existingConfig.dashboardLayout)
@@ -6085,7 +6088,10 @@ app.get('/api/plex/analytics', requireAuth, requireMember, async (req, res) => {
         const hasRequestedPeriod = statsData[reqDays] != null;
         const cachedPeriod = hasRequestedPeriod ? reqDays : (statsData[30] != null ? 30 : null);
         const cachedData = statsData[reqDays] || statsData[30] || { topUsers: [], topLibraries: [], topMovies: [], topShows: [], topMusic: [], topDevices: [], peakHours: new Array(24).fill(0), totalPlaybacks: 0 };
-        const shouldObfuscateUsernames = !req.user?.isAdmin;
+        
+        const config = await loadFile(CONFIG_PATH, {});
+        const showUsernames = !!config.showUsernamesInAnalytics;
+        const shouldObfuscateUsernames = !req.user?.isAdmin && !showUsernames;
         const topUsers = (cachedData.topUsers || []).map((user, index) => ({
             ...user,
             username: shouldObfuscateUsernames ? `Viewer ${index + 1}` : (user.username || `User ${index + 1}`)

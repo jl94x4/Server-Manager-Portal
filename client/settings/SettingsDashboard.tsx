@@ -145,6 +145,7 @@ export const SettingsDashboard: React.FC = () => {
     const [selectedServer, setSelectedServer] = useState('');
     const [checkInterval, setCheckInterval] = useState(60);
     const [hideStreamUsers, setHideStreamUsers] = useState<string>('false');
+    const [showUsernamesInAnalytics, setShowUsernamesInAnalytics] = useState(false);
     const [defaultLibraryIds, setDefaultLibraryIds] = useState<string[]>([]);
     const [libraries, setLibraries] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState(() => {
@@ -758,6 +759,7 @@ export const SettingsDashboard: React.FC = () => {
             setAnnouncement(initialSettings.announcement || '');
             if (initialSettings.navOrder) setNavOrder(ensureMaintenanceNavOrder(initialSettings.navOrder));
             setHideStreamUsers(initialSettings.hideStreamUsers === true ? 'anonymous' : (initialSettings.hideStreamUsers || 'false'));
+            setShowUsernamesInAnalytics(!!initialSettings.showUsernamesInAnalytics);
             if (initialSettings.defaultLibraryIds) setDefaultLibraryIds(initialSettings.defaultLibraryIds);
             if (initialSettings.use24HourClock !== undefined) setUse24HourClock(!!initialSettings.use24HourClock);
             if (initialSettings.showPosterQualityBadges !== undefined) setShowPosterQualityBadges(initialSettings.showPosterQualityBadges !== false);
@@ -889,6 +891,7 @@ export const SettingsDashboard: React.FC = () => {
             announcement,
             navOrder: ensureMaintenanceNavOrder(navOrder),
             hideStreamUsers,
+            showUsernamesInAnalytics,
             defaultLibraryIds,
             use24HourClock,
             allowTemporaryAccess,
@@ -1198,6 +1201,23 @@ export const SettingsDashboard: React.FC = () => {
                                             />
                                         </div>
                                     </div>
+
+                                <div className="mb-4 mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4 border-b border-border/40">
+                                        <div>
+                                            <h4 className="font-bold text-text">Show Usernames in Analytics</h4>
+                                            <p className="text-sm text-muted">Allow non-admin users to see real usernames on the Analytics dashboard. If disabled, usernames are shown as Viewer 1, Viewer 2, etc.</p>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={showUsernamesInAnalytics}
+                                                onChange={e => setShowUsernamesInAnalytics(e.target.checked)}
+                                            />
+                                            <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
+                                        </label>
+                                    </div>
+
                                 <div className="mb-4" style={{ marginTop: '1rem' }}>
                                     <label htmlFor="requestUrl">Request URL</label>
                                     <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="requestUrl" type="text" value={requestUrl} onChange={e => setRequestUrl(e.target.value)} placeholder="https://yourdomain.com" />
