@@ -81,9 +81,22 @@ export const MainApp: React.FC = () => {
         } catch (e) { }
     }, []);
 
+    const lastBrandingTheme = useRef<string | null>(null);
+
     useEffect(() => {
-        const theme = localStorage.getItem('portal-theme') || publicConfig.brandingTheme || 'plex';
-        setActiveTheme(theme);
+        if (!publicConfig.brandingTheme) return;
+
+        if (lastBrandingTheme.current === null) {
+            // First time config loads - respect user's localStorage choice if any
+            const theme = localStorage.getItem('portal-theme') || publicConfig.brandingTheme || 'plex';
+            setActiveTheme(theme);
+            lastBrandingTheme.current = publicConfig.brandingTheme;
+        } else if (publicConfig.brandingTheme !== lastBrandingTheme.current) {
+            // Default theme setting was changed (e.g. saved in Settings) - override local theme
+            setActiveTheme(publicConfig.brandingTheme);
+            localStorage.setItem('portal-theme', publicConfig.brandingTheme);
+            lastBrandingTheme.current = publicConfig.brandingTheme;
+        }
     }, [publicConfig.brandingTheme]);
 
     useEffect(() => {

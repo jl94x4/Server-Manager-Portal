@@ -780,7 +780,7 @@ export const SettingsDashboard: React.FC = () => {
             setRequestAppType(initialSettings.requestAppType === 'overseerr' ? 'seerr' : (initialSettings.requestAppType || 'none'));
             setRequestAppUrl(initialSettings.requestAppUrl || '');
             setRequestAppApiKey(initialSettings.requestAppApiKey || '');
-            const savedBrandingTheme = initialSettings.brandingTheme || 'plex';
+            const savedBrandingTheme = localStorage.getItem('portal-theme') || initialSettings.brandingTheme || 'plex';
             setBrandingTheme(savedBrandingTheme);
             setBrandTheme(inferBrandTheme(initialSettings.primaryColor || ''));
             setPrimaryColor(initialSettings.primaryColor || '');
