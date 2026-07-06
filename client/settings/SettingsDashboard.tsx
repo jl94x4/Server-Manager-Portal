@@ -91,7 +91,7 @@ export const SettingsDashboard: React.FC = () => {
     const [statusDraft, setStatusDraft] = useState<any>(null);
     const [isLoading, setLoading] = useState(true);
     const [configLoadError, setConfigLoadError] = useState<string | null>(null);
-    const [initialSettings, setInitialSettings] = useState<any>({});
+    const [initialSettings, setInitialSettings] = useState<any>(null);
     const [toasts, setToasts] = useState<ToastMessage[]>([]);
     const streamRulesSaveHandlerRef = useRef<(() => Promise<boolean>) | null>(null);
 
@@ -301,7 +301,7 @@ export const SettingsDashboard: React.FC = () => {
 
     // Branding & UI States
     const [brandTheme, setBrandTheme] = useState('plex');
-    const [primaryColor, setPrimaryColor] = useState(BRAND_THEME_COLORS.plex);
+    const [primaryColor, setPrimaryColor] = useState('');
     const [customLogoUrl, setCustomLogoUrl] = useState('');
     const [backgroundImageUrl, setBackgroundImageUrl] = useState('');
     const [useScrollRevealAnimations, setUseScrollRevealAnimations] = useState(false);
@@ -759,8 +759,11 @@ export const SettingsDashboard: React.FC = () => {
             setRequestAppType(initialSettings.requestAppType === 'overseerr' ? 'seerr' : (initialSettings.requestAppType || 'none'));
             setRequestAppUrl(initialSettings.requestAppUrl || '');
             setRequestAppApiKey(initialSettings.requestAppApiKey || '');
-            setBrandTheme(inferBrandTheme(initialSettings.primaryColor || BRAND_THEME_COLORS.plex));
-            setPrimaryColor(initialSettings.primaryColor || BRAND_THEME_COLORS.plex);
+            const savedBrandingTheme = initialSettings.brandingTheme || 'plex';
+            const defaultThemeColor = savedBrandingTheme === 'jellyfin' ? BRAND_THEME_COLORS.jellyfin : BRAND_THEME_COLORS.plex;
+            setBrandingTheme(savedBrandingTheme);
+            setBrandTheme(inferBrandTheme(initialSettings.primaryColor || defaultThemeColor));
+            setPrimaryColor(initialSettings.primaryColor || defaultThemeColor);
             setCustomLogoUrl(initialSettings.customLogoUrl || '');
             setBackgroundImageUrl(initialSettings.backgroundImageUrl || '');
             setUseScrollRevealAnimations(!!initialSettings.useScrollRevealAnimations);
@@ -769,7 +772,6 @@ export const SettingsDashboard: React.FC = () => {
             setUseTrendingSlideshow(!!initialSettings.useTrendingSlideshow);
             setTrendingSlideshowInterval(initialSettings.trendingSlideshowInterval || 30);
             setTmdbApiKey(initialSettings.tmdbApiKey || '');
-            setBrandingTheme(initialSettings.brandingTheme || 'plex');
             setReferralEnabled(!!initialSettings.referralEnabled);
             setReferralTrialDays(initialSettings.referralTrialDays || 3);
             setReferralRewardDays(initialSettings.referralRewardDays || 7);
@@ -937,6 +939,16 @@ export const SettingsDashboard: React.FC = () => {
     };
 
     useEffect(() => {
+        // Cleanup the global color overrides when leaving Settings
+        return () => {
+            document.documentElement.style.removeProperty('--color-plex');
+            document.documentElement.style.removeProperty('--color-plex-hover');
+            window.dispatchEvent(new CustomEvent('portal-public-config-updated'));
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!primaryColor) return;
         document.documentElement.style.setProperty('--color-plex', hexToRgb(primaryColor));
         document.documentElement.style.setProperty('--color-plex-hover', accentHoverRgb(primaryColor));
     }, [primaryColor]);
