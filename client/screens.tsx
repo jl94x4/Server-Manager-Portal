@@ -1935,7 +1935,10 @@ const LibraryDeltaBadge: React.FC<{ value?: number }> = ({ value }) => {
     if (!value) return null;
     const isPos = value > 0;
     return (
-        <span className={`text-sm font-bold ml-2 ${isPos ? 'text-green-500' : 'text-red-500'} animate-[fade-in_0.5s_ease-out]`}>
+        <span 
+            className={`text-sm font-bold ml-2 ${isPos ? 'text-green-500' : 'text-red-500'} animate-[fade-in_0.5s_ease-out] cursor-help`}
+            title="Added since the last daily library scan"
+        >
             {isPos ? '+' : ''}{value.toLocaleString()}
         </span>
     );
