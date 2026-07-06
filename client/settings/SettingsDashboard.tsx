@@ -79,8 +79,21 @@ const BRAND_THEME_COLORS: Record<string, string> = {
 const JELLYFIN_BRAND_LOGO_URL = '/api/jellyfin/branding/icon';
 const JELLYFIN_BRAND_BACKGROUND_URL = '/api/jellyfin/branding/splash';
 
+const getThemeDefaultColor = (theme: string) => {
+    switch (theme) {
+        case 'slate': return '#38bdf8';
+        case 'nordic': return '#818cf8';
+        case 'jellyfin': return '#aa5cee';
+        case 'emerald': return '#10b981';
+        case 'midnight': return '#06b6d4';
+        case 'light': return '#e5a00d';
+        default: return '#e5a00d';
+    }
+};
+
 const inferBrandTheme = (color = '') => {
     const normalized = color.trim().toUpperCase();
+    if (!normalized) return 'plex'; // default fallback for UI
     if (normalized === BRAND_THEME_COLORS.plex) return 'plex';
     if (normalized === BRAND_THEME_COLORS.jellyfin) return 'jellyfin';
     return 'custom';
@@ -762,10 +775,9 @@ export const SettingsDashboard: React.FC = () => {
             setRequestAppUrl(initialSettings.requestAppUrl || '');
             setRequestAppApiKey(initialSettings.requestAppApiKey || '');
             const savedBrandingTheme = initialSettings.brandingTheme || 'plex';
-            const defaultThemeColor = savedBrandingTheme === 'jellyfin' ? BRAND_THEME_COLORS.jellyfin : BRAND_THEME_COLORS.plex;
             setBrandingTheme(savedBrandingTheme);
-            setBrandTheme(inferBrandTheme(initialSettings.primaryColor || defaultThemeColor));
-            setPrimaryColor(initialSettings.primaryColor || defaultThemeColor);
+            setBrandTheme(inferBrandTheme(initialSettings.primaryColor || ''));
+            setPrimaryColor(initialSettings.primaryColor || '');
             setCustomLogoUrl(initialSettings.customLogoUrl || '');
             setBackgroundImageUrl(initialSettings.backgroundImageUrl || '');
             setUseScrollRevealAnimations(!!initialSettings.useScrollRevealAnimations);
@@ -950,7 +962,11 @@ export const SettingsDashboard: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        if (!primaryColor) return;
+        if (!primaryColor) {
+            document.documentElement.style.removeProperty('--color-plex');
+            document.documentElement.style.removeProperty('--color-plex-hover');
+            return;
+        }
         document.documentElement.style.setProperty('--color-plex', hexToRgb(primaryColor));
         document.documentElement.style.setProperty('--color-plex-hover', accentHoverRgb(primaryColor));
     }, [primaryColor]);
@@ -1686,7 +1702,7 @@ export const SettingsDashboard: React.FC = () => {
                                     <input
                                         type="color"
                                         className="w-16 h-12 p-1 rounded-lg border border-border cursor-pointer bg-background"
-                                        value={primaryColor}
+                                        value={primaryColor || getThemeDefaultColor(brandingTheme)}
                                         onChange={e => {
                                             setBrandTheme('custom');
                                             setPrimaryColor(e.target.value);
