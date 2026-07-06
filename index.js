@@ -3106,6 +3106,10 @@ const buildPlexStatsCache = async () => {
         let total4kMovies = 0;
         const fourKShows = new Set();
 
+        const resolutions = { '4K': 0, '1080p': 0, '720p': 0, 'SD': 0, 'Other': 0 };
+        const codecs = { 'H.265 / HEVC': 0, 'H.264 / AVC': 0, 'AV1': 0, 'Other': 0 };
+        const fileSizes = { '0 - 500 MB': 0, '500 MB - 1.5 GB': 0, '1.5 GB - 5 GB': 0, '5 GB - 10 GB': 0, '10 GB+': 0 };
+
         for (const dir of directories) {
             try {
                 // ── Item count (single zero-size request) ──
@@ -3157,8 +3161,36 @@ const buildPlexStatsCache = async () => {
                         let is4k = false;
                         for (const media of item.Media || []) {
                             if (media.videoResolution === '4k') is4k = true;
+
+                            if (dir.type === 'movie' || dir.type === 'show') {
+                                const res = String(media.videoResolution || '').toLowerCase();
+                                if (res === '4k' || res === '2160') resolutions['4K']++;
+                                else if (res === '1080') resolutions['1080p']++;
+                                else if (res === '720') resolutions['720p']++;
+                                else if (res === '576' || res === '480' || res === 'sd') resolutions['SD']++;
+                                else resolutions['Other']++;
+
+                                const codec = String(media.videoCodec || '').toLowerCase();
+                                if (codec === 'hevc' || codec === 'h265') codecs['H.265 / HEVC']++;
+                                else if (codec === 'h264' || codec === 'avc') codecs['H.264 / AVC']++;
+                                else if (codec === 'av1') codecs['AV1']++;
+                                else codecs['Other']++;
+                            }
+
                             for (const part of media.Part || []) {
-                                if (part.size) bytes += parseInt(part.size);
+                                if (part.size) {
+                                    const partSize = parseInt(part.size);
+                                    bytes += partSize;
+
+                                    if (dir.type === 'movie' || dir.type === 'show') {
+                                        const sizeMB = partSize / (1024 * 1024);
+                                        if (sizeMB < 500) fileSizes['0 - 500 MB']++;
+                                        else if (sizeMB < 1500) fileSizes['500 MB - 1.5 GB']++;
+                                        else if (sizeMB < 5000) fileSizes['1.5 GB - 5 GB']++;
+                                        else if (sizeMB < 10000) fileSizes['5 GB - 10 GB']++;
+                                        else fileSizes['10 GB+']++;
+                                    }
+                                }
                             }
                         }
                         if (is4k) {
@@ -3200,6 +3232,9 @@ const buildPlexStatsCache = async () => {
             maxDirectPlays: existingStats.maxDirectPlays || 0,
             maxTranscodes: existingStats.maxTranscodes || 0,
             deltas,
+            resolutions,
+            codecs,
+            fileSizes,
             generatedAt: Date.now()
         };
         cachedPlexStats = stats;
@@ -5875,7 +5910,10 @@ const summarizeLibraryHealth = (topLibraries = [], stats = {}, cachedData = {}) 
         artists: toNumber(stats.artists || stats.music, 0),
         albums: toNumber(stats.albums, 0),
         tracks: toNumber(stats.tracks, 0),
-        deltas: stats.deltas || {}
+        deltas: stats.deltas || {},
+        resolutions: stats.resolutions || null,
+        codecs: stats.codecs || null,
+        fileSizes: stats.fileSizes || null
     };
 };
 
@@ -6042,7 +6080,7 @@ app.get('/api/plex/analytics', requireAuth, requireMember, async (req, res) => {
         
         // attach max stats dynamically
         const stats = await loadFile(PLEX_STATS_CACHE_PATH, {});
-        if (stats.episodes === undefined) {
+        if (stats.episodes === undefined || stats.resolutions === undefined) {
             buildPlexStatsCache().catch(() => {});
         }
         data.maxConcurrentStreams = stats.maxConcurrentStreams || 0;

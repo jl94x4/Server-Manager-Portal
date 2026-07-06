@@ -2378,6 +2378,92 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
                                     </div>
                                 </div>
                             </div>
+
+                            {libraryHealth.resolutions && libraryHealth.codecs && libraryHealth.fileSizes && (() => {
+                                const sortedCodecs = Object.entries(libraryHealth.codecs || {})
+                                    .map(([name, count]) => ({ name, count: count as number }))
+                                    .sort((a, b) => b.count - a.count);
+                                const totalCodecs = sortedCodecs.reduce((sum, item) => sum + item.count, 0) || 1;
+
+                                const sortedResolutions = Object.entries(libraryHealth.resolutions || {})
+                                    .map(([name, count]) => ({ name, count: count as number }))
+                                    .sort((a, b) => b.count - a.count);
+                                const totalResolutions = sortedResolutions.reduce((sum, item) => sum + item.count, 0) || 1;
+
+                                const fileSizeEntries = Object.entries(libraryHealth.fileSizes || {})
+                                    .map(([range, count]) => ({ range, count: count as number }));
+                                const maxFileSizeCount = Math.max(...fileSizeEntries.map(e => e.count), 1);
+
+                                return (
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="glass-card-sm p-5 flex flex-col justify-between">
+                                            <div>
+                                                <h3 className="text-muted text-xs uppercase tracking-wider font-bold mb-4">Video Codecs</h3>
+                                                <div className="flex flex-col gap-3">
+                                                    {sortedCodecs.map((item) => {
+                                                        const pct = Math.round((item.count / totalCodecs) * 100);
+                                                        return (
+                                                            <div key={item.name} className="flex flex-col gap-1">
+                                                                <div className="flex justify-between text-xs font-semibold">
+                                                                    <span className="text-text">{item.name}</span>
+                                                                    <span className="text-muted font-mono">{item.count.toLocaleString()} ({pct}%)</span>
+                                                                </div>
+                                                                <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden">
+                                                                    <div className="bg-plex h-full rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="glass-card-sm p-5 flex flex-col justify-between">
+                                            <div>
+                                                <h3 className="text-muted text-xs uppercase tracking-wider font-bold mb-4">Resolutions</h3>
+                                                <div className="flex flex-col gap-3">
+                                                    {sortedResolutions.map((item) => {
+                                                        const pct = Math.round((item.count / totalResolutions) * 100);
+                                                        return (
+                                                            <div key={item.name} className="flex flex-col gap-1">
+                                                                <div className="flex justify-between text-xs font-semibold">
+                                                                    <span className="text-text">{item.name}</span>
+                                                                    <span className="text-muted font-mono">{item.count.toLocaleString()} ({pct}%)</span>
+                                                                </div>
+                                                                <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden">
+                                                                    <div className="bg-plex h-full rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="glass-card-sm p-5 flex flex-col">
+                                            <h3 className="text-muted text-xs uppercase tracking-wider font-bold mb-1">File Size Distribution</h3>
+                                            <div className="flex items-end justify-between h-40 pt-4 px-2 w-full gap-3 mt-auto">
+                                                {fileSizeEntries.map((item) => {
+                                                    const heightPct = (item.count / maxFileSizeCount) * 100;
+                                                    return (
+                                                        <div key={item.range} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+                                                            <div 
+                                                                className="w-full bg-plex/85 hover:bg-plex hover:shadow-[0_0_10px_rgba(229,160,13,0.3)] rounded-t transition-all duration-500 relative" 
+                                                                style={{ height: `${Math.max(heightPct, 4)}%` }}
+                                                            >
+                                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 bg-black/90 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-10 font-mono shadow-md border border-white/5">
+                                                                    {item.count.toLocaleString()}
+                                                                </div>
+                                                            </div>
+                                                            <span className="text-[9px] text-muted font-bold tracking-wider text-center line-clamp-1 w-full" title={item.range}>{item.range}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                         </>
                     )}
 
