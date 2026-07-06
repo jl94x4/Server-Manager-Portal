@@ -90,7 +90,7 @@ export const MainApp: React.FC = () => {
         document.documentElement.setAttribute('data-theme', activeTheme);
         localStorage.setItem('portal-theme', activeTheme);
 
-        if ((activeTheme === 'plex' || activeTheme === 'light') && publicConfig.primaryColor) {
+        if (publicConfig.primaryColor) {
             document.documentElement.style.setProperty('--color-plex', hexToRgb(publicConfig.primaryColor));
             document.documentElement.style.setProperty('--color-plex-hover', accentHoverRgb(publicConfig.primaryColor));
         } else {

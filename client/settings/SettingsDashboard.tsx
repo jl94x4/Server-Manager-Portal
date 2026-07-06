@@ -67,6 +67,7 @@ const IntegrationHeading: React.FC<{ app: string; title: string; subtitle?: stri
 );
 
 const BRAND_THEME_OPTIONS = [
+    { label: 'Theme Default', value: 'default' },
     { label: 'Plex', value: 'plex' },
     { label: 'Jellyfin', value: 'jellyfin' },
     { label: 'Custom', value: 'custom' },
@@ -93,7 +94,7 @@ const getThemeDefaultColor = (theme: string) => {
 
 const inferBrandTheme = (color = '') => {
     const normalized = color.trim().toUpperCase();
-    if (!normalized) return 'plex'; // default fallback for UI
+    if (!normalized) return 'default'; // default fallback for UI
     if (normalized === BRAND_THEME_COLORS.plex) return 'plex';
     if (normalized === BRAND_THEME_COLORS.jellyfin) return 'jellyfin';
     return 'custom';
@@ -940,6 +941,8 @@ export const SettingsDashboard: React.FC = () => {
         setBrandTheme(theme);
         if (theme === 'plex' || theme === 'jellyfin') {
             setPrimaryColor(BRAND_THEME_COLORS[theme]);
+        } else if (theme === 'default') {
+            setPrimaryColor('');
         }
     };
 
@@ -1667,7 +1670,7 @@ export const SettingsDashboard: React.FC = () => {
                         <div className="mb-8 animate-fade-in">
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Branding & UI</h3>
                             <div className="mb-4">
-                                <label>Theme</label>
+                                <label>Accent Color Preset</label>
                                 <CustomSelect
                                     value={brandTheme}
                                     onChange={applyBrandTheme}
@@ -1712,6 +1715,7 @@ export const SettingsDashboard: React.FC = () => {
                                         type="text"
                                         className="flex-1 p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all uppercase font-mono"
                                         value={primaryColor}
+                                        placeholder={getThemeDefaultColor(brandingTheme)}
                                         onChange={e => {
                                             setBrandTheme('custom');
                                             setPrimaryColor(e.target.value);
@@ -1730,16 +1734,19 @@ export const SettingsDashboard: React.FC = () => {
                                     <SettingHint>Provide a URL or upload a file. (Max 5MB)</SettingHint>
                                 </div>
                             </div>
-                            <div className="mb-4">
-                                <label htmlFor="defaultThemeSelect">Default Portal Theme</label>
+                            <div className="mb-8 relative z-[50]">
+                                <label>Portal Theme</label>
                                 <CustomSelect
-                                    id="defaultThemeSelect"
                                     value={brandingTheme}
                                     onChange={setBrandingTheme}
                                     options={[
                                         { label: 'Plex Dark', value: 'plex' },
                                         { label: 'Sleek Slate', value: 'slate' },
                                         { label: 'Nordic Frost', value: 'nordic' },
+                                        { label: 'Neon Midnight', value: 'midnight' },
+                                        { label: 'Emerald City', value: 'emerald' },
+                                        { label: 'Jellyfin', value: 'jellyfin' },
+                                        { label: 'Plex Light', value: 'light' },
                                     ]}
                                 />
                                 <div className="mt-2">
