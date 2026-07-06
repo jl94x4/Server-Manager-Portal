@@ -168,7 +168,7 @@ export const SettingsDashboard: React.FC = () => {
         {
             title: 'Integrations',
             tabs: [
-                { id: 'plex', label: 'Media Player', keywords: ['plex', 'jellyfin', 'media', 'player', 'token', 'server', 'libraries', 'docker', 'local', 'url', 'direct'] },
+                { id: 'plex', label: 'Media Player', keywords: ['plex', 'jellyfin', 'media', 'player', 'token', 'server', 'libraries', 'docker', 'local', 'url', 'direct', 'privacy', 'usernames', 'analytics'] },
                 { id: 'mediastack', label: 'Media Stack', keywords: ['sonarr', 'radarr', 'tautulli', 'jellystat', 'seerr', 'jellyseerr'] },
                 { id: 'status', label: 'Status Monitor', keywords: ['uptime', 'health', 'services'] }
             ]
