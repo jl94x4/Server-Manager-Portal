@@ -4050,49 +4050,56 @@ app.post('/api/tasks/run/:taskId', requireAdmin, async (req, res) => {
 
     const { task, kind } = match;
 
-    try {
-        const currentConfig = await loadFile(CONFIG_PATH, {});
-
-        if (kind === 'scheduled') {
-            markTaskStart(task);
-            try {
-                switch (taskId) {
-                    case 'syncPlexUsers': await syncUsers(currentConfig); break;
-                    case 'checkAndSendNotifications': await checkAndSendNotifications(currentConfig); break;
-                    case 'checkAndRevoke': await checkAndRevoke(currentConfig); break;
-                    case 'checkAndSendNewsletter': await checkAndSendNewsletter(currentConfig, true); break;
-                    case 'checkAndCleanupInactive': await checkAndCleanupInactive(currentConfig); break;
-                    case 'maintenanceRuleRun':
-                        if (!isMaintenanceExperimentalEnabled(currentConfig)) {
-                            throw new Error('Maintenance module is disabled. Enable it in Settings → System first.');
-                        }
-                        await executeMaintenanceRunBatch({ actor: req.user, dryRun: true });
-                        break;
-                    default:
-                        markTaskEnd(task, null);
-                        return res.status(400).json({ error: 'Invalid task' });
-                }
-                markTaskEnd(task, null);
-            } catch (e) {
-                markTaskEnd(task, e);
-                throw e;
-            }
-        } else {
-            switch (taskId) {
-                case 'analyticsCache': await calculateAnalyticsStats(); break;
-                case 'trendingCache': await calculateTrendingStats(); break;
-                case 'plexStats': await buildPlexStatsCache(); break;
-                case 'autoBackup': await runAutoBackupCycle('manual', { force: true }); break;
-                case 'maintenanceIndex': await buildMaintenanceMediaIndex({ actor: req.user, force: true }); break;
-                default:
-                    return res.status(400).json({ error: 'Invalid task' });
-            }
-        }
-
-        res.json({ message: `Task ${task.name} executed successfully.`, task });
-    } catch (e) {
-        res.status(500).json({ error: `Failed to execute task: ${e.message}` });
+    if (task.running) {
+        return res.status(400).json({ error: `Task "${task.name}" is already running.` });
     }
+
+    // Respond to the client immediately
+    res.json({ message: `Task "${task.name}" started in the background.`, task });
+
+    // Execute the task in the background
+    (async () => {
+        try {
+            const currentConfig = await loadFile(CONFIG_PATH, {});
+
+            if (kind === 'scheduled') {
+                markTaskStart(task);
+                try {
+                    switch (taskId) {
+                        case 'syncPlexUsers': await syncUsers(currentConfig); break;
+                        case 'checkAndSendNotifications': await checkAndSendNotifications(currentConfig); break;
+                        case 'checkAndRevoke': await checkAndRevoke(currentConfig); break;
+                        case 'checkAndSendNewsletter': await checkAndSendNewsletter(currentConfig, true); break;
+                        case 'checkAndCleanupInactive': await checkAndCleanupInactive(currentConfig); break;
+                        case 'maintenanceRuleRun':
+                            if (!isMaintenanceExperimentalEnabled(currentConfig)) {
+                                throw new Error('Maintenance module is disabled. Enable it in Settings → System first.');
+                            }
+                            await executeMaintenanceRunBatch({ actor: req.user, dryRun: true });
+                            break;
+                        default:
+                            markTaskEnd(task, new Error('Invalid task'));
+                            return;
+                    }
+                    markTaskEnd(task, null);
+                } catch (e) {
+                    markTaskEnd(task, e);
+                    log(`[Tasks] Scheduled task "${task.name}" failed: ${e.message}`);
+                }
+            } else {
+                // system jobs handle their own markTaskStart / markTaskEnd inside their functions
+                switch (taskId) {
+                    case 'analyticsCache': await calculateAnalyticsStats(); break;
+                    case 'trendingCache': await calculateTrendingStats(); break;
+                    case 'plexStats': await buildPlexStatsCache(); break;
+                    case 'autoBackup': await runAutoBackupCycle('manual', { force: true }); break;
+                    case 'maintenanceIndex': await buildMaintenanceMediaIndex({ actor: req.user, force: true }); break;
+                }
+            }
+        } catch (e) {
+            log(`[Tasks] Fatal error in background task execution wrapper for "${task.name}": ${e.message}`);
+        }
+    })();
 });
 
 app.get('/api/admin/diagnostics', requireAdmin, async (req, res) => {
