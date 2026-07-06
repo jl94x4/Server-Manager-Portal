@@ -91,7 +91,8 @@ export const SettingsDashboard: React.FC = () => {
     const [statusDraft, setStatusDraft] = useState<any>(null);
     const [isLoading, setLoading] = useState(true);
     const [configLoadError, setConfigLoadError] = useState<string | null>(null);
-    const [initialSettings, setInitialSettings] = useState<any>(null);
+    const [initialSettings, setInitialSettings] = useState<any>({});
+    const [isConfigLoaded, setIsConfigLoaded] = useState(false);
     const [toasts, setToasts] = useState<ToastMessage[]>([]);
     const streamRulesSaveHandlerRef = useRef<(() => Promise<boolean>) | null>(null);
 
@@ -122,6 +123,7 @@ export const SettingsDashboard: React.FC = () => {
                 const usersData = await apiFetch('/api/users');
                 setUsers(usersData);
                 await fetchStatusConfig();
+                setIsConfigLoaded(true);
             } catch (error) {
                 const message = error instanceof Error ? error.message : 'Failed to load config';
                 setConfigLoadError(message);
@@ -316,9 +318,9 @@ export const SettingsDashboard: React.FC = () => {
     const [referralRewardDays, setReferralRewardDays] = useState(7);
     const [announcement, setAnnouncement] = useState('');
     const [isPushingAnnouncement, setIsPushingAnnouncement] = useState(false);
-    const [use24HourClock, setUse24HourClock] = useState(initialSettings.use24HourClock || false);
-    const [showPosterQualityBadges, setShowPosterQualityBadges] = useState(initialSettings.showPosterQualityBadges !== false);
-    const [allowTemporaryAccess, setAllowTemporaryAccess] = useState(initialSettings.allowTemporaryAccess || false);
+    const [use24HourClock, setUse24HourClock] = useState(initialSettings?.use24HourClock || false);
+    const [showPosterQualityBadges, setShowPosterQualityBadges] = useState(initialSettings?.showPosterQualityBadges !== false);
+    const [allowTemporaryAccess, setAllowTemporaryAccess] = useState(initialSettings?.allowTemporaryAccess || false);
     const ensureMaintenanceNavOrder = useCallback((order: string[]) => {
         const base = Array.isArray(order) ? order.filter(Boolean) : ['home', 'discover', 'status', 'analytics', 'mediastack', 'request', 'settings', 'logout'];
         if (!base.includes('maintenance')) {
@@ -724,7 +726,7 @@ export const SettingsDashboard: React.FC = () => {
     };
 
     useEffect(() => {
-        if (initialSettings) {
+        if (isConfigLoaded) {
             setToken(initialSettings.token || '');
             setMediaServerType(initialSettings.mediaServerType === 'jellyfin' ? 'jellyfin' : 'plex');
             setPlexServerUrl(initialSettings.plexServerUrl || '');
@@ -792,7 +794,7 @@ export const SettingsDashboard: React.FC = () => {
             setTestRecipient('');
             setServers([]);
         }
-    }, [initialSettings]);
+    }, [initialSettings, isConfigLoaded]);
 
     const handleFetchServers = async () => {
         if (!token) {
