@@ -1868,21 +1868,52 @@ export const SettingsDashboard: React.FC = () => {
                                 {tasks.map(task => (
                                     <div key={task.id} className="py-4 border-b border-border/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
                                         <div>
-                                            <h4 className="font-bold text-lg mb-1">{task.name}</h4>
+                                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                <h4 className="font-bold text-lg">{task.name}</h4>
+                                                {task.running ? (
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-[0_0_10px_rgba(59,130,246,0.15)] animate-pulse">
+                                                        <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-ping" />
+                                                        Running
+                                                    </span>
+                                                ) : task.lastError ? (
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20">
+                                                        <span className="w-1.5 h-1.5 bg-red-400 rounded-full" />
+                                                        Failed
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-500/10 text-muted border border-border">
+                                                        Idle
+                                                    </span>
+                                                )}
+                                            </div>
                                             <p className="text-sm text-muted mb-2">{task.description}</p>
                                             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
                                                 <span><strong className="text-text">Last Run:</strong> {task.lastRun ? new Date(task.lastRun).toLocaleString() : 'Never'}</span>
                                                 <span><strong className="text-text">Next Run:</strong> {task.nextRun ? new Date(task.nextRun).toLocaleString() : 'Not Scheduled'}</span>
-                                                <span><strong className="text-text">Status:</strong> {task.running ? 'Running' : 'Idle'}</span>
                                                 {task.lastDurationMs !== null && <span><strong className="text-text">Duration:</strong> {Math.round(task.lastDurationMs / 1000)}s</span>}
                                                 {task.lastError && <span className="bg-red-500/20 text-red-300 px-2 py-1 rounded"><strong>Error:</strong> {task.lastError}</span>}
                                             </div>
                                         </div>
                                         <button
-                                            className="px-4 py-2 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
+                                            className={`px-4 py-2 rounded-md font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
+                                                task.running
+                                                    ? 'bg-slate-800 text-muted border border-border cursor-not-allowed opacity-60'
+                                                    : 'bg-plex text-background hover:bg-plex-hover'
+                                            }`}
+                                            disabled={task.running}
                                             onClick={() => handleRunTask(task.id)}
                                         >
-                                            Run Now
+                                            {task.running ? (
+                                                <>
+                                                    <svg className="animate-spin h-4 w-4 text-muted" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                    <span>Running...</span>
+                                                </>
+                                            ) : (
+                                                'Run Now'
+                                            )}
                                         </button>
                                     </div>
                                 ))}
@@ -2066,18 +2097,30 @@ export const SettingsDashboard: React.FC = () => {
                                 <h4 className="font-bold text-text">Job Queue</h4>
                                 <div className="flex flex-col gap-3">
                                     {tasks.map(task => (
-                                        <div key={`system-${task.id}`} className="py-3 border-b border-border/40 last:border-b-0">
-                                            <div className="flex items-center justify-between gap-2">
+                                        <div key={`system-${task.id}`} className="py-3 border-b border-border/40 last:border-b-0 flex items-center justify-between gap-4">
+                                            <div>
                                                 <p className="font-semibold text-text">{task.name}</p>
-                                                <span className={`text-xs px-2 py-1 rounded ${task.running ? 'bg-yellow-500/20 text-yellow-300' : 'bg-green-500/20 text-green-300'}`}>
-                                                    {task.running ? 'Running' : 'Idle'}
+                                                <div className="text-xs text-muted mt-1">
+                                                    Last: {task.lastRun ? new Date(task.lastRun).toLocaleString() : 'Never'} · Next: {task.nextRun ? new Date(task.nextRun).toLocaleString() : 'Not Scheduled'}
+                                                    {task.lastDurationMs !== null ? ` · Duration: ${Math.round(task.lastDurationMs / 1000)}s` : ''}
+                                                </div>
+                                                {task.lastError && <div className="text-xs text-red-300 mt-1">Last error: {task.lastError}</div>}
+                                            </div>
+                                            {task.running ? (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-[0_0_10px_rgba(59,130,246,0.15)] animate-pulse whitespace-nowrap">
+                                                    <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-ping" />
+                                                    Running
                                                 </span>
-                                            </div>
-                                            <div className="text-xs text-muted mt-1">
-                                                Last: {task.lastRun ? new Date(task.lastRun).toLocaleString() : 'Never'} · Next: {task.nextRun ? new Date(task.nextRun).toLocaleString() : 'Not Scheduled'}
-                                                {task.lastDurationMs !== null ? ` · Duration: ${Math.round(task.lastDurationMs / 1000)}s` : ''}
-                                            </div>
-                                            {task.lastError && <div className="text-xs text-red-300 mt-1">Last error: {task.lastError}</div>}
+                                            ) : task.lastError ? (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20 whitespace-nowrap">
+                                                    <span className="w-1.5 h-1.5 bg-red-400 rounded-full" />
+                                                    Failed
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-500/10 text-muted border border-border whitespace-nowrap">
+                                                    Idle
+                                                </span>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
