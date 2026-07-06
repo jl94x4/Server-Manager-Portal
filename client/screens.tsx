@@ -2087,7 +2087,11 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
             episodes?: number,
             artists?: number,
             albums?: number,
-            tracks?: number
+            tracks?: number,
+            resolutions?: Record<string, number> | null,
+            codecs?: Record<string, number> | null,
+            fileSizes?: Record<string, any> | null,
+            deltas?: any
         },
         requestedPeriodDays?: string | number,
         cachePeriodDays?: string | number | null,
