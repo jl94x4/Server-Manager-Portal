@@ -38,15 +38,16 @@ const APP_ICONS: Record<string, string> = {
     jellyseerr: `${SELFHST_ICON_BASE}/jellyseerr.svg`,
     ombi: `${SELFHST_ICON_BASE}/ombi.svg`,
     jellystat: 'https://cdn.jsdelivr.net/gh/selfhst/icons@main/png/jellystat.png',
+    tmdb: `${SELFHST_ICON_BASE}/tmdb.svg`,
 };
 
 const ProgramIcon: React.FC<{ app: string; label: string }> = ({ app, label }) => (
-    <span className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+    <span className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
         {APP_ICONS[app] ? (
             <img
                 src={APP_ICONS[app]}
                 alt=""
-                className="w-6 h-6 object-contain"
+                className="w-5 h-5 object-contain"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
         ) : (
@@ -58,13 +59,11 @@ const ProgramIcon: React.FC<{ app: string; label: string }> = ({ app, label }) =
 
 const IntegrationHeading: React.FC<{ app: string; title: string; subtitle?: string; className?: string }> = ({ app, title, subtitle, className = '' }) => (
     <div className={`border-b border-border pb-3 mb-4 ${className}`}>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
             <ProgramIcon app={app} label={title} />
-            <div className="flex flex-col">
-                <h3 className="text-xl font-bold text-text leading-tight">{title}</h3>
-                {subtitle && <p className="text-xs text-muted mt-1">{subtitle}</p>}
-            </div>
+            <h3 className="text-xl font-bold text-text leading-tight min-w-0">{title}</h3>
         </div>
+        {subtitle && <p className="text-xs text-muted mt-1.5 pl-11">{subtitle}</p>}
     </div>
 );
 
