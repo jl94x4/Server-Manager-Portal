@@ -5613,15 +5613,27 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
 };
 
 const EMPTY_STREAM_MESSAGES = [
-    "Looks like everyone is touching grass right now.",
-    "It's quiet... too quiet.",
-    "Nobody is streaming right now. Time to start watching!",
-    "A tumbling weed passes through the server.",
-    "Server is catching a quick nap.",
-    "Ghost town population: 1 (just you)",
-    "Zero active streams. Time to populate the server!",
-    "Even the server needs a break sometimes.",
-    "Nobody's watching? More bandwidth for you!"
+    "Nobody is watching... the server can finally breathe.",
+    "0 streams active. The hard drives are enjoying a well-earned nap.",
+    "The popcorn is ready. The audience is missing.",
+    "All quiet on the streaming front.",
+    "The server is awake. The humans are not.",
+    "No one is streaming... the GPUs are confused.",
+    "No streams detected. Suspicious behaviour.",
+    "Everyone left. The server is binge-watching itself.",
+    "No one is watching. Somewhere, a movie is feeling ignored.",
+    "No active viewers. Time to dust off the virtual popcorn machine.",
+    "The only thing streaming right now is disappointment.",
+    "The server is ready. The couch is empty.",
+    "The media centre is open 24/7. The viewers are not.",
+    "The server has 10,000 movies and nobody pressed play.",
+    "No active sessions. The bandwidth is feeling useless.",
+    "The server is fully loaded and emotionally unavailable.",
+    "The Plex goblins are idle.",
+    "The server is bored. Please entertain it.",
+    "No viewers detected. Initiating dramatic silence.",
+    "The hard drives are spinning... for nothing.",
+    "Even the thumbnails are getting lonely."
 ];
 
 const EmptyStreamsMessage: React.FC = () => {
