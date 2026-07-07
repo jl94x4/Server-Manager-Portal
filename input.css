@@ -225,6 +225,11 @@
     @apply pb-3 border-border/60;
     margin-bottom: 1.5rem;
   }
+  .settings-panel .integration-heading-title {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom-width: 0;
+  }
 
   /* Discover: container on parent — grids query content width (sidebar-aware) */
   .discover-layout-container {
@@ -419,6 +424,11 @@
   .settings-panel h3 {
     @apply pb-3 border-border/60;
     margin-bottom: 1.5rem;
+  }
+  .settings-panel .integration-heading-title {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom-width: 0;
   }
 
   /* Discover: container on parent — grids query content width (sidebar-aware) */

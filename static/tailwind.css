@@ -1041,6 +1041,12 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   margin-bottom: 1.5rem;
 }
 
+.settings-panel .integration-heading-title {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom-width: 0;
+}
+
 /* Discover: container on parent — grids query content width (sidebar-aware) */
 
 .discover-layout-container {
@@ -1482,6 +1488,12 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   margin-bottom: 1.5rem;
 }
 
+.settings-panel .integration-heading-title {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom-width: 0;
+}
+
 /* Discover: container on parent — grids query content width (sidebar-aware) */
 
 .discover-layout-container {
@@ -1845,6 +1857,18 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .col-span-full {
   grid-column: 1 / -1;
+}
+
+.col-start-2 {
+  grid-column-start: 2;
+}
+
+.row-start-1 {
+  grid-row-start: 1;
+}
+
+.row-start-2 {
+  grid-row-start: 2;
 }
 
 .-m-3 {
@@ -2962,6 +2986,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
+.grid-cols-\[2rem_1fr\] {
+  grid-template-columns: 2rem 1fr;
+}
+
 .grid-cols-\[minmax\(0\2c 1fr\)_auto\] {
   grid-template-columns: minmax(0,1fr) auto;
 }
@@ -3095,6 +3123,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 .gap-x-6 {
   -moz-column-gap: 1.5rem;
        column-gap: 1.5rem;
+}
+
+.gap-y-0\.5 {
+  row-gap: 0.125rem;
 }
 
 .gap-y-1 {
@@ -4517,10 +4549,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .pl-10 {
   padding-left: 2.5rem;
-}
-
-.pl-11 {
-  padding-left: 2.75rem;
 }
 
 .pl-12 {

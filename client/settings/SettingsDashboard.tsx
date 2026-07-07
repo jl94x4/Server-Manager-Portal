@@ -42,7 +42,7 @@ const APP_ICONS: Record<string, string> = {
 };
 
 const ProgramIcon: React.FC<{ app: string; label: string }> = ({ app, label }) => (
-    <span className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+    <span className="inline-flex w-8 h-8 rounded-lg bg-white/5 border border-white/10 items-center justify-center overflow-hidden flex-shrink-0">
         {APP_ICONS[app] ? (
             <img
                 src={APP_ICONS[app]}
@@ -58,12 +58,14 @@ const ProgramIcon: React.FC<{ app: string; label: string }> = ({ app, label }) =
 );
 
 const IntegrationHeading: React.FC<{ app: string; title: string; subtitle?: string; className?: string }> = ({ app, title, subtitle, className = '' }) => (
-    <div className={`border-b border-border pb-3 mb-4 ${className}`}>
-        <div className="flex items-center gap-3">
-            <ProgramIcon app={app} label={title} />
-            <h3 className="text-xl font-bold text-text leading-tight min-w-0">{title}</h3>
+    <div className={`integration-heading border-b border-border pb-3 mb-4 ${className}`}>
+        <div className="grid grid-cols-[2rem_1fr] gap-x-3 gap-y-0.5">
+            <div className="row-start-1 self-center">
+                <ProgramIcon app={app} label={title} />
+            </div>
+            <h3 className="integration-heading-title text-xl font-bold text-text leading-tight min-w-0 col-start-2 row-start-1">{title}</h3>
+            {subtitle && <p className="text-xs text-muted col-start-2 row-start-2">{subtitle}</p>}
         </div>
-        {subtitle && <p className="text-xs text-muted mt-1.5 pl-11">{subtitle}</p>}
     </div>
 );
 
