@@ -1,15 +1,16 @@
 import fs from 'fs';
 import { execSync } from 'child_process';
 
-const normalizeSha = (sha) => {
+const normalizeSha = (sha, pkgVersion) => {
     if (!sha) return '';
     const trimmed = String(sha).trim();
-    const withoutPrefix = trimmed.replace(/^v1\.0\.0-/i, '');
+    const prefixRegex = new RegExp(`^v${pkgVersion.replace(/\./g, '\\.')}-`, 'i');
+    const withoutPrefix = trimmed.replace(prefixRegex, '');
     return withoutPrefix.slice(0, 7);
 };
 
-const resolveBuildVersion = () => {
-    const fromEnv = normalizeSha(process.env.GIT_SHA || process.env.GITHUB_SHA || '');
+const resolveBuildVersion = (pkgVersion) => {
+    const fromEnv = normalizeSha(process.env.GIT_SHA || process.env.GITHUB_SHA || '', pkgVersion);
     if (fromEnv) return fromEnv;
 
     try {
@@ -19,8 +20,14 @@ const resolveBuildVersion = () => {
     }
 };
 
-const assetVersion = resolveBuildVersion();
-fs.writeFileSync('version.txt', `v1.0.0-${assetVersion}`);
+const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+const pkgVersion = pkg.version;
+const assetVersion = resolveBuildVersion(pkgVersion);
+
+const isTag = process.env.GITHUB_REF && process.env.GITHUB_REF.startsWith('refs/tags/');
+const finalVersion = isTag ? `v${pkgVersion}` : `v${pkgVersion}-${assetVersion}`;
+
+fs.writeFileSync('version.txt', finalVersion);
 
 try {
     const indexPath = 'index.html';

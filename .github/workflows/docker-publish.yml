@@ -30,7 +30,6 @@ jobs:
         with:
           images: ghcr.io/jl94x4/server-manager-portal
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=beta,enable=${{ github.ref == 'refs/heads/beta' }}
             type=sha,prefix=
             type=semver,pattern={{version}}
