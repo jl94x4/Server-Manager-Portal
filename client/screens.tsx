@@ -4570,9 +4570,9 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     const [isDesktopMostWatched, setIsDesktopMostWatched] = useState(
         () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
     );
-    const topWatchedPageSize = 12;
+    const topWatchedPageSize = (publicConfig?.dashboardLayout?.topWatchedRows || 2) * 6;
     const [recentHistoryPage, setRecentHistoryPage] = useState(0);
-    const recentHistoryPageSize = 14;
+    const recentHistoryPageSize = (publicConfig?.dashboardLayout?.recentHistoryRows || 7) * 2;
     const [analyticsDays, setAnalyticsDays] = useState<number | 'all'>(30);
     const [analyticsDaysOpen, setAnalyticsDaysOpen] = useState(false);
     const [wrapUpDaysOpen, setWrapUpDaysOpen] = useState(false);

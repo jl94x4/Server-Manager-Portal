@@ -23,6 +23,8 @@ export interface DashboardLayoutConfig {
     recentlyAddedOrder: RecentlyAddedWidgetId[];
     hiddenSections: DashboardSectionId[];
     hiddenWidgets: DashboardWidgetId[];
+    recentHistoryRows?: number;
+    topWatchedRows?: number;
 }
 
 export const DASHBOARD_SECTION_LABELS: Record<DashboardSectionId, string> = {
@@ -68,6 +70,8 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayoutConfig = {
     recentlyAddedOrder: ['recentMovies', 'recentShows', 'recentMusic'],
     hiddenSections: [],
     hiddenWidgets: [],
+    recentHistoryRows: 7,
+    topWatchedRows: 2,
 };
 
 const ALL_SECTIONS: DashboardSectionId[] = ['wrapUp', 'mainGrid', 'watchRow', 'recentlyAdded'];
@@ -104,6 +108,8 @@ export const normalizeDashboardLayout = (raw: unknown): DashboardLayoutConfig =>
             [...ALL_MAIN_GRID, ...ALL_RECENTLY_ADDED] as DashboardWidgetId[],
             []
         ),
+        recentHistoryRows: typeof input.recentHistoryRows === 'number' ? input.recentHistoryRows : DEFAULT_DASHBOARD_LAYOUT.recentHistoryRows,
+        topWatchedRows: typeof input.topWatchedRows === 'number' ? input.topWatchedRows : DEFAULT_DASHBOARD_LAYOUT.topWatchedRows,
     };
 };
 

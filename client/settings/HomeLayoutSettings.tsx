@@ -195,6 +195,34 @@ export const HomeLayoutSettings: React.FC<Props> = ({ layout, onChange }) => {
                     cannot be reordered or hidden — that prevents uneven columns and wasted space on desktop.
                 </p>
             </div>
+
+            <div className="max-w-5xl">
+                <h4 className="text-sm font-bold uppercase tracking-wider text-muted mb-3">Watch History Configuration</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="bg-background/30 p-4 rounded-xl border border-border/40">
+                        <label className="block text-text font-semibold mb-1">Recently Watched Rows</label>
+                        <p className="text-xs text-muted mb-3">Number of rows to display per page.</p>
+                        <select
+                            className="w-full bg-black/20 border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-plex/50"
+                            value={layout.recentHistoryRows ?? 7}
+                            onChange={(e) => applyChange({ ...layout, recentHistoryRows: parseInt(e.target.value, 10) })}
+                        >
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20].map(n => <option key={n} value={n}>{n} {n === 1 ? 'Row' : 'Rows'}</option>)}
+                        </select>
+                    </div>
+                    <div className="bg-background/30 p-4 rounded-xl border border-border/40">
+                        <label className="block text-text font-semibold mb-1">Most Watched Rows</label>
+                        <p className="text-xs text-muted mb-3">Number of rows to display per page.</p>
+                        <select
+                            className="w-full bg-black/20 border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-plex/50"
+                            value={layout.topWatchedRows ?? 2}
+                            onChange={(e) => applyChange({ ...layout, topWatchedRows: parseInt(e.target.value, 10) })}
+                        >
+                            {[1, 2, 3, 4, 5, 6, 8, 10].map(n => <option key={n} value={n}>{n} {n === 1 ? 'Row' : 'Rows'}</option>)}
+                        </select>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };
