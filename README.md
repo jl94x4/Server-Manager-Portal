@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="static/logo.png" alt="Server Portal Logo" width="120" height="120" />
+<img src="static/logo.png" alt="Server Portal Logo" width="240" height="240" />
 
 # Server Portal
 
