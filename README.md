@@ -418,6 +418,8 @@ The template uses `ghcr.io/jl94x4/server-manager-portal:latest` by default.
 | Variable | Required | Description |
 |---|---|---|
 | `JWT_SECRET` | Yes | Session signing secret (min 32 characters) |
+| `PUID` | No | User ID to run the app as (default `1000`; `99` on Unraid) |
+| `PGID` | No | Group ID to run the app as (default `1000`; `100` on Unraid) |
 | `PORT` | No | Listen port inside the container (default `2121`) |
 | `BIND_HOST` | No | Bind address (default `0.0.0.0`) |
 | `CONFIG_DIR` | No | Runtime data directory (default `/app/config` in Docker) |
