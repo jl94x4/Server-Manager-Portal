@@ -2567,6 +2567,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   width: 120px;
 }
 
+.w-\[140px\] {
+  width: 140px;
+}
+
 .w-\[320px\] {
   width: 320px;
 }
@@ -6761,6 +6765,10 @@ html.branded-skeleton .skeleton-base::after {
 
   .sm\:flex {
     display: flex;
+  }
+
+  .sm\:hidden {
+    display: none;
   }
 
   .sm\:h-2 {

@@ -2281,43 +2281,43 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
             </span>
         );
     };
-
-    return (
+return (
         <div className="w-full min-w-0 animate-fade-in flex flex-col gap-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
-                <div>
-                    <h1 className="text-3xl font-bold text-text uppercase tracking-widest flex items-center gap-3">
-                        <BarChart3 className="w-8 h-8 text-plex" />
-                        Advanced Analytics
-                    </h1>
-                    <div className="flex bg-black/40 rounded-lg p-1 border border-white/5 w-fit mt-4">
-                        <button onClick={() => setViewTab('overview')} className={`px-4 py-2 rounded-md text-sm font-bold uppercase tracking-wider transition-colors flex items-center gap-2 ${viewTab === 'overview' ? 'bg-plex text-white shadow-lg' : 'text-muted hover:text-white'}`}>
-                            <Activity className="w-4 h-4" /> Overview
+            <div className="flex flex-col gap-4 mb-6">
+                <h1 className="text-3xl font-black text-white flex items-center gap-3 uppercase tracking-wider">
+                    <BarChart3 className="w-8 h-8 text-plex" />
+                    Advanced Analytics
+                </h1>
+                <div className="flex flex-row items-center justify-between gap-3 w-full">
+                    <div className="flex bg-black/40 rounded-lg p-1 border border-white/5 w-fit overflow-x-auto hide-scrollbar">
+                        <button onClick={() => setViewTab('overview')} className={`px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 md:gap-2 ${viewTab === 'overview' ? 'bg-plex text-white shadow-lg' : 'text-muted hover:text-white'}`}>
+                            <Activity className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Overview</span><span className="sm:hidden">Overview</span>
                         </button>
                         {!isJellyfinPortal && (
-                            <button onClick={() => setViewTab('graphs')} className={`px-4 py-2 rounded-md text-sm font-bold uppercase tracking-wider transition-colors flex items-center gap-2 ${viewTab === 'graphs' ? 'bg-plex text-white shadow-lg' : 'text-muted hover:text-white'}`}>
-                                <LucideLineChart className="w-4 h-4" /> Graphs
+                            <button onClick={() => setViewTab('graphs')} className={`px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 md:gap-2 ${viewTab === 'graphs' ? 'bg-plex text-white shadow-lg' : 'text-muted hover:text-white'}`}>
+                                <LucideLineChart className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Graphs</span><span className="sm:hidden">Graphs</span>
                             </button>
                         )}
                     </div>
+                    {viewTab === 'overview' && (
+                        <div className="w-[140px] md:w-48 shrink-0">
+                            <CustomSelect
+                                value={days}
+                                onChange={(val) => setDays(val as string)}
+                                compact={true}
+                                options={[
+                                    { label: 'Last 24 Hours', value: '1' },
+                                    { label: 'Last 7 Days', value: '7' },
+                                    { label: 'Last 30 Days', value: '30' },
+                                    { label: 'Last 60 Days', value: '60' },
+                                    { label: 'Last 1 Year', value: '365' },
+                                    { label: 'Last 5 Years', value: '1825' },
+                                    { label: 'All Time', value: 'all' }
+                                ]}
+                            />
+                        </div>
+                    )}
                 </div>
-                {viewTab === 'overview' && (
-                    <div className="w-48">
-                        <CustomSelect
-                            value={days}
-                            onChange={(val) => setDays(val as string)}
-                            options={[
-                                { label: 'Last 24 Hours', value: '1' },
-                                { label: 'Last 7 Days', value: '7' },
-                                { label: 'Last 30 Days', value: '30' },
-                                { label: 'Last 60 Days', value: '60' },
-                                { label: 'Last 1 Year', value: '365' },
-                                { label: 'Last 5 Years', value: '1825' },
-                                { label: 'All Time', value: 'all' }
-                            ]}
-                        />
-                    </div>
-                )}
             </div>
 
             {viewTab === 'graphs' && <TautulliGraphsTab />}
