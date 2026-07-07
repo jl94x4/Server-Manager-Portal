@@ -6839,6 +6839,10 @@ html.branded-skeleton .skeleton-base::after {
     align-items: flex-start;
   }
 
+  .sm\:items-end {
+    align-items: flex-end;
+  }
+
   .sm\:items-center {
     align-items: center;
   }

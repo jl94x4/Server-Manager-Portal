@@ -905,13 +905,13 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const [monthOffset, setMonthOffset] = useState(0);
-    const [activeCalendarTab, setActiveCalendarTab] = useState<'sonarr' | 'radarr'>('sonarr');
+    const [activeStackTab, setActiveStackTab] = useState<'sonarr' | 'radarr'>('sonarr');
     const [activeCalendarItem, setActiveCalendarItem] = useState<any>(null);
     const [autoMonthNotice, setAutoMonthNotice] = useState('');
 
-    const switchCalendarTab = (tab: 'sonarr' | 'radarr') => {
-        if (tab === activeCalendarTab) return;
-        setActiveCalendarTab(tab);
+    const switchStackTab = (tab: 'sonarr' | 'radarr') => {
+        if (tab === activeStackTab) return;
+        setActiveStackTab(tab);
         setAutoMonthNotice('');
         setMonthOffset(0);
     };
@@ -1015,12 +1015,14 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
     }, [data]);
 
     const filteredCalendar = useMemo(() => {
-        return activeCalendarTab === 'sonarr' ? sonarrCalendarItems : radarrCalendarItems;
-    }, [activeCalendarTab, sonarrCalendarItems, radarrCalendarItems]);
+        return activeStackTab === 'sonarr' ? sonarrCalendarItems : radarrCalendarItems;
+    }, [activeStackTab, sonarrCalendarItems, radarrCalendarItems]);
 
-    const activeCalendarConfigured = activeCalendarTab === 'sonarr'
+    const activeStackConfigured = activeStackTab === 'sonarr'
         ? !!data?.sonarr?.configured
         : !!data?.radarr?.configured;
+
+    const activeStackLabel = activeStackTab === 'sonarr' ? 'Sonarr' : 'Radarr';
 
     useEffect(() => {
         let cancelled = false;
@@ -1034,14 +1036,14 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
             for (let offset = 1; offset <= 6; offset += 1) {
                 try {
                     const res = await apiFetch(`/api/media-stack/summary?monthOffset=${offset}`);
-                    const count = activeCalendarTab === 'sonarr'
+                    const count = activeStackTab === 'sonarr'
                         ? (Array.isArray(res?.sonarr?.calendar) ? res.sonarr.calendar.length : 0)
                         : (Array.isArray(res?.radarr?.calendar) ? res.radarr.calendar.length : 0);
                     if (count > 0) {
                         if (cancelled) return;
                         setData(res);
                         setMonthOffset(offset);
-                        setAutoMonthNotice(`Showing the next month with ${activeCalendarTab === 'sonarr' ? 'TV' : 'movie'} releases (${new Date(new Date().setFullYear(new Date().getFullYear(), new Date().getMonth() + offset, 1)).toLocaleDateString('default', { month: 'long', year: 'numeric' })}).`);
+                        setAutoMonthNotice(`Showing the next month with ${activeStackTab === 'sonarr' ? 'TV' : 'movie'} releases (${new Date(new Date().setFullYear(new Date().getFullYear(), new Date().getMonth() + offset, 1)).toLocaleDateString('default', { month: 'long', year: 'numeric' })}).`);
                         return;
                     }
                 } catch {
@@ -1049,14 +1051,14 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
                 }
             }
             if (!cancelled) {
-                setAutoMonthNotice(`No ${activeCalendarTab === 'sonarr' ? 'TV' : 'movie'} releases found in the next 6 months.`);
+                setAutoMonthNotice(`No ${activeStackTab === 'sonarr' ? 'TV' : 'movie'} releases found in the next 6 months.`);
             }
         };
         maybeAutoSelectMonthWithReleases();
         return () => {
             cancelled = true;
         };
-    }, [activeCalendarTab, filteredCalendar.length, data, monthOffset]);
+    }, [activeStackTab, filteredCalendar.length, data, monthOffset]);
 
     const groupedCalendar = useMemo(() => {
         const groups: { [dateStr: string]: typeof filteredCalendar } = {};
@@ -1079,61 +1081,65 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
         }
     }, [filteredCalendar]);
 
-    const activeQueue = useMemo(() => {
-        if (!data) return [];
-        const queueItems: any[] = [];
-        if (data.sonarr?.queue?.records) {
-            data.sonarr.queue.records.forEach((item: any) => {
-                queueItems.push({ ...item, service: 'Sonarr' });
-            });
-        }
-        if (data.radarr?.queue?.records) {
-            data.radarr.queue.records.forEach((item: any) => {
-                queueItems.push({ ...item, service: 'Radarr' });
-            });
-        }
-        return queueItems;
+    const sonarrQueue = useMemo(() => {
+        if (!data?.sonarr?.queue?.records) return [];
+        return data.sonarr.queue.records.map((item: any) => ({ ...item, service: 'Sonarr' }));
     }, [data]);
 
-    const combinedHistory = useMemo(() => {
-        if (!data) return [];
+    const radarrQueue = useMemo(() => {
+        if (!data?.radarr?.queue?.records) return [];
+        return data.radarr.queue.records.map((item: any) => ({ ...item, service: 'Radarr' }));
+    }, [data]);
+
+    const activeQueue = useMemo(() => {
+        return activeStackTab === 'sonarr' ? sonarrQueue : radarrQueue;
+    }, [activeStackTab, sonarrQueue, radarrQueue]);
+
+    const sonarrHistory = useMemo(() => {
+        if (!data?.sonarr?.history?.records) return [];
         const historyItems: any[] = [];
-        if (data.sonarr?.history?.records) {
-            data.sonarr.history.records.forEach((item: any) => {
-                let cleanTitle = '';
-                if (item.series?.title) {
-                    cleanTitle = item.series.title;
-                    if (item.episode?.seasonNumber !== undefined && item.episode?.episodeNumber !== undefined) {
-                        cleanTitle += ` - S${String(item.episode.seasonNumber).padStart(2, '0')}E${String(item.episode.episodeNumber).padStart(2, '0')}`;
-                        if (item.episode.title) {
-                            cleanTitle += ` - ${item.episode.title}`;
-                        }
+        data.sonarr.history.records.forEach((item: any) => {
+            let cleanTitle = '';
+            if (item.series?.title) {
+                cleanTitle = item.series.title;
+                if (item.episode?.seasonNumber !== undefined && item.episode?.episodeNumber !== undefined) {
+                    cleanTitle += ` - S${String(item.episode.seasonNumber).padStart(2, '0')}E${String(item.episode.episodeNumber).padStart(2, '0')}`;
+                    if (item.episode.title) {
+                        cleanTitle += ` - ${item.episode.title}`;
                     }
-                } else {
-                    cleanTitle = item.sourceTitle || 'Unknown TV Show';
                 }
-                historyItems.push({
-                    id: `sonarr-hist-${item.id}`,
-                    service: 'Sonarr',
-                    title: cleanTitle,
-                    date: new Date(item.date),
-                    eventType: item.eventType
-                });
+            } else {
+                cleanTitle = item.sourceTitle || 'Unknown TV Show';
+            }
+            historyItems.push({
+                id: `sonarr-hist-${item.id}`,
+                service: 'Sonarr',
+                title: cleanTitle,
+                date: new Date(item.date),
+                eventType: item.eventType
             });
-        }
-        if (data.radarr?.history?.records) {
-            data.radarr.history.records.forEach((item: any) => {
-                historyItems.push({
-                    id: `radarr-hist-${item.id}`,
-                    service: 'Radarr',
-                    title: item.movie?.title || item.sourceTitle || 'Unknown Movie',
-                    date: new Date(item.date),
-                    eventType: item.eventType
-                });
-            });
-        }
+        });
         return historyItems.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 8);
     }, [data]);
+
+    const radarrHistory = useMemo(() => {
+        if (!data?.radarr?.history?.records) return [];
+        const historyItems: any[] = [];
+        data.radarr.history.records.forEach((item: any) => {
+            historyItems.push({
+                id: `radarr-hist-${item.id}`,
+                service: 'Radarr',
+                title: item.movie?.title || item.sourceTitle || 'Unknown Movie',
+                date: new Date(item.date),
+                eventType: item.eventType
+            });
+        });
+        return historyItems.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 8);
+    }, [data]);
+
+    const activeHistory = useMemo(() => {
+        return activeStackTab === 'sonarr' ? sonarrHistory : radarrHistory;
+    }, [activeStackTab, sonarrHistory, radarrHistory]);
 
     if (isLoading) return <Loader isLoading={true} />;
     if (error) return <div className="text-center p-8 text-status-expiring">{error}</div>;
@@ -1252,13 +1258,34 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
 
     return (
         <div className="w-full animate-fade-in flex flex-col gap-6">
-            <div className="flex items-center justify-between gap-4 mb-2">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-2">
                 <div>
                     <h1 className="text-3xl font-bold text-text uppercase tracking-widest flex items-center gap-3">
-                        <Layers className="w-8 h-8 text-plex" />
-                        Media Stack
+                        {activeStackTab === 'sonarr' ? <Tv className="w-8 h-8 text-plex" /> : <Film className="w-8 h-8 text-plex" />}
+                        {activeStackLabel}
                     </h1>
-                    <p className="text-muted text-sm mt-1">Unified monitoring dashboard for TV & movies</p>
+                    <p className="text-muted text-sm mt-1">
+                        {activeStackTab === 'sonarr' ? 'TV series releases, downloads, and activity' : 'Movie releases, downloads, and activity'}
+                    </p>
+                </div>
+
+                <div className="flex bg-white/5 p-1 rounded-lg md:rounded-xl border border-white/10 w-fit">
+                    <button
+                        type="button"
+                        onClick={() => switchStackTab('sonarr')}
+                        className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-md md:rounded-lg text-[11px] md:text-xs font-bold uppercase tracking-wider transition-all ${activeStackTab === 'sonarr' ? 'bg-plex text-background shadow-lg shadow-plex/20' : 'text-muted hover:text-text hover:bg-white/5'}`}
+                    >
+                        <Tv className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                        Sonarr
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => switchStackTab('radarr')}
+                        className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-md md:rounded-lg text-[11px] md:text-xs font-bold uppercase tracking-wider transition-all ${activeStackTab === 'radarr' ? 'bg-plex text-background shadow-lg shadow-plex/20' : 'text-muted hover:text-text hover:bg-white/5'}`}
+                    >
+                        <Film className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                        Radarr
+                    </button>
                 </div>
             </div>
 
@@ -1267,52 +1294,21 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
                 <div className="w-full">
 
                     <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-4 md:p-6 relative">
-                        <div className="flex flex-col gap-3 md:gap-4 mb-4 md:mb-6 border-b border-border/30 pb-3 md:pb-4">
-                            <div className="flex flex-row justify-between items-center gap-2">
-                                <h2 className="text-base sm:text-xl font-bold text-text flex items-center gap-1.5 md:gap-2 truncate">
-                                    <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-plex flex-shrink-0" />
-                                    <span className="truncate">Upcoming Releases</span>
-                                </h2>
+                        <div className="flex flex-row justify-between items-center mb-4 md:mb-6 border-b border-border/30 pb-3 md:pb-4 gap-2">
+                            <h2 className="text-base sm:text-xl font-bold text-text flex items-center gap-1.5 md:gap-2 truncate">
+                                <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-plex flex-shrink-0" />
+                                <span className="truncate">Upcoming Releases</span>
+                            </h2>
 
-                                <div className="flex bg-white/5 p-0.5 md:p-1 rounded-lg md:rounded-xl border border-white/10 w-fit flex-shrink-0 items-center gap-1 md:gap-2">
-                                    <button onClick={() => { setAutoMonthNotice(''); setMonthOffset(m => m - 1); }} className="p-1 md:p-1.5 hover:bg-white/10 rounded-md md:rounded-lg text-muted hover:text-text transition-colors">
-                                        <ChevronLeft className="w-3 h-3 md:w-4 md:h-4" />
-                                    </button>
-                                    <span className="text-[10px] md:text-xs font-bold px-1 w-16 md:w-28 text-center text-text uppercase tracking-wider">
-                                        {new Date(new Date().setFullYear(new Date().getFullYear(), new Date().getMonth() + monthOffset, 1)).toLocaleDateString('default', { month: 'short', year: 'numeric' })}
-                                    </span>
-                                    <button onClick={() => { setAutoMonthNotice(''); setMonthOffset(m => m + 1); }} className="p-1 md:p-1.5 hover:bg-white/10 rounded-md md:rounded-lg text-muted hover:text-text transition-colors">
-                                        <ChevronRight className="w-3 h-3 md:w-4 md:h-4" />
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="flex bg-white/5 p-1 rounded-lg md:rounded-xl border border-white/10 w-fit">
-                                <button
-                                    type="button"
-                                    onClick={() => switchCalendarTab('sonarr')}
-                                    className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-md md:rounded-lg text-[11px] md:text-xs font-bold uppercase tracking-wider transition-all ${activeCalendarTab === 'sonarr' ? 'bg-plex text-background shadow-lg shadow-plex/20' : 'text-muted hover:text-text hover:bg-white/5'}`}
-                                >
-                                    <Tv className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                                    Sonarr
-                                    {sonarrCalendarItems.length > 0 && (
-                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeCalendarTab === 'sonarr' ? 'bg-background/20 text-background' : 'bg-white/10 text-muted'}`}>
-                                            {sonarrCalendarItems.length}
-                                        </span>
-                                    )}
+                            <div className="flex bg-white/5 p-0.5 md:p-1 rounded-lg md:rounded-xl border border-white/10 w-fit flex-shrink-0 items-center gap-1 md:gap-2">
+                                <button onClick={() => { setAutoMonthNotice(''); setMonthOffset(m => m - 1); }} className="p-1 md:p-1.5 hover:bg-white/10 rounded-md md:rounded-lg text-muted hover:text-text transition-colors">
+                                    <ChevronLeft className="w-3 h-3 md:w-4 md:h-4" />
                                 </button>
-                                <button
-                                    type="button"
-                                    onClick={() => switchCalendarTab('radarr')}
-                                    className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-md md:rounded-lg text-[11px] md:text-xs font-bold uppercase tracking-wider transition-all ${activeCalendarTab === 'radarr' ? 'bg-plex text-background shadow-lg shadow-plex/20' : 'text-muted hover:text-text hover:bg-white/5'}`}
-                                >
-                                    <Film className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                                    Radarr
-                                    {radarrCalendarItems.length > 0 && (
-                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeCalendarTab === 'radarr' ? 'bg-background/20 text-background' : 'bg-white/10 text-muted'}`}>
-                                            {radarrCalendarItems.length}
-                                        </span>
-                                    )}
+                                <span className="text-[10px] md:text-xs font-bold px-1 w-16 md:w-28 text-center text-text uppercase tracking-wider">
+                                    {new Date(new Date().setFullYear(new Date().getFullYear(), new Date().getMonth() + monthOffset, 1)).toLocaleDateString('default', { month: 'short', year: 'numeric' })}
+                                </span>
+                                <button onClick={() => { setAutoMonthNotice(''); setMonthOffset(m => m + 1); }} className="p-1 md:p-1.5 hover:bg-white/10 rounded-md md:rounded-lg text-muted hover:text-text transition-colors">
+                                    <ChevronRight className="w-3 h-3 md:w-4 md:h-4" />
                                 </button>
                             </div>
                         </div>
@@ -1323,13 +1319,13 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
                         {filteredCalendar.length === 0 ? (
                             <div className="text-center py-12 bg-background/30 rounded-xl border border-white/5 text-muted text-sm">
                                 <Calendar className="w-12 h-12 text-muted/30 mx-auto mb-3" />
-                                {!activeCalendarConfigured ? (
+                                {!activeStackConfigured ? (
                                     <>
-                                        <p>{activeCalendarTab === 'sonarr' ? 'Sonarr' : 'Radarr'} is not configured yet.</p>
+                                        <p>{activeStackLabel} is not configured yet.</p>
                                         <p className="text-xs mt-2">Add the URL and API key in Settings → Integrations.</p>
                                     </>
                                 ) : (
-                                    <p>No upcoming {activeCalendarTab === 'sonarr' ? 'TV' : 'movie'} releases for this month</p>
+                                    <p>No upcoming {activeStackTab === 'sonarr' ? 'TV' : 'movie'} releases for this month</p>
                                 )}
                             </div>
                         ) : (
@@ -1414,14 +1410,19 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
                         <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-4 md:p-6 relative flex-grow flex flex-col">
                             <h2 className="text-xl font-bold text-text mb-4 flex items-center gap-2">
                                 <Activity className="w-5 h-5 text-plex" />
-                                Active Downloads ({activeQueue.length})
+                                {activeStackLabel} Downloads ({activeQueue.length})
                             </h2>
 
                             <div className="flex flex-col gap-3 flex-grow justify-start">
-                                {activeQueue.length === 0 ? (
+                                {!activeStackConfigured ? (
                                     <div className="text-center py-8 bg-background/30 rounded-xl border border-white/5 text-muted text-sm flex-grow flex flex-col justify-center items-center">
                                         <DownloadCloud className="w-10 h-10 text-muted/30 mx-auto mb-2" />
-                                        No active downloads
+                                        <p>{activeStackLabel} is not configured.</p>
+                                    </div>
+                                ) : activeQueue.length === 0 ? (
+                                    <div className="text-center py-8 bg-background/30 rounded-xl border border-white/5 text-muted text-sm flex-grow flex flex-col justify-center items-center">
+                                        <DownloadCloud className="w-10 h-10 text-muted/30 mx-auto mb-2" />
+                                        No active {activeStackTab === 'sonarr' ? 'TV' : 'movie'} downloads
                                     </div>
                                 ) : (
                                     activeQueue.map((item: any) => {
@@ -1433,13 +1434,7 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
                                                 <div className="flex justify-between items-start gap-4">
                                                     <div className="flex flex-col gap-1 min-w-0">
                                                         <span className="font-bold text-sm text-text line-clamp-1 leading-snug">{item.title}</span>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className={`text-[8px] uppercase font-black tracking-widest px-1.5 py-0.5 rounded ${item.service === 'Sonarr' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                                                                }`}>
-                                                                {item.service}
-                                                            </span>
-                                                            <span className="text-[10px] text-muted/60 font-semibold">{item.timeleft || 'Unknown time'} left</span>
-                                                        </div>
+                                                        <span className="text-[10px] text-muted/60 font-semibold">{item.timeleft || 'Unknown time'} left</span>
                                                     </div>
                                                     <span className="text-[10px] font-bold px-2 py-0.5 bg-plex/10 text-plex rounded-md border border-plex/20 uppercase tracking-wider">{item.status}</span>
                                                 </div>
@@ -1460,32 +1455,35 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
 
                     <div className="flex flex-col gap-4">
                         <h2 className="text-xl font-bold text-text flex items-center gap-2 mb-1">
-                            <Layers className="w-5 h-5 text-plex" />
-                            Stack Status
+                            {activeStackTab === 'sonarr' ? <Tv className="w-5 h-5 text-plex" /> : <Film className="w-5 h-5 text-plex" />}
+                            {activeStackLabel} Status
                         </h2>
-                        {renderStatusCard('Sonarr', data.sonarr)}
-                        {renderStatusCard('Radarr', data.radarr)}
+                        {renderStatusCard(activeStackLabel, activeStackTab === 'sonarr' ? data.sonarr : data.radarr)}
                     </div>
 
                     <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-4 md:p-6 relative flex-grow flex flex-col">
                         <h2 className="text-xl font-bold text-text mb-4 flex items-center gap-2">
                             <FileText className="w-5 h-5 text-plex" />
-                            Recent History
+                            {activeStackLabel} History
                         </h2>
 
                         <div className="flex flex-col gap-3 flex-grow justify-start">
-                            {combinedHistory.length === 0 ? (
+                            {!activeStackConfigured ? (
                                 <div className="text-center py-12 bg-background/30 rounded-xl border border-white/5 text-muted text-sm flex-grow flex flex-col justify-center items-center">
-                                    No recent history records
+                                    <p>{activeStackLabel} is not configured.</p>
+                                </div>
+                            ) : activeHistory.length === 0 ? (
+                                <div className="text-center py-12 bg-background/30 rounded-xl border border-white/5 text-muted text-sm flex-grow flex flex-col justify-center items-center">
+                                    No recent {activeStackTab === 'sonarr' ? 'TV' : 'movie'} history
                                 </div>
                             ) : (
-                                combinedHistory.map((item: any) => (
+                                activeHistory.map((item: any) => (
                                     <div key={item.id} className="flex items-center gap-3 bg-background/30 rounded-xl p-3 border border-white/5 hover:bg-background/50 transition-colors">
                                         <div className={`w-1 h-8 rounded-full flex-shrink-0 ${getHistoryColor(item.eventType)}`}></div>
                                         <div className="flex-grow min-w-0">
                                             <div className="font-bold text-xs text-text line-clamp-1 leading-snug">{item.title}</div>
                                             <div className="text-[10px] text-muted flex justify-between items-center mt-0.5">
-                                                <span>{item.service} • <span>{formatEventType(item.eventType)}</span></span>
+                                                <span>{formatEventType(item.eventType)}</span>
                                                 <span>{formatRelativeAirDate(item.date)}</span>
                                             </div>
                                         </div>
