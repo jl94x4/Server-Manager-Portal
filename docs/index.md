@@ -1,0 +1,43 @@
+---
+layout: home
+
+hero:
+  name: Server Portal
+  text: Self-hosted Plex and Jellyfin management.
+  tagline: Manage access, analytics, onboarding, status, and media-server operations from one polished portal.
+  image:
+    src: /logo.png
+    alt: Server Portal logo
+  actions:
+    - theme: brand
+      text: Get Started
+      link: /guide/getting-started
+    - theme: alt
+      text: Docker Deployment
+      link: /guide/docker
+
+features:
+  - title: Plex and Jellyfin ready
+    details: First-time setup supports Plex OAuth/server selection or Jellyfin URL/API-key configuration with Jellyfin login and Quick Connect.
+  - title: User access automation
+    details: Invite links, temporary access, expiry checks, inactivity cleanup, grace-period emails, and audit logs keep access predictable.
+  - title: Personal analytics
+    details: User dashboards include watch history, rankings, media profile cards, peak hours, top titles, and shareable wrap-up exports.
+  - title: Admin operations
+    details: Live sessions, user management, server status, background jobs, layout controls, and maintenance tools are available from the browser.
+---
+
+## What Is Server Portal?
+
+Server Portal is a Node.js, Express, React, and Tailwind CSS application for managing a Plex or Jellyfin media server community. It stores runtime data in local JSON files, so it does not require a database.
+
+Use these docs when you need to install the app, configure integrations, run it in Docker, operate background tasks, or understand the project structure.
+
+## Quick Commands
+
+```bash
+npm install
+npm start
+```
+
+For production Docker deployments, start with the [Docker guide](/guide/docker).

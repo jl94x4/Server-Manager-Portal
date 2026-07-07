@@ -8,6 +8,8 @@
 
 Built with Node.js · Express · React · Tailwind CSS
 
+Documentation is available in the VitePress site under [`docs/`](docs/). Run `npm run docs:dev` to view it locally.
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-green.svg)](https://nodejs.org/)
 [![Plex](https://img.shields.io/badge/Plex-Media%20Server-orange.svg)](https://www.plex.tv/)

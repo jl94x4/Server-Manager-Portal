@@ -9,6 +9,9 @@
     "build:js": "esbuild index.tsx --bundle --outfile=static/bundle.js --jsx=automatic --format=esm",
     "build:version": "node build-version.js",
     "build": "npm run build:css && npm run build:js && npm run build:version",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
     "start": "npm run build && node --env-file=.env index.js",
     "start:prod": "node index.js"
   },
@@ -30,6 +33,7 @@
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.5.0",
     "postcss": "^8.5.15",
-    "tailwindcss": "^3.4.19"
+    "tailwindcss": "^3.4.19",
+    "vitepress": "^1.6.4"
   }
 }

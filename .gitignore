@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+docs/.vitepress/cache
+docs/.vitepress/dist
 *.local
 
 # Editor directories and files
@@ -65,4 +67,7 @@ test*.cjs
 
 # Build artifacts
 patch.cjs
+index.html
+version.txt
 static/bundle.js
+static/tailwind.css
