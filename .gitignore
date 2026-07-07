@@ -12,6 +12,7 @@ dist
 dist-ssr
 docs/.vitepress/cache
 docs/.vitepress/dist
+docs/.vitepress/.temp
 *.local
 
 # Editor directories and files
