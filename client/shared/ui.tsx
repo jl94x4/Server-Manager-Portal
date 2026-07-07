@@ -31,7 +31,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({ id, value, onChange,
     const updatePosition = useCallback(() => {
         if (!triggerRef.current) return;
         const rect = triggerRef.current.getBoundingClientRect();
-        setDropPos(getFixedDropdownPosition(rect, { itemCount: options.length, align: 'left' }));
+        setDropPos(getFixedDropdownPosition(rect, { itemCount: Math.min(options.length, 6), align: 'left' }));
     }, [options.length]);
 
     useEffect(() => {
