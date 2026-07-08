@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.3.0...v1.4.0) (2026-07-08)
+
+
+### Features
+
+* Add optional public visibility controls ([#33](https://github.com/jl94x4/Server-Manager-Portal/issues/33)) ([48b6de6](https://github.com/jl94x4/Server-Manager-Portal/commit/48b6de6b0eba71bea5e1792f504755daeccfbf0b))
+
 ## [1.3.0](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.2.0...v1.3.0) (2026-07-08)
 
 
