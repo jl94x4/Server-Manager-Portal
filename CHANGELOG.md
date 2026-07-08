@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.0.0...v1.1.0) (2026-07-08)
+
+
+### Features
+
+* Add Vitepress Docs Site ([#23](https://github.com/jl94x4/Server-Manager-Portal/issues/23)) ([62c7436](https://github.com/jl94x4/Server-Manager-Portal/commit/62c74363dda3632c8027d514e0e531f16666a286))
+
 ## 1.0.0 (2026-07-07)
 
 
