@@ -24,9 +24,9 @@ export const SettingHint: React.FC<{ children: React.ReactNode }> = ({ children 
     }, []);
 
     return (
-        <details ref={detailsRef} className="relative inline-flex align-middle shrink-0 group">
+        <details ref={detailsRef} className="relative inline-flex align-middle shrink-0 group ml-1.5">
             <summary
-                className="list-none inline-flex items-center justify-center cursor-pointer select-none text-muted/40 hover:text-muted/75 transition-colors"
+                className="list-none inline-flex items-center justify-center cursor-pointer select-none text-plex/80 hover:text-plex transition-colors"
                 aria-label="More information"
             >
                 <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current text-[9px] leading-none font-semibold">?</span>
