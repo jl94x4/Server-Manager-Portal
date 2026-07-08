@@ -2383,7 +2383,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         dashboardLayout: ('dashboardLayout' in req.body)
             ? normalizeSectionLayout(req.body.dashboardLayout)
             : normalizeSectionLayout(existingConfig.dashboardLayout)
-    });
+    };
     const config = syncLegacyArrFields(configDraft);
     await saveFile(CONFIG_PATH, config);
     await syncAdminPlexIdFromConfigToken(config, { persist: true });
