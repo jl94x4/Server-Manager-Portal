@@ -974,12 +974,12 @@ export const SettingsDashboard: React.FC = () => {
     };
 
     return (
-        <div className="w-full flex flex-col box-border">
+        <div className="w-full flex flex-col box-border md:h-[calc(100vh-4rem)]">
             <Loader isLoading={isLoading} />
             <ToastContainer toasts={toasts} setToasts={setToasts} />
 
 
-            <header className="flex items-center justify-between w-full mb-6 mt-2 md:mt-0">
+            <header className="flex items-center justify-between w-full mb-6 mt-2 md:mt-0 shrink-0">
                 <h1 className="text-xl md:text-3xl font-bold text-plex">Settings</h1>
             </header>
 
@@ -989,8 +989,8 @@ export const SettingsDashboard: React.FC = () => {
                 </div>
             )}
 
-            <div className="w-full flex flex-col min-w-0">
-                <div className="w-full md:grid md:grid-cols-[18rem_minmax(0,1fr)] md:gap-8 xl:gap-10">
+            <div className="w-full flex flex-col min-w-0 flex-1 min-h-0">
+                <div className="w-full flex-1 min-h-0 md:grid md:grid-cols-[18rem_minmax(0,1fr)] md:gap-8 xl:gap-10">
                     {/* Mobile Dropdown Category Select */}
                     <div className="block md:hidden mb-6">
                         <label htmlFor="settings-tab-select" className="text-muted text-xs uppercase tracking-wider font-bold mb-2 block">Settings Category</label>
@@ -1003,7 +1003,7 @@ export const SettingsDashboard: React.FC = () => {
                     </div>
 
                     {/* Desktop Sidebar Navigation — matches main app nav width (w-72) */}
-                    <aside className="hidden md:flex md:flex-col w-72 shrink-0 h-fit sticky top-20 glass-card nav-shell p-6 shadow-2xl">
+                    <aside className="hidden md:flex md:flex-col w-72 shrink-0 min-h-0 overflow-y-auto custom-scrollbar glass-card nav-shell p-6 shadow-2xl">
                         <label className="text-muted text-xs uppercase tracking-wider font-bold mb-2 block">Find Setting</label>
                         <input
                             type="text"
@@ -1039,7 +1039,8 @@ export const SettingsDashboard: React.FC = () => {
                         )}
                     </aside>
 
-                    <div className="overflow-y-auto flex-grow mb-4 custom-scrollbar md:pr-1 min-w-0 w-full">
+                    <div className="flex flex-col min-h-0 min-w-0 w-full">
+                        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar md:pr-1">
                         <div className="settings-panel">
                         {activeTab === 'stream-rules' && <StreamKillRulesPanel addToast={addToast} registerSaveHandler={(handler) => { streamRulesSaveHandlerRef.current = handler; }} />}
     
@@ -2327,13 +2328,14 @@ export const SettingsDashboard: React.FC = () => {
                         </div>
                     )}
                         </div>
+                        </div>
+                        <div className="flex justify-end gap-4 mt-4 pt-4 shrink-0 border-t border-border/50">
+                            <a href="https://jl94x4.github.io/Server-Manager-Portal/" target="_blank" rel="noreferrer" className="w-full sm:w-auto px-6 py-3 bg-border text-text rounded-lg font-bold hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2">
+                                <BookOpen className="w-5 h-5" /> Docs
+                            </a>
+                            <button className="w-full sm:w-auto px-6 py-3 bg-plex text-background rounded-lg font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2 shadow-lg shadow-plex/10" onClick={handleSave}>{activeTab === 'stream-rules' ? 'Save Stream Rules' : 'Save Settings'}</button>
+                        </div>
                     </div>
-                </div>
-                <div className="flex justify-end gap-4 mt-8 pb-1">
-                    <a href="https://jl94x4.github.io/Server-Manager-Portal/" target="_blank" rel="noreferrer" className="w-full sm:w-auto px-6 py-3 bg-border text-text rounded-lg font-bold hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2">
-                        <BookOpen className="w-5 h-5" /> Docs
-                    </a>
-                    <button className="w-full sm:w-auto px-6 py-3 bg-plex text-background rounded-lg font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2 shadow-lg shadow-plex/10" onClick={handleSave}>{activeTab === 'stream-rules' ? 'Save Stream Rules' : 'Save Settings'}</button>
                 </div>
             </div>
         </div>
