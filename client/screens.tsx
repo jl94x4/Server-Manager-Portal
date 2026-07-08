@@ -2924,7 +2924,12 @@ export const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: 
     const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
 
     // Filters and Sorting States
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState(() => {
+        if (typeof window !== 'undefined' && window.location.hash.startsWith('#search=')) {
+            return decodeURIComponent(window.location.hash.replace('#search=', ''));
+        }
+        return '';
+    });
     const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'trial' | 'expiring' | 'expired' | 'revoked'>('all');
     const [sortBy, setSortBy] = useState<'username-asc' | 'username-desc' | 'expiry-asc' | 'expiry-desc' | 'joined-desc'>('username-asc');
     const mediaServerType = String(configSettings.mediaServerType || 'plex').toLowerCase();
@@ -5641,7 +5646,7 @@ const EmptyStreamsMessage: React.FC = () => {
     return <div className="text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full">{msg}</div>;
 };
 
-export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, publicConfig?: any, mediaServerType?: string }> = ({ onBack, isAdmin, publicConfig, mediaServerType }) => {
+export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, publicConfig?: any, mediaServerType?: string, onViewUsers?: () => void }> = ({ onBack, isAdmin, publicConfig, mediaServerType, onViewUsers }) => {
     const [dashboardData, setDashboardData] = useState<{ activeSessions: any[], recentMovies: any[], recentShows: any[], recentMusic: any[] } | null>(null);
     const [trendingStats, setTrendingStats] = useState<{ trending7Days: any[], movies30Days: any[], shows30Days: any[], top365Days: any[], allTime: any[], weekendWarriors: any[], nightOwls: any[], retroHits: any[], cultClassics: any[] } | null>(null);
     const [dashboardLoading, setDashboardLoading] = useState(true);
@@ -5871,18 +5876,28 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                                                 <div className="max-h-48 overflow-y-auto custom-scrollbar">
                                                                     {item.history.map((h: any, i: number) => (
                                                                         <div key={i} className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 text-xs p-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0">
-                                                                            <div className="flex items-center gap-3 md:w-1/3 min-w-[120px]">
+                                                                            <button 
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    if (onViewUsers && h.user) {
+                                                                                        window.location.hash = `#search=${encodeURIComponent(h.user)}`;
+                                                                                        onViewUsers();
+                                                                                    }
+                                                                                }}
+                                                                                className="flex items-center gap-3 md:w-1/3 min-w-[120px] text-left hover:opacity-80 transition-opacity focus:outline-none cursor-pointer group"
+                                                                                title="View user details"
+                                                                            >
                                                                                 {h.userThumb ? (
-                                                                                    <div className="w-6 h-6 rounded-full overflow-hidden shadow-lg flex-shrink-0 border border-white/10">
+                                                                                    <div className="w-6 h-6 rounded-full overflow-hidden shadow-lg flex-shrink-0 border border-white/10 group-hover:ring-2 ring-plex transition-all">
                                                                                         <img src={h.userThumb.startsWith('http') ? h.userThumb : portalUrl(`/api/plex/image?path=${encodeURIComponent(h.userThumb)}&width=64&height=64`)} alt={h.user || 'User'} className="w-full h-full object-cover" />
                                                                                     </div>
                                                                                 ) : (
-                                                                                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-status-active to-green-600 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-white uppercase shadow-lg shadow-status-active/20">
+                                                                                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-status-active to-green-600 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-white uppercase shadow-lg shadow-status-active/20 group-hover:ring-2 ring-plex transition-all">
                                                                                         {h.user ? h.user.substring(0,2) : '?'}
                                                                                     </div>
                                                                                 )}
-                                                                                <span className="font-bold text-white truncate text-sm">{h.user}</span>
-                                                                            </div>
+                                                                                <span className="font-bold text-white truncate text-sm group-hover:text-plex transition-colors">{h.user}</span>
+                                                                            </button>
                                                                             <div className="flex-1 flex flex-wrap md:flex-nowrap items-center gap-3 text-muted md:justify-end text-[11px] md:text-xs">
                                                                                 <span className="flex items-center gap-1.5 shrink-0 md:min-w-[125px] md:justify-end"><Calendar size={12} className="opacity-50"/> {new Date(h.date * 1000).toLocaleString([], { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute:'2-digit'})}</span>
                                                                                 <span className="opacity-30">|</span>
