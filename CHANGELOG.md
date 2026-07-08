@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.2.0...v1.2.1) (2026-07-08)
+
+### Features
+
+* Add specific date picker to Peak Playback Hours chart
+* Change user click-to-view behavior to navigate to Analytics profile instead of Users list
+* Add close button to Modals for easier dismissal
+* Change Discover search bar to close automatically on outside click
+* Make watch history cards more premium and aligned
+* Fix 0mins bug in Watch History and pull profile pictures
+
+### Bug Fixes
+
+* Correct ServerInsightsWidget component usage
+* Fix missing Loader2 import and TypeScript errors
+
+
 ## [1.2.0](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.1.0...v1.2.0) (2026-07-08)
 
 
