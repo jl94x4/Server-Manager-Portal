@@ -272,6 +272,7 @@ import {
 } from './lib/data-paths.js';
 import {
     normalizeArrConfig,
+    migrateArrConfig,
     syncLegacyArrFields,
     getArrInstances,
     getArrInstance,
@@ -340,6 +341,27 @@ const createDefaultStatusConfig = (config = {}) => {
     }
 
     return { groups, services, announcement: null };
+};
+
+const syncArrServicesInStatusConfig = (config = {}) => {
+    const arrServices = getArrInstances(config, { enabledOnly: true })
+        .filter((instance) => instance?.url)
+        .map((instance) => ({
+            id: `arr-${instance.id}`,
+            name: instance.name || (instance.type === 'radarr' ? 'Radarr' : 'Sonarr'),
+            url: instance.url,
+            type: 'web',
+            groupId: 'downloads',
+            description: instance.type === 'radarr' ? 'Movie automation' : 'TV automation',
+        }));
+    const existingById = new Map((statusConfig.services || []).map((service) => [service.id, service]));
+    const arrIds = new Set(arrServices.map((service) => service.id));
+    const nonArr = (statusConfig.services || []).filter((service) => !arrIds.has(service.id) && !String(service.id || '').startsWith('arr-'));
+    const mergedArr = arrServices.map((service) => {
+        const existing = existingById.get(service.id);
+        return existing ? { ...existing, name: service.name, url: service.url, description: service.description } : service;
+    });
+    statusConfig.services = [...nonArr, ...mergedArr];
 };
 
 // --- Helper Functions ---
@@ -2389,8 +2411,14 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
             ? normalizeSectionLayout(req.body.dashboardLayout)
             : normalizeSectionLayout(existingConfig.dashboardLayout)
     };
-    const config = syncLegacyArrFields(configDraft);
+    const config = migrateArrConfig(configDraft);
     await saveFile(CONFIG_PATH, config);
+    syncArrServicesInStatusConfig(config);
+    try {
+        await saveFile(STATUS_CONFIG_PATH, statusConfig);
+    } catch (e) {
+        log(`Failed to sync ARR services into status config: ${e.message}`);
+    }
     await syncAdminPlexIdFromConfigToken(config, { persist: true });
     // Invalidate caches tied to the Plex token/server so changes take effect immediately.
     cachedPlexConnectionUri = null;
@@ -4185,8 +4213,8 @@ app.get('/api/admin/diagnostics', requireAdmin, async (req, res) => {
                 plexConfigured: !!(config.plexToken && config.serverIdentifier),
                 jellyfinConfigured: !!(config.jellyfinUrl && config.jellyfinApiKey),
                 smtpConfigured: !!(config.smtpHost && config.smtpUser && config.smtpPass),
-                sonarrConfigured: isArrTypeConfigured(config, 'sonarr'),
-                radarrConfigured: isArrTypeConfigured(config, 'radarr'),
+                sonarrConfigured: getArrInstanceCounts(config).sonarr.ready > 0,
+                radarrConfigured: getArrInstanceCounts(config).radarr.ready > 0,
                 arrInstanceCounts: getArrInstanceCounts(config),
                 tautulliConfigured: !!(config.tautulliUrl && config.tautulliApiKey),
                 jellystatConfigured: !!(config.jellystatUrl && config.jellystatApiKey),
@@ -8227,7 +8255,9 @@ const MAINTENANCE_FILTER_CATALOG = [
     { field: 'rtAudienceRating', label: 'Rotten Tomatoes Audience', type: 'number', operators: ['equals', 'not_equals', 'greater_than', 'less_than', 'between'] },
     { field: 'traktRating', label: 'Trakt Rating', type: 'number', operators: ['equals', 'not_equals', 'greater_than', 'less_than', 'between'] },
     { field: 'arrType', label: 'ARR Mapping Type', type: 'select', options: ['radarr', 'sonarr', 'none'], operators: ['equals', 'not_equals'] },
-    { field: 'arrMapped', label: 'ARR Mapped', type: 'boolean', operators: ['equals'] },
+    { field: 'arrMapped', label: 'In Sonarr/Radarr', type: 'boolean', operators: ['equals'] },
+    { field: 'arrInstanceName', label: 'ARR Instance', type: 'select', options: [], operators: ['equals', 'not_equals', 'in', 'not_in', 'contains'] },
+    { field: 'arrInstanceId', label: 'ARR Instance ID', type: 'select', options: [], operators: ['equals', 'not_equals', 'in', 'not_in'] },
     { field: 'requestStatus', label: 'Request Status', type: 'text', operators: ['equals', 'not_equals', 'contains', 'not_contains', 'is_empty', 'not_empty'] },
     { field: 'requestType', label: 'Request Type', type: 'text', operators: ['equals', 'not_equals'] },
     { field: 'daysSinceRequested', label: 'Days Since Requested', type: 'number', operators: ['greater_than', 'less_than', 'between'] },
@@ -8345,8 +8375,8 @@ const validateMaintenanceDestructivePreflight = async (config, rule, catalog) =>
     const wantsUnmonitor = !!rule?.actions?.unmonitor;
     const wantsQuality = Number(rule?.actions?.qualityProfileId || 0) > 0;
     if (wantsDelete || wantsUnmonitor || wantsQuality) {
-        const radarrReady = isArrTypeConfigured(config, 'radarr');
-        const sonarrReady = isArrTypeConfigured(config, 'sonarr');
+        const radarrReady = (catalog?.counts?.radarr?.ready ?? getArrInstanceCounts(config).radarr.ready) > 0;
+        const sonarrReady = (catalog?.counts?.sonarr?.ready ?? getArrInstanceCounts(config).sonarr.ready) > 0;
         const instanceCounts = catalog?.counts || getArrInstanceCounts(config);
         if (wantsDelete) {
             if (!radarrReady) warnings.push('Radarr is not configured — matched movies cannot be deleted.');
@@ -8355,11 +8385,17 @@ const validateMaintenanceDestructivePreflight = async (config, rule, catalog) =>
                 errors.push('Neither Radarr nor Sonarr is configured. Configure at least one integration before destructive delete.');
             }
         }
-        if ((wantsDelete || wantsUnmonitor || wantsQuality) && radarrReady && catalog.radarr.length === 0) {
-            warnings.push('Radarr catalog is empty or unreachable — movie matches may be unactionable.');
+        if ((wantsDelete || wantsUnmonitor || wantsQuality) && radarrReady) {
+            const radarrInstances = Object.values(catalog?.instances || {}).filter((entry) => entry.type === 'radarr');
+            if (radarrInstances.length > 0 && radarrInstances.every((entry) => (entry.itemCount || 0) === 0)) {
+                warnings.push('Radarr catalog is empty or unreachable — movie matches may be unactionable.');
+            }
         }
-        if ((wantsDelete || wantsUnmonitor || wantsQuality) && sonarrReady && catalog.sonarr.length === 0) {
-            warnings.push('Sonarr catalog is empty or unreachable — show matches may be unactionable.');
+        if ((wantsDelete || wantsUnmonitor || wantsQuality) && sonarrReady) {
+            const sonarrInstances = Object.values(catalog?.instances || {}).filter((entry) => entry.type === 'sonarr');
+            if (sonarrInstances.length > 0 && sonarrInstances.every((entry) => (entry.itemCount || 0) === 0)) {
+                warnings.push('Sonarr catalog is empty or unreachable — show matches may be unactionable.');
+            }
         }
         const readyInstances = Object.values(catalog?.instances || {}).filter((entry) => {
             const instance = getArrInstance(config, entry.id);
@@ -8468,6 +8504,8 @@ const maintenanceValueMap = (item, field) => {
         case 'traktRating': return item.traktRating ?? null;
         case 'arrType': return item.arrType || 'none';
         case 'arrMapped': return !!item.arrMapped;
+        case 'arrInstanceName': return item.arrInstanceName || '';
+        case 'arrInstanceId': return item.arrInstanceId || '';
         case 'requestStatus': return item.request?.status || '';
         case 'requestType': return item.request?.type || '';
         case 'daysSinceRequested': return item.request?.daysSinceRequested ?? null;
@@ -8708,7 +8746,11 @@ const fetchPlexLibraryItemsForMaintenance = async (config, uri) => {
                     tmdbId: ids.tmdb,
                     tvdbId: ids.tvdb,
                     arrType: section.type === 'movie' ? 'radarr' : 'sonarr',
-                    arrMapped: !!(ids.tmdb || ids.tvdb || ids.imdb),
+                    arrMapped: false,
+                    arrInstanceId: null,
+                    arrInstanceName: null,
+                    arrAmbiguous: false,
+                    hasExternalIds: !!(ids.tmdb || ids.tvdb || ids.imdb),
                     request: null,
                     is4k: String(mediaInfo.videoResolution || '').toLowerCase().includes('4k') || String(mediaInfo.videoResolution || '').toLowerCase().includes('2160')
                 };
@@ -8806,6 +8848,25 @@ const attachRequestsToMediaIndex = (mediaItems, requestIndex) => {
     });
 };
 
+const enrichMediaItemsWithArrResolution = async (config, items = []) => {
+    const normalized = normalizeArrConfig(config);
+    const hasArr = getArrInstances(normalized, { enabledOnly: true }).some(isArrInstanceReady);
+    if (!hasArr || !Array.isArray(items) || items.length === 0) return items;
+
+    const catalog = await getArrCatalog(normalized, { force: true });
+    return items.map((item) => {
+        const resolved = resolveArrEntity(item, catalog, normalized);
+        return {
+            ...item,
+            arrType: resolved.type === 'none' ? (item.arrType || 'none') : resolved.type,
+            arrMapped: !!resolved.entity,
+            arrInstanceId: resolved.instanceId || null,
+            arrInstanceName: resolved.instanceName || null,
+            arrAmbiguous: !!resolved.ambiguous,
+        };
+    });
+};
+
 const buildMaintenanceMediaIndex = async ({ actor = null, force = false } = {}) => {
     markTaskStart(systemJobs.maintenanceIndex);
     try {
@@ -8829,17 +8890,18 @@ const buildMaintenanceMediaIndex = async ({ actor = null, force = false } = {}) 
         const rawMedia = await fetchPlexLibraryItemsForMaintenance(config, uri);
         const requestIndex = await fetchRequestIndex(config);
         const merged = attachRequestsToMediaIndex(rawMedia, requestIndex);
+        const enriched = await enrichMediaItemsWithArrResolution(config, merged);
         const payload = {
             generatedAt: new Date().toISOString(),
-            itemCount: merged.length,
+            itemCount: enriched.length,
             requestItemCount: (requestIndex.items || []).length,
             force: !!force,
-            items: merged
+            items: enriched
         };
         await saveFile(MAINTENANCE_MEDIA_INDEX_PATH, payload);
         await saveFile(MAINTENANCE_REQUEST_INDEX_PATH, requestIndex);
         markTaskEnd(systemJobs.maintenanceIndex, null);
-        await appendAuditLog('maintenance_index_rebuilt', actor, null, { itemCount: merged.length, requestItemCount: requestIndex.items?.length || 0 });
+        await appendAuditLog('maintenance_index_rebuilt', actor, null, { itemCount: enriched.length, requestItemCount: requestIndex.items?.length || 0 });
         return payload;
     } catch (error) {
         markTaskEnd(systemJobs.maintenanceIndex, error);
@@ -9156,11 +9218,24 @@ const requireMaintenanceExperimental = async (req, res, next) => {
 app.use('/api/maintenance', requireAdmin, requireMaintenanceExperimental);
 
 app.get('/api/maintenance/filter-options', requireAdmin, async (req, res) => {
-    res.json({
-        fields: MAINTENANCE_FILTER_CATALOG,
-        operators: ['equals', 'not_equals', 'contains', 'not_contains', 'greater_than', 'less_than', 'between', 'in', 'not_in', 'is_empty', 'not_empty', 'regex'],
-        groupLogic: ['AND', 'OR', 'NOT']
-    });
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const instances = getArrInstances(config);
+        const instanceNames = [...new Set(instances.map((entry) => entry.name).filter(Boolean))];
+        const instanceIds = instances.map((entry) => entry.id);
+        const fields = MAINTENANCE_FILTER_CATALOG.map((field) => {
+            if (field.field === 'arrInstanceName') return { ...field, options: instanceNames };
+            if (field.field === 'arrInstanceId') return { ...field, options: instanceIds };
+            return field;
+        });
+        res.json({
+            fields,
+            operators: ['equals', 'not_equals', 'contains', 'not_contains', 'greater_than', 'less_than', 'between', 'in', 'not_in', 'is_empty', 'not_empty', 'regex'],
+            groupLogic: ['AND', 'OR', 'NOT']
+        });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to load maintenance filter options: ${e.message}` });
+    }
 });
 
 app.get('/api/maintenance/rules', requireAdmin, async (req, res) => {
@@ -9441,8 +9516,8 @@ app.post('/api/maintenance/preview', requireAdmin, async (req, res) => {
             arrDiagnostics: includeArrDiagnostics ? {
                 radarrCount: catalog?.catalogCounts?.radarr ?? (catalog?.radarr?.length || 0),
                 sonarrCount: catalog?.catalogCounts?.sonarr ?? (catalog?.sonarr?.length || 0),
-                radarrConfigured: isArrTypeConfigured(config, 'radarr'),
-                sonarrConfigured: isArrTypeConfigured(config, 'sonarr'),
+                radarrConfigured: getArrInstanceCounts(config).radarr.ready > 0,
+                sonarrConfigured: getArrInstanceCounts(config).sonarr.ready > 0,
                 instanceCounts: catalog?.counts || getArrInstanceCounts(config),
                 instances: Object.values(catalog?.instances || {}).map((entry) => ({
                     id: entry.id,
@@ -9493,7 +9568,13 @@ app.post('/api/maintenance/preflight', requireAdmin, async (req, res) => {
             },
             arrCatalog: {
                 radarrCount: catalog.radarr.length,
-                sonarrCount: catalog.sonarr.length
+                sonarrCount: catalog.sonarr.length,
+                instances: Object.values(catalog?.instances || {}).map((entry) => ({
+                    id: entry.id,
+                    name: entry.name,
+                    type: entry.type,
+                    itemCount: entry.itemCount || 0,
+                })),
             }
         });
     } catch (e) {

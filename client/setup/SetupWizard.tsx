@@ -8,7 +8,30 @@ import { IntegrationTestButton } from '../shared/IntegrationTestButton';
 import { CustomSelect } from '../shared/ui';
 import { AuthPageBackground, themeClasses } from '../shared/theme';
 import { accentHoverRgb, hexToRgb } from '../shared/format';
-import type { PlexServer } from '../shared/types';
+import type { PlexServer, ArrInstance } from '../shared/types';
+import { ArrInstancesPanel, createEmptyArrInstance } from '../settings/ArrInstancesPanel';
+
+const normalizeSetupArrInstances = (stored: Record<string, any> = {}): ArrInstance[] => {
+    if (Array.isArray(stored.arrInstances) && stored.arrInstances.length > 0) {
+        return stored.arrInstances.map((entry: ArrInstance) => ({ ...entry }));
+    }
+    const instances: ArrInstance[] = [];
+    if (stored.sonarrUrl || stored.sonarrApiKey) {
+        instances.push({
+            ...createEmptyArrInstance('sonarr', true),
+            url: stored.sonarrUrl || '',
+            apiKey: stored.sonarrApiKey || '',
+        });
+    }
+    if (stored.radarrUrl || stored.radarrApiKey) {
+        instances.push({
+            ...createEmptyArrInstance('radarr', true),
+            url: stored.radarrUrl || '',
+            apiKey: stored.radarrApiKey || '',
+        });
+    }
+    return instances;
+};
 
 const STEPS = [
     { id: 'welcome', label: 'Welcome', icon: Sparkles, hint: 'Overview & what to expect' },
@@ -109,6 +132,7 @@ const readStoredSetupPlex = () => {
             sonarrApiKey?: string;
             radarrUrl?: string;
             radarrApiKey?: string;
+            arrInstances?: ArrInstance[];
             tautulliUrl?: string;
             tautulliApiKey?: string;
             jellystatUrl?: string;
@@ -158,10 +182,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
     const [smtpSecure, setSmtpSecure] = useState(storedPlex?.smtpSecure ?? false);
     const [testRecipient, setTestRecipient] = useState('');
 
-    const [sonarrUrl, setSonarrUrl] = useState(storedPlex?.sonarrUrl ?? '');
-    const [sonarrApiKey, setSonarrApiKey] = useState(storedPlex?.sonarrApiKey ?? '');
-    const [radarrUrl, setRadarrUrl] = useState(storedPlex?.radarrUrl ?? '');
-    const [radarrApiKey, setRadarrApiKey] = useState(storedPlex?.radarrApiKey ?? '');
+    const [arrInstances, setArrInstances] = useState<ArrInstance[]>(() => normalizeSetupArrInstances(storedPlex || {}));
     const [tautulliUrl, setTautulliUrl] = useState(storedPlex?.tautulliUrl ?? '');
     const [tautulliApiKey, setTautulliApiKey] = useState(storedPlex?.tautulliApiKey ?? '');
     const [jellystatUrl, setJellystatUrl] = useState(storedPlex?.jellystatUrl ?? '');
@@ -221,10 +242,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
             smtpPass,
             smtpFrom,
             smtpSecure,
-            sonarrUrl,
-            sonarrApiKey,
-            radarrUrl,
-            radarrApiKey,
+            arrInstances,
             tautulliUrl,
             tautulliApiKey,
             jellystatUrl,
@@ -361,10 +379,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                     smtpPass,
                     smtpFrom,
                     smtpSecure,
-                    sonarrUrl,
-                    sonarrApiKey,
-                    radarrUrl,
-                    radarrApiKey,
+                    arrInstances,
                     tautulliUrl,
                     tautulliApiKey,
                     jellystatUrl,
@@ -761,24 +776,33 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                             </div>
 
                             {integrationTab === 'arr' && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {[
-                                        { label: 'Sonarr', desc: 'TV series automation', url: sonarrUrl, setUrl: setSonarrUrl, key: sonarrApiKey, setKey: setSonarrApiKey, type: 'sonarr' as const, placeholder: 'http://localhost:8989' },
-                                        { label: 'Radarr', desc: 'Movie automation', url: radarrUrl, setUrl: setRadarrUrl, key: radarrApiKey, setKey: setRadarrApiKey, type: 'radarr' as const, placeholder: 'http://localhost:7878' },
-                                    ].map(({ label, desc, url, setUrl, key, setKey, type, placeholder }) => (
-                                        <div key={type} className={`${sectionCardClass} flex flex-col gap-3.5`}>
-                                            <div className="flex items-center gap-3">
-                                                <ProgramIcon app={type} label={label} />
-                                                <div>
-                                                    <h3 className="font-bold text-text text-base leading-tight">{label}</h3>
-                                                    <p className="text-xs text-muted mt-0.5">{desc}</p>
-                                                </div>
-                                            </div>
-                                            <input type="text" className={inputClass} value={url} onChange={(e) => setUrl(e.target.value)} placeholder={placeholder} />
-                                            <input type="password" className={inputClass} value={key} onChange={(e) => setKey(e.target.value)} placeholder="API Key" />
-                                            <IntegrationTestButton type={type} payload={{ [`${type}Url`]: url, [`${type}ApiKey`]: key }} disabled={!url || !key} />
-                                        </div>
-                                    ))}
+                                <div className="space-y-8">
+                                    <ArrInstancesPanel
+                                        type="sonarr"
+                                        title="Sonarr Instances"
+                                        subtitle="TV series automation"
+                                        instances={arrInstances.filter((entry) => entry.type === 'sonarr')}
+                                        savedInstances={arrInstances.filter((entry) => entry.type === 'sonarr')}
+                                        allInstances={arrInstances}
+                                        onChange={(nextSonarr) => {
+                                            const other = arrInstances.filter((entry) => entry.type !== 'sonarr');
+                                            setArrInstances([...other, ...nextSonarr]);
+                                        }}
+                                        onMessage={(msg, ok) => setError(ok ? '' : msg)}
+                                    />
+                                    <ArrInstancesPanel
+                                        type="radarr"
+                                        title="Radarr Instances"
+                                        subtitle="Movie automation"
+                                        instances={arrInstances.filter((entry) => entry.type === 'radarr')}
+                                        savedInstances={arrInstances.filter((entry) => entry.type === 'radarr')}
+                                        allInstances={arrInstances}
+                                        onChange={(nextRadarr) => {
+                                            const other = arrInstances.filter((entry) => entry.type !== 'radarr');
+                                            setArrInstances([...other, ...nextRadarr]);
+                                        }}
+                                        onMessage={(msg, ok) => setError(ok ? '' : msg)}
+                                    />
                                 </div>
                             )}
 
@@ -844,7 +868,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                             <p className={labelClass + ' mb-3'}>Step {stepIndex + 1}</p>
                             <h2 className="text-3xl sm:text-4xl font-black text-text tracking-tight mb-4">Ready to launch</h2>
                             <p className="text-muted text-base leading-relaxed mb-8">
-                                Your {mediaServerType === 'jellyfin' ? 'Jellyfin' : 'Plex'} server{sonarrUrl ? ', Sonarr' : ''}{radarrUrl ? ', Radarr' : ''}{tautulliUrl ? ', Tautulli' : ''}{jellystatUrl ? ', Jellystat' : ''} will be saved.
+                                Your {mediaServerType === 'jellyfin' ? 'Jellyfin' : 'Plex'} server{arrInstances.some((entry) => entry.type === 'sonarr' && entry.url) ? ', Sonarr' : ''}{arrInstances.some((entry) => entry.type === 'radarr' && entry.url) ? ', Radarr' : ''}{tautulliUrl ? ', Tautulli' : ''}{jellystatUrl ? ', Jellystat' : ''} will be saved.
                                 {smtpHost ? ' Email notifications enabled.' : ' You can add email later in Settings.'}
                             </p>
                             <div className={`${sectionCardClass} text-left text-sm space-y-3`}>
