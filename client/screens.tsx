@@ -5667,6 +5667,18 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
     const [discoverSearchQuery, setDiscoverSearchQuery] = useState('');
     const [discoverSearchResults, setDiscoverSearchResults] = useState<any[] | null>(null);
     const [isDiscoverSearching, setIsDiscoverSearching] = useState(false);
+    const searchDropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (searchDropdownRef.current && !searchDropdownRef.current.contains(event.target as Node)) {
+                setDiscoverSearchQuery('');
+                setDiscoverSearchResults(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const performDiscoverSearch = async () => {
         if (!discoverSearchQuery.trim()) {
@@ -5799,7 +5811,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                 {pollError && !error && <div className="toast error show">{pollError}</div>}
 
                 {isAdmin && !isJellyfinPortal && (
-                    <div className="mb-6 w-full relative z-40">
+                    <div className="mb-6 w-full relative z-40" ref={searchDropdownRef}>
                         <form onSubmit={handleSearchSubmit} className="flex gap-2">
                             <div className="relative flex-1">
                                 <input 
@@ -5847,20 +5859,35 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                                 
                                                 <div className="mt-auto">
                                                     {item.history && item.history.length > 0 ? (
-                                                        <div className="bg-status-active/10 border border-status-active/20 rounded p-3">
-                                                            <p className="text-status-active text-xs font-bold uppercase tracking-wider mb-2">Watched History ({item.history.length})</p>
-                                                            <div className="max-h-40 overflow-y-auto pr-2 custom-scrollbar space-y-1.5">
-                                                                {item.history.map((h: any, i: number) => (
-                                                                    <div key={i} className="flex justify-between items-center text-xs border-b border-white/5 pb-1.5 last:border-0 last:pb-0">
-                                                                        <span className="font-medium text-white">{h.user}</span>
-                                                                        <span className="text-muted">{new Date(h.date * 1000).toLocaleString()} • {Math.round(h.duration / 60000)} mins {h.player ? `on ${h.player}` : ''}</span>
-                                                                    </div>
-                                                                ))}
+                                                        <div className="mt-3 pt-3 border-t border-white/10">
+                                                            <div className="flex items-center gap-2 mb-3">
+                                                                <Clock size={14} className="text-status-active" />
+                                                                <span className="text-xs font-bold uppercase tracking-widest text-status-active">Watch History <span className="bg-status-active/20 px-1.5 py-0.5 rounded-full text-[10px] ml-1">{item.history.length}</span></span>
+                                                            </div>
+                                                            <div className="bg-black/40 border border-white/5 rounded-xl overflow-hidden shadow-inner">
+                                                                <div className="max-h-48 overflow-y-auto custom-scrollbar">
+                                                                    {item.history.map((h: any, i: number) => (
+                                                                        <div key={i} className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 text-xs p-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0">
+                                                                            <div className="flex items-center gap-3 md:w-1/3 min-w-[120px]">
+                                                                                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-status-active to-green-600 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-white uppercase shadow-lg shadow-status-active/20">
+                                                                                    {h.user ? h.user.substring(0,2) : '?'}
+                                                                                </div>
+                                                                                <span className="font-bold text-white truncate text-sm">{h.user}</span>
+                                                                            </div>
+                                                                            <div className="flex-1 flex flex-wrap md:flex-nowrap items-center gap-4 text-muted md:justify-end">
+                                                                                <span className="flex items-center gap-1.5 shrink-0"><Calendar size={12} className="opacity-50"/> {new Date(h.date * 1000).toLocaleDateString()} {new Date(h.date * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                                                                <span className="flex items-center gap-1.5 shrink-0"><Clock size={12} className="opacity-50"/> {Math.round(h.duration / 60000)}m</span>
+                                                                                {h.player && <span className="flex items-center gap-1.5 truncate max-w-[150px]"><Monitor size={12} className="opacity-50 shrink-0"/> <span className="truncate">{h.player}</span></span>}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     ) : (
-                                                        <div className="bg-white/5 border border-white/10 rounded p-3">
-                                                            <p className="text-muted text-xs uppercase tracking-wider font-bold">No Watch History</p>
+                                                        <div className="mt-3 flex items-center gap-2 text-muted bg-white/5 border border-white/10 rounded-lg p-3">
+                                                            <Clock size={14} className="opacity-50" />
+                                                            <span className="text-xs font-bold uppercase tracking-widest">No Watch History</span>
                                                         </div>
                                                     )}
                                                 </div>
