@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.2.0...v1.3.0) (2026-07-08)
+
+
+### Features
+
+* Add specific date picker to Peak Playback Hours chart ([0e53072](https://github.com/jl94x4/Server-Manager-Portal/commit/0e53072c6340b7454c5df208096f70339f2a8afc))
+* Add Tautulli-mimicking search feature to Discover tab ([d1ae46f](https://github.com/jl94x4/Server-Manager-Portal/commit/d1ae46f63a87143f99244e90e7230dc97ab4b9d6))
+* Allow clicking on a user in Discover history to quickly navigate to their profile in the Users tab ([55a1d50](https://github.com/jl94x4/Server-Manager-Portal/commit/55a1d50d3324e54a80dbb7936c54c197308d476d))
+* Change click-to-view user behavior to navigate to Analytics profile instead of Users list ([7565320](https://github.com/jl94x4/Server-Manager-Portal/commit/7565320a783885af4955cfe7c3e24f83aac683dc))
+
+
+### Bug Fixes
+
+* Correct ServerInsightsWidget component usage ([fc11ed3](https://github.com/jl94x4/Server-Manager-Portal/commit/fc11ed37547f267d408e4d5ebf8688296109a097))
+* TypeScript errors and missing Loader2 import ([51b1b81](https://github.com/jl94x4/Server-Manager-Portal/commit/51b1b81b7cbb1f7b97953390e85f1245e7447763))
+
+
+### Performance Improvements
+
+* Vastly speed up discover search by fetching watch history in parallel and capping result sizes ([91e69ec](https://github.com/jl94x4/Server-Manager-Portal/commit/91e69ec1572f50a28aaba895fc129799afa04c98))
+
 ## [1.2.1](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.2.0...v1.2.1) (2026-07-08)
 
 ### Features
