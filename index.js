@@ -278,8 +278,12 @@ import {
     getDefaultArrInstance,
     getArrCredentials,
     isArrTypeConfigured,
+    isArrInstanceReady,
     maskArrInstancesForApi,
     mergeLegacyArrFieldsIntoInstances,
+    getArrInstanceCounts,
+    fetchArrInstanceCatalogItems,
+    buildArrLookupMapsForItems,
 } from './lib/arr-service.js';
 const PLEX_API = 'https://plex.tv/api';
 
@@ -4142,7 +4146,7 @@ app.post('/api/tasks/run/:taskId', requireAdmin, async (req, res) => {
 
 app.get('/api/admin/diagnostics', requireAdmin, async (req, res) => {
     try {
-        const config = await loadFile(CONFIG_PATH, {});
+        const config = normalizeArrConfig(await loadFile(CONFIG_PATH, {}));
         const now = Date.now();
         const statFile = async (filePath) => {
             try {
@@ -4182,6 +4186,7 @@ app.get('/api/admin/diagnostics', requireAdmin, async (req, res) => {
                 smtpConfigured: !!(config.smtpHost && config.smtpUser && config.smtpPass),
                 sonarrConfigured: isArrTypeConfigured(config, 'sonarr'),
                 radarrConfigured: isArrTypeConfigured(config, 'radarr'),
+                arrInstanceCounts: getArrInstanceCounts(config),
                 tautulliConfigured: !!(config.tautulliUrl && config.tautulliApiKey),
                 jellystatConfigured: !!(config.jellystatUrl && config.jellystatApiKey),
                 requestAppEnabled: !!(config.requestAppType && config.requestAppType !== 'none'),
@@ -7454,135 +7459,199 @@ async function runMonitorCycle() {
     saveHealthData();
 }
 
+const buildMediaStackMonthRange = (monthOffset = 0) => {
+    const targetDate = new Date();
+    targetDate.setMonth(targetDate.getMonth() + monthOffset);
+    const firstDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+    const lastDay = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
+    const toLocalYmd = (date) => {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    };
+    const start = toLocalYmd(firstDay);
+    const end = toLocalYmd(lastDay);
+    const inTargetMonthRange = (dateValue) => {
+        if (!dateValue) return false;
+        const parsed = new Date(dateValue);
+        if (Number.isNaN(parsed.getTime())) return false;
+        const monthStart = new Date(firstDay);
+        monthStart.setHours(0, 0, 0, 0);
+        const monthEnd = new Date(lastDay);
+        monthEnd.setHours(23, 59, 59, 999);
+        return parsed >= monthStart && parsed <= monthEnd;
+    };
+    return { start, end, inTargetMonthRange };
+};
+
+const buildMediaStackInstanceSummary = async (instance, monthOffset = 0) => {
+    const { start, end, inTargetMonthRange } = buildMediaStackMonthRange(monthOffset);
+    const fetchArr = async (url, key, endpoint) => {
+        if (!url || !key) return null;
+        try {
+            const safeBaseUrl = normalizeExternalBaseUrl(url, { allowPrivate: true, allowHttp: true });
+            const u = new URL(endpoint, safeBaseUrl);
+            const response = await fetch(u.toString(), {
+                headers: { 'X-Api-Key': key }
+            });
+            if (!response.ok) return null;
+            return await response.json();
+        } catch {
+            return null;
+        }
+    };
+
+    const ready = isArrInstanceReady(instance);
+    const type = instance?.type === 'radarr' ? 'radarr' : 'sonarr';
+    if (!ready) {
+        return {
+            id: instance?.id || '',
+            type,
+            name: instance?.name || (type === 'radarr' ? 'Radarr' : 'Sonarr'),
+            isDefault: !!instance?.isDefault,
+            configured: false,
+            instanceName: instance?.name || (type === 'radarr' ? 'Radarr' : 'Sonarr'),
+            status: null,
+            queue: null,
+            history: null,
+            disk: null,
+            calendar: [],
+        };
+    }
+
+    const calendarEndpoint = type === 'sonarr'
+        ? `/api/v3/calendar?start=${start}&end=${end}&includeSeries=true&includeEpisode=true&unmonitored=true`
+        : `/api/v3/calendar?start=${start}&end=${end}&unmonitored=true`;
+    const historyEndpoint = type === 'sonarr'
+        ? '/api/v3/history?page=1&pageSize=10&includeSeries=true&includeEpisode=true'
+        : '/api/v3/history?page=1&pageSize=10&includeMovie=true';
+
+    const [status, queue, history, disk, calendarRaw] = await Promise.all([
+        fetchArr(instance.url, instance.apiKey, '/api/v3/system/status'),
+        fetchArr(instance.url, instance.apiKey, '/api/v3/queue'),
+        fetchArr(instance.url, instance.apiKey, historyEndpoint),
+        fetchArr(instance.url, instance.apiKey, '/api/v3/diskspace'),
+        fetchArr(instance.url, instance.apiKey, calendarEndpoint),
+    ]);
+
+    let calendar = Array.isArray(calendarRaw)
+        ? calendarRaw
+        : (Array.isArray(calendarRaw?.records) ? calendarRaw.records : []);
+
+    if (calendar.length === 0) {
+        if (type === 'sonarr') {
+            const sonarrSeries = await fetchArr(instance.url, instance.apiKey, '/api/v3/series');
+            if (Array.isArray(sonarrSeries)) {
+                calendar = sonarrSeries
+                    .filter((series) => inTargetMonthRange(series?.nextAiring))
+                    .map((series) => ({
+                        id: `fallback-sonarr-${instance.id}-${series.id}`,
+                        title: 'Upcoming Episode',
+                        airDateUtc: series.nextAiring,
+                        airDate: series.nextAiring,
+                        monitored: series.monitored !== false,
+                        hasFile: false,
+                        seasonNumber: 0,
+                        episodeNumber: 0,
+                        series: {
+                            title: series.title || 'Unknown Series',
+                            network: series.network || '',
+                            images: Array.isArray(series.images) ? series.images : []
+                        }
+                    }));
+            }
+        } else {
+            const radarrMovies = await fetchArr(instance.url, instance.apiKey, '/api/v3/movie');
+            if (Array.isArray(radarrMovies)) {
+                calendar = radarrMovies
+                    .map((movie) => {
+                        const releaseDate = movie.digitalRelease || movie.physicalRelease || movie.inCinemas || movie.added || null;
+                        return { ...movie, _releaseDate: releaseDate };
+                    })
+                    .filter((movie) => inTargetMonthRange(movie._releaseDate));
+            }
+        }
+    }
+
+    return {
+        id: instance.id,
+        type,
+        name: instance.name || (type === 'radarr' ? 'Radarr' : 'Sonarr'),
+        isDefault: !!instance.isDefault,
+        configured: true,
+        instanceName: instance.name || (type === 'radarr' ? 'Radarr' : 'Sonarr'),
+        status,
+        queue,
+        history,
+        disk,
+        calendar,
+    };
+};
+
+const buildMediaStackAggregates = (instances = []) => {
+    const aggregateForType = (type) => {
+        const typed = instances.filter((entry) => entry.type === type);
+        const queueCount = typed.reduce((sum, entry) => sum + (Array.isArray(entry?.queue?.records) ? entry.queue.records.length : 0), 0);
+        const onlineCount = typed.filter((entry) => !!entry?.status).length;
+        return {
+            instanceCount: typed.length,
+            configuredCount: typed.filter((entry) => entry.configured).length,
+            onlineCount,
+            queueCount,
+        };
+    };
+    return {
+        sonarr: aggregateForType('sonarr'),
+        radarr: aggregateForType('radarr'),
+    };
+};
+
 app.get('/api/media-stack/summary', requireAuth, requireMember, async (req, res) => {
     try {
         const monthOffset = parseInt(req.query.monthOffset) || 0;
-        const cacheKey = `media-stack-summary-offset-${monthOffset}`;
+        const instanceId = String(req.query.instanceId || '').trim();
+        const cacheKey = instanceId
+            ? `media-stack-summary-${instanceId}-offset-${monthOffset}`
+            : `media-stack-summary-offset-${monthOffset}`;
         const data = await withCache(cacheKey, 60000, async () => {
             const config = normalizeArrConfig(await loadFile(CONFIG_PATH, {}));
-            const sonarrCreds = getArrCredentials(config, 'sonarr');
-            const radarrCreds = getArrCredentials(config, 'radarr');
-            const fetchArr = async (url, key, endpoint) => {
-                if (!url || !key) return null;
-                try {
-                    // Media Stack integrations are admin-configured server-to-server URLs.
-                    // Allow private network hosts here so local Sonarr/Radarr instances work.
-                    const safeBaseUrl = normalizeExternalBaseUrl(url, { allowPrivate: true, allowHttp: true });
-                    const u = new URL(endpoint, safeBaseUrl);
-                    const response = await fetch(u.toString(), {
-                        headers: { 'X-Api-Key': key }
-                    });
-                    if (!response.ok) return null;
-                    return await response.json();
-                } catch (e) {
-                    return null;
+            const enabledInstances = getArrInstances(config, { enabledOnly: true });
+
+            if (instanceId) {
+                const selected = getArrInstance(config, instanceId);
+                if (!selected) {
+                    return { error: 'ARR instance not found.' };
                 }
-            };
-
-            const targetDate = new Date();
-            targetDate.setMonth(targetDate.getMonth() + monthOffset);
-
-            const firstDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
-            const lastDay = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
-            const toLocalYmd = (date) => {
-                const y = date.getFullYear();
-                const m = String(date.getMonth() + 1).padStart(2, '0');
-                const d = String(date.getDate()).padStart(2, '0');
-                return `${y}-${m}-${d}`;
-            };
-            const start = toLocalYmd(firstDay);
-            const end = toLocalYmd(lastDay);
-
-            const inTargetMonthRange = (dateValue) => {
-                if (!dateValue) return false;
-                const parsed = new Date(dateValue);
-                if (Number.isNaN(parsed.getTime())) return false;
-                const monthStart = new Date(firstDay);
-                monthStart.setHours(0, 0, 0, 0);
-                const monthEnd = new Date(lastDay);
-                monthEnd.setHours(23, 59, 59, 999);
-                return parsed >= monthStart && parsed <= monthEnd;
-            };
-
-            const [sonarrStatus, sonarrQueue, sonarrHistory, sonarrDisk, sonarrCalendarRaw, radarrStatus, radarrQueue, radarrHistory, radarrDisk, radarrCalendarRaw] = await Promise.all([
-                fetchArr(sonarrCreds.url, sonarrCreds.apiKey, '/api/v3/system/status'),
-                fetchArr(sonarrCreds.url, sonarrCreds.apiKey, '/api/v3/queue'),
-                fetchArr(sonarrCreds.url, sonarrCreds.apiKey, '/api/v3/history?page=1&pageSize=10&includeSeries=true&includeEpisode=true'),
-                fetchArr(sonarrCreds.url, sonarrCreds.apiKey, '/api/v3/diskspace'),
-                fetchArr(sonarrCreds.url, sonarrCreds.apiKey, `/api/v3/calendar?start=${start}&end=${end}&includeSeries=true&includeEpisode=true&unmonitored=true`),
-                fetchArr(radarrCreds.url, radarrCreds.apiKey, '/api/v3/system/status'),
-                fetchArr(radarrCreds.url, radarrCreds.apiKey, '/api/v3/queue'),
-                fetchArr(radarrCreds.url, radarrCreds.apiKey, '/api/v3/history?page=1&pageSize=10&includeMovie=true'),
-                fetchArr(radarrCreds.url, radarrCreds.apiKey, '/api/v3/diskspace'),
-                fetchArr(radarrCreds.url, radarrCreds.apiKey, `/api/v3/calendar?start=${start}&end=${end}&unmonitored=true`)
-            ]);
-
-            let sonarrCalendar = Array.isArray(sonarrCalendarRaw)
-                ? sonarrCalendarRaw
-                : (Array.isArray(sonarrCalendarRaw?.records) ? sonarrCalendarRaw.records : []);
-            let radarrCalendar = Array.isArray(radarrCalendarRaw)
-                ? radarrCalendarRaw
-                : (Array.isArray(radarrCalendarRaw?.records) ? radarrCalendarRaw.records : []);
-
-            if (sonarrCalendar.length === 0 && sonarrCreds.url && sonarrCreds.apiKey) {
-                const sonarrSeries = await fetchArr(sonarrCreds.url, sonarrCreds.apiKey, '/api/v3/series');
-                if (Array.isArray(sonarrSeries)) {
-                    sonarrCalendar = sonarrSeries
-                        .filter((series) => inTargetMonthRange(series?.nextAiring))
-                        .map((series) => ({
-                            id: `fallback-sonarr-${series.id}`,
-                            title: 'Upcoming Episode',
-                            airDateUtc: series.nextAiring,
-                            airDate: series.nextAiring,
-                            monitored: series.monitored !== false,
-                            hasFile: false,
-                            seasonNumber: 0,
-                            episodeNumber: 0,
-                            series: {
-                                title: series.title || 'Unknown Series',
-                                network: series.network || '',
-                                images: Array.isArray(series.images) ? series.images : []
-                            }
-                        }));
-                }
+                const summary = await buildMediaStackInstanceSummary(selected, monthOffset);
+                return {
+                    sonarr: summary.type === 'sonarr' ? summary : { configured: false, calendar: [] },
+                    radarr: summary.type === 'radarr' ? summary : { configured: false, calendar: [] },
+                    instances: [summary],
+                    aggregates: buildMediaStackAggregates([summary]),
+                };
             }
 
-            if (radarrCalendar.length === 0 && radarrCreds.url && radarrCreds.apiKey) {
-                const radarrMovies = await fetchArr(radarrCreds.url, radarrCreds.apiKey, '/api/v3/movie');
-                if (Array.isArray(radarrMovies)) {
-                    radarrCalendar = radarrMovies
-                        .map((movie) => {
-                            const releaseDate = movie.digitalRelease || movie.physicalRelease || movie.inCinemas || movie.added || null;
-                            return {
-                                ...movie,
-                                _releaseDate: releaseDate
-                            };
-                        })
-                        .filter((movie) => inTargetMonthRange(movie._releaseDate));
-                }
-            }
+            const instanceSummaries = await Promise.all(
+                enabledInstances.map((instance) => buildMediaStackInstanceSummary(instance, monthOffset))
+            );
+            const defaultSonarr = instanceSummaries.find((entry) => entry.type === 'sonarr' && entry.isDefault)
+                || instanceSummaries.find((entry) => entry.type === 'sonarr')
+                || { configured: false, calendar: [], instanceName: 'Sonarr' };
+            const defaultRadarr = instanceSummaries.find((entry) => entry.type === 'radarr' && entry.isDefault)
+                || instanceSummaries.find((entry) => entry.type === 'radarr')
+                || { configured: false, calendar: [], instanceName: 'Radarr' };
 
             return {
-                sonarr: {
-                    configured: isArrTypeConfigured(config, 'sonarr'),
-                    instanceName: sonarrCreds.instance?.name || 'Sonarr',
-                    status: sonarrStatus,
-                    queue: sonarrQueue,
-                    history: sonarrHistory,
-                    disk: sonarrDisk,
-                    calendar: sonarrCalendar
-                },
-                radarr: {
-                    configured: isArrTypeConfigured(config, 'radarr'),
-                    instanceName: radarrCreds.instance?.name || 'Radarr',
-                    status: radarrStatus,
-                    queue: radarrQueue,
-                    history: radarrHistory,
-                    disk: radarrDisk,
-                    calendar: radarrCalendar
-                }
+                sonarr: defaultSonarr,
+                radarr: defaultRadarr,
+                instances: instanceSummaries,
+                aggregates: buildMediaStackAggregates(instanceSummaries),
             };
         });
+        if (data?.error) {
+            return res.status(404).json({ error: data.error });
+        }
         res.json(data);
     } catch (e) {
         res.status(500).json({ error: 'Failed to fetch media stack summary' });
@@ -8748,44 +8817,54 @@ let cachedArrCatalog = null;
 let cachedArrCatalogAt = 0;
 const ARR_CATALOG_CACHE_MS = 5 * 60 * 1000;
 
-const buildArrLookupMaps = (radarrItems = [], sonarrItems = []) => {
-    const addEntry = (maps, entry) => {
-        const imdb = entry?.imdbId ? String(entry.imdbId) : null;
-        const tmdb = entry?.tmdbId != null ? String(entry.tmdbId) : null;
-        const tvdb = entry?.tvdbId != null ? String(entry.tvdbId) : null;
-        if (imdb) maps.byImdb.set(imdb, entry);
-        if (tmdb) maps.byTmdb.set(tmdb, entry);
-        if (tvdb) maps.byTvdb.set(tvdb, entry);
-    };
-    const radarrMaps = { byImdb: new Map(), byTmdb: new Map(), byTvdb: new Map() };
-    const sonarrMaps = { byImdb: new Map(), byTmdb: new Map(), byTvdb: new Map() };
-    radarrItems.forEach((entry) => addEntry(radarrMaps, entry));
-    sonarrItems.forEach((entry) => addEntry(sonarrMaps, entry));
-    return { radarr: radarrMaps, sonarr: sonarrMaps };
-};
+const buildArrLookupMaps = (radarrItems = [], sonarrItems = []) => ({
+    radarr: buildArrLookupMapsForItems(radarrItems),
+    sonarr: buildArrLookupMapsForItems(sonarrItems),
+});
 
 const getArrCatalog = async (config, { force = false } = {}) => {
     if (!force && cachedArrCatalog && (Date.now() - cachedArrCatalogAt) < ARR_CATALOG_CACHE_MS) {
         return cachedArrCatalog;
     }
     const normalized = normalizeArrConfig(config);
-    const sonarrCreds = getArrCredentials(normalized, 'sonarr');
-    const radarrCreds = getArrCredentials(normalized, 'radarr');
-    const [radarrItems, sonarrItems] = await Promise.all([
-        radarrCreds.url && radarrCreds.apiKey
-            ? fetch(`${resolveIntegrationUrlForFetch(radarrCreds.url)}/api/v3/movie`, { headers: { 'X-Api-Key': radarrCreds.apiKey, Accept: 'application/json' } }).then(r => r.json()).catch(() => [])
-            : [],
-        sonarrCreds.url && sonarrCreds.apiKey
-            ? fetch(`${resolveIntegrationUrlForFetch(sonarrCreds.url)}/api/v3/series`, { headers: { 'X-Api-Key': sonarrCreds.apiKey, Accept: 'application/json' } }).then(r => r.json()).catch(() => [])
-            : []
-    ]);
+    const instances = getArrInstances(normalized, { enabledOnly: true });
+    const catalogResults = await Promise.all(
+        instances.map(async (instance) => ({
+            instance,
+            items: await fetchArrInstanceCatalogItems(instance, { resolveUrl: resolveIntegrationUrlForFetch, fetchImpl: fetch }),
+        }))
+    );
 
-    const radarr = Array.isArray(radarrItems) ? radarrItems : [];
-    const sonarr = Array.isArray(sonarrItems) ? sonarrItems : [];
+    const instancesById = {};
+    const lookupByInstance = {};
+    const radarr = [];
+    const sonarr = [];
+
+    catalogResults.forEach(({ instance, items }) => {
+        instancesById[instance.id] = {
+            id: instance.id,
+            type: instance.type,
+            name: instance.name || (instance.type === 'radarr' ? 'Radarr' : 'Sonarr'),
+            isDefault: !!instance.isDefault,
+            itemCount: items.length,
+            items,
+        };
+        lookupByInstance[instance.id] = buildArrLookupMapsForItems(items);
+        if (instance.type === 'radarr') radarr.push(...items);
+        else sonarr.push(...items);
+    });
+
     cachedArrCatalog = {
+        instances: instancesById,
+        lookupByInstance,
         radarr,
         sonarr,
-        lookup: buildArrLookupMaps(radarr, sonarr)
+        lookup: buildArrLookupMaps(radarr, sonarr),
+        counts: getArrInstanceCounts(normalized),
+        catalogCounts: {
+            sonarr: sonarr.length,
+            radarr: radarr.length,
+        },
     };
     cachedArrCatalogAt = Date.now();
     return cachedArrCatalog;
@@ -9337,10 +9416,18 @@ app.post('/api/maintenance/preview', requireAdmin, async (req, res) => {
             indexGeneratedAt: payload.generatedAt || null,
             preferences,
             arrDiagnostics: includeArrDiagnostics ? {
-                radarrCount: catalog?.radarr?.length || 0,
-                sonarrCount: catalog?.sonarr?.length || 0,
+                radarrCount: catalog?.catalogCounts?.radarr ?? (catalog?.radarr?.length || 0),
+                sonarrCount: catalog?.catalogCounts?.sonarr ?? (catalog?.sonarr?.length || 0),
                 radarrConfigured: isArrTypeConfigured(config, 'radarr'),
-                sonarrConfigured: isArrTypeConfigured(config, 'sonarr')
+                sonarrConfigured: isArrTypeConfigured(config, 'sonarr'),
+                instanceCounts: catalog?.counts || getArrInstanceCounts(config),
+                instances: Object.values(catalog?.instances || {}).map((entry) => ({
+                    id: entry.id,
+                    name: entry.name,
+                    type: entry.type,
+                    isDefault: !!entry.isDefault,
+                    itemCount: entry.itemCount || 0,
+                })),
             } : null,
             previews
         });

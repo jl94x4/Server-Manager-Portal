@@ -905,16 +905,63 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const [monthOffset, setMonthOffset] = useState(0);
-    const [activeStackTab, setActiveStackTab] = useState<'sonarr' | 'radarr'>('sonarr');
+    const [activeInstanceId, setActiveInstanceId] = useState<string | null>(null);
     const [activeCalendarItem, setActiveCalendarItem] = useState<any>(null);
     const [autoMonthNotice, setAutoMonthNotice] = useState('');
 
-    const switchStackTab = (tab: 'sonarr' | 'radarr') => {
-        if (tab === activeStackTab) return;
-        setActiveStackTab(tab);
+    const stackInstances = useMemo(() => {
+        const fromApi = Array.isArray(data?.instances) ? data.instances : [];
+        if (fromApi.length > 0) {
+            return [...fromApi].sort((a: any, b: any) => {
+                if (a.type !== b.type) return a.type === 'sonarr' ? -1 : 1;
+                if (!!a.isDefault !== !!b.isDefault) return a.isDefault ? -1 : 1;
+                return String(a.name || '').localeCompare(String(b.name || ''));
+            });
+        }
+        const fallback: any[] = [];
+        if (data?.sonarr) {
+            fallback.push({
+                ...data.sonarr,
+                id: 'sonarr-default',
+                type: 'sonarr',
+                name: data.sonarr.instanceName || 'Sonarr',
+            });
+        }
+        if (data?.radarr) {
+            fallback.push({
+                ...data.radarr,
+                id: 'radarr-default',
+                type: 'radarr',
+                name: data.radarr.instanceName || 'Radarr',
+            });
+        }
+        return fallback;
+    }, [data]);
+
+    const switchInstance = (instanceId: string) => {
+        if (instanceId === activeInstanceId) return;
+        setActiveInstanceId(instanceId);
         setAutoMonthNotice('');
         setMonthOffset(0);
     };
+
+    useEffect(() => {
+        if (stackInstances.length === 0) {
+            setActiveInstanceId(null);
+            return;
+        }
+        if (activeInstanceId && stackInstances.some((entry: any) => entry.id === activeInstanceId)) return;
+        const preferred = stackInstances.find((entry: any) => entry.isDefault) || stackInstances[0];
+        setActiveInstanceId(preferred?.id || null);
+    }, [stackInstances, activeInstanceId]);
+
+    const activeInstanceData = useMemo(() => {
+        if (!stackInstances.length) return null;
+        return stackInstances.find((entry: any) => entry.id === activeInstanceId) || stackInstances[0];
+    }, [stackInstances, activeInstanceId]);
+
+    const activeInstanceType = activeInstanceData?.type === 'radarr' ? 'radarr' : 'sonarr';
+    const isTvInstance = activeInstanceType === 'sonarr';
 
     const fetchData = useCallback(async () => {
         try {
@@ -969,38 +1016,34 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
         return `${mb.toFixed(1)} MB`;
     };
 
-    const sonarrCalendarItems = useMemo(() => {
-        if (!data?.sonarr?.calendar) return [];
+    const calendarItems = useMemo(() => {
+        if (!activeInstanceData?.calendar) return [];
         const items: any[] = [];
-        data.sonarr.calendar.forEach((ep: any) => {
-            const poster = ep.series?.images?.find((img: any) => img.coverType === 'poster');
-            items.push({
-                id: `sonarr-${ep.id || ep.airDateUtc || ep.airDate}-${ep.title}`,
-                type: 'tv',
-                service: 'Sonarr',
-                title: ep.series?.title || 'Unknown Series',
-                subtitle: `S${String(ep.seasonNumber).padStart(2, '0')}E${String(ep.episodeNumber).padStart(2, '0')} - ${ep.title}`,
-                date: new Date(ep.airDateUtc || ep.airDate),
-                hasFile: ep.hasFile,
-                monitored: ep.monitored,
-                imageUrl: poster ? (poster.remoteUrl || poster.url) : null,
-                network: ep.series?.network || ''
+        if (isTvInstance) {
+            activeInstanceData.calendar.forEach((ep: any) => {
+                const poster = ep.series?.images?.find((img: any) => img.coverType === 'poster');
+                items.push({
+                    id: `${activeInstanceData.id}-sonarr-${ep.id || ep.airDateUtc || ep.airDate}-${ep.title}`,
+                    type: 'tv',
+                    service: activeInstanceData.name || 'Sonarr',
+                    title: ep.series?.title || 'Unknown Series',
+                    subtitle: `S${String(ep.seasonNumber).padStart(2, '0')}E${String(ep.episodeNumber).padStart(2, '0')} - ${ep.title}`,
+                    date: new Date(ep.airDateUtc || ep.airDate),
+                    hasFile: ep.hasFile,
+                    monitored: ep.monitored,
+                    imageUrl: poster ? (poster.remoteUrl || poster.url) : null,
+                    network: ep.series?.network || ''
+                });
             });
-        });
-        return items.sort((a, b) => a.date.getTime() - b.date.getTime());
-    }, [data]);
-
-    const radarrCalendarItems = useMemo(() => {
-        if (!data?.radarr?.calendar) return [];
-        const items: any[] = [];
-        data.radarr.calendar.forEach((movie: any) => {
-            const releaseDateStr = movie.digitalRelease || movie.physicalRelease || movie.inCinemas || movie.added;
-            if (releaseDateStr) {
+        } else {
+            activeInstanceData.calendar.forEach((movie: any) => {
+                const releaseDateStr = movie.digitalRelease || movie.physicalRelease || movie.inCinemas || movie.added;
+                if (!releaseDateStr) return;
                 const poster = movie.images?.find((img: any) => img.coverType === 'poster');
                 items.push({
-                    id: `radarr-${movie.id || releaseDateStr}-${movie.title}`,
+                    id: `${activeInstanceData.id}-radarr-${movie.id || releaseDateStr}-${movie.title}`,
                     type: 'movie',
-                    service: 'Radarr',
+                    service: activeInstanceData.name || 'Radarr',
                     title: movie.title,
                     subtitle: movie.studio || 'Movie Release',
                     date: new Date(releaseDateStr),
@@ -1009,20 +1052,16 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
                     imageUrl: poster ? (poster.remoteUrl || poster.url) : null,
                     network: movie.studio || ''
                 });
-            }
-        });
+            });
+        }
         return items.sort((a, b) => a.date.getTime() - b.date.getTime());
-    }, [data]);
+    }, [activeInstanceData, isTvInstance]);
 
-    const filteredCalendar = useMemo(() => {
-        return activeStackTab === 'sonarr' ? sonarrCalendarItems : radarrCalendarItems;
-    }, [activeStackTab, sonarrCalendarItems, radarrCalendarItems]);
+    const filteredCalendar = calendarItems;
 
-    const activeStackConfigured = activeStackTab === 'sonarr'
-        ? !!data?.sonarr?.configured
-        : !!data?.radarr?.configured;
+    const activeStackConfigured = !!activeInstanceData?.configured;
 
-    const activeStackLabel = activeStackTab === 'sonarr' ? 'Sonarr' : 'Radarr';
+    const activeStackLabel = activeInstanceData?.name || activeInstanceData?.instanceName || (isTvInstance ? 'Sonarr' : 'Radarr');
 
     useEffect(() => {
         let cancelled = false;
@@ -1035,15 +1074,16 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
             }
             for (let offset = 1; offset <= 6; offset += 1) {
                 try {
-                    const res = await apiFetch(`/api/media-stack/summary?monthOffset=${offset}`);
-                    const count = activeStackTab === 'sonarr'
-                        ? (Array.isArray(res?.sonarr?.calendar) ? res.sonarr.calendar.length : 0)
-                        : (Array.isArray(res?.radarr?.calendar) ? res.radarr.calendar.length : 0);
+                    const res = await apiFetch(`/api/media-stack/summary?monthOffset=${offset}${activeInstanceId ? `&instanceId=${encodeURIComponent(activeInstanceId)}` : ''}`);
+                    const activeSummary = activeInstanceId
+                        ? res?.instances?.find((entry: any) => entry.id === activeInstanceId)
+                        : res?.instances?.[0];
+                    const count = Array.isArray(activeSummary?.calendar) ? activeSummary.calendar.length : 0;
                     if (count > 0) {
                         if (cancelled) return;
                         setData(res);
                         setMonthOffset(offset);
-                        setAutoMonthNotice(`Showing the next month with ${activeStackTab === 'sonarr' ? 'TV' : 'movie'} releases (${new Date(new Date().setFullYear(new Date().getFullYear(), new Date().getMonth() + offset, 1)).toLocaleDateString('default', { month: 'long', year: 'numeric' })}).`);
+                        setAutoMonthNotice(`Showing the next month with ${isTvInstance ? 'TV' : 'movie'} releases (${new Date(new Date().setFullYear(new Date().getFullYear(), new Date().getMonth() + offset, 1)).toLocaleDateString('default', { month: 'long', year: 'numeric' })}).`);
                         return;
                     }
                 } catch {
@@ -1051,14 +1091,14 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
                 }
             }
             if (!cancelled) {
-                setAutoMonthNotice(`No ${activeStackTab === 'sonarr' ? 'TV' : 'movie'} releases found in the next 6 months.`);
+                setAutoMonthNotice(`No ${isTvInstance ? 'TV' : 'movie'} releases found in the next 6 months.`);
             }
         };
         maybeAutoSelectMonthWithReleases();
         return () => {
             cancelled = true;
         };
-    }, [activeStackTab, filteredCalendar.length, data, monthOffset]);
+    }, [isTvInstance, filteredCalendar.length, data, monthOffset, activeInstanceId]);
 
     const groupedCalendar = useMemo(() => {
         const groups: { [dateStr: string]: typeof filteredCalendar } = {};
@@ -1081,65 +1121,52 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
         }
     }, [filteredCalendar]);
 
-    const sonarrQueue = useMemo(() => {
-        if (!data?.sonarr?.queue?.records) return [];
-        return data.sonarr.queue.records.map((item: any) => ({ ...item, service: 'Sonarr' }));
-    }, [data]);
-
-    const radarrQueue = useMemo(() => {
-        if (!data?.radarr?.queue?.records) return [];
-        return data.radarr.queue.records.map((item: any) => ({ ...item, service: 'Radarr' }));
-    }, [data]);
-
     const activeQueue = useMemo(() => {
-        return activeStackTab === 'sonarr' ? sonarrQueue : radarrQueue;
-    }, [activeStackTab, sonarrQueue, radarrQueue]);
-
-    const sonarrHistory = useMemo(() => {
-        if (!data?.sonarr?.history?.records) return [];
-        const historyItems: any[] = [];
-        data.sonarr.history.records.forEach((item: any) => {
-            let cleanTitle = '';
-            if (item.series?.title) {
-                cleanTitle = item.series.title;
-                if (item.episode?.seasonNumber !== undefined && item.episode?.episodeNumber !== undefined) {
-                    cleanTitle += ` - S${String(item.episode.seasonNumber).padStart(2, '0')}E${String(item.episode.episodeNumber).padStart(2, '0')}`;
-                    if (item.episode.title) {
-                        cleanTitle += ` - ${item.episode.title}`;
-                    }
-                }
-            } else {
-                cleanTitle = item.sourceTitle || 'Unknown TV Show';
-            }
-            historyItems.push({
-                id: `sonarr-hist-${item.id}`,
-                service: 'Sonarr',
-                title: cleanTitle,
-                date: new Date(item.date),
-                eventType: item.eventType
-            });
-        });
-        return historyItems.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 8);
-    }, [data]);
-
-    const radarrHistory = useMemo(() => {
-        if (!data?.radarr?.history?.records) return [];
-        const historyItems: any[] = [];
-        data.radarr.history.records.forEach((item: any) => {
-            historyItems.push({
-                id: `radarr-hist-${item.id}`,
-                service: 'Radarr',
-                title: item.movie?.title || item.sourceTitle || 'Unknown Movie',
-                date: new Date(item.date),
-                eventType: item.eventType
-            });
-        });
-        return historyItems.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 8);
-    }, [data]);
+        if (!activeInstanceData?.queue?.records) return [];
+        return activeInstanceData.queue.records.map((item: any) => ({
+            ...item,
+            service: activeInstanceData.name || activeStackLabel,
+        }));
+    }, [activeInstanceData, activeStackLabel]);
 
     const activeHistory = useMemo(() => {
-        return activeStackTab === 'sonarr' ? sonarrHistory : radarrHistory;
-    }, [activeStackTab, sonarrHistory, radarrHistory]);
+        if (!activeInstanceData?.history?.records) return [];
+        const historyItems: any[] = [];
+        if (isTvInstance) {
+            activeInstanceData.history.records.forEach((item: any) => {
+                let cleanTitle = '';
+                if (item.series?.title) {
+                    cleanTitle = item.series.title;
+                    if (item.episode?.seasonNumber !== undefined && item.episode?.episodeNumber !== undefined) {
+                        cleanTitle += ` - S${String(item.episode.seasonNumber).padStart(2, '0')}E${String(item.episode.episodeNumber).padStart(2, '0')}`;
+                        if (item.episode.title) {
+                            cleanTitle += ` - ${item.episode.title}`;
+                        }
+                    }
+                } else {
+                    cleanTitle = item.sourceTitle || 'Unknown TV Show';
+                }
+                historyItems.push({
+                    id: `${activeInstanceData.id}-sonarr-hist-${item.id}`,
+                    service: activeInstanceData.name || 'Sonarr',
+                    title: cleanTitle,
+                    date: new Date(item.date),
+                    eventType: item.eventType
+                });
+            });
+        } else {
+            activeInstanceData.history.records.forEach((item: any) => {
+                historyItems.push({
+                    id: `${activeInstanceData.id}-radarr-hist-${item.id}`,
+                    service: activeInstanceData.name || 'Radarr',
+                    title: item.movie?.title || item.sourceTitle || 'Unknown Movie',
+                    date: new Date(item.date),
+                    eventType: item.eventType
+                });
+            });
+        }
+        return historyItems.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 8);
+    }, [activeInstanceData, isTvInstance]);
 
     if (isLoading) return <Loader isLoading={true} />;
     if (error) return <div className="text-center p-8 text-status-expiring">{error}</div>;
@@ -1261,32 +1288,29 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-2">
                 <div>
                     <h1 className="text-3xl font-bold text-text uppercase tracking-widest flex items-center gap-3">
-                        {activeStackTab === 'sonarr' ? <Tv className="w-8 h-8 text-plex" /> : <Film className="w-8 h-8 text-plex" />}
+                        {isTvInstance ? <Tv className="w-8 h-8 text-plex" /> : <Film className="w-8 h-8 text-plex" />}
                         {activeStackLabel}
                     </h1>
                     <p className="text-muted text-sm mt-1">
-                        {activeStackTab === 'sonarr' ? 'TV series releases, downloads, and activity' : 'Movie releases, downloads, and activity'}
+                        {isTvInstance ? 'TV series releases, downloads, and activity' : 'Movie releases, downloads, and activity'}
                     </p>
                 </div>
 
-                <div className="flex bg-white/5 p-1 rounded-lg md:rounded-xl border border-white/10 w-fit">
-                    <button
-                        type="button"
-                        onClick={() => switchStackTab('sonarr')}
-                        className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-md md:rounded-lg text-[11px] md:text-xs font-bold uppercase tracking-wider transition-all ${activeStackTab === 'sonarr' ? 'bg-plex text-background shadow-lg shadow-plex/20' : 'text-muted hover:text-text hover:bg-white/5'}`}
-                    >
-                        <Tv className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                        Sonarr
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => switchStackTab('radarr')}
-                        className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-md md:rounded-lg text-[11px] md:text-xs font-bold uppercase tracking-wider transition-all ${activeStackTab === 'radarr' ? 'bg-plex text-background shadow-lg shadow-plex/20' : 'text-muted hover:text-text hover:bg-white/5'}`}
-                    >
-                        <Film className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                        Radarr
-                    </button>
-                </div>
+                {stackInstances.length > 0 && (
+                    <div className="flex bg-white/5 p-1 rounded-lg md:rounded-xl border border-white/10 w-full sm:w-auto max-w-full overflow-x-auto custom-scrollbar">
+                        {stackInstances.map((instance: any) => (
+                            <button
+                                key={instance.id}
+                                type="button"
+                                onClick={() => switchInstance(instance.id)}
+                                className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-md md:rounded-lg text-[11px] md:text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap shrink-0 ${activeInstanceId === instance.id ? 'bg-plex text-background shadow-lg shadow-plex/20' : 'text-muted hover:text-text hover:bg-white/5'}`}
+                            >
+                                {instance.type === 'sonarr' ? <Tv className="w-3.5 h-3.5 md:w-4 md:h-4" /> : <Film className="w-3.5 h-3.5 md:w-4 md:h-4" />}
+                                {instance.name || (instance.type === 'radarr' ? 'Radarr' : 'Sonarr')}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
             <div className="flex flex-col gap-8 w-full">
@@ -1325,7 +1349,7 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
                                         <p className="text-xs mt-2">Add the URL and API key in Settings → Integrations.</p>
                                     </>
                                 ) : (
-                                    <p>No upcoming {activeStackTab === 'sonarr' ? 'TV' : 'movie'} releases for this month</p>
+                                    <p>No upcoming {isTvInstance ? 'TV' : 'movie'} releases for this month</p>
                                 )}
                             </div>
                         ) : (
@@ -1422,7 +1446,7 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
                                 ) : activeQueue.length === 0 ? (
                                     <div className="text-center py-8 bg-background/30 rounded-xl border border-white/5 text-muted text-sm flex-grow flex flex-col justify-center items-center">
                                         <DownloadCloud className="w-10 h-10 text-muted/30 mx-auto mb-2" />
-                                        No active {activeStackTab === 'sonarr' ? 'TV' : 'movie'} downloads
+                                        No active {isTvInstance ? 'TV' : 'movie'} downloads
                                     </div>
                                 ) : (
                                     activeQueue.map((item: any) => {
@@ -1455,10 +1479,10 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
 
                     <div className="flex flex-col gap-4">
                         <h2 className="text-xl font-bold text-text flex items-center gap-2 mb-1">
-                            {activeStackTab === 'sonarr' ? <Tv className="w-5 h-5 text-plex" /> : <Film className="w-5 h-5 text-plex" />}
+                            {isTvInstance ? <Tv className="w-5 h-5 text-plex" /> : <Film className="w-5 h-5 text-plex" />}
                             {activeStackLabel} Status
                         </h2>
-                        {renderStatusCard(activeStackLabel, activeStackTab === 'sonarr' ? data.sonarr : data.radarr)}
+                        {renderStatusCard(activeStackLabel, activeInstanceData)}
                     </div>
 
                     <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-4 md:p-6 relative flex-grow flex flex-col">
@@ -1474,7 +1498,7 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
                                 </div>
                             ) : activeHistory.length === 0 ? (
                                 <div className="text-center py-12 bg-background/30 rounded-xl border border-white/5 text-muted text-sm flex-grow flex flex-col justify-center items-center">
-                                    No recent {activeStackTab === 'sonarr' ? 'TV' : 'movie'} history
+                                    No recent {isTvInstance ? 'TV' : 'movie'} history
                                 </div>
                             ) : (
                                 activeHistory.map((item: any) => (

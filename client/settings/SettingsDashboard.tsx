@@ -2120,8 +2120,20 @@ export const SettingsDashboard: React.FC = () => {
                                             {renderConfigPill(mediaServerType === 'jellyfin' ? !!diagnostics?.integrations?.jellyfinConfigured : !!diagnostics?.integrations?.plexConfigured)}
                                         </div>
                                         <div className="flex items-center justify-between gap-2"><strong>SMTP</strong>{renderOptionalIntegrationPill(!!diagnostics?.integrations?.smtpConfigured)}</div>
-                                        <div className="flex items-center justify-between gap-2"><strong>Sonarr</strong>{renderConfigPill(!!diagnostics?.integrations?.sonarrConfigured)}</div>
-                                        <div className="flex items-center justify-between gap-2"><strong>Radarr</strong>{renderConfigPill(!!diagnostics?.integrations?.radarrConfigured)}</div>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <strong>Sonarr</strong>
+                                            {renderConfigPill(!!diagnostics?.integrations?.sonarrConfigured)}
+                                            {diagnostics?.integrations?.arrInstanceCounts?.sonarr?.ready > 1 && (
+                                                <span className="text-[10px] text-muted">{diagnostics.integrations.arrInstanceCounts.sonarr.ready} instances</span>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <strong>Radarr</strong>
+                                            {renderConfigPill(!!diagnostics?.integrations?.radarrConfigured)}
+                                            {diagnostics?.integrations?.arrInstanceCounts?.radarr?.ready > 1 && (
+                                                <span className="text-[10px] text-muted">{diagnostics.integrations.arrInstanceCounts.radarr.ready} instances</span>
+                                            )}
+                                        </div>
                                         {mediaServerType === 'jellyfin' ? (
                                             <div className="flex items-center justify-between gap-2"><strong>Jellystat</strong>{renderConfigPill(!!diagnostics?.integrations?.jellystatConfigured)}</div>
                                         ) : (
