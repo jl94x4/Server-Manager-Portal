@@ -5153,8 +5153,8 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                                                 )}
                                                             </div>
                                                             <div className="flex-1 min-w-0">
-                                                                <h4 className="font-bold text-text text-sm truncate group-hover:text-plex transition-colors">{item.title}</h4>
-                                                                {item.episodeTitle && <p className="text-xs text-muted truncate mt-0.5">{item.episodeTitle}</p>}
+                                                                <h4 className="font-bold text-text text-xs truncate group-hover:text-plex transition-colors">{item.title}</h4>
+                                                                {item.episodeTitle && <p className="text-[11px] leading-tight text-muted truncate mt-0.5">{item.episodeTitle}</p>}
                                                                 <div className="flex items-center gap-1 mt-1">
                                                                     <Clock className="w-3 h-3 text-muted" />
                                                                     <p className="text-[10px] text-muted">{new Date(item.viewedAt * 1000).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
