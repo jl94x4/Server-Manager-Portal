@@ -2391,6 +2391,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   min-height: 112px;
 }
 
+.min-h-\[13\.75rem\] {
+  min-height: 13.75rem;
+}
+
 .min-h-\[140px\] {
   min-height: 140px;
 }
@@ -2709,10 +2713,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   max-width: 120px;
 }
 
-.max-w-\[130px\] {
-  max-width: 130px;
-}
-
 .max-w-\[140px\] {
   max-width: 140px;
 }
@@ -2723,10 +2723,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .max-w-\[200px\] {
   max-width: 200px;
-}
-
-.max-w-\[80px\] {
-  max-width: 80px;
 }
 
 .max-w-full {
@@ -3006,6 +3002,18 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   grid-template-columns: 2rem 1fr;
 }
 
+.grid-cols-\[4\.5rem_minmax\(0\2c 1fr\)\] {
+  grid-template-columns: 4.5rem minmax(0,1fr);
+}
+
+.grid-cols-\[clamp\(5\.5rem\2c 34\%\2c 7\.25rem\)_minmax\(0\2c 1fr\)\] {
+  grid-template-columns: clamp(5.5rem, 34%, 7.25rem) minmax(0,1fr);
+}
+
+.grid-cols-\[clamp\(6rem\2c 36\%\2c 8\.5rem\)_minmax\(0\2c 1fr\)\] {
+  grid-template-columns: clamp(6rem, 36%, 8.5rem) minmax(0,1fr);
+}
+
 .grid-cols-\[minmax\(0\2c 1fr\)_auto\] {
   grid-template-columns: minmax(0,1fr) auto;
 }
@@ -3277,10 +3285,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .whitespace-pre-wrap {
   white-space: pre-wrap;
-}
-
-.break-words {
-  overflow-wrap: break-word;
 }
 
 .break-all {
@@ -3684,6 +3688,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .bg-black\/40 {
   background-color: rgb(0 0 0 / 0.4);
+}
+
+.bg-black\/45 {
+  background-color: rgb(0 0 0 / 0.45);
 }
 
 .bg-black\/50 {
@@ -4599,14 +4607,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .pr-2 {
   padding-right: 0.5rem;
-}
-
-.pr-2\.5 {
-  padding-right: 0.625rem;
-}
-
-.pr-20 {
-  padding-right: 5rem;
 }
 
 .pr-4 {
@@ -7152,6 +7152,10 @@ html.branded-skeleton .skeleton-base::after {
     min-height: 14.5rem;
   }
 
+  .md\:min-h-\[15rem\] {
+    min-height: 15rem;
+  }
+
   .md\:w-1\.5 {
     width: 0.375rem;
   }
@@ -7218,14 +7222,6 @@ html.branded-skeleton .skeleton-base::after {
 
   .md\:min-w-\[125px\] {
     min-width: 125px;
-  }
-
-  .md\:max-w-\[100px\] {
-    max-width: 100px;
-  }
-
-  .md\:max-w-\[180px\] {
-    max-width: 180px;
   }
 
   .md\:flex-none {
@@ -7444,10 +7440,6 @@ html.branded-skeleton .skeleton-base::after {
 
   .md\:pr-2 {
     padding-right: 0.5rem;
-  }
-
-  .md\:pr-28 {
-    padding-right: 7rem;
   }
 
   .md\:pr-8 {
