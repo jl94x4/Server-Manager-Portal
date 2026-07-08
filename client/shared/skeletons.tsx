@@ -59,14 +59,14 @@ export const DiscoverSectionSkeleton: React.FC<{ title: string; count?: number; 
     </div>
 );
 
-export const DiscoverPageSkeleton: React.FC<{ recentLimit?: number; wideLayout?: boolean }> = ({ recentLimit = 20, wideLayout = false }) => {
+export const DiscoverPageSkeleton: React.FC<{ recentLimit?: number }> = ({ recentLimit = 20 }) => {
     const count = recentLimit;
     return (
         <div className="w-full flex flex-col min-h-screen" aria-busy="true" aria-label="Loading discover">
             <main className="discover-layout-container w-full pb-8 mt-4 md:mt-0">
                 <section className="mb-12 w-full">
                     <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">ACTIVITY</h2>
-                    <ActivityGridSkeleton count={wideLayout ? 4 : 3} wideLayout={wideLayout} />
+                    <ActivityGridSkeleton count={3} />
                 </section>
 
                 <div className="flex justify-end gap-4 items-center mb-8">
@@ -142,8 +142,8 @@ export const ActivityCardSkeleton: React.FC = () => (
     </div>
 );
 
-export const ActivityGridSkeleton: React.FC<{ count?: number; wideLayout?: boolean }> = ({ count = 3, wideLayout = false }) => (
-    <div className={wideLayout && count >= 4 ? 'discover-activity-grid discover-activity-grid--quad' : 'discover-activity-grid'} aria-hidden="true">
+export const ActivityGridSkeleton: React.FC<{ count?: number }> = ({ count = 3 }) => (
+    <div className="discover-activity-grid" aria-hidden="true">
         {Array.from({ length: count }, (_, i) => (
             <ActivityCardSkeleton key={i} />
         ))}

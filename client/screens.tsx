@@ -26,7 +26,7 @@ import { ShareWrapUpModal } from './shared/ShareWrapUp';
 import { WrapUpCardGrid } from './shared/WrapUpCards';
 import { SetupWizard } from './setup/SetupWizard';
 import { AuthPageBackground, themeClasses, SlideshowBackground } from './shared/theme';
-import { activityStreamColumnCount, activityStreamGridClass, discoverPosterGridClass, usePortalWideContentLayout } from './shared/portalLayout';
+import { activityStreamColumnCount, activityStreamGridClass, discoverPosterGridClass } from './shared/portalLayout';
 import { UserDashboardLayout } from './home/UserDashboardLayout';
 import { createMainGridWidgetRenderer, createRecentlyAddedWidgetRenderer } from './home/userDashboardWidgetRenderers';
 
@@ -5756,7 +5756,6 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
     const [trendingLoading, setTrendingLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [pollError, setPollError] = useState<string | null>(null);
-    const isWidePortalLayout = usePortalWideContentLayout();
     const [isDiscoverDesktop, setIsDiscoverDesktop] = useState(
         () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
     );
@@ -5902,7 +5901,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
     }, [fetchDashboardOnly, fetchData]);
 
     if (dashboardLoading && !dashboardData) {
-        return <DiscoverPageSkeleton recentLimit={recentLimit} wideLayout={isWidePortalLayout} />;
+        return <DiscoverPageSkeleton recentLimit={recentLimit} />;
     }
 
     const totalStreams = dashboardData?.activeSessions?.length || 0;
@@ -6059,16 +6058,13 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                     <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">ACTIVITY</h2>
                     {dashboardData && dashboardData.activeSessions && dashboardData.activeSessions.length > 0 ? (
                         <div className="w-full">
-                            <div className={activityStreamGridClass(isWidePortalLayout, dashboardData.activeSessions.length)}>
+                            <div className={activityStreamGridClass()}>
                                 {dashboardData.activeSessions.map((session, i) => {
-                                    const activityCols = activityStreamColumnCount(isWidePortalLayout, dashboardData.activeSessions.length);
                                     const sessionPosterSrc = session.thumbUrl
                                         ? resolvePortalAssetUrl(session.thumbUrl)
                                         : portalUrl(`/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=360&height=540`);
                                     const sessionUserThumbSrc = session.userThumb ? resolvePortalAssetUrl(session.userThumb) : 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y';
-                                    const posterColumnClass = activityCols === 4
-                                        ? 'grid-cols-[clamp(5.5rem,34%,7.25rem)_minmax(0,1fr)]'
-                                        : 'grid-cols-[clamp(6rem,36%,8.5rem)_minmax(0,1fr)]';
+                                    const posterColumnClass = 'grid-cols-[clamp(6rem,36%,8.5rem)_minmax(0,1fr)]';
                                     return (
                                         <div key={session.sessionId ?? i} onClick={() => setSelectedSession(session)} className="bg-card rounded-xl border border-border flex flex-col overflow-hidden shadow-lg hover:border-plex/50 hover:shadow-plex/20 transition-all cursor-pointer select-none h-full min-h-[13.75rem] md:min-h-[15rem]">
                                             <div className={`grid ${posterColumnClass} flex-1 min-h-0`}>
