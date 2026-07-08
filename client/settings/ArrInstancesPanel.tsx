@@ -2,6 +2,7 @@ import React from 'react';
 import { Plus, Trash2, Star } from 'lucide-react';
 import type { ArrInstance } from '../shared/types';
 import { IntegrationTestButton } from '../shared/IntegrationTestButton';
+import { SettingsSwitch } from '../shared/ui';
 
 const SECRET_MASK = '••••••••';
 
@@ -143,6 +144,11 @@ export const ArrInstancesPanel: React.FC<Props> = ({
                                         )}
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
+                                        <SettingsSwitch
+                                            checked={instance.enabled !== false}
+                                            onChange={(enabled) => updateInstance(instance.id, { enabled })}
+                                            className="!ml-0"
+                                        />
                                         <button
                                             type="button"
                                             title={instance.isDefault ? 'Default instance' : 'Set as default'}
@@ -162,28 +168,15 @@ export const ArrInstancesPanel: React.FC<Props> = ({
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="text-xs text-muted uppercase tracking-wider font-bold mb-1 block">Display Name</label>
-                                        <input
-                                            className="w-full p-2.5 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all text-sm"
-                                            type="text"
-                                            value={instance.name}
-                                            onChange={(e) => updateInstance(instance.id, { name: e.target.value })}
-                                            placeholder={type === 'radarr' ? 'Radarr' : 'Sonarr'}
-                                        />
-                                    </div>
-                                    <div className="flex items-end">
-                                        <label className="flex items-center gap-2 text-sm text-text cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={instance.enabled !== false}
-                                                onChange={(e) => updateInstance(instance.id, { enabled: e.target.checked })}
-                                                className="rounded border-border"
-                                            />
-                                            Enabled
-                                        </label>
-                                    </div>
+                                <div>
+                                    <label className="text-xs text-muted uppercase tracking-wider font-bold mb-1 block">Display Name</label>
+                                    <input
+                                        className="w-full p-2.5 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all text-sm"
+                                        type="text"
+                                        value={instance.name}
+                                        onChange={(e) => updateInstance(instance.id, { name: e.target.value })}
+                                        placeholder={type === 'radarr' ? 'Radarr' : 'Sonarr'}
+                                    />
                                 </div>
 
                                 <div>

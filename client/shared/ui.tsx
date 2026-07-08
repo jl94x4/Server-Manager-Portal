@@ -116,6 +116,54 @@ export const StyledCheckbox: React.FC<{ checked: boolean; onChange: (checked: bo
     </label>
 );
 
+export const SettingsSwitch: React.FC<{
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+    className?: string;
+    id?: string;
+}> = ({ checked, onChange, className = '', id }) => (
+    <label className={`relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0 ${className}`}>
+        <input
+            id={id}
+            type="checkbox"
+            className="sr-only peer"
+            checked={checked}
+            onChange={(e) => onChange(e.target.checked)}
+        />
+        <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex" />
+    </label>
+);
+
+export const SettingsToggleRow: React.FC<{
+    title: string;
+    description?: string;
+    hint?: React.ReactNode;
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+    className?: string;
+    border?: boolean;
+    children?: React.ReactNode;
+}> = ({ title, description, hint, checked, onChange, className = '', border = true, children }) => (
+    <div className={`${border ? 'py-4 border-b border-border/40' : 'py-4'} ${className}`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="min-w-0">
+                <h4 className="font-bold text-text inline-flex items-center gap-1.5 flex-wrap">
+                    <span>{title}</span>
+                    {!description && hint}
+                </h4>
+                {description ? (
+                    <p className="text-sm text-muted mt-1 inline-flex items-center gap-1.5 flex-wrap">
+                        <span>{description}</span>
+                        {hint}
+                    </p>
+                ) : null}
+            </div>
+            <SettingsSwitch checked={checked} onChange={onChange} />
+        </div>
+        {children}
+    </div>
+);
+
 export const ConfirmModal: React.FC<{ isOpen: boolean; message: string; onConfirm: () => void; onCancel: () => void; }> = ({ isOpen, message, onConfirm, onCancel }) => {
     if (!isOpen) return null;
     return (

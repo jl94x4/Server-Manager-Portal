@@ -3,9 +3,9 @@ import { Copy, ChevronUp, ChevronDown, Check, BookOpen } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { portalUrl, resolvePortalAssetUrl } from '../shared/basePath';
 import { appConfirm } from '../shared/confirm';
-import { CustomSelect } from '../shared/ui';
+import { CustomSelect, SettingsSwitch, SettingsToggleRow } from '../shared/ui';
 import { Loader, ToastContainer, pushToast, type ToastMessage } from '../shared/toast';
-import { SettingHint } from './SettingHint';
+import { SettingHint, SettingFieldLabel } from './SettingHint';
 import type { User, AuditEntry, DeletedUser, PlexServer, ArrInstance } from '../shared/types';
 import { formatDateTime, formatEventName, hexToRgb, accentHoverRgb, getDaysUntilExpiry, addMonths, addYears, formatDate } from '../shared/format';
 
@@ -1074,7 +1074,16 @@ export const SettingsDashboard: React.FC = () => {
                             <div className="mb-8">
                                 <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Media Server Integration</h3>
                                 <div className="mb-4">
-                                    <label htmlFor="mediaServerType">Media Server Type</label>
+                                    <SettingFieldLabel
+                                        htmlFor="mediaServerType"
+                                        hint={(
+                                            <SettingHint>
+                                                Choose the media server used for portal authentication and server-specific integrations.
+                                            </SettingHint>
+                                        )}
+                                    >
+                                        Media Server Type
+                                    </SettingFieldLabel>
                                     <CustomSelect
                                         id="mediaServerType"
                                         value={mediaServerType}
@@ -1084,11 +1093,6 @@ export const SettingsDashboard: React.FC = () => {
                                             { label: 'Jellyfin', value: 'jellyfin' }
                                         ]}
                                     />
-                                    <div className="mt-2">
-                                        <SettingHint>
-                                            Choose the media server used for portal authentication and server-specific integrations.
-                                        </SettingHint>
-                                    </div>
                                 </div>
                                 {mediaServerType === 'jellyfin' && (
                                     <div className="mb-6 p-4 rounded-lg border border-border bg-background/40">
@@ -1113,13 +1117,17 @@ export const SettingsDashboard: React.FC = () => {
                                     <>
                                 <h4 className="text-lg font-bold text-text mb-4">Plex Connection</h4>
                                 <div className="mb-4">
-                                    <label htmlFor="plexToken">Plex Token</label>
+                                    <SettingFieldLabel
+                                        htmlFor="plexToken"
+                                        hint={(
+                                            <SettingHint>
+                                                Needed to fetch users and manage access. <a href="https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/" target="_blank" rel="noopener noreferrer">How to find your token.</a>
+                                            </SettingHint>
+                                        )}
+                                    >
+                                        Plex Token
+                                    </SettingFieldLabel>
                                     <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="plexToken" type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Enter your X-Plex-Token" />
-                                    <div className="mt-2">
-                                        <SettingHint>
-                                            Needed to fetch users and manage access. <a href="https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/" target="_blank" rel="noopener noreferrer">How to find your token.</a>
-                                        </SettingHint>
-                                    </div>
                                 </div>
                                 <div className="flex flex-wrap items-start gap-3">
                                     <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={handleFetchServers} disabled={!token}>Fetch Servers</button>
@@ -1135,15 +1143,13 @@ export const SettingsDashboard: React.FC = () => {
                                     />
                                 </div>
                                 {(selectedServer || initialSettings.serverIdentifier) && servers.length === 0 && (
-                                    <div className="mt-3">
-                                        <SettingHint>
-                                            Saved server: <strong>{selectedServer || initialSettings.serverIdentifier}</strong>
-                                        </SettingHint>
-                                    </div>
+                                    <p className="mt-3 text-sm text-muted inline-flex items-center gap-1.5 flex-wrap">
+                                        <span>Saved server: <strong>{selectedServer || initialSettings.serverIdentifier}</strong></span>
+                                    </p>
                                 )}
                                 {servers.length > 0 && (
                                     <div className="mb-4" style={{ marginTop: '1rem' }}>
-                                        <label htmlFor="serverSelect">Select Server</label>
+                                        <SettingFieldLabel htmlFor="serverSelect">Select Server</SettingFieldLabel>
                                         <CustomSelect
                                             id="serverSelect"
                                             value={selectedServer}
@@ -1151,19 +1157,24 @@ export const SettingsDashboard: React.FC = () => {
                                             options={servers.map(s => ({ label: `${s.name} (${s.identifier})`, value: s.identifier }))}
                                         />
                                         {initialSettings.serverIdentifier && (
-                                            <div className="mt-2">
-                                                <SettingHint>
-                                                    Currently saved server ID: <strong>{initialSettings.serverIdentifier}</strong>
-                                                </SettingHint>
-                                            </div>
+                                            <p className="mt-2 text-xs text-muted">
+                                                Currently saved server ID: <strong>{initialSettings.serverIdentifier}</strong>
+                                            </p>
                                         )}
                                     </div>
                                 )}
                                 <div className="mb-4" style={{ marginTop: '1rem' }}>
-                                    <label htmlFor="plexServerUrl">
+                                    <SettingFieldLabel
+                                        htmlFor="plexServerUrl"
+                                        hint={(
+                                            <SettingHint>
+                                                Your Plex server&apos;s LAN address. Use this when Plex.tv discovery fails from inside the container (e.g. <code className="text-xs">getaddrinfo EAI_AGAIN …plex.direct</code> errors).
+                                            </SettingHint>
+                                        )}
+                                    >
                                         Direct Plex URL{' '}
                                         <span className="text-muted font-normal normal-case">(required in Docker)</span>
-                                    </label>
+                                    </SettingFieldLabel>
                                     <input
                                         className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all"
                                         id="plexServerUrl"
@@ -1172,27 +1183,29 @@ export const SettingsDashboard: React.FC = () => {
                                         onChange={(e) => setPlexServerUrl(e.target.value)}
                                         placeholder="http://192.168.1.6:32400"
                                     />
-                                    <div className="mt-2">
-                                        <SettingHint>
-                                            Your Plex server&apos;s LAN address. Use this when Plex.tv discovery fails from inside the container (e.g. <code className="text-xs">getaddrinfo EAI_AGAIN …plex.direct</code> errors).
-                                        </SettingHint>
-                                    </div>
                                 </div>
                                 <div className="mb-4" style={{ marginTop: '1rem' }}>
-                                    <label htmlFor="checkInterval">Check Interval (minutes)</label>
+                                    <SettingFieldLabel
+                                        htmlFor="checkInterval"
+                                        hint={<SettingHint>How often to check for expired users in the background.</SettingHint>}
+                                    >
+                                        Check Interval (minutes)
+                                    </SettingFieldLabel>
                                     <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="checkInterval" type="number" value={checkInterval} onChange={e => setCheckInterval(Number(e.target.value))} min="1" />
-                                    <div className="mt-2">
-                                        <SettingHint>How often to check for expired users in the background.</SettingHint>
-                                    </div>
                                 </div>
 
                                 {libraries.length > 0 && (
                                     <div className="mb-4 mt-4">
-                                        <label className="block mb-2 font-medium">Default Temporary Access/Automated Libraries</label>
-                                        <div className="mb-2">
-                                            <SettingHint>Libraries to share automatically when users request temporary access or link their account. Leave empty to share ALL libraries.</SettingHint>
-                                        </div>
-                                        <div className="flex flex-wrap gap-3">
+                                        <SettingFieldLabel
+                                            hint={(
+                                                <SettingHint>
+                                                    Libraries to share automatically when users request temporary access or link their account. Leave empty to share ALL libraries.
+                                                </SettingHint>
+                                            )}
+                                        >
+                                            Default Temporary Access/Automated Libraries
+                                        </SettingFieldLabel>
+                                        <div className="flex flex-wrap gap-3 mt-2">
                                             {libraries.map(lib => {
                                                 const isSelected = defaultLibraryIds.includes(lib.id);
                                                 return (
@@ -1235,35 +1248,30 @@ export const SettingsDashboard: React.FC = () => {
                                         </div>
                                     </div>
 
-                                <div className="mb-4 mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4 border-b border-border/40">
-                                        <div>
-                                            <h4 className="font-bold text-text">Show Usernames in Analytics</h4>
-                                            <p className="text-sm text-muted">Allow non-admin users to see real usernames on the Analytics dashboard. If disabled, usernames are shown as Viewer 1, Viewer 2, etc.</p>
-                                        </div>
-                                        <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
-                                            <input
-                                                type="checkbox"
-                                                className="sr-only peer"
-                                                checked={showUsernamesInAnalytics}
-                                                onChange={e => setShowUsernamesInAnalytics(e.target.checked)}
-                                            />
-                                            <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
-                                        </label>
-                                    </div>
+                                <SettingsToggleRow
+                                    title="Show Usernames in Analytics"
+                                    description="Allow non-admin users to see real usernames on the Analytics dashboard. If disabled, usernames are shown as Viewer 1, Viewer 2, etc."
+                                    checked={showUsernamesInAnalytics}
+                                    onChange={setShowUsernamesInAnalytics}
+                                />
 
                                 <div className="mb-4" style={{ marginTop: '1rem' }}>
-                                    <label htmlFor="requestUrl">Request URL</label>
+                                    <SettingFieldLabel
+                                        htmlFor="requestUrl"
+                                        hint={<SettingHint>The URL users are redirected to when they click the Request Content button.</SettingHint>}
+                                    >
+                                        Request URL
+                                    </SettingFieldLabel>
                                     <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="requestUrl" type="text" value={requestUrl} onChange={e => setRequestUrl(e.target.value)} placeholder="https://yourdomain.com" />
-                                    <div className="mt-2">
-                                        <SettingHint>The URL users are redirected to when they click the Request Content button.</SettingHint>
-                                    </div>
                                 </div>
                                 <div className="mb-4" style={{ marginTop: '1rem' }}>
-                                    <label htmlFor="contactUrl">Contact URL / Email</label>
+                                    <SettingFieldLabel
+                                        htmlFor="contactUrl"
+                                        hint={<SettingHint>Used for the "Request Extension" button in expiry emails. Defaults to sending an email to the SMTP User.</SettingHint>}
+                                    >
+                                        Contact URL / Email
+                                    </SettingFieldLabel>
                                     <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="contactUrl" type="text" value={contactUrl} onChange={e => setContactUrl(e.target.value)} placeholder="mailto:youremail@example.com OR https://wa.me/123456" />
-                                    <div className="mt-2">
-                                        <SettingHint>Used for the "Request Extension" button in expiry emails. Defaults to sending an email to the SMTP User.</SettingHint>
-                                    </div>
                                 </div>
                             </div>
                         )}
@@ -1291,24 +1299,29 @@ export const SettingsDashboard: React.FC = () => {
                                     <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="smtpPass" type="password" value={smtpPass} onChange={e => setSmtpPass(e.target.value)} placeholder="••••••••••••" />
                                 </div>
                             </div>
-                            <div className="flex flex-col md:flex-row gap-4 mb-4">
-                                <div className="flex-2">
+                            <div className="flex flex-col md:flex-row gap-4 mb-4 md:items-center">
+                                <div className="flex-[2]">
                                     <label htmlFor="smtpFrom">Sender Address (From)</label>
                                     <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="smtpFrom" type="text" value={smtpFrom} onChange={e => setSmtpFrom(e.target.value)} placeholder="Server Manager Portal <noreply@yourdomain.com>" />
                                 </div>
-                                <div className="form-group flex-1 checkbox-group">
-                                    <label htmlFor="smtpSecure" className="flex items-center gap-2 cursor-pointer select-none text-muted hover:text-text transition-colors">
-                                        <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="smtpSecure" type="checkbox" checked={smtpSecure} onChange={e => setSmtpSecure(e.target.checked)} />
-                                        <span>SSL / Secure</span>
-                                    </label>
+                                <div className="flex-1">
+                                    <SettingsToggleRow
+                                        title="SSL / Secure"
+                                        checked={smtpSecure}
+                                        onChange={setSmtpSecure}
+                                        border={false}
+                                        className="!py-0"
+                                    />
                                 </div>
                             </div>
                             <div className="mb-4">
-                                <label htmlFor="emailDaysBefore">Warning Alert Threshold (Days Before Expiry)</label>
+                                <SettingFieldLabel
+                                    htmlFor="emailDaysBefore"
+                                    hint={<SettingHint>Automated notification email will be sent when user has this many days left.</SettingHint>}
+                                >
+                                    Warning Alert Threshold (Days Before Expiry)
+                                </SettingFieldLabel>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="emailDaysBefore" type="number" value={emailDaysBefore} onChange={e => setEmailDaysBefore(Number(e.target.value))} min="0" />
-                                <div className="mt-2">
-                                    <SettingHint>Automated notification email will be sent when user has this many days left.</SettingHint>
-                                </div>
                             </div>
 
                             <div className="mt-6 space-y-3">
@@ -1333,7 +1346,12 @@ export const SettingsDashboard: React.FC = () => {
                         <div className="mb-8">
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Automated Newsletter</h3>
                             <div className="mb-4">
-                                <label htmlFor="newsletterFrequency">Frequency</label>
+                                <SettingFieldLabel
+                                    htmlFor="newsletterFrequency"
+                                    hint={<SettingHint>How often should users receive the newsletter.</SettingHint>}
+                                >
+                                    Frequency
+                                </SettingFieldLabel>
                                 <CustomSelect
                                     id="newsletterFrequency"
                                     value={newsletterFrequency}
@@ -1344,9 +1362,6 @@ export const SettingsDashboard: React.FC = () => {
                                         { label: 'Monthly', value: 'monthly' }
                                     ]}
                                 />
-                                <div className="mt-2">
-                                    <SettingHint>How often should users receive the newsletter.</SettingHint>
-                                </div>
                             </div>
                             {newsletterFrequency !== 'disabled' && (
                                 <>
@@ -1372,11 +1387,13 @@ export const SettingsDashboard: React.FC = () => {
                                         )}
                                     </div>
                                     <div className="mb-4" style={{ marginTop: '1rem' }}>
-                                        <label htmlFor="publicDomain">Public Domain</label>
+                                        <SettingFieldLabel
+                                            htmlFor="publicDomain"
+                                            hint={<SettingHint>Your public URL. This is required to host the posters inside the email.</SettingHint>}
+                                        >
+                                            Public Domain
+                                        </SettingFieldLabel>
                                         <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="publicDomain" type="text" value={publicDomain} onChange={e => setPublicDomain(e.target.value)} placeholder="https://portal.yourdomain.com" />
-                                        <div className="mt-2">
-                                            <SettingHint>Your public URL. This is required to host the posters inside the email.</SettingHint>
-                                        </div>
                                     </div>
                                 </>
                             )}
@@ -1401,22 +1418,23 @@ export const SettingsDashboard: React.FC = () => {
                                 <p className="text-xs text-muted">When enabled, the server will automatically revoke portal access for users who have not watched anything for the specified number of days. You can exempt specific users from this rule by editing them in the Users table.</p>
                             </div>
 
-                            <div className="mb-6 flex items-center justify-between py-4 border-b border-border/40">
-                                <div>
-                                    <label className="font-bold block mb-1">Enable Automated Cleanup</label>
-                                    <span className="text-xs text-muted block">Run cleanup job automatically in the background</span>
-                                </div>
-                                <button
-                                    onClick={() => setInactiveCleanupEnabled(!inactiveCleanupEnabled)}
-                                    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${inactiveCleanupEnabled ? 'bg-plex' : 'bg-border'}`}
-                                >
-                                    <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${inactiveCleanupEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                                </button>
-                            </div>
+                            <SettingsToggleRow
+                                title="Enable Automated Cleanup"
+                                description="Run cleanup job automatically in the background"
+                                checked={inactiveCleanupEnabled}
+                                onChange={setInactiveCleanupEnabled}
+                                border={false}
+                                className="mb-6"
+                            />
 
                             <div className={`transition-all ${!inactiveCleanupEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
                                 <div className="mb-4">
-                                    <label htmlFor="inactiveCleanupDays">Inactivity Threshold (Days)</label>
+                                    <SettingFieldLabel
+                                        htmlFor="inactiveCleanupDays"
+                                        hint={<SettingHint>Revoke access if a user has not watched anything in this many days.</SettingHint>}
+                                    >
+                                        Inactivity Threshold (Days)
+                                    </SettingFieldLabel>
                                     <input
                                         className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all"
                                         id="inactiveCleanupDays"
@@ -1425,9 +1443,6 @@ export const SettingsDashboard: React.FC = () => {
                                         value={inactiveCleanupDays}
                                         onChange={e => setInactiveCleanupDays(Number(e.target.value))}
                                     />
-                                    <div className="mt-2">
-                                        <SettingHint>Revoke access if a user has not watched anything in this many days.</SettingHint>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1467,11 +1482,13 @@ export const SettingsDashboard: React.FC = () => {
 
                             <IntegrationHeading app="tmdb" title="TMDB Integration" subtitle="Worldwide trending backgrounds" className="mt-8" />
                             <div className="mb-4">
-                                <label htmlFor="tmdbApiKey">TMDB API Key</label>
+                                <SettingFieldLabel
+                                    htmlFor="tmdbApiKey"
+                                    hint={<SettingHint>Used to fetch worldwide trending media backgrounds for the portal slideshow. Get one for free at themoviedb.org.</SettingHint>}
+                                >
+                                    TMDB API Key
+                                </SettingFieldLabel>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="tmdbApiKey" type="password" value={tmdbApiKey} onChange={(e) => setTmdbApiKey(e.target.value)} placeholder="Enter TMDB API Key" />
-                                <div className="mt-2">
-                                    <SettingHint>Used to fetch worldwide trending media backgrounds for the portal slideshow. Get one for free at themoviedb.org.</SettingHint>
-                                </div>
                             </div>
                             <IntegrationHeading app="tautulli" title="Tautulli Integration" subtitle="Plex activity and analytics" className="mt-8" />
                             <div className="mb-4">
@@ -1492,11 +1509,13 @@ export const SettingsDashboard: React.FC = () => {
 
                             <IntegrationHeading app="jellystat" title="Jellystat Integration" subtitle="Jellyfin activity and analytics" className="mt-8" />
                             <div className="mb-4">
-                                <label htmlFor="jellystatUrl">Jellystat URL</label>
+                                <SettingFieldLabel
+                                    htmlFor="jellystatUrl"
+                                    hint={<SettingHint>The URL to your Jellystat instance. Jellystat is the Jellyfin analytics companion, similar to Tautulli for Plex.</SettingHint>}
+                                >
+                                    Jellystat URL
+                                </SettingFieldLabel>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="jellystatUrl" type="text" value={jellystatUrl} onChange={(e) => setJellystatUrl(e.target.value)} placeholder="http://localhost:3000" />
-                                <div className="mt-2">
-                                    <SettingHint>The URL to your Jellystat instance. Jellystat is the Jellyfin analytics companion, similar to Tautulli for Plex.</SettingHint>
-                                </div>
                             </div>
                             <div className="mb-8">
                                 <label htmlFor="jellystatApiKey">Jellystat API Key</label>
@@ -1517,7 +1536,12 @@ export const SettingsDashboard: React.FC = () => {
                                 className="mt-8"
                             />
                             <div className="mb-4">
-                                <label htmlFor="requestAppType">Request App Type</label>
+                                <SettingFieldLabel
+                                    htmlFor="requestAppType"
+                                    hint={<SettingHint>Used by Library Maintenance rules for request-age/status filtering and cleanup workflows.</SettingHint>}
+                                >
+                                    Request App Type
+                                </SettingFieldLabel>
                                 <CustomSelect
                                     id="requestAppType"
                                     value={requestAppType}
@@ -1529,9 +1553,6 @@ export const SettingsDashboard: React.FC = () => {
                                         { label: 'Ombi', value: 'ombi' }
                                     ]}
                                 />
-                                <div className="mt-2">
-                                    <SettingHint>Used by Library Maintenance rules for request-age/status filtering and cleanup workflows.</SettingHint>
-                                </div>
                             </div>
                             <div className="mb-4">
                                 <label htmlFor="requestAppUrl">Request App URL</label>
@@ -1627,18 +1648,22 @@ export const SettingsDashboard: React.FC = () => {
                                 These details are displayed in the "Need Help?" box on the User Dashboard. Users can click these buttons to contact you directly if they need to extend their access, report an issue, or request support.
                             </p>
                             <div className="mb-4">
-                                <label htmlFor="contactWhatsApp">WhatsApp Number (Optional)</label>
+                                <SettingFieldLabel
+                                    htmlFor="contactWhatsApp"
+                                    hint={<SettingHint>Enter your phone number including country code, without any '+', spaces, or dashes. If left blank, the WhatsApp button will be hidden.</SettingHint>}
+                                >
+                                    WhatsApp Number (Optional)
+                                </SettingFieldLabel>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="contactWhatsApp" type="text" value={contactWhatsApp} onChange={(e) => setContactWhatsApp(e.target.value)} placeholder="e.g. 447303647923" />
-                                <div className="mt-2">
-                                    <SettingHint>Enter your phone number including country code, without any '+', spaces, or dashes. If left blank, the WhatsApp button will be hidden.</SettingHint>
-                                </div>
                             </div>
                             <div className="mb-4">
-                                <label htmlFor="contactEmail">Email Address (Optional)</label>
+                                <SettingFieldLabel
+                                    htmlFor="contactEmail"
+                                    hint={<SettingHint>The email address users should contact. If left blank, the Email button will be hidden.</SettingHint>}
+                                >
+                                    Email Address (Optional)
+                                </SettingFieldLabel>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="contactEmail" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="e.g. admin@example.com" />
-                                <div className="mt-2">
-                                    <SettingHint>The email address users should contact. If left blank, the Email button will be hidden.</SettingHint>
-                                </div>
                             </div>
                         </div>
                     )}
@@ -1671,18 +1696,21 @@ export const SettingsDashboard: React.FC = () => {
                             )}
 
                             <div className="mb-4">
-                                <label>Custom Logo</label>
+                                <SettingFieldLabel hint={<SettingHint>Provide a URL or upload a file. (Max 5MB)</SettingHint>}>
+                                    Custom Logo
+                                </SettingFieldLabel>
                                 <div className="flex flex-col gap-2">
                                     <input type="url" className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all" value={customLogoUrl} onChange={e => setCustomLogoUrl(e.target.value)} placeholder="https://example.com/logo.png" />
                                     <span className="text-center text-muted font-bold text-sm">OR</span>
                                     <input type="file" accept="image/*" className="w-full p-2 rounded-lg border border-border bg-background text-muted text-sm outline-none focus:border-plex transition-all file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-text hover:file:bg-white/20 file:cursor-pointer cursor-pointer" onChange={e => setLogoFile(e.target.files?.[0] || null)} />
                                 </div>
-                                <div className="mt-2">
-                                    <SettingHint>Provide a URL or upload a file. (Max 5MB)</SettingHint>
-                                </div>
                             </div>
                             <div className="mb-8 relative z-[50]">
-                                <label>Portal Theme</label>
+                                <SettingFieldLabel
+                                    hint={<SettingHint>The default theme applied to new visitors and users. Users can still customize their local theme preference in the navigation menu.</SettingHint>}
+                                >
+                                    Portal Theme
+                                </SettingFieldLabel>
                                 <CustomSelect
                                     value={brandingTheme}
                                     onChange={setBrandingTheme}
@@ -1695,76 +1723,40 @@ export const SettingsDashboard: React.FC = () => {
                                         { label: 'Neon Midnight', value: 'midnight' },
                                     ]}
                                 />
-                                <div className="mt-2">
-                                    <SettingHint>The default theme applied to new visitors and users. Users can still customize their local theme preference in the navigation menu.</SettingHint>
-                                </div>
                             </div>
 
-                            <div className="mb-4 mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4 border-b border-border/40">
-                                <div>
-                                    <h4 className="font-bold text-text">Enable Scroll Reveal Animations</h4>
-                                    <SettingHint>Smoothly slide elements into place as you scroll down the dashboard.</SettingHint>
-                                </div>
-                                <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
-                                    <input
-                                        type="checkbox"
-                                        className="sr-only peer"
-                                        checked={useScrollRevealAnimations}
-                                        onChange={e => setUseScrollRevealAnimations(e.target.checked)}
-                                    />
-                                    <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
-                                </label>
-                            </div>
+                            <SettingsToggleRow
+                                title="Enable Scroll Reveal Animations"
+                                hint={<SettingHint>Smoothly slide elements into place as you scroll down the dashboard.</SettingHint>}
+                                checked={useScrollRevealAnimations}
+                                onChange={setUseScrollRevealAnimations}
+                                className="mb-4 mt-4"
+                            />
 
-                            <div className="mb-4 mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4 border-b border-border/40">
-                                <div>
-                                    <h4 className="font-bold text-text">Enable Cinematic Loading Sequences</h4>
-                                    <SettingHint>Replaces the standard loading spinner with a beautiful SVG line-drawing animation.</SettingHint>
-                                </div>
-                                <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
-                                    <input
-                                        type="checkbox"
-                                        className="sr-only peer"
-                                        checked={useCinematicLoading}
-                                        onChange={e => setUseCinematicLoading(e.target.checked)}
-                                    />
-                                    <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
-                                </label>
-                            </div>
+                            <SettingsToggleRow
+                                title="Enable Cinematic Loading Sequences"
+                                hint={<SettingHint>Replaces the standard loading spinner with a beautiful SVG line-drawing animation.</SettingHint>}
+                                checked={useCinematicLoading}
+                                onChange={setUseCinematicLoading}
+                                className="mb-4"
+                            />
 
-                            <div className="mb-4 mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4 border-b border-border/40">
-                                <div>
-                                    <h4 className="font-bold text-text">Enable Branded Skeleton Loading</h4>
-                                    <SettingHint>Use a branded, animated shimmer effect for skeleton loaders instead of the default pulse.</SettingHint>
-                                </div>
-                                <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
-                                    <input
-                                        type="checkbox"
-                                        className="sr-only peer"
-                                        checked={useBrandedSkeleton}
-                                        onChange={e => setUseBrandedSkeleton(e.target.checked)}
-                                    />
-                                    <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
-                                </label>
-                            </div>
+                            <SettingsToggleRow
+                                title="Enable Branded Skeleton Loading"
+                                hint={<SettingHint>Use a branded, animated shimmer effect for skeleton loaders instead of the default pulse.</SettingHint>}
+                                checked={useBrandedSkeleton}
+                                onChange={setUseBrandedSkeleton}
+                                className="mb-4"
+                            />
 
-                            <div className="py-4 border-b border-border/40 mb-4">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                                    <div>
-                                        <h4 className="font-bold text-text">Enable TMDB Trending Slideshow</h4>
-                                        <SettingHint>Replaces the static splash background with a fading slideshow of currently trending movies and shows from TMDB. Requires a TMDB API key in Integrations.</SettingHint>
-                                    </div>
-                                    <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
-                                        <input
-                                            type="checkbox"
-                                            className="sr-only peer"
-                                            checked={useTrendingSlideshow}
-                                            onChange={e => setUseTrendingSlideshow(e.target.checked)}
-                                        />
-                                        <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
-                                    </label>
-                                </div>
-                                <div className={`transition-all overflow-hidden ${useTrendingSlideshow ? 'max-h-[100px] opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
+                            <SettingsToggleRow
+                                title="Enable TMDB Trending Slideshow"
+                                hint={<SettingHint>Replaces the static splash background with a fading slideshow of currently trending movies and shows from TMDB. Requires a TMDB API key in Integrations.</SettingHint>}
+                                checked={useTrendingSlideshow}
+                                onChange={setUseTrendingSlideshow}
+                                className="mb-4"
+                            >
+                                <div className={`transition-all overflow-hidden ${useTrendingSlideshow ? 'max-h-[100px] opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
                                     <label>Slideshow Interval (Seconds)</label>
                                     <select
                                         className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all mt-1"
@@ -1779,26 +1771,22 @@ export const SettingsDashboard: React.FC = () => {
                                         <option value={60}>60 Seconds</option>
                                     </select>
                                 </div>
-                            </div>
+                            </SettingsToggleRow>
 
-                            <div className="mb-4 mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4 border-b border-border/40">
-                                <div>
-                                    <h4 className="font-bold text-text">Enable Slideshow on Login Page</h4>
-                                    <SettingHint>Display the TMDB trending slideshow background on the login and landing pages.</SettingHint>
-                                </div>
-                                <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
-                                    <input
-                                        type="checkbox"
-                                        className="sr-only peer"
-                                        checked={useTrendingSlideshowOnLogin}
-                                        onChange={e => setUseTrendingSlideshowOnLogin(e.target.checked)}
-                                    />
-                                    <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
-                                </label>
-                            </div>
+                            <SettingsToggleRow
+                                title="Enable Slideshow on Login Page"
+                                hint={<SettingHint>Display the TMDB trending slideshow background on the login and landing pages.</SettingHint>}
+                                checked={useTrendingSlideshowOnLogin}
+                                onChange={setUseTrendingSlideshowOnLogin}
+                                className="mb-4"
+                            />
 
                             <div className={`mb-4 transition-opacity ${useTrendingSlideshow ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
-                                <label>Static Splash Background Image</label>
+                                <SettingFieldLabel
+                                    hint={<SettingHint>Shown as a subtle splash image on the login screen and portal background.</SettingHint>}
+                                >
+                                    Static Splash Background Image
+                                </SettingFieldLabel>
                                 <input
                                     type="url"
                                     className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all"
@@ -1806,9 +1794,6 @@ export const SettingsDashboard: React.FC = () => {
                                     onChange={e => setBackgroundImageUrl(e.target.value)}
                                     placeholder="https://example.com/background.png"
                                 />
-                                <div className="mt-2">
-                                    <SettingHint>Shown as a subtle splash image on the login screen and portal background.</SettingHint>
-                                </div>
                             </div>
 
                             <div className="mb-6 rounded-lg border border-border overflow-hidden bg-background/70">
@@ -1841,43 +1826,36 @@ export const SettingsDashboard: React.FC = () => {
                             </div>
 
 
-                            <div className="mb-4">
-                                <label>Time Format</label>
-                                <div className="flex items-center gap-2 mt-2">
-                                    <button type="button" onClick={() => setUse24HourClock(!use24HourClock)} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors flex-shrink-0 cursor-pointer ${use24HourClock ? 'bg-plex' : 'bg-border'}`}>
-                                        <span className={`inline-block w-4 h-4 transform bg-white rounded-full shadow-sm transition-transform ${use24HourClock ? 'translate-x-6' : 'translate-x-1'}`} />
-                                    </button>
-                                    <span className="text-sm font-medium cursor-pointer select-none hover:text-plex transition-colors" onClick={() => setUse24HourClock(!use24HourClock)}>Use 24-Hour Clock across the Portal</span>
-                                </div>
-                            </div>
+                            <SettingsToggleRow
+                                title="Use 24-Hour Clock across the Portal"
+                                checked={use24HourClock}
+                                onChange={setUse24HourClock}
+                                className="mb-4"
+                            />
 
-                            <div className="mb-4">
-                                <label>Poster Quality Badges</label>
-                                <div className="flex items-center gap-2 mt-2">
-                                    <button type="button" onClick={() => setShowPosterQualityBadges(!showPosterQualityBadges)} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors flex-shrink-0 cursor-pointer ${showPosterQualityBadges ? 'bg-plex' : 'bg-border'}`}>
-                                        <span className={`inline-block w-4 h-4 transform bg-white rounded-full shadow-sm transition-transform ${showPosterQualityBadges ? 'translate-x-6' : 'translate-x-1'}`} />
-                                    </button>
-                                    <span className="text-sm font-medium cursor-pointer select-none hover:text-plex transition-colors" onClick={() => setShowPosterQualityBadges(!showPosterQualityBadges)}>Show quality badges on recently added and discover posters (4K, HDR, codec, Atmos)</span>
-                                </div>
-                                <SettingHint>Applies to Home and Discover poster cards for all users.</SettingHint>
-                            </div>
+                            <SettingsToggleRow
+                                title="Poster Quality Badges"
+                                description="Show quality badges on recently added and discover posters (4K, HDR, codec, Atmos)"
+                                hint={<SettingHint>Applies to Home and Discover poster cards for all users.</SettingHint>}
+                                checked={showPosterQualityBadges}
+                                onChange={setShowPosterQualityBadges}
+                                className="mb-4"
+                            />
 
-                            <div className="mb-4">
-                                <label>Public Access</label>
-                                <div className="flex items-center gap-2 mt-2">
-                                    <button type="button" onClick={() => setAllowTemporaryAccess(!allowTemporaryAccess)} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors flex-shrink-0 cursor-pointer ${allowTemporaryAccess ? 'bg-plex' : 'bg-border'}`}>
-                                        <span className={`inline-block w-4 h-4 transform bg-white rounded-full shadow-sm transition-transform ${allowTemporaryAccess ? 'translate-x-6' : 'translate-x-1'}`} />
-                                    </button>
-                                    <span className="text-sm font-medium cursor-pointer select-none hover:text-plex transition-colors" onClick={() => setAllowTemporaryAccess(!allowTemporaryAccess)}>Allow Temporary Access (Public Sign-ups)</span>
-                                </div>
-                            </div>
+                            <SettingsToggleRow
+                                title="Allow Temporary Access (Public Sign-ups)"
+                                checked={allowTemporaryAccess}
+                                onChange={setAllowTemporaryAccess}
+                                className="mb-4"
+                            />
 
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8">Announcements</h3>
                             <div className="mb-4">
-                                <label>Portal Announcement Banner</label>
+                                <SettingFieldLabel hint={<SettingHint>If provided, this announcement will be prominently displayed to all users.</SettingHint>}>
+                                    Portal Announcement Banner
+                                </SettingFieldLabel>
                                 <textarea className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all" value={announcement} onChange={e => setAnnouncement(e.target.value)} placeholder="E.g. Server maintenance scheduled for Friday..." rows={3}></textarea>
-                                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mt-2">
-                                    <SettingHint>If provided, this announcement will be prominently displayed to all users.</SettingHint>
+                                <div className="flex justify-end mt-2">
                                     <button
                                         onClick={handlePushAnnouncement}
                                         disabled={isPushingAnnouncement || !announcement}
@@ -1889,15 +1867,14 @@ export const SettingsDashboard: React.FC = () => {
                             </div>
 
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8">Referral System</h3>
-                            <div className="mb-6 flex items-center justify-between py-4 border-b border-border/40">
-                                <div>
-                                    <label className="font-bold block mb-1">Enable Referrals</label>
-                                    <span className="text-xs text-muted block">Allow users to generate a referral link</span>
-                                </div>
-                                <button onClick={() => setReferralEnabled(!referralEnabled)} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${referralEnabled ? 'bg-plex' : 'bg-border'}`}>
-                                    <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${referralEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                                </button>
-                            </div>
+                            <SettingsToggleRow
+                                title="Enable Referrals"
+                                description="Allow users to generate a referral link"
+                                checked={referralEnabled}
+                                onChange={setReferralEnabled}
+                                border={false}
+                                className="mb-6"
+                            />
                             <div className={`transition-all ${!referralEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
                                 <div className="flex gap-4">
                                     <div className="flex-1">
@@ -2021,19 +1998,13 @@ export const SettingsDashboard: React.FC = () => {
                             </section>
                             <section className={`space-y-3 mb-8 transition-all duration-300 ${highlightMaintenanceToggle ? 'ring-2 ring-plex/50 rounded-lg p-3 -m-3' : ''}`}>
                                 <h4 className="font-bold text-text">Cleaner Experimental Mode</h4>
-                                <div className="flex items-center justify-between gap-3 py-2">
-                                    <div>
-                                        <p className="font-semibold text-text">Enable Cleaner Module</p>
-                                        <p className="text-xs text-muted mt-1">Single global toggle for the main `Cleaner` navigation section. OFF by default.</p>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => setMaintenanceExperimentalEnabled(!maintenanceExperimentalEnabled)}
-                                        className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${maintenanceExperimentalEnabled ? 'bg-plex' : 'bg-border'}`}
-                                    >
-                                        <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${maintenanceExperimentalEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                                    </button>
-                                </div>
+                                <SettingsToggleRow
+                                    title="Enable Cleaner Module"
+                                    description="Single global toggle for the main Cleaner navigation section. OFF by default."
+                                    checked={maintenanceExperimentalEnabled}
+                                    onChange={setMaintenanceExperimentalEnabled}
+                                    border={false}
+                                />
                                 <p className={`text-xs mt-2 font-semibold ${maintenanceExperimentalEnabled ? 'text-green-300' : 'text-yellow-300'}`}>
                                     Current status: {maintenanceExperimentalEnabled ? 'ON' : 'OFF'}
                                 </p>
@@ -2042,16 +2013,13 @@ export const SettingsDashboard: React.FC = () => {
                             <section className="space-y-4 mb-8">
                                 <h4 className="font-bold text-text">Backup & Restore</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                                    <div>
-                                        <label className="font-semibold text-sm block mb-2">Auto Backup Enabled</label>
-                                        <button
-                                            type="button"
-                                            onClick={() => setAutoBackupEnabled(!autoBackupEnabled)}
-                                            className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${autoBackupEnabled ? 'bg-plex' : 'bg-border'}`}
-                                        >
-                                            <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${autoBackupEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                                        </button>
-                                    </div>
+                                    <SettingsToggleRow
+                                        title="Auto Backup Enabled"
+                                        checked={autoBackupEnabled}
+                                        onChange={setAutoBackupEnabled}
+                                        border={false}
+                                        className="!py-0"
+                                    />
                                     <div>
                                         <label className="font-semibold text-sm block mb-2">Interval (Days)</label>
                                         <input

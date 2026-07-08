@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+
 export const SettingHint: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const detailsRef = useRef<HTMLDetailsElement>(null);
 
@@ -23,14 +24,28 @@ export const SettingHint: React.FC<{ children: React.ReactNode }> = ({ children 
     }, []);
 
     return (
-        <details ref={detailsRef} className="relative inline-block group ml-2 mt-0.5">
-            <summary className="list-none inline-flex items-center gap-1 cursor-pointer text-xs text-plex hover:text-plex-hover font-semibold select-none">
-                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-plex/60 text-[10px] leading-none">?</span>
-                Hint
+        <details ref={detailsRef} className="relative inline-flex align-middle shrink-0 group">
+            <summary
+                className="list-none inline-flex items-center justify-center cursor-pointer select-none text-muted/40 hover:text-muted/75 transition-colors"
+                aria-label="More information"
+            >
+                <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current text-[9px] leading-none font-semibold">?</span>
             </summary>
-            <div className="absolute z-20 mt-2 left-0 w-[min(420px,80vw)] bg-card border border-border rounded-lg px-3 py-2 text-xs text-muted shadow-xl">
+            <div className="absolute z-20 mt-1.5 left-0 w-[min(420px,80vw)] bg-card border border-border rounded-lg px-3 py-2 text-xs text-muted shadow-xl">
                 {children}
             </div>
         </details>
     );
 };
+
+export const SettingFieldLabel: React.FC<{
+    htmlFor?: string;
+    children: React.ReactNode;
+    hint?: React.ReactNode;
+    className?: string;
+}> = ({ htmlFor, children, hint, className = '' }) => (
+    <label htmlFor={htmlFor} className={`inline-flex items-center gap-1.5 flex-wrap ${className}`}>
+        {children}
+        {hint}
+    </label>
+);
