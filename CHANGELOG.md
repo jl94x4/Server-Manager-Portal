@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.3.0...v1.4.0) (2026-07-08)
+
+
+### Features
+
+* add multi-instance arr read paths and per-instance media stack tabs ([60934e3](https://github.com/jl94x4/Server-Manager-Portal/commit/60934e3e6d0d6a8bcc752c8b61484d13e65daff7))
+* Add optional public visibility controls ([#33](https://github.com/jl94x4/Server-Manager-Portal/issues/33)) ([48b6de6](https://github.com/jl94x4/Server-Manager-Portal/commit/48b6de6b0eba71bea5e1792f504755daeccfbf0b))
+* add support for managing multiple arr instances ([65dc2b1](https://github.com/jl94x4/Server-Manager-Portal/commit/65dc2b1e966a597c9ce648344d1afd2b1572b824))
+* enhance arr instance matching in maintenance index and setup UI ([2446811](https://github.com/jl94x4/Server-Manager-Portal/commit/24468119dfbecbfed23265c24c23447c3a2ff424))
+* route maintenance actions by arr instance mapping ([fe4b685](https://github.com/jl94x4/Server-Manager-Portal/commit/fe4b685b5e5c99bfae76a94488ff8bb16271f17d))
+
+
+### Bug Fixes
+
+* clicking username in discover history navigates correctly to analytics profile ([eea2363](https://github.com/jl94x4/Server-Manager-Portal/commit/eea2363ca9610d2e9054461fdb74228b3d13fd6d))
+* delay hash processing until users list is populated to ensure correct user id lookup ([e284b25](https://github.com/jl94x4/Server-Manager-Portal/commit/e284b25350b79c04404603f2fbbf50cc79e19e63))
+* ensure analytics user modal opens dynamically from url hash and listens to hash changes ([0011a76](https://github.com/jl94x4/Server-Manager-Portal/commit/0011a768a103723b1cc9839fc0039fd3079e2d64))
+* remove orphaned PORTAL_WIDE_LAYOUT_THRESHOLD import in App.tsx ([14d2120](https://github.com/jl94x4/Server-Manager-Portal/commit/14d21207db3bf4b46095ed40c5465de47582efbd))
+* remove remaining pt-20 from outer scroll container to fix clipping ([59c943a](https://github.com/jl94x4/Server-Manager-Portal/commit/59c943a574335cfff96a9030bca6946b7db24572))
+* repair config save syntax after arr instances ([b8887f4](https://github.com/jl94x4/Server-Manager-Portal/commit/b8887f4536e92a3f804797e3a55cc97610c3967a))
+* resolve sticky header clipping issue and align calendar poster ([6d6db1e](https://github.com/jl94x4/Server-Manager-Portal/commit/6d6db1ef7b9710913a49994aba3cf6171ad69728))
+* **ui:** improve mobile scrolling and layout for stream details modal ([b905af1](https://github.com/jl94x4/Server-Manager-Portal/commit/b905af195a828c359f51c848ec7bd846e7edb1b6))
+* **ui:** increase max-width and set min-height on stream details modal for desktop to improve poster proportion ([2cfae95](https://github.com/jl94x4/Server-Manager-Portal/commit/2cfae95deff691c14008ab8328228691b23ce123))
+* **ui:** increase width of stream details modal on desktop to improve poster aspect ratio ([80f7183](https://github.com/jl94x4/Server-Manager-Portal/commit/80f71836fe20ec9be2f222e9aef01f353c3e4321))
+* **ui:** remove overflow-hidden from activity posters to prevent right-edge clipping and allow shadow ([1ea3a10](https://github.com/jl94x4/Server-Manager-Portal/commit/1ea3a108a48a4dc200c1251178c573d3c56566b1))
+* **ui:** right-align stream status in activity cards ([ef38db3](https://github.com/jl94x4/Server-Manager-Portal/commit/ef38db34623af0106ec78945cf2a0a865cf08df3))
+
 ## [1.3.0](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.2.0...v1.3.0) (2026-07-08)
 
 
