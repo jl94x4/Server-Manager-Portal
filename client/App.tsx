@@ -118,6 +118,13 @@ export const MainApp: React.FC = () => {
     }, [fetchPublicConfig]);
 
     useEffect(() => {
+        if (currentRoute === 'status' && !sessionInfo && publicConfig?.showPublicStatusMonitor === false) {
+            setCurrentRoute('login');
+            window.history.replaceState({}, '', portalUrl('/'));
+        }
+    }, [currentRoute, publicConfig?.showPublicStatusMonitor, sessionInfo]);
+
+    useEffect(() => {
         const onPublicConfigUpdated = () => { fetchPublicConfig(); };
         window.addEventListener('portal-public-config-updated', onPublicConfigUpdated);
         return () => window.removeEventListener('portal-public-config-updated', onPublicConfigUpdated);
@@ -186,11 +193,11 @@ export const MainApp: React.FC = () => {
                 setCurrentRoute('user');
             }
         } catch {
-            if (path === '/status') setCurrentRoute('status');
+            if (path === '/status' && publicConfig?.showPublicStatusMonitor !== false) setCurrentRoute('status');
             else if (path === '/dashboard') setCurrentRoute('dashboard');
             else setCurrentRoute('login');
         }
-    }, []);
+    }, [publicConfig?.showPublicStatusMonitor]);
 
     useEffect(() => {
         // Initial session check

@@ -788,6 +788,8 @@ const isJellyfinConfigured = (config = {}) => (
     && !!(config?.jellyfinUrl && config?.jellyfinApiKey)
 );
 const isPortalConfigured = (config = {}) => isPlexConfigured(config) || isJellyfinConfigured(config);
+const isPublicStatusVisible = (config = {}) => config.showPublicStatusMonitor !== false;
+const arePublicLibraryStatsVisible = (config = {}) => config.showPublicLibraryStats !== false;
 
 const requireAuth = (req, res, next) => {
     const token = req.cookies.session;
@@ -2123,6 +2125,8 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 use24HourClock: !!config.use24HourClock,
                 allowTemporaryAccess: !!config.allowTemporaryAccess,
                 showPosterQualityBadges: config.showPosterQualityBadges !== false,
+                showPublicStatusMonitor: isPublicStatusVisible(config),
+                showPublicLibraryStats: arePublicLibraryStatsVisible(config),
                 autoBackupEnabled: !!config.autoBackupEnabled,
                 autoBackupIntervalDays: Number(config.autoBackupIntervalDays) > 0 ? Number(config.autoBackupIntervalDays) : 2,
                 autoBackupRetentionCount: Number(config.autoBackupRetentionCount) > 0 ? Number(config.autoBackupRetentionCount) : 10,
@@ -2188,6 +2192,8 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 use24HourClock: false,
                 allowTemporaryAccess: false,
                 showPosterQualityBadges: true,
+                showPublicStatusMonitor: true,
+                showPublicLibraryStats: true,
                 autoBackupEnabled: false,
                 autoBackupIntervalDays: 2,
                 autoBackupRetentionCount: 10,
@@ -2208,6 +2214,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         requestAppType, requestAppUrl, requestAppApiKey,
         inactiveCleanupEnabled, inactiveCleanupDays,
         primaryColor, customLogoUrl, brandingTheme, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges,
+        showPublicStatusMonitor, showPublicLibraryStats,
         autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, dashboardLayout,
         showUsernamesInAnalytics, useTrendingSlideshowOnLogin
     } = req.body;
@@ -2349,6 +2356,8 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         use24HourClock: !!use24HourClock,
         allowTemporaryAccess: !!allowTemporaryAccess,
         showPosterQualityBadges: showPosterQualityBadges !== false,
+        showPublicStatusMonitor: showPublicStatusMonitor !== undefined ? !!showPublicStatusMonitor : isPublicStatusVisible(existingConfig),
+        showPublicLibraryStats: showPublicLibraryStats !== undefined ? !!showPublicLibraryStats : arePublicLibraryStatsVisible(existingConfig),
         autoBackupEnabled: !!autoBackupEnabled,
         autoBackupIntervalDays: Math.max(1, parseInt(autoBackupIntervalDays, 10) || 2),
         autoBackupRetentionCount: Math.max(1, parseInt(autoBackupRetentionCount, 10) || 10),
@@ -2441,6 +2450,8 @@ app.get('/api/config/public', async (req, res) => {
             use24HourClock: !!config.use24HourClock,
             allowTemporaryAccess: !!config.allowTemporaryAccess,
             showPosterQualityBadges: config.showPosterQualityBadges !== false,
+            showPublicStatusMonitor: isPublicStatusVisible(config),
+            showPublicLibraryStats: arePublicLibraryStatsVisible(config),
             dashboardLayout: normalizeSectionLayout(config.dashboardLayout),
             basePath: BASE_PATH,
         });
@@ -2463,6 +2474,8 @@ app.get('/api/config/public', async (req, res) => {
             use24HourClock: false,
             allowTemporaryAccess: false,
             showPosterQualityBadges: true,
+            showPublicStatusMonitor: true,
+            showPublicLibraryStats: true,
             dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
             basePath: BASE_PATH,
         });
@@ -3885,7 +3898,8 @@ app.get('/api/invites/:code/info', publicReadRateLimit, async (req, res) => {
         durationDays: invite.durationDays,
         serverName: adminProfile.serverName || 'Our Server',
         customLogoUrl: config.customLogoUrl,
-        thumb: adminProfile.thumb
+        thumb: adminProfile.thumb,
+        showPublicLibraryStats: arePublicLibraryStatsVisible(config)
     });
 });
 
@@ -4712,6 +4726,10 @@ app.get('/api/public/info', publicReadRateLimit, async (req, res) => {
 });
 
 app.get('/api/public/plex/stats', publicReadRateLimit, async (req, res) => {
+    const config = await loadFile(CONFIG_PATH, {});
+    if (!arePublicLibraryStatsVisible(config)) {
+        return res.status(403).json({ error: 'Public library stats are disabled.' });
+    }
     if (cachedPlexStats) {
         return res.json(cachedPlexStats);
     }
@@ -4726,7 +4744,17 @@ app.get('/api/public/plex/stats', publicReadRateLimit, async (req, res) => {
 });
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
-app.get('/api/status', publicReadRateLimit, (req, res) => {
+app.get('/api/status', publicReadRateLimit, async (req, res) => {
+    const config = await loadFile(CONFIG_PATH, {});
+    if (!isPublicStatusVisible(config)) {
+        const token = req.cookies.session;
+        if (!token) return res.status(401).json({ error: 'Status monitor requires login.' });
+        try {
+            req.user = jwt.verify(token, JWT_SECRET);
+        } catch (e) {
+            return res.status(401).json({ error: 'Status monitor requires login.' });
+        }
+    }
     const publicServices = (statusConfig.services || []).map(service => ({
         id: service.id,
         name: service.name,

@@ -3727,9 +3727,11 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
                                 <strong className="text-text font-semibold">3-Day Temporary Access</strong> pass.
                             </p>
 
-                            <div className="mb-6">
-                                <LivePlexStats />
-                            </div>
+                            {publicConfig?.showPublicLibraryStats !== false && (
+                                <div className="mb-6">
+                                    <LivePlexStats />
+                                </div>
+                            )}
 
                             <p className="text-xs text-muted/80 leading-relaxed mb-5">
                                 You&apos;ll need a free Plex account to continue. You can create one securely on the next screen.
@@ -3857,7 +3859,7 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
                             </button>
                         )}
 
-                        {!showTrialAccess && !isJellyfinAuth && (
+                        {!showTrialAccess && !isJellyfinAuth && publicConfig?.showPublicLibraryStats !== false && (
                             <div className="w-full mt-10 pt-8 border-t border-white/10">
                                 <LivePlexStats />
                             </div>
@@ -3865,7 +3867,7 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
                     </div>
                 </div>
 
-                <PublicUptimeBanner />
+                {publicConfig?.showPublicStatusMonitor !== false && <PublicUptimeBanner />}
 
                 {error && (
                     <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-300 text-sm flex items-start gap-3">
@@ -7796,9 +7798,11 @@ export const PublicInviteClaim: React.FC<{ code: string }> = ({ code }) => {
                 You have been invited to join <strong className="text-plex">{info.serverName}</strong> for a period of <strong className="text-plex">{info.durationDays} days</strong>.
             </p>
 
-            <div className="w-full mb-8">
-                <LivePlexStats />
-            </div>
+            {info.showPublicLibraryStats !== false && (
+                <div className="w-full mb-8">
+                    <LivePlexStats />
+                </div>
+            )}
 
             <button
                 onClick={handlePlexLogin}
