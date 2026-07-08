@@ -5635,11 +5635,11 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
     };
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-card w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl relative flex flex-col md:flex-row" onClick={e => e.stopPropagation()}>
+            <div className="bg-card w-full max-w-2xl md:max-w-5xl lg:max-w-6xl md:min-h-[500px] lg:min-h-[600px] max-h-[90vh] md:max-h-[85vh] rounded-2xl overflow-y-auto custom-scrollbar md:overflow-hidden shadow-2xl relative flex flex-col md:flex-row" onClick={e => e.stopPropagation()}>
                 {/* Poster Side */}
-                <div className="w-full md:w-1/3 relative bg-black flex-shrink-0">
-                    <div className="w-full pb-[150%] md:pb-0 md:h-full relative">
-                        <img src={sessionPosterSrc} alt={session.title} className="absolute inset-0 w-full h-full object-cover opacity-80" />
+                <div className="w-full md:w-2/5 lg:w-1/3 relative bg-black flex-shrink-0">
+                    <div className="w-full aspect-square md:aspect-auto md:h-full relative">
+                        <img src={sessionPosterSrc} alt={session.title} className="absolute inset-0 w-full h-full object-cover object-top md:object-center opacity-80" />
                         <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent md:bg-gradient-to-r"></div>
                     </div>
                     {/* User Avatar Badge */}
@@ -5652,8 +5652,8 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
                 </div>
 
                 {/* Details Side */}
-                <div className="p-6 md:p-8 flex flex-col flex-grow relative">
-                    <button onClick={onClose} className="absolute top-4 right-4 text-muted hover:text-white transition-colors bg-white/5 rounded-full p-2">
+                <div className="p-6 md:p-8 flex flex-col flex-grow relative md:overflow-y-auto custom-scrollbar">
+                    <button onClick={onClose} className="absolute top-4 right-4 text-muted hover:text-white transition-colors bg-white/5 rounded-full p-2 z-10">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
 
@@ -6068,8 +6068,8 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                     return (
                                         <div key={session.sessionId ?? i} onClick={() => setSelectedSession(session)} className="bg-card rounded-xl border border-border flex flex-col overflow-hidden shadow-lg hover:border-plex/50 hover:shadow-plex/20 transition-all cursor-pointer select-none h-full min-h-[13.75rem] md:min-h-[15rem]">
                                             <div className={`grid ${posterColumnClass} flex-1 min-h-0`}>
-                                                <div className="relative overflow-hidden bg-card min-h-0">
-                                                    <img src={sessionPosterSrc} alt={session.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover object-top drop-shadow-2xl" />
+                                                <div className="relative min-h-0 z-10 bg-black">
+                                                    <img src={sessionPosterSrc} alt={session.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover object-top drop-shadow-[4px_0_15px_rgba(0,0,0,0.5)]" />
                                                 </div>
                                                 <div className="p-2.5 md:p-3 flex flex-col min-w-0 min-h-0">
                                                     <div className="activity-header mb-1.5 min-w-0">
@@ -6107,7 +6107,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                                         </div>
                                                         <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-2 text-[10px] md:text-xs border-b border-white/5 pb-0.5">
                                                             <span className="text-muted uppercase tracking-wider font-bold">Stream</span>
-                                                            <span className={`font-bold ${session.isTranscoding ? 'text-status-expiring' : 'text-status-active'}`}>
+                                                            <span className={`font-bold text-right ${session.isTranscoding ? 'text-status-expiring' : 'text-status-active'}`}>
                                                                 {session.isTranscoding ? 'Transcode' : 'Direct Play'}
                                                             </span>
                                                         </div>

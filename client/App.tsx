@@ -6,7 +6,7 @@ import { getPublicOrigin, portalUrl, resolvePortalAssetUrl, stripBasePath } from
 import { ConfirmModal } from './shared/ui';
 import { Loader } from './shared/toast';
 import { AppAmbientBackground } from './shared/theme';
-import { PORTAL_WIDE_LAYOUT_THRESHOLD } from './shared/portalLayout';
+
 import {
     updateFavicon,
     Login,
@@ -24,7 +24,7 @@ import {
 
 export const MainApp: React.FC = () => {
     const [confirmState, setConfirmState] = useState<{ isOpen: boolean, message: string, onConfirm: () => void }>({ isOpen: false, message: '', onConfirm: () => { } });
-    const [contentMaxWidth, setContentMaxWidth] = useState<string>('100%');
+
     const [activeTheme, setActiveTheme] = useState(() => {
         if (typeof window !== 'undefined') {
             return localStorage.getItem('portal-theme') || 'plex';
@@ -38,22 +38,6 @@ export const MainApp: React.FC = () => {
         });
     }, []);
 
-    useEffect(() => {
-        const updateResponsiveContentWidth = () => {
-            const screenWidth = window.screen?.width || window.innerWidth;
-            const screenHeight = window.screen?.height || window.innerHeight;
-            const screenRatio = screenWidth / Math.max(1, screenHeight);
-            if (screenRatio > PORTAL_WIDE_LAYOUT_THRESHOLD) {
-                setContentMaxWidth(`${Math.round(screenHeight * (16 / 9))}px`);
-            } else {
-                setContentMaxWidth('100%');
-            }
-        };
-
-        updateResponsiveContentWidth();
-        window.addEventListener('resize', updateResponsiveContentWidth);
-        return () => window.removeEventListener('resize', updateResponsiveContentWidth);
-    }, []);
 
     const closeConfirm = () => setConfirmState(s => ({ ...s, isOpen: false }));
     const handleConfirm = () => {
@@ -255,7 +239,7 @@ export const MainApp: React.FC = () => {
             <ConfirmModal isOpen={confirmState.isOpen} message={confirmState.message} onConfirm={handleConfirm} onCancel={closeConfirm} />
             {!isPublicView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Server Portal'} adminThumb={sessionInfo?.adminThumb} customLogoUrl={publicConfig?.customLogoUrl} requestUrl={sessionInfo?.requestUrl || 'https://yourdomain.com'} navOrder={sessionInfo?.navOrder || ['home', 'discover', 'status', 'analytics', 'mediastack', 'maintenance', 'request', 'settings', 'logout']} appVersion={publicConfig.appVersion} activeTheme={activeTheme} setActiveTheme={setActiveTheme} />}
             <div className={`relative z-10 flex-1 min-w-0 min-h-0 flex flex-col items-center px-4 pb-[80px] md:px-8 md:pb-8 overflow-x-visible md:overflow-y-auto custom-scrollbar ${isPublicView ? '!pb-8' : ''}`}>
-                <div className="w-full min-w-0 pt-20 md:pt-8" style={{ maxWidth: contentMaxWidth }}>
+                <div className="w-full min-w-0 pt-20 md:pt-8 max-w-[100%]">
                     {renderView()}
                 </div>
 
