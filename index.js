@@ -6234,6 +6234,47 @@ app.get('/api/plex/analytics', requireAuth, requireMember, async (req, res) => {
     }
 });
 
+app.get('/api/plex/analytics/day', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const dateStr = req.query.date; // format YYYY-MM-DD
+        if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            return res.status(400).json({ error: 'Valid date (YYYY-MM-DD) is required' });
+        }
+
+        const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
+
+        if (mediaServerType === 'jellyfin') {
+            return res.status(501).json({ error: 'Specific date views are currently only supported for Plex/Tautulli' });
+        } else {
+            if (!config.tautulliUrl || !config.tautulliApiKey) {
+                return res.status(503).json({ error: 'Tautulli not configured' });
+            }
+            const tUrl = resolveIntegrationUrlForFetch(config.tautulliUrl);
+            const cmdUrl = `${tUrl}/api/v2?apikey=${config.tautulliApiKey}&cmd=get_history&start_date=${dateStr}&length=100000`;
+            const resp = await fetch(cmdUrl, { headers: { 'Accept': 'application/json' }});
+            const json = await resp.json();
+            const items = json?.response?.data?.data || [];
+            
+            const hours = new Array(24).fill(0);
+            items.forEach(item => {
+                const ts = item.started * 1000;
+                const d = new Date(ts);
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                if (`${yyyy}-${mm}-${dd}` === dateStr) {
+                    hours[d.getHours()]++;
+                }
+            });
+            return res.json(hours);
+        }
+    } catch (e) {
+        log(`Error fetching daily analytics: ${e.message}`);
+        res.status(500).json({ error: 'Analytics error' });
+    }
+});
+
 app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, null);

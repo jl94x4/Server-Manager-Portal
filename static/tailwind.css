@@ -2347,6 +2347,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   max-height: 420px;
 }
 
+.max-h-\[500px\] {
+  max-height: 500px;
+}
+
 .max-h-\[620px\] {
   max-height: 620px;
 }
@@ -2640,6 +2644,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   min-width: 110px;
 }
 
+.min-w-\[120px\] {
+  min-width: 120px;
+}
+
 .min-w-\[130px\] {
   min-width: 130px;
 }
@@ -2654,6 +2662,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .min-w-\[250px\] {
   min-width: 250px;
+}
+
+.min-w-\[50px\] {
+  min-width: 50px;
 }
 
 .min-w-\[600px\] {
@@ -4087,6 +4099,12 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
 }
 
+.from-status-active {
+  --tw-gradient-from: #238636 var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(35 134 54 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
 .from-transparent {
   --tw-gradient-from: transparent var(--tw-gradient-from-position);
   --tw-gradient-to: rgb(0 0 0 / 0) var(--tw-gradient-to-position);
@@ -4198,6 +4216,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .to-green-400 {
   --tw-gradient-to: #4ade80 var(--tw-gradient-to-position);
+}
+
+.to-green-600 {
+  --tw-gradient-to: #16a34a var(--tw-gradient-to-position);
 }
 
 .to-orange-400 {
@@ -4571,6 +4593,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   padding-right: 2.5rem;
 }
 
+.pr-12 {
+  padding-right: 3rem;
+}
+
 .pr-2 {
   padding-right: 0.5rem;
 }
@@ -4613,6 +4639,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .pt-20 {
   padding-top: 5rem;
+}
+
+.pt-3 {
+  padding-top: 0.75rem;
 }
 
 .pt-4 {
@@ -5516,6 +5546,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   --tw-shadow: var(--tw-shadow-colored);
 }
 
+.shadow-status-active\/20 {
+  --tw-shadow-color: rgb(35 134 54 / 0.2);
+  --tw-shadow: var(--tw-shadow-colored);
+}
+
 .outline-none {
   outline: 2px solid transparent;
   outline-offset: 2px;
@@ -6343,6 +6378,16 @@ html.branded-skeleton .skeleton-base::after {
   background-color: rgb(99 102 241 / var(--tw-bg-opacity, 1));
 }
 
+.hover\:bg-orange-500:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(249 115 22 / var(--tw-bg-opacity, 1));
+}
+
+.hover\:bg-plex:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(var(--color-plex) / var(--tw-bg-opacity, 1));
+}
+
 .hover\:bg-plex-hover:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(var(--color-plex-hover) / var(--tw-bg-opacity, 1));
@@ -6706,6 +6751,12 @@ html.branded-skeleton .skeleton-base::after {
   --tw-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
   --tw-shadow-colored: 0 20px 25px -5px var(--tw-shadow-color), 0 8px 10px -6px var(--tw-shadow-color);
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+.group:hover .group-hover\:ring-2 {
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
 }
 
 .peer:checked ~ .peer-checked\:border-plex {
@@ -7149,6 +7200,10 @@ html.branded-skeleton .skeleton-base::after {
     width: 2rem;
   }
 
+  .md\:w-\[150px\] {
+    width: 150px;
+  }
+
   .md\:w-\[220px\] {
     width: 220px;
   }
@@ -7159,6 +7214,10 @@ html.branded-skeleton .skeleton-base::after {
 
   .md\:w-auto {
     width: auto;
+  }
+
+  .md\:min-w-\[125px\] {
+    min-width: 125px;
   }
 
   .md\:max-w-\[100px\] {
@@ -7224,6 +7283,10 @@ html.branded-skeleton .skeleton-base::after {
     flex-wrap: wrap;
   }
 
+  .md\:flex-nowrap {
+    flex-wrap: nowrap;
+  }
+
   .md\:items-start {
     align-items: flex-start;
   }
@@ -7234,6 +7297,10 @@ html.branded-skeleton .skeleton-base::after {
 
   .md\:items-center {
     align-items: center;
+  }
+
+  .md\:justify-end {
+    justify-content: flex-end;
   }
 
   .md\:gap-1\.5 {

@@ -1865,10 +1865,11 @@ const ServerInsightsWidget: React.FC<{
     tautulliData: any,
     compare: any,
     analyticsSourceLabel: string
-}> = ({ peakHours, tautulliData, compare, analyticsSourceLabel }) => {
+}> = ({ peakHours, tautulliData, compare, analyticsSourceLabel, peakDate, setPeakDate, peakDateData, peakDateLoading }) => {
     
     // Format chart data
-    const chartData = peakHours ? peakHours.map((count, hour) => {
+    const activePeakHours = peakDateData || peakHours;
+    const chartData = activePeakHours ? activePeakHours.map((count, hour) => {
         const ampm = hour >= 12 ? 'PM' : 'AM';
         const h = hour % 12 || 12;
         return {
@@ -1892,11 +1893,32 @@ const ServerInsightsWidget: React.FC<{
             </h2>
 
             {/* Peak Hours Chart */}
-            <div className="glass-card-sm p-4 md:p-6 w-full flex flex-col flex-1">
-                <h3 className="text-sm font-bold text-muted uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <Clock className="w-4 h-4" /> Peak Playback Hours
-                </h3>
-                <div className="w-full h-[250px] sm:h-[320px]">
+            <div className="glass-card-sm p-4 md:p-6 w-full flex flex-col flex-1 relative">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                    <h3 className="text-sm font-bold text-muted uppercase tracking-wider flex items-center gap-2">
+                        <Clock className="w-4 h-4" /> Peak Playback Hours
+                    </h3>
+                    <div className="flex items-center gap-2 relative z-10">
+                        {peakDate && (
+                            <button onClick={() => setPeakDate('')} className="text-xs text-muted hover:text-white" title="Clear specific date view">
+                                <X className="w-4 h-4" />
+                            </button>
+                        )}
+                        <input 
+                            type="date" 
+                            value={peakDate} 
+                            onChange={(e) => setPeakDate(e.target.value)} 
+                            max={new Date().toISOString().split('T')[0]}
+                            className="bg-black/40 border border-white/5 rounded-md px-2 py-1 text-xs text-white outline-none focus:border-plex transition-colors"
+                        />
+                    </div>
+                </div>
+                <div className="w-full h-[250px] sm:h-[320px] relative">
+                    {peakDateLoading && (
+                        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl">
+                            <Loader2 className="w-8 h-8 text-plex animate-spin" />
+                        </div>
+                    )}
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                             <defs>
@@ -2146,6 +2168,9 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
     const [isLoading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [days, setDays] = useState<string>('30');
+    const [peakDate, setPeakDate] = useState<string>('');
+    const [peakDateData, setPeakDateData] = useState<number[] | null>(null);
+    const [peakDateLoading, setPeakDateLoading] = useState(false);
     const [selectedUser, setSelectedUser] = useState<{ id: string, username: string, thumb: string | null } | null>(null);
     const [allUsers, setAllUsers] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -2192,6 +2217,27 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
             }
         }
     }, [allUsers]);
+
+    useEffect(() => {
+        if (!peakDate) {
+            setPeakDateData(null);
+            return;
+        }
+        let cancelled = false;
+        setPeakDateLoading(true);
+        apiFetch(`/api/plex/analytics/day?date=${peakDate}`)
+            .then(data => {
+                if (!cancelled) setPeakDateData(data);
+            })
+            .catch(err => {
+                console.error("Failed to fetch day analytics", err);
+                if (!cancelled) setPeakDateData(null);
+            })
+            .finally(() => {
+                if (!cancelled) setPeakDateLoading(false);
+            });
+        return () => { cancelled = true; };
+    }, [peakDate]);
 
     useEffect(() => {
         let cancelled = false;
@@ -2337,6 +2383,7 @@ return (
 
             {viewTab === 'overview' && (
                 <>
+                    {analyticsData && <ServerInsightsOverview peakHours={analyticsData.peakHours} tautulliData={tautulliData} compare={compare} analyticsSourceLabel={analyticsSourceLabel} peakDate={peakDate} setPeakDate={setPeakDate} peakDateData={peakDateData} peakDateLoading={peakDateLoading} />}
                     {analyticsData.cacheFallback && (
                         <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">
                             Analytics cache for this period is still building. Showing cached data from the last {analyticsData.cachePeriodDays} day period instead.
