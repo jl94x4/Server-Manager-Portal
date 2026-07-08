@@ -7170,7 +7170,7 @@ async function loadStatusState() {
 
     try {
         const healthRaw = await fs.readFile(HEALTH_PATH, 'utf-8');
-        healthData = JSON.parse(healthRaw);
+        healthData = JSON.parse(healthRaw) || {};
     } catch (e) {
         healthData = {};
     }

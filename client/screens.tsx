@@ -5612,6 +5612,35 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
     );
 };
 
+const EMPTY_STREAM_MESSAGES = [
+    "Nobody is watching... the server can finally breathe.",
+    "0 streams active. The hard drives are enjoying a well-earned nap.",
+    "The popcorn is ready. The audience is missing.",
+    "All quiet on the streaming front.",
+    "The server is awake. The humans are not.",
+    "No one is streaming... the GPUs are confused.",
+    "No streams detected. Suspicious behaviour.",
+    "Everyone left. The server is binge-watching itself.",
+    "No one is watching. Somewhere, a movie is feeling ignored.",
+    "No active viewers. Time to dust off the virtual popcorn machine.",
+    "The only thing streaming right now is disappointment.",
+    "The server is ready. The couch is empty.",
+    "The media centre is open 24/7. The viewers are not.",
+    "The server has 10,000 movies and nobody pressed play.",
+    "No active sessions. The bandwidth is feeling useless.",
+    "The server is fully loaded and emotionally unavailable.",
+    "The Plex goblins are idle.",
+    "The server is bored. Please entertain it.",
+    "No viewers detected. Initiating dramatic silence.",
+    "The hard drives are spinning... for nothing.",
+    "Even the thumbnails are getting lonely."
+];
+
+const EmptyStreamsMessage: React.FC = () => {
+    const [msg] = useState(() => EMPTY_STREAM_MESSAGES[Math.floor(Math.random() * EMPTY_STREAM_MESSAGES.length)]);
+    return <div className="text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full">{msg}</div>;
+};
+
 export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, publicConfig?: any, mediaServerType?: string }> = ({ onBack, isAdmin, publicConfig, mediaServerType }) => {
     const [dashboardData, setDashboardData] = useState<{ activeSessions: any[], recentMovies: any[], recentShows: any[], recentMusic: any[] } | null>(null);
     const [trendingStats, setTrendingStats] = useState<{ trending7Days: any[], movies30Days: any[], shows30Days: any[], top365Days: any[], allTime: any[], weekendWarriors: any[], nightOwls: any[], retroHits: any[], cultClassics: any[] } | null>(null);
@@ -5863,7 +5892,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                             </div>
                         </div>
                     ) : (
-                        <div className="text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full">No active streams</div>
+                        <EmptyStreamsMessage />
                     )}
                 </section>
 
