@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.1.0...v1.2.0) (2026-07-08)
+
+
+### Features
+
+* Add documentation link to navigation sidebar ([75017e5](https://github.com/jl94x4/Server-Manager-Portal/commit/75017e54417702aafd8a8f70f701dd7ca6647c08))
+* Move docs link to settings and setup wizard ([94324db](https://github.com/jl94x4/Server-Manager-Portal/commit/94324dbc3ea83fbb0ce5b27ad817f469cb3d54a7))
+
 ## [1.1.0](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.0.0...v1.1.0) (2026-07-08)
 
 
