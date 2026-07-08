@@ -247,8 +247,8 @@ export const MainApp: React.FC = () => {
             <AppAmbientBackground backgroundImageUrl={publicConfig?.backgroundImageUrl} />
             <ConfirmModal isOpen={confirmState.isOpen} message={confirmState.message} onConfirm={handleConfirm} onCancel={closeConfirm} />
             {!isPublicView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Server Portal'} adminThumb={sessionInfo?.adminThumb} customLogoUrl={publicConfig?.customLogoUrl} requestUrl={sessionInfo?.requestUrl || 'https://yourdomain.com'} navOrder={sessionInfo?.navOrder || ['home', 'discover', 'status', 'analytics', 'mediastack', 'maintenance', 'request', 'settings', 'logout']} appVersion={publicConfig.appVersion} activeTheme={activeTheme} setActiveTheme={setActiveTheme} />}
-            <div className={`relative z-10 flex-1 min-w-0 min-h-0 flex flex-col items-center px-4 pt-20 pb-[80px] md:p-8 md:pt-8 md:pb-8 overflow-x-visible md:overflow-y-auto custom-scrollbar ${isPublicView ? '!pt-8 !pb-8' : ''}`}>
-                <div className="w-full min-w-0" style={{ maxWidth: contentMaxWidth }}>
+            <div className={`relative z-10 flex-1 min-w-0 min-h-0 flex flex-col items-center px-4 pt-20 pb-[80px] md:px-8 md:pb-8 overflow-x-visible md:overflow-y-auto custom-scrollbar ${isPublicView ? '!pb-8' : ''}`}>
+                <div className="w-full min-w-0 md:pt-8" style={{ maxWidth: contentMaxWidth }}>
                     {renderView()}
                 </div>
 
