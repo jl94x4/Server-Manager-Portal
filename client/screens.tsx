@@ -2210,16 +2210,24 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
     }, []);
 
     useEffect(() => {
-        if (allUsers.length > 0) {
+        const checkHash = () => {
             const hash = typeof window !== 'undefined' ? window.location.hash : '';
             if (hash.startsWith('#user=')) {
                 const username = decodeURIComponent(hash.replace('#user=', ''));
-                const found = allUsers.find(u => u.username.toLowerCase() === username.toLowerCase());
-                if (found) {
-                    setSelectedUser({ id: found.id || found.username, username: found.username, thumb: found.thumb });
+                if (username) {
+                    const found = allUsers.find(u => u.username.toLowerCase() === username.toLowerCase());
+                    setSelectedUser({ 
+                        id: found?.id || username, 
+                        username: found?.username || username, 
+                        thumb: found?.thumb || null 
+                    });
                 }
             }
-        }
+        };
+
+        checkHash();
+        window.addEventListener('hashchange', checkHash);
+        return () => window.removeEventListener('hashchange', checkHash);
     }, [allUsers]);
 
     useEffect(() => {
@@ -2759,7 +2767,12 @@ return (
                     username={selectedUser.username}
                     thumb={selectedUser.thumb}
                     days={days}
-                    onClose={() => setSelectedUser(null)}
+                    onClose={() => {
+                        setSelectedUser(null);
+                        if (window.location.hash.startsWith('#user=')) {
+                            window.history.pushState('', document.title, window.location.pathname + window.location.search);
+                        }
+                    }}
                 />
             )}
         </div>
