@@ -7269,7 +7269,6 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         'maintenance': { label: 'Cleaner', icon: Shield, route: 'maintenance', adminOnly: true },
         'request': { label: 'Request Content', icon: Sparkles, route: '', adminOnly: false, href: requestUrl },
         'settings': { label: 'Settings', icon: Settings, route: 'settings', adminOnly: true },
-        'docs': { label: 'Docs', icon: BookOpen, route: '', adminOnly: true, href: 'https://jl94x4.github.io/Server-Manager-Portal/' },
         'logout': { label: 'Logout', icon: LogOut, route: '', adminOnly: false, onClick: onLogout }
     };
     const normalizedNavOrder = (() => {
@@ -7278,9 +7277,6 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
             const requestIndex = order.indexOf('request');
             if (requestIndex >= 0) order.splice(requestIndex, 0, 'maintenance');
             else order.push('maintenance');
-        }
-        if (isAdmin && !order.includes('docs')) {
-            order.push('docs');
         }
         return order;
     })();

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Settings, Sparkles, ChevronRight, ChevronLeft, Check, Palette, Mail, Layers, Server, PartyPopper,
+    Settings, Sparkles, ChevronRight, ChevronLeft, Check, Palette, Mail, Layers, Server, PartyPopper, BookOpen,
 } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { getPublicOrigin, logoUrl, portalUrl, stripBasePath } from '../shared/basePath';
@@ -858,10 +858,15 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
 
                         {/* Footer navigation */}
                         <div className="flex-shrink-0 border-t border-white/10 bg-black/25 backdrop-blur-md px-6 sm:px-8 lg:px-10 xl:px-12 py-5 flex items-center justify-between gap-4">
-                            <button type="button" onClick={goBack} disabled={stepIndex === 0 || isLoading}
-                                className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-muted hover:text-text hover:bg-white/5 border border-transparent hover:border-white/10 transition-all disabled:opacity-30 disabled:pointer-events-none">
-                                <ChevronLeft className="w-4 h-4" /> Back
-                            </button>
+                            <div className="flex items-center gap-2 sm:gap-4">
+                                <button type="button" onClick={goBack} disabled={stepIndex === 0 || isLoading}
+                                    className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-muted hover:text-text hover:bg-white/5 border border-transparent hover:border-white/10 transition-all disabled:opacity-30 disabled:pointer-events-none">
+                                    <ChevronLeft className="w-4 h-4" /> Back
+                                </button>
+                                <a href="https://jl94x4.github.io/Server-Manager-Portal/" target="_blank" rel="noreferrer" className="hidden sm:flex items-center gap-2 px-4 py-3 rounded-xl font-bold text-sm text-muted hover:text-text hover:bg-white/5 border border-transparent transition-all">
+                                    <BookOpen className="w-4 h-4" /> Docs
+                                </a>
+                            </div>
                             <span className="hidden sm:block text-xs font-semibold text-muted/70">
                                 {STEPS[stepIndex].label} · {stepIndex + 1}/{STEPS.length}
                             </span>

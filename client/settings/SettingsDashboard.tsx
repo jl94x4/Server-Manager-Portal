@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Copy, ChevronUp, ChevronDown, Check } from 'lucide-react';
+import { Copy, ChevronUp, ChevronDown, Check, BookOpen } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { portalUrl, resolvePortalAssetUrl } from '../shared/basePath';
 import { appConfirm } from '../shared/confirm';
@@ -2330,6 +2330,9 @@ export const SettingsDashboard: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex justify-end gap-4 mt-8 pb-1">
+                    <a href="https://jl94x4.github.io/Server-Manager-Portal/" target="_blank" rel="noreferrer" className="w-full sm:w-auto px-6 py-3 bg-border text-text rounded-lg font-bold hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2">
+                        <BookOpen className="w-5 h-5" /> Docs
+                    </a>
                     <button className="w-full sm:w-auto px-6 py-3 bg-plex text-background rounded-lg font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2 shadow-lg shadow-plex/10" onClick={handleSave}>{activeTab === 'stream-rules' ? 'Save Stream Rules' : 'Save Settings'}</button>
                 </div>
             </div>
