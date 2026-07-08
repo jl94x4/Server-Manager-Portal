@@ -1003,30 +1003,30 @@ export const SettingsDashboard: React.FC = () => {
                     </div>
 
                     {/* Desktop Sidebar Navigation — sticky within the main scroll area */}
-                    <aside className="hidden md:flex md:flex-col w-72 shrink-0 sticky top-0 self-start max-h-[calc(100dvh-4rem)] glass-card nav-shell p-6 shadow-2xl z-10">
+                    <aside className="hidden md:flex md:flex-col w-72 shrink-0 sticky top-0 self-start glass-card nav-shell p-4 shadow-2xl z-10">
                         <div className="shrink-0">
-                            <label className="text-muted text-xs uppercase tracking-wider font-bold mb-2 block">Find Setting</label>
+                            <label className="text-muted text-[10px] uppercase tracking-wider font-bold mb-1 block">Find Setting</label>
                             <input
                                 type="text"
                                 placeholder="Search settings..."
                                 value={settingsSearch}
                                 onChange={(e) => setSettingsSearch(e.target.value)}
-                                className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm text-text focus:outline-none focus:border-plex transition-colors mb-4"
+                                className="w-full bg-background border border-border rounded-lg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-plex transition-colors mb-2.5"
                             />
                         </div>
                         {visibleTabGroups.length === 0 ? (
-                            <p className="text-xs text-muted px-2 py-3">No settings sections found.</p>
+                            <p className="text-xs text-muted px-2 py-2">No settings sections found.</p>
                         ) : (
-                            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar -mr-2 pr-2 space-y-4">
+                            <div className="space-y-2">
                                 {visibleTabGroups.map(group => (
                                     <div key={group.title}>
-                                        <p className="text-[10px] uppercase tracking-wider font-bold text-plex px-3 mb-1.5">{group.title}</p>
-                                        <div className="space-y-1">
+                                        <p className="text-[10px] uppercase tracking-wider font-bold text-plex px-2 mb-0.5">{group.title}</p>
+                                        <div className="space-y-0.5">
                                             {group.tabs.map(tab => (
                                                 <button
                                                     key={tab.id}
                                                     onClick={() => setActiveTab(tab.id)}
-                                                    className={`w-full text-left px-3 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === tab.id
+                                                    className={`w-full text-left px-2 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === tab.id
                                                         ? 'nav-item-active'
                                                         : 'text-muted hover:text-text hover:bg-white/5'
                                                         }`}
@@ -2329,7 +2329,7 @@ export const SettingsDashboard: React.FC = () => {
                         </div>
                     )}
                         </div>
-                        <div className="sticky bottom-0 z-10 mt-8 -mx-5 sm:-mx-6 md:-mx-8 lg:-mx-10 px-5 sm:px-6 md:px-8 lg:px-10 py-4 flex justify-end gap-4 border-t border-border/50 bg-background/90 backdrop-blur-md">
+                        <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-border/50">
                             <a href="https://jl94x4.github.io/Server-Manager-Portal/" target="_blank" rel="noreferrer" className="w-full sm:w-auto px-6 py-3 bg-border text-text rounded-lg font-bold hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2">
                                 <BookOpen className="w-5 h-5" /> Docs
                             </a>
