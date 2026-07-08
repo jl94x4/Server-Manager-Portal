@@ -5089,8 +5089,11 @@ app.get('/api/plex/discover-search', requireAuth, requireAdmin, async (req, res)
             });
         }
 
-        // Fetch Watch History
-        for (let item of searchResults) {
+        // Limit to top 8 results to prevent heavy network usage
+        searchResults = searchResults.slice(0, 8);
+
+        // Fetch Watch History in parallel
+        await Promise.all(searchResults.map(async (item) => {
             item.history = [];
             try {
                 if (config.tautulliUrl && config.tautulliApiKey) {
@@ -5128,7 +5131,7 @@ app.get('/api/plex/discover-search', requireAuth, requireAdmin, async (req, res)
             } catch (e) {
                 log(`Error fetching history for ${item.title}: ${e.message}`);
             }
-        }
+        }));
 
         res.json({ results: searchResults });
     } catch (e) {
