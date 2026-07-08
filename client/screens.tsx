@@ -5635,11 +5635,11 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
     };
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-card w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl relative flex flex-col md:flex-row" onClick={e => e.stopPropagation()}>
+            <div className="bg-card w-full max-w-2xl max-h-[90vh] md:max-h-[85vh] rounded-2xl overflow-y-auto custom-scrollbar md:overflow-hidden shadow-2xl relative flex flex-col md:flex-row" onClick={e => e.stopPropagation()}>
                 {/* Poster Side */}
                 <div className="w-full md:w-1/3 relative bg-black flex-shrink-0">
-                    <div className="w-full pb-[150%] md:pb-0 md:h-full relative">
-                        <img src={sessionPosterSrc} alt={session.title} className="absolute inset-0 w-full h-full object-cover opacity-80" />
+                    <div className="w-full aspect-square md:aspect-auto md:h-full relative">
+                        <img src={sessionPosterSrc} alt={session.title} className="absolute inset-0 w-full h-full object-cover object-top md:object-center opacity-80" />
                         <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent md:bg-gradient-to-r"></div>
                     </div>
                     {/* User Avatar Badge */}
@@ -5652,8 +5652,8 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
                 </div>
 
                 {/* Details Side */}
-                <div className="p-6 md:p-8 flex flex-col flex-grow relative">
-                    <button onClick={onClose} className="absolute top-4 right-4 text-muted hover:text-white transition-colors bg-white/5 rounded-full p-2">
+                <div className="p-6 md:p-8 flex flex-col flex-grow relative md:overflow-y-auto custom-scrollbar">
+                    <button onClick={onClose} className="absolute top-4 right-4 text-muted hover:text-white transition-colors bg-white/5 rounded-full p-2 z-10">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
 
