@@ -5709,7 +5709,7 @@ const EmptyStreamsMessage: React.FC = () => {
     return <div className="text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full">{msg}</div>;
 };
 
-export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, publicConfig?: any, mediaServerType?: string, onViewAnalytics?: () => void }> = ({ onBack, isAdmin, publicConfig, mediaServerType, onViewAnalytics }) => {
+export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, publicConfig?: any, mediaServerType?: string, onViewAnalytics?: (hash?: string) => void }> = ({ onBack, isAdmin, publicConfig, mediaServerType, onViewAnalytics }) => {
     const [dashboardData, setDashboardData] = useState<{ activeSessions: any[], recentMovies: any[], recentShows: any[], recentMusic: any[] } | null>(null);
     const [trendingStats, setTrendingStats] = useState<{ trending7Days: any[], movies30Days: any[], shows30Days: any[], top365Days: any[], allTime: any[], weekendWarriors: any[], nightOwls: any[], retroHits: any[], cultClassics: any[] } | null>(null);
     const [dashboardLoading, setDashboardLoading] = useState(true);
@@ -5943,8 +5943,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                                                                 type="button"
                                                                                 onClick={() => {
                                                                                     if (onViewAnalytics && h.user) {
-                                                                                        window.location.hash = `#user=${encodeURIComponent(h.user)}`;
-                                                                                        onViewAnalytics();
+                                                                                        onViewAnalytics(`#user=${encodeURIComponent(h.user)}`);
                                                                                     }
                                                                                 }}
                                                                                 className="flex items-center gap-3 md:w-1/3 min-w-[120px] text-left hover:opacity-80 transition-opacity focus:outline-none cursor-pointer group"
