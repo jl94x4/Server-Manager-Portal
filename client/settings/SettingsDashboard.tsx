@@ -335,6 +335,8 @@ export const SettingsDashboard: React.FC = () => {
     const [isPushingAnnouncement, setIsPushingAnnouncement] = useState(false);
     const [use24HourClock, setUse24HourClock] = useState(initialSettings?.use24HourClock || false);
     const [showPosterQualityBadges, setShowPosterQualityBadges] = useState(initialSettings?.showPosterQualityBadges !== false);
+    const [showPublicStatusMonitor, setShowPublicStatusMonitor] = useState(initialSettings?.showPublicStatusMonitor !== false);
+    const [showPublicLibraryStats, setShowPublicLibraryStats] = useState(initialSettings?.showPublicLibraryStats !== false);
     const [allowTemporaryAccess, setAllowTemporaryAccess] = useState(initialSettings?.allowTemporaryAccess || false);
     const ensureMaintenanceNavOrder = useCallback((order: string[]) => {
         const base = Array.isArray(order) ? order.filter(Boolean) : ['home', 'discover', 'status', 'analytics', 'mediastack', 'request', 'settings', 'logout'];
@@ -796,6 +798,8 @@ export const SettingsDashboard: React.FC = () => {
             if (initialSettings.defaultLibraryIds) setDefaultLibraryIds(initialSettings.defaultLibraryIds);
             if (initialSettings.use24HourClock !== undefined) setUse24HourClock(!!initialSettings.use24HourClock);
             if (initialSettings.showPosterQualityBadges !== undefined) setShowPosterQualityBadges(initialSettings.showPosterQualityBadges !== false);
+            if (initialSettings.showPublicStatusMonitor !== undefined) setShowPublicStatusMonitor(initialSettings.showPublicStatusMonitor !== false);
+            if (initialSettings.showPublicLibraryStats !== undefined) setShowPublicLibraryStats(initialSettings.showPublicLibraryStats !== false);
             if (initialSettings.allowTemporaryAccess !== undefined) setAllowTemporaryAccess(!!initialSettings.allowTemporaryAccess);
             if (initialSettings.autoBackupEnabled !== undefined) setAutoBackupEnabled(!!initialSettings.autoBackupEnabled);
             if (initialSettings.autoBackupIntervalDays !== undefined) setAutoBackupIntervalDays(Number(initialSettings.autoBackupIntervalDays) || 2);
@@ -927,6 +931,8 @@ export const SettingsDashboard: React.FC = () => {
             use24HourClock,
             allowTemporaryAccess,
             showPosterQualityBadges,
+            showPublicStatusMonitor,
+            showPublicLibraryStats,
             autoBackupEnabled,
             autoBackupIntervalDays,
             autoBackupRetentionCount,
@@ -1848,6 +1854,38 @@ export const SettingsDashboard: React.FC = () => {
                                 onChange={setAllowTemporaryAccess}
                                 className="mb-4"
                             />
+
+                            <div className="mb-4 mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4 border-b border-border/40">
+                                <div>
+                                    <h4 className="font-bold text-text">Show Status Monitor Before Login</h4>
+                                    <SettingHint>Allow visitors without a session to open the status page and see monitored service health.</SettingHint>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={showPublicStatusMonitor}
+                                        onChange={e => setShowPublicStatusMonitor(e.target.checked)}
+                                    />
+                                    <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
+                                </label>
+                            </div>
+
+                            <div className="mb-4 mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4 border-b border-border/40">
+                                <div>
+                                    <h4 className="font-bold text-text">Show Library Stats Before Login</h4>
+                                    <SettingHint>Display public library counts on login and invite pages before users sign in.</SettingHint>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={showPublicLibraryStats}
+                                        onChange={e => setShowPublicLibraryStats(e.target.checked)}
+                                    />
+                                    <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
+                                </label>
+                            </div>
 
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8">Announcements</h3>
                             <div className="mb-4">
