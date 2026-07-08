@@ -6107,7 +6107,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                                         </div>
                                                         <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-2 text-[10px] md:text-xs border-b border-white/5 pb-0.5">
                                                             <span className="text-muted uppercase tracking-wider font-bold">Stream</span>
-                                                            <span className={`font-bold ${session.isTranscoding ? 'text-status-expiring' : 'text-status-active'}`}>
+                                                            <span className={`font-bold text-right ${session.isTranscoding ? 'text-status-expiring' : 'text-status-active'}`}>
                                                                 {session.isTranscoding ? 'Transcode' : 'Direct Play'}
                                                             </span>
                                                         </div>
