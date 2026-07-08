@@ -6068,8 +6068,8 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                     return (
                                         <div key={session.sessionId ?? i} onClick={() => setSelectedSession(session)} className="bg-card rounded-xl border border-border flex flex-col overflow-hidden shadow-lg hover:border-plex/50 hover:shadow-plex/20 transition-all cursor-pointer select-none h-full min-h-[13.75rem] md:min-h-[15rem]">
                                             <div className={`grid ${posterColumnClass} flex-1 min-h-0`}>
-                                                <div className="relative overflow-hidden bg-card min-h-0">
-                                                    <img src={sessionPosterSrc} alt={session.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover object-top drop-shadow-2xl" />
+                                                <div className="relative min-h-0 z-10 bg-black">
+                                                    <img src={sessionPosterSrc} alt={session.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover object-top drop-shadow-[4px_0_15px_rgba(0,0,0,0.5)]" />
                                                 </div>
                                                 <div className="p-2.5 md:p-3 flex flex-col min-w-0 min-h-0">
                                                     <div className="activity-header mb-1.5 min-w-0">
