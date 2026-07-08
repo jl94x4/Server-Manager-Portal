@@ -5854,7 +5854,10 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                                         <h3 className="font-bold text-lg text-white truncate">{item.title}</h3>
                                                         <p className="text-xs text-muted mb-2">{String(item.type).toUpperCase()} • {item.year}</p>
                                                     </div>
-                                                    <a href={item.plexUrl} target="_blank" rel="noreferrer" className="text-xs text-plex hover:underline shrink-0">View in Plex</a>
+                                                    <a href={item.plexUrl} target="_blank" rel="noreferrer" className="text-xs text-plex font-bold bg-plex/10 hover:bg-plex hover:text-white transition-colors border border-plex/20 rounded-md px-3 py-1.5 shrink-0 flex items-center gap-1.5 shadow-sm">
+                                                        <Play size={12} />
+                                                        View in Plex
+                                                    </a>
                                                 </div>
                                                 
                                                 <div className="mt-auto">
@@ -5869,15 +5872,27 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                                                     {item.history.map((h: any, i: number) => (
                                                                         <div key={i} className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 text-xs p-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0">
                                                                             <div className="flex items-center gap-3 md:w-1/3 min-w-[120px]">
-                                                                                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-status-active to-green-600 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-white uppercase shadow-lg shadow-status-active/20">
-                                                                                    {h.user ? h.user.substring(0,2) : '?'}
-                                                                                </div>
+                                                                                {h.userThumb ? (
+                                                                                    <div className="w-6 h-6 rounded-full overflow-hidden shadow-lg flex-shrink-0 border border-white/10">
+                                                                                        <img src={h.userThumb.startsWith('http') ? h.userThumb : portalUrl(`/api/plex/image?path=${encodeURIComponent(h.userThumb)}&width=64&height=64`)} alt={h.user || 'User'} className="w-full h-full object-cover" />
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-status-active to-green-600 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-white uppercase shadow-lg shadow-status-active/20">
+                                                                                        {h.user ? h.user.substring(0,2) : '?'}
+                                                                                    </div>
+                                                                                )}
                                                                                 <span className="font-bold text-white truncate text-sm">{h.user}</span>
                                                                             </div>
-                                                                            <div className="flex-1 flex flex-wrap md:flex-nowrap items-center gap-4 text-muted md:justify-end">
-                                                                                <span className="flex items-center gap-1.5 shrink-0"><Calendar size={12} className="opacity-50"/> {new Date(h.date * 1000).toLocaleDateString()} {new Date(h.date * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                                                                <span className="flex items-center gap-1.5 shrink-0"><Clock size={12} className="opacity-50"/> {Math.round(h.duration / 60000)}m</span>
-                                                                                {h.player && <span className="flex items-center gap-1.5 truncate max-w-[150px]"><Monitor size={12} className="opacity-50 shrink-0"/> <span className="truncate">{h.player}</span></span>}
+                                                                            <div className="flex-1 flex flex-wrap md:flex-nowrap items-center gap-3 text-muted md:justify-end text-[11px] md:text-xs">
+                                                                                <span className="flex items-center gap-1.5 shrink-0 md:min-w-[125px] md:justify-end"><Calendar size={12} className="opacity-50"/> {new Date(h.date * 1000).toLocaleString([], { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute:'2-digit'})}</span>
+                                                                                <span className="opacity-30">|</span>
+                                                                                <span className="flex items-center gap-1.5 shrink-0 min-w-[50px]"><Clock size={12} className="opacity-50"/> {Math.round(h.duration / 60)}m</span>
+                                                                                {h.player && (
+                                                                                    <>
+                                                                                        <span className="opacity-30">|</span>
+                                                                                        <span className="flex items-center gap-1.5 truncate md:w-[150px]"><Monitor size={12} className="opacity-50 shrink-0"/> <span className="truncate">{h.player}</span></span>
+                                                                                    </>
+                                                                                )}
                                                                             </div>
                                                                         </div>
                                                                     ))}

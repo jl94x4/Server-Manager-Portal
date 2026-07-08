@@ -5106,6 +5106,7 @@ app.get('/api/plex/discover-search', requireAuth, requireAdmin, async (req, res)
                             .filter(h => String(h.rating_key) === String(item.ratingKey) || String(h.grandparent_rating_key) === String(item.ratingKey))
                             .map(h => ({
                                 user: h.user,
+                                userThumb: h.user_thumb || null,
                                 date: h.date,
                                 duration: h.duration,
                                 player: h.player,
@@ -5120,8 +5121,9 @@ app.get('/api/plex/discover-search', requireAuth, requireAdmin, async (req, res)
                     if (resData && resData.MediaContainer && resData.MediaContainer.Metadata) {
                         item.history = resData.MediaContainer.Metadata.map(h => ({
                             user: (h.User && h.User.title) ? h.User.title : 'Unknown User',
+                            userThumb: (h.User && h.User.thumb) ? h.User.thumb : null,
                             date: h.viewedAt, // Unix timestamp in seconds
-                            duration: h.duration || 0, // milliseconds
+                            duration: h.duration ? Math.round(h.duration / 1000) : 0, // Convert ms to seconds
                             player: (h.Player && h.Player.title) ? h.Player.title : 'Unknown Player',
                             title: h.title,
                             source: 'Plex'
