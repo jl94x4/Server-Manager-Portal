@@ -8,6 +8,8 @@
 
 Built with Node.js · Express · React · Tailwind CSS
 
+[![View Documentation](https://img.shields.io/badge/View_Documentation-e5a00d?style=for-the-badge)](https://jl94x4.github.io/Server-Manager-Portal/)
+
 Documentation is available in the VitePress site under [`docs/`](docs/). Run `npm run docs:dev` to view it locally.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
