@@ -2211,6 +2211,7 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
 
     useEffect(() => {
         const checkHash = () => {
+            if (allUsers.length === 0) return;
             const hash = typeof window !== 'undefined' ? window.location.hash : '';
             if (hash.startsWith('#user=')) {
                 const username = decodeURIComponent(hash.replace('#user=', ''));
