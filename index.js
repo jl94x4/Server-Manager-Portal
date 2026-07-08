@@ -270,6 +270,17 @@ import {
     PLEX_STATS_CACHE_PATH,
     migrateConfigFiles,
 } from './lib/data-paths.js';
+import {
+    normalizeArrConfig,
+    syncLegacyArrFields,
+    getArrInstances,
+    getArrInstance,
+    getDefaultArrInstance,
+    getArrCredentials,
+    isArrTypeConfigured,
+    maskArrInstancesForApi,
+    mergeLegacyArrFieldsIntoInstances,
+} from './lib/arr-service.js';
 const PLEX_API = 'https://plex.tv/api';
 
 // --- Status App Global State ---
@@ -313,8 +324,12 @@ const createDefaultStatusConfig = (config = {}) => {
         addService('tautulli', 'Tautulli', config.tautulliUrl, 'media', 'Plex analytics');
     }
 
-    addService('sonarr', 'Sonarr', config.sonarrUrl, 'downloads', 'TV automation');
-    addService('radarr', 'Radarr', config.radarrUrl, 'downloads', 'Movie automation');
+    getArrInstances(config, { enabledOnly: true }).forEach((instance) => {
+        if (!instance?.url) return;
+        const label = instance.name || (instance.type === 'radarr' ? 'Radarr' : 'Sonarr');
+        const description = instance.type === 'radarr' ? 'Movie automation' : 'TV automation';
+        addService(`arr-${instance.id}`, label, instance.url, 'downloads', description);
+    });
     if (config.requestAppType && config.requestAppType !== 'none') {
         addService(config.requestAppType, config.requestAppType === 'jellyseerr' ? 'Jellyseerr' : 'Seerr', config.requestAppUrl, 'external', 'Requests portal');
     }
@@ -2060,7 +2075,7 @@ const normalizeSectionLayout = (raw) => {
 
 // Config endpoints
 app.get('/api/config', requireAdmin, async (req, res) => {
-    const config = await loadFile(CONFIG_PATH, {});
+    const config = normalizeArrConfig(await loadFile(CONFIG_PATH, {}));
     const isConfigured = isPortalConfigured(config);
         const contactWhatsApp = config.contactWhatsApp || '';
         const contactEmail = config.contactEmail || '';
@@ -2096,6 +2111,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 sonarrApiKey: config.sonarrApiKey ? SECRET_MASK : '',
                 radarrUrl: config.radarrUrl || '',
                 radarrApiKey: config.radarrApiKey ? SECRET_MASK : '',
+                arrInstances: maskArrInstancesForApi(config.arrInstances, SECRET_MASK),
                 tautulliUrl: config.tautulliUrl || '',
                 tautulliApiKey: config.tautulliApiKey ? SECRET_MASK : '',
                 jellystatUrl: config.jellystatUrl || '',
@@ -2161,6 +2177,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 sonarrApiKey: '',
                 radarrUrl: '',
                 radarrApiKey: '',
+                arrInstances: [],
                 tautulliUrl: '',
                 tautulliApiKey: '',
                 jellystatUrl: '',
@@ -2204,7 +2221,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         plexServerUrl: plexServerUrlFromBody, jellyfinUrl, jellyfinApiKey,
         smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, smtpSecure, emailDaysBefore,
         newsletterFrequency, newsletterDay, publicDomain, requestUrl, contactUrl, contactWhatsApp, contactEmail,
-        sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, tautulliUrl, tautulliApiKey, jellystatUrl, jellystatApiKey,
+        sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, arrInstances, tautulliUrl, tautulliApiKey, jellystatUrl, jellystatApiKey,
         requestAppType, requestAppUrl, requestAppApiKey,
         inactiveCleanupEnabled, inactiveCleanupDays,
         primaryColor, customLogoUrl, brandingTheme, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges,
@@ -2293,7 +2310,18 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         return String(incoming);
     };
 
-    const config = {
+    let nextArrInstances;
+    try {
+        nextArrInstances = mergeLegacyArrFieldsIntoInstances(
+            { arrInstances, sonarrUrl: safeSonarrUrl, sonarrApiKey, radarrUrl: safeRadarrUrl, radarrApiKey },
+            existingConfig,
+            { resolveSecret, resolveConfigIntegrationUrl, secretMask: SECRET_MASK }
+        );
+    } catch (e) {
+        return res.status(400).json({ error: e.message });
+    }
+
+    const configDraft = {
         ...existingConfig,
         mediaServerType: normalizedMediaServerType,
         plexToken: normalizedMediaServerType === 'jellyfin' ? resolveSecret(token, existingConfig.plexToken) : resolveSecret(normalizedToken, existingConfig.plexToken),
@@ -2318,10 +2346,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         contactUrl: contactUrl || '',
         contactWhatsApp: contactWhatsApp || '',
         contactEmail: contactEmail || '',
-        sonarrUrl: safeSonarrUrl,
-        sonarrApiKey: resolveSecret(sonarrApiKey, existingConfig.sonarrApiKey),
-        radarrUrl: safeRadarrUrl,
-        radarrApiKey: resolveSecret(radarrApiKey, existingConfig.radarrApiKey),
+        arrInstances: nextArrInstances,
         tautulliUrl: safeTautulliUrl,
         tautulliApiKey: resolveSecret(tautulliApiKey, existingConfig.tautulliApiKey),
         jellystatUrl: safeJellystatUrl,
@@ -2358,7 +2383,8 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         dashboardLayout: ('dashboardLayout' in req.body)
             ? normalizeSectionLayout(req.body.dashboardLayout)
             : normalizeSectionLayout(existingConfig.dashboardLayout)
-    };
+    });
+    const config = syncLegacyArrFields(configDraft);
     await saveFile(CONFIG_PATH, config);
     await syncAdminPlexIdFromConfigToken(config, { persist: true });
     // Invalidate caches tied to the Plex token/server so changes take effect immediately.
@@ -2666,28 +2692,30 @@ app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
             return res.json({ ok: true, message: `Jellyfin v${version} connected`, details: { version, serverName: data.ServerName || data.LocalAddress || null } });
         }
 
-        if (type === 'sonarr') {
-            const url = resolveIntegrationUrlForTest(sonarrUrl, stored.sonarrUrl);
-            const apiKey = resolveTestCredential(sonarrApiKey, stored.sonarrApiKey);
-            if (!url || !apiKey) return res.status(400).json({ error: 'Sonarr URL and API key are required.' });
+        if (type === 'sonarr' || type === 'radarr') {
+            const normalized = normalizeArrConfig(stored);
+            const instanceFromId = req.body?.instanceId ? getArrInstance(normalized, req.body.instanceId) : null;
+            const defaultInstance = getDefaultArrInstance(normalized, type);
+            const legacyUrl = type === 'sonarr' ? sonarrUrl : radarrUrl;
+            const legacyKey = type === 'sonarr' ? sonarrApiKey : radarrApiKey;
+            const storedUrl = type === 'sonarr' ? stored.sonarrUrl : stored.radarrUrl;
+            const storedKey = type === 'sonarr' ? stored.sonarrApiKey : stored.radarrApiKey;
+            const url = resolveIntegrationUrlForTest(
+                legacyUrl || instanceFromId?.url,
+                instanceFromId?.url || defaultInstance?.url || storedUrl
+            );
+            const apiKey = resolveTestCredential(
+                legacyKey || instanceFromId?.apiKey,
+                instanceFromId?.apiKey || defaultInstance?.apiKey || storedKey
+            );
+            if (!url || !apiKey) return res.status(400).json({ error: `${type === 'sonarr' ? 'Sonarr' : 'Radarr'} URL and API key are required.` });
             const statusRes = await fetchWithTimeout(`${url}/api/v3/system/status`, {
                 headers: { 'X-Api-Key': apiKey, Accept: 'application/json' },
             }, 12000);
-            if (!statusRes.ok) throw new Error(`Sonarr returned HTTP ${statusRes.status}`);
+            if (!statusRes.ok) throw new Error(`${type === 'sonarr' ? 'Sonarr' : 'Radarr'} returned HTTP ${statusRes.status}`);
             const data = await statusRes.json();
-            return res.json({ ok: true, message: `Sonarr v${data.version || '?'} connected`, details: { version: data.version, appName: data.appName } });
-        }
-
-        if (type === 'radarr') {
-            const url = resolveIntegrationUrlForTest(radarrUrl, stored.radarrUrl);
-            const apiKey = resolveTestCredential(radarrApiKey, stored.radarrApiKey);
-            if (!url || !apiKey) return res.status(400).json({ error: 'Radarr URL and API key are required.' });
-            const statusRes = await fetchWithTimeout(`${url}/api/v3/system/status`, {
-                headers: { 'X-Api-Key': apiKey, Accept: 'application/json' },
-            }, 12000);
-            if (!statusRes.ok) throw new Error(`Radarr returned HTTP ${statusRes.status}`);
-            const data = await statusRes.json();
-            return res.json({ ok: true, message: `Radarr v${data.version || '?'} connected`, details: { version: data.version, appName: data.appName } });
+            const label = instanceFromId?.name || defaultInstance?.name || (type === 'sonarr' ? 'Sonarr' : 'Radarr');
+            return res.json({ ok: true, message: `${label} v${data.version || '?'} connected`, details: { version: data.version, appName: data.appName, instanceId: instanceFromId?.id || defaultInstance?.id || null } });
         }
 
         if (type === 'tautulli') {
@@ -4152,8 +4180,8 @@ app.get('/api/admin/diagnostics', requireAdmin, async (req, res) => {
                 plexConfigured: !!(config.plexToken && config.serverIdentifier),
                 jellyfinConfigured: !!(config.jellyfinUrl && config.jellyfinApiKey),
                 smtpConfigured: !!(config.smtpHost && config.smtpUser && config.smtpPass),
-                sonarrConfigured: !!(config.sonarrUrl && config.sonarrApiKey),
-                radarrConfigured: !!(config.radarrUrl && config.radarrApiKey),
+                sonarrConfigured: isArrTypeConfigured(config, 'sonarr'),
+                radarrConfigured: isArrTypeConfigured(config, 'radarr'),
                 tautulliConfigured: !!(config.tautulliUrl && config.tautulliApiKey),
                 jellystatConfigured: !!(config.jellystatUrl && config.jellystatApiKey),
                 requestAppEnabled: !!(config.requestAppType && config.requestAppType !== 'none'),
@@ -7431,7 +7459,9 @@ app.get('/api/media-stack/summary', requireAuth, requireMember, async (req, res)
         const monthOffset = parseInt(req.query.monthOffset) || 0;
         const cacheKey = `media-stack-summary-offset-${monthOffset}`;
         const data = await withCache(cacheKey, 60000, async () => {
-            const config = await loadFile(CONFIG_PATH, {});
+            const config = normalizeArrConfig(await loadFile(CONFIG_PATH, {}));
+            const sonarrCreds = getArrCredentials(config, 'sonarr');
+            const radarrCreds = getArrCredentials(config, 'radarr');
             const fetchArr = async (url, key, endpoint) => {
                 if (!url || !key) return null;
                 try {
@@ -7475,16 +7505,16 @@ app.get('/api/media-stack/summary', requireAuth, requireMember, async (req, res)
             };
 
             const [sonarrStatus, sonarrQueue, sonarrHistory, sonarrDisk, sonarrCalendarRaw, radarrStatus, radarrQueue, radarrHistory, radarrDisk, radarrCalendarRaw] = await Promise.all([
-                fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/system/status'),
-                fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/queue'),
-                fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/history?page=1&pageSize=10&includeSeries=true&includeEpisode=true'),
-                fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/diskspace'),
-                fetchArr(config.sonarrUrl, config.sonarrApiKey, `/api/v3/calendar?start=${start}&end=${end}&includeSeries=true&includeEpisode=true&unmonitored=true`),
-                fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/system/status'),
-                fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/queue'),
-                fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/history?page=1&pageSize=10&includeMovie=true'),
-                fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/diskspace'),
-                fetchArr(config.radarrUrl, config.radarrApiKey, `/api/v3/calendar?start=${start}&end=${end}&unmonitored=true`)
+                fetchArr(sonarrCreds.url, sonarrCreds.apiKey, '/api/v3/system/status'),
+                fetchArr(sonarrCreds.url, sonarrCreds.apiKey, '/api/v3/queue'),
+                fetchArr(sonarrCreds.url, sonarrCreds.apiKey, '/api/v3/history?page=1&pageSize=10&includeSeries=true&includeEpisode=true'),
+                fetchArr(sonarrCreds.url, sonarrCreds.apiKey, '/api/v3/diskspace'),
+                fetchArr(sonarrCreds.url, sonarrCreds.apiKey, `/api/v3/calendar?start=${start}&end=${end}&includeSeries=true&includeEpisode=true&unmonitored=true`),
+                fetchArr(radarrCreds.url, radarrCreds.apiKey, '/api/v3/system/status'),
+                fetchArr(radarrCreds.url, radarrCreds.apiKey, '/api/v3/queue'),
+                fetchArr(radarrCreds.url, radarrCreds.apiKey, '/api/v3/history?page=1&pageSize=10&includeMovie=true'),
+                fetchArr(radarrCreds.url, radarrCreds.apiKey, '/api/v3/diskspace'),
+                fetchArr(radarrCreds.url, radarrCreds.apiKey, `/api/v3/calendar?start=${start}&end=${end}&unmonitored=true`)
             ]);
 
             let sonarrCalendar = Array.isArray(sonarrCalendarRaw)
@@ -7494,8 +7524,8 @@ app.get('/api/media-stack/summary', requireAuth, requireMember, async (req, res)
                 ? radarrCalendarRaw
                 : (Array.isArray(radarrCalendarRaw?.records) ? radarrCalendarRaw.records : []);
 
-            if (sonarrCalendar.length === 0 && config.sonarrUrl && config.sonarrApiKey) {
-                const sonarrSeries = await fetchArr(config.sonarrUrl, config.sonarrApiKey, '/api/v3/series');
+            if (sonarrCalendar.length === 0 && sonarrCreds.url && sonarrCreds.apiKey) {
+                const sonarrSeries = await fetchArr(sonarrCreds.url, sonarrCreds.apiKey, '/api/v3/series');
                 if (Array.isArray(sonarrSeries)) {
                     sonarrCalendar = sonarrSeries
                         .filter((series) => inTargetMonthRange(series?.nextAiring))
@@ -7517,8 +7547,8 @@ app.get('/api/media-stack/summary', requireAuth, requireMember, async (req, res)
                 }
             }
 
-            if (radarrCalendar.length === 0 && config.radarrUrl && config.radarrApiKey) {
-                const radarrMovies = await fetchArr(config.radarrUrl, config.radarrApiKey, '/api/v3/movie');
+            if (radarrCalendar.length === 0 && radarrCreds.url && radarrCreds.apiKey) {
+                const radarrMovies = await fetchArr(radarrCreds.url, radarrCreds.apiKey, '/api/v3/movie');
                 if (Array.isArray(radarrMovies)) {
                     radarrCalendar = radarrMovies
                         .map((movie) => {
@@ -7534,7 +7564,8 @@ app.get('/api/media-stack/summary', requireAuth, requireMember, async (req, res)
 
             return {
                 sonarr: {
-                    configured: !!(config.sonarrUrl && config.sonarrApiKey),
+                    configured: isArrTypeConfigured(config, 'sonarr'),
+                    instanceName: sonarrCreds.instance?.name || 'Sonarr',
                     status: sonarrStatus,
                     queue: sonarrQueue,
                     history: sonarrHistory,
@@ -7542,7 +7573,8 @@ app.get('/api/media-stack/summary', requireAuth, requireMember, async (req, res)
                     calendar: sonarrCalendar
                 },
                 radarr: {
-                    configured: !!(config.radarrUrl && config.radarrApiKey),
+                    configured: isArrTypeConfigured(config, 'radarr'),
+                    instanceName: radarrCreds.instance?.name || 'Radarr',
                     status: radarrStatus,
                     queue: radarrQueue,
                     history: radarrHistory,
@@ -8243,8 +8275,8 @@ const validateMaintenanceDestructivePreflight = async (config, rule, catalog) =>
     const wantsUnmonitor = !!rule?.actions?.unmonitor;
     const wantsQuality = Number(rule?.actions?.qualityProfileId || 0) > 0;
     if (wantsDelete || wantsUnmonitor || wantsQuality) {
-        const radarrReady = !!(config.radarrUrl && config.radarrApiKey);
-        const sonarrReady = !!(config.sonarrUrl && config.sonarrApiKey);
+        const radarrReady = isArrTypeConfigured(config, 'radarr');
+        const sonarrReady = isArrTypeConfigured(config, 'sonarr');
         if (wantsDelete) {
             if (!radarrReady) warnings.push('Radarr is not configured — matched movies cannot be deleted.');
             if (!sonarrReady) warnings.push('Sonarr is not configured — matched shows cannot be deleted.');
@@ -8736,12 +8768,15 @@ const getArrCatalog = async (config, { force = false } = {}) => {
     if (!force && cachedArrCatalog && (Date.now() - cachedArrCatalogAt) < ARR_CATALOG_CACHE_MS) {
         return cachedArrCatalog;
     }
+    const normalized = normalizeArrConfig(config);
+    const sonarrCreds = getArrCredentials(normalized, 'sonarr');
+    const radarrCreds = getArrCredentials(normalized, 'radarr');
     const [radarrItems, sonarrItems] = await Promise.all([
-        config.radarrUrl && config.radarrApiKey
-            ? fetch(`${resolveIntegrationUrlForFetch(config.radarrUrl)}/api/v3/movie`, { headers: { 'X-Api-Key': config.radarrApiKey, Accept: 'application/json' } }).then(r => r.json()).catch(() => [])
+        radarrCreds.url && radarrCreds.apiKey
+            ? fetch(`${resolveIntegrationUrlForFetch(radarrCreds.url)}/api/v3/movie`, { headers: { 'X-Api-Key': radarrCreds.apiKey, Accept: 'application/json' } }).then(r => r.json()).catch(() => [])
             : [],
-        config.sonarrUrl && config.sonarrApiKey
-            ? fetch(`${resolveIntegrationUrlForFetch(config.sonarrUrl)}/api/v3/series`, { headers: { 'X-Api-Key': config.sonarrApiKey, Accept: 'application/json' } }).then(r => r.json()).catch(() => [])
+        sonarrCreds.url && sonarrCreds.apiKey
+            ? fetch(`${resolveIntegrationUrlForFetch(sonarrCreds.url)}/api/v3/series`, { headers: { 'X-Api-Key': sonarrCreds.apiKey, Accept: 'application/json' } }).then(r => r.json()).catch(() => [])
             : []
     ]);
 
@@ -8797,8 +8832,12 @@ const applyArrActions = async (config, resolved, actions = {}) => {
     const shouldUnmonitor = !!actions.unmonitor;
     const qualityProfileId = Number(actions.qualityProfileId || 0);
 
-    const baseUrl = resolved.type === 'radarr' ? resolveIntegrationUrlForFetch(config.radarrUrl) : resolveIntegrationUrlForFetch(config.sonarrUrl);
-    const apiKey = resolved.type === 'radarr' ? config.radarrApiKey : config.sonarrApiKey;
+    const creds = getArrCredentials(config, resolved.type);
+    if (!creds.url || !creds.apiKey) {
+        return { success: false, reason: `No ${resolved.type === 'radarr' ? 'Radarr' : 'Sonarr'} instance configured` };
+    }
+    const baseUrl = resolveIntegrationUrlForFetch(creds.url);
+    const apiKey = creds.apiKey;
     const headers = { 'X-Api-Key': apiKey, Accept: 'application/json', 'Content-Type': 'application/json' };
     const id = resolved.entity.id;
 
@@ -9300,8 +9339,8 @@ app.post('/api/maintenance/preview', requireAdmin, async (req, res) => {
             arrDiagnostics: includeArrDiagnostics ? {
                 radarrCount: catalog?.radarr?.length || 0,
                 sonarrCount: catalog?.sonarr?.length || 0,
-                radarrConfigured: !!(config.radarrUrl && config.radarrApiKey),
-                sonarrConfigured: !!(config.sonarrUrl && config.sonarrApiKey)
+                radarrConfigured: isArrTypeConfigured(config, 'radarr'),
+                sonarrConfigured: isArrTypeConfigured(config, 'sonarr')
             } : null,
             previews
         });

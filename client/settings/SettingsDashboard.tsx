@@ -6,7 +6,7 @@ import { appConfirm } from '../shared/confirm';
 import { CustomSelect } from '../shared/ui';
 import { Loader, ToastContainer, pushToast, type ToastMessage } from '../shared/toast';
 import { SettingHint } from './SettingHint';
-import type { User, AuditEntry, DeletedUser, PlexServer } from '../shared/types';
+import type { User, AuditEntry, DeletedUser, PlexServer, ArrInstance } from '../shared/types';
 import { formatDateTime, formatEventName, hexToRgb, accentHoverRgb, getDaysUntilExpiry, addMonths, addYears, formatDate } from '../shared/format';
 
 import { StreamKillRulesPanel } from './StreamKillRulesPanel';
@@ -15,7 +15,38 @@ import { StatusMonitorSettings } from './StatusMonitorSettings';
 import { BroadcastSettingsTab } from './BroadcastSettingsTab';
 import { IntegrationTestButton } from '../shared/IntegrationTestButton';
 import { HomeLayoutSettings } from './HomeLayoutSettings';
+import { ArrInstancesPanel } from './ArrInstancesPanel';
 import { DEFAULT_DASHBOARD_LAYOUT, normalizeSectionLayout, type DashboardLayoutConfig } from '../shared/dashboardLayout';
+
+const normalizeArrInstancesFromSettings = (settings: Record<string, any> = {}): ArrInstance[] => {
+    if (Array.isArray(settings.arrInstances) && settings.arrInstances.length > 0) {
+        return settings.arrInstances.map((entry: ArrInstance) => ({ ...entry }));
+    }
+    const instances: ArrInstance[] = [];
+    if (settings.sonarrUrl || settings.sonarrApiKey) {
+        instances.push({
+            id: 'sonarr-default',
+            type: 'sonarr',
+            name: 'Sonarr',
+            url: settings.sonarrUrl || '',
+            apiKey: settings.sonarrApiKey || '',
+            enabled: true,
+            isDefault: true,
+        });
+    }
+    if (settings.radarrUrl || settings.radarrApiKey) {
+        instances.push({
+            id: 'radarr-default',
+            type: 'radarr',
+            name: 'Radarr',
+            url: settings.radarrUrl || '',
+            apiKey: settings.radarrApiKey || '',
+            enabled: true,
+            isDefault: true,
+        });
+    }
+    return instances;
+};
 
 const hasIntegrationCredentials = (
     url: string | undefined,
@@ -269,10 +300,8 @@ export const SettingsDashboard: React.FC = () => {
     const [inactiveCleanupDays, setInactiveCleanupDays] = useState(90);
 
     // Media Stack States
-    const [sonarrUrl, setSonarrUrl] = useState('');
-    const [sonarrApiKey, setSonarrApiKey] = useState('');
-    const [radarrUrl, setRadarrUrl] = useState('');
-    const [radarrApiKey, setRadarrApiKey] = useState('');
+    const [arrInstances, setArrInstances] = useState<ArrInstance[]>([]);
+    const [savedArrInstances, setSavedArrInstances] = useState<ArrInstance[]>([]);
     const [tautulliUrl, setTautulliUrl] = useState('');
     const [tautulliApiKey, setTautulliApiKey] = useState('');
     const [jellystatUrl, setJellystatUrl] = useState('');
@@ -736,10 +765,9 @@ export const SettingsDashboard: React.FC = () => {
             setContactUrl(initialSettings.contactUrl || '');
             setContactWhatsApp(initialSettings.contactWhatsApp || '');
             setContactEmail(initialSettings.contactEmail || '');
-            setSonarrUrl(initialSettings.sonarrUrl || '');
-            setSonarrApiKey(initialSettings.sonarrApiKey || '');
-            setRadarrUrl(initialSettings.radarrUrl || '');
-            setRadarrApiKey(initialSettings.radarrApiKey || '');
+            const loadedArrInstances = normalizeArrInstancesFromSettings(initialSettings);
+            setArrInstances(loadedArrInstances);
+            setSavedArrInstances(loadedArrInstances.map((entry) => ({ ...entry })));
             setTautulliUrl(initialSettings.tautulliUrl || '');
             setTautulliApiKey(initialSettings.tautulliApiKey || '');
             setJellystatUrl(initialSettings.jellystatUrl || '');
@@ -869,10 +897,7 @@ export const SettingsDashboard: React.FC = () => {
             contactUrl,
             contactWhatsApp,
             contactEmail,
-            sonarrUrl,
-            sonarrApiKey,
-            radarrUrl,
-            radarrApiKey,
+            arrInstances,
             tautulliUrl,
             tautulliApiKey,
             jellystatUrl,
@@ -1409,43 +1434,30 @@ export const SettingsDashboard: React.FC = () => {
                     )}
                     {activeTab === 'mediastack' && (
                         <div className="mb-8 animate-fade-in">
-                            <IntegrationHeading app="sonarr" title="Sonarr Integration" subtitle="TV series automation" />
-                            <div className="mb-4">
-                                <label htmlFor="sonarrUrl">Sonarr URL</label>
-                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="sonarrUrl" type="text" value={sonarrUrl} onChange={(e) => setSonarrUrl(e.target.value)} placeholder="http://localhost:8989" />
-                                <div className="mt-2">
-                                    <SettingHint>The URL to your Sonarr instance.</SettingHint>
-                                </div>
-                            </div>
-                            <div className="mb-4">
-                                <label htmlFor="sonarrApiKey">Sonarr API Key</label>
-                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="sonarrApiKey" type="password" value={sonarrApiKey} onChange={(e) => setSonarrApiKey(e.target.value)} placeholder="API Key from Sonarr Settings -> General" />
-                            </div>
-                            <IntegrationTestButton
+                            <ArrInstancesPanel
                                 type="sonarr"
-                                payload={{ sonarrUrl, sonarrApiKey }}
-                                disabled={!hasIntegrationCredentials(sonarrUrl, sonarrApiKey, initialSettings.sonarrUrl, initialSettings.sonarrApiKey)}
-                                className="mb-6"
+                                title="Sonarr Instances"
+                                subtitle="TV series automation"
+                                instances={arrInstances.filter((entry) => entry.type === 'sonarr')}
+                                savedInstances={savedArrInstances.filter((entry) => entry.type === 'sonarr')}
+                                onChange={(nextSonarr) => {
+                                    const other = arrInstances.filter((entry) => entry.type !== 'sonarr');
+                                    setArrInstances([...other, ...nextSonarr]);
+                                }}
                                 onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
                             />
 
-                            <IntegrationHeading app="radarr" title="Radarr Integration" subtitle="Movie automation" className="mt-8" />
-                            <div className="mb-4">
-                                <label htmlFor="radarrUrl">Radarr URL</label>
-                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="radarrUrl" type="text" value={radarrUrl} onChange={(e) => setRadarrUrl(e.target.value)} placeholder="http://localhost:7878" />
-                                <div className="mt-2">
-                                    <SettingHint>The URL to your Radarr instance.</SettingHint>
-                                </div>
-                            </div>
-                            <div className="mb-4">
-                                <label htmlFor="radarrApiKey">Radarr API Key</label>
-                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="radarrApiKey" type="password" value={radarrApiKey} onChange={(e) => setRadarrApiKey(e.target.value)} placeholder="Enter Radarr API Key" />
-                            </div>
-                            <IntegrationTestButton
+                            <ArrInstancesPanel
                                 type="radarr"
-                                payload={{ radarrUrl, radarrApiKey }}
-                                disabled={!hasIntegrationCredentials(radarrUrl, radarrApiKey, initialSettings.radarrUrl, initialSettings.radarrApiKey)}
-                                className="mb-6"
+                                title="Radarr Instances"
+                                subtitle="Movie automation"
+                                className="mt-10"
+                                instances={arrInstances.filter((entry) => entry.type === 'radarr')}
+                                savedInstances={savedArrInstances.filter((entry) => entry.type === 'radarr')}
+                                onChange={(nextRadarr) => {
+                                    const other = arrInstances.filter((entry) => entry.type !== 'radarr');
+                                    setArrInstances([...other, ...nextRadarr]);
+                                }}
                                 onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
                             />
 

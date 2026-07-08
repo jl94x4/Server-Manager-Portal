@@ -33,6 +33,16 @@ export interface PlexConfig {
     contactUrl?: string;
 }
 
+export interface ArrInstance {
+    id: string;
+    type: 'sonarr' | 'radarr';
+    name: string;
+    url: string;
+    apiKey: string;
+    enabled: boolean;
+    isDefault: boolean;
+}
+
 export interface AppSettings {
     token?: string;
     mediaServerType?: 'plex' | 'jellyfin';
@@ -58,6 +68,7 @@ export interface AppSettings {
     sonarrApiKey?: string;
     radarrUrl?: string;
     radarrApiKey?: string;
+    arrInstances?: ArrInstance[];
     tautulliUrl?: string;
     tautulliApiKey?: string;
     jellystatUrl?: string;
