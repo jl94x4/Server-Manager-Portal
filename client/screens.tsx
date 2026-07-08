@@ -5635,9 +5635,9 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
     };
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-card w-full max-w-2xl max-h-[90vh] md:max-h-[85vh] rounded-2xl overflow-y-auto custom-scrollbar md:overflow-hidden shadow-2xl relative flex flex-col md:flex-row" onClick={e => e.stopPropagation()}>
+            <div className="bg-card w-full max-w-2xl md:max-w-4xl lg:max-w-5xl max-h-[90vh] md:max-h-[85vh] rounded-2xl overflow-y-auto custom-scrollbar md:overflow-hidden shadow-2xl relative flex flex-col md:flex-row" onClick={e => e.stopPropagation()}>
                 {/* Poster Side */}
-                <div className="w-full md:w-1/3 relative bg-black flex-shrink-0">
+                <div className="w-full md:w-2/5 lg:w-1/3 relative bg-black flex-shrink-0">
                     <div className="w-full aspect-square md:aspect-auto md:h-full relative">
                         <img src={sessionPosterSrc} alt={session.title} className="absolute inset-0 w-full h-full object-cover object-top md:object-center opacity-80" />
                         <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent md:bg-gradient-to-r"></div>
