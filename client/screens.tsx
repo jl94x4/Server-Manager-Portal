@@ -7590,7 +7590,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
 
 
             {/* Desktop Sidebar */}
-            <div className="hidden md:flex flex-col w-72 nav-shell border-r p-6 sticky top-0 self-start min-h-screen shadow-2xl">
+            <div className="hidden md:flex flex-col w-72 nav-shell border-r p-6 sticky top-0 self-start h-dvh shadow-2xl">
                 <div className="flex flex-col gap-2 mt-4">
                     {normalizedNavOrder.map((key) => {
                         const item = navItemsConfig[key];

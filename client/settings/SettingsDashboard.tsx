@@ -974,12 +974,12 @@ export const SettingsDashboard: React.FC = () => {
     };
 
     return (
-        <div className="w-full flex flex-col box-border md:h-[calc(100vh-4rem)]">
+        <div className="w-full flex flex-col box-border">
             <Loader isLoading={isLoading} />
             <ToastContainer toasts={toasts} setToasts={setToasts} />
 
 
-            <header className="flex items-center justify-between w-full mb-6 mt-2 md:mt-0 shrink-0">
+            <header className="flex items-center justify-between w-full mb-6 mt-2 md:mt-0">
                 <h1 className="text-xl md:text-3xl font-bold text-plex">Settings</h1>
             </header>
 
@@ -989,8 +989,8 @@ export const SettingsDashboard: React.FC = () => {
                 </div>
             )}
 
-            <div className="w-full flex flex-col min-w-0 flex-1 min-h-0">
-                <div className="w-full flex-1 min-h-0 md:grid md:grid-cols-[18rem_minmax(0,1fr)] md:gap-8 xl:gap-10">
+            <div className="w-full flex flex-col min-w-0">
+                <div className="w-full md:grid md:grid-cols-[18rem_minmax(0,1fr)] md:gap-8 xl:gap-10 md:items-start">
                     {/* Mobile Dropdown Category Select */}
                     <div className="block md:hidden mb-6">
                         <label htmlFor="settings-tab-select" className="text-muted text-xs uppercase tracking-wider font-bold mb-2 block">Settings Category</label>
@@ -1002,20 +1002,22 @@ export const SettingsDashboard: React.FC = () => {
                         />
                     </div>
 
-                    {/* Desktop Sidebar Navigation — matches main app nav width (w-72) */}
-                    <aside className="hidden md:flex md:flex-col w-72 shrink-0 min-h-0 overflow-y-auto custom-scrollbar glass-card nav-shell p-6 shadow-2xl">
-                        <label className="text-muted text-xs uppercase tracking-wider font-bold mb-2 block">Find Setting</label>
-                        <input
-                            type="text"
-                            placeholder="Search settings..."
-                            value={settingsSearch}
-                            onChange={(e) => setSettingsSearch(e.target.value)}
-                            className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm text-text focus:outline-none focus:border-plex transition-colors mb-4"
-                        />
+                    {/* Desktop Sidebar Navigation — sticky within the main scroll area */}
+                    <aside className="hidden md:flex md:flex-col w-72 shrink-0 sticky top-0 self-start max-h-[calc(100dvh-4rem)] glass-card nav-shell p-6 shadow-2xl z-10">
+                        <div className="shrink-0">
+                            <label className="text-muted text-xs uppercase tracking-wider font-bold mb-2 block">Find Setting</label>
+                            <input
+                                type="text"
+                                placeholder="Search settings..."
+                                value={settingsSearch}
+                                onChange={(e) => setSettingsSearch(e.target.value)}
+                                className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm text-text focus:outline-none focus:border-plex transition-colors mb-4"
+                            />
+                        </div>
                         {visibleTabGroups.length === 0 ? (
                             <p className="text-xs text-muted px-2 py-3">No settings sections found.</p>
                         ) : (
-                            <div className="space-y-4">
+                            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar -mr-2 pr-2 space-y-4">
                                 {visibleTabGroups.map(group => (
                                     <div key={group.title}>
                                         <p className="text-[10px] uppercase tracking-wider font-bold text-plex px-3 mb-1.5">{group.title}</p>
@@ -1039,8 +1041,7 @@ export const SettingsDashboard: React.FC = () => {
                         )}
                     </aside>
 
-                    <div className="flex flex-col min-h-0 min-w-0 w-full">
-                        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar md:pr-1">
+                    <div className="min-w-0 w-full">
                         <div className="settings-panel">
                         {activeTab === 'stream-rules' && <StreamKillRulesPanel addToast={addToast} registerSaveHandler={(handler) => { streamRulesSaveHandlerRef.current = handler; }} />}
     
@@ -2328,8 +2329,7 @@ export const SettingsDashboard: React.FC = () => {
                         </div>
                     )}
                         </div>
-                        </div>
-                        <div className="flex justify-end gap-4 mt-4 pt-4 shrink-0 border-t border-border/50">
+                        <div className="sticky bottom-0 z-10 mt-8 -mx-5 sm:-mx-6 md:-mx-8 lg:-mx-10 px-5 sm:px-6 md:px-8 lg:px-10 py-4 flex justify-end gap-4 border-t border-border/50 bg-background/90 backdrop-blur-md">
                             <a href="https://jl94x4.github.io/Server-Manager-Portal/" target="_blank" rel="noreferrer" className="w-full sm:w-auto px-6 py-3 bg-border text-text rounded-lg font-bold hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2">
                                 <BookOpen className="w-5 h-5" /> Docs
                             </a>
