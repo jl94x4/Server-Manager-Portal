@@ -157,7 +157,7 @@ export const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'succ
                 apiFetch('/api/maintenance/filter-options'),
                 apiFetch('/api/maintenance/preview', {
                     method: 'POST',
-                    body: JSON.stringify({ includeAll: false, limit: 40, includeArrDiagnostics: false })
+                    body: JSON.stringify({ includeAll: false, limit: 40, includeArrDiagnostics: true })
                 }),
                 apiFetch('/api/maintenance/index')
             ]);
@@ -600,11 +600,11 @@ export const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'succ
                     <h4 className="font-bold text-text">Matched Titles</h4>
                     <div className="text-right">
                         <span className="text-xs px-2 py-1 rounded bg-plex/20 text-plex font-semibold">{selectedPreview?.totalMatches || 0} matches</span>
-                        {selectedPreview && (
+                                        {selectedPreview && (
                             <p className="text-[11px] text-muted mt-1">
                                 {(selectedPreview.graceRemainingDays ?? 0) > 0
                                     ? `All in grace (${selectedPreview.graceRemainingDays} day(s) remaining)`
-                                    : `${selectedPreview.eligibleCount ?? 0} eligible · ${selectedPreview.actionableCount ?? 0} in Sonarr/Radarr · up to ${selectedPreview.wouldProcessCount ?? 0} per run`}
+                                    : `${selectedPreview.eligibleCount ?? 0} eligible · ${selectedPreview.actionableCount ?? 0} in Sonarr/Radarr · up to ${selectedPreview.wouldProcessCount ?? 0} per run${(selectedPreview.ambiguousCount ?? 0) > 0 ? ` · ${selectedPreview.ambiguousCount} ambiguous` : ''}`}
                             </p>
                         )}
                     </div>
@@ -635,10 +635,17 @@ export const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'succ
                                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300">Grace</span>
                                         )}
                                         {item.arrResolvable ? (
-                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/15 text-green-300">{item.arrType || 'ARR'}</span>
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/15 text-green-300">
+                                                {item.arrInstanceName || item.arrType || 'ARR'}
+                                            </span>
                                         ) : item.eligible !== false ? (
                                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-300">Unmapped</span>
                                         ) : null}
+                                        {item.arrAmbiguous && (
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300" title={item.arrWarning || 'Ambiguous instance mapping'}>
+                                                Ambiguous
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             </div>

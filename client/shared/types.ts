@@ -41,6 +41,7 @@ export interface ArrInstance {
     apiKey: string;
     enabled: boolean;
     isDefault: boolean;
+    plexLibraryIds?: string[];
 }
 
 export interface AppSettings {

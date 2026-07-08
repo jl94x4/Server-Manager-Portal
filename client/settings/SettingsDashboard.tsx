@@ -1440,6 +1440,8 @@ export const SettingsDashboard: React.FC = () => {
                                 subtitle="TV series automation"
                                 instances={arrInstances.filter((entry) => entry.type === 'sonarr')}
                                 savedInstances={savedArrInstances.filter((entry) => entry.type === 'sonarr')}
+                                libraries={libraries}
+                                allInstances={arrInstances}
                                 onChange={(nextSonarr) => {
                                     const other = arrInstances.filter((entry) => entry.type !== 'sonarr');
                                     setArrInstances([...other, ...nextSonarr]);
@@ -1454,6 +1456,8 @@ export const SettingsDashboard: React.FC = () => {
                                 className="mt-10"
                                 instances={arrInstances.filter((entry) => entry.type === 'radarr')}
                                 savedInstances={savedArrInstances.filter((entry) => entry.type === 'radarr')}
+                                libraries={libraries}
+                                allInstances={arrInstances}
                                 onChange={(nextRadarr) => {
                                     const other = arrInstances.filter((entry) => entry.type !== 'radarr');
                                     setArrInstances([...other, ...nextRadarr]);

@@ -284,6 +284,7 @@ import {
     getArrInstanceCounts,
     fetchArrInstanceCatalogItems,
     buildArrLookupMapsForItems,
+    resolveArrEntity,
 } from './lib/arr-service.js';
 const PLEX_API = 'https://plex.tv/api';
 
@@ -8346,6 +8347,7 @@ const validateMaintenanceDestructivePreflight = async (config, rule, catalog) =>
     if (wantsDelete || wantsUnmonitor || wantsQuality) {
         const radarrReady = isArrTypeConfigured(config, 'radarr');
         const sonarrReady = isArrTypeConfigured(config, 'sonarr');
+        const instanceCounts = catalog?.counts || getArrInstanceCounts(config);
         if (wantsDelete) {
             if (!radarrReady) warnings.push('Radarr is not configured — matched movies cannot be deleted.');
             if (!sonarrReady) warnings.push('Sonarr is not configured — matched shows cannot be deleted.');
@@ -8359,35 +8361,65 @@ const validateMaintenanceDestructivePreflight = async (config, rule, catalog) =>
         if ((wantsDelete || wantsUnmonitor || wantsQuality) && sonarrReady && catalog.sonarr.length === 0) {
             warnings.push('Sonarr catalog is empty or unreachable — show matches may be unactionable.');
         }
+        const readyInstances = Object.values(catalog?.instances || {}).filter((entry) => {
+            const instance = getArrInstance(config, entry.id);
+            return isArrInstanceReady(instance);
+        });
+        const notReady = Object.values(catalog?.instances || {}).filter((entry) => {
+            const instance = getArrInstance(config, entry.id);
+            return instance && !isArrInstanceReady(instance);
+        });
+        if (notReady.length > 0) {
+            warnings.push(`Some ARR instances are not ready: ${notReady.map((entry) => entry.name || entry.id).join(', ')}.`);
+        }
+        if ((instanceCounts?.sonarr?.total || 0) > 1 || (instanceCounts?.radarr?.total || 0) > 1) {
+            warnings.push('Multiple ARR instances are configured. Map Plex libraries to instances in Settings for accurate routing.');
+        }
+        if (readyInstances.length > 1) {
+            warnings.push(`${readyInstances.length} ARR instances are reachable. Items mapped to multiple instances may route to the library-mapped or default instance.`);
+        }
     }
     return { ok: errors.length === 0, errors, warnings };
 };
 
-const buildMaintenancePreviewForRule = (rule, allItems, preferences, catalog = null, options = {}) => {
+const buildMaintenancePreviewForRule = (rule, allItems, preferences, catalog = null, config = {}, options = {}) => {
     const { limit = 300, includeAll = false } = options;
     const matches = applyMaintenanceExclusions(allItems.filter(item => evaluateMaintenanceRule(item, rule)), preferences);
     const graceRemainingDays = computeRuleGraceRemainingDays(rule);
     const maxActions = resolveMaintenanceMaxActions(rule, preferences);
     let actionableCount = 0;
     let unactionableCount = 0;
+    let ambiguousCount = 0;
+    const instanceBreakdown = {};
 
     if (catalog && graceRemainingDays <= 0) {
         for (const item of matches) {
-            const resolved = resolveArrEntity(item, catalog);
-            if (resolved.entity) actionableCount += 1;
-            else unactionableCount += 1;
+            const resolved = resolveArrEntity(item, catalog, config);
+            if (resolved.entity) {
+                actionableCount += 1;
+                if (resolved.instanceId) {
+                    instanceBreakdown[resolved.instanceId] = (instanceBreakdown[resolved.instanceId] || 0) + 1;
+                }
+                if (resolved.ambiguous) ambiguousCount += 1;
+            } else {
+                unactionableCount += 1;
+            }
         }
     }
 
     const sampleSource = includeAll ? matches : matches.slice(0, Math.max(1, Number(limit)));
     const sample = sampleSource.map((item) => {
-        const resolved = catalog ? resolveArrEntity(item, catalog) : { type: 'none', entity: null };
+        const resolved = catalog ? resolveArrEntity(item, catalog, config) : { type: 'none', entity: null, instanceId: null, instanceName: null, ambiguous: false, warning: null };
         return {
             ...item,
             graceRemainingDays,
             eligible: graceRemainingDays <= 0,
             arrResolvable: !!resolved.entity,
-            arrType: resolved.type
+            arrType: resolved.type,
+            arrInstanceId: resolved.instanceId || null,
+            arrInstanceName: resolved.instanceName || null,
+            arrAmbiguous: !!resolved.ambiguous,
+            arrWarning: resolved.warning || null,
         };
     });
 
@@ -8401,6 +8433,8 @@ const buildMaintenancePreviewForRule = (rule, allItems, preferences, catalog = n
         eligibleCount,
         actionableCount,
         unactionableCount,
+        ambiguousCount,
+        instanceBreakdown,
         maxActionsPerRun: maxActions,
         wouldProcessCount: Math.min(maxActions, eligibleCount),
         sample
@@ -8870,38 +8904,6 @@ const getArrCatalog = async (config, { force = false } = {}) => {
     return cachedArrCatalog;
 };
 
-const resolveArrEntity = (item, catalog) => {
-    const lookup = catalog?.lookup;
-    if (lookup) {
-        const maps = item.mediaType === 'movie' ? lookup.radarr : lookup.sonarr;
-        const arrType = item.mediaType === 'movie' ? 'radarr' : 'sonarr';
-        const entity = (item.imdbId && maps.byImdb.get(String(item.imdbId)))
-            || (item.tmdbId && maps.byTmdb.get(String(item.tmdbId)))
-            || (item.tvdbId && maps.byTvdb.get(String(item.tvdbId)))
-            || null;
-        if (entity) return { type: arrType, entity };
-        return { type: 'none', entity: null };
-    }
-
-    const matchByIds = (entry) => {
-        const imdb = entry?.imdbId || null;
-        const tmdb = entry?.tmdbId ? String(entry.tmdbId) : null;
-        const tvdb = entry?.tvdbId ? String(entry.tvdbId) : null;
-        return (item.imdbId && imdb && item.imdbId === imdb)
-            || (item.tmdbId && tmdb && item.tmdbId === tmdb)
-            || (item.tvdbId && tvdb && item.tvdbId === tvdb);
-    };
-
-    if (item.mediaType === 'movie') {
-        const radarrMatch = catalog.radarr.find(matchByIds);
-        if (radarrMatch) return { type: 'radarr', entity: radarrMatch };
-    } else {
-        const sonarrMatch = catalog.sonarr.find(matchByIds);
-        if (sonarrMatch) return { type: 'sonarr', entity: sonarrMatch };
-    }
-    return { type: 'none', entity: null };
-};
-
 const applyArrActions = async (config, resolved, actions = {}) => {
     if (!resolved?.entity || !resolved?.type || resolved.type === 'none') {
         return { success: false, reason: 'No Sonarr/Radarr mapping found' };
@@ -8911,9 +8913,10 @@ const applyArrActions = async (config, resolved, actions = {}) => {
     const shouldUnmonitor = !!actions.unmonitor;
     const qualityProfileId = Number(actions.qualityProfileId || 0);
 
-    const creds = getArrCredentials(config, resolved.type);
+    const creds = getArrCredentials(config, resolved.type, resolved.instanceId);
     if (!creds.url || !creds.apiKey) {
-        return { success: false, reason: `No ${resolved.type === 'radarr' ? 'Radarr' : 'Sonarr'} instance configured` };
+        const label = resolved.instanceName || (resolved.type === 'radarr' ? 'Radarr' : 'Sonarr');
+        return { success: false, reason: `No ready ${label} instance configured` };
     }
     const baseUrl = resolveIntegrationUrlForFetch(creds.url);
     const apiKey = creds.apiKey;
@@ -8937,7 +8940,11 @@ const applyArrActions = async (config, resolved, actions = {}) => {
             return { success: false, reason: `ARR delete failed (${delRes.status})` };
         }
     }
-    return { success: true };
+    return {
+        success: true,
+        instanceId: resolved.instanceId || creds.instance?.id || null,
+        instanceName: resolved.instanceName || creds.instance?.name || null,
+    };
 };
 
 const resolveCollectionRatingKey = async (config, uri, libraryId, title) => {
@@ -9075,19 +9082,23 @@ const runMaintenanceRule = async ({ rule, dryRun, actor, confirmToken, runOption
         }
         if (effectiveDryRun) {
             run.totals.processed += 1;
-            const resolved = resolveArrEntity(item, dryRunCatalog);
+            const resolved = resolveArrEntity(item, dryRunCatalog, config);
             run.outcomes.push({
                 ratingKey: item.ratingKey,
                 title: item.title,
                 status: 'dry_run',
                 arrResolvable: !!resolved.entity,
                 arrType: resolved.type,
+                arrInstanceId: resolved.instanceId || null,
+                arrInstanceName: resolved.instanceName || null,
+                arrAmbiguous: !!resolved.ambiguous,
+                arrWarning: resolved.warning || null,
                 proposedActions: rule.actions || {}
             });
             continue;
         }
 
-        const resolved = resolveArrEntity(item, catalog);
+        const resolved = resolveArrEntity(item, catalog, config);
         if (!resolved.entity) {
             run.totals.skipped += 1;
             run.outcomes.push({ ratingKey: item.ratingKey, title: item.title, status: 'unactionable', reason: 'No Sonarr/Radarr mapping available' });
@@ -9098,13 +9109,24 @@ const runMaintenanceRule = async ({ rule, dryRun, actor, confirmToken, runOption
         run.totals.processed += 1;
         if (actionResult.success) {
             run.totals.deleted += 1;
-            run.outcomes.push({ ratingKey: item.ratingKey, title: item.title, status: 'deleted', arrType: resolved.type, arrId: resolved.entity.id });
+            run.outcomes.push({
+                ratingKey: item.ratingKey,
+                title: item.title,
+                status: 'deleted',
+                arrType: resolved.type,
+                arrInstanceId: actionResult.instanceId || resolved.instanceId || null,
+                arrInstanceName: actionResult.instanceName || resolved.instanceName || null,
+                arrAmbiguous: !!resolved.ambiguous,
+                arrId: resolved.entity.id,
+            });
             await appendAuditLog('maintenance_item_actioned', actor, null, {
                 ruleId: rule.id,
                 ruleName: rule.name,
                 ratingKey: item.ratingKey,
                 title: item.title,
                 arrType: resolved.type,
+                arrInstanceId: actionResult.instanceId || resolved.instanceId || null,
+                arrInstanceName: actionResult.instanceName || resolved.instanceName || null,
                 arrId: resolved.entity.id,
                 actions: rule.actions || {}
             });
@@ -9409,6 +9431,7 @@ app.post('/api/maintenance/preview', requireAdmin, async (req, res) => {
             allItems,
             preferences,
             catalog,
+            config,
             { limit, includeAll }
         ));
         res.json({
@@ -9453,6 +9476,7 @@ app.post('/api/maintenance/preflight', requireAdmin, async (req, res) => {
             Array.isArray(indexPayload.items) ? indexPayload.items : [],
             preferences,
             catalog,
+            config,
             { limit: 5, includeAll: false }
         );
         res.json({

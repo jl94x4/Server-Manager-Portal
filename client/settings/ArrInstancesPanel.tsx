@@ -22,7 +22,14 @@ export const createEmptyArrInstance = (type: 'sonarr' | 'radarr', isDefault = fa
     apiKey: '',
     enabled: true,
     isDefault,
+    plexLibraryIds: [],
 });
+
+type PlexLibrary = {
+    id: string;
+    title: string;
+    type: string;
+};
 
 type Props = {
     type: 'sonarr' | 'radarr';
@@ -30,6 +37,8 @@ type Props = {
     subtitle: string;
     instances: ArrInstance[];
     savedInstances: ArrInstance[];
+    libraries?: PlexLibrary[];
+    allInstances?: ArrInstance[];
     onChange: (instances: ArrInstance[]) => void;
     onMessage: (message: string, success: boolean) => void;
     className?: string;
@@ -41,10 +50,33 @@ export const ArrInstancesPanel: React.FC<Props> = ({
     subtitle,
     instances,
     savedInstances,
+    libraries = [],
+    allInstances = [],
     onChange,
     onMessage,
     className = '',
 }) => {
+    const libraryType = type === 'radarr' ? 'movie' : 'show';
+    const availableLibraries = libraries.filter((entry) => String(entry.type || '').toLowerCase() === libraryType);
+
+    const librariesAssignedElsewhere = (instanceId: string) => {
+        const assigned = new Set<string>();
+        allInstances
+            .filter((entry) => entry.id !== instanceId && entry.type === type)
+            .forEach((entry) => {
+                (entry.plexLibraryIds || []).forEach((libraryId) => assigned.add(String(libraryId)));
+            });
+        return assigned;
+    };
+
+    const toggleLibrary = (instanceId: string, libraryId: string) => {
+        const instance = instances.find((entry) => entry.id === instanceId);
+        if (!instance) return;
+        const current = new Set((instance.plexLibraryIds || []).map((entry) => String(entry)));
+        if (current.has(libraryId)) current.delete(libraryId);
+        else current.add(libraryId);
+        updateInstance(instanceId, { plexLibraryIds: Array.from(current) });
+    };
     const updateInstance = (id: string, patch: Partial<ArrInstance>) => {
         onChange(instances.map((entry) => (entry.id === id ? { ...entry, ...patch } : entry)));
     };
@@ -175,6 +207,40 @@ export const ArrInstancesPanel: React.FC<Props> = ({
                                         placeholder="API key"
                                     />
                                 </div>
+
+                                {availableLibraries.length > 0 && (
+                                    <div>
+                                        <label className="text-xs text-muted uppercase tracking-wider font-bold mb-1 block">Plex Libraries</label>
+                                        <p className="text-[11px] text-muted mb-2">
+                                            Map libraries to this instance for maintenance routing. Unmapped libraries use the default instance.
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {availableLibraries.map((library) => {
+                                                const libraryId = String(library.id);
+                                                const selected = (instance.plexLibraryIds || []).includes(libraryId);
+                                                const takenElsewhere = librariesAssignedElsewhere(instance.id).has(libraryId);
+                                                return (
+                                                    <button
+                                                        key={`${instance.id}-${libraryId}`}
+                                                        type="button"
+                                                        disabled={takenElsewhere && !selected}
+                                                        title={takenElsewhere && !selected ? 'Assigned to another instance' : library.title}
+                                                        onClick={() => toggleLibrary(instance.id, libraryId)}
+                                                        className={`px-2.5 py-1 rounded-md text-xs border transition-colors ${
+                                                            selected
+                                                                ? 'bg-plex/15 border-plex/40 text-plex'
+                                                                : takenElsewhere
+                                                                    ? 'bg-background/20 border-border text-muted/50 cursor-not-allowed'
+                                                                    : 'bg-background/30 border-border text-text hover:border-plex/40'
+                                                        }`}
+                                                    >
+                                                        {library.title}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
 
                                 <IntegrationTestButton
                                     type={type}

@@ -6339,7 +6339,7 @@ export const MaintenanceDashboard: React.FC = () => {
                 apiFetch('/api/maintenance/runs'),
                 apiFetch('/api/maintenance/preview', {
                     method: 'POST',
-                    body: JSON.stringify({ limit: 30, includeArrDiagnostics: false })
+                    body: JSON.stringify({ limit: 30, includeArrDiagnostics: true })
                 }),
                 apiFetch('/api/maintenance/rules'),
                 apiFetch('/api/maintenance/preferences')
@@ -6427,7 +6427,7 @@ export const MaintenanceDashboard: React.FC = () => {
                 body: JSON.stringify({
                     ruleId,
                     includeAll: true,
-                    includeArrDiagnostics: false
+                    includeArrDiagnostics: true
                 })
             });
             const previews = Array.isArray(payload?.previews) ? payload.previews : [];
@@ -6885,6 +6885,18 @@ export const MaintenanceDashboard: React.FC = () => {
                                                         <div className="p-2">
                                                             <p className="text-xs text-text line-clamp-2">{item.title}</p>
                                                             <p className="text-[11px] text-muted mt-1">{item.libraryTitle || 'Unknown Library'}</p>
+                                                            <div className="flex flex-wrap gap-1 mt-1">
+                                                                {item.arrResolvable ? (
+                                                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/15 text-green-300">
+                                                                        {item.arrInstanceName || item.arrType || 'ARR'}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-300">Unmapped</span>
+                                                                )}
+                                                                {item.arrAmbiguous && (
+                                                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300">Ambiguous</span>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -6920,7 +6932,9 @@ export const MaintenanceDashboard: React.FC = () => {
                                                         {(run.outcomes || []).slice(0, 120).map((outcome: any, idx: number) => (
                                                             <div key={`outcome-${run.id}-${idx}`} className="text-xs bg-background/30 border border-white/5 rounded px-2 py-1">
                                                                 {(outcome.title || outcome.type || 'Item')} · {outcome.status || (outcome.success ? 'success' : 'info')}
+                                                                {outcome.arrInstanceName ? ` · ${outcome.arrInstanceName}` : ''}
                                                                 {outcome.reason ? ` · ${outcome.reason}` : ''}
+                                                                {outcome.arrWarning ? ` · ${outcome.arrWarning}` : ''}
                                                             </div>
                                                         ))}
                                                     </div>
