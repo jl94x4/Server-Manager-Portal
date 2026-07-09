@@ -270,10 +270,11 @@ The recommended way to run Server Portal in production is Docker with a persiste
 
 Official images are published automatically on every push to `main` and `beta`:
 
-| Tag | Branch | Image |
+| Tag | When updated | Image |
 |---|---|---|
-| `latest` | `main` | `ghcr.io/jl94x4/server-manager-portal:latest` |
-| `beta` | `beta` | `ghcr.io/jl94x4/server-manager-portal:beta` |
+| `latest` | Every push to `main` and every release tag `v*` | `ghcr.io/jl94x4/server-manager-portal:latest` |
+| `beta` | Every push to `beta` | `ghcr.io/jl94x4/server-manager-portal:beta` |
+| `1.4.0` / `v1.4.0` | Matching GitHub release | `ghcr.io/jl94x4/server-manager-portal:1.4.0` |
 
 Pull and run without building locally:
 

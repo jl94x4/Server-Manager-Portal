@@ -3,9 +3,11 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# .git is excluded from the build context; CI passes GIT_SHA so version stamps match the commit.
+# .git is excluded from the build context; CI passes GIT_SHA/GITHUB_REF so version stamps match the commit.
 ARG GIT_SHA
+ARG GITHUB_REF
 ENV GIT_SHA=${GIT_SHA}
+ENV GITHUB_REF=${GITHUB_REF}
 
 COPY package.json package-lock.json ./
 RUN npm ci

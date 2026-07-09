@@ -9,7 +9,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/jl94x4/Server-Manager-Portal/issues</Support>
   <Project>https://github.com/jl94x4/Server-Manager-Portal</Project>
-  <Overview>A self-hosted Plex server management portal with user onboarding, access expiry, analytics, status monitoring, and admin tools.&#xD;&#xA;&#xD;&#xA;After install, open the WebUI and sign in with your Plex admin account, then configure Plex token and SMTP in Settings.&#xD;&#xA;&#xD;&#xA;The container entrypoint automatically fixes appdata folder permissions on startup.</Overview>
+  <Overview>A self-hosted Plex server management portal with user onboarding, access expiry, analytics, status monitoring, and admin tools.&#xD;&#xA;&#xD;&#xA;After install, open the WebUI and sign in with your Plex admin account, then configure Plex token and SMTP in Settings.&#xD;&#xA;&#xD;&#xA;The container entrypoint automatically fixes appdata folder permissions on startup.&#xD;&#xA;&#xD;&#xA;Updates: this template uses the :latest tag (tracks main releases). To pin a specific version, change Repository to ghcr.io/jl94x4/server-manager-portal:1.4.0 (or v1.4.0).</Overview>
   <Category>MediaServer:Other</Category>
   <WebUI>http://[IP]:[PORT:2121]/portal</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/jl94x4/Server-Manager-Portal/main/unraid/server-manager-portal.xml</TemplateURL>
