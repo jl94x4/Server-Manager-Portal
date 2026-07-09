@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Check, ChevronRight, Film, Loader2, Pencil, RefreshCw, Tv } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { RequestApprovalModal } from './RequestApprovalModal';
+import { RequestCardShell } from './RequestCardShell';
 import type { PortalRequestItem } from './types';
 
 const formatRelativeTime = (value?: string | null) => {
@@ -135,10 +136,8 @@ export const PendingRequestsHomeWidget: React.FC<{
         const busy = actionId === item.id;
         if (wide) {
             return (
-                <div
-                    key={item.id}
-                    className="flex flex-col sm:flex-row gap-3 p-3 rounded-xl bg-background/60 border border-white/5 hover:bg-background/80 transition-colors"
-                >
+                <RequestCardShell key={item.id} backdropUrl={item.backdropUrl}>
+                <div className="flex flex-col sm:flex-row gap-3 p-3">
                     <div className="flex gap-3 min-w-0 flex-1">
                         <div className="w-14 aspect-[2/3] rounded-lg overflow-hidden bg-card border border-border/40 shrink-0">
                             {item.posterUrl ? (
@@ -184,13 +183,12 @@ export const PendingRequestsHomeWidget: React.FC<{
                         </button>
                     </div>
                 </div>
+                </RequestCardShell>
             );
         }
         return (
-            <div
-                key={item.id}
-                className="flex items-center gap-3 p-2.5 rounded-xl bg-background/60 border border-white/5"
-            >
+            <RequestCardShell key={item.id} backdropUrl={item.backdropUrl}>
+            <div className="flex items-center gap-3 p-2.5">
                 <div className="w-10 aspect-[2/3] rounded overflow-hidden bg-card border border-border/40 shrink-0">
                     {item.posterUrl ? (
                         <img src={item.posterUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
@@ -229,6 +227,7 @@ export const PendingRequestsHomeWidget: React.FC<{
                     {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                 </button>
             </div>
+            </RequestCardShell>
         );
     };
 

@@ -4,6 +4,7 @@ import { apiFetch } from '../shared/api';
 import { formatDateTime } from '../shared/format';
 import { Loader, ToastContainer, pushToast, type ToastMessage } from '../shared/toast';
 import { RequestApprovalModal } from './RequestApprovalModal';
+import { RequestCardShell } from './RequestCardShell';
 import type { PortalRequestItem } from './types';
 
 export type { PortalRequestItem } from './types';
@@ -297,10 +298,12 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
                         const busy = actionId === item.id;
                         const TypeIcon = item.type === 'tv' ? Tv : Film;
                         return (
-                            <div
+                            <RequestCardShell
                                 key={item.id}
-                                className="flex flex-col sm:flex-row gap-4 p-4 rounded-xl border border-border/60 bg-background/40 hover:border-border transition-colors"
+                                backdropUrl={item.backdropUrl}
+                                className="hover:border-plex/25"
                             >
+                            <div className="flex flex-col sm:flex-row gap-4 p-4">
                                 <div className="flex gap-4 min-w-0 flex-1">
                                     <div className="w-[9rem] aspect-[2/3] rounded-lg overflow-hidden bg-card border border-border/50 shrink-0">
                                         {item.posterUrl ? (
@@ -411,6 +414,7 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
                                     </button>
                                 </div>
                             </div>
+                            </RequestCardShell>
                         );
                     })}
                 </div>

@@ -20,6 +20,7 @@ export type PortalRequestItem = {
     year: string | null;
     overview: string;
     posterUrl: string;
+    backdropUrl?: string;
     requestedBy: {
         id: number | null;
         displayName: string;
