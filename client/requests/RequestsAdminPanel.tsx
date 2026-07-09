@@ -301,6 +301,7 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
                             <RequestCardShell
                                 key={item.id}
                                 backdropUrl={item.backdropUrl}
+                                posterUrl={item.posterUrl}
                                 className="hover:border-plex/25"
                             >
                             <div className="flex flex-col sm:flex-row gap-4 p-4">

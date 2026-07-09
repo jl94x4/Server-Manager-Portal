@@ -253,8 +253,14 @@ export const RequestApprovalModal: React.FC<Props> = ({
     const TypeIcon = detail?.type === 'tv' ? Tv : Film;
 
     return (
-        <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto glass-card p-5 md:p-6 shadow-2xl border border-border custom-scrollbar">
+        <div
+            className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+            onClick={onClose}
+        >
+            <div
+                className="w-full max-w-6xl max-h-[90vh] overflow-y-auto glass-card p-5 md:p-6 shadow-2xl border border-border custom-scrollbar"
+                onClick={(e) => e.stopPropagation()}
+            >
                 <div className="flex items-start justify-between gap-4 mb-4">
                     <div className="min-w-0">
                         <p className="text-muted text-xs uppercase tracking-widest font-semibold">
