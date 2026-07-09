@@ -69,7 +69,42 @@ const formatBytes = (bytes: number) => {
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 };
 
-const LibraryStorageOverview: React.FC<{ serverStats: any }> = ({ serverStats }) => {
+const LibraryStatsContent: React.FC<{ serverStats: any; variant?: 'plex' | 'jellyfin' }> = ({ serverStats, variant = 'plex' }) => {
+    if (variant === 'jellyfin') {
+        const totalBytes = Number(serverStats.totalCatalogBytes) || 0;
+        const movies = Number(serverStats.movies) || 0;
+        const shows = Number(serverStats.shows) || 0;
+        const episodes = Number(serverStats.episodes) || 0;
+        return (
+            <div className="space-y-4">
+                <div className="rounded-2xl border border-white/5 bg-background/40 p-4 md:p-5">
+                    <p className="text-[10px] uppercase tracking-widest font-bold text-muted">Total Catalog</p>
+                    <p className="text-3xl md:text-4xl font-black text-text mt-1 tracking-tight">{formatBytes(totalBytes)}</p>
+                    <p className="text-xs text-muted mt-1.5">
+                        {movies.toLocaleString()} movies · {shows.toLocaleString()} shows · {episodes.toLocaleString()} episodes
+                    </p>
+                </div>
+                <div className="grid grid-cols-3 gap-2.5">
+                    <div className="bg-background/60 p-3 rounded-xl border border-white/5 text-center">
+                        <Film className="w-5 h-5 text-plex mx-auto mb-1.5 opacity-80" />
+                        <p className="text-xl font-black text-text">{movies.toLocaleString()}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted mt-0.5">Movies</p>
+                    </div>
+                    <div className="bg-background/60 p-3 rounded-xl border border-white/5 text-center">
+                        <Tv className="w-5 h-5 text-plex mx-auto mb-1.5 opacity-80" />
+                        <p className="text-xl font-black text-text">{shows.toLocaleString()}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted mt-0.5">Shows</p>
+                    </div>
+                    <div className="bg-background/60 p-3 rounded-xl border border-white/5 text-center">
+                        <Layers className="w-5 h-5 text-plex mx-auto mb-1.5 opacity-80" />
+                        <p className="text-xl font-black text-text">{episodes.toLocaleString()}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted mt-0.5">Episodes</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     const movies = Number(serverStats.moviesBytes) || 0;
     const shows = Number(serverStats.showsBytes) || 0;
     const music = Number(serverStats.musicBytes) || 0;
@@ -83,56 +118,56 @@ const LibraryStorageOverview: React.FC<{ serverStats: any }> = ({ serverStats })
     const trackCount = Number(serverStats.tracks) || 0;
 
     const segments = [
-        { label: 'Movies', bytes: movies, count: movieCount, color: 'bg-plex', dot: 'bg-plex' },
-        { label: 'TV Shows', bytes: shows, count: showCount, color: 'bg-amber-400', dot: 'bg-amber-400' },
-        { label: 'Music', bytes: music, count: musicCount, color: 'bg-orange-500', dot: 'bg-orange-500' },
+        { label: 'Movies', bytes: movies, count: movieCount, countLabel: 'movies', icon: Film, color: 'bg-plex', dot: 'bg-plex' },
+        { label: 'TV Shows', bytes: shows, count: showCount, countLabel: 'shows', icon: Tv, color: 'bg-amber-400', dot: 'bg-amber-400' },
+        { label: 'Music', bytes: music, count: musicCount, countLabel: 'albums', icon: Music, color: 'bg-orange-500', dot: 'bg-orange-500' },
     ];
 
     const pct = (bytes: number) => Math.max(bytes > 0 ? (bytes / total) * 100 : 0, 0);
 
     return (
-        <div className="mt-4 pt-1 flex-1 flex flex-col min-h-[9rem] lg:min-h-[11rem]">
-            <div className="relative flex-1 rounded-2xl border border-white/5 bg-background/40 p-4 md:p-5 overflow-hidden flex flex-col justify-between gap-5">
-                <div className="absolute inset-0 bg-gradient-to-br from-plex/10 via-transparent to-amber-500/5 pointer-events-none" />
-                <div className="absolute -right-10 -top-10 w-36 h-36 rounded-full bg-plex/10 blur-3xl pointer-events-none" />
-                <div className="absolute -left-6 bottom-0 w-28 h-28 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
+        <div className="rounded-2xl border border-white/5 bg-background/40 p-4 md:p-5 space-y-4">
+            <div>
+                <p className="text-[10px] uppercase tracking-widest font-bold text-muted">Total Library</p>
+                <p className="text-3xl md:text-4xl font-black text-text mt-1 tracking-tight">{formatBytes(total)}</p>
+                <p className="text-xs text-muted mt-1.5">
+                    {movieCount.toLocaleString()} movies · {episodeCount.toLocaleString()} episodes · {trackCount.toLocaleString()} tracks
+                </p>
+            </div>
 
-                <div className="relative">
-                    <p className="text-[10px] uppercase tracking-widest font-bold text-muted">Total Library</p>
-                    <p className="text-3xl md:text-4xl lg:text-5xl font-black text-text mt-1 tracking-tight">{formatBytes(total)}</p>
-                    <p className="text-xs text-muted mt-1.5">
-                        {movieCount.toLocaleString()} movies · {episodeCount.toLocaleString()} episodes · {trackCount.toLocaleString()} tracks
-                    </p>
-                </div>
+            <div className="flex h-2 rounded-full overflow-hidden bg-white/5">
+                {segments.map((segment) => (
+                    segment.bytes > 0 ? (
+                        <div
+                            key={segment.label}
+                            className={`${segment.color} transition-all duration-500`}
+                            style={{ width: `${pct(segment.bytes)}%` }}
+                            title={`${segment.label}: ${formatBytes(segment.bytes)}`}
+                        />
+                    ) : null
+                ))}
+            </div>
 
-                <div className="relative space-y-3">
-                    <div className="flex h-2.5 rounded-full overflow-hidden bg-white/5 shadow-inner">
-                        {segments.map((segment) => (
-                            segment.bytes > 0 ? (
-                                <div
-                                    key={segment.label}
-                                    className={`${segment.color} transition-all duration-500`}
-                                    style={{ width: `${pct(segment.bytes)}%` }}
-                                    title={`${segment.label}: ${formatBytes(segment.bytes)}`}
-                                />
-                            ) : null
-                        ))}
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        {segments.map((segment) => (
-                            <div key={segment.label} className="flex items-center gap-2 min-w-0 px-2 py-1.5 rounded-lg bg-background/50 border border-white/5">
-                                <span className={`w-2 h-2 rounded-full shrink-0 ${segment.dot}`} />
-                                <div className="min-w-0">
-                                    <p className="text-[10px] uppercase tracking-wider font-bold text-muted truncate">{segment.label}</p>
-                                    <p className="text-xs font-bold text-text truncate">
-                                        {formatBytes(segment.bytes)}
-                                        <span className="text-muted font-medium"> · {pct(segment.bytes).toFixed(0)}%</span>
-                                    </p>
-                                </div>
+            <div className="space-y-2">
+                {segments.map((segment) => {
+                    const Icon = segment.icon;
+                    return (
+                        <div key={segment.label} className="flex items-center gap-3 py-2 px-2.5 rounded-xl bg-background/50 border border-white/5">
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${segment.dot}`} />
+                            <Icon className="w-4 h-4 text-plex shrink-0 opacity-70" />
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-bold text-text">{segment.label}</p>
+                                <p className="text-[11px] text-muted">
+                                    {segment.count.toLocaleString()} {segment.countLabel}
+                                </p>
                             </div>
-                        ))}
-                    </div>
-                </div>
+                            <div className="text-right shrink-0">
+                                <p className="text-sm font-black text-text">{formatBytes(segment.bytes)}</p>
+                                <p className="text-[10px] font-semibold text-muted">{pct(segment.bytes).toFixed(0)}%</p>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
@@ -350,53 +385,22 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
             case 'libraryStats':
                 if (isJellyfinPortal) {
                     return (
-                        <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col flex-1 min-h-0 h-full">
+                        <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col flex-shrink-0">
                             <div className="flex items-center justify-between mb-3 md:mb-4">
                                 <p className="text-muted text-sm uppercase tracking-widest font-semibold">Jellyfin Library</p>
                             </div>
                             {serverDataLoading && !serverStats ? (
                                 <LibraryStatsSkeleton />
                             ) : serverStats ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 md:gap-3">
-                                    <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
-                                        <Film className="w-7 h-7 text-plex mb-2 opacity-80" />
-                                        <span className="text-3xl font-black text-text drop-shadow-md mb-1">{serverStats.movies?.toLocaleString?.() || 0}</span>
-                                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-muted">Movies</span>
-                                    </div>
-                                    <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
-                                        <Tv className="w-7 h-7 text-plex mb-2 opacity-80" />
-                                        <span className="text-3xl font-black text-text drop-shadow-md mb-1">{serverStats.shows?.toLocaleString?.() || 0}</span>
-                                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-muted">{serverStats.episodes?.toLocaleString?.() || 0} Episodes</span>
-                                    </div>
-                                    <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
-                                        <Layers className="w-7 h-7 text-plex mb-2 opacity-80" />
-                                        <span className="text-3xl font-black text-text drop-shadow-md mb-1">{formatBytes(serverStats.totalCatalogBytes || 0)}</span>
-                                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-muted">Catalog Size</span>
-                                    </div>
-                                </div>
+                                <LibraryStatsContent serverStats={serverStats} variant="jellyfin" />
                             ) : (
                                 <div className="text-muted text-sm bg-background/50 p-4 rounded-xl border border-white/5">Could not load Jellyfin library statistics at this time.</div>
-                            )}
-                            {serverStats && !serverDataLoading && (
-                                <div className="mt-4 pt-1 flex-1 flex flex-col min-h-[9rem] lg:min-h-[11rem]">
-                                    <div className="relative flex-1 rounded-2xl border border-white/5 bg-background/40 p-4 md:p-5 overflow-hidden flex flex-col justify-center gap-4">
-                                        <div className="absolute inset-0 bg-gradient-to-br from-plex/10 via-transparent to-amber-500/5 pointer-events-none" />
-                                        <div className="absolute -right-10 -top-10 w-36 h-36 rounded-full bg-plex/10 blur-3xl pointer-events-none" />
-                                        <div className="relative text-center">
-                                            <p className="text-[10px] uppercase tracking-widest font-bold text-muted">Catalog Overview</p>
-                                            <p className="text-3xl md:text-4xl font-black text-text mt-1">{formatBytes(serverStats.totalCatalogBytes || 0)}</p>
-                                            <p className="text-xs text-muted mt-1.5">
-                                                {(serverStats.movies || 0).toLocaleString()} movies · {(serverStats.episodes || 0).toLocaleString()} episodes
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
                             )}
                         </div>
                     );
                 }
                 return (
-                    <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col flex-1 min-h-0 h-full">
+                    <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col flex-shrink-0">
                         <div className="flex items-center justify-between mb-3 md:mb-4">
                             <p className="text-muted text-sm uppercase tracking-widest font-semibold">Server Library Size</p>
                             {sessionInfo.session.isAdmin && <RebuildLibraryCacheButton />}
@@ -409,35 +413,7 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                                 <p className="text-xs text-muted/60">This runs once and may take a few minutes for large libraries. The page will auto-update when ready.</p>
                             </div>
                         ) : serverStats ? (
-                            <>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 md:gap-3">
-                                <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
-                                    <Film className="w-7 h-7 text-plex mb-2 opacity-80" />
-                                    <span className="text-3xl font-black text-text drop-shadow-md mb-1">{formatBytes(serverStats.moviesBytes)}</span>
-                                    <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
-                                        <span className="text-plex">{serverStats.movies?.toLocaleString() || 0}</span>
-                                        <span className="text-muted">Movies</span>
-                                    </div>
-                                </div>
-                                <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
-                                    <Tv className="w-7 h-7 text-plex mb-2 opacity-80" />
-                                    <span className="text-3xl font-black text-text drop-shadow-md mb-1">{formatBytes(serverStats.showsBytes)}</span>
-                                    <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
-                                        <span className="text-plex">{serverStats.shows?.toLocaleString() || 0}</span>
-                                        <span className="text-muted">Shows</span>
-                                    </div>
-                                </div>
-                                <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
-                                    <Music className="w-7 h-7 text-plex mb-2 opacity-80" />
-                                    <span className="text-3xl font-black text-text drop-shadow-md mb-1">{formatBytes(serverStats.musicBytes)}</span>
-                                    <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
-                                        <span className="text-plex">{serverStats.music?.toLocaleString() || 0}</span>
-                                        <span className="text-muted">Albums</span>
-                                    </div>
-                                </div>
-                                </div>
-                                <LibraryStorageOverview serverStats={serverStats} />
-                            </>
+                            <LibraryStatsContent serverStats={serverStats} variant="plex" />
                         ) : (
                             <div className="text-muted text-sm bg-background/50 p-4 rounded-xl border border-white/5">Could not load server statistics at this time.</div>
                         )}

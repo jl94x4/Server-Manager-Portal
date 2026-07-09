@@ -52,17 +52,15 @@ export const UserDashboardLayout: React.FC<Props> = ({
                         return (
                             <div key="mainGrid" className="flex flex-col gap-3 md:gap-4">
                                 {(left.length > 0 || right.length > 0) && (
-                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 items-stretch">
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 items-start">
                                         <div className="lg:col-span-1 flex flex-col gap-3 md:gap-4 min-h-0">
                                             {left.map((id) => (
                                                 <React.Fragment key={id}>{renderMainGridWidget(id)}</React.Fragment>
                                             ))}
                                         </div>
-                                        <div className="lg:col-span-2 flex flex-col gap-3 md:gap-4 min-h-0 h-full">
+                                        <div className="lg:col-span-2 flex flex-col gap-3 md:gap-4 min-h-0">
                                             {right.map((id) => (
-                                                <div key={id} className="flex flex-col flex-1 min-h-0">
-                                                    {renderMainGridWidget(id)}
-                                                </div>
+                                                <React.Fragment key={id}>{renderMainGridWidget(id)}</React.Fragment>
                                             ))}
                                         </div>
                                     </div>
