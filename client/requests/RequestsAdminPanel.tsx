@@ -8,7 +8,7 @@ import type { PortalRequestItem } from './types';
 
 export type { PortalRequestItem } from './types';
 
-type RequestFilter = 'pending' | 'processing' | 'available' | 'failed' | 'approved' | 'declined';
+type RequestFilter = 'pending' | 'failed' | 'approved' | 'declined';
 
 const formatRelativeTime = (value?: string | null) => {
     if (!value) return 'Unknown time';
@@ -46,8 +46,6 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
         pending: 0,
         approved: 0,
         declined: 0,
-        processing: 0,
-        available: 0,
         failed: 0,
         total: 0,
         configured: false,
@@ -77,8 +75,6 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
                 pending: Number(countData?.pending) || 0,
                 approved: Number(countData?.approved) || 0,
                 declined: Number(countData?.declined) || 0,
-                processing: Number(countData?.processing) || 0,
-                available: Number(countData?.available) || 0,
                 failed: Number(countData?.failed) || 0,
                 total: Number(countData?.total) || 0,
                 configured: !!countData?.configured,
@@ -119,8 +115,6 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
 
     const filterTabs = useMemo(() => ([
         { id: 'pending' as const, label: 'Pending', count: counts.pending },
-        { id: 'processing' as const, label: 'Processing', count: counts.processing },
-        { id: 'available' as const, label: 'Available', count: counts.available },
         { id: 'failed' as const, label: 'Failed', count: counts.failed },
         { id: 'approved' as const, label: 'Approved', count: counts.approved },
         { id: 'declined' as const, label: 'Declined', count: counts.declined },

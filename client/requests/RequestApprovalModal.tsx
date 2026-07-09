@@ -254,7 +254,7 @@ export const RequestApprovalModal: React.FC<Props> = ({
 
     return (
         <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto glass-card p-5 md:p-6 shadow-2xl border border-border custom-scrollbar">
+            <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto glass-card p-5 md:p-6 shadow-2xl border border-border custom-scrollbar">
                 <div className="flex items-start justify-between gap-4 mb-4">
                     <div className="min-w-0">
                         <p className="text-muted text-xs uppercase tracking-widest font-semibold">
