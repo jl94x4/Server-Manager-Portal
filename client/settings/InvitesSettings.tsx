@@ -106,7 +106,11 @@ export const InvitesSettings: React.FC<{
                 <p className="text-sm text-muted mb-6">Let existing members share a referral link. New users get temporary access; referrers earn bonus days when someone joins.</p>
                 <SettingsToggleRow
                     title="Enable Referrals"
-                    description="Allow users to generate a referral link from their home page"
+                    hint={
+                        <SettingHint>
+                            Allow users to generate a referral link from their home page.
+                        </SettingHint>
+                    }
                     checked={referralEnabled}
                     onChange={setReferralEnabled}
                     border={false}
