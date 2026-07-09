@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.1](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.4.0...v1.4.1) (2026-07-09)
+
+
+### Bug Fixes
+
+* publish latest Docker tag to GHCR for Unraid updates ([e5658fd](https://github.com/jl94x4/Server-Manager-Portal/commit/e5658fdf5cb64772cd36992ceab09335fdc68ff3))
+
 ## [1.4.0](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.3.0...v1.4.0) (2026-07-08)
 
 
