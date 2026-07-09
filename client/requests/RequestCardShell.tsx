@@ -10,20 +10,23 @@ type Props = {
 /** Seerr-style request row with faded fanart/backdrop behind content. */
 export const RequestCardShell: React.FC<Props> = ({ backdropUrl, posterUrl, className = '', children }) => {
     const artUrl = backdropUrl || posterUrl;
+    const cardGradient =
+        'linear-gradient(to right, rgb(var(--color-bg) / 1) 0%, rgb(var(--color-bg) / 0.94) 24%, rgb(var(--color-bg) / 0.55) 50%, rgb(var(--color-bg) / 0.12) 76%, rgb(var(--color-bg) / 0) 88%)';
 
     return (
         <div className={`relative overflow-hidden rounded-xl border border-white/10 hover:border-white/20 transition-colors ${className}`}>
             {artUrl ? (
                 <>
                     <div
-                        className={`absolute inset-y-0 right-0 w-[72%] bg-cover bg-center ${
-                            backdropUrl ? 'opacity-40' : 'opacity-30 blur-[2px] scale-110'
+                        className={`absolute inset-0 bg-cover bg-center ${
+                            backdropUrl ? 'opacity-30' : 'opacity-20 blur-[2px] scale-105'
                         }`}
                         style={{ backgroundImage: `url(${artUrl})` }}
                         aria-hidden
                     />
                     <div
-                        className="absolute inset-0 bg-gradient-to-r from-background via-background/40 via-[38%] to-transparent to-[72%]"
+                        className="absolute inset-0"
+                        style={{ backgroundImage: cardGradient }}
                         aria-hidden
                     />
                 </>
