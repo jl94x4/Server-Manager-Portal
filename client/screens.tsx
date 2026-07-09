@@ -6087,14 +6087,14 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                     const sessionUserThumbSrc = session.userThumb ? resolvePortalAssetUrl(session.userThumb) : 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y';
                                     const posterColumnClass = 'grid-cols-[clamp(6rem,36%,8.5rem)_minmax(0,1fr)]';
                                     return (
-                                        <div key={session.sessionId ?? i} onClick={() => setSelectedSession(session)} className="bg-card rounded-xl border border-border flex flex-col overflow-hidden shadow-lg hover:border-plex/50 hover:shadow-plex/20 transition-all cursor-pointer select-none h-full min-h-[13.75rem] md:min-h-[15rem]">
-                                            <div className={`grid ${posterColumnClass} flex-1 min-h-0`}>
-                                                <div className="relative min-h-0 z-10 bg-black flex items-center justify-center overflow-hidden">
+                                        <div key={session.sessionId ?? i} onClick={() => setSelectedSession(session)} className="bg-card rounded-xl border border-border flex flex-col overflow-hidden shadow-lg hover:border-plex/50 hover:shadow-plex/20 transition-all cursor-pointer select-none h-full">
+                                            <div className={`grid ${posterColumnClass} items-start`}>
+                                                <div className="relative aspect-[2/3] w-full overflow-hidden bg-black">
                                                     <img
                                                         src={sessionPosterSrc}
                                                         alt={session.title}
                                                         loading="lazy"
-                                                        className="w-full h-full object-contain drop-shadow-[4px_0_15px_rgba(0,0,0,0.5)]"
+                                                        className="absolute inset-0 w-full h-full object-cover object-top drop-shadow-[4px_0_15px_rgba(0,0,0,0.5)]"
                                                     />
                                                 </div>
                                                 <div className="p-2.5 md:p-3 flex flex-col min-w-0 min-h-0">
