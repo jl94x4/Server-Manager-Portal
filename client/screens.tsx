@@ -30,7 +30,7 @@ import { activityStreamColumnCount, activityStreamGridClass, discoverPosterGridC
 import { filterNavOrder, type NavFeatureFlags } from './shared/nav';
 import { ANALYTICS_PERIOD_OPTIONS } from './shared/analyticsPeriodOptions';
 import { UserDashboardLayout } from './home/UserDashboardLayout';
-import { createMainGridWidgetRenderer, createRecentlyAddedWidgetRenderer } from './home/userDashboardWidgetRenderers';
+import { createMainGridWidgetRenderer, createPendingRequestsSectionRenderer, createRecentlyAddedWidgetRenderer } from './home/userDashboardWidgetRenderers';
 
 const JELLYFIN_ICON_URL = 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg/jellyfin.svg';
 
@@ -4986,6 +4986,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     ]);
 
     const renderMainGridWidget = useMemo(() => createMainGridWidgetRenderer(widgetDeps), [widgetDeps]);
+    const renderPendingRequests = useMemo(() => createPendingRequestsSectionRenderer(widgetDeps), [widgetDeps]);
     const renderRecentlyAddedWidget = useMemo(() => createRecentlyAddedWidgetRenderer(widgetDeps), [widgetDeps]);
 
     return (
@@ -5112,6 +5113,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                 layoutConfig={publicConfig?.dashboardLayout}
                 layoutCtx={layoutCtx}
                 renderMainGridWidget={renderMainGridWidget}
+                renderPendingRequests={renderPendingRequests}
                 renderRecentlyAddedWidget={renderRecentlyAddedWidget}
                 recentlyAddedLoading={serverDataLoading}
                 hasDashboardData={!!dashboardData}

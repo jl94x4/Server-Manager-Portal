@@ -69,6 +69,75 @@ const formatBytes = (bytes: number) => {
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 };
 
+const LibraryStorageOverview: React.FC<{ serverStats: any }> = ({ serverStats }) => {
+    const movies = Number(serverStats.moviesBytes) || 0;
+    const shows = Number(serverStats.showsBytes) || 0;
+    const music = Number(serverStats.musicBytes) || 0;
+    const total = movies + shows + music;
+    if (total <= 0) return null;
+
+    const movieCount = Number(serverStats.movies) || 0;
+    const showCount = Number(serverStats.shows) || 0;
+    const musicCount = Number(serverStats.music) || 0;
+    const episodeCount = Number(serverStats.episodes) || 0;
+    const trackCount = Number(serverStats.tracks) || 0;
+
+    const segments = [
+        { label: 'Movies', bytes: movies, count: movieCount, color: 'bg-plex', dot: 'bg-plex' },
+        { label: 'TV Shows', bytes: shows, count: showCount, color: 'bg-amber-400', dot: 'bg-amber-400' },
+        { label: 'Music', bytes: music, count: musicCount, color: 'bg-orange-500', dot: 'bg-orange-500' },
+    ];
+
+    const pct = (bytes: number) => Math.max(bytes > 0 ? (bytes / total) * 100 : 0, 0);
+
+    return (
+        <div className="mt-4 pt-1 flex-1 flex flex-col min-h-[9rem] lg:min-h-[11rem]">
+            <div className="relative flex-1 rounded-2xl border border-white/5 bg-background/40 p-4 md:p-5 overflow-hidden flex flex-col justify-between gap-5">
+                <div className="absolute inset-0 bg-gradient-to-br from-plex/10 via-transparent to-amber-500/5 pointer-events-none" />
+                <div className="absolute -right-10 -top-10 w-36 h-36 rounded-full bg-plex/10 blur-3xl pointer-events-none" />
+                <div className="absolute -left-6 bottom-0 w-28 h-28 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
+
+                <div className="relative">
+                    <p className="text-[10px] uppercase tracking-widest font-bold text-muted">Total Library</p>
+                    <p className="text-3xl md:text-4xl lg:text-5xl font-black text-text mt-1 tracking-tight">{formatBytes(total)}</p>
+                    <p className="text-xs text-muted mt-1.5">
+                        {movieCount.toLocaleString()} movies · {episodeCount.toLocaleString()} episodes · {trackCount.toLocaleString()} tracks
+                    </p>
+                </div>
+
+                <div className="relative space-y-3">
+                    <div className="flex h-2.5 rounded-full overflow-hidden bg-white/5 shadow-inner">
+                        {segments.map((segment) => (
+                            segment.bytes > 0 ? (
+                                <div
+                                    key={segment.label}
+                                    className={`${segment.color} transition-all duration-500`}
+                                    style={{ width: `${pct(segment.bytes)}%` }}
+                                    title={`${segment.label}: ${formatBytes(segment.bytes)}`}
+                                />
+                            ) : null
+                        ))}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {segments.map((segment) => (
+                            <div key={segment.label} className="flex items-center gap-2 min-w-0 px-2 py-1.5 rounded-lg bg-background/50 border border-white/5">
+                                <span className={`w-2 h-2 rounded-full shrink-0 ${segment.dot}`} />
+                                <div className="min-w-0">
+                                    <p className="text-[10px] uppercase tracking-wider font-bold text-muted truncate">{segment.label}</p>
+                                    <p className="text-xs font-bold text-text truncate">
+                                        {formatBytes(segment.bytes)}
+                                        <span className="text-muted font-medium"> · {pct(segment.bytes).toFixed(0)}%</span>
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 /** Trial flag can linger after admin extends access — only treat as temp access while ≤3 days remain. */
 const isActiveShortTermTrial = (user: any, daysLeft: number | null) => (
     !!user?.isTrial && daysLeft !== null && daysLeft <= 3
@@ -195,16 +264,6 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                         </div>
                     </div>
                 );
-            case 'pendingRequests':
-                if (!sessionInfo?.navFeatures?.requestsQueue) return null;
-                return (
-                    <PendingRequestsHomeWidget
-                        layout="wide"
-                        onViewAll={onViewRequests}
-                        onActionComplete={onPendingRequestsChange}
-                        onToast={(message, type) => setToast({ id: Date.now(), message, type })}
-                    />
-                );
             case 'announcement':
                 if (!publicConfig?.announcement) return null;
                 return (
@@ -291,7 +350,7 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
             case 'libraryStats':
                 if (isJellyfinPortal) {
                     return (
-                        <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col justify-center flex-shrink-0">
+                        <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col flex-1 min-h-0 h-full">
                             <div className="flex items-center justify-between mb-3 md:mb-4">
                                 <p className="text-muted text-sm uppercase tracking-widest font-semibold">Jellyfin Library</p>
                             </div>
@@ -318,11 +377,26 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                             ) : (
                                 <div className="text-muted text-sm bg-background/50 p-4 rounded-xl border border-white/5">Could not load Jellyfin library statistics at this time.</div>
                             )}
+                            {serverStats && !serverDataLoading && (
+                                <div className="mt-4 pt-1 flex-1 flex flex-col min-h-[9rem] lg:min-h-[11rem]">
+                                    <div className="relative flex-1 rounded-2xl border border-white/5 bg-background/40 p-4 md:p-5 overflow-hidden flex flex-col justify-center gap-4">
+                                        <div className="absolute inset-0 bg-gradient-to-br from-plex/10 via-transparent to-amber-500/5 pointer-events-none" />
+                                        <div className="absolute -right-10 -top-10 w-36 h-36 rounded-full bg-plex/10 blur-3xl pointer-events-none" />
+                                        <div className="relative text-center">
+                                            <p className="text-[10px] uppercase tracking-widest font-bold text-muted">Catalog Overview</p>
+                                            <p className="text-3xl md:text-4xl font-black text-text mt-1">{formatBytes(serverStats.totalCatalogBytes || 0)}</p>
+                                            <p className="text-xs text-muted mt-1.5">
+                                                {(serverStats.movies || 0).toLocaleString()} movies · {(serverStats.episodes || 0).toLocaleString()} episodes
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     );
                 }
                 return (
-                    <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col justify-center flex-shrink-0">
+                    <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col flex-1 min-h-0 h-full">
                         <div className="flex items-center justify-between mb-3 md:mb-4">
                             <p className="text-muted text-sm uppercase tracking-widest font-semibold">Server Library Size</p>
                             {sessionInfo.session.isAdmin && <RebuildLibraryCacheButton />}
@@ -335,7 +409,8 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                                 <p className="text-xs text-muted/60">This runs once and may take a few minutes for large libraries. The page will auto-update when ready.</p>
                             </div>
                         ) : serverStats ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 md:gap-3">
+                            <>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 md:gap-3">
                                 <div className="bg-background/60 p-3 md:p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center shadow-inner hover:bg-background/80 transition-colors">
                                     <Film className="w-7 h-7 text-plex mb-2 opacity-80" />
                                     <span className="text-3xl font-black text-text drop-shadow-md mb-1">{formatBytes(serverStats.moviesBytes)}</span>
@@ -360,7 +435,9 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                                         <span className="text-muted">Albums</span>
                                     </div>
                                 </div>
-                            </div>
+                                </div>
+                                <LibraryStorageOverview serverStats={serverStats} />
+                            </>
                         ) : (
                             <div className="text-muted text-sm bg-background/50 p-4 rounded-xl border border-white/5">Could not load server statistics at this time.</div>
                         )}
@@ -420,6 +497,22 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
             default:
                 return null;
         }
+    };
+};
+
+export const createPendingRequestsSectionRenderer = (deps: UserDashboardWidgetDeps) => {
+    const { sessionInfo, onViewRequests, onPendingRequestsChange, setToast } = deps;
+
+    return (): React.ReactNode => {
+        if (!sessionInfo?.navFeatures?.requestsQueue) return null;
+        return (
+            <PendingRequestsHomeWidget
+                layout="wide"
+                onViewAll={onViewRequests}
+                onActionComplete={onPendingRequestsChange}
+                onToast={(message, type) => setToast({ id: Date.now(), message, type })}
+            />
+        );
     };
 };
 

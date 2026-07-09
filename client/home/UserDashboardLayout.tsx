@@ -5,7 +5,6 @@ import {
     resolveMainGridWidgets,
     resolveRecentlyAddedWidgets,
     splitMainGridForDesktop,
-    splitMainGridWidgets,
     type DashboardLayoutContext,
     type MainGridWidgetId,
     type RecentlyAddedWidgetId,
@@ -16,6 +15,7 @@ type Props = {
     layoutCtx: DashboardLayoutContext;
     renderWrapUp: () => React.ReactNode;
     renderMainGridWidget: (id: MainGridWidgetId) => React.ReactNode;
+    renderPendingRequests: () => React.ReactNode;
     renderWatchRow: () => React.ReactNode;
     renderRecentlyAddedWidget: (id: RecentlyAddedWidgetId) => React.ReactNode;
     renderRecentlyAddedSkeleton: () => React.ReactNode;
@@ -28,6 +28,7 @@ export const UserDashboardLayout: React.FC<Props> = ({
     layoutCtx,
     renderWrapUp,
     renderMainGridWidget,
+    renderPendingRequests,
     renderWatchRow,
     renderRecentlyAddedWidget,
     renderRecentlyAddedSkeleton,
@@ -35,10 +36,9 @@ export const UserDashboardLayout: React.FC<Props> = ({
     hasDashboardData,
 }) => {
     const layout = normalizeSectionLayout(layoutConfig);
-    const sections = resolveDashboardSections(layout);
+    const sections = resolveDashboardSections(layout, layoutCtx);
     const mainGridWidgets = resolveMainGridWidgets(layout, layoutCtx);
-    const { fullWidth, grid } = splitMainGridWidgets(mainGridWidgets);
-    const { left, right } = splitMainGridForDesktop(grid);
+    const { left, right } = splitMainGridForDesktop(mainGridWidgets);
     const recentlyAdded = resolveRecentlyAddedWidgets(layout);
 
     return (
@@ -58,20 +58,21 @@ export const UserDashboardLayout: React.FC<Props> = ({
                                                 <React.Fragment key={id}>{renderMainGridWidget(id)}</React.Fragment>
                                             ))}
                                         </div>
-                                        <div className="lg:col-span-2 flex flex-col gap-3 md:gap-4 min-h-0">
+                                        <div className="lg:col-span-2 flex flex-col gap-3 md:gap-4 min-h-0 h-full">
                                             {right.map((id) => (
-                                                <React.Fragment key={id}>{renderMainGridWidget(id)}</React.Fragment>
+                                                <div key={id} className="flex flex-col flex-1 min-h-0">
+                                                    {renderMainGridWidget(id)}
+                                                </div>
                                             ))}
                                         </div>
                                     </div>
                                 )}
-                                {fullWidth.length > 0 && (
-                                    <div className="flex flex-col gap-3 md:gap-4 w-full">
-                                        {fullWidth.map((id) => (
-                                            <React.Fragment key={id}>{renderMainGridWidget(id)}</React.Fragment>
-                                        ))}
-                                    </div>
-                                )}
+                            </div>
+                        );
+                    case 'pendingRequests':
+                        return (
+                            <div key="pendingRequests" className="w-full">
+                                {renderPendingRequests()}
                             </div>
                         );
                     case 'watchRow':

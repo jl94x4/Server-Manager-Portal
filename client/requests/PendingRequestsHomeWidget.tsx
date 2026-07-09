@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Check, ChevronRight, ClipboardList, Film, Loader2, RefreshCw, Tv } from 'lucide-react';
+import { Check, ChevronRight, Film, Loader2, RefreshCw, Tv } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import type { PortalRequestItem } from './types';
 
@@ -90,8 +90,8 @@ export const PendingRequestsHomeWidget: React.FC<{
     if (!configured) return null;
 
     const cardClass = isWide
-        ? 'glass-card p-4 md:p-5 shadow-xl w-full border border-plex/25 bg-gradient-to-br from-plex/5 via-transparent to-transparent'
-        : 'glass-card p-4 md:p-5 shadow-xl flex flex-col flex-shrink-0 border border-plex/20';
+        ? 'glass-card p-4 md:p-5 shadow-xl w-full'
+        : 'glass-card p-4 md:p-5 shadow-xl flex flex-col flex-shrink-0';
 
     if (loading) {
         return (
@@ -134,7 +134,7 @@ export const PendingRequestsHomeWidget: React.FC<{
             return (
                 <div
                     key={item.id}
-                    className="flex flex-col sm:flex-row gap-3 p-3 rounded-xl bg-background/50 border border-border/60 hover:border-plex/30 transition-colors"
+                    className="flex flex-col sm:flex-row gap-3 p-3 rounded-xl bg-background/60 border border-white/5 hover:bg-background/80 transition-colors"
                 >
                     <div className="flex gap-3 min-w-0 flex-1">
                         <div className="w-14 aspect-[2/3] rounded-lg overflow-hidden bg-card border border-border/40 shrink-0">
@@ -177,7 +177,7 @@ export const PendingRequestsHomeWidget: React.FC<{
         return (
             <div
                 key={item.id}
-                className="flex items-center gap-3 p-2.5 rounded-xl bg-background/50 border border-border/50"
+                className="flex items-center gap-3 p-2.5 rounded-xl bg-background/60 border border-white/5"
             >
                 <div className="w-10 aspect-[2/3] rounded overflow-hidden bg-card border border-border/40 shrink-0">
                     {item.posterUrl ? (
@@ -213,25 +213,20 @@ export const PendingRequestsHomeWidget: React.FC<{
 
     return (
         <div className={cardClass}>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-plex/15 border border-plex/35 flex items-center justify-center shrink-0 shadow-[0_0_20px_rgba(247,198,0,0.12)]">
-                        <ClipboardList className="w-5 h-5 text-plex" />
-                    </div>
-                    <div className="min-w-0">
-                        <p className="text-muted text-xs uppercase tracking-widest font-semibold">Pending Requests</p>
-                        <p className="text-base font-bold text-text">
-                            {pendingTotal} awaiting approval
-                            {isWide && <span className="text-muted font-normal text-sm"> — approve from home</span>}
-                        </p>
-                    </div>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3 md:mb-4">
+                <div className="min-w-0">
+                    <p className="text-muted text-sm uppercase tracking-widest font-semibold">Pending Requests</p>
+                    <p className="text-xs text-muted mt-1">
+                        {pendingTotal} awaiting approval
+                        {isWide ? ' — approve from home' : ''}
+                    </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                     <button
                         type="button"
                         onClick={() => load({ silent: true })}
                         disabled={refreshing}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border text-xs font-semibold text-muted hover:text-text"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 text-xs font-semibold text-muted hover:text-text hover:bg-white/5 transition-colors"
                         title="Refresh"
                     >
                         <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
@@ -240,7 +235,7 @@ export const PendingRequestsHomeWidget: React.FC<{
                         <button
                             type="button"
                             onClick={onViewAll}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-plex/10 border border-plex/30 text-sm font-semibold text-plex hover:bg-plex/20"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-sm font-semibold text-text hover:bg-white/5 transition-colors"
                         >
                             Open Requests <ChevronRight className="w-4 h-4" />
                         </button>

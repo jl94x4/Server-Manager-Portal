@@ -2242,7 +2242,7 @@ app.post('/api/admin/stop-impersonation', requireAuth, async (req, res) => {
 
 const DEFAULT_DASHBOARD_LAYOUT = {
     version: 1,
-    sections: ['wrapUp', 'mainGrid', 'watchRow', 'recentlyAdded'],
+    sections: ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'recentlyAdded'],
     mainGridOrder: [
         'adminBadge', 'quickActions', 'accessStatus', 'announcement', 'referral',
         'newsletterPrefs', 'support', 'libraryStats', 'analytics'
@@ -2254,8 +2254,19 @@ const DEFAULT_DASHBOARD_LAYOUT = {
     topWatchedRows: 2
 };
 
+const migrateDashboardSections = (sections) => {
+    const next = sections.filter((id, index) => id !== 'pendingRequests' || sections.indexOf('pendingRequests') === index);
+    if (next.includes('pendingRequests')) return next;
+    const mainGridIndex = next.indexOf('mainGrid');
+    if (mainGridIndex >= 0) {
+        next.splice(mainGridIndex + 1, 0, 'pendingRequests');
+        return next;
+    }
+    return [...next, 'pendingRequests'];
+};
+
 const normalizeDashboardLayout = (raw) => {
-    const ALL_SECTIONS = ['wrapUp', 'mainGrid', 'watchRow', 'recentlyAdded'];
+    const ALL_SECTIONS = ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'recentlyAdded'];
     const uniqueValid = (values, allowed, fallback) => {
         if (!Array.isArray(values)) return [...fallback];
         const seen = new Set();
@@ -2271,7 +2282,7 @@ const normalizeDashboardLayout = (raw) => {
     const input = raw && typeof raw === 'object' ? raw : {};
     return {
         version: 1,
-        sections: uniqueValid(input.sections, ALL_SECTIONS, DEFAULT_DASHBOARD_LAYOUT.sections),
+        sections: migrateDashboardSections(uniqueValid(input.sections, ALL_SECTIONS, DEFAULT_DASHBOARD_LAYOUT.sections)),
         mainGridOrder: [...DEFAULT_DASHBOARD_LAYOUT.mainGridOrder],
         recentlyAddedOrder: [...DEFAULT_DASHBOARD_LAYOUT.recentlyAddedOrder],
         hiddenSections: uniqueValid(input.hiddenSections, ALL_SECTIONS, []),
@@ -2287,7 +2298,7 @@ const normalizeSectionLayout = (raw) => {
     if (!input || !Array.isArray(input.hiddenSections)) {
         return { ...normalized, hiddenSections: [] };
     }
-    if (normalized.hiddenSections.length >= 4) {
+    if (normalized.hiddenSections.length >= DEFAULT_DASHBOARD_LAYOUT.sections.length) {
         return { ...normalized, hiddenSections: [] };
     }
     return normalized;

@@ -66,6 +66,12 @@ const SectionPreview: React.FC<{ layout: DashboardLayoutConfig }> = ({ layout })
                                     <div className="flex-1 rounded bg-plex/15 border border-plex/25" />
                                 </div>
                             </div>
+                        ) : id === 'pendingRequests' && !hidden ? (
+                            <div className={`${meta.previewClass} p-2 mx-2 mt-2`}>
+                                <div className="h-full rounded bg-plex/20 border border-plex/30 flex items-center justify-center px-3">
+                                    <div className="h-6 w-full max-w-md rounded bg-plex/15 border border-plex/25" />
+                                </div>
+                            </div>
                         ) : id === 'watchRow' && !hidden ? (
                             <div className={`${meta.previewClass} p-2 flex gap-2`}>
                                 <div className="w-1/3 rounded bg-plex/20 border border-plex/30" />
@@ -194,6 +200,7 @@ export const HomeLayoutSettings: React.FC<Props> = ({ layout, onChange }) => {
                 <p className="text-xs text-muted">
                     <span className="font-semibold text-text">Locked:</span> Individual widgets inside the main grid (Quick Actions, Library Size, etc.)
                     cannot be reordered or hidden — that prevents uneven columns and wasted space on desktop.
+                    Pending Requests is its own section and can be moved or hidden above.
                 </p>
             </div>
 

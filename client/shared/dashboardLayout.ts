@@ -1,11 +1,10 @@
-export type DashboardSectionId = 'wrapUp' | 'mainGrid' | 'watchRow' | 'recentlyAdded';
+export type DashboardSectionId = 'wrapUp' | 'mainGrid' | 'pendingRequests' | 'watchRow' | 'recentlyAdded';
 
 export type MainGridWidgetId =
     | 'adminBadge'
     | 'accessStatus'
     | 'tempAccessSetup'
     | 'quickActions'
-    | 'pendingRequests'
     | 'announcement'
     | 'referral'
     | 'newsletterPrefs'
@@ -31,14 +30,14 @@ export interface DashboardLayoutConfig {
 export const DASHBOARD_SECTION_LABELS: Record<DashboardSectionId, string> = {
     wrapUp: 'Personal Wrap-Up',
     mainGrid: 'Main dashboard grid',
+    pendingRequests: 'Pending Requests',
     watchRow: 'Recently / Most Watched',
     recentlyAdded: 'Recently Added rows',
 };
 
-export const MAIN_GRID_WIDGET_META: Record<MainGridWidgetId, { label: string; column: 'left' | 'right'; adminOnly?: boolean; userOnly?: boolean; fullWidth?: boolean }> = {
+export const MAIN_GRID_WIDGET_META: Record<MainGridWidgetId, { label: string; column: 'left' | 'right'; adminOnly?: boolean; userOnly?: boolean }> = {
     adminBadge: { label: 'Server Admin badge', column: 'left', adminOnly: true },
     quickActions: { label: 'Quick Actions', column: 'left', adminOnly: true },
-    pendingRequests: { label: 'Pending Requests', column: 'left', adminOnly: true, fullWidth: true },
     accessStatus: { label: 'Access status & expiry', column: 'left', userOnly: true },
     tempAccessSetup: { label: 'Temp access setup spinner', column: 'left', userOnly: true },
     announcement: { label: 'Announcement banner', column: 'left' },
@@ -57,11 +56,10 @@ export const RECENTLY_ADDED_WIDGET_META: Record<RecentlyAddedWidgetId, string> =
 
 export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayoutConfig = {
     version: 1,
-    sections: ['wrapUp', 'mainGrid', 'watchRow', 'recentlyAdded'],
+    sections: ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'recentlyAdded'],
     mainGridOrder: [
         'adminBadge',
         'quickActions',
-        'pendingRequests',
         'accessStatus',
         'announcement',
         'referral',
@@ -77,7 +75,7 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayoutConfig = {
     topWatchedRows: 2,
 };
 
-const ALL_SECTIONS: DashboardSectionId[] = ['wrapUp', 'mainGrid', 'watchRow', 'recentlyAdded'];
+const ALL_SECTIONS: DashboardSectionId[] = ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'recentlyAdded'];
 const ALL_MAIN_GRID: MainGridWidgetId[] = Object.keys(MAIN_GRID_WIDGET_META) as MainGridWidgetId[];
 const ALL_RECENTLY_ADDED: RecentlyAddedWidgetId[] = ['recentMovies', 'recentShows', 'recentMusic'];
 
@@ -98,11 +96,22 @@ const uniqueValid = <T extends string>(values: unknown, allowed: T[], fallback: 
     return result;
 };
 
+const migrateDashboardSections = (sections: DashboardSectionId[]): DashboardSectionId[] => {
+    const next = sections.filter((id, index) => id !== 'pendingRequests' || sections.indexOf('pendingRequests') === index);
+    if (next.includes('pendingRequests')) return next;
+    const mainGridIndex = next.indexOf('mainGrid');
+    if (mainGridIndex >= 0) {
+        next.splice(mainGridIndex + 1, 0, 'pendingRequests');
+        return next;
+    }
+    return [...next, 'pendingRequests'];
+};
+
 export const normalizeDashboardLayout = (raw: unknown): DashboardLayoutConfig => {
     const input = raw && typeof raw === 'object' ? (raw as Partial<DashboardLayoutConfig>) : {};
     return {
         version: 1,
-        sections: uniqueValid(input.sections, ALL_SECTIONS, DEFAULT_DASHBOARD_LAYOUT.sections),
+        sections: migrateDashboardSections(uniqueValid(input.sections, ALL_SECTIONS, DEFAULT_DASHBOARD_LAYOUT.sections)),
         mainGridOrder: uniqueValid(input.mainGridOrder, ALL_MAIN_GRID, DEFAULT_DASHBOARD_LAYOUT.mainGridOrder),
         recentlyAddedOrder: uniqueValid(input.recentlyAddedOrder, ALL_RECENTLY_ADDED, DEFAULT_DASHBOARD_LAYOUT.recentlyAddedOrder),
         hiddenSections: uniqueValid(input.hiddenSections, ALL_SECTIONS, []),
@@ -133,20 +142,12 @@ export const isMainGridWidgetAvailable = (id: MainGridWidgetId, ctx: DashboardLa
     if (id === 'accessStatus' && (ctx.isAdmin || !ctx.hasUser)) return false;
     if (id === 'adminBadge' && !ctx.isAdmin) return false;
     if (id === 'quickActions' && !ctx.isAdmin) return false;
-    if (id === 'pendingRequests' && (!ctx.isAdmin || !ctx.requestsQueueEnabled)) return false;
     if (id === 'analytics') {
         const isJellyfin = String(ctx.mediaServerType || '').toLowerCase() === 'jellyfin';
         if (!isJellyfin) return false;
     }
     return true;
 };
-
-export const isFullWidthMainGridWidget = (id: MainGridWidgetId) => !!MAIN_GRID_WIDGET_META[id].fullWidth;
-
-export const splitMainGridWidgets = (widgets: MainGridWidgetId[]) => ({
-    fullWidth: widgets.filter((id) => isFullWidthMainGridWidget(id)),
-    grid: widgets.filter((id) => !isFullWidthMainGridWidget(id)),
-});
 
 export const resolveMainGridWidgets = (layout: DashboardLayoutConfig, ctx: DashboardLayoutContext): MainGridWidgetId[] =>
     layout.mainGridOrder.filter(
@@ -161,8 +162,15 @@ export const splitMainGridForDesktop = (widgets: MainGridWidgetId[]) => ({
 export const resolveRecentlyAddedWidgets = (layout: DashboardLayoutConfig): RecentlyAddedWidgetId[] =>
     layout.recentlyAddedOrder.filter((id) => !layout.hiddenWidgets.includes(id));
 
-export const resolveDashboardSections = (layout: DashboardLayoutConfig): DashboardSectionId[] =>
-    layout.sections.filter((id) => !layout.hiddenSections.includes(id));
+export const isDashboardSectionAvailable = (id: DashboardSectionId, ctx: DashboardLayoutContext): boolean => {
+    if (id === 'pendingRequests') return !!ctx.isAdmin && !!ctx.requestsQueueEnabled;
+    return true;
+};
+
+export const resolveDashboardSections = (layout: DashboardLayoutConfig, ctx?: DashboardLayoutContext): DashboardSectionId[] =>
+    layout.sections.filter(
+        (id) => !layout.hiddenSections.includes(id) && (!ctx || isDashboardSectionAvailable(id, ctx))
+    );
 
 /** Widget order/visibility is fixed; only section order + visibility is customizable. */
 export const lockWidgetLayout = (layout: DashboardLayoutConfig): DashboardLayoutConfig => ({
@@ -195,8 +203,13 @@ export const SECTION_PREVIEW_META: Record<
     },
     mainGrid: {
         shortLabel: 'Main grid',
-        description: 'Admin/actions left · library stats right · pending requests full width',
+        description: 'Admin/actions left · library stats right',
         previewClass: 'h-20',
+    },
+    pendingRequests: {
+        shortLabel: 'Pending requests',
+        description: 'Approve media requests from home (admin)',
+        previewClass: 'h-12',
     },
     watchRow: {
         shortLabel: 'Watch history',
