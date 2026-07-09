@@ -194,7 +194,7 @@ export const SettingsDashboard: React.FC = () => {
         {
             title: 'Portal',
             tabs: [
-                { id: 'branding', label: 'Portal UI', keywords: ['theme', 'logo', 'color', 'announcement', 'referral', 'quality', 'badges', 'poster', 'hdr', 'codec'] },
+                { id: 'branding', label: 'Portal UI', keywords: ['theme', 'logo', 'color', 'announcement', 'quality', 'badges', 'poster', 'hdr', 'codec'] },
                 { id: 'contact', label: 'Contact Details', keywords: ['email', 'whatsapp', 'support'] },
                 { id: 'navigation', label: 'Navigation', keywords: ['menu', 'order', 'sidebar'] },
                 { id: 'home-layout', label: 'Home Layout', keywords: ['dashboard', 'widgets', 'sections', 'home', 'layout', 'reorder', 'hide'] }
@@ -214,7 +214,7 @@ export const SettingsDashboard: React.FC = () => {
                 { id: 'smtp', label: 'SMTP Alerts', keywords: ['mail', 'smtp', 'test'] },
                 { id: 'newsletter', label: 'Newsletter', keywords: ['digest', 'send', 'frequency'] },
                 { id: 'broadcast', label: 'Broadcast Email', keywords: ['announcement', 'bulk', 'users'] },
-                { id: 'invites', label: 'Invites', keywords: ['invite', 'link', 'code'] }
+                { id: 'invites', label: 'Invites', keywords: ['invite', 'link', 'code', 'referral', 'reward', 'trial'] }
             ]
         },
         {
@@ -1904,31 +1904,20 @@ export const SettingsDashboard: React.FC = () => {
                                 </div>
                             </div>
 
-                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8">Referral System</h3>
-                            <SettingsToggleRow
-                                title="Enable Referrals"
-                                description="Allow users to generate a referral link"
-                                checked={referralEnabled}
-                                onChange={setReferralEnabled}
-                                border={false}
-                                className="mb-6"
-                            />
-                            <div className={`transition-all ${!referralEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
-                                <div className="flex gap-4">
-                                    <div className="flex-1">
-                                        <label>Referred User Temporary Access Days</label>
-                                        <input type="number" min="0" className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all" value={referralTrialDays} onChange={e => setReferralTrialDays(Number(e.target.value))} />
-                                    </div>
-                                    <div className="flex-1">
-                                        <label>Referrer Reward Days</label>
-                                        <input type="number" min="0" className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all" value={referralRewardDays} onChange={e => setReferralRewardDays(Number(e.target.value))} />
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     )}
 
-                    {activeTab === 'invites' && <InvitesSettings addToast={addToast} />}
+                    {activeTab === 'invites' && (
+                        <InvitesSettings
+                            addToast={addToast}
+                            referralEnabled={referralEnabled}
+                            setReferralEnabled={setReferralEnabled}
+                            referralTrialDays={referralTrialDays}
+                            setReferralTrialDays={setReferralTrialDays}
+                            referralRewardDays={referralRewardDays}
+                            setReferralRewardDays={setReferralRewardDays}
+                        />
+                    )}
 
                     {activeTab === 'tasks' && (
                         <div className="mb-8 animate-fade-in">

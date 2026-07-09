@@ -3,12 +3,28 @@ import { Copy, ChevronUp, ChevronDown } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { getPublicOrigin } from '../shared/basePath';
 import { appConfirm } from '../shared/confirm';
-import { CustomSelect } from '../shared/ui';
+import { CustomSelect, SettingsToggleRow } from '../shared/ui';
 import { Loader, ToastContainer, pushToast, type ToastMessage } from '../shared/toast';
 import { SettingHint } from './SettingHint';
 import type { User, AuditEntry, DeletedUser } from '../shared/types';
 import { formatDateTime, formatEventName, hexToRgb, getDaysUntilExpiry, addMonths, addYears, formatDate } from '../shared/format';
-export const InvitesSettings: React.FC<{ addToast: (msg: string, type: 'success' | 'error') => void }> = ({ addToast }) => {
+export const InvitesSettings: React.FC<{
+    addToast: (msg: string, type: 'success' | 'error') => void;
+    referralEnabled: boolean;
+    setReferralEnabled: (value: boolean) => void;
+    referralTrialDays: number;
+    setReferralTrialDays: (value: number) => void;
+    referralRewardDays: number;
+    setReferralRewardDays: (value: number) => void;
+}> = ({
+    addToast,
+    referralEnabled,
+    setReferralEnabled,
+    referralTrialDays,
+    setReferralTrialDays,
+    referralRewardDays,
+    setReferralRewardDays,
+}) => {
     const [invites, setInvites] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [durationDays, setDurationDays] = useState(30);
@@ -84,7 +100,33 @@ export const InvitesSettings: React.FC<{ addToast: (msg: string, type: 'success'
     if (loading) return <div className="text-muted">Loading invites...</div>;
 
     return (
-        <div className="animate-fade-in mb-8">
+        <div className="animate-fade-in mb-8 space-y-10">
+            <section>
+                <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Referral System</h3>
+                <p className="text-sm text-muted mb-6">Let existing members share a referral link. New users get temporary access; referrers earn bonus days when someone joins.</p>
+                <SettingsToggleRow
+                    title="Enable Referrals"
+                    description="Allow users to generate a referral link from their home page"
+                    checked={referralEnabled}
+                    onChange={setReferralEnabled}
+                    border={false}
+                    className="mb-6"
+                />
+                <div className={`transition-all ${!referralEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        <div className="flex-1">
+                            <label className="block text-sm mb-1 font-medium">Referred User Temporary Access Days</label>
+                            <input type="number" min="0" className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all" value={referralTrialDays} onChange={e => setReferralTrialDays(Number(e.target.value))} />
+                        </div>
+                        <div className="flex-1">
+                            <label className="block text-sm mb-1 font-medium">Referrer Reward Days</label>
+                            <input type="number" min="0" className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all" value={referralRewardDays} onChange={e => setReferralRewardDays(Number(e.target.value))} />
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section>
             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Automated Invite Links</h3>
             <p className="text-sm text-muted mb-6">Generate unique links to automatically invite users to your Plex server.</p>
 
@@ -194,6 +236,7 @@ export const InvitesSettings: React.FC<{ addToast: (msg: string, type: 'success'
                     </tbody>
                 </table>
             </div>
+            </section>
         </div>
     );
 };
