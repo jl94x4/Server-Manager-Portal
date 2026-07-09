@@ -4179,9 +4179,11 @@ app.delete('/api/invites/:code', requireAdmin, async (req, res) => {
     res.json({ success: true });
 });
 
-const REQUEST_LIST_FILTERS = new Set(['pending', 'approved', 'declined', 'processing', 'available']);
+const REQUEST_LIST_FILTERS = new Set(['pending', 'approved', 'declined', 'processing', 'available', 'failed']);
 
-const emptyRequestCounts = () => ({ pending: 0, approved: 0, declined: 0, total: 0 });
+const emptyRequestCounts = () => ({
+    pending: 0, approved: 0, declined: 0, processing: 0, available: 0, failed: 0, completed: 0, total: 0,
+});
 
 const buildRequestAppStatusPayload = (config) => {
     const gate = getRequestAppGate(config);
@@ -4291,14 +4293,132 @@ app.get('/api/requests', requireAdmin, async (req, res) => {
     }
 });
 
+app.post('/api/requests/override-defaults', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: gate.error || 'Request app not configured' });
+        const defaults = await requestAppService.getAdvancedRequestDefaults(config, {
+            mediaType: req.body?.mediaType,
+            tmdbId: req.body?.tmdbId,
+            userId: req.body?.userId,
+            is4k: req.body?.is4k,
+        });
+        if (!defaults) return res.json({});
+        res.json(defaults);
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to fetch override defaults' });
+    }
+});
+
+app.get('/api/requests/users', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: gate.error || 'Request app not configured' });
+        const users = await requestAppService.listRequestUsers(config);
+        res.json({ users });
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to fetch request users' });
+    }
+});
+
+app.get('/api/requests/services/:type', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: gate.error || 'Request app not configured' });
+        const type = String(req.params.type || '').toLowerCase() === 'radarr' ? 'movie' : 'tv';
+        const servers = await requestAppService.listServiceServers(config, type);
+        res.json({ servers });
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to fetch service servers' });
+    }
+});
+
+app.get('/api/requests/services/:type/:serverId', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: gate.error || 'Request app not configured' });
+        const type = String(req.params.type || '').toLowerCase() === 'radarr' ? 'movie' : 'tv';
+        const serverId = String(req.params.serverId || '').trim();
+        if (!serverId) return res.status(400).json({ error: 'Server ID is required' });
+        const options = await requestAppService.getServiceOptions(config, type, serverId);
+        res.json(options);
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to fetch service options' });
+    }
+});
+
+app.get('/api/requests/:id', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: gate.error || 'Request app not configured' });
+        const requestId = String(req.params.id || '').trim();
+        if (!requestId) return res.status(400).json({ error: 'Request ID is required' });
+        const detail = await requestAppService.getRequest(config, requestId);
+        res.json({ configured: true, connected: true, ...detail });
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to fetch request' });
+    }
+});
+
+app.put('/api/requests/:id', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const requestId = String(req.params.id || '').trim();
+        if (!requestId) return res.status(400).json({ error: 'Request ID is required' });
+        const overrides = req.body?.overrides || req.body || {};
+        const result = await requestAppService.updateRequest(config, requestId, overrides);
+        const title = result?.media?.title || result?.media?.name || overrides?.title || `Request #${requestId}`;
+        await appendAuditLog('request_updated', req.user, null, { requestId, title, overrides });
+        res.json({ success: true, title });
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to update request' });
+    }
+});
+
+app.delete('/api/requests/:id', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const requestId = String(req.params.id || '').trim();
+        if (!requestId) return res.status(400).json({ error: 'Request ID is required' });
+        await requestAppService.deleteRequest(config, requestId);
+        const title = String(req.body?.title || req.query?.title || `Request #${requestId}`);
+        await appendAuditLog('request_deleted', req.user, null, { requestId, title });
+        res.json({ success: true, title });
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to delete request' });
+    }
+});
+
+app.post('/api/requests/:id/retry', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const requestId = String(req.params.id || '').trim();
+        if (!requestId) return res.status(400).json({ error: 'Request ID is required' });
+        const result = await requestAppService.retryRequest(config, requestId);
+        const title = result?.media?.title || result?.media?.name || req.body?.title || `Request #${requestId}`;
+        await appendAuditLog('request_retried', req.user, null, { requestId, title });
+        res.json({ success: true, title });
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to retry request' });
+    }
+});
+
 app.post('/api/requests/:id/approve', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
         const requestId = String(req.params.id || '').trim();
         if (!requestId) return res.status(400).json({ error: 'Request ID is required' });
-        const result = await requestAppService.approveRequest(config, requestId);
+        const overrides = req.body?.overrides || null;
+        const result = overrides
+            ? await requestAppService.approveRequestWithOptions(config, requestId, overrides)
+            : await requestAppService.approveRequest(config, requestId);
         const title = result?.media?.title || result?.media?.name || req.body?.title || `Request #${requestId}`;
-        await appendAuditLog('request_approved', req.user, null, { requestId, title });
+        await appendAuditLog('request_approved', req.user, null, { requestId, title, overrides: overrides || null });
         res.json({ success: true, title });
     } catch (error) {
         res.status(502).json({ error: error.message || 'Failed to approve request' });

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Check, ChevronRight, Film, Loader2, RefreshCw, Tv } from 'lucide-react';
+import { Check, ChevronRight, Film, Loader2, Pencil, RefreshCw, Tv } from 'lucide-react';
 import { apiFetch } from '../shared/api';
+import { RequestApprovalModal } from './RequestApprovalModal';
 import type { PortalRequestItem } from './types';
 
 const formatRelativeTime = (value?: string | null) => {
@@ -31,6 +32,7 @@ export const PendingRequestsHomeWidget: React.FC<{
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [actionId, setActionId] = useState<number | null>(null);
+    const [reviewTarget, setReviewTarget] = useState<PortalRequestItem | null>(null);
 
     const load = useCallback(async (opts?: { silent?: boolean }) => {
         if (!opts?.silent) setLoading(true);
@@ -164,6 +166,15 @@ export const PendingRequestsHomeWidget: React.FC<{
                         <button
                             type="button"
                             disabled={busy}
+                            onClick={() => setReviewTarget(item)}
+                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-plex/40 text-plex text-sm font-bold hover:bg-plex/10 transition-colors disabled:opacity-50 min-w-[7rem]"
+                        >
+                            <Pencil className="w-4 h-4" />
+                            Review
+                        </button>
+                        <button
+                            type="button"
+                            disabled={busy}
                             onClick={() => handleApprove(item)}
                             className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-plex text-background text-sm font-bold hover:bg-plex-hover transition-colors disabled:opacity-50 min-w-[7rem]"
                         >
@@ -201,9 +212,18 @@ export const PendingRequestsHomeWidget: React.FC<{
                 <button
                     type="button"
                     disabled={busy}
+                    onClick={() => setReviewTarget(item)}
+                    className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg border border-plex/40 text-plex hover:bg-plex/10 transition-colors disabled:opacity-50"
+                    title="Review"
+                >
+                    <Pencil className="w-4 h-4" />
+                </button>
+                <button
+                    type="button"
+                    disabled={busy}
                     onClick={() => handleApprove(item)}
                     className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg bg-plex text-background hover:bg-plex-hover transition-colors disabled:opacity-50"
-                    title="Approve"
+                    title="Quick approve"
                 >
                     {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                 </button>
@@ -251,6 +271,21 @@ export const PendingRequestsHomeWidget: React.FC<{
                 <div className={isWide ? 'grid grid-cols-1 xl:grid-cols-2 gap-3' : 'space-y-2'}>
                     {requests.map((item) => renderRequestRow(item, isWide))}
                 </div>
+            )}
+            {reviewTarget && (
+                <RequestApprovalModal
+                    requestId={reviewTarget.id}
+                    initialTitle={reviewTarget.title}
+                    mode="approve"
+                    onClose={() => setReviewTarget(null)}
+                    onComplete={(message) => {
+                        onToast?.(message, 'success');
+                        setReviewTarget(null);
+                        load({ silent: true });
+                        onActionComplete?.();
+                    }}
+                    onError={(message) => onToast?.(message, 'error')}
+                />
             )}
         </div>
     );
