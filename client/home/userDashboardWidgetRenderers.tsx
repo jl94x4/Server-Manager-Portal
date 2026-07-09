@@ -65,6 +65,11 @@ const formatBytes = (bytes: number) => {
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 };
 
+/** Trial flag can linger after admin extends access — only treat as temp access while ≤3 days remain. */
+const isActiveShortTermTrial = (user: any, daysLeft: number | null) => (
+    !!user?.isTrial && daysLeft !== null && daysLeft <= 3
+);
+
 export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
     const {
         sessionInfo,
@@ -126,7 +131,7 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                                 <div className="flex flex-wrap items-center gap-3">
                                     <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-black border uppercase tracking-wider shadow-sm ${isRevoked ? 'bg-red-500/10 border-red-500/30 text-red-400' : isExpiringSoon ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' : 'bg-green-500/10 border-green-500/30 text-green-400'}`}>
                                         <span className={`w-2 h-2 rounded-full animate-pulse ${isRevoked ? 'bg-red-400' : isExpiringSoon ? 'bg-yellow-400' : 'bg-green-400'}`} />
-                                        {user.plexAccessStatus}{user.isTrial && ' · Temp Access'}
+                                        {user.plexAccessStatus}{isActiveShortTermTrial(user, daysLeft) && ' · Temp Access'}
                                     </span>
                                     {user.expiryDate ? (
                                         <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-white/5 border border-white/10 text-text shadow-sm">
@@ -233,36 +238,47 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                         </div>
                     </div>
                 );
-            case 'support':
+            case 'support': {
+                const showTempAccessMessage = isActiveShortTermTrial(user, daysLeft);
+                const hasContactOptions = !!(publicConfig?.contactWhatsApp || publicConfig?.contactEmail);
                 return (
                     <div className="glass-card p-4 md:p-5 shadow-lg flex flex-col">
-                        {user?.isTrial ? (
+                        {showTempAccessMessage ? (
                             <div className="mb-3 md:mb-4 flex-shrink-0">
                                 <p className="text-plex font-bold text-base mb-1">🍿 Enjoying your Temporary Access?</p>
-                                <p className="text-muted text-sm leading-relaxed">Once your 3-day access ends, you'll lose access. Get in touch with the admin to extend your access!</p>
+                                <p className="text-muted text-sm leading-relaxed">
+                                    Once your {daysLeft === 1 ? '1-day' : `${daysLeft}-day`} access ends, you'll lose access. Get in touch with the admin to extend your access!
+                                </p>
                             </div>
                         ) : (
                             <div className="mb-3 md:mb-4 flex-shrink-0">
                                 <p className="text-text font-bold text-base mb-1">💬 Need Help?</p>
-                                <p className="text-muted text-sm leading-relaxed">Contact the admin to extend your access, report an issue, or get support.</p>
+                                <p className="text-muted text-sm leading-relaxed">
+                                    Contact the owner to extend your access, report an issue, or get support.
+                                </p>
                             </div>
                         )}
-                        <div className="flex flex-col gap-3 mt-auto">
-                            {publicConfig?.contactWhatsApp && (
-                                <a href={`https://wa.me/${publicConfig.contactWhatsApp}`} target="_blank" rel="noreferrer"
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-[#25D366]/10 border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366]/20">
-                                    WhatsApp
-                                </a>
-                            )}
-                            {publicConfig?.contactEmail && (
-                                <a href={`mailto:${publicConfig.contactEmail}`}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
-                                    Email
-                                </a>
-                            )}
-                        </div>
+                        {hasContactOptions ? (
+                            <div className="flex flex-col gap-3 mt-auto">
+                                {publicConfig?.contactWhatsApp && (
+                                    <a href={`https://wa.me/${String(publicConfig.contactWhatsApp).replace(/\D/g, '')}`} target="_blank" rel="noreferrer"
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-[#25D366]/10 border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366]/20">
+                                        WhatsApp
+                                    </a>
+                                )}
+                                {publicConfig?.contactEmail && (
+                                    <a href={`mailto:${publicConfig.contactEmail}`}
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all border bg-white/5 border-white/10 text-text hover:bg-white/10">
+                                        Email
+                                    </a>
+                                )}
+                            </div>
+                        ) : (
+                            <p className="text-muted text-xs mt-auto">Contact details have not been configured by the server owner yet.</p>
+                        )}
                     </div>
                 );
+            }
             case 'libraryStats':
                 if (isJellyfinPortal) {
                     return (

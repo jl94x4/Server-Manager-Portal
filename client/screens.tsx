@@ -5039,8 +5039,8 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                     )}
                 </div>
 
-                <div className="relative pt-14 pb-5 px-4 md:pt-32 md:pb-12 md:px-12 flex flex-col items-center md:items-start text-center md:text-left z-10">
-                    <div className="flex flex-col md:flex-row items-center md:items-end gap-4 md:gap-6">
+                <div className="relative pt-14 pb-7 px-4 md:pt-32 md:pb-12 md:px-12 flex flex-col items-center md:items-start text-center md:text-left z-10">
+                    <div className="flex flex-col md:flex-row items-center md:items-center gap-4 md:gap-6">
                         {/* Avatar */}
                         {(() => {
                             const thumbUrl = user?.thumb || sessionInfo.session.thumb || (sessionInfo.session.isAdmin ? sessionInfo.adminThumb : null);
@@ -5072,7 +5072,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                             );
                         })()}
 
-                        <div className="pb-2">
+                        <div className="pb-1 md:pb-2 overflow-visible min-w-0 max-w-full">
                             <p className="text-plex text-sm uppercase tracking-[4px] font-bold mb-1 drop-shadow-md">
                                 {(() => {
                                     const hour = new Date().getHours();
@@ -5082,7 +5082,10 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                     return 'Good Night';
                                 })()}
                             </p>
-                            <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 leading-tight drop-shadow-lg" style={{ fontSize: 'clamp(1.6rem, 8vw, 3rem)', wordBreak: 'break-word' }}>
+                            <h1
+                                className="text-4xl md:text-5xl font-black text-white leading-normal drop-shadow-lg pb-0.5"
+                                style={{ fontSize: 'clamp(1.6rem, 8vw, 3rem)', wordBreak: 'break-word' }}
+                            >
                                 {sessionInfo.session.username}
                             </h1>
                             {sessionInfo.session.isAdmin && (

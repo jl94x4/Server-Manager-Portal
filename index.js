@@ -381,6 +381,17 @@ const getDaysUntilExpiry = (expiryDate) => {
     return Math.round(diffTime / (1000 * 60 * 60 * 24));
 };
 
+/** Clear stale isTrial when access is unlimited or extended beyond short-term trial. */
+const reconcileTrialAccessFlag = (user) => {
+    if (!user?.isTrial) return false;
+    const days = getDaysUntilExpiry(user.expiryDate);
+    if (days === null || days > 3) {
+        user.isTrial = false;
+        return true;
+    }
+    return false;
+};
+
 const addMonths = (date, months) => {
     const d = new Date(date);
     d.setMonth(d.getMonth() + months);
@@ -2125,6 +2136,10 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
 
     if (impersonating && localUser?.thumb) {
         sessionThumb = localUser.thumb;
+    }
+
+    if (localUser && reconcileTrialAccessFlag(localUser)) {
+        await saveFile(USERS_PATH, users);
     }
 
     const { actor: _actor, impersonatingUserId, ...sessionPublic } = req.user;
@@ -4658,6 +4673,8 @@ app.put('/api/users/:id', requireAdmin, async (req, res) => {
         users[userIndex].optOutNewsletter = !!optOutNewsletter;
     }
 
+    reconcileTrialAccessFlag(users[userIndex]);
+
     await saveFile(USERS_PATH, users);
 
     if (expiryDate !== undefined && expiryDate !== previousExpiryDate) {
@@ -4703,6 +4720,7 @@ const applyBulkAction = (user, action, customDate) => {
             user.expiryDate = customDate ? new Date(customDate).toISOString() : null;
             break;
     }
+    reconcileTrialAccessFlag(user);
 };
 
 app.post('/api/users/bulk-update', requireAdmin, async (req, res) => {
