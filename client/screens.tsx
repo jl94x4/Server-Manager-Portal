@@ -28,6 +28,7 @@ import { SetupWizard } from './setup/SetupWizard';
 import { AuthPageBackground, themeClasses, SlideshowBackground } from './shared/theme';
 import { activityStreamColumnCount, activityStreamGridClass, discoverPosterGridClass } from './shared/portalLayout';
 import { filterNavOrder, type NavFeatureFlags } from './shared/nav';
+import { ANALYTICS_PERIOD_OPTIONS } from './shared/analyticsPeriodOptions';
 import { UserDashboardLayout } from './home/UserDashboardLayout';
 import { createMainGridWidgetRenderer, createRecentlyAddedWidgetRenderer } from './home/userDashboardWidgetRenderers';
 
@@ -4939,21 +4940,15 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
         ? (heroBgRaw.startsWith('http') ? heroBgRaw : resolvePortalAssetUrl(heroBgRaw))
         : '';
 
-    const wrapUpDaysOptions = [
-        { value: 7, label: 'Last 7 Days' },
-        { value: 30, label: 'Last 30 Days' },
-        { value: 60, label: 'Last 60 Days' },
-        { value: 90, label: 'Last 90 Days' },
-        { value: 180, label: 'Last 180 Days' },
-        { value: 'all', label: 'All Time' },
-    ];
+    const wrapUpDaysOptions = ANALYTICS_PERIOD_OPTIONS;
 
     const layoutCtx = useMemo(() => ({
         isAdmin: !!sessionInfo.session.isAdmin,
         hasUser: !!user,
         referralEnabled: !!publicConfig?.referralEnabled,
         requestsQueueEnabled: !!sessionInfo?.navFeatures?.requestsQueue,
-    }), [sessionInfo.session.isAdmin, user, publicConfig?.referralEnabled, sessionInfo?.navFeatures?.requestsQueue]);
+        mediaServerType: publicConfig?.mediaServerType || 'plex',
+    }), [sessionInfo.session.isAdmin, user, publicConfig?.referralEnabled, publicConfig?.mediaServerType, sessionInfo?.navFeatures?.requestsQueue]);
 
     const widgetDeps = useMemo(() => ({
         sessionInfo,
@@ -5235,32 +5230,43 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                 ) : analytics && analytics.totalPlays > 0 && analytics.topWatched && analytics.topWatched.length > 0 ? (
                                     <div className={`flex min-h-0 ${analytics.recentHistory?.length ? 'lg:col-span-2' : 'lg:col-span-2 lg:col-start-2'}`}>
                                         <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col h-full w-full min-h-0">
-                                            <div className="flex items-center justify-between mb-3 md:mb-4 flex-shrink-0">
+                                            <div className="flex flex-wrap items-center justify-between gap-3 mb-3 md:mb-4 flex-shrink-0">
                                                 <div>
                                                     <h3 className="text-lg md:text-xl font-bold text-text mb-0.5">Your Most Watched</h3>
                                                     <p className="text-muted text-sm">Based on your {analytics.totalPlays} total plays</p>
                                                 </div>
-                                                {analytics.topWatched.length > topWatchedPageSize && (
-                                                    <div className="flex items-center gap-2">
-                                                        <button
-                                                            onClick={() => setTopContentPage(p => Math.max(0, p - 1))}
-                                                            disabled={topContentPage === 0}
-                                                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
-                                                        >
-                                                            <ChevronUp className="w-4 h-4 -rotate-90" />
-                                                        </button>
-                                                        <span className="text-xs text-muted font-medium w-8 text-center">
-                                                            {topContentPage + 1} / {Math.ceil(analytics.topWatched.length / topWatchedPageSize)}
-                                                        </span>
-                                                        <button
-                                                            onClick={() => setTopContentPage(p => Math.min(Math.ceil(analytics.topWatched.length / topWatchedPageSize) - 1, p + 1))}
-                                                            disabled={topContentPage >= Math.ceil(analytics.topWatched.length / topWatchedPageSize) - 1}
-                                                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
-                                                        >
-                                                            <ChevronDown className="w-4 h-4 -rotate-90" />
-                                                        </button>
-                                                    </div>
-                                                )}
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    {analytics.topWatched.length > topWatchedPageSize && (
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                onClick={() => setTopContentPage(p => Math.max(0, p - 1))}
+                                                                disabled={topContentPage === 0}
+                                                                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
+                                                            >
+                                                                <ChevronUp className="w-4 h-4 -rotate-90" />
+                                                            </button>
+                                                            <span className="text-xs text-muted font-medium w-8 text-center">
+                                                                {topContentPage + 1} / {Math.ceil(analytics.topWatched.length / topWatchedPageSize)}
+                                                            </span>
+                                                            <button
+                                                                onClick={() => setTopContentPage(p => Math.min(Math.ceil(analytics.topWatched.length / topWatchedPageSize) - 1, p + 1))}
+                                                                disabled={topContentPage >= Math.ceil(analytics.topWatched.length / topWatchedPageSize) - 1}
+                                                                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
+                                                            >
+                                                                <ChevronDown className="w-4 h-4 -rotate-90" />
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                    <PeriodDropdown
+                                                        value={analyticsDays}
+                                                        open={analyticsDaysOpen}
+                                                        onToggle={() => setAnalyticsDaysOpen(!analyticsDaysOpen)}
+                                                        onClose={() => setAnalyticsDaysOpen(false)}
+                                                        onChange={(value) => setAnalyticsDays(value as number | 'all')}
+                                                        options={ANALYTICS_PERIOD_OPTIONS}
+                                                        buttonClassName="flex items-center gap-2 bg-background border border-border/50 rounded-lg px-3 py-1.5 text-sm font-medium text-text focus:outline-none hover:border-plex/50 transition-colors cursor-pointer shadow-sm"
+                                                    />
+                                                </div>
                                             </div>
                                             <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 md:gap-3.5 flex-1 min-h-0 content-start">
                                                 {analytics.topWatched.slice(topContentPage * topWatchedPageSize, (topContentPage + 1) * topWatchedPageSize).map((item: any) => (

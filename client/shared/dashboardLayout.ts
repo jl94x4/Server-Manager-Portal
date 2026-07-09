@@ -35,10 +35,10 @@ export const DASHBOARD_SECTION_LABELS: Record<DashboardSectionId, string> = {
     recentlyAdded: 'Recently Added rows',
 };
 
-export const MAIN_GRID_WIDGET_META: Record<MainGridWidgetId, { label: string; column: 'left' | 'right'; adminOnly?: boolean; userOnly?: boolean }> = {
+export const MAIN_GRID_WIDGET_META: Record<MainGridWidgetId, { label: string; column: 'left' | 'right'; adminOnly?: boolean; userOnly?: boolean; fullWidth?: boolean }> = {
     adminBadge: { label: 'Server Admin badge', column: 'left', adminOnly: true },
     quickActions: { label: 'Quick Actions', column: 'left', adminOnly: true },
-    pendingRequests: { label: 'Pending Requests', column: 'left', adminOnly: true },
+    pendingRequests: { label: 'Pending Requests', column: 'left', adminOnly: true, fullWidth: true },
     accessStatus: { label: 'Access status & expiry', column: 'left', userOnly: true },
     tempAccessSetup: { label: 'Temp access setup spinner', column: 'left', userOnly: true },
     announcement: { label: 'Announcement banner', column: 'left' },
@@ -121,6 +121,7 @@ export type DashboardLayoutContext = {
     hasUser: boolean;
     referralEnabled?: boolean;
     requestsQueueEnabled?: boolean;
+    mediaServerType?: string;
 };
 
 export const isMainGridWidgetAvailable = (id: MainGridWidgetId, ctx: DashboardLayoutContext): boolean => {
@@ -133,8 +134,19 @@ export const isMainGridWidgetAvailable = (id: MainGridWidgetId, ctx: DashboardLa
     if (id === 'adminBadge' && !ctx.isAdmin) return false;
     if (id === 'quickActions' && !ctx.isAdmin) return false;
     if (id === 'pendingRequests' && (!ctx.isAdmin || !ctx.requestsQueueEnabled)) return false;
+    if (id === 'analytics') {
+        const isJellyfin = String(ctx.mediaServerType || '').toLowerCase() === 'jellyfin';
+        if (!isJellyfin) return false;
+    }
     return true;
 };
+
+export const isFullWidthMainGridWidget = (id: MainGridWidgetId) => !!MAIN_GRID_WIDGET_META[id].fullWidth;
+
+export const splitMainGridWidgets = (widgets: MainGridWidgetId[]) => ({
+    fullWidth: widgets.filter((id) => isFullWidthMainGridWidget(id)),
+    grid: widgets.filter((id) => !isFullWidthMainGridWidget(id)),
+});
 
 export const resolveMainGridWidgets = (layout: DashboardLayoutConfig, ctx: DashboardLayoutContext): MainGridWidgetId[] =>
     layout.mainGridOrder.filter(
@@ -183,7 +195,7 @@ export const SECTION_PREVIEW_META: Record<
     },
     mainGrid: {
         shortLabel: 'Main grid',
-        description: 'Fixed layout: admin/actions left · library/analytics right',
+        description: 'Admin/actions left · library stats right · pending requests full width',
         previewClass: 'h-20',
     },
     watchRow: {

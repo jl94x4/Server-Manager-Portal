@@ -18,6 +18,7 @@ import type { MainGridWidgetId, RecentlyAddedWidgetId } from '../shared/dashboar
 import { LibraryStatsSkeleton } from '../shared/skeletons';
 import { PeriodDropdown } from '../shared/PeriodDropdown';
 import { ScrollReveal } from '../shared/ui';
+import { ANALYTICS_PERIOD_OPTIONS } from '../shared/analyticsPeriodOptions';
 import { PendingRequestsHomeWidget } from '../requests/PendingRequestsHomeWidget';
 
 type PosterCardProps = {
@@ -102,14 +103,7 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
         RebuildLibraryCacheButton,
     } = deps;
 
-    const analyticsDaysOptions = [
-        { value: 7, label: 'Last 7 Days' },
-        { value: 30, label: 'Last 30 Days' },
-        { value: 60, label: 'Last 60 Days' },
-        { value: 90, label: 'Last 90 Days' },
-        { value: 180, label: 'Last 180 Days' },
-        { value: 'all' as const, label: 'All Time' },
-    ];
+    const analyticsDaysOptions = ANALYTICS_PERIOD_OPTIONS;
     const isJellyfinPortal = String(publicConfig?.mediaServerType || 'plex').toLowerCase() === 'jellyfin';
 
     return (id: MainGridWidgetId): React.ReactNode => {
@@ -205,6 +199,7 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                 if (!sessionInfo?.navFeatures?.requestsQueue) return null;
                 return (
                     <PendingRequestsHomeWidget
+                        layout="wide"
                         onViewAll={onViewRequests}
                         onActionComplete={onPendingRequestsChange}
                         onToast={(message, type) => setToast({ id: Date.now(), message, type })}
@@ -373,61 +368,12 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                 );
             case 'analytics':
                 if (!sessionInfo.session.isAdmin && !user) return null;
-                if (isJellyfinPortal) {
-                    return (
-                        <div className="glass-card p-3 md:p-4 shadow-xl flex flex-col flex-1 min-h-0">
-                            <div className="flex items-center justify-between flex-shrink-0">
-                                <h2 className="text-lg md:text-xl font-bold text-text flex items-center gap-2">
-                                    <Activity className="w-5 h-5 text-plex" /> Jellystat Activity
-                                </h2>
-                                <PeriodDropdown
-                                    value={analyticsDays}
-                                    open={analyticsDaysOpen}
-                                    onToggle={() => setAnalyticsDaysOpen(!analyticsDaysOpen)}
-                                    onClose={() => setAnalyticsDaysOpen(false)}
-                                    onChange={(value) => setAnalyticsDays(value as number | 'all')}
-                                    options={analyticsDaysOptions}
-                                />
-                            </div>
-                            {analyticsLoading ? (
-                                <div className="flex items-center gap-3 text-muted mt-4">
-                                    <div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin" />
-                                    Loading Jellystat activity...
-                                </div>
-                            ) : analytics && analytics.totalPlays > 0 ? (
-                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mt-4">
-                                    <div className="bg-background/60 rounded-xl border border-white/5 p-3">
-                                        <p className="text-[10px] text-muted uppercase tracking-widest font-bold">Total Plays</p>
-                                        <p className="text-2xl font-black text-text mt-1">{analytics.totalPlays?.toLocaleString?.() || 0}</p>
-                                    </div>
-                                    <div className="bg-background/60 rounded-xl border border-white/5 p-3">
-                                        <p className="text-[10px] text-muted uppercase tracking-widest font-bold">Top Library</p>
-                                        <p className="text-sm font-bold text-text mt-1 truncate">{analytics.favoriteLibrary || 'None'}</p>
-                                    </div>
-                                    <div className="bg-background/60 rounded-xl border border-white/5 p-3">
-                                        <p className="text-[10px] text-muted uppercase tracking-widest font-bold">Top Movie</p>
-                                        <p className="text-sm font-bold text-text mt-1 truncate">{analytics.topMovie?.title || 'None'}</p>
-                                    </div>
-                                    <div className="bg-background/60 rounded-xl border border-white/5 p-3">
-                                        <p className="text-[10px] text-muted uppercase tracking-widest font-bold">Top Show</p>
-                                        <p className="text-sm font-bold text-text mt-1 truncate">{analytics.topBinge?.title || 'None'}</p>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center p-4 md:p-5 text-center flex-1 min-h-0 mt-2 md:mt-3">
-                                    <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3 text-xl shadow-inner">🍿</div>
-                                    <h3 className="font-bold text-text mb-1">No Jellystat activity yet</h3>
-                                    <p className="text-muted text-sm max-w-sm">Once Jellystat records playback activity, your server activity summary will appear right here.</p>
-                                </div>
-                            )}
-                        </div>
-                    );
-                }
+                if (!isJellyfinPortal) return null;
                 return (
-                    <div className="glass-card p-3 md:p-4 shadow-xl flex flex-col flex-1 min-h-0">
+                        <div className="glass-card p-3 md:p-4 shadow-xl flex flex-col flex-1 min-h-0">
                         <div className="flex items-center justify-between flex-shrink-0">
                             <h2 className="text-lg md:text-xl font-bold text-text flex items-center gap-2">
-                                <Activity className="w-5 h-5 text-plex" /> Your Analytics
+                                <Activity className="w-5 h-5 text-plex" /> Jellystat Activity
                             </h2>
                             <PeriodDropdown
                                 value={analyticsDays}
@@ -438,11 +384,35 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                                 options={analyticsDaysOptions}
                             />
                         </div>
-                        {!analyticsLoading && analytics && analytics.totalPlays === 0 && (
+                        {analyticsLoading ? (
+                            <div className="flex items-center gap-3 text-muted mt-4">
+                                <div className="w-5 h-5 rounded-full border-2 border-plex border-t-transparent animate-spin" />
+                                Loading Jellystat activity...
+                            </div>
+                        ) : analytics && analytics.totalPlays > 0 ? (
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mt-4">
+                                <div className="bg-background/60 rounded-xl border border-white/5 p-3">
+                                    <p className="text-[10px] text-muted uppercase tracking-widest font-bold">Total Plays</p>
+                                    <p className="text-2xl font-black text-text mt-1">{analytics.totalPlays?.toLocaleString?.() || 0}</p>
+                                </div>
+                                <div className="bg-background/60 rounded-xl border border-white/5 p-3">
+                                    <p className="text-[10px] text-muted uppercase tracking-widest font-bold">Top Library</p>
+                                    <p className="text-sm font-bold text-text mt-1 truncate">{analytics.favoriteLibrary || 'None'}</p>
+                                </div>
+                                <div className="bg-background/60 rounded-xl border border-white/5 p-3">
+                                    <p className="text-[10px] text-muted uppercase tracking-widest font-bold">Top Movie</p>
+                                    <p className="text-sm font-bold text-text mt-1 truncate">{analytics.topMovie?.title || 'None'}</p>
+                                </div>
+                                <div className="bg-background/60 rounded-xl border border-white/5 p-3">
+                                    <p className="text-[10px] text-muted uppercase tracking-widest font-bold">Top Show</p>
+                                    <p className="text-sm font-bold text-text mt-1 truncate">{analytics.topBinge?.title || 'None'}</p>
+                                </div>
+                            </div>
+                        ) : (
                             <div className="flex flex-col items-center justify-center p-4 md:p-5 text-center flex-1 min-h-0 mt-2 md:mt-3">
                                 <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3 text-xl shadow-inner">🍿</div>
-                                <h3 className="font-bold text-text mb-1">No watch history yet</h3>
-                                <p className="text-muted text-sm max-w-sm">Once you start watching content on the server, your personal watch stats and history will appear right here!</p>
+                                <h3 className="font-bold text-text mb-1">No Jellystat activity yet</h3>
+                                <p className="text-muted text-sm max-w-sm">Once Jellystat records playback activity, your server activity summary will appear right here.</p>
                             </div>
                         )}
                     </div>
