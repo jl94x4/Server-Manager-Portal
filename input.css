@@ -550,3 +550,20 @@ html.branded-skeleton .skeleton-base::after {
   50% { stroke-dasharray: 300, 0; stroke-dashoffset: 0; opacity: 1; filter: drop-shadow(0 0 10px var(--plex-color, #e5a00d)); }
   100% { stroke-dasharray: 300, 0; stroke-dashoffset: 300; opacity: 0; filter: drop-shadow(0 0 2px var(--plex-color, #e5a00d)); }
 }
+
+[id^="settings-section-"].settings-section-highlight {
+  scroll-margin-top: 5rem;
+  border-radius: 0.5rem;
+  animation: settings-section-highlight 2.2s ease-out;
+}
+
+@keyframes settings-section-highlight {
+  0%, 100% {
+    box-shadow: 0 0 0 0 transparent;
+    background-color: transparent;
+  }
+  15%, 40% {
+    box-shadow: 0 0 0 2px rgb(var(--color-plex) / 0.55);
+    background-color: rgb(var(--color-plex) / 0.08);
+  }
+}

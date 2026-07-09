@@ -5,6 +5,7 @@ import { getPublicOrigin } from '../shared/basePath';
 import { appConfirm } from '../shared/confirm';
 import { CustomSelect, SettingsToggleRow } from '../shared/ui';
 import { Loader, ToastContainer, pushToast, type ToastMessage } from '../shared/toast';
+import { getSettingsSectionElementId } from './settingsIndex';
 import { SettingHint } from './SettingHint';
 import type { User, AuditEntry, DeletedUser } from '../shared/types';
 import { formatDateTime, formatEventName, hexToRgb, getDaysUntilExpiry, addMonths, addYears, formatDate } from '../shared/format';
@@ -101,7 +102,7 @@ export const InvitesSettings: React.FC<{
 
     return (
         <div className="animate-fade-in mb-8 space-y-10">
-            <section>
+            <section id={getSettingsSectionElementId('referral')} className="scroll-mt-24">
                 <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Referral System</h3>
                 <p className="text-sm text-muted mb-6">Let existing members share a referral link. New users get temporary access; referrers earn bonus days when someone joins.</p>
                 <SettingsToggleRow
@@ -130,7 +131,7 @@ export const InvitesSettings: React.FC<{
                 </div>
             </section>
 
-            <section>
+            <section id={getSettingsSectionElementId('invite-links')} className="scroll-mt-24">
             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Automated Invite Links</h3>
             <p className="text-sm text-muted mb-6">Generate unique links to automatically invite users to your Plex server.</p>
 

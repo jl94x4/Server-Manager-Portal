@@ -17,6 +17,17 @@ import { IntegrationTestButton } from '../shared/IntegrationTestButton';
 import { HomeLayoutSettings } from './HomeLayoutSettings';
 import { ArrInstancesPanel } from './ArrInstancesPanel';
 import { DEFAULT_DASHBOARD_LAYOUT, normalizeSectionLayout, type DashboardLayoutConfig } from '../shared/dashboardLayout';
+import {
+    SETTINGS_TAB_GROUPS,
+    buildSettingsHash,
+    getSettingsSectionElementId,
+    parseSettingsHash,
+    recordRecentSetting,
+    resolveSettingsEntry,
+    type SettingsIndexEntry,
+    type SettingsTabId,
+} from './settingsIndex';
+import { SettingsSearchPanel } from './SettingsSearchPanel';
 
 const normalizeArrInstancesFromSettings = (settings: Record<string, any> = {}): ArrInstance[] => {
     if (Array.isArray(settings.arrInstances) && settings.arrInstances.length > 0) {
@@ -104,7 +115,6 @@ const JELLYFIN_BRAND_LOGO_URL = '/api/jellyfin/branding/icon';
 const JELLYFIN_BRAND_BACKGROUND_URL = '/api/jellyfin/branding/splash';
 
 export const SettingsDashboard: React.FC = () => {
-    const SETTINGS_TABS = ['plex', 'smtp', 'newsletter', 'cleanup', 'mediastack', 'branding', 'navigation', 'home-layout', 'status', 'invites', 'tasks', 'system', 'contact', 'broadcast', 'stream-rules', 'logs'] as const;
     const [statusDraft, setStatusDraft] = useState<any>(null);
     const [isLoading, setLoading] = useState(true);
     const [configLoadError, setConfigLoadError] = useState<string | null>(null);
@@ -183,78 +193,51 @@ export const SettingsDashboard: React.FC = () => {
     const [useTrendingSlideshowOnLogin, setUseTrendingSlideshowOnLogin] = useState(false);
     const [defaultLibraryIds, setDefaultLibraryIds] = useState<string[]>([]);
     const [libraries, setLibraries] = useState<any[]>([]);
-    const [activeTab, setActiveTab] = useState(() => {
-        const hash = window.location.hash.replace('#', '');
-        return (SETTINGS_TABS as readonly string[]).includes(hash) ? hash : 'branding';
+    const [activeTab, setActiveTab] = useState<SettingsTabId>(() => {
+        const { tabId } = parseSettingsHash(window.location.hash);
+        return tabId || 'branding';
+    });
+    const initialHash = parseSettingsHash(window.location.hash);
+    const [activeSectionId, setActiveSectionId] = useState<string | null>(initialHash.sectionId);
+    const [scrollToSection, setScrollToSection] = useState<string | null>(initialHash.sectionId);
+    const [activeSettingId, setActiveSettingId] = useState<string | null>(() => {
+        if (initialHash.tabId && initialHash.sectionId) return `${initialHash.tabId}/${initialHash.sectionId}`;
+        return initialHash.tabId || 'branding';
     });
     const [highlightMaintenanceToggle, setHighlightMaintenanceToggle] = useState(false);
-    const [settingsSearch, setSettingsSearch] = useState('');
 
-    const settingsTabGroups = [
-        {
-            title: 'Portal',
-            tabs: [
-                { id: 'branding', label: 'Portal UI', keywords: ['theme', 'logo', 'color', 'announcement', 'quality', 'badges', 'poster', 'hdr', 'codec'] },
-                { id: 'contact', label: 'Contact Details', keywords: ['email', 'whatsapp', 'support'] },
-                { id: 'navigation', label: 'Navigation', keywords: ['menu', 'order', 'sidebar'] },
-                { id: 'home-layout', label: 'Home Layout', keywords: ['dashboard', 'widgets', 'sections', 'home', 'layout', 'reorder', 'hide'] }
-            ]
-        },
-        {
-            title: 'Media Stack',
-            tabs: [
-                { id: 'plex', label: 'Media Player', keywords: ['plex', 'jellyfin', 'media', 'player', 'token', 'server', 'libraries', 'docker', 'local', 'url', 'direct', 'privacy', 'usernames', 'analytics'] },
-                { id: 'mediastack', label: 'Integrations', keywords: ['sonarr', 'radarr', 'tautulli', 'jellystat', 'seerr', 'jellyseerr'] },
-                { id: 'status', label: 'Status Monitor', keywords: ['uptime', 'health', 'services'] }
-            ]
-        },
-        {
-            title: 'Comms',
-            tabs: [
-                { id: 'smtp', label: 'SMTP Alerts', keywords: ['mail', 'smtp', 'test'] },
-                { id: 'newsletter', label: 'Newsletter', keywords: ['digest', 'send', 'frequency'] },
-                { id: 'broadcast', label: 'Broadcast Email', keywords: ['announcement', 'bulk', 'users'] },
-                { id: 'invites', label: 'Invites', keywords: ['invite', 'link', 'code', 'referral', 'reward', 'trial'] }
-            ]
-        },
-        {
-            title: 'Automation',
-            tabs: [
-                { id: 'cleanup', label: 'Cleanup', keywords: ['inactive', 'revoke', 'expiry'] },
-                { id: 'stream-rules', label: 'Stream Rules', keywords: ['kill', 'transcode', 'rule'] },
-                { id: 'tasks', label: 'Background Tasks', keywords: ['jobs', 'scheduler', 'run now'] },
-                { id: 'system', label: 'System', keywords: ['backup', 'restore', 'diagnostics'] },
-                { id: 'logs', label: 'Logs & Audit', keywords: ['audit', 'emails', 'deleted users', 'history'] }
-            ]
-        }
-    ];
-    const settingsTabsFlat = settingsTabGroups.flatMap(group => group.tabs);
-    const searchTerm = settingsSearch.trim().toLowerCase();
-    const visibleTabGroups = settingsTabGroups
-        .map(group => ({
-            ...group,
-            tabs: group.tabs.filter(tab => {
-                if (!searchTerm) return true;
-                const haystack = `${group.title} ${tab.label} ${(tab.keywords || []).join(' ')}`.toLowerCase();
-                return haystack.includes(searchTerm);
-            })
-        }))
-        .filter(group => group.tabs.length > 0);
+    const settingsTabGroups = SETTINGS_TAB_GROUPS;
+    const settingsTabsFlat = settingsTabGroups.flatMap((group) => group.tabs);
+    const visibleTabGroups = settingsTabGroups;
+
+    const navigateToSetting = useCallback((entry: SettingsIndexEntry) => {
+        setActiveTab(entry.tabId);
+        setActiveSectionId(entry.sectionId || null);
+        setScrollToSection(entry.sectionId || null);
+        setActiveSettingId(entry.id);
+        recordRecentSetting(entry.id);
+    }, []);
 
     useEffect(() => {
-        const hash = `#${activeTab}`;
+        const hash = buildSettingsHash(activeTab, activeSectionId);
         if (window.location.hash !== hash) {
             window.history.replaceState({}, '', `${window.location.pathname}${window.location.search}${hash}`);
         }
-    }, [activeTab]);
+    }, [activeTab, activeSectionId]);
 
     useEffect(() => {
         const syncTabFromHash = () => {
-            const hash = window.location.hash.replace('#', '');
-            if ((SETTINGS_TABS as readonly string[]).includes(hash)) {
-                setActiveTab(hash);
-            } else if (!hash) {
+            const { tabId, sectionId } = parseSettingsHash(window.location.hash);
+            if (tabId) {
+                setActiveTab(tabId);
+                setActiveSectionId(sectionId);
+                setScrollToSection(sectionId);
+                setActiveSettingId(sectionId ? `${tabId}/${sectionId}` : tabId);
+            } else if (!window.location.hash) {
                 setActiveTab('branding');
+                setActiveSectionId(null);
+                setScrollToSection(null);
+                setActiveSettingId('branding');
             }
         };
         window.addEventListener('hashchange', syncTabFromHash);
@@ -262,10 +245,27 @@ export const SettingsDashboard: React.FC = () => {
     }, []);
 
     useEffect(() => {
+        if (!scrollToSection) return;
+        const timer = window.setTimeout(() => {
+            const el = document.getElementById(getSettingsSectionElementId(scrollToSection));
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                el.classList.add('settings-section-highlight');
+                window.setTimeout(() => el.classList.remove('settings-section-highlight'), 2200);
+            }
+            setScrollToSection(null);
+        }, 120);
+        return () => window.clearTimeout(timer);
+    }, [activeTab, scrollToSection]);
+
+    useEffect(() => {
         if (activeTab !== 'system') return;
         const url = new URL(window.location.href);
         if (url.searchParams.get('focus') !== 'maintenance-toggle') return;
         setHighlightMaintenanceToggle(true);
+        setActiveSectionId('maintenance');
+        setScrollToSection('maintenance');
+        setActiveSettingId('system/maintenance');
         const timer = window.setTimeout(() => setHighlightMaintenanceToggle(false), 4200);
         url.searchParams.delete('focus');
         const nextUrl = `${url.pathname}${url.search}${url.hash || ''}`;
@@ -1023,28 +1023,26 @@ export const SettingsDashboard: React.FC = () => {
             <div className="w-full flex flex-col min-w-0">
                 <div className="w-full md:grid md:grid-cols-[18rem_minmax(0,1fr)] md:gap-8 xl:gap-10 md:items-start">
                     {/* Mobile Dropdown Category Select */}
-                    <div className="block md:hidden mb-6">
+                    <div className="block md:hidden mb-6 space-y-4">
+                        <SettingsSearchPanel onSelect={navigateToSetting} activeEntryId={activeSettingId} />
+                        <div>
                         <label htmlFor="settings-tab-select" className="text-muted text-xs uppercase tracking-wider font-bold mb-2 block">Settings Category</label>
                         <CustomSelect
                             id="settings-tab-select"
                             value={activeTab}
-                            onChange={val => setActiveTab(val)}
+                            onChange={(val) => {
+                                const entry = resolveSettingsEntry(val);
+                                if (entry) navigateToSetting(entry);
+                            }}
                             options={settingsTabsFlat.map(tab => ({ label: tab.label, value: tab.id }))}
                         />
+                        </div>
                     </div>
 
                     {/* Desktop Sidebar Navigation — sticky within the main scroll area */}
                     <aside className="hidden md:flex md:flex-col w-72 shrink-0 sticky top-0 self-start glass-card nav-shell p-4 shadow-2xl z-10">
-                        <div className="shrink-0">
-                            <label className="text-muted text-[10px] uppercase tracking-wider font-bold mb-1 block">Find Setting</label>
-                            <input
-                                type="text"
-                                placeholder="Search settings..."
-                                value={settingsSearch}
-                                onChange={(e) => setSettingsSearch(e.target.value)}
-                                className="w-full bg-background border border-border rounded-lg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-plex transition-colors mb-2.5"
-                            />
-                        </div>
+                        <SettingsSearchPanel onSelect={navigateToSetting} activeEntryId={activeSettingId} />
+                        <div className="mt-2.5">
                         {visibleTabGroups.length === 0 ? (
                             <p className="text-xs text-muted px-2 py-2">No settings sections found.</p>
                         ) : (
@@ -1056,7 +1054,7 @@ export const SettingsDashboard: React.FC = () => {
                                             {group.tabs.map(tab => (
                                                 <button
                                                     key={tab.id}
-                                                    onClick={() => setActiveTab(tab.id)}
+                                                    onClick={() => navigateToSetting({ id: tab.id, tabId: tab.id as SettingsTabId, label: tab.label, group: group.title, keywords: tab.keywords || [] })}
                                                     className={`w-full text-left px-2 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === tab.id
                                                         ? 'nav-item-active'
                                                         : 'text-muted hover:text-text hover:bg-white/5'
@@ -1070,6 +1068,7 @@ export const SettingsDashboard: React.FC = () => {
                                 ))}
                             </div>
                         )}
+                        </div>
                     </aside>
 
                     <div className="min-w-0 w-full">
@@ -1079,7 +1078,7 @@ export const SettingsDashboard: React.FC = () => {
                         {activeTab === 'plex' && (
                             <div className="mb-8">
                                 <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Media Server Integration</h3>
-                                <div className="mb-4">
+                                <div id={getSettingsSectionElementId('connection')} className="scroll-mt-24 mb-4">
                                     <SettingFieldLabel
                                         htmlFor="mediaServerType"
                                         hint={(
@@ -1099,7 +1098,6 @@ export const SettingsDashboard: React.FC = () => {
                                             { label: 'Jellyfin', value: 'jellyfin' }
                                         ]}
                                     />
-                                </div>
                                 {mediaServerType === 'jellyfin' && (
                                     <div className="mb-6 p-4 rounded-lg border border-border bg-background/40">
                                         <h4 className="font-bold text-text mb-3">Jellyfin Connection</h4>
@@ -1201,7 +1199,7 @@ export const SettingsDashboard: React.FC = () => {
                                 </div>
 
                                 {libraries.length > 0 && (
-                                    <div className="mb-4 mt-4">
+                                    <div id={getSettingsSectionElementId('libraries')} className="mb-4 mt-4 scroll-mt-24">
                                         <SettingFieldLabel
                                             hint={(
                                                 <SettingHint>
@@ -1235,8 +1233,9 @@ export const SettingsDashboard: React.FC = () => {
                                 )}
                                     </>
                                 )}
+                                </div>
 
-                                <div className="mb-4 mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4 border-b border-border/40">
+                                <div id={getSettingsSectionElementId('privacy')} className="mb-4 mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4 border-b border-border/40 scroll-mt-24">
                                         <div>
                                             <h4 className="font-bold text-text">Stream User Privacy</h4>
                                             <p className="text-sm text-muted">Control how stream users are displayed to non-admins (e.g. on the public status page).</p>
@@ -1254,12 +1253,14 @@ export const SettingsDashboard: React.FC = () => {
                                         </div>
                                     </div>
 
+                                <div id={getSettingsSectionElementId('analytics-usernames')} className="scroll-mt-24">
                                 <SettingsToggleRow
                                     title="Show Usernames in Analytics"
                                     description="Allow non-admin users to see real usernames on the Analytics dashboard. If disabled, usernames are shown as Viewer 1, Viewer 2, etc."
                                     checked={showUsernamesInAnalytics}
                                     onChange={setShowUsernamesInAnalytics}
                                 />
+                                </div>
 
                                 <div className="mb-4" style={{ marginTop: '1rem' }}>
                                     <SettingFieldLabel
@@ -1455,6 +1456,7 @@ export const SettingsDashboard: React.FC = () => {
                     )}
                     {activeTab === 'mediastack' && (
                         <div className="mb-8 animate-fade-in">
+                            <div id={getSettingsSectionElementId('arr')} className="scroll-mt-24">
                             <ArrInstancesPanel
                                 type="sonarr"
                                 title="Sonarr Instances"
@@ -1485,7 +1487,9 @@ export const SettingsDashboard: React.FC = () => {
                                 }}
                                 onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
                             />
+                            </div>
 
+                            <div id={getSettingsSectionElementId('tmdb')} className="scroll-mt-24">
                             <IntegrationHeading app="tmdb" title="TMDB Integration" subtitle="Worldwide trending backgrounds" className="mt-8" />
                             <div className="mb-4">
                                 <SettingFieldLabel
@@ -1496,6 +1500,8 @@ export const SettingsDashboard: React.FC = () => {
                                 </SettingFieldLabel>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="tmdbApiKey" type="password" value={tmdbApiKey} onChange={(e) => setTmdbApiKey(e.target.value)} placeholder="Enter TMDB API Key" />
                             </div>
+                            </div>
+                            <div id={getSettingsSectionElementId('tautulli')} className="scroll-mt-24">
                             <IntegrationHeading app="tautulli" title="Tautulli Integration" subtitle="Plex activity and analytics" className="mt-8" />
                             <div className="mb-4">
                                 <label htmlFor="tautulliUrl">Tautulli URL</label>
@@ -1512,7 +1518,9 @@ export const SettingsDashboard: React.FC = () => {
                                 className="mb-6"
                                 onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
                             />
+                            </div>
 
+                            <div id={getSettingsSectionElementId('jellystat')} className="scroll-mt-24">
                             <IntegrationHeading app="jellystat" title="Jellystat Integration" subtitle="Jellyfin activity and analytics" className="mt-8" />
                             <div className="mb-4">
                                 <SettingFieldLabel
@@ -1534,7 +1542,9 @@ export const SettingsDashboard: React.FC = () => {
                                 className="mb-6"
                                 onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
                             />
+                            </div>
 
+                            <div id={getSettingsSectionElementId('seerr')} className="scroll-mt-24">
                             <IntegrationHeading
                                 app={requestAppType === 'none' ? 'seerr' : requestAppType}
                                 title="Request App Integration"
@@ -1574,6 +1584,7 @@ export const SettingsDashboard: React.FC = () => {
                                 disabled={requestAppType === 'none' || !hasIntegrationCredentials(requestAppUrl, requestAppApiKey, initialSettings.requestAppUrl, initialSettings.requestAppApiKey)}
                                 onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
                             />
+                            </div>
                         </div>
                     )}
 
@@ -1653,7 +1664,7 @@ export const SettingsDashboard: React.FC = () => {
                             <p className="text-sm text-muted mb-6">
                                 These details are displayed in the "Need Help?" box on the User Dashboard. Users can click these buttons to contact you directly if they need to extend their access, report an issue, or request support.
                             </p>
-                            <div className="mb-4">
+                            <div id={getSettingsSectionElementId('whatsapp')} className="mb-4 scroll-mt-24">
                                 <SettingFieldLabel
                                     htmlFor="contactWhatsApp"
                                     hint={<SettingHint>Enter your phone number including country code, without any '+', spaces, or dashes. If left blank, the WhatsApp button will be hidden.</SettingHint>}
@@ -1662,7 +1673,7 @@ export const SettingsDashboard: React.FC = () => {
                                 </SettingFieldLabel>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="contactWhatsApp" type="text" value={contactWhatsApp} onChange={(e) => setContactWhatsApp(e.target.value)} placeholder="e.g. 447303647923" />
                             </div>
-                            <div className="mb-4">
+                            <div id={getSettingsSectionElementId('email')} className="mb-4 scroll-mt-24">
                                 <SettingFieldLabel
                                     htmlFor="contactEmail"
                                     hint={<SettingHint>The email address users should contact. If left blank, the Email button will be hidden.</SettingHint>}
@@ -1701,7 +1712,7 @@ export const SettingsDashboard: React.FC = () => {
                                 </div>
                             )}
 
-                            <div className="mb-4">
+                            <div id={getSettingsSectionElementId('logo')} className="mb-4 scroll-mt-24">
                                 <SettingFieldLabel hint={<SettingHint>Provide a URL or upload a file. (Max 5MB)</SettingHint>}>
                                     Custom Logo
                                 </SettingFieldLabel>
@@ -1711,7 +1722,7 @@ export const SettingsDashboard: React.FC = () => {
                                     <input type="file" accept="image/*" className="w-full p-2 rounded-lg border border-border bg-background text-muted text-sm outline-none focus:border-plex transition-all file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-text hover:file:bg-white/20 file:cursor-pointer cursor-pointer" onChange={e => setLogoFile(e.target.files?.[0] || null)} />
                                 </div>
                             </div>
-                            <div className="mb-8 relative z-[50]">
+                            <div id={getSettingsSectionElementId('theme')} className="mb-8 relative z-[50] scroll-mt-24">
                                 <SettingFieldLabel
                                     hint={<SettingHint>The default theme applied to new visitors and users. Users can still customize their local theme preference in the navigation menu.</SettingHint>}
                                 >
@@ -1755,6 +1766,7 @@ export const SettingsDashboard: React.FC = () => {
                                 className="mb-4"
                             />
 
+                            <div id={getSettingsSectionElementId('slideshow')} className="scroll-mt-24">
                             <SettingsToggleRow
                                 title="Enable TMDB Trending Slideshow"
                                 hint={<SettingHint>Replaces the static splash background with a fading slideshow of currently trending movies and shows from TMDB. Requires a TMDB API key in Integrations.</SettingHint>}
@@ -1778,6 +1790,7 @@ export const SettingsDashboard: React.FC = () => {
                                     </select>
                                 </div>
                             </SettingsToggleRow>
+                            </div>
 
                             <SettingsToggleRow
                                 title="Enable Slideshow on Login Page"
@@ -1839,6 +1852,7 @@ export const SettingsDashboard: React.FC = () => {
                                 className="mb-4"
                             />
 
+                            <div id={getSettingsSectionElementId('poster-badges')} className="scroll-mt-24">
                             <SettingsToggleRow
                                 title="Poster Quality Badges"
                                 description="Show quality badges on recently added and discover posters (4K, HDR, codec, Atmos)"
@@ -1847,6 +1861,7 @@ export const SettingsDashboard: React.FC = () => {
                                 onChange={setShowPosterQualityBadges}
                                 className="mb-4"
                             />
+                            </div>
 
                             <SettingsToggleRow
                                 title="Allow Temporary Access (Public Sign-ups)"
@@ -1887,7 +1902,7 @@ export const SettingsDashboard: React.FC = () => {
                                 </label>
                             </div>
 
-                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8">Announcements</h3>
+                            <h3 id={getSettingsSectionElementId('announcement')} className="text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8 scroll-mt-24">Announcements</h3>
                             <div className="mb-4">
                                 <SettingFieldLabel hint={<SettingHint>If provided, this announcement will be prominently displayed to all users.</SettingHint>}>
                                     Portal Announcement Banner
@@ -1981,7 +1996,7 @@ export const SettingsDashboard: React.FC = () => {
                     {activeTab === 'system' && (
                         <div className="mb-8 animate-fade-in space-y-6">
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">System</h3>
-                            <section className="space-y-4 mb-8">
+                            <section id={getSettingsSectionElementId('health')} className="space-y-4 mb-8 scroll-mt-24">
                                 <div className="flex items-center justify-between">
                                     <h4 className="font-bold text-text">Health Dashboard</h4>
                                     <span className={`text-xs px-2 py-1 rounded font-bold ${systemHealth.score >= 85 ? 'bg-green-500/20 text-green-300' : systemHealth.score >= 65 ? 'bg-yellow-500/20 text-yellow-300' : 'bg-red-500/20 text-red-300'}`}>
@@ -2023,7 +2038,7 @@ export const SettingsDashboard: React.FC = () => {
                                     )}
                                 </div>
                             </section>
-                            <section className={`space-y-3 mb-8 transition-all duration-300 ${highlightMaintenanceToggle ? 'ring-2 ring-plex/50 rounded-lg p-3 -m-3' : ''}`}>
+                            <section id={getSettingsSectionElementId('maintenance')} className={`space-y-3 mb-8 transition-all duration-300 scroll-mt-24 ${highlightMaintenanceToggle ? 'ring-2 ring-plex/50 rounded-lg p-3 -m-3' : ''}`}>
                                 <h4 className="font-bold text-text">Cleaner Experimental Mode</h4>
                                 <SettingsToggleRow
                                     title="Enable Cleaner Module"
@@ -2037,7 +2052,7 @@ export const SettingsDashboard: React.FC = () => {
                                 </p>
                                 <p className="text-[11px] text-muted mt-1">After changing this toggle, click the main Save Settings button.</p>
                             </section>
-                            <section className="space-y-4 mb-8">
+                            <section id={getSettingsSectionElementId('backup')} className="space-y-4 mb-8 scroll-mt-24">
                                 <h4 className="font-bold text-text">Backup & Restore</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                     <SettingsToggleRow
@@ -2101,7 +2116,7 @@ export const SettingsDashboard: React.FC = () => {
                                 </div>
                             </section>
 
-                            <section className="space-y-4 mb-8">
+                            <section id={getSettingsSectionElementId('diagnostics')} className="space-y-4 mb-8 scroll-mt-24">
                                 <div className="flex items-center justify-between">
                                     <h4 className="font-bold text-text">System Diagnostics</h4>
                                     <button className="px-3 py-1.5 bg-border text-text rounded-md font-semibold hover:bg-opacity-80" onClick={fetchDiagnostics}>
