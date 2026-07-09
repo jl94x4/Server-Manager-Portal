@@ -6088,8 +6088,8 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                     const posterColumnClass = 'grid-cols-[clamp(6rem,36%,8.5rem)_minmax(0,1fr)]';
                                     return (
                                         <div key={session.sessionId ?? i} onClick={() => setSelectedSession(session)} className="bg-card rounded-xl border border-border flex flex-col overflow-hidden shadow-lg hover:border-plex/50 hover:shadow-plex/20 transition-all cursor-pointer select-none h-full">
-                                            <div className={`grid ${posterColumnClass} items-start`}>
-                                                <div className="relative aspect-[2/3] w-full overflow-hidden bg-black">
+                                            <div className={`grid ${posterColumnClass} items-stretch flex-1 min-h-0`}>
+                                                <div className="relative aspect-[2/3] w-full overflow-hidden bg-black self-start">
                                                     <img
                                                         src={sessionPosterSrc}
                                                         alt={session.title}
@@ -6097,7 +6097,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                                         className="absolute inset-0 w-full h-full object-cover object-top drop-shadow-[4px_0_15px_rgba(0,0,0,0.5)]"
                                                     />
                                                 </div>
-                                                <div className="p-2.5 md:p-3 flex flex-col min-w-0 min-h-0">
+                                                <div className="p-2.5 md:p-3 flex flex-col min-w-0 h-full">
                                                     <div className="activity-header mb-1.5 min-w-0">
                                                         <div className="activity-title-group min-w-0">
                                                             <div className="text-sm md:text-base font-bold text-text line-clamp-2 leading-tight">{session.grandparentTitle ? session.grandparentTitle : session.title}</div>
