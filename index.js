@@ -815,6 +815,23 @@ const effectiveViewerIsAdmin = (sessionUser, isRealAdmin) => (
     !!isRealAdmin && !isImpersonatingSession(sessionUser)
 );
 
+const shouldObfuscateAnalyticsViewers = (sessionUser, config) => {
+    const showUsernames = !!config?.showUsernamesInAnalytics;
+    return !sessionUser?.isAdmin && !showUsernames;
+};
+
+const obfuscateAnalyticsTopUser = (user, index, shouldObfuscate) => {
+    if (!shouldObfuscate) {
+        return user;
+    }
+    return {
+        ...user,
+        id: `viewer-${index + 1}`,
+        username: `Viewer ${index + 1}`,
+        thumb: null,
+    };
+};
+
 const blockIfImpersonating = (req, res) => {
     if (isImpersonatingSession(req.user)) {
         res.status(403).json({ error: 'This action is disabled while viewing as another user.' });
@@ -6020,7 +6037,8 @@ app.get('/api/tautulli/graphs', requireAuth, requireMember, async (req, res) => 
         results.forEach(r => {
             payload[r.cmd] = r.data;
         });
-        if (!req.user?.isAdmin && payload.get_plays_by_top_10_users && Array.isArray(payload.get_plays_by_top_10_users.series)) {
+        const shouldObfuscateUsernames = shouldObfuscateAnalyticsViewers(req.user, config);
+        if (shouldObfuscateUsernames && payload.get_plays_by_top_10_users && Array.isArray(payload.get_plays_by_top_10_users.series)) {
             payload.get_plays_by_top_10_users.series = payload.get_plays_by_top_10_users.series.map((series, index) => ({
                 ...series,
                 name: `Viewer ${index + 1}`
@@ -6328,13 +6346,13 @@ app.get('/api/jellystat/analytics', requireAuth, requireMember, async (req, res)
             });
         }
 
-        const shouldObfuscateUsernames = !req.user?.isAdmin;
-        const topUsers = (Array.isArray(mostActiveUsers) ? mostActiveUsers : []).map((user, index) => ({
+        const shouldObfuscateUsernames = shouldObfuscateAnalyticsViewers(req.user, config);
+        const topUsers = (Array.isArray(mostActiveUsers) ? mostActiveUsers : []).map((user, index) => obfuscateAnalyticsTopUser({
             id: user.UserId || user.Id || user.Name || `user-${index}`,
-            username: shouldObfuscateUsernames ? `Viewer ${index + 1}` : (user.Name || user.UserName || `User ${index + 1}`),
+            username: user.Name || user.UserName || `User ${index + 1}`,
             thumb: user.UserId ? withBasePath(`/api/jellyfin/user-image?userId=${encodeURIComponent(user.UserId)}`) : null,
             plays: toNumber(user.Plays ?? user.TotalPlays, 0),
-        }));
+        }, index, shouldObfuscateUsernames));
 
         const topLibraries = (Array.isArray(mostViewedLibraries) ? mostViewedLibraries : []).map((library, index) => ({
             id: library.Id || library.Name || `library-${index}`,
@@ -6429,12 +6447,11 @@ app.get('/api/plex/analytics', requireAuth, requireMember, async (req, res) => {
         const cachedData = statsData[reqDays] || statsData[30] || { topUsers: [], topLibraries: [], topMovies: [], topShows: [], topMusic: [], topDevices: [], peakHours: new Array(24).fill(0), totalPlaybacks: 0 };
         
         const config = await loadFile(CONFIG_PATH, {});
-        const showUsernames = !!config.showUsernamesInAnalytics;
-        const shouldObfuscateUsernames = !req.user?.isAdmin && !showUsernames;
-        const topUsers = (cachedData.topUsers || []).map((user, index) => ({
+        const shouldObfuscateUsernames = shouldObfuscateAnalyticsViewers(req.user, config);
+        const topUsers = (cachedData.topUsers || []).map((user, index) => obfuscateAnalyticsTopUser({
             ...user,
-            username: shouldObfuscateUsernames ? `Viewer ${index + 1}` : (user.username || `User ${index + 1}`)
-        }));
+            username: user.username || `User ${index + 1}`,
+        }, index, shouldObfuscateUsernames));
         const data = {
             ...cachedData,
             topUsers,
