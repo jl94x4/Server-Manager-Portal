@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.2](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.4.1...v1.4.2) (2026-07-10)
+
+
+### Features
+
+* add Seerr-style request review with quality profiles, root folders, tags and season picker ([2581633](https://github.com/jl94x4/Server-Manager-Portal/commit/2581633))
+* add Seerr-style faded fanart backdrops to request cards with poster fallback ([3526ff5](https://github.com/jl94x4/Server-Manager-Portal/commit/3526ff5), [e55365c](https://github.com/jl94x4/Server-Manager-Portal/commit/e55365c))
+* add pending requests widget as a movable dashboard section ([cc9f90d](https://github.com/jl94x4/Server-Manager-Portal/commit/cc9f90d))
+* redesign admin home dashboard layout ([426db0f](https://github.com/jl94x4/Server-Manager-Portal/commit/426db0f))
+* simplify Requests page tabs to Pending, Failed, Approved and Declined ([db63516](https://github.com/jl94x4/Server-Manager-Portal/commit/db63516))
+* widen Review & Approve modal and allow dismissing by clicking outside ([db63516](https://github.com/jl94x4/Server-Manager-Portal/commit/db63516), [e55365c](https://github.com/jl94x4/Server-Manager-Portal/commit/e55365c))
+
+
+### Bug Fixes
+
+* fix dashboard section stacking, library stats layout and pending requests overlap ([d30d304](https://github.com/jl94x4/Server-Manager-Portal/commit/d30d304), [a2188f9](https://github.com/jl94x4/Server-Manager-Portal/commit/a2188f9))
+* fix setup wizard reappearing on transient API failures ([7dbe728](https://github.com/jl94x4/Server-Manager-Portal/commit/7dbe728))
+* fix Seerr request metadata enrichment with TMDB posters and titles ([fa0c401](https://github.com/jl94x4/Server-Manager-Portal/commit/fa0c401), [e54419d](https://github.com/jl94x4/Server-Manager-Portal/commit/e54419d))
+* fix declined requests loading via filter=all and paginated Seerr API ([989cf3f](https://github.com/jl94x4/Server-Manager-Portal/commit/989cf3f), [51084a9](https://github.com/jl94x4/Server-Manager-Portal/commit/51084a9))
+* double request poster size on admin Requests page ([bf3549f](https://github.com/jl94x4/Server-Manager-Portal/commit/bf3549f))
+
 ## [1.4.1](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.4.0...v1.4.1) (2026-07-09)
 
 

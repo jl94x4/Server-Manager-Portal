@@ -23,7 +23,7 @@ Built with Node.js · Express · React · Tailwind CSS
 
 ---
 
-Server Portal is a self-hosted web application that turns your Plex or Jellyfin server into a fully managed streaming service. It handles everything from user onboarding and automated access management, to real-time analytics, live session monitoring, trending content discovery, and personalized wrap-ups for every user, all from one polished, mobile-first dashboard with a premium glass UI.
+Server Portal is a self-hosted web application that turns your Plex or Jellyfin server into a fully managed streaming service. It handles everything from user onboarding and automated access management, to real-time analytics, live session monitoring, trending content discovery, Seerr-style media request review, and personalized wrap-ups for every user, all from one polished, mobile-first dashboard with a premium glass UI.
 
 Once set up, users can sign in with Plex OAuth or Jellyfin authentication/Quick Connect to see their own portal, activity, and stats.
 
@@ -69,7 +69,8 @@ A comprehensive control panel for the server owner:
 - **Server Leaderboard** - Server-wide play count rankings across all time periods, updated automatically in the background
 - **Audit Log** - Timestamped record of all system actions (access granted, revoked, extended, expired)
 - **Settings UI** - Configure every aspect of the portal from the browser without touching config files
-- **Customizable Home Layout** - Reorder home page sections and show or hide whole blocks (Personal Wrap-Up, Main grid, Recently / Most Watched, Recently Added) from **Settings → Home Layout**, with a live preview before saving. The main dashboard grid keeps a fixed balanced two-column layout so card heights stay aligned
+- **Customizable Home Layout** - Reorder home page sections and show or hide whole blocks (Personal Wrap-Up, Main grid, Pending Requests, Recently / Most Watched, Recently Added) from **Settings → Home Layout**, with a live preview before saving. The main dashboard grid keeps a fixed balanced two-column layout so card heights stay aligned
+- **Pending Requests Widget** - Surface open Seerr/Jellyseerr requests on the home dashboard with quick review actions, fanart-backed cards, and a count badge in the sidebar
 - **Library Maintenance** - Scan libraries for missing or empty media, manage exclusions, and run cleanup tasks from the Maintenance page
 
 ---
@@ -80,7 +81,7 @@ Admins can tailor the home page for their community without editing code:
 
 | Control | What it does |
 |---|---|
-| **Section order** | Drag and drop the four major home sections into any order |
+| **Section order** | Drag and drop the major home sections into any order, including the Pending Requests block |
 | **Section visibility** | Toggle each section Shown or Hidden with one click |
 | **Live preview** | See exactly how the layout will look before you save |
 | **Locked main grid** | Left and right dashboard columns stay balanced; individual widget order inside the grid is fixed to prevent uneven card heights |
@@ -129,6 +130,24 @@ Browse your Sonarr and Radarr activity directly inside the portal:
 - **Smart ID Matching** - Uses IMDb, TMDB, and TVDB IDs to accurately map and display metadata
 
 Configure Sonarr/Radarr URLs and API keys in **Settings → Media Stack**.
+
+---
+
+### Request Management
+
+Review and approve media requests from Seerr, Jellyseerr, or Ombi without leaving the portal. Connect your request app in **Settings → Media Stack → Request App Integration** with the app URL and API key.
+
+**Requests page (admin)**
+- **Status tabs** - Pending, Failed, Approved, and Declined with live counts
+- **Seerr-style cards** - Poster, requester, quality, folder, tags, seasons, and overview with faded fanart backdrops (poster fallback when no backdrop is available)
+- **Review & Approve** - Full-screen modal with season picker, quality profile, root folder, language profile, tags, and request-as user override
+- **Quick actions** - Approve, edit, decline, retry failed requests, and delete from the list
+- **Rich metadata** - TMDB titles, posters, and backdrops enriched automatically from Seerr media data
+
+**Home dashboard widget**
+- **Pending Requests section** - Movable and hideable from **Settings → Home Layout**
+- **Inline review** - Open the same approval modal directly from the dashboard widget
+- **Wide layout support** - Two-column request cards on ultra-wide home layouts
 
 ---
 
@@ -274,7 +293,7 @@ Official images are published automatically on every push to `main` and `beta`:
 |---|---|---|
 | `latest` | Every push to `main` and every release tag `v*` | `ghcr.io/jl94x4/server-manager-portal:latest` |
 | `beta` | Every push to `beta` | `ghcr.io/jl94x4/server-manager-portal:beta` |
-| `1.4.0` / `v1.4.0` | Matching GitHub release | `ghcr.io/jl94x4/server-manager-portal:1.4.0` |
+| `1.4.2` / `v1.4.2` | Matching GitHub release | `ghcr.io/jl94x4/server-manager-portal:1.4.2` |
 
 Pull and run without building locally:
 
@@ -451,8 +470,9 @@ All configuration is managed through the **Settings UI** in the browser. Key opt
 | Inactivity Threshold | Days of inactivity before auto-removal |
 | SMTP Settings | Host, port, username, password, from address |
 | Newsletter Schedule | Weekly or monthly, with day/time selection |
-| Home Layout | Section order and visibility for the user home page |
+| Home Layout | Section order and visibility for the user home page, including Pending Requests |
 | Sonarr / Radarr URLs | For media stack calendar, queue, and history |
+| Request App (Seerr/Ombi) | Seerr, Jellyseerr, or Ombi URL and API key for in-portal request review |
 | Tautulli / Jellystat | Tautulli for Plex analytics, Jellystat for Jellyfin analytics |
 | Status Page Services | Define services and their health check URLs |
 
@@ -487,6 +507,7 @@ Server-Manager-Portal/
 │   ├── App.tsx         # App shell, routing, responsive layout
 │   ├── screens.tsx     # Dashboards, Discover, login, and shared screens
 │   ├── home/           # User dashboard layout and widget renderers
+│   ├── requests/       # Seerr-style request review UI (admin panel, approval modal, home widget)
 │   ├── settings/       # Settings UI (Media Player, Home Layout, System, Background Tasks)
 │   ├── shared/         # API helpers, types, theme, skeletons, wrap-up cards
 │   ├── setup/          # First-time setup wizard
