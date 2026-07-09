@@ -6,6 +6,14 @@ import { getPublicOrigin, portalUrl, resolvePortalAssetUrl, stripBasePath } from
 import { ConfirmModal } from './shared/ui';
 import { Loader } from './shared/toast';
 import { AppAmbientBackground } from './shared/theme';
+import { WhatsNewModal } from './shared/WhatsNewModal';
+import {
+    getLastSeenVersion,
+    parseAppSemver,
+    setLastSeenVersion,
+    shouldShowReleaseNotes,
+    type ReleaseNotes,
+} from './shared/releaseNotes';
 
 import {
     updateFavicon,
@@ -48,6 +56,9 @@ export const MainApp: React.FC = () => {
     const [currentRoute, setCurrentRoute] = useState<'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'maintenance' | 'invite' | 'loading'>('loading');
     const [sessionInfo, setSessionInfo] = useState<any>(null);
     const [publicConfig, setPublicConfig] = useState<any>({});
+    const [releaseNotes, setReleaseNotes] = useState<ReleaseNotes | null>(null);
+    const [showWhatsNew, setShowWhatsNew] = useState(false);
+    const whatsNewCheckedRef = useRef(false);
 
     const fetchPublicConfig = useCallback(async () => {
         try {
@@ -113,6 +124,36 @@ export const MainApp: React.FC = () => {
         window.addEventListener('portal-public-config-updated', onPublicConfigUpdated);
         return () => window.removeEventListener('portal-public-config-updated', onPublicConfigUpdated);
     }, [fetchPublicConfig]);
+
+    useEffect(() => {
+        if (!sessionInfo || !publicConfig?.appVersion) return;
+        if (currentRoute === 'login' || currentRoute === 'loading' || currentRoute === 'invite') return;
+        if (whatsNewCheckedRef.current) return;
+
+        whatsNewCheckedRef.current = true;
+        let cancelled = false;
+
+        (async () => {
+            try {
+                const notes = await apiFetch('/api/release-notes') as ReleaseNotes;
+                if (cancelled) return;
+                if (shouldShowReleaseNotes(publicConfig.appVersion, notes, getLastSeenVersion())) {
+                    setReleaseNotes(notes);
+                    setShowWhatsNew(true);
+                }
+            } catch {
+                // Release notes are optional — ignore fetch failures.
+            }
+        })();
+
+        return () => { cancelled = true; };
+    }, [sessionInfo, publicConfig?.appVersion, currentRoute]);
+
+    const dismissWhatsNew = useCallback(() => {
+        const semver = parseAppSemver(publicConfig?.appVersion);
+        if (semver) setLastSeenVersion(semver);
+        setShowWhatsNew(false);
+    }, [publicConfig?.appVersion]);
 
     const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'maintenance' | 'invite' | 'loading', options?: { hash?: string }) => {
         if (route === 'logs') {
@@ -263,6 +304,13 @@ export const MainApp: React.FC = () => {
         <div className="relative flex w-full min-h-screen md:h-dvh md:overflow-hidden">
             <AppAmbientBackground backgroundImageUrl={publicConfig?.backgroundImageUrl} />
             <ConfirmModal isOpen={confirmState.isOpen} message={confirmState.message} onConfirm={handleConfirm} onCancel={closeConfirm} />
+            {showWhatsNew && releaseNotes && (
+                <WhatsNewModal
+                    notes={releaseNotes}
+                    appVersion={publicConfig?.appVersion}
+                    onDismiss={dismissWhatsNew}
+                />
+            )}
             {!isPublicView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Server Portal'} adminThumb={sessionInfo?.adminThumb} customLogoUrl={publicConfig?.customLogoUrl} requestUrl={sessionInfo?.requestUrl || 'https://yourdomain.com'} navOrder={sessionInfo?.navOrder || ['home', 'discover', 'status', 'analytics', 'mediastack', 'maintenance', 'request', 'settings', 'logout']} navFeatures={sessionInfo?.navFeatures} appVersion={publicConfig.appVersion} activeTheme={activeTheme} setActiveTheme={setActiveTheme} />}
             <div className={`relative z-10 flex-1 min-w-0 min-h-0 flex flex-col items-center px-4 pb-[80px] md:px-8 md:pb-8 overflow-x-visible md:overflow-y-auto custom-scrollbar ${isPublicView ? '!pb-8' : ''}`}>
                 {isImpersonating && (

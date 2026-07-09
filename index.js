@@ -2724,6 +2724,24 @@ app.get('/api/config/public', async (req, res) => {
     }
 });
 
+const EMPTY_RELEASE_NOTES = {
+    version: null,
+    date: null,
+    title: "What's new",
+    sections: [],
+    changelogUrl: 'https://github.com/jl94x4/Server-Manager-Portal/blob/main/CHANGELOG.md',
+};
+
+app.get('/api/release-notes', async (req, res) => {
+    try {
+        const notesPath = path.join(process.cwd(), 'static', 'release-notes.json');
+        const raw = await fs.readFile(notesPath, 'utf8');
+        res.json(JSON.parse(raw));
+    } catch (e) {
+        res.json(EMPTY_RELEASE_NOTES);
+    }
+});
+
 app.post('/api/config/logo', requireAdmin, express.raw({ type: 'image/*', limit: '5mb' }), async (req, res) => {
     try {
         const buf = req.body;
