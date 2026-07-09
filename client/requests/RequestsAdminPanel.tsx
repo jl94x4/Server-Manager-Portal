@@ -261,7 +261,7 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
                                 className="flex flex-col sm:flex-row gap-4 p-4 rounded-xl border border-border/60 bg-background/40 hover:border-border transition-colors"
                             >
                                 <div className="flex gap-4 min-w-0 flex-1">
-                                    <div className="w-[4.5rem] aspect-[2/3] rounded-lg overflow-hidden bg-card border border-border/50 shrink-0">
+                                    <div className="w-[9rem] aspect-[2/3] rounded-lg overflow-hidden bg-card border border-border/50 shrink-0">
                                         {item.posterUrl ? (
                                             <img
                                                 src={item.posterUrl}
