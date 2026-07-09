@@ -1009,11 +1009,6 @@ export const SettingsDashboard: React.FC = () => {
             <Loader isLoading={isLoading} />
             <ToastContainer toasts={toasts} setToasts={setToasts} />
 
-
-            <header className="flex items-center justify-between w-full mb-6 mt-2 md:mt-0">
-                <h1 className="text-xl md:text-3xl font-bold text-plex">Settings</h1>
-            </header>
-
             {configLoadError && (
                 <div className="mb-6 p-4 rounded-xl border border-red-500/40 bg-red-500/10 text-red-200 text-sm">
                     Could not load settings: {configLoadError}. Try refreshing the page. If this persists on Docker, confirm your session cookie is valid and the container can reach the API.
@@ -1024,6 +1019,7 @@ export const SettingsDashboard: React.FC = () => {
                 <div className="w-full md:grid md:grid-cols-[18rem_minmax(0,1fr)] md:gap-8 xl:gap-10 md:items-start">
                     {/* Mobile Dropdown Category Select */}
                     <div className="block md:hidden mb-6 space-y-4">
+                        <h1 className="text-xl font-bold text-plex">Settings</h1>
                         <SettingsSearchPanel onSelect={navigateToSetting} activeEntryId={activeSettingId} />
                         <div>
                         <label htmlFor="settings-tab-select" className="text-muted text-xs uppercase tracking-wider font-bold mb-2 block">Settings Category</label>
@@ -1041,6 +1037,7 @@ export const SettingsDashboard: React.FC = () => {
 
                     {/* Desktop Sidebar Navigation — sticky within the main scroll area */}
                     <aside className="hidden md:flex md:flex-col w-72 shrink-0 sticky top-0 self-start glass-card nav-shell p-4 shadow-2xl z-10">
+                        <h1 className="text-2xl font-bold text-plex px-2 mb-3 shrink-0">Settings</h1>
                         <SettingsSearchPanel onSelect={navigateToSetting} activeEntryId={activeSettingId} />
                         <div className="mt-2.5">
                         {visibleTabGroups.length === 0 ? (
