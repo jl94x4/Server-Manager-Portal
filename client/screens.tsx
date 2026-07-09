@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2, Search, BookOpen, Loader2 } from 'lucide-react';
+import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2, Search, BookOpen, Loader2, Eye } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
 
 import { SettingsDashboard } from './settings/SettingsDashboard';
@@ -94,11 +94,12 @@ const UserCard: React.FC<{
     onEdit: () => void;
     onDelete: () => void;
     onRevoke: () => void;
+    onViewAs?: () => void;
     isConfigured: boolean;
     isSelected: boolean;
     onSelect: (id: string) => void;
     providerLabel?: string;
-}> = ({ user, onEdit, onDelete, onRevoke, isConfigured, isSelected, onSelect, providerLabel = 'Plex' }) => {
+}> = ({ user, onEdit, onDelete, onRevoke, onViewAs, isConfigured, isSelected, onSelect, providerLabel = 'Plex' }) => {
     const { status, statusText, daysRemainingText, pillClass, borderClass, glowClass } = useMemo(() => {
         const days = getDaysUntilExpiry(user.expiryDate);
         let status: UserStatus = 'active';
@@ -185,7 +186,13 @@ const UserCard: React.FC<{
                     <span className="text-text font-medium">{user.lastLogin ? formatDate(user.lastLogin) : 'Never'}</span>
                 </div>
             </div>
-            <div className="flex gap-2 mt-auto pt-4" onClick={e => e.stopPropagation()}>
+            <div className="flex flex-wrap gap-2 mt-auto pt-4" onClick={e => e.stopPropagation()}>
+                {onViewAs && (
+                    <button className="px-3 py-1.5 bg-plex/15 text-plex border border-plex/30 rounded-md text-xs font-semibold hover:bg-plex/25 transition-colors flex items-center justify-center gap-1.5" onClick={onViewAs} title="View portal as this user">
+                        <Eye className="w-3.5 h-3.5" />
+                        View as
+                    </button>
+                )}
                 <button className="px-3 py-1.5 bg-border text-text rounded-md text-xs font-semibold hover:bg-opacity-80 transition-colors flex items-center justify-center gap-1.5" onClick={onEdit}>Edit</button>
                 <button className="px-3 py-1.5 bg-border text-text rounded-md text-xs font-semibold hover:bg-opacity-80 transition-colors flex items-center justify-center gap-1.5" onClick={onDelete}>Delete</button>
                 {status === 'expired' && user.plexAccessStatus !== 'revoked' && (
@@ -3015,7 +3022,7 @@ export const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
 
 // --- Admin Dashboard Component ---
 
-export const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: () => void, onViewStatus: () => void, onViewDashboard: () => void }> = ({ onLogout, onViewUserPortal, onViewStatus, onViewDashboard }) => {
+export const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: () => void, onViewStatus: () => void, onViewDashboard: () => void, onViewAsUser: (userId: string) => Promise<void> }> = ({ onLogout, onViewUserPortal, onViewStatus, onViewDashboard, onViewAsUser }) => {
     const [users, setUsers] = useState<User[]>([]);
     const [isConfigured, setConfigured] = useState(false);
     const [configSettings, setConfigSettings] = useState<AppSettings>({ checkIntervalMinutes: 60 });
@@ -3147,6 +3154,18 @@ export const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: 
             await fetchSecurityData();
         } catch (error) {
             addToast(error instanceof Error ? error.message : 'Failed to revoke access.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleViewAsUser = async (user: User) => {
+        setLoading(true);
+        try {
+            await onViewAsUser(user.id);
+            addToast(`Now viewing portal as ${user.username}.`);
+        } catch (error) {
+            addToast(error instanceof Error ? error.message : 'Failed to view as user.', 'error');
         } finally {
             setLoading(false);
         }
@@ -3415,6 +3434,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: 
                             onEdit={() => handleOpenUserModal(user)}
                             onDelete={() => handleDeleteUser(user.id)}
                             onRevoke={() => revokePlexAccess(user.id)}
+                            onViewAs={() => handleViewAsUser(user)}
                             isConfigured={isConfigured}
                             isSelected={selectedUserIds.includes(user.id)}
                             onSelect={handleToggleSelection}

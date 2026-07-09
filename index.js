@@ -777,6 +777,10 @@ const getAdminId = async (config) => {
 
 const findLocalUserForSession = (users, sessionUser) => {
     if (!sessionUser || !Array.isArray(users)) return null;
+    if (sessionUser.impersonatingUserId) {
+        const byId = users.find((user) => normalized(user.id) === normalized(sessionUser.impersonatingUserId));
+        if (byId) return byId;
+    }
     const sessionId = normalized(sessionUser.id);
     const sessionPlexId = normalized(sessionUser.plexId);
     const sessionJellyfinId = normalized(sessionUser.jellyfinId);
@@ -798,6 +802,60 @@ const findLocalUserForSession = (users, sessionUser) => {
         );
     }) || null;
 };
+
+const getSessionActor = (sessionUser) => (
+    sessionUser?.actor && sessionUser?.impersonatingUserId ? sessionUser.actor : sessionUser
+);
+
+const isImpersonatingSession = (sessionUser) => (
+    !!(sessionUser?.actor && sessionUser?.impersonatingUserId)
+);
+
+const blockIfImpersonating = (req, res) => {
+    if (isImpersonatingSession(req.user)) {
+        res.status(403).json({ error: 'This action is disabled while viewing as another user.' });
+        return true;
+    }
+    return false;
+};
+
+const buildImpersonationSessionUser = (actor, targetUser, config = {}) => {
+    const isJellyfin = String(config?.mediaServerType || '').toLowerCase() === 'jellyfin';
+    return {
+        id: targetUser.id,
+        plexId: targetUser.plexId || targetUser.id,
+        jellyfinId: targetUser.jellyfinId || null,
+        email: targetUser.email || '',
+        username: targetUser.username,
+        thumb: targetUser.thumb || null,
+        authProvider: isJellyfin ? 'jellyfin' : actor.authProvider,
+        isAdmin: false,
+        actor: {
+            id: actor.id,
+            plexId: actor.plexId || null,
+            jellyfinId: actor.jellyfinId || null,
+            authProvider: actor.authProvider,
+            username: actor.username,
+            email: actor.email || '',
+            thumb: actor.thumb || null,
+            jellyfinIsAdmin: actor.jellyfinIsAdmin,
+            isAdmin: true,
+        },
+        impersonatingUserId: targetUser.id,
+    };
+};
+
+const buildAdminSessionFromActor = (actor) => ({
+    id: actor.id,
+    plexId: actor.plexId || null,
+    jellyfinId: actor.jellyfinId || null,
+    authProvider: actor.authProvider,
+    username: actor.username,
+    email: actor.email || '',
+    thumb: actor.thumb || null,
+    jellyfinIsAdmin: actor.jellyfinIsAdmin,
+    isAdmin: true,
+});
 
 const resolveCurrentAdmin = async (sessionUser, config = null) => {
     const loadedConfig = config || await loadFile(CONFIG_PATH, {});
@@ -847,9 +905,10 @@ const requireAuth = (req, res, next) => {
 const requireMember = async (req, res, next) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const isAdmin = await resolveCurrentAdmin(req.user, config);
+        const actor = getSessionActor(req.user);
+        const isAdmin = await resolveCurrentAdmin(actor, config);
         req.user.isAdmin = isAdmin;
-        if (isAdmin) return next();
+        if (isAdmin && !isImpersonatingSession(req.user)) return next();
 
         const users = await loadFile(USERS_PATH, []);
         const localUser = findLocalUserForSession(users, req.user);
@@ -880,7 +939,8 @@ const requireAdmin = async (req, res, next) => {
         return res.status(403).json({ error: 'Forbidden: App not configured' });
     }
 
-    const isAdmin = await resolveCurrentAdmin(req.user, config);
+    const actor = getSessionActor(req.user);
+    const isAdmin = await resolveCurrentAdmin(actor, config);
     if (!isAdmin) {
         return res.status(403).json({ error: 'Forbidden: Admins only' });
     }
@@ -1968,6 +2028,7 @@ app.post('/api/auth/logout', requireAuth, (req, res) => {
 });
 
 app.post('/api/users/preferences', requireAuth, requireMember, async (req, res) => {
+    if (blockIfImpersonating(req, res)) return;
     try {
         const { optOutNewsletter } = req.body;
         const users = await loadFile(USERS_PATH, []);
@@ -1998,10 +2059,13 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
     const localUser = findLocalUserForSession(users, req.user);
     const deletedUsers = await loadFile(DELETED_USERS_PATH, []);
     const config = await loadFile(CONFIG_PATH, {});
-    const isAdmin = await resolveCurrentAdmin(req.user, config);
+    const impersonating = isImpersonatingSession(req.user);
+    const actor = getSessionActor(req.user);
+    const realIsAdmin = await resolveCurrentAdmin(actor, config);
+    const isAdmin = impersonating ? false : realIsAdmin;
     req.user.isAdmin = isAdmin;
 
-    if (!localUser && !isAdmin && isDeletedUser(deletedUsers, req.user)) {
+    if (!localUser && !realIsAdmin && isDeletedUser(deletedUsers, req.user)) {
         await appendAuditLog('session_blocked_deleted_user', req.user, req.user);
         clearSessionCookie(req, res);
         return res.status(403).json({ error: 'Your portal session has expired. Please contact the admin for access.' });
@@ -2038,15 +2102,90 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
         }
     } catch (e) { }
 
+    if (impersonating && localUser?.thumb) {
+        sessionThumb = localUser.thumb;
+    }
+
+    const { actor: _actor, impersonatingUserId, ...sessionPublic } = req.user;
+
     res.json({
-        session: { ...req.user, thumb: sessionThumb, isAdmin },
+        session: { ...sessionPublic, thumb: sessionThumb, isAdmin },
         account: localUser || null,
         serverName,
         adminThumb,
         mediaServerType: config.mediaServerType || 'plex',
         requestUrl,
-        navOrder
+        navOrder,
+        impersonation: impersonating ? {
+            active: true,
+            targetUserId: impersonatingUserId,
+            targetUsername: localUser?.username || req.user.username,
+            adminUsername: actor?.username || null,
+        } : { active: false },
     });
+});
+
+app.post('/api/admin/impersonate/:userId', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const actor = getSessionActor(req.user);
+        const users = await loadFile(USERS_PATH, []);
+        const deletedUsers = await loadFile(DELETED_USERS_PATH, []);
+        const targetUser = users.find((user) => normalized(user.id) === normalized(req.params.userId));
+
+        if (!targetUser) {
+            return res.status(404).json({ error: 'User not found.' });
+        }
+        if (isDeletedUser(deletedUsers, targetUser)) {
+            return res.status(400).json({ error: 'Cannot view portal as a removed user.' });
+        }
+
+        const targetIsAdmin = await resolveCurrentAdmin({
+            plexId: targetUser.plexId || targetUser.id,
+            jellyfinId: targetUser.jellyfinId,
+            authProvider: String(config?.mediaServerType || '').toLowerCase() === 'jellyfin' ? 'jellyfin' : undefined,
+            username: targetUser.username,
+        }, config);
+        if (targetIsAdmin) {
+            return res.status(403).json({ error: 'Cannot impersonate an administrator account.' });
+        }
+
+        const sessionUser = buildImpersonationSessionUser(actor, targetUser, config);
+        const token = jwt.sign(sessionUser, JWT_SECRET, { expiresIn: '7d' });
+        setSessionCookie(req, res, token);
+        await appendAuditLog('impersonation_start', actor, targetUser);
+        res.json({
+            success: true,
+            impersonation: {
+                active: true,
+                targetUserId: targetUser.id,
+                targetUsername: targetUser.username,
+                adminUsername: actor.username,
+            },
+        });
+    } catch (e) {
+        log(`Impersonation start failed: ${e.message}`);
+        res.status(500).json({ error: 'Failed to start impersonation.' });
+    }
+});
+
+app.post('/api/admin/stop-impersonation', requireAuth, async (req, res) => {
+    try {
+        if (!isImpersonatingSession(req.user)) {
+            return res.json({ success: true, alreadyStopped: true });
+        }
+
+        const actor = req.user.actor;
+        const target = { id: req.user.impersonatingUserId, username: req.user.username };
+        const adminSession = buildAdminSessionFromActor(actor);
+        const token = jwt.sign(adminSession, JWT_SECRET, { expiresIn: '7d' });
+        setSessionCookie(req, res, token);
+        await appendAuditLog('impersonation_stop', actor, target);
+        res.json({ success: true });
+    } catch (e) {
+        log(`Impersonation stop failed: ${e.message}`);
+        res.status(500).json({ error: 'Failed to stop impersonation.' });
+    }
 });
 
 const DEFAULT_DASHBOARD_LAYOUT = {
@@ -4623,9 +4762,10 @@ app.post('/api/users/:id/revoke', requireAdmin, async (req, res) => {
 });
 
 app.post('/api/users/request-invite', requireAuth, async (req, res) => {
+    if (blockIfImpersonating(req, res)) return;
     const config = await loadFile(CONFIG_PATH, null);
     if (!config || !config.serverIdentifier) return res.status(400).json({ error: 'App not configured.' });
-    req.user.isAdmin = await resolveCurrentAdmin(req.user, config);
+    req.user.isAdmin = await resolveCurrentAdmin(getSessionActor(req.user), config);
 
     if (!config.allowTemporaryAccess) {
         return res.status(403).json({ error: 'New registrations are currently disabled.' });
@@ -4681,6 +4821,7 @@ app.post('/api/users/request-invite', requireAuth, async (req, res) => {
 });
 
 app.post('/api/users/relink', requireAuth, requireMember, async (req, res) => {
+    if (blockIfImpersonating(req, res)) return;
     const config = await loadFile(CONFIG_PATH, null);
     if (!config || !config.serverIdentifier) return res.status(400).json({ error: 'App not configured.' });
 

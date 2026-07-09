@@ -169,10 +169,14 @@ export const MainApp: React.FC = () => {
             else if (path === '/mediastack') setCurrentRoute('mediastack');
             else if (path === '/maintenance' && data.session.isAdmin) setCurrentRoute('maintenance');
             else if (path === '/analytics') setCurrentRoute('analytics');
-            else if (path === '/settings' && !data.session.isAdmin) setCurrentRoute('user');
+            else if (path === '/admin' || path === '/users') {
+                if (data.session.isAdmin && !data.impersonation?.active) setCurrentRoute('users');
+                else {
+                    window.history.replaceState({}, '', portalUrl('/portal'));
+                    setCurrentRoute('user');
+                }
+            }
             else if (path === '/portal') setCurrentRoute('user');
-            else if (path === '/admin') setCurrentRoute('users');
-            else if (path === '/users') setCurrentRoute('users');
             else {
                 window.history.replaceState({}, '', portalUrl('/portal'));
                 setCurrentRoute('user');
@@ -203,6 +207,27 @@ export const MainApp: React.FC = () => {
         setRoute('login');
     };
 
+    const handleStopImpersonation = async () => {
+        try {
+            await apiFetch('/api/admin/stop-impersonation', { method: 'POST' });
+            await checkSession();
+            setRoute('users');
+        } catch (e) {
+            console.error('Failed to stop impersonation', e);
+        }
+    };
+
+    const handleViewAsUser = async (userId: string) => {
+        try {
+            await apiFetch(`/api/admin/impersonate/${encodeURIComponent(userId)}`, { method: 'POST' });
+            await checkSession();
+            setRoute('user');
+        } catch (e) {
+            console.error('Failed to impersonate user', e);
+            throw e;
+        }
+    };
+
     if (currentRoute === 'loading') return <Loader isLoading={true} isCinematic={!!publicConfig?.useCinematicLoading} />;
     if (currentRoute === 'login') {
         const initialLoginError = typeof window !== 'undefined'
@@ -212,6 +237,7 @@ export const MainApp: React.FC = () => {
     }
 
     const isAdmin = !!sessionInfo?.session?.isAdmin;
+    const isImpersonating = !!sessionInfo?.impersonation?.active;
 
     const isPublicStatus = currentRoute === 'status' && !sessionInfo;
     const isPublicInvite = currentRoute === 'invite';
@@ -229,7 +255,7 @@ export const MainApp: React.FC = () => {
         if (currentRoute === 'logs' && isAdmin) return <LogsDashboard onLogout={handleLogout} />;
         if (currentRoute === 'mediastack') return <MediaStackDashboard isAdmin={isAdmin} />;
         if (currentRoute === 'analytics') return <AnalyticsDashboard isAdmin={isAdmin} sessionInfo={sessionInfo} />;
-        if (currentRoute === 'admin' || currentRoute === 'users') return <AdminDashboard onLogout={handleLogout} onViewUserPortal={() => setRoute('user')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} />;
+        if (currentRoute === 'admin' || currentRoute === 'users') return <AdminDashboard onLogout={handleLogout} onViewUserPortal={() => setRoute('user')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} onViewAsUser={handleViewAsUser} />;
         return <UserDashboard sessionInfo={sessionInfo} publicConfig={publicConfig} onLogout={handleLogout} refreshSession={checkSession} onViewAdmin={() => setRoute('users')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} onViewSettings={() => setRoute('settings')} onViewLogs={() => setRoute('logs')} />;
     };
 
@@ -239,7 +265,23 @@ export const MainApp: React.FC = () => {
             <ConfirmModal isOpen={confirmState.isOpen} message={confirmState.message} onConfirm={handleConfirm} onCancel={closeConfirm} />
             {!isPublicView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Server Portal'} adminThumb={sessionInfo?.adminThumb} customLogoUrl={publicConfig?.customLogoUrl} requestUrl={sessionInfo?.requestUrl || 'https://yourdomain.com'} navOrder={sessionInfo?.navOrder || ['home', 'discover', 'status', 'analytics', 'mediastack', 'maintenance', 'request', 'settings', 'logout']} appVersion={publicConfig.appVersion} activeTheme={activeTheme} setActiveTheme={setActiveTheme} />}
             <div className={`relative z-10 flex-1 min-w-0 min-h-0 flex flex-col items-center px-4 pb-[80px] md:px-8 md:pb-8 overflow-x-visible md:overflow-y-auto custom-scrollbar ${isPublicView ? '!pb-8' : ''}`}>
-                <div className="w-full min-w-0 pt-20 md:pt-8 max-w-[100%]">
+                {isImpersonating && (
+                    <div className="w-full max-w-[100%] pt-20 md:pt-0 md:sticky md:top-0 md:z-30">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-100 shadow-lg backdrop-blur-md">
+                            <p className="text-sm font-medium">
+                                Viewing portal as <span className="font-bold text-white">{sessionInfo?.impersonation?.targetUsername || sessionInfo?.session?.username}</span>
+                            </p>
+                            <button
+                                type="button"
+                                onClick={handleStopImpersonation}
+                                className="px-4 py-2 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-50 text-sm font-bold hover:bg-amber-500/30 transition-colors whitespace-nowrap"
+                            >
+                                Exit impersonation
+                            </button>
+                        </div>
+                    </div>
+                )}
+                <div className={`w-full min-w-0 max-w-[100%] ${isImpersonating ? 'pt-3 md:pt-4' : 'pt-20 md:pt-8'}`}>
                     {renderView()}
                 </div>
 
