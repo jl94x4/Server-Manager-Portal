@@ -5158,10 +5158,9 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                         )}
                     </>
                 )}
-                renderWatchRow={() => (
-                    <>
-                        {/* Recently Watched + Most Watched */}
-                        {(sessionInfo.session.isAdmin || user) && (
+                renderWatchRow={() => {
+                    if (!(sessionInfo.session.isAdmin || user)) return null;
+                    return (
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 items-stretch">
                                 {!analyticsLoading && analytics?.recentHistory && analytics.recentHistory.length > 0 && (
                                     <div className="lg:col-span-1 flex min-h-0">
@@ -5293,9 +5292,8 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                     </div>
                                 ) : null}
                             </div>
-                        )}
-                    </>
-                )}
+                    );
+                }}
             />
 
             {reportItem && (

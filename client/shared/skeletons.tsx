@@ -95,13 +95,15 @@ export const DiscoverPageSkeleton: React.FC<{ recentLimit?: number }> = ({ recen
 };
 
 export const LibraryStatsSkeleton: React.FC = () => (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" aria-hidden="true">
+    <div className="space-y-3" aria-hidden="true">
+        <div className="space-y-2">
+            <SkeletonBlock className="h-3 w-24 rounded" />
+            <SkeletonBlock className="h-8 w-32 rounded" />
+            <SkeletonBlock className="h-3 w-40 rounded" />
+        </div>
+        <SkeletonBlock className="h-1.5 w-full rounded-full" />
         {Array.from({ length: 3 }, (_, i) => (
-            <div key={i} className="bg-background/60 p-4 rounded-2xl border border-white/5 flex flex-col items-center gap-3">
-                <SkeletonBlock className="w-7 h-7 rounded" />
-                <SkeletonBlock className="h-8 w-20 rounded" />
-                <SkeletonBlock className="h-3 w-24 rounded" />
-            </div>
+            <SkeletonBlock key={i} className="h-12 w-full rounded-lg" />
         ))}
     </div>
 );

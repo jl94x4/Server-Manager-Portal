@@ -42,15 +42,22 @@ export const UserDashboardLayout: React.FC<Props> = ({
     const recentlyAdded = resolveRecentlyAddedWidgets(layout);
 
     return (
-        <>
+        <div className="grid grid-cols-1 gap-3 md:gap-4 w-full">
             {sections.map((sectionId) => {
                 switch (sectionId) {
-                    case 'wrapUp':
-                        return <React.Fragment key="wrapUp">{renderWrapUp()}</React.Fragment>;
+                    case 'wrapUp': {
+                        const content = renderWrapUp();
+                        if (!content) return null;
+                        return (
+                            <div key="wrapUp" className="relative w-full min-w-0">
+                                {content}
+                            </div>
+                        );
+                    }
                     case 'mainGrid':
                         if (mainGridWidgets.length === 0) return null;
                         return (
-                            <div key="mainGrid" className="flex flex-col gap-3 md:gap-4">
+                            <div key="mainGrid" className="relative w-full min-w-0 flex flex-col gap-3 md:gap-4">
                                 {(left.length > 0 || right.length > 0) && (
                                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 items-start">
                                         <div className="lg:col-span-1 flex flex-col gap-3 md:gap-4 min-h-0">
@@ -58,7 +65,7 @@ export const UserDashboardLayout: React.FC<Props> = ({
                                                 <React.Fragment key={id}>{renderMainGridWidget(id)}</React.Fragment>
                                             ))}
                                         </div>
-                                        <div className="lg:col-span-2 flex flex-col gap-3 md:gap-4 min-h-0">
+                                        <div className="lg:col-span-2 flex flex-col items-start gap-3 md:gap-4 min-h-0">
                                             {right.map((id) => (
                                                 <React.Fragment key={id}>{renderMainGridWidget(id)}</React.Fragment>
                                             ))}
@@ -67,21 +74,35 @@ export const UserDashboardLayout: React.FC<Props> = ({
                                 )}
                             </div>
                         );
-                    case 'pendingRequests':
+                    case 'pendingRequests': {
+                        const content = renderPendingRequests();
+                        if (!content) return null;
                         return (
-                            <div key="pendingRequests" className="w-full">
-                                {renderPendingRequests()}
+                            <div key="pendingRequests" className="relative z-[2] w-full min-w-0 isolate">
+                                {content}
                             </div>
                         );
-                    case 'watchRow':
-                        return <React.Fragment key="watchRow">{renderWatchRow()}</React.Fragment>;
+                    }
+                    case 'watchRow': {
+                        const content = renderWatchRow();
+                        if (!content) return null;
+                        return (
+                            <div key="watchRow" className="relative z-[1] w-full min-w-0">
+                                {content}
+                            </div>
+                        );
+                    }
                     case 'recentlyAdded':
                         if (recentlyAddedLoading && !hasDashboardData) {
-                            return <React.Fragment key="recentlyAdded">{renderRecentlyAddedSkeleton()}</React.Fragment>;
+                            return (
+                                <div key="recentlyAdded" className="relative w-full min-w-0">
+                                    {renderRecentlyAddedSkeleton()}
+                                </div>
+                            );
                         }
                         if (!hasDashboardData) return null;
                         return (
-                            <div key="recentlyAdded" className="flex flex-col gap-3 md:gap-4 w-full">
+                            <div key="recentlyAdded" className="relative w-full min-w-0 flex flex-col gap-3 md:gap-4">
                                 {recentlyAdded.map((id) => (
                                     <React.Fragment key={id}>{renderRecentlyAddedWidget(id)}</React.Fragment>
                                 ))}
@@ -91,6 +112,6 @@ export const UserDashboardLayout: React.FC<Props> = ({
                         return null;
                 }
             })}
-        </>
+        </div>
     );
 };

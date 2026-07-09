@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ChevronRight, Film, Loader2, Pencil, RefreshCw, Tv } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { RequestApprovalModal } from './RequestApprovalModal';
@@ -92,8 +93,8 @@ export const PendingRequestsHomeWidget: React.FC<{
     if (!configured) return null;
 
     const cardClass = isWide
-        ? 'glass-card p-4 md:p-5 shadow-xl w-full'
-        : 'glass-card p-4 md:p-5 shadow-xl flex flex-col flex-shrink-0';
+        ? 'glass-card p-4 md:p-5 shadow-xl w-full relative'
+        : 'glass-card p-4 md:p-5 shadow-xl flex flex-col flex-shrink-0 relative';
 
     if (loading) {
         return (
@@ -272,7 +273,7 @@ export const PendingRequestsHomeWidget: React.FC<{
                     {requests.map((item) => renderRequestRow(item, isWide))}
                 </div>
             )}
-            {reviewTarget && (
+            {reviewTarget && typeof document !== 'undefined' && createPortal(
                 <RequestApprovalModal
                     requestId={reviewTarget.id}
                     initialTitle={reviewTarget.title}
@@ -285,7 +286,8 @@ export const PendingRequestsHomeWidget: React.FC<{
                         onActionComplete?.();
                     }}
                     onError={(message) => onToast?.(message, 'error')}
-                />
+                />,
+                document.body
             )}
         </div>
     );

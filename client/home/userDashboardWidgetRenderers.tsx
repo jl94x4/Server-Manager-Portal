@@ -126,16 +126,16 @@ const LibraryStatsContent: React.FC<{ serverStats: any; variant?: 'plex' | 'jell
     const pct = (bytes: number) => Math.max(bytes > 0 ? (bytes / total) * 100 : 0, 0);
 
     return (
-        <div className="rounded-2xl border border-white/5 bg-background/40 p-4 md:p-5 space-y-4">
+        <div className="space-y-3">
             <div>
                 <p className="text-[10px] uppercase tracking-widest font-bold text-muted">Total Library</p>
-                <p className="text-3xl md:text-4xl font-black text-text mt-1 tracking-tight">{formatBytes(total)}</p>
-                <p className="text-xs text-muted mt-1.5">
-                    {movieCount.toLocaleString()} movies · {episodeCount.toLocaleString()} episodes · {trackCount.toLocaleString()} tracks
+                <p className="text-2xl md:text-3xl font-black text-text mt-1 tracking-tight">{formatBytes(total)}</p>
+                <p className="text-xs text-muted mt-1">
+                    {episodeCount.toLocaleString()} episodes · {trackCount.toLocaleString()} tracks
                 </p>
             </div>
 
-            <div className="flex h-2 rounded-full overflow-hidden bg-white/5">
+            <div className="flex h-1.5 rounded-full overflow-hidden bg-white/5">
                 {segments.map((segment) => (
                     segment.bytes > 0 ? (
                         <div
@@ -148,11 +148,11 @@ const LibraryStatsContent: React.FC<{ serverStats: any; variant?: 'plex' | 'jell
                 ))}
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
                 {segments.map((segment) => {
                     const Icon = segment.icon;
                     return (
-                        <div key={segment.label} className="flex items-center gap-3 py-2 px-2.5 rounded-xl bg-background/50 border border-white/5">
+                        <div key={segment.label} className="flex items-center gap-2.5 py-1.5 px-2 rounded-lg bg-background/50 border border-white/5">
                             <span className={`w-2 h-2 rounded-full shrink-0 ${segment.dot}`} />
                             <Icon className="w-4 h-4 text-plex shrink-0 opacity-70" />
                             <div className="min-w-0 flex-1">
@@ -385,7 +385,7 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
             case 'libraryStats':
                 if (isJellyfinPortal) {
                     return (
-                        <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col flex-shrink-0">
+                        <div className="glass-card p-4 md:p-5 shadow-xl w-full self-start">
                             <div className="flex items-center justify-between mb-3 md:mb-4">
                                 <p className="text-muted text-sm uppercase tracking-widest font-semibold">Jellyfin Library</p>
                             </div>
@@ -400,7 +400,7 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                     );
                 }
                 return (
-                    <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col flex-shrink-0">
+                    <div className="glass-card p-4 md:p-5 shadow-xl w-full self-start">
                         <div className="flex items-center justify-between mb-3 md:mb-4">
                             <p className="text-muted text-sm uppercase tracking-widest font-semibold">Server Library Size</p>
                             {sessionInfo.session.isAdmin && <RebuildLibraryCacheButton />}
@@ -480,7 +480,7 @@ export const createPendingRequestsSectionRenderer = (deps: UserDashboardWidgetDe
     const { sessionInfo, onViewRequests, onPendingRequestsChange, setToast } = deps;
 
     return (): React.ReactNode => {
-        if (!sessionInfo?.navFeatures?.requestsQueue) return null;
+        if (!sessionInfo?.session?.isAdmin || !sessionInfo?.navFeatures?.requestsQueue) return null;
         return (
             <PendingRequestsHomeWidget
                 layout="wide"
