@@ -811,6 +811,10 @@ const isImpersonatingSession = (sessionUser) => (
     !!(sessionUser?.actor && sessionUser?.impersonatingUserId)
 );
 
+const effectiveViewerIsAdmin = (sessionUser, isRealAdmin) => (
+    !!isRealAdmin && !isImpersonatingSession(sessionUser)
+);
+
 const blockIfImpersonating = (req, res) => {
     if (isImpersonatingSession(req.user)) {
         res.status(403).json({ error: 'This action is disabled while viewing as another user.' });
@@ -906,9 +910,9 @@ const requireMember = async (req, res, next) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
         const actor = getSessionActor(req.user);
-        const isAdmin = await resolveCurrentAdmin(actor, config);
-        req.user.isAdmin = isAdmin;
-        if (isAdmin && !isImpersonatingSession(req.user)) return next();
+        const isRealAdmin = await resolveCurrentAdmin(actor, config);
+        req.user.isAdmin = effectiveViewerIsAdmin(req.user, isRealAdmin);
+        if (isRealAdmin && !isImpersonatingSession(req.user)) return next();
 
         const users = await loadFile(USERS_PATH, []);
         const localUser = findLocalUserForSession(users, req.user);
