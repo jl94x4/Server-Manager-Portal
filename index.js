@@ -5281,8 +5281,25 @@ app.get('/api/public/info', publicReadRateLimit, async (req, res) => {
         }
         res.json({ ...profile, isConfigured, mediaServerType: config.mediaServerType || 'plex', requestUrl, contactWhatsApp, contactEmail });
     } catch (e) {
-        let requestUrl = 'https://yourdomain.com';
-        res.json({ thumb: null, serverName: 'Server Portal', isConfigured: false, mediaServerType: 'plex', requestUrl });
+        try {
+            const config = await loadFile(CONFIG_PATH, {});
+            const isConfigured = isPortalConfigured(config);
+            let requestUrl = config.requestUrl || 'https://yourdomain.com';
+            if ((requestUrl === 'https://yourdomain.com' || !requestUrl) && config.requestAppUrl) {
+                requestUrl = config.requestAppUrl;
+            }
+            return res.json({
+                thumb: null,
+                serverName: 'Server Portal',
+                isConfigured,
+                mediaServerType: config.mediaServerType || 'plex',
+                requestUrl,
+                contactWhatsApp: config.contactWhatsApp || '',
+                contactEmail: config.contactEmail || '',
+            });
+        } catch {
+            res.json({ thumb: null, serverName: 'Server Portal', isConfigured: false, mediaServerType: 'plex', requestUrl: 'https://yourdomain.com' });
+        }
     }
 });
 

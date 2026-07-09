@@ -3603,8 +3603,12 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
     const [quickConnect, setQuickConnect] = useState<{ sessionId: string, code: string, jellyfinUrl: string } | null>(null);
     const quickConnectPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const [publicInfo, setPublicInfo] = useState<{ thumb: string | null, serverName: string, isConfigured: boolean | null, mediaServerType?: string }>({ thumb: null, serverName: 'Server Portal', isConfigured: null, mediaServerType: 'plex' });
+    const [publicInfoLoading, setPublicInfoLoading] = useState(true);
+    const [publicInfoLoadFailed, setPublicInfoLoadFailed] = useState(false);
 
     const fetchPublicInfo = () => {
+        setPublicInfoLoading(true);
+        setPublicInfoLoadFailed(false);
         apiFetch('/api/public/info').then(data => {
             if (data) {
                 setPublicInfo({
@@ -3617,8 +3621,9 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
                 if (data.serverName) document.title = `${data.serverName} Portal`;
             }
         }).catch(() => {
-            setPublicInfo(prev => ({ ...prev, isConfigured: false }));
-        });
+            setPublicInfoLoadFailed(true);
+            setError('Could not reach the portal. If you just restarted or updated, wait a few seconds and refresh.');
+        }).finally(() => setPublicInfoLoading(false));
     };
 
     useEffect(() => {
@@ -3754,7 +3759,7 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
         return <SetupWizard onComplete={fetchPublicInfo} />;
     }
 
-    if (publicInfo.isConfigured === null) {
+    if (publicInfoLoading || (publicInfo.isConfigured === null && !publicInfoLoadFailed)) {
         return <Loader isLoading={true} isCinematic={!!publicConfig?.useCinematicLoading} />;
     }
 
