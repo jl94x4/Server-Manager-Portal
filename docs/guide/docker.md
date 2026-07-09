@@ -6,10 +6,13 @@ Docker is the recommended production path because it keeps runtime data in expli
 
 Images are published to GitHub Container Registry:
 
-| Tag | Branch | Image |
+| Tag | When updated | Image |
 | --- | --- | --- |
-| `latest` | `main` | `ghcr.io/jl94x4/server-manager-portal:latest` |
-| `beta` | `beta` | `ghcr.io/jl94x4/server-manager-portal:beta` |
+| `latest` | Every push to `main` and every release tag `v*` | `ghcr.io/jl94x4/server-manager-portal:latest` |
+| `beta` | Every push to `beta` | `ghcr.io/jl94x4/server-manager-portal:beta` |
+| `1.4.0` / `v1.4.0` | Matching GitHub release | `ghcr.io/jl94x4/server-manager-portal:1.4.0` |
+
+Pin a version in Unraid or Docker Compose by replacing `:latest` with `:1.4.0` (or `:v1.4.0`).
 
 Run the latest image:
 

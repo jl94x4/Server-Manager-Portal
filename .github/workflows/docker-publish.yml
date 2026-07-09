@@ -30,9 +30,11 @@ jobs:
         with:
           images: ghcr.io/jl94x4/server-manager-portal
           tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
             type=raw,value=beta,enable=${{ github.ref == 'refs/heads/beta' }}
             type=sha,prefix=
             type=semver,pattern={{version}}
+            type=semver,pattern=v{{version}}
             type=semver,pattern={{major}}.{{minor}}
 
       - name: Build and push
@@ -44,3 +46,4 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             GIT_SHA=${{ github.sha }}
+            GITHUB_REF=${{ github.ref }}
