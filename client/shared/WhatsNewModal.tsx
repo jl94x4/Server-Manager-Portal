@@ -9,7 +9,7 @@ export const WhatsNewModal: React.FC<{
 }> = ({ notes, appVersion, onDismiss }) => (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
         <div
-            className="modal-glass w-full max-w-lg max-h-[85vh] flex flex-col animate-slide-up shadow-2xl"
+            className="modal-glass w-full max-w-2xl max-h-[85vh] flex flex-col animate-slide-up shadow-2xl"
             role="dialog"
             aria-labelledby="whats-new-title"
             aria-modal="true"
@@ -47,8 +47,8 @@ export const WhatsNewModal: React.FC<{
                         <h3 className="text-sm font-bold text-plex uppercase tracking-wider mb-2">{section.title}</h3>
                         <ul className="space-y-2">
                             {section.items.map((item) => (
-                                <li key={item} className="flex gap-2 text-sm text-text/90 leading-relaxed">
-                                    <span className="text-plex mt-1.5 shrink-0">•</span>
+                                <li key={item} className="relative pl-4 text-sm text-text/90 leading-relaxed">
+                                    <span className="absolute left-0 text-plex select-none" aria-hidden>•</span>
                                     <span>{item}</span>
                                 </li>
                             ))}
