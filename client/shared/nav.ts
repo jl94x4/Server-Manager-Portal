@@ -30,6 +30,7 @@ export const filterNavOrder = (
         if (key === 'logout' || key === 'logs') return false;
         if ((key === 'users' || key === 'settings' || key === 'maintenance' || key === 'requests') && !options.isAdmin) return false;
         if (key === 'maintenance' && !maintenanceEnabled) return false;
+        if (key === 'request' && options.isAdmin) return false;
         if (key === 'request' && !requestEnabled) return false;
         if (key === 'requests' && !requestsQueueEnabled) return false;
         return true;

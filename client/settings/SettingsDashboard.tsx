@@ -308,6 +308,7 @@ export const SettingsDashboard: React.FC = () => {
     const [jellystatApiKey, setJellystatApiKey] = useState('');
     const [requestAppType, setRequestAppType] = useState('none');
     const [requestAppUrl, setRequestAppUrl] = useState('');
+    const [requestAppFetchUrl, setRequestAppFetchUrl] = useState('');
     const [requestAppApiKey, setRequestAppApiKey] = useState('');
     const [maintenanceExperimentalEnabled, setMaintenanceExperimentalEnabled] = useState(false);
     const [dashboardLayout, setDashboardLayout] = useState<DashboardLayoutConfig>(DEFAULT_DASHBOARD_LAYOUT);
@@ -776,6 +777,7 @@ export const SettingsDashboard: React.FC = () => {
             setJellystatApiKey(initialSettings.jellystatApiKey || '');
             setRequestAppType(initialSettings.requestAppType === 'overseerr' ? 'seerr' : (initialSettings.requestAppType || 'none'));
             setRequestAppUrl(initialSettings.requestAppUrl || '');
+            setRequestAppFetchUrl(initialSettings.requestAppFetchUrl || '');
             setRequestAppApiKey(initialSettings.requestAppApiKey || '');
             const savedBrandingTheme = localStorage.getItem('portal-theme') || initialSettings.brandingTheme || 'plex';
             setBrandingTheme(savedBrandingTheme);
@@ -908,6 +910,7 @@ export const SettingsDashboard: React.FC = () => {
             jellystatApiKey,
             requestAppType,
             requestAppUrl,
+            requestAppFetchUrl,
             requestAppApiKey,
             primaryColor: '',
             customLogoUrl,
@@ -1568,8 +1571,30 @@ export const SettingsDashboard: React.FC = () => {
                                 />
                             </div>
                             <div className="mb-4">
-                                <label htmlFor="requestAppUrl">Request App URL</label>
-                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="requestAppUrl" type="text" value={requestAppUrl} onChange={(e) => setRequestAppUrl(e.target.value)} placeholder="http://localhost:5055" />
+                                <SettingFieldLabel
+                                    htmlFor="requestAppUrl"
+                                    hint={(
+                                        <SettingHint>
+                                            Public URL users see (reverse proxy is fine). Server-side API calls use the internal fetch URL below when set.
+                                        </SettingHint>
+                                    )}
+                                >
+                                    Request App URL
+                                </SettingFieldLabel>
+                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="requestAppUrl" type="text" value={requestAppUrl} onChange={(e) => setRequestAppUrl(e.target.value)} placeholder="https://requests.yourdomain.com" />
+                            </div>
+                            <div className="mb-4">
+                                <SettingFieldLabel
+                                    htmlFor="requestAppFetchUrl"
+                                    hint={(
+                                        <SettingHint>
+                                            Optional. URL the portal uses to talk to Seerr from inside Docker (e.g. <code>http://jellyseerr:5055</code> or <code>http://192.168.1.10:5055</code>). Leave blank to use the public URL above.
+                                        </SettingHint>
+                                    )}
+                                >
+                                    Internal fetch URL (optional)
+                                </SettingFieldLabel>
+                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="requestAppFetchUrl" type="text" value={requestAppFetchUrl} onChange={(e) => setRequestAppFetchUrl(e.target.value)} placeholder="http://jellyseerr:5055" />
                             </div>
                             <div className="mb-8">
                                 <label htmlFor="requestAppApiKey">Request App API Key</label>
@@ -1577,7 +1602,7 @@ export const SettingsDashboard: React.FC = () => {
                             </div>
                             <IntegrationTestButton
                                 type="requestApp"
-                                payload={{ requestAppType, requestAppUrl, requestAppApiKey }}
+                                payload={{ requestAppType, requestAppUrl, requestAppFetchUrl, requestAppApiKey }}
                                 disabled={requestAppType === 'none' || !hasIntegrationCredentials(requestAppUrl, requestAppApiKey, initialSettings.requestAppUrl, initialSettings.requestAppApiKey)}
                                 onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
                             />

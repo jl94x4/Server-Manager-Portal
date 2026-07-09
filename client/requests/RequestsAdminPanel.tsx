@@ -42,7 +42,15 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
     const [toasts, setToasts] = useState<ToastMessage[]>([]);
     const [filter, setFilter] = useState<RequestFilter>('pending');
     const [requests, setRequests] = useState<PortalRequestItem[]>([]);
-    const [counts, setCounts] = useState({ pending: 0, approved: 0, declined: 0, total: 0, configured: false });
+    const [counts, setCounts] = useState({
+        pending: 0,
+        approved: 0,
+        declined: 0,
+        total: 0,
+        configured: false,
+        connected: false,
+        supported: true,
+    });
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -59,21 +67,37 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
         else setRefreshing(true);
         setError(null);
         try {
-            const [countData, listData] = await Promise.all([
-                apiFetch('/api/requests/count'),
-                apiFetch(`/api/requests?filter=${encodeURIComponent(filter)}&take=30`),
-            ]);
-            setCounts({
+            const countData = await apiFetch('/api/requests/count');
+            const nextCounts = {
                 pending: Number(countData?.pending) || 0,
                 approved: Number(countData?.approved) || 0,
                 declined: Number(countData?.declined) || 0,
                 total: Number(countData?.total) || 0,
                 configured: !!countData?.configured,
-            });
+                connected: !!countData?.connected,
+                supported: countData?.supported !== false,
+            };
+            setCounts(nextCounts);
+
+            if (!nextCounts.configured) {
+                setRequests([]);
+                return;
+            }
+            if (!nextCounts.supported || !nextCounts.connected) {
+                setRequests([]);
+                setError(countData?.error || 'Cannot connect to your request app');
+                return;
+            }
+
+            const listData = await apiFetch(`/api/requests?filter=${encodeURIComponent(filter)}&take=30`);
+            if (listData?.connected === false) {
+                setRequests([]);
+                setError(listData?.error || 'Cannot connect to your request app');
+                return;
+            }
             setRequests(Array.isArray(listData?.results) ? listData.results : []);
         } catch (e: any) {
-            const message = e?.message || 'Failed to load requests';
-            setError(message);
+            setError(e?.message || 'Failed to load requests');
             setRequests([]);
         } finally {
             setLoading(false);
@@ -131,7 +155,7 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
     const seerrLink = requests[0]?.seerrUrl || null;
 
     return (
-        <div className="w-full max-w-6xl mx-auto animate-fade-in">
+        <div className="w-full max-w-[100%] animate-fade-in">
             <Loader isLoading={loading && requests.length === 0} />
             <ToastContainer toasts={toasts} setToasts={setToasts} />
 
@@ -139,9 +163,11 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
                 <div>
                     <h1 className="text-2xl md:text-3xl font-bold text-plex">Requests</h1>
                     <p className="text-sm text-muted mt-1">
-                        {counts.configured
+                        {counts.configured && counts.connected
                             ? `${counts.pending} pending · approve or decline without leaving the portal`
-                            : 'Connect Seerr, Overseerr, or Jellyseerr in Settings → Integrations to manage requests here.'}
+                            : counts.configured
+                                ? 'Request app is configured — connection failed (see below)'
+                                : 'Connect Seerr, Overseerr, or Jellyseerr in Settings → Integrations to manage requests here.'}
                     </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -187,12 +213,20 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
                 </div>
 
                 {error && (
-                    <div className="mb-4 p-4 rounded-xl border border-red-500/40 bg-red-500/10 text-red-200 text-sm">
-                        {error}
+                    <div className="mb-4 p-4 rounded-xl border border-red-500/40 bg-red-500/10 text-red-200 text-sm space-y-2">
+                        <p>{error}</p>
+                        {counts.configured && (
+                            <p className="text-xs text-red-200/80">
+                                If you use a public reverse-proxy URL, the portal container may not reach it. Add an
+                                {' '}<strong>Internal fetch URL</strong> under Settings → Integrations
+                                (docker service name or LAN IP, e.g. <code className="text-red-100">http://jellyseerr:5055</code>).
+                                Re-test the integration after saving.
+                            </p>
+                        )}
                     </div>
                 )}
 
-                {!counts.configured && !loading && (
+                {!counts.configured && !loading && !error && (
                     <div className="py-12 text-center text-muted">
                         <p className="font-medium text-text mb-2">Request app not configured</p>
                         <p className="text-sm max-w-md mx-auto">
@@ -201,7 +235,16 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
                     </div>
                 )}
 
-                {counts.configured && !loading && requests.length === 0 && !error && (
+                {counts.configured && !counts.supported && !loading && (
+                    <div className="py-12 text-center text-muted">
+                        <p className="font-medium text-text mb-2">Request app type not supported</p>
+                        <p className="text-sm max-w-md mx-auto">
+                            In-portal approval works with Seerr, Overseerr, and Jellyseerr. Ombi requires the external request UI.
+                        </p>
+                    </div>
+                )}
+
+                {counts.configured && counts.supported && !loading && requests.length === 0 && !error && (
                     <div className="py-12 text-center text-muted">
                         <p className="font-medium text-text mb-1">No {filter} requests</p>
                         <p className="text-sm">You&apos;re all caught up.</p>

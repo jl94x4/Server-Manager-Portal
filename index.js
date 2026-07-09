@@ -213,6 +213,12 @@ const resolveIntegrationUrlForFetch = (rawUrl) => {
     return normalizeExternalBaseUrl(rawUrl, { allowPrivate: true, allowHttp: true });
 };
 
+const resolveRequestAppFetchUrl = (config = {}) => {
+    const override = String(process.env.REQUEST_APP_INTERNAL_URL || config.requestAppFetchUrl || '').trim();
+    if (override) return resolveIntegrationUrlForFetch(override);
+    return resolveIntegrationUrlForFetch(config.requestAppUrl || '');
+};
+
 // Only mark cookies Secure when explicitly enabled. Auto-detecting HTTPS breaks plain
 // HTTP LAN access (e.g. http://192.168.x.x:2121) when FORCE_SECURE_COOKIES was left on.
 const sessionCookieBase = () => ({
@@ -287,7 +293,7 @@ import {
     buildArrLookupMapsForItems,
     resolveArrEntity,
 } from './lib/arr-service.js';
-import { createRequestAppService } from './lib/request-app-service.js';
+import { createRequestAppService, getRequestAppGate } from './lib/request-app-service.js';
 const PLEX_API = 'https://plex.tv/api';
 
 // --- Status App Global State ---
@@ -2332,6 +2338,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 jellystatApiKey: config.jellystatApiKey ? SECRET_MASK : '',
                 requestAppType: config.requestAppType === 'overseerr' ? 'seerr' : (config.requestAppType || 'none'),
                 requestAppUrl: config.requestAppUrl || '',
+                requestAppFetchUrl: config.requestAppFetchUrl || '',
                 requestAppApiKey: config.requestAppApiKey ? SECRET_MASK : '',
                 primaryColor: config.primaryColor || '#F7C600',
                 customLogoUrl: config.customLogoUrl || '',
@@ -2440,7 +2447,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, smtpSecure, emailDaysBefore,
         newsletterFrequency, newsletterDay, publicDomain, requestUrl, contactUrl, contactWhatsApp, contactEmail,
         sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, arrInstances, tautulliUrl, tautulliApiKey, jellystatUrl, jellystatApiKey,
-        requestAppType, requestAppUrl, requestAppApiKey,
+        requestAppType, requestAppUrl, requestAppFetchUrl, requestAppApiKey,
         inactiveCleanupEnabled, inactiveCleanupDays,
         primaryColor, customLogoUrl, brandingTheme, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges,
         showPublicStatusMonitor, showPublicLibraryStats,
@@ -2500,6 +2507,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
     let safeTautulliUrl = '';
     let safeJellystatUrl = '';
     let safeRequestAppUrl = '';
+    let safeRequestAppFetchUrl = '';
     let safeJellyfinUrl = '';
     const resolveConfigIntegrationUrl = (incoming, existing) => {
         const existingValue = typeof existing === 'string' ? existing : '';
@@ -2516,6 +2524,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         safeTautulliUrl = resolveConfigIntegrationUrl(tautulliUrl, existingConfig.tautulliUrl || '');
         safeJellystatUrl = resolveConfigIntegrationUrl(jellystatUrl, existingConfig.jellystatUrl || '');
         safeRequestAppUrl = resolveConfigIntegrationUrl(requestAppUrl, existingConfig.requestAppUrl || '');
+        safeRequestAppFetchUrl = resolveConfigIntegrationUrl(requestAppFetchUrl, existingConfig.requestAppFetchUrl || '');
         safeJellyfinUrl = resolveConfigIntegrationUrl(jellyfinUrl, existingConfig.jellyfinUrl || '');
     } catch (e) {
         return res.status(400).json({ error: `Invalid integration URL: ${e.message}` });
@@ -2572,6 +2581,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         jellystatApiKey: resolveSecret(jellystatApiKey, existingConfig.jellystatApiKey),
         requestAppType: ['none', 'seerr', 'overseerr', 'jellyseerr', 'ombi'].includes(String(requestAppType || '').toLowerCase()) ? (String(requestAppType).toLowerCase() === 'overseerr' ? 'seerr' : String(requestAppType).toLowerCase()) : (existingConfig.requestAppType || 'none'),
         requestAppUrl: safeRequestAppUrl,
+        requestAppFetchUrl: safeRequestAppFetchUrl,
         requestAppApiKey: resolveSecret(requestAppApiKey, existingConfig.requestAppApiKey),
         primaryColor: primaryColor || '#F7C600',
         customLogoUrl: customLogoUrl || '',
@@ -2900,7 +2910,7 @@ app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
         radarrUrl, radarrApiKey,
         tautulliUrl, tautulliApiKey,
         jellystatUrl, jellystatApiKey,
-        requestAppType, requestAppUrl, requestAppApiKey,
+        requestAppType, requestAppUrl, requestAppFetchUrl, requestAppApiKey,
     } = req.body || {};
 
     const stored = await loadFile(CONFIG_PATH, {});
@@ -2995,17 +3005,24 @@ app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
 
         if (type === 'requestApp') {
             const appType = String(resolveTestCredential(requestAppType, stored.requestAppType) || 'none').toLowerCase();
-            const baseUrl = resolveIntegrationUrlForTest(requestAppUrl, stored.requestAppUrl);
+            const publicUrl = resolveIntegrationUrlForTest(requestAppUrl, stored.requestAppUrl);
+            const fetchUrlInput = resolveTestCredential(requestAppFetchUrl, stored.requestAppFetchUrl);
+            const fetchUrl = fetchUrlInput
+                ? sanitizeIntegrationUrl(String(fetchUrlInput).trim())
+                : (process.env.REQUEST_APP_INTERNAL_URL
+                    ? resolveIntegrationUrlForFetch(process.env.REQUEST_APP_INTERNAL_URL)
+                    : publicUrl);
             const apiKey = resolveTestCredential(requestAppApiKey, stored.requestAppApiKey);
             if (appType === 'none') return res.status(400).json({ error: 'Request app type must be selected.' });
-            if (!baseUrl || !apiKey) return res.status(400).json({ error: 'Request app URL and API key are required.' });
+            if (!publicUrl || !apiKey) return res.status(400).json({ error: 'Request app URL and API key are required.' });
             if (isSeerrFamilyRequestApp(appType)) {
-                const result = await testSeerrFamilyConnection(baseUrl, apiKey);
-                return res.json({ ok: true, message: result.message, details: { version: result.version } });
+                const result = await testSeerrFamilyConnection(fetchUrl, apiKey);
+                const via = fetchUrl !== publicUrl ? ` (via internal fetch URL)` : '';
+                return res.json({ ok: true, message: `${result.message}${via}`, details: { version: result.version, fetchUrl } });
             }
             if (appType === 'ombi') {
                 const headers = { Accept: 'application/json', 'X-Api-Key': apiKey };
-                const aboutRes = await fetchWithTimeout(`${baseUrl}/api/v1/Settings/about`, { headers }, 12000);
+                const aboutRes = await fetchWithTimeout(`${fetchUrl}/api/v1/Settings/about`, { headers }, 12000);
                 if (!aboutRes.ok) throw new Error(`Ombi returned HTTP ${aboutRes.status}`);
                 const data = await aboutRes.json().catch(() => ({}));
                 return res.json({ ok: true, message: `Ombi v${data.version || data.applicationVersion || '?'} connected`, details: { version: data.version || data.applicationVersion } });
@@ -3061,7 +3078,7 @@ const fetchWithTimeout = async (url, options = {}, timeoutMs = 15000) => {
     }
 };
 
-const requestAppService = createRequestAppService({ fetchWithTimeout, resolveIntegrationUrlForFetch });
+const requestAppService = createRequestAppService({ fetchWithTimeout, resolveIntegrationUrlForFetch, resolveRequestAppFetchUrl });
 
 const normalizePlexToken = (token) => {
     if (token === undefined || token === null || token === SECRET_MASK) return token;
@@ -4153,32 +4170,113 @@ app.delete('/api/invites/:code', requireAdmin, async (req, res) => {
 
 const REQUEST_LIST_FILTERS = new Set(['pending', 'approved', 'declined', 'processing', 'available']);
 
+const emptyRequestCounts = () => ({ pending: 0, approved: 0, declined: 0, total: 0 });
+
+const buildRequestAppStatusPayload = (config) => {
+    const gate = getRequestAppGate(config);
+    return {
+        configured: gate.configured,
+        supported: gate.supported,
+        connected: false,
+        ...emptyRequestCounts(),
+        error: gate.error,
+    };
+};
+
+app.get('/api/requests/pending', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) {
+            return res.json({ ...buildRequestAppStatusPayload(config), results: [] });
+        }
+        const take = Math.min(10, Math.max(1, Number(req.query.take) || 5));
+        try {
+            const [counts, list] = await Promise.all([
+                requestAppService.getRequestCounts(config),
+                requestAppService.listRequests(config, { filter: 'pending', take, skip: 0 }),
+            ]);
+            const pendingFromList = list.results.length;
+            const pending = Math.max(counts.pending, pendingFromList);
+            res.json({
+                configured: true,
+                supported: true,
+                connected: true,
+                pending,
+                approved: counts.approved,
+                declined: counts.declined,
+                total: counts.total,
+                results: list.results,
+            });
+        } catch (error) {
+            res.json({
+                ...buildRequestAppStatusPayload(config),
+                configured: true,
+                supported: true,
+                connected: false,
+                error: error.message || 'Failed to connect to request app',
+                results: [],
+            });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'Failed to fetch pending requests' });
+    }
+});
+
 app.get('/api/requests/count', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        if (!requestAppService.isRequestAppConfigured(config)) {
-            return res.json({ configured: false, pending: 0, approved: 0, declined: 0, total: 0 });
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) {
+            return res.json(buildRequestAppStatusPayload(config));
         }
-        const counts = await requestAppService.getRequestCounts(config);
-        res.json({ configured: true, ...counts });
+        try {
+            const counts = await requestAppService.getRequestCounts(config);
+            res.json({ configured: true, supported: true, connected: true, ...counts });
+        } catch (error) {
+            res.json({
+                ...buildRequestAppStatusPayload(config),
+                configured: true,
+                supported: true,
+                connected: false,
+                error: error.message || 'Failed to connect to request app',
+            });
+        }
     } catch (error) {
-        res.status(502).json({ error: error.message || 'Failed to fetch request counts' });
+        res.status(500).json({ error: error.message || 'Failed to fetch request counts' });
     }
 });
 
 app.get('/api/requests', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        if (!requestAppService.isRequestAppConfigured(config)) {
-            return res.status(400).json({ error: 'Request app is not configured for in-portal approval. Add Seerr/Overseerr URL and API key in Settings → Integrations.' });
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) {
+            return res.json({
+                ...buildRequestAppStatusPayload(config),
+                results: [],
+                pageInfo: { pages: 1, results: 0, page: 1 },
+            });
         }
         const filter = REQUEST_LIST_FILTERS.has(String(req.query.filter || '')) ? String(req.query.filter) : 'pending';
         const take = Math.min(50, Math.max(1, Number(req.query.take) || 20));
         const skip = Math.max(0, Number(req.query.skip) || 0);
-        const payload = await requestAppService.listRequests(config, { filter, take, skip });
-        res.json(payload);
+        try {
+            const payload = await requestAppService.listRequests(config, { filter, take, skip });
+            res.json({ configured: true, supported: true, connected: true, ...payload });
+        } catch (error) {
+            res.json({
+                ...buildRequestAppStatusPayload(config),
+                configured: true,
+                supported: true,
+                connected: false,
+                error: error.message || 'Failed to connect to request app',
+                results: [],
+                pageInfo: { pages: 1, results: 0, page: 1 },
+            });
+        }
     } catch (error) {
-        res.status(502).json({ error: error.message || 'Failed to fetch requests' });
+        res.status(500).json({ error: error.message || 'Failed to fetch requests' });
     }
 });
 

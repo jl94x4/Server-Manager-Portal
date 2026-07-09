@@ -21,8 +21,11 @@ export type PortalRequestItem = {
 
 export type PortalRequestCounts = {
     configured: boolean;
+    connected?: boolean;
+    supported?: boolean;
     pending: number;
     approved: number;
     declined: number;
     total: number;
+    error?: string | null;
 };
