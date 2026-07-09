@@ -1596,7 +1596,7 @@ export const SettingsDashboard: React.FC = () => {
                             <div className="flex flex-col gap-2 max-w-md">
                                 {navOrder.map((key, index) => {
                                     const labels: Record<string, string> = {
-                                        'home': 'Home', 'discover': 'Discover', 'status': 'Status', 'logs': 'Logs (Admin Only)', 'analytics': 'Analytics', 'mediastack': 'Integrations', 'maintenance': 'Cleaner (Admin Only)', 'request': 'Request Content', 'settings': 'Settings (Admin Only)', 'logout': 'Logout'
+                                        'home': 'Home', 'discover': 'Discover', 'status': 'Status', 'logs': 'Logs (Admin Only)', 'analytics': 'Analytics', 'mediastack': 'Integrations', 'maintenance': 'Cleaner (Admin Only)', 'requests': 'Requests (Admin Only)', 'request': 'Request Content', 'settings': 'Settings (Admin Only)', 'logout': 'Logout'
                                     };
                                     return (
                                         <div key={key} className="flex items-center justify-between py-3 border-b border-border/40">

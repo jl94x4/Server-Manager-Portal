@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2, Search, BookOpen, Loader2, Eye } from 'lucide-react';
+import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2, Search, BookOpen, Loader2, Eye, ClipboardList } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
 
 import { SettingsDashboard } from './settings/SettingsDashboard';
@@ -4687,7 +4687,7 @@ const TrendingDiscoverSection: React.FC<{ title: string; items: any[]; limit: nu
     );
 };
 
-export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: () => void; refreshSession: () => void; onViewAdmin: () => void; onViewStatus: () => void; onViewDashboard: () => void; onViewSettings?: () => void; onViewLogs?: () => void }> = ({ sessionInfo, publicConfig, onLogout, refreshSession, onViewAdmin, onViewStatus, onViewDashboard, onViewSettings, onViewLogs }) => {
+export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: () => void; refreshSession: () => void; onViewAdmin: () => void; onViewStatus: () => void; onViewDashboard: () => void; onViewSettings?: () => void; onViewLogs?: () => void; onViewRequests?: () => void; onPendingRequestsChange?: () => void }> = ({ sessionInfo, publicConfig, onLogout, refreshSession, onViewAdmin, onViewStatus, onViewDashboard, onViewSettings, onViewLogs, onViewRequests, onPendingRequestsChange }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [toast, setToast] = useState<ToastMessage | null>(null);
     const [analytics, setAnalytics] = useState<any>(null);
@@ -4952,7 +4952,8 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
         isAdmin: !!sessionInfo.session.isAdmin,
         hasUser: !!user,
         referralEnabled: !!publicConfig?.referralEnabled,
-    }), [sessionInfo.session.isAdmin, user, publicConfig?.referralEnabled]);
+        requestsQueueEnabled: !!sessionInfo?.navFeatures?.requestsQueue,
+    }), [sessionInfo.session.isAdmin, user, publicConfig?.referralEnabled, sessionInfo?.navFeatures?.requestsQueue]);
 
     const widgetDeps = useMemo(() => ({
         sessionInfo,
@@ -4978,13 +4979,15 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
         onViewAdmin,
         onViewSettings,
         onViewLogs,
+        onViewRequests,
+        onPendingRequestsChange,
         setToast,
         DiscoverPosterCard,
         RebuildLibraryCacheButton,
     }), [
         sessionInfo, publicConfig, user, isRevoked, isExpiringSoon, daysLeft, progressPct, optOutNewsletter,
         serverStats, serverDataLoading, analytics, analyticsLoading, analyticsDays, analyticsDaysOpen,
-        showQualityBadges, dashboardData, onViewAdmin, onViewSettings, onViewLogs,
+        showQualityBadges, dashboardData, onViewAdmin, onViewSettings, onViewLogs, onViewRequests, onPendingRequestsChange,
     ]);
 
     const renderMainGridWidget = useMemo(() => createMainGridWidgetRenderer(widgetDeps), [widgetDeps]);
@@ -7541,9 +7544,10 @@ interface NavigationProps {
     appVersion?: string;
     activeTheme: string;
     setActiveTheme: (theme: string) => void;
+    pendingRequestCount?: number;
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, customLogoUrl, requestUrl, navOrder, navFeatures, appVersion, activeTheme, setActiveTheme }) => {
+export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, customLogoUrl, requestUrl, navOrder, navFeatures, appVersion, activeTheme, setActiveTheme, pendingRequestCount = 0 }) => {
     const serverIcon = customLogoUrl ? resolvePortalAssetUrl(customLogoUrl) : (adminThumb ? (adminThumb.startsWith('http') ? adminThumb : portalUrl(`/api/plex/image?path=${encodeURIComponent(adminThumb)}&width=256&height=256`)) : logoUrl());
     useEffect(() => {
         updateFavicon(serverIcon);
@@ -7581,6 +7585,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         'analytics': { label: 'Analytics', icon: BarChart3, route: 'analytics', adminOnly: false },
         'mediastack': { label: 'Calendar', icon: Layers, route: 'mediastack', adminOnly: false },
         'maintenance': { label: 'Cleaner', icon: Shield, route: 'maintenance', adminOnly: true },
+        'requests': { label: 'Requests', icon: ClipboardList, route: 'requests', adminOnly: true },
         'request': { label: 'Request Content', icon: Sparkles, route: '', adminOnly: false, href: requestUrl },
         'settings': { label: 'Settings', icon: Settings, route: 'settings', adminOnly: true },
         'logout': { label: 'Logout', icon: LogOut, route: '', adminOnly: false, onClick: onLogout }
@@ -7592,6 +7597,11 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
             if (requestIndex >= 0) order.splice(requestIndex, 0, 'maintenance');
             else order.push('maintenance');
         }
+        if (isAdmin && navFeatures?.requestsQueue && !order.includes('requests')) {
+            const requestIndex = order.indexOf('request');
+            if (requestIndex >= 0) order.splice(requestIndex, 0, 'requests');
+            else order.push('requests');
+        }
         return filterNavOrder(order, { isAdmin, features: navFeatures });
     }, [navOrder, isAdmin, navFeatures]);
 
@@ -7602,10 +7612,11 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
     const renderNavAction = (
         key: string,
         item: { label: string; icon: React.FC<any>; route: string; href?: string; onClick?: (e: any) => void },
-        options: { compactLabel?: string; mobile?: boolean; isCurrent: boolean },
+        options: { compactLabel?: string; mobile?: boolean; isCurrent: boolean; badgeCount?: number },
     ) => {
         const Icon = item.icon;
         const label = options.compactLabel || item.label;
+        const badgeCount = key === 'requests' ? (options.badgeCount || 0) : 0;
         const baseClass = options.mobile
             ? `relative flex flex-col items-center justify-center gap-1 h-full flex-shrink-0 min-w-[4.25rem] px-1 text-center text-[0.65rem] transition-colors ${options.isCurrent ? 'text-plex font-bold' : 'text-muted hover:text-text'}`
             : `flex items-center gap-4 p-3 no-underline rounded-xl transition-all font-medium ${options.isCurrent ? 'nav-item-active' : 'text-muted hover:bg-white/5 hover:text-text'}`;
@@ -7630,8 +7641,24 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                 className={`${baseClass} bg-transparent border-0 cursor-pointer`}
                 onClick={handleActivate}
             >
-                <Icon className="w-5 h-5 flex-shrink-0" />
-                {options.mobile ? label : <span>{label}</span>}
+                <span className="relative shrink-0">
+                    <Icon className="w-5 h-5" />
+                    {badgeCount > 0 && options.mobile && (
+                        <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 px-0.5 rounded-full bg-plex text-background text-[8px] font-bold flex items-center justify-center leading-none">
+                            {badgeCount > 9 ? '9+' : badgeCount}
+                        </span>
+                    )}
+                </span>
+                {options.mobile ? label : (
+                    <span className="flex items-center gap-2 flex-1 min-w-0">
+                        <span className="truncate">{label}</span>
+                        {badgeCount > 0 && (
+                            <span className="ml-auto min-w-[1.25rem] h-5 px-1.5 rounded-full bg-plex text-background text-[10px] font-bold flex items-center justify-center shrink-0">
+                                {badgeCount > 99 ? '99+' : badgeCount}
+                            </span>
+                        )}
+                    </span>
+                )}
                 {options.mobile && options.isCurrent && (
                     <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />
                 )}
@@ -7710,7 +7737,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                         if (key === 'logs') return null;
                         const isCurrent = item.route ? isNavCurrent(key, item.route) : false;
                         const labelOverride = key === 'mediastack' ? 'Calendar' : item.label;
-                        return renderNavAction(key, { ...item, label: labelOverride }, { isCurrent });
+                        return renderNavAction(key, { ...item, label: labelOverride }, { isCurrent, badgeCount: key === 'requests' ? pendingRequestCount : 0 });
                     })}
                 </div>
 
@@ -7793,7 +7820,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                         if (!item) return null;
                         const isCurrent = item.route ? isNavCurrent(key, item.route) : false;
                         const labelOverride = key === 'mediastack' ? 'Media' : key === 'request' ? 'Request' : item.label;
-                        return renderNavAction(key, { ...item, label: labelOverride }, { mobile: true, isCurrent, compactLabel: labelOverride });
+                        return renderNavAction(key, { ...item, label: labelOverride }, { mobile: true, isCurrent, compactLabel: labelOverride, badgeCount: key === 'requests' ? pendingRequestCount : 0 });
                     })}
                 </div>
             </div>

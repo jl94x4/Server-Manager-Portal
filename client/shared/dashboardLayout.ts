@@ -5,6 +5,7 @@ export type MainGridWidgetId =
     | 'accessStatus'
     | 'tempAccessSetup'
     | 'quickActions'
+    | 'pendingRequests'
     | 'announcement'
     | 'referral'
     | 'newsletterPrefs'
@@ -37,6 +38,7 @@ export const DASHBOARD_SECTION_LABELS: Record<DashboardSectionId, string> = {
 export const MAIN_GRID_WIDGET_META: Record<MainGridWidgetId, { label: string; column: 'left' | 'right'; adminOnly?: boolean; userOnly?: boolean }> = {
     adminBadge: { label: 'Server Admin badge', column: 'left', adminOnly: true },
     quickActions: { label: 'Quick Actions', column: 'left', adminOnly: true },
+    pendingRequests: { label: 'Pending Requests', column: 'left', adminOnly: true },
     accessStatus: { label: 'Access status & expiry', column: 'left', userOnly: true },
     tempAccessSetup: { label: 'Temp access setup spinner', column: 'left', userOnly: true },
     announcement: { label: 'Announcement banner', column: 'left' },
@@ -59,6 +61,7 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayoutConfig = {
     mainGridOrder: [
         'adminBadge',
         'quickActions',
+        'pendingRequests',
         'accessStatus',
         'announcement',
         'referral',
@@ -117,6 +120,7 @@ export type DashboardLayoutContext = {
     isAdmin: boolean;
     hasUser: boolean;
     referralEnabled?: boolean;
+    requestsQueueEnabled?: boolean;
 };
 
 export const isMainGridWidgetAvailable = (id: MainGridWidgetId, ctx: DashboardLayoutContext): boolean => {
@@ -128,6 +132,7 @@ export const isMainGridWidgetAvailable = (id: MainGridWidgetId, ctx: DashboardLa
     if (id === 'accessStatus' && (ctx.isAdmin || !ctx.hasUser)) return false;
     if (id === 'adminBadge' && !ctx.isAdmin) return false;
     if (id === 'quickActions' && !ctx.isAdmin) return false;
+    if (id === 'pendingRequests' && (!ctx.isAdmin || !ctx.requestsQueueEnabled)) return false;
     return true;
 };
 

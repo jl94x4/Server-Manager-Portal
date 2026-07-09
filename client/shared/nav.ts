@@ -1,6 +1,7 @@
 export type NavFeatureFlags = {
     maintenance?: boolean;
     request?: boolean;
+    requestsQueue?: boolean;
 };
 
 const PLACEHOLDER_REQUEST_URLS = new Set([
@@ -23,12 +24,14 @@ export const filterNavOrder = (
     const features = options.features || {};
     const maintenanceEnabled = features.maintenance !== false;
     const requestEnabled = features.request !== false;
+    const requestsQueueEnabled = !!features.requestsQueue;
 
     return (Array.isArray(order) ? order : []).filter((key) => {
         if (key === 'logout' || key === 'logs') return false;
-        if ((key === 'users' || key === 'settings' || key === 'maintenance') && !options.isAdmin) return false;
+        if ((key === 'users' || key === 'settings' || key === 'maintenance' || key === 'requests') && !options.isAdmin) return false;
         if (key === 'maintenance' && !maintenanceEnabled) return false;
         if (key === 'request' && !requestEnabled) return false;
+        if (key === 'requests' && !requestsQueueEnabled) return false;
         return true;
     });
 };

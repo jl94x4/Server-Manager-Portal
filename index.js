@@ -287,6 +287,7 @@ import {
     buildArrLookupMapsForItems,
     resolveArrEntity,
 } from './lib/arr-service.js';
+import { createRequestAppService } from './lib/request-app-service.js';
 const PLEX_API = 'https://plex.tv/api';
 
 // --- Status App Global State ---
@@ -2149,6 +2150,7 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
     const navFeatures = {
         maintenance: !!config.maintenanceExperimentalEnabled,
         request: !!(requestAppType && requestAppType !== 'none' && resolvedRequestUrl && resolvedRequestUrl !== 'https://yourdomain.com'),
+        requestsQueue: requestAppService.isRequestAppConfigured(config),
     };
 
     res.json({
@@ -3058,6 +3060,8 @@ const fetchWithTimeout = async (url, options = {}, timeoutMs = 15000) => {
         clearTimeout(timer);
     }
 };
+
+const requestAppService = createRequestAppService({ fetchWithTimeout, resolveIntegrationUrlForFetch });
 
 const normalizePlexToken = (token) => {
     if (token === undefined || token === null || token === SECRET_MASK) return token;
@@ -4145,6 +4149,66 @@ app.delete('/api/invites/:code', requireAdmin, async (req, res) => {
     invites = invites.filter(i => i.code !== req.params.code);
     await saveFile(INVITES_PATH, invites);
     res.json({ success: true });
+});
+
+const REQUEST_LIST_FILTERS = new Set(['pending', 'approved', 'declined', 'processing', 'available']);
+
+app.get('/api/requests/count', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        if (!requestAppService.isRequestAppConfigured(config)) {
+            return res.json({ configured: false, pending: 0, approved: 0, declined: 0, total: 0 });
+        }
+        const counts = await requestAppService.getRequestCounts(config);
+        res.json({ configured: true, ...counts });
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to fetch request counts' });
+    }
+});
+
+app.get('/api/requests', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        if (!requestAppService.isRequestAppConfigured(config)) {
+            return res.status(400).json({ error: 'Request app is not configured for in-portal approval. Add Seerr/Overseerr URL and API key in Settings → Integrations.' });
+        }
+        const filter = REQUEST_LIST_FILTERS.has(String(req.query.filter || '')) ? String(req.query.filter) : 'pending';
+        const take = Math.min(50, Math.max(1, Number(req.query.take) || 20));
+        const skip = Math.max(0, Number(req.query.skip) || 0);
+        const payload = await requestAppService.listRequests(config, { filter, take, skip });
+        res.json(payload);
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to fetch requests' });
+    }
+});
+
+app.post('/api/requests/:id/approve', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const requestId = String(req.params.id || '').trim();
+        if (!requestId) return res.status(400).json({ error: 'Request ID is required' });
+        const result = await requestAppService.approveRequest(config, requestId);
+        const title = result?.media?.title || result?.media?.name || req.body?.title || `Request #${requestId}`;
+        await appendAuditLog('request_approved', req.user, null, { requestId, title });
+        res.json({ success: true, title });
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to approve request' });
+    }
+});
+
+app.post('/api/requests/:id/decline', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const requestId = String(req.params.id || '').trim();
+        if (!requestId) return res.status(400).json({ error: 'Request ID is required' });
+        const reason = String(req.body?.reason || '').trim();
+        const result = await requestAppService.declineRequest(config, requestId, reason);
+        const title = result?.media?.title || result?.media?.name || req.body?.title || `Request #${requestId}`;
+        await appendAuditLog('request_declined', req.user, null, { requestId, title, reason: reason || null });
+        res.json({ success: true, title });
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to decline request' });
+    }
 });
 
 app.get('/api/invites/:code/info', publicReadRateLimit, async (req, res) => {

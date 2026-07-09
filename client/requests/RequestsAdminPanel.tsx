@@ -1,0 +1,324 @@
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Check, ExternalLink, Film, Loader2, RefreshCw, Tv, X } from 'lucide-react';
+import { apiFetch } from '../shared/api';
+import { formatDateTime } from '../shared/format';
+import { Loader, ToastContainer, pushToast, type ToastMessage } from '../shared/toast';
+
+type RequestFilter = 'pending' | 'approved' | 'declined';
+
+import type { PortalRequestItem } from './types';
+
+export type { PortalRequestItem } from './types';
+
+const formatRelativeTime = (value?: string | null) => {
+    if (!value) return 'Unknown time';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return formatDateTime(value);
+    const diffMs = Date.now() - date.getTime();
+    const minutes = Math.floor(diffMs / 60000);
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}d ago`;
+    return formatDateTime(value);
+};
+
+const RequestTypeBadge: React.FC<{ type: string; is4k: boolean }> = ({ type, is4k }) => (
+    <span className="inline-flex items-center gap-1.5">
+        <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-white/5 border border-border text-muted">
+            {type === 'tv' ? 'TV' : 'Movie'}
+        </span>
+        {is4k && (
+            <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-200">
+                4K
+            </span>
+        )}
+    </span>
+);
+
+export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ onCountsChange }) => {
+    const [toasts, setToasts] = useState<ToastMessage[]>([]);
+    const [filter, setFilter] = useState<RequestFilter>('pending');
+    const [requests, setRequests] = useState<PortalRequestItem[]>([]);
+    const [counts, setCounts] = useState({ pending: 0, approved: 0, declined: 0, total: 0, configured: false });
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [actionId, setActionId] = useState<number | null>(null);
+    const [declineTarget, setDeclineTarget] = useState<PortalRequestItem | null>(null);
+    const [declineReason, setDeclineReason] = useState('');
+
+    const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+        setToasts((prev) => pushToast(prev, message, type));
+    }, []);
+
+    const loadData = useCallback(async (opts?: { silent?: boolean }) => {
+        if (!opts?.silent) setLoading(true);
+        else setRefreshing(true);
+        setError(null);
+        try {
+            const [countData, listData] = await Promise.all([
+                apiFetch('/api/requests/count'),
+                apiFetch(`/api/requests?filter=${encodeURIComponent(filter)}&take=30`),
+            ]);
+            setCounts({
+                pending: Number(countData?.pending) || 0,
+                approved: Number(countData?.approved) || 0,
+                declined: Number(countData?.declined) || 0,
+                total: Number(countData?.total) || 0,
+                configured: !!countData?.configured,
+            });
+            setRequests(Array.isArray(listData?.results) ? listData.results : []);
+        } catch (e: any) {
+            const message = e?.message || 'Failed to load requests';
+            setError(message);
+            setRequests([]);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    }, [filter]);
+
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
+
+    const filterTabs = useMemo(() => ([
+        { id: 'pending' as const, label: 'Pending', count: counts.pending },
+        { id: 'approved' as const, label: 'Approved', count: counts.approved },
+        { id: 'declined' as const, label: 'Declined', count: counts.declined },
+    ]), [counts]);
+
+    const handleApprove = async (item: PortalRequestItem) => {
+        setActionId(item.id);
+        try {
+            await apiFetch(`/api/requests/${item.id}/approve`, {
+                method: 'POST',
+                body: JSON.stringify({ title: item.title }),
+            });
+            addToast(`Approved "${item.title}"`);
+            await loadData({ silent: true });
+            onCountsChange?.();
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to approve request', 'error');
+        } finally {
+            setActionId(null);
+        }
+    };
+
+    const handleDecline = async () => {
+        if (!declineTarget) return;
+        setActionId(declineTarget.id);
+        try {
+            await apiFetch(`/api/requests/${declineTarget.id}/decline`, {
+                method: 'POST',
+                body: JSON.stringify({ title: declineTarget.title, reason: declineReason.trim() }),
+            });
+            addToast(`Declined "${declineTarget.title}"`);
+            setDeclineTarget(null);
+            setDeclineReason('');
+            await loadData({ silent: true });
+            onCountsChange?.();
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to decline request', 'error');
+        } finally {
+            setActionId(null);
+        }
+    };
+
+    const seerrLink = requests[0]?.seerrUrl || null;
+
+    return (
+        <div className="w-full max-w-6xl mx-auto animate-fade-in">
+            <Loader isLoading={loading && requests.length === 0} />
+            <ToastContainer toasts={toasts} setToasts={setToasts} />
+
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+                <div>
+                    <h1 className="text-2xl md:text-3xl font-bold text-plex">Requests</h1>
+                    <p className="text-sm text-muted mt-1">
+                        {counts.configured
+                            ? `${counts.pending} pending · approve or decline without leaving the portal`
+                            : 'Connect Seerr, Overseerr, or Jellyseerr in Settings → Integrations to manage requests here.'}
+                    </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                    {seerrLink && (
+                        <a
+                            href={seerrLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted hover:text-text hover:bg-white/5 transition-colors"
+                        >
+                            Open Seerr <ExternalLink className="w-4 h-4" />
+                        </a>
+                    )}
+                    <button
+                        type="button"
+                        onClick={() => loadData({ silent: true })}
+                        disabled={refreshing}
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-border text-text text-sm font-semibold hover:bg-opacity-80 transition-colors disabled:opacity-50"
+                    >
+                        <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                        Refresh
+                    </button>
+                </div>
+            </div>
+
+            <div className="glass-card p-4 md:p-6 shadow-2xl">
+                <div className="flex flex-wrap gap-2 mb-5">
+                    {filterTabs.map((tab) => (
+                        <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setFilter(tab.id)}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                                filter === tab.id
+                                    ? 'nav-item-active'
+                                    : 'text-muted hover:text-text hover:bg-white/5'
+                            }`}
+                        >
+                            {tab.label}
+                            <span className="ml-1.5 text-xs opacity-70">({tab.count})</span>
+                        </button>
+                    ))}
+                </div>
+
+                {error && (
+                    <div className="mb-4 p-4 rounded-xl border border-red-500/40 bg-red-500/10 text-red-200 text-sm">
+                        {error}
+                    </div>
+                )}
+
+                {!counts.configured && !loading && (
+                    <div className="py-12 text-center text-muted">
+                        <p className="font-medium text-text mb-2">Request app not configured</p>
+                        <p className="text-sm max-w-md mx-auto">
+                            Set Request App Type, URL, and API key under Settings → Integrations. Ombi is not supported for in-portal approval yet.
+                        </p>
+                    </div>
+                )}
+
+                {counts.configured && !loading && requests.length === 0 && !error && (
+                    <div className="py-12 text-center text-muted">
+                        <p className="font-medium text-text mb-1">No {filter} requests</p>
+                        <p className="text-sm">You&apos;re all caught up.</p>
+                    </div>
+                )}
+
+                <div className="space-y-3">
+                    {requests.map((item) => {
+                        const busy = actionId === item.id;
+                        const TypeIcon = item.type === 'tv' ? Tv : Film;
+                        return (
+                            <div
+                                key={item.id}
+                                className="flex flex-col sm:flex-row gap-4 p-4 rounded-xl border border-border/60 bg-background/40 hover:border-border transition-colors"
+                            >
+                                <div className="flex gap-4 min-w-0 flex-1">
+                                    <div className="w-[4.5rem] aspect-[2/3] rounded-lg overflow-hidden bg-card border border-border/50 shrink-0">
+                                        {item.posterUrl ? (
+                                            <img
+                                                src={item.posterUrl}
+                                                alt=""
+                                                className="w-full h-full object-cover"
+                                                loading="lazy"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-muted">
+                                                <TypeIcon className="w-8 h-8 opacity-40" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                                            <h3 className="font-bold text-text truncate">
+                                                {item.title}
+                                                {item.year ? <span className="text-muted font-medium"> ({item.year})</span> : null}
+                                            </h3>
+                                            <RequestTypeBadge type={item.type} is4k={item.is4k} />
+                                        </div>
+                                        <p className="text-sm text-muted mb-2">
+                                            Requested by <span className="text-text font-medium">{item.requestedBy.displayName}</span>
+                                            {' · '}
+                                            {formatRelativeTime(item.createdAt)}
+                                        </p>
+                                        {item.overview && (
+                                            <p className="text-xs text-muted line-clamp-2">{item.overview}</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {filter === 'pending' && (
+                                    <div className="flex sm:flex-col gap-2 sm:justify-center shrink-0">
+                                        <button
+                                            type="button"
+                                            disabled={busy}
+                                            onClick={() => handleApprove(item)}
+                                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-plex text-background font-bold hover:bg-plex-hover transition-colors disabled:opacity-50 min-w-[7.5rem]"
+                                        >
+                                            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                            Approve
+                                        </button>
+                                        <button
+                                            type="button"
+                                            disabled={busy}
+                                            onClick={() => {
+                                                setDeclineTarget(item);
+                                                setDeclineReason('');
+                                            }}
+                                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-red-500/40 text-red-200 font-semibold hover:bg-red-500/10 transition-colors disabled:opacity-50 min-w-[7.5rem]"
+                                        >
+                                            <X className="w-4 h-4" />
+                                            Decline
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {declineTarget && (
+                <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="w-full max-w-md glass-card p-5 shadow-2xl border border-border">
+                        <h3 className="text-lg font-bold text-text mb-1">Decline request</h3>
+                        <p className="text-sm text-muted mb-4">
+                            Decline <span className="text-text font-medium">{declineTarget.title}</span>?
+                        </p>
+                        <label className="block text-sm font-medium text-text mb-2">Reason (optional)</label>
+                        <textarea
+                            className="w-full min-h-[100px] p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-colors mb-4"
+                            value={declineReason}
+                            onChange={(e) => setDeclineReason(e.target.value)}
+                            placeholder="Let the requester know why this was declined..."
+                        />
+                        <div className="flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setDeclineTarget(null);
+                                    setDeclineReason('');
+                                }}
+                                className="px-4 py-2 rounded-lg border border-border text-muted hover:text-text transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleDecline}
+                                disabled={actionId === declineTarget.id}
+                                className="px-4 py-2 rounded-lg bg-red-600 text-white font-bold hover:bg-red-500 transition-colors disabled:opacity-50"
+                            >
+                                {actionId === declineTarget.id ? 'Declining...' : 'Decline request'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};

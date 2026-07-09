@@ -18,6 +18,7 @@ import type { MainGridWidgetId, RecentlyAddedWidgetId } from '../shared/dashboar
 import { LibraryStatsSkeleton } from '../shared/skeletons';
 import { PeriodDropdown } from '../shared/PeriodDropdown';
 import { ScrollReveal } from '../shared/ui';
+import { PendingRequestsHomeWidget } from '../requests/PendingRequestsHomeWidget';
 
 type PosterCardProps = {
     item: { title: string; thumb?: string; plexUrl: string; tags?: string[]; year?: number | string; parentTitle?: string };
@@ -52,6 +53,8 @@ export type UserDashboardWidgetDeps = {
     onViewAdmin: () => void;
     onViewSettings?: () => void;
     onViewLogs?: () => void;
+    onViewRequests?: () => void;
+    onPendingRequestsChange?: () => void;
     setToast: (toast: { id: number; message: string; type: 'success' | 'error' }) => void;
     DiscoverPosterCard: React.ComponentType<PosterCardProps>;
     RebuildLibraryCacheButton: React.ComponentType;
@@ -93,6 +96,8 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
         onViewAdmin,
         onViewSettings,
         onViewLogs,
+        onViewRequests,
+        onPendingRequestsChange,
         setToast,
         RebuildLibraryCacheButton,
     } = deps;
@@ -195,6 +200,15 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                             </button>
                         </div>
                     </div>
+                );
+            case 'pendingRequests':
+                if (!sessionInfo?.navFeatures?.requestsQueue) return null;
+                return (
+                    <PendingRequestsHomeWidget
+                        onViewAll={onViewRequests}
+                        onActionComplete={onPendingRequestsChange}
+                        onToast={(message, type) => setToast({ id: Date.now(), message, type })}
+                    />
                 );
             case 'announcement':
                 if (!publicConfig?.announcement) return null;
