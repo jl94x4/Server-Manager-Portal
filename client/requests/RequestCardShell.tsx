@@ -17,17 +17,13 @@ export const RequestCardShell: React.FC<Props> = ({ backdropUrl, posterUrl, clas
                 <>
                     <div
                         className={`absolute inset-y-0 right-0 w-[72%] bg-cover bg-center ${
-                            backdropUrl ? 'opacity-[0.55]' : 'opacity-[0.35] blur-[2px] scale-110'
+                            backdropUrl ? 'opacity-40' : 'opacity-30 blur-[2px] scale-110'
                         }`}
                         style={{ backgroundImage: `url(${artUrl})` }}
                         aria-hidden
                     />
                     <div
-                        className="absolute inset-0 bg-gradient-to-r from-background from-[22%] via-background/75 via-[48%] to-background/10"
-                        aria-hidden
-                    />
-                    <div
-                        className="absolute inset-0 bg-gradient-to-t from-background/40 via-transparent to-transparent"
+                        className="absolute inset-0 bg-gradient-to-r from-background via-background/40 via-[38%] to-transparent to-[72%]"
                         aria-hidden
                     />
                 </>
