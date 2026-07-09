@@ -27,6 +27,7 @@ import { WrapUpCardGrid } from './shared/WrapUpCards';
 import { SetupWizard } from './setup/SetupWizard';
 import { AuthPageBackground, themeClasses, SlideshowBackground } from './shared/theme';
 import { activityStreamColumnCount, activityStreamGridClass, discoverPosterGridClass } from './shared/portalLayout';
+import { filterNavOrder, type NavFeatureFlags } from './shared/nav';
 import { UserDashboardLayout } from './home/UserDashboardLayout';
 import { createMainGridWidgetRenderer, createRecentlyAddedWidgetRenderer } from './home/userDashboardWidgetRenderers';
 
@@ -7528,12 +7529,13 @@ interface NavigationProps {
     customLogoUrl?: string | null;
     requestUrl: string;
     navOrder: string[];
+    navFeatures?: NavFeatureFlags;
     appVersion?: string;
     activeTheme: string;
     setActiveTheme: (theme: string) => void;
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, customLogoUrl, requestUrl, navOrder, appVersion, activeTheme, setActiveTheme }) => {
+export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, customLogoUrl, requestUrl, navOrder, navFeatures, appVersion, activeTheme, setActiveTheme }) => {
     const serverIcon = customLogoUrl ? resolvePortalAssetUrl(customLogoUrl) : (adminThumb ? (adminThumb.startsWith('http') ? adminThumb : portalUrl(`/api/plex/image?path=${encodeURIComponent(adminThumb)}&width=256&height=256`)) : logoUrl());
     useEffect(() => {
         updateFavicon(serverIcon);
@@ -7575,21 +7577,65 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         'settings': { label: 'Settings', icon: Settings, route: 'settings', adminOnly: true },
         'logout': { label: 'Logout', icon: LogOut, route: '', adminOnly: false, onClick: onLogout }
     };
-    const normalizedNavOrder = (() => {
+    const normalizedNavOrder = useMemo(() => {
         const order = Array.isArray(navOrder) ? [...navOrder] : [];
-        if (isAdmin && !order.includes('maintenance')) {
+        if (isAdmin && navFeatures?.maintenance !== false && !order.includes('maintenance')) {
             const requestIndex = order.indexOf('request');
             if (requestIndex >= 0) order.splice(requestIndex, 0, 'maintenance');
             else order.push('maintenance');
         }
-        return order;
-    })();
+        return filterNavOrder(order, { isAdmin, features: navFeatures });
+    }, [navOrder, isAdmin, navFeatures]);
+
+    const isNavCurrent = (key: string, route: string) => (
+        ['admin', 'user'].includes(currentRoute) && key === 'home' ? true : currentRoute === route
+    );
+
+    const renderNavAction = (
+        key: string,
+        item: { label: string; icon: React.FC<any>; route: string; href?: string; onClick?: (e: any) => void },
+        options: { compactLabel?: string; mobile?: boolean; isCurrent: boolean },
+    ) => {
+        const Icon = item.icon;
+        const label = options.compactLabel || item.label;
+        const baseClass = options.mobile
+            ? `relative flex flex-col items-center justify-center gap-1 h-full flex-shrink-0 min-w-[4.25rem] px-1 text-center text-[0.65rem] transition-colors ${options.isCurrent ? 'text-plex font-bold' : 'text-muted hover:text-text'}`
+            : `flex items-center gap-4 p-3 no-underline rounded-xl transition-all font-medium ${options.isCurrent ? 'nav-item-active' : 'text-muted hover:bg-white/5 hover:text-text'}`;
+
+        if (item.href) {
+            return (
+                <a key={key} href={item.href} target="_blank" rel="noreferrer" className={options.mobile ? baseClass.replace('hover:text-text', 'hover:text-text') : 'flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text'}>
+                    <Icon className="w-5 h-5 flex-shrink-0" /> {label}
+                </a>
+            );
+        }
+
+        const handleActivate = () => {
+            if (item.onClick) item.onClick({ preventDefault: () => {} });
+            else if (item.route) onNavigate(item.route as any);
+        };
+
+        return (
+            <button
+                key={key}
+                type="button"
+                className={`${baseClass} bg-transparent border-0 cursor-pointer`}
+                onClick={handleActivate}
+            >
+                <Icon className="w-5 h-5 flex-shrink-0" />
+                {options.mobile ? label : <span>{label}</span>}
+                {options.mobile && options.isCurrent && (
+                    <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />
+                )}
+            </button>
+        );
+    };
 
     return (
         <>
 
             {/* Mobile Top Nav */}
-            <div className="md:hidden fixed top-0 left-0 right-0 h-16 nav-shell border-b z-50 flex items-center justify-between px-4 shadow-lg">
+            <div className="md:hidden fixed top-0 left-0 right-0 h-16 nav-shell border-b z-50 flex items-center justify-between px-4 pt-[env(safe-area-inset-top)] shadow-lg">
                 <div className="flex items-center gap-3">
                     <img
                         src={serverIcon}
@@ -7653,24 +7699,10 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                     {normalizedNavOrder.map((key) => {
                         const item = navItemsConfig[key];
                         if (!item) return null;
-                        if (item.adminOnly && !isAdmin) return null;
                         if (key === 'logs') return null;
-
-                        const isCurrent = item.route ? ['admin', 'user'].includes(currentRoute) && key === 'home' ? true : currentRoute === item.route : false;
-
-                        if (item.href) {
-                            return (
-                                <a key={key} href={item.href} target="_blank" rel="noreferrer" className="flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text">
-                                    <item.icon className="w-5 h-5 flex-shrink-0" /> {item.label}
-                                </a>
-                            );
-                        }
-
-                        return (
-                            <a key={key} href="#" className={`flex items-center gap-4 p-3 no-underline rounded-xl transition-all font-medium ${isCurrent ? 'nav-item-active' : 'text-muted hover:bg-white/5 hover:text-text'}`} onClick={(e) => { e.preventDefault(); if (item.onClick) item.onClick(e); else onNavigate(item.route as any); }}>
-                                <item.icon className="w-5 h-5 flex-shrink-0" /> {item.label}
-                            </a>
-                        );
+                        const isCurrent = item.route ? isNavCurrent(key, item.route) : false;
+                        const labelOverride = key === 'mediastack' ? 'Calendar' : item.label;
+                        return renderNavAction(key, { ...item, label: labelOverride }, { isCurrent });
                     })}
                 </div>
 
@@ -7747,30 +7779,13 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
 
             {/* Mobile Bottom Nav */}
             <div className="md:hidden fixed bottom-0 left-0 right-0 w-full nav-shell border-t z-50 pb-[env(safe-area-inset-bottom)]">
-                <div className="flex justify-around items-center h-16">
+                <div className="flex items-center h-16 overflow-x-auto overscroll-x-contain px-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] gap-0.5 hide-scrollbar">
                     {normalizedNavOrder.map((key) => {
                         const item = navItemsConfig[key];
                         if (!item) return null;
-                        if (item.adminOnly && !isAdmin) return null;
-                        if (key === 'logs' || key === 'logout') return null;
-
-                        const isCurrent = item.route ? ['admin', 'user'].includes(currentRoute) && key === 'home' ? true : currentRoute === item.route : false;
+                        const isCurrent = item.route ? isNavCurrent(key, item.route) : false;
                         const labelOverride = key === 'mediastack' ? 'Media' : key === 'request' ? 'Request' : item.label;
-
-                        if (item.href) {
-                            return (
-                                <a key={key} href={item.href} target="_blank" rel="noreferrer" className="relative flex flex-col items-center justify-center gap-1 h-full text-muted flex-1 text-center text-[0.65rem] transition-colors hover:text-text">
-                                    <item.icon className="w-5 h-5 flex-shrink-0" /> {labelOverride}
-                                </a>
-                            );
-                        }
-
-                        return (
-                            <a key={key} href="#" className={`relative flex flex-col items-center justify-center gap-1 h-full flex-1 text-center text-[0.65rem] transition-colors ${isCurrent ? 'text-plex font-bold' : 'text-muted hover:text-text'}`} onClick={(e) => { e.preventDefault(); if (item.onClick) item.onClick(e); else onNavigate(item.route as any); }}>
-                                <item.icon className="w-5 h-5 flex-shrink-0" /> {labelOverride}
-                                {isCurrent && <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />}
-                            </a>
-                        );
+                        return renderNavAction(key, { ...item, label: labelOverride }, { mobile: true, isCurrent, compactLabel: labelOverride });
                     })}
                 </div>
             </div>

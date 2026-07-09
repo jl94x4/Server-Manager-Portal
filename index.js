@@ -2112,6 +2112,13 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
 
     const { actor: _actor, impersonatingUserId, ...sessionPublic } = req.user;
 
+    const requestAppType = config.requestAppType === 'overseerr' ? 'seerr' : (config.requestAppType || 'none');
+    const resolvedRequestUrl = requestUrl;
+    const navFeatures = {
+        maintenance: !!config.maintenanceExperimentalEnabled,
+        request: !!(requestAppType && requestAppType !== 'none' && resolvedRequestUrl && resolvedRequestUrl !== 'https://yourdomain.com'),
+    };
+
     res.json({
         session: { ...sessionPublic, thumb: sessionThumb, isAdmin },
         account: localUser || null,
@@ -2120,6 +2127,7 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
         mediaServerType: config.mediaServerType || 'plex',
         requestUrl,
         navOrder,
+        navFeatures,
         impersonation: impersonating ? {
             active: true,
             targetUserId: impersonatingUserId,
