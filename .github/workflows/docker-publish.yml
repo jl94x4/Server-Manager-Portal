@@ -2,7 +2,7 @@ name: Publish Docker image
 
 on:
   push:
-    branches: [main, beta]
+    branches: [main, beta, testing]
     tags: ['v*']
   workflow_dispatch:
 
@@ -32,6 +32,7 @@ jobs:
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
             type=raw,value=beta,enable=${{ github.ref == 'refs/heads/beta' }}
+            type=raw,value=testing,enable=${{ github.ref == 'refs/heads/testing' }}
             type=sha,prefix=
             type=semver,pattern={{version}}
             type=semver,pattern=v{{version}}

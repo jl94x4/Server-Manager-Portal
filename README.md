@@ -288,12 +288,13 @@ The recommended way to run Server Portal in production is Docker with a persiste
 
 ### Pre-built images (GHCR)
 
-Official images are published automatically on every push to `main` and `beta`:
+Official images are published automatically on every push to `main`, `beta`, and `testing`:
 
 | Tag | When updated | Image |
 |---|---|---|
 | `latest` | Every push to `main` and every release tag `v*` | `ghcr.io/jl94x4/server-manager-portal:latest` |
 | `beta` | Every push to `beta` | `ghcr.io/jl94x4/server-manager-portal:beta` |
+| `testing` | Every push to `testing` | `ghcr.io/jl94x4/server-manager-portal:testing` |
 | `1.5.0` / `v1.5.0` | Matching GitHub release | `ghcr.io/jl94x4/server-manager-portal:1.5.0` |
 
 Pull and run without building locally:
@@ -311,7 +312,7 @@ docker run -d \
   ghcr.io/jl94x4/server-manager-portal:latest
 ```
 
-Use the `beta` tag to test upcoming features before they land on `latest`.
+Use the `beta` tag to test upcoming features before they land on `latest`. Use `testing` for experimental branch builds (e.g. Library Upgrader work in progress).
 
 ### Quick start (Docker Compose)
 
@@ -526,7 +527,7 @@ Server-Manager-Portal/
 ├── Dockerfile          # Multi-stage production image
 ├── docker-compose.yml  # One-command Docker deployment
 ├── .github/workflows/
-│   └── docker-publish.yml  # Publishes :latest and :beta to GHCR
+│   └── docker-publish.yml  # Publishes :latest, :beta, and :testing to GHCR
 ├── ca_profile.xml      # Unraid Community Applications maintainer profile
 ├── unraid/
 │   └── server-manager-portal.xml  # Unraid Docker template

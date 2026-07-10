@@ -10,6 +10,7 @@ Images are published to GitHub Container Registry:
 | --- | --- | --- |
 | `latest` | Every push to `main` and every release tag `v*` | `ghcr.io/jl94x4/server-manager-portal:latest` |
 | `beta` | Every push to `beta` | `ghcr.io/jl94x4/server-manager-portal:beta` |
+| `testing` | Every push to `testing` | `ghcr.io/jl94x4/server-manager-portal:testing` |
 | `1.4.0` / `v1.4.0` | Matching GitHub release | `ghcr.io/jl94x4/server-manager-portal:1.4.0` |
 
 Pin a version in Unraid or Docker Compose by replacing `:latest` with `:1.4.0` (or `:v1.4.0`).
