@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.1](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.5.0...v1.5.1) (2026-07-10)
+
+
+### Bug Fixes
+
+* resolve portal version from package.json when version.txt is stale ([82f700f](https://github.com/jl94x4/Server-Manager-Portal/commit/82f700f142020d3ba22b0154c71956a4bf510783))
+
 ## [1.5.0](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.4.1...v1.5.0) (2026-07-10)
 
 
