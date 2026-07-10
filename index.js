@@ -45,6 +45,15 @@ const resolveAppVersion = () => {
 
 const appVersion = resolveAppVersion();
 
+/** Plex session bandwidth is usually Kbps, but transcodes can report bps — normalize to Kbps. */
+const normalizePlexBandwidthKbps = (raw) => {
+    const n = Number(raw) || 0;
+    if (!n) return 0;
+    // >500 Mbps in Kbps is unrealistic for Plex; treat as bps misreport (e.g. 10_000_000 bps → 10 Mbps).
+    if (n > 500_000) return Math.round(n / 1000);
+    return Math.round(n);
+};
+
 const app = express();
 app.use(compression());
 const PORT = parseInt(process.env.PORT || '2121', 10);
@@ -5601,7 +5610,7 @@ app.get('/api/plex/dashboard', requireAuth, requireMember, async (req, res) => {
                     episode: m.index,
                     progress: progress,
                     timeRemaining: Math.max(0, duration - viewOffset),
-                    bandwidth: (session && session.bandwidth) || (m.Media && m.Media[0] && m.Media[0].bitrate) || 0,
+                    bandwidth: normalizePlexBandwidthKbps((session && session.bandwidth) || (m.Media && m.Media[0] && m.Media[0].bitrate) || 0),
                     plexUrl: plexUrl
                 };
             });
@@ -10481,7 +10490,7 @@ async function monitorConcurrentSessions() {
                         isTranscoding: isTranscode,
                         sourceResolution: sourceResolution ? String(sourceResolution).toLowerCase() : null,
                         resolution: normalizeRuleResolution(sourceResolution, isTranscode, transcodeResolutionRaw),
-                        bandwidth: (session && session.bandwidth) || (m.Media && m.Media[0] && m.Media[0].bitrate) || 0,
+                        bandwidth: normalizePlexBandwidthKbps((session && session.bandwidth) || (m.Media && m.Media[0] && m.Media[0].bitrate) || 0),
                         playerProduct: player.product || '',
                         playerTitle: player.title || '',
                         state: player.state || 'playing',
