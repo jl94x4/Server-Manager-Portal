@@ -19,6 +19,18 @@ const findWatchRowIndexAfterMainGrid = (sections: ReturnType<typeof resolveDashb
     return -1;
 };
 
+const findRecentlyAddedIndexAfterMainGrid = (sections: ReturnType<typeof resolveDashboardSections>, mainGridIndex: number) => {
+    for (let j = mainGridIndex + 1; j < sections.length; j += 1) {
+        const id = sections[j];
+        if (id === 'recentlyAdded') return j;
+        if (id !== 'pendingRequests' && id !== 'watchRow') return -1;
+    }
+    return -1;
+};
+
+/** Break out of the 2/3 dashboard column so recently-added rows span the full grid width. */
+const RECENTLY_ADDED_FULL_BLEED_CLASS = 'w-full lg:relative lg:left-[calc(-50%-0.5rem)] lg:w-[calc(150%+1rem)]';
+
 type Props = {
     layoutConfig: unknown;
     layoutCtx: DashboardLayoutContext;
@@ -87,9 +99,18 @@ export const UserDashboardLayout: React.FC<Props> = ({
         );
     };
 
-    const renderMergedMainAndWatchGrid = () => {
+    const renderRecentlyAddedRows = () => (
+        <>
+            {recentlyAdded.map((id) => (
+                <React.Fragment key={id}>{renderRecentlyAddedWidget(id)}</React.Fragment>
+            ))}
+        </>
+    );
+
+    const renderMergedMainAndWatchGrid = (opts?: { includeRecentlyAdded?: boolean }) => {
         const recentlyWatched = renderWatchRowLeft?.();
         const mostWatched = renderWatchRowRight?.();
+        const showRecentlyAdded = !!opts?.includeRecentlyAdded && hasDashboardData && recentlyAdded.length > 0;
         return (
             <>
                 <div className="hidden lg:grid lg:grid-cols-3 gap-3 md:gap-4 items-start w-full">
@@ -104,11 +125,17 @@ export const UserDashboardLayout: React.FC<Props> = ({
                             <React.Fragment key={id}>{renderMainGridWidget(id)}</React.Fragment>
                         ))}
                         {mostWatched}
+                        {showRecentlyAdded ? (
+                            <div className={`flex flex-col gap-3 md:gap-4 ${RECENTLY_ADDED_FULL_BLEED_CLASS}`}>
+                                {renderRecentlyAddedRows()}
+                            </div>
+                        ) : null}
                     </div>
                 </div>
                 <div className="lg:hidden flex flex-col gap-3 md:gap-4 w-full">
                     {renderMainGridColumns()}
                     {renderWatchRowColumns()}
+                    {showRecentlyAdded ? renderRecentlyAddedRows() : null}
                 </div>
             </>
         );
@@ -116,6 +143,7 @@ export const UserDashboardLayout: React.FC<Props> = ({
 
     const sectionNodes: React.ReactNode[] = [];
     const mergedWatchRowIndices = new Set<number>();
+    const mergedRecentlyAddedIndices = new Set<number>();
     for (let index = 0; index < sections.length; index += 1) {
         const sectionId = sections[index];
         switch (sectionId) {
@@ -132,12 +160,16 @@ export const UserDashboardLayout: React.FC<Props> = ({
             case 'mainGrid': {
                 if (mainGridWidgets.length === 0) break;
                 const watchRowIndex = findWatchRowIndexAfterMainGrid(sections, index);
+                const recentlyAddedIndex = findRecentlyAddedIndexAfterMainGrid(sections, index);
                 const canMergeWatchRow = watchRowIndex >= 0 && (renderWatchRowLeft || renderWatchRowRight);
-                if (canMergeWatchRow) {
-                    mergedWatchRowIndices.add(watchRowIndex);
+                const canMergeRecentlyAdded = recentlyAddedIndex >= 0;
+                if (canMergeWatchRow || canMergeRecentlyAdded) {
+                    if (watchRowIndex >= 0) mergedWatchRowIndices.add(watchRowIndex);
+                    if (recentlyAddedIndex >= 0) mergedRecentlyAddedIndices.add(recentlyAddedIndex);
                     sectionNodes.push(
-                        <div key="mainGrid-watchRow" className="relative w-full min-w-0">
-                            {renderMergedMainAndWatchGrid()}
+                        <div key="mainGrid-dashboard" className="relative w-full min-w-0 flex flex-col gap-3 md:gap-4">
+                            {renderMergedMainAndWatchGrid({ includeRecentlyAdded: canMergeRecentlyAdded && !(recentlyAddedLoading && !hasDashboardData) })}
+                            {recentlyAddedLoading && !hasDashboardData ? renderRecentlyAddedSkeleton() : null}
                         </div>
                     );
                     break;
@@ -171,6 +203,7 @@ export const UserDashboardLayout: React.FC<Props> = ({
                 break;
             }
             case 'recentlyAdded':
+                if (mergedRecentlyAddedIndices.has(index)) break;
                 if (recentlyAddedLoading && !hasDashboardData) {
                     sectionNodes.push(
                         <div key="recentlyAdded" className="relative w-full min-w-0">
