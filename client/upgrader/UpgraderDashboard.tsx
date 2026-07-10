@@ -2,9 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowUpCircle, RefreshCw, Search, Settings as SettingsIcon, ArrowUpFromLine, Layers, Clock, History, Ban } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { portalUrl } from '../shared/basePath';
-import { CustomSelect } from '../shared/ui';
+import { CustomSelect, OverlayCheckbox } from '../shared/ui';
 import { Loader, ToastContainer, pushToast } from '../shared/toast';
-import { normalizeUpgraderGridSize, UPGRADER_GRID_SIZE_OPTIONS, UPGRADER_GRID_SIZE_STORAGE_KEY, upgraderPosterGridClass, type UpgraderGridSize } from '../shared/portalLayout';
+import { normalizeUpgraderGridSize, UPGRADER_GRID_SIZE_OPTIONS, UPGRADER_GRID_SIZE_STORAGE_KEY, upgraderPosterGridClass, upgraderPosterGridStyle, type UpgraderGridSize } from '../shared/portalLayout';
 import { DiscoverPosterCard } from '../screens';
 import type { ToastMessage } from '../shared/types';
 import { UpgraderUpgradeModal } from './UpgraderUpgradeModal';
@@ -448,23 +448,22 @@ export const UpgraderDashboard: React.FC = () => {
                         ) : (
                             <>
                                 <p className="text-xs text-muted">{total} title{total === 1 ? '' : 's'} · page {page} of {totalPages}</p>
-                                <div className={`discover-layout-container ${upgraderPosterGridClass(gridSize)}`}>
+                                <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
                                     {items.map((item) => {
                                         const canUpgrade = automationReady && item.arrMapped && isUpgradableItem(item);
                                         const isSelected = selectedKeys.has(item.ratingKey);
                                         const showEpisodeBadge = item.mediaType === 'show' && (item.nonHevcEpisodeCount ?? 0) > 0;
+                                        const checkboxSize = gridSize === 'small' || gridSize === 'medium' ? 'sm' : 'md';
                                         return (
-                                            <div key={item.ratingKey} className="relative">
+                                            <div key={item.ratingKey} className="relative min-w-0">
                                                 {automationReady && (
                                                     <div className="absolute top-1.5 left-1.5 z-20 upgrader-card-select">
-                                                        <label className="inline-flex cursor-pointer">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={isSelected}
-                                                                onChange={() => toggleSelected(item.ratingKey)}
-                                                                className="h-4 w-4 rounded border-border bg-black/70 accent-[var(--plex)]"
-                                                            />
-                                                        </label>
+                                                        <OverlayCheckbox
+                                                            checked={isSelected}
+                                                            onChange={() => toggleSelected(item.ratingKey)}
+                                                            size={checkboxSize}
+                                                            title={isSelected ? 'Deselect' : 'Select for upgrade'}
+                                                        />
                                                     </div>
                                                 )}
                                                 {showEpisodeBadge && (
@@ -480,6 +479,8 @@ export const UpgraderDashboard: React.FC = () => {
                                                     variant="home"
                                                     posterOnlyLink
                                                     showQualityBadges={showQualityBadges}
+                                                    posterWidth={600}
+                                                    posterHeight={900}
                                                     item={{
                                                         title: item.title,
                                                         thumb: item.thumb,

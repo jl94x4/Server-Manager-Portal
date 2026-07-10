@@ -116,6 +116,29 @@ export const StyledCheckbox: React.FC<{ checked: boolean; onChange: (checked: bo
     </label>
 );
 
+export const OverlayCheckbox: React.FC<{
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+    size?: 'sm' | 'md';
+    title?: string;
+    className?: string;
+}> = ({ checked, onChange, size = 'md', title, className = '' }) => {
+    const box = size === 'sm' ? 'h-3.5 w-3.5' : 'h-5 w-5';
+    const icon = size === 'sm' ? 'h-2.5 w-2.5' : 'h-3.5 w-3.5';
+    return (
+        <label className={`relative inline-flex cursor-pointer ${className}`} title={title}>
+            <input
+                type="checkbox"
+                checked={checked}
+                onChange={(e) => onChange(e.target.checked)}
+                className="peer sr-only"
+            />
+            <span className={`${box} rounded-md border-2 border-white/35 bg-black/80 shadow-[0_2px_8px_rgba(0,0,0,0.45)] backdrop-blur-sm transition-all peer-checked:border-plex peer-checked:bg-plex/25 peer-hover:border-white/60`} />
+            <Check className={`pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 ${icon} text-plex opacity-0 transition-opacity peer-checked:opacity-100`} />
+        </label>
+    );
+};
+
 export const SettingsSwitch: React.FC<{
     checked: boolean;
     onChange: (checked: boolean) => void;

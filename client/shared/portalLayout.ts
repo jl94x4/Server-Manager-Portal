@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react';
+
 export const activityStreamColumnCount = () => 3;
 
 export const activityStreamGridClass = () => 'discover-activity-grid';
@@ -15,6 +17,18 @@ export const UPGRADER_GRID_SIZE_OPTIONS: Array<{ value: UpgraderGridSize; label:
 ];
 
 export const upgraderPosterGridClass = (size: UpgraderGridSize) => `upgrader-poster-grid upgrader-poster-grid--${size}`;
+
+/** Minimum poster column width per density preset (used with auto-fill). */
+export const UPGRADER_GRID_MIN_WIDTH: Record<UpgraderGridSize, string> = {
+    small: '5rem',
+    medium: '7rem',
+    large: '9.5rem',
+    xlarge: '13rem',
+};
+
+export const upgraderPosterGridStyle = (size: UpgraderGridSize): CSSProperties => ({
+    gridTemplateColumns: `repeat(auto-fill, minmax(${UPGRADER_GRID_MIN_WIDTH[size]}, 1fr))`,
+});
 
 export const UPGRADER_GRID_SIZE_STORAGE_KEY = 'upgraderGridSize';
 

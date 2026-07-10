@@ -4609,7 +4609,10 @@ export const DiscoverPosterCard: React.FC<{
     footer?: React.ReactNode;
     showQualityBadges?: boolean;
     posterOnlyLink?: boolean;
-}> = ({ item, aspect = '2/3', overlay, variant = 'discover', className = 'w-full', footer, showQualityBadges = true, posterOnlyLink = false }) => {
+    posterWidth?: number;
+    posterHeight?: number;
+}> = ({ item, aspect = '2/3', overlay, variant = 'discover', className = 'w-full', footer, showQualityBadges = true, posterOnlyLink = false, posterWidth = 300, posterHeight }) => {
+    const resolvedPosterHeight = posterHeight ?? (aspect === 'square' ? posterWidth : Math.round(posterWidth * 1.5));
     const posterShell = variant === 'home'
         ? 'relative rounded-xl overflow-hidden bg-background border border-white/5 transition-[box-shadow,border-color] duration-300 group-hover:shadow-xl group-hover:border-plex/50'
         : 'relative rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md';
@@ -4618,7 +4621,7 @@ export const DiscoverPosterCard: React.FC<{
         <div className={`${posterShell} ${aspect === 'square' ? 'aspect-square' : 'aspect-[2/3]'} w-full`}>
             {item.thumb ? (
                 <img
-                    src={item.thumbUrl ? resolvePortalAssetUrl(item.thumbUrl) : portalUrl(`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=${aspect === 'square' ? 300 : 450}`)}
+                    src={item.thumbUrl ? resolvePortalAssetUrl(item.thumbUrl) : portalUrl(`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=${posterWidth}&height=${resolvedPosterHeight}`)}
                     alt={item.title}
                     loading="lazy"
                     className={`w-full h-full object-cover ${variant === 'home' ? 'transition-[transform,opacity] duration-300 group-hover:scale-105 group-hover:opacity-80' : ''}`}
