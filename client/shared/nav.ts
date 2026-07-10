@@ -1,5 +1,6 @@
 export type NavFeatureFlags = {
     maintenance?: boolean;
+    upgrader?: boolean;
     request?: boolean;
     requestsQueue?: boolean;
 };
@@ -23,13 +24,15 @@ export const filterNavOrder = (
 ) => {
     const features = options.features || {};
     const maintenanceEnabled = features.maintenance !== false;
+    const upgraderEnabled = !!features.upgrader;
     const requestEnabled = features.request !== false;
     const requestsQueueEnabled = !!features.requestsQueue;
 
     return (Array.isArray(order) ? order : []).filter((key) => {
         if (key === 'logout' || key === 'logs') return false;
-        if ((key === 'users' || key === 'settings' || key === 'maintenance' || key === 'requests') && !options.isAdmin) return false;
+        if ((key === 'users' || key === 'settings' || key === 'maintenance' || key === 'upgrader' || key === 'requests') && !options.isAdmin) return false;
         if (key === 'maintenance' && !maintenanceEnabled) return false;
+        if (key === 'upgrader' && !upgraderEnabled) return false;
         if (key === 'request' && options.isAdmin) return false;
         if (key === 'request' && !requestEnabled) return false;
         if (key === 'requests' && !requestsQueueEnabled) return false;

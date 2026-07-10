@@ -302,6 +302,8 @@ import {
     MAINTENANCE_RUNS_PATH,
     MAINTENANCE_REQUEST_INDEX_PATH,
     MAINTENANCE_PREFS_PATH,
+    UPGRADER_AUDIT_PATH,
+    UPGRADER_PREFS_PATH,
     PLEX_STATS_CACHE_PATH,
     migrateConfigFiles,
 } from './lib/data-paths.js';
@@ -321,6 +323,12 @@ import {
     fetchArrInstanceCatalogItems,
     buildArrLookupMapsForItems,
     resolveArrEntity,
+    buildArrDeepUrl,
+    getArrInstance,
+    fetchArrQualityProfiles,
+    updateArrEntityQualityProfile,
+    triggerArrEntitySearch,
+    fetchArrQueueSummary,
 } from './lib/arr-service.js';
 import { createRequestAppService, getRequestAppGate } from './lib/request-app-service.js';
 const PLEX_API = 'https://plex.tv/api';
@@ -2184,6 +2192,7 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
     const resolvedRequestUrl = requestUrl;
     const navFeatures = {
         maintenance: !!config.maintenanceExperimentalEnabled,
+        upgrader: !!config.upgraderEnabled,
         request: !!(requestAppType && requestAppType !== 'none' && resolvedRequestUrl && resolvedRequestUrl !== 'https://yourdomain.com'),
         requestsQueue: requestAppService.isRequestAppConfigured(config),
     };
@@ -2406,6 +2415,13 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 autoBackupIntervalDays: Number(config.autoBackupIntervalDays) > 0 ? Number(config.autoBackupIntervalDays) : 2,
                 autoBackupRetentionCount: Number(config.autoBackupRetentionCount) > 0 ? Number(config.autoBackupRetentionCount) : 10,
                 maintenanceExperimentalEnabled: !!config.maintenanceExperimentalEnabled,
+                upgraderEnabled: !!config.upgraderEnabled,
+                upgraderDefaultPreset: config.upgraderDefaultPreset || 'non_hevc',
+                upgraderMinSizeGB: Number(config.upgraderMinSizeGB) > 0 ? Number(config.upgraderMinSizeGB) : 5,
+                upgraderAutomationEnabled: !!config.upgraderAutomationEnabled,
+                upgraderProfileMap: config.upgraderProfileMap && typeof config.upgraderProfileMap === 'object' ? config.upgraderProfileMap : {},
+                upgraderMaxActionsPerHour: Math.max(1, Number(config.upgraderMaxActionsPerHour) || 25),
+                upgraderDefaultSort: config.upgraderDefaultSort || 'sizeGB',
                 dashboardLayout: normalizeSectionLayout(config.dashboardLayout),
                 showUsernamesInAnalytics: !!config.showUsernamesInAnalytics,
                 useTrendingSlideshowOnLogin: config.useTrendingSlideshowOnLogin !== false
@@ -2474,6 +2490,13 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 autoBackupIntervalDays: 2,
                 autoBackupRetentionCount: 10,
                 maintenanceExperimentalEnabled: false,
+                upgraderEnabled: false,
+                upgraderDefaultPreset: 'non_hevc',
+                upgraderMinSizeGB: 5,
+                upgraderAutomationEnabled: false,
+                upgraderProfileMap: {},
+                upgraderMaxActionsPerHour: 25,
+                upgraderDefaultSort: 'sizeGB',
                 dashboardLayout: DEFAULT_DASHBOARD_LAYOUT
             },
         });
@@ -2491,7 +2514,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         inactiveCleanupEnabled, inactiveCleanupDays,
         primaryColor, customLogoUrl, brandingTheme, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges,
         showPublicStatusMonitor, showPublicLibraryStats,
-        autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, dashboardLayout,
+        autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, upgraderEnabled, upgraderDefaultPreset, upgraderMinSizeGB, upgraderAutomationEnabled, upgraderProfileMap, upgraderMaxActionsPerHour, upgraderDefaultSort, dashboardLayout,
         showUsernamesInAnalytics, useTrendingSlideshowOnLogin
     } = req.body;
 
@@ -2503,6 +2526,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
     const normalizedServerIdentifier = String(serverIdentifier).trim();
     const isConfigured = isPortalConfigured(existingConfig);
     const wasMaintenanceEnabled = !!existingConfig.maintenanceExperimentalEnabled;
+    const wasUpgraderEnabled = !!existingConfig.upgraderEnabled;
 
     if (normalizedMediaServerType === 'plex' && (!normalizedToken || !normalizedServerIdentifier)) {
         return res.status(400).json({ error: 'Plex token and serverIdentifier are required.' });
@@ -2649,6 +2673,17 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         autoBackupIntervalDays: Math.max(1, parseInt(autoBackupIntervalDays, 10) || 2),
         autoBackupRetentionCount: Math.max(1, parseInt(autoBackupRetentionCount, 10) || 10),
         maintenanceExperimentalEnabled: maintenanceExperimentalEnabled !== undefined ? !!maintenanceExperimentalEnabled : !!existingConfig.maintenanceExperimentalEnabled,
+        upgraderEnabled: upgraderEnabled !== undefined ? !!upgraderEnabled : !!existingConfig.upgraderEnabled,
+        upgraderDefaultPreset: upgraderDefaultPreset || existingConfig.upgraderDefaultPreset || 'non_hevc',
+        upgraderMinSizeGB: Math.max(0, Number(upgraderMinSizeGB ?? existingConfig.upgraderMinSizeGB ?? 5) || 5),
+        upgraderAutomationEnabled: upgraderAutomationEnabled !== undefined ? !!upgraderAutomationEnabled : !!existingConfig.upgraderAutomationEnabled,
+        upgraderProfileMap: (upgraderProfileMap && typeof upgraderProfileMap === 'object')
+            ? upgraderProfileMap
+            : (existingConfig.upgraderProfileMap && typeof existingConfig.upgraderProfileMap === 'object' ? existingConfig.upgraderProfileMap : {}),
+        upgraderMaxActionsPerHour: Math.max(1, Number(upgraderMaxActionsPerHour ?? existingConfig.upgraderMaxActionsPerHour ?? 25) || 25),
+        upgraderDefaultSort: ['title', 'sizeGB', 'watchCount', 'addedAt'].includes(String(upgraderDefaultSort || existingConfig.upgraderDefaultSort || 'sizeGB'))
+            ? String(upgraderDefaultSort || existingConfig.upgraderDefaultSort || 'sizeGB')
+            : 'sizeGB',
         showUsernamesInAnalytics: showUsernamesInAnalytics !== undefined ? !!showUsernamesInAnalytics : !!existingConfig.showUsernamesInAnalytics,
         useTrendingSlideshowOnLogin: useTrendingSlideshowOnLogin !== undefined ? !!useTrendingSlideshowOnLogin : (existingConfig.useTrendingSlideshowOnLogin !== false),
         dashboardLayout: ('dashboardLayout' in req.body)
@@ -2678,14 +2713,15 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
     startBackgroundService(); // (Re)start service with new config
     const becameConfigured = !isConfigured && isPortalConfigured(config);
     const maintenanceJustEnabled = !wasMaintenanceEnabled && !!config.maintenanceExperimentalEnabled;
-    if ((becameConfigured || maintenanceJustEnabled) && !!config.maintenanceExperimentalEnabled) {
-        // Kick an immediate index build after setup/enablement so rules are usable right away.
+    const upgraderJustEnabled = !wasUpgraderEnabled && !!config.upgraderEnabled;
+    if ((becameConfigured || maintenanceJustEnabled || upgraderJustEnabled) && isMediaQualityIndexEnabled(config)) {
+        // Kick an immediate index build after setup/enablement so rules/upgrader are usable right away.
         setTimeout(async () => {
             try {
                 await buildMaintenanceMediaIndex({ actor: req.user || { username: 'System', email: 'system@local' }, force: true });
-                log('Maintenance index rebuilt after setup/config enablement.');
+                log('Media quality index rebuilt after setup/config enablement.');
             } catch (e) {
-                log(`Post-setup maintenance index rebuild failed: ${e.message}`);
+                log(`Post-setup media quality index rebuild failed: ${e.message}`);
             }
         }, 1000);
     }
@@ -7793,7 +7829,7 @@ const systemJobs = {
     trendingCache: { id: 'trendingCache', name: 'Trending Cache Builder', description: 'Rebuilds trending and leaderboard data every 12 hours.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null },
     plexStats: { id: 'plexStats', name: 'Plex Stats Builder', description: 'Rebuilds cached library size and usage totals every 24 hours.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null },
     autoBackup: { id: 'autoBackup', name: 'Auto Rolling Backup', description: 'Creates rolling backup snapshots on configured interval.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null },
-    maintenanceIndex: { id: 'maintenanceIndex', name: 'Maintenance Media Index', description: 'Builds per-item media and request index for cleanup rules.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null }
+    maintenanceIndex: { id: 'maintenanceIndex', name: 'Media Quality Index', description: 'Builds per-item media quality index for Cleaner and Upgrader.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null }
 };
 
 const markTaskStart = (task) => {
@@ -8829,6 +8865,700 @@ const MAINTENANCE_DEFAULTS = {
     requireConfirmForDestructive: true
 };
 const isMaintenanceExperimentalEnabled = (config) => !!config?.maintenanceExperimentalEnabled;
+const isUpgraderEnabled = (config) => !!config?.upgraderEnabled;
+const isMediaQualityIndexEnabled = (config) => isMaintenanceExperimentalEnabled(config) || isUpgraderEnabled(config);
+
+const isHevcVideoCodec = (codec = '') => /hevc|h265|x265/.test(String(codec || '').toLowerCase());
+
+const buildPlexWebDetailUrl = (config, ratingKey) => {
+    if (!config?.serverIdentifier || !ratingKey) return null;
+    return `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent(`/library/metadata/${ratingKey}`)}`;
+};
+
+const deriveQualityFieldsFromTags = (displayTags = [], videoCodec = '') => {
+    const tags = Array.isArray(displayTags) ? displayTags : [];
+    const isHevc = tags.includes('HEVC') || isHevcVideoCodec(videoCodec);
+    const hasDolbyVision = tags.includes('DV');
+    const hasHdr = tags.includes('HDR') || hasDolbyVision;
+    return { displayTags: tags, isHevc, hasHdr, hasDolbyVision };
+};
+
+const enrichMaintenanceItemsWithQuality = async (uri, config, items = []) => {
+    if (!items.length) return items;
+    const metaMap = await fetchPlexMetadataMap(uri, config, items.map((item) => item.ratingKey));
+    return items.map((item) => {
+        const meta = metaMap.get(String(item.ratingKey));
+        const displayTags = meta
+            ? extractMediaDisplayTags(meta)
+            : extractMediaDisplayTags({ Media: [{ videoResolution: item.videoResolution, videoCodec: item.videoCodec }] });
+        const quality = deriveQualityFieldsFromTags(displayTags, item.videoCodec);
+        return {
+            ...item,
+            ...quality,
+            plexUrl: buildPlexWebDetailUrl(config, item.ratingKey),
+        };
+    });
+};
+
+const isUpgraderCandidate = (item = {}) => {
+    if (item.mediaType === 'show') {
+        const totalEpisodes = Number(item.totalEpisodeCount || 0);
+        const nonHevcEpisodes = Number(item.nonHevcEpisodeCount || 0);
+        if (totalEpisodes > 0) return nonHevcEpisodes > 0;
+        return !item.isHevc;
+    }
+    return !item.isHevc;
+};
+
+const buildJellyfinDisplayTags = (videoCodec = '', width = 0, height = 0) => {
+    const tags = [];
+    if (width >= 3800 || height >= 2000) tags.push('4K');
+    else if (height >= 1000) tags.push('1080p');
+    else if (height >= 700) tags.push('720p');
+    const codecLabel = normalizeVideoCodecLabel({ videoCodec }, []);
+    if (codecLabel) tags.push(codecLabel);
+    return [...new Set(tags)];
+};
+
+const enrichJellyfinItemsWithQuality = (config, items = []) => items.map((item) => {
+    const width = Number(item.videoWidth || 0);
+    const height = Number(item.videoHeight || 0);
+    const displayTags = buildJellyfinDisplayTags(item.videoCodec, width, height);
+    const quality = deriveQualityFieldsFromTags(displayTags, item.videoCodec);
+    return {
+        ...item,
+        ...quality,
+        displayTags,
+        plexUrl: jellyfinItemUrl(config, item.ratingKey),
+    };
+});
+
+const enrichShowItemsWithEpisodeStats = async (uri, config, items = []) => {
+    const shows = items.filter((item) => item.mediaType === 'show');
+    if (!shows.length) return items;
+
+    for (const show of shows) {
+        try {
+            const res = await fetch(`${uri}/library/metadata/${show.ratingKey}/allLeaves?X-Plex-Token=${config.plexToken}`, {
+                headers: { Accept: 'application/json' },
+            }).then((r) => r.json()).catch(() => null);
+            const leaves = res?.MediaContainer?.Metadata || [];
+            let nonHevc = 0;
+            let totalSize = 0;
+            for (const leaf of leaves) {
+                const mediaInfo = leaf?.Media?.[0] || {};
+                const part = mediaInfo?.Part?.[0] || {};
+                const codec = String(mediaInfo.videoCodec || '').toLowerCase();
+                const tags = extractMediaDisplayTags(leaf);
+                const isHevc = tags.includes('HEVC') || isHevcVideoCodec(codec);
+                if (!isHevc) nonHevc += 1;
+                totalSize += Number(part.size || 0);
+            }
+            show.totalEpisodeCount = leaves.length;
+            show.nonHevcEpisodeCount = nonHevc;
+            show.nonHevcEpisodeSizeGB = Math.round((totalSize / (1024 ** 3)) * 100) / 100;
+            if (leaves.length > 0) show.isHevc = nonHevc === 0;
+        } catch {
+            show.totalEpisodeCount = Number(show.totalEpisodeCount || 0);
+            show.nonHevcEpisodeCount = Number(show.nonHevcEpisodeCount || 0);
+            show.nonHevcEpisodeSizeGB = Number(show.nonHevcEpisodeSizeGB || 0);
+        }
+    }
+    return items;
+};
+
+const enrichJellyfinShowItemsWithEpisodeStats = async (config, items = []) => {
+    const baseUrl = resolveIntegrationUrlForFetch(config.jellyfinUrl);
+    const shows = items.filter((item) => item.mediaType === 'show');
+    for (const show of shows) {
+        try {
+            const params = new URLSearchParams({
+                ParentId: show.ratingKey,
+                IncludeItemTypes: 'Episode',
+                Recursive: 'true',
+                Fields: 'MediaSources,MediaStreams,Size',
+            });
+            const response = await fetchWithTimeout(`${baseUrl}/Items?${params.toString()}`, {
+                headers: jellyfinHeaders(config.jellyfinApiKey),
+            }, 30000);
+            const data = response.ok ? await response.json() : { Items: [] };
+            const episodes = Array.isArray(data.Items) ? data.Items : [];
+            let nonHevc = 0;
+            let totalSize = 0;
+            for (const ep of episodes) {
+                const videoStream = (ep.MediaStreams || []).find((s) => s.Type === 'Video') || {};
+                const codec = String(videoStream.Codec || '').toLowerCase();
+                const isHevc = isHevcVideoCodec(codec);
+                if (!isHevc) nonHevc += 1;
+                totalSize += Number((ep.MediaSources || [])[0]?.Size || ep.Size || 0);
+            }
+            show.totalEpisodeCount = episodes.length;
+            show.nonHevcEpisodeCount = nonHevc;
+            show.nonHevcEpisodeSizeGB = Math.round((totalSize / (1024 ** 3)) * 100) / 100;
+            if (episodes.length > 0) show.isHevc = nonHevc === 0;
+        } catch {
+            show.totalEpisodeCount = Number(show.totalEpisodeCount || 0);
+            show.nonHevcEpisodeCount = Number(show.nonHevcEpisodeCount || 0);
+            show.nonHevcEpisodeSizeGB = Number(show.nonHevcEpisodeSizeGB || 0);
+        }
+    }
+    return items;
+};
+
+const mapJellyfinEntryToMaintenanceItem = (config, entry = {}, mediaType = 'movie') => {
+    const videoStream = (entry.MediaStreams || []).find((s) => s.Type === 'Video') || {};
+    const mediaSource = (entry.MediaSources || [])[0] || {};
+    const sizeBytes = Number(mediaSource.Size || entry.Size || 0);
+    const width = Number(videoStream.Width || 0);
+    const height = Number(videoStream.Height || 0);
+    const videoCodec = String(videoStream.Codec || mediaSource.VideoCodec || '').toLowerCase();
+    const videoResolution = width >= 3800 || height >= 2000 ? '4k' : height >= 1000 ? '1080' : height >= 700 ? '720' : 'sd';
+    const providerIds = entry.ProviderIds || {};
+    const addedAtMs = entry.DateCreated ? Date.parse(entry.DateCreated) : null;
+    const itemId = String(entry.Id || '');
+
+    return {
+        ratingKey: itemId,
+        title: entry.Name || 'Unknown',
+        thumb: itemId,
+        thumbUrl: itemId ? withBasePath(`/api/jellyfin/image?itemId=${encodeURIComponent(itemId)}&width=300&height=450`) : '',
+        mediaType,
+        libraryId: 'jellyfin',
+        libraryTitle: 'Jellyfin Library',
+        year: entry.ProductionYear || null,
+        watchCount: 0,
+        watchedEver: false,
+        addedAt: addedAtMs ? new Date(addedAtMs).toISOString() : null,
+        lastViewedAt: null,
+        daysSinceAdded: addedAtMs ? Math.floor((Date.now() - addedAtMs) / (24 * 60 * 60 * 1000)) : null,
+        daysSinceLastWatch: null,
+        durationMinutes: entry.RunTimeTicks ? Math.round(Number(entry.RunTimeTicks) / 600000000) : null,
+        bitrateKbps: 0,
+        videoResolution,
+        videoCodec,
+        videoWidth: width,
+        videoHeight: height,
+        audioCodec: String((entry.MediaStreams || []).find((s) => s.Type === 'Audio')?.Codec || '').toLowerCase(),
+        sizeBytes,
+        sizeGB: sizeBytes ? Math.round((sizeBytes / (1024 ** 3)) * 100) / 100 : 0,
+        filePath: mediaSource.Path || entry.Path || '',
+        genres: [],
+        collections: [],
+        labels: [],
+        studio: '',
+        contentRating: entry.OfficialRating || '',
+        tmdbRating: null,
+        rtCriticRating: null,
+        rtAudienceRating: null,
+        traktRating: null,
+        imdbId: providerIds.Imdb || providerIds.imdb || null,
+        tmdbId: providerIds.Tmdb || providerIds.tmdb || null,
+        tvdbId: providerIds.Tvdb || providerIds.tvdb || null,
+        arrType: mediaType === 'movie' ? 'radarr' : 'sonarr',
+        arrMapped: false,
+        arrInstanceId: null,
+        arrInstanceName: null,
+        arrAmbiguous: false,
+        hasExternalIds: !!(providerIds.Tmdb || providerIds.Tvdb || providerIds.Imdb),
+        request: null,
+        is4k: width >= 3800 || height >= 2000,
+        totalEpisodeCount: 0,
+        nonHevcEpisodeCount: 0,
+        nonHevcEpisodeSizeGB: 0,
+    };
+};
+
+const fetchJellyfinLibraryItemsForMaintenance = async (config) => {
+    const baseUrl = resolveIntegrationUrlForFetch(config.jellyfinUrl);
+    const items = [];
+    const pageSize = 200;
+
+    for (const includeItemTypes of ['Movie', 'Series']) {
+        const mediaType = includeItemTypes === 'Movie' ? 'movie' : 'show';
+        let startIndex = 0;
+        while (true) {
+            const params = new URLSearchParams({
+                Recursive: 'true',
+                IncludeItemTypes: includeItemTypes,
+                StartIndex: String(startIndex),
+                Limit: String(pageSize),
+                Fields: 'Path,Size,DateCreated,MediaSources,MediaStreams,ProviderIds,ProductionYear,RunTimeTicks,OfficialRating',
+            });
+            const response = await fetchWithTimeout(`${baseUrl}/Items?${params.toString()}`, {
+                headers: jellyfinHeaders(config.jellyfinApiKey),
+            }, 30000);
+            if (!response.ok) break;
+            const data = await response.json();
+            const page = Array.isArray(data.Items) ? data.Items : [];
+            page.forEach((entry) => items.push(mapJellyfinEntryToMaintenanceItem(config, entry, mediaType)));
+            startIndex += page.length;
+            if (page.length < pageSize) break;
+        }
+    }
+    return items;
+};
+
+const mapPlexEpisodeLeaf = (config, leaf = {}, showTitle = '') => {
+    const mediaInfo = leaf?.Media?.[0] || {};
+    const part = mediaInfo?.Part?.[0] || {};
+    const displayTags = extractMediaDisplayTags(leaf);
+    const quality = deriveQualityFieldsFromTags(displayTags, mediaInfo.videoCodec);
+    const seasonNumber = leaf.parentIndex != null ? Number(leaf.parentIndex) : (leaf.parentIndex === 0 ? 0 : null);
+    const episodeNumber = leaf.index != null ? Number(leaf.index) : null;
+    return {
+        ratingKey: String(leaf.ratingKey || ''),
+        title: leaf.title || `${showTitle} Episode`,
+        showTitle,
+        seasonNumber,
+        episodeNumber,
+        thumb: leaf.thumb || leaf.grandparentThumb || '',
+        mediaType: 'episode',
+        videoCodec: String(mediaInfo.videoCodec || '').toLowerCase(),
+        videoResolution: String(mediaInfo.videoResolution || '').toLowerCase(),
+        sizeGB: part.size ? Math.round((Number(part.size) / (1024 ** 3)) * 100) / 100 : 0,
+        displayTags: quality.displayTags,
+        isHevc: quality.isHevc,
+        hasHdr: quality.hasHdr,
+        hasDolbyVision: quality.hasDolbyVision,
+        plexUrl: buildPlexWebDetailUrl(config, leaf.ratingKey),
+    };
+};
+
+const fetchPlexShowEpisodes = async (config, uri, showItem = {}) => {
+    const res = await fetch(`${uri}/library/metadata/${showItem.ratingKey}/allLeaves?X-Plex-Token=${config.plexToken}`, {
+        headers: { Accept: 'application/json' },
+    }).then((r) => r.json()).catch(() => null);
+    const leaves = res?.MediaContainer?.Metadata || [];
+    const keys = leaves.map((leaf) => leaf.ratingKey).filter(Boolean);
+    const metaMap = await fetchPlexMetadataMap(uri, config, keys);
+    return leaves.map((leaf) => {
+        const meta = metaMap.get(String(leaf.ratingKey)) || leaf;
+        return mapPlexEpisodeLeaf(config, meta, showItem.title);
+    });
+};
+
+const fetchJellyfinShowEpisodes = async (config, showItem = {}) => {
+    const baseUrl = resolveIntegrationUrlForFetch(config.jellyfinUrl);
+    const params = new URLSearchParams({
+        ParentId: showItem.ratingKey,
+        IncludeItemTypes: 'Episode',
+        Recursive: 'true',
+        Fields: 'MediaSources,MediaStreams,Size,ParentIndexNumber,IndexNumber,ProductionYear',
+    });
+    const response = await fetchWithTimeout(`${baseUrl}/Items?${params.toString()}`, {
+        headers: jellyfinHeaders(config.jellyfinApiKey),
+    }, 30000);
+    const data = response.ok ? await response.json() : { Items: [] };
+    const episodes = Array.isArray(data.Items) ? data.Items : [];
+    return episodes.map((entry) => {
+        const videoStream = (entry.MediaStreams || []).find((s) => s.Type === 'Video') || {};
+        const mediaSource = (entry.MediaSources || [])[0] || {};
+        const sizeBytes = Number(mediaSource.Size || entry.Size || 0);
+        const width = Number(videoStream.Width || 0);
+        const height = Number(videoStream.Height || 0);
+        const videoCodec = String(videoStream.Codec || '').toLowerCase();
+        const displayTags = buildJellyfinDisplayTags(videoCodec, width, height);
+        const quality = deriveQualityFieldsFromTags(displayTags, videoCodec);
+        return {
+            ratingKey: String(entry.Id || ''),
+            title: entry.Name || 'Episode',
+            showTitle: showItem.title || entry.SeriesName || '',
+            seasonNumber: entry.ParentIndexNumber != null ? Number(entry.ParentIndexNumber) : null,
+            episodeNumber: entry.IndexNumber != null ? Number(entry.IndexNumber) : null,
+            thumb: String(entry.Id || ''),
+            thumbUrl: entry.Id ? withBasePath(`/api/jellyfin/image?itemId=${encodeURIComponent(entry.Id)}&width=300&height=200`) : '',
+            mediaType: 'episode',
+            videoCodec,
+            videoResolution: width >= 3800 || height >= 2000 ? '4k' : height >= 1000 ? '1080' : '720',
+            sizeGB: sizeBytes ? Math.round((sizeBytes / (1024 ** 3)) * 100) / 100 : 0,
+            displayTags: quality.displayTags,
+            isHevc: quality.isHevc,
+            hasHdr: quality.hasHdr,
+            hasDolbyVision: quality.hasDolbyVision,
+            plexUrl: jellyfinItemUrl(config, entry.Id),
+        };
+    });
+};
+
+const UPGRADER_PRESET_IDS = new Set(['non_hevc', 'h264_only', '4k_non_hevc', 'hdr_non_hevc', 'large_non_hevc', 'arr_mapped', 'arr_unmapped']);
+
+const applyUpgraderPresetFilter = (item, preset, minSizeGB = 5) => {
+    switch (preset) {
+        case 'h264_only': {
+            const tags = item.displayTags || [];
+            if (tags.includes('H.264')) return true;
+            const codec = String(item.videoCodec || '').toLowerCase();
+            return /h264|x264|avc/.test(codec);
+        }
+        case '4k_non_hevc':
+            return isUpgraderCandidate(item) && (!!item.is4k || (item.displayTags || []).includes('4K'));
+        case 'hdr_non_hevc':
+            return isUpgraderCandidate(item) && (!!item.hasHdr || (item.displayTags || []).includes('HDR') || (item.displayTags || []).includes('DV'));
+        case 'large_non_hevc':
+            return isUpgraderCandidate(item) && Number(item.sizeGB || 0) >= minSizeGB;
+        case 'arr_mapped':
+            return !!item.arrMapped;
+        case 'arr_unmapped':
+            return !item.arrMapped;
+        case 'non_hevc':
+        default:
+            return isUpgraderCandidate(item);
+    }
+};
+
+const UPGRADER_PREFS_DEFAULTS = {
+    exclusions: {
+        ratingKeys: [],
+        episodeKeys: [],
+        titles: [],
+        libraries: [],
+    },
+    snoozed: [],
+};
+
+const loadUpgraderPreferences = async () => {
+    const raw = await loadFile(UPGRADER_PREFS_PATH, UPGRADER_PREFS_DEFAULTS);
+    return {
+        exclusions: {
+            ratingKeys: Array.isArray(raw?.exclusions?.ratingKeys) ? raw.exclusions.ratingKeys.map(String) : [],
+            episodeKeys: Array.isArray(raw?.exclusions?.episodeKeys) ? raw.exclusions.episodeKeys.map(String) : [],
+            titles: Array.isArray(raw?.exclusions?.titles) ? raw.exclusions.titles.map(String) : [],
+            libraries: Array.isArray(raw?.exclusions?.libraries) ? raw.exclusions.libraries.map(String) : [],
+        },
+        snoozed: Array.isArray(raw?.snoozed) ? raw.snoozed.map((entry) => ({
+            ratingKey: String(entry?.ratingKey || ''),
+            until: entry?.until || null,
+            reason: entry?.reason || null,
+        })).filter((entry) => entry.ratingKey) : [],
+    };
+};
+
+const saveUpgraderPreferences = async (prefs = UPGRADER_PREFS_DEFAULTS) => {
+    const normalized = {
+        exclusions: {
+            ratingKeys: Array.isArray(prefs?.exclusions?.ratingKeys) ? prefs.exclusions.ratingKeys.map(String) : [],
+            episodeKeys: Array.isArray(prefs?.exclusions?.episodeKeys) ? prefs.exclusions.episodeKeys.map(String) : [],
+            titles: Array.isArray(prefs?.exclusions?.titles) ? prefs.exclusions.titles.map(String) : [],
+            libraries: Array.isArray(prefs?.exclusions?.libraries) ? prefs.exclusions.libraries.map(String) : [],
+        },
+        snoozed: Array.isArray(prefs?.snoozed) ? prefs.snoozed.map((entry) => ({
+            ratingKey: String(entry?.ratingKey || ''),
+            until: entry?.until || null,
+            reason: entry?.reason || null,
+        })).filter((entry) => entry.ratingKey) : [],
+    };
+    await saveFile(UPGRADER_PREFS_PATH, normalized);
+    return normalized;
+};
+
+const isUpgraderSnoozed = (item, upgraderPrefs = UPGRADER_PREFS_DEFAULTS) => {
+    const match = (upgraderPrefs.snoozed || []).find((entry) => String(entry.ratingKey) === String(item.ratingKey || ''));
+    if (!match?.until) return false;
+    return Date.parse(match.until) > Date.now();
+};
+
+const buildUpgraderExclusionSets = (maintenancePrefs, upgraderPrefs) => ({
+    ratingKeys: new Set([
+        ...(maintenancePrefs?.exclusions?.ratingKeys || []).map(String),
+        ...(upgraderPrefs?.exclusions?.ratingKeys || []).map(String),
+    ]),
+    titles: new Set([
+        ...(maintenancePrefs?.exclusions?.titles || []).map((v) => normalized(v)),
+        ...(upgraderPrefs?.exclusions?.titles || []).map((v) => normalized(v)),
+    ]),
+    libraries: new Set([
+        ...(maintenancePrefs?.exclusions?.libraries || []).map((v) => normalized(v)),
+        ...(upgraderPrefs?.exclusions?.libraries || []).map((v) => normalized(v)),
+    ]),
+    snoozedRatingKeys: new Set(
+        (upgraderPrefs?.snoozed || [])
+            .filter((entry) => entry?.until && Date.parse(entry.until) > Date.now())
+            .map((entry) => String(entry.ratingKey)),
+    ),
+});
+
+const mapUpgraderApiItem = (item, exclusions = { ratingKeys: new Set(), titles: new Set(), libraries: new Set(), snoozedRatingKeys: new Set() }) => {
+    const excluded = exclusions.ratingKeys.has(String(item.ratingKey || ''))
+        || exclusions.titles.has(normalized(item.title))
+        || exclusions.libraries.has(normalized(item.libraryTitle))
+        || exclusions.snoozedRatingKeys.has(String(item.ratingKey || ''));
+    const snoozed = exclusions.snoozedRatingKeys.has(String(item.ratingKey || ''));
+    return {
+        ratingKey: String(item.ratingKey || ''),
+        title: item.title || 'Unknown',
+        year: item.year || null,
+        thumb: item.thumb || '',
+        thumbUrl: item.thumbUrl || null,
+        mediaType: item.mediaType || 'movie',
+        libraryTitle: item.libraryTitle || 'Library',
+        libraryId: String(item.libraryId || ''),
+        videoCodec: item.videoCodec || '',
+        videoResolution: item.videoResolution || '',
+        displayTags: Array.isArray(item.displayTags) ? item.displayTags : [],
+        sizeGB: Number(item.sizeGB || 0),
+        watchCount: Number(item.watchCount || 0),
+        addedAt: item.addedAt || null,
+        daysSinceAdded: item.daysSinceAdded != null ? Number(item.daysSinceAdded) : null,
+        isHevc: !!item.isHevc,
+        hasHdr: !!item.hasHdr,
+        hasDolbyVision: !!item.hasDolbyVision,
+        totalEpisodeCount: Number(item.totalEpisodeCount || 0),
+        nonHevcEpisodeCount: Number(item.nonHevcEpisodeCount || 0),
+        nonHevcEpisodeSizeGB: Number(item.nonHevcEpisodeSizeGB || 0),
+        plexUrl: item.plexUrl || null,
+        arrMapped: !!item.arrMapped,
+        arrType: item.arrType || 'none',
+        arrInstanceName: item.arrInstanceName || null,
+        arrInstanceId: item.arrInstanceId || null,
+        arrDeepUrl: item.arrDeepUrl || null,
+        arrQualityProfileId: item.arrQualityProfileId != null ? Number(item.arrQualityProfileId) : null,
+        excluded,
+        snoozed,
+    };
+};
+
+const UPGRADER_SORT_IDS = new Set(['title', 'sizeGB', 'watchCount', 'addedAt', 'daysSinceAdded', 'staleAdded']);
+const upgraderUpgradeState = { running: false };
+
+const normalizeUpgraderProfileMap = (raw = {}) => {
+    const source = raw && typeof raw === 'object' ? raw : {};
+    const next = {};
+    Object.entries(source).forEach(([instanceId, entry]) => {
+        const hevcProfileId = Number(entry?.hevcProfileId || 0);
+        const fallbackProfileId = Number(entry?.fallbackProfileId || 0);
+        if (!instanceId || !hevcProfileId) return;
+        next[String(instanceId)] = {
+            hevcProfileId,
+            ...(fallbackProfileId > 0 ? { fallbackProfileId } : {}),
+        };
+    });
+    return next;
+};
+
+const loadUpgraderAuditEntries = async () => {
+    const raw = await loadFile(UPGRADER_AUDIT_PATH, []);
+    return Array.isArray(raw) ? raw : [];
+};
+
+const appendUpgraderAuditEntry = async (entry = {}) => {
+    const existing = await loadUpgraderAuditEntries();
+    const record = {
+        id: randomUUID(),
+        timestamp: new Date().toISOString(),
+        ...entry,
+    };
+    await saveFile(UPGRADER_AUDIT_PATH, [record, ...existing].slice(0, 500));
+    return record;
+};
+
+const countRecentUpgraderActions = async (hours = 1) => {
+    const cutoff = Date.now() - (Math.max(1, Number(hours) || 1) * 60 * 60 * 1000);
+    const entries = await loadUpgraderAuditEntries();
+    return entries.filter((entry) => !entry?.dryRun && Date.parse(entry?.timestamp || 0) >= cutoff).length;
+};
+
+const resolveUpgraderTargetProfileId = (config, instanceId, overrideProfileId = 0) => {
+    const override = Number(overrideProfileId || 0);
+    if (override > 0) return override;
+    const map = normalizeUpgraderProfileMap(config?.upgraderProfileMap);
+    return Number(map[String(instanceId || '')]?.hevcProfileId || 0);
+};
+
+const getProfileNameById = (profiles = [], profileId) => {
+    const match = profiles.find((entry) => Number(entry.id) === Number(profileId));
+    return match?.name || (profileId ? `Profile ${profileId}` : null);
+};
+
+const buildUpgraderProfilesPayload = async (config) => {
+    const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+    const resolveUrl = resolveIntegrationUrlForFetch;
+    const results = await Promise.all(instances.map(async (instance) => {
+        const profiles = await fetchArrQualityProfiles(instance, { resolveUrl, fetchImpl: fetch });
+        const map = normalizeUpgraderProfileMap(config?.upgraderProfileMap);
+        const mapped = map[instance.id] || {};
+        return {
+            id: instance.id,
+            name: instance.name || (instance.type === 'radarr' ? 'Radarr' : 'Sonarr'),
+            type: instance.type,
+            profiles,
+            hevcProfileId: Number(mapped.hevcProfileId || 0) || null,
+            fallbackProfileId: Number(mapped.fallbackProfileId || 0) || null,
+        };
+    }));
+    return results;
+};
+
+const executeUpgraderUpgradeBatch = async ({
+    config,
+    ratingKeys = [],
+    dryRun = true,
+    qualityProfileId = 0,
+    triggerSearch = true,
+    actor = null,
+} = {}) => {
+    if (!Array.isArray(ratingKeys) || ratingKeys.length === 0) {
+        throw new Error('At least one ratingKey is required.');
+    }
+    if (ratingKeys.length > 50) {
+        throw new Error('Maximum 50 titles per upgrade batch.');
+    }
+    if (!dryRun && !config?.upgraderAutomationEnabled) {
+        throw new Error('Upgrader automation is disabled. Enable it in Settings first.');
+    }
+
+    const maxPerHour = Math.max(1, Number(config?.upgraderMaxActionsPerHour) || 25);
+    if (!dryRun) {
+        const recentCount = await countRecentUpgraderActions(1);
+        if (recentCount + ratingKeys.length > maxPerHour) {
+            throw new Error(`Rate limit exceeded (${maxPerHour}/hour). ${recentCount} upgrades already ran in the last hour.`);
+        }
+    }
+
+    const payload = await loadFile(MAINTENANCE_MEDIA_INDEX_PATH, { items: [] });
+    const allItems = Array.isArray(payload.items) ? payload.items : [];
+    const itemMap = new Map(allItems.map((item) => [String(item.ratingKey || ''), item]));
+    const catalog = await getArrCatalog(config, { force: false });
+    const profileCache = new Map();
+    const results = [];
+
+    for (const rawKey of ratingKeys) {
+        const ratingKey = String(rawKey || '').trim();
+        const item = itemMap.get(ratingKey);
+        if (!item) {
+            results.push({ ratingKey, success: false, reason: 'Title not found in media index.' });
+            continue;
+        }
+        if (item.isHevc && item.mediaType !== 'show') {
+            results.push({ ratingKey, title: item.title, success: false, reason: 'Already HEVC in Plex index.' });
+            continue;
+        }
+        if (item.mediaType === 'show' && Number(item.nonHevcEpisodeCount || 0) === 0 && item.isHevc) {
+            results.push({ ratingKey, title: item.title, success: false, reason: 'All indexed episodes are already HEVC.' });
+            continue;
+        }
+        if (!isUpgraderCandidate(item) && item.mediaType !== 'show') {
+            results.push({ ratingKey, title: item.title, success: false, reason: 'Already HEVC in media index.' });
+            continue;
+        }
+        if (!item.arrMapped) {
+            results.push({ ratingKey, title: item.title, success: false, reason: 'Not mapped to Sonarr/Radarr.' });
+            continue;
+        }
+
+        const resolved = resolveArrEntity(item, catalog, config);
+        if (!resolved?.entity || resolved.type === 'none') {
+            results.push({ ratingKey, title: item.title, success: false, reason: 'Could not resolve ARR entity.' });
+            continue;
+        }
+
+        const instance = resolved.instanceId ? getArrInstance(config, resolved.instanceId) : null;
+        if (!instance || !isArrInstanceReady(instance)) {
+            results.push({ ratingKey, title: item.title, success: false, reason: 'ARR instance is not ready.' });
+            continue;
+        }
+
+        const targetProfileId = resolveUpgraderTargetProfileId(config, resolved.instanceId, qualityProfileId);
+        if (!targetProfileId) {
+            results.push({
+                ratingKey,
+                title: item.title,
+                success: false,
+                reason: `No HEVC quality profile configured for ${resolved.instanceName || instance.name}.`,
+            });
+            continue;
+        }
+
+        if (!profileCache.has(instance.id)) {
+            const profiles = await fetchArrQualityProfiles(instance, { resolveUrl: resolveIntegrationUrlForFetch, fetchImpl: fetch });
+            profileCache.set(instance.id, profiles);
+        }
+        const profiles = profileCache.get(instance.id) || [];
+        const currentProfileId = Number(resolved.entity.qualityProfileId || item.arrQualityProfileId || 0) || null;
+        const preview = {
+            ratingKey,
+            title: item.title,
+            mediaType: item.mediaType,
+            arrType: resolved.type,
+            arrInstanceId: resolved.instanceId,
+            arrInstanceName: resolved.instanceName || instance.name,
+            currentProfileId,
+            currentProfileName: getProfileNameById(profiles, currentProfileId),
+            targetProfileId,
+            targetProfileName: getProfileNameById(profiles, targetProfileId),
+            videoCodec: item.videoCodec,
+            displayTags: item.displayTags || [],
+            dryRun: !!dryRun,
+        };
+
+        if (dryRun) {
+            results.push({ ...preview, success: true });
+            continue;
+        }
+
+        const updateResult = await updateArrEntityQualityProfile(instance, resolved.entity, resolved.type, targetProfileId, {
+            resolveUrl: resolveIntegrationUrlForFetch,
+            fetchImpl: fetch,
+        });
+        if (!updateResult.ok) {
+            results.push({ ...preview, success: false, reason: updateResult.reason || 'Profile update failed.' });
+            continue;
+        }
+
+        let searchResult = null;
+        if (triggerSearch) {
+            searchResult = await triggerArrEntitySearch(instance, updateResult.entity || resolved.entity, resolved.type, {
+                resolveUrl: resolveIntegrationUrlForFetch,
+                fetchImpl: fetch,
+            });
+            if (!searchResult.ok) {
+                results.push({
+                    ...preview,
+                    success: false,
+                    reason: searchResult.reason || 'Search trigger failed after profile change.',
+                    profileUpdated: true,
+                });
+                continue;
+            }
+        }
+
+        const auditEntry = await appendUpgraderAuditEntry({
+            ratingKey,
+            title: item.title,
+            arrInstanceId: resolved.instanceId,
+            arrInstanceName: resolved.instanceName || instance.name,
+            arrType: resolved.type,
+            currentProfileId,
+            targetProfileId,
+            triggerSearch: !!triggerSearch,
+            commandId: searchResult?.commandId || null,
+            actor: actor ? { username: actor.username || null, email: actor.email || null } : null,
+            dryRun: false,
+        });
+        await appendAuditLog('upgrader_upgrade', actor, null, {
+            ratingKey,
+            title: item.title,
+            arrInstanceName: resolved.instanceName || instance.name,
+            targetProfileId,
+            triggerSearch: !!triggerSearch,
+            auditId: auditEntry.id,
+        });
+        results.push({
+            ...preview,
+            success: true,
+            profileUpdated: true,
+            searchTriggered: !!triggerSearch,
+            commandId: searchResult?.commandId || null,
+        });
+    }
+
+    const totals = results.reduce((acc, entry) => {
+        if (entry.success) acc.succeeded += 1;
+        else acc.failed += 1;
+        return acc;
+    }, { succeeded: 0, failed: 0 });
+
+    return { dryRun: !!dryRun, results, totals };
+};
 const MAINTENANCE_PREFS_DEFAULTS = {
     global: {
         dryRunByDefault: true,
@@ -9468,6 +10198,8 @@ const enrichMediaItemsWithArrResolution = async (config, items = []) => {
     const catalog = await getArrCatalog(normalized, { force: true });
     return items.map((item) => {
         const resolved = resolveArrEntity(item, catalog, normalized);
+        const instance = resolved.instanceId ? getArrInstance(normalized, resolved.instanceId) : null;
+        const arrDeepUrl = resolved.entity && instance ? buildArrDeepUrl(instance, resolved.entity, resolved.type) : null;
         return {
             ...item,
             arrType: resolved.type === 'none' ? (item.arrType || 'none') : resolved.type,
@@ -9475,6 +10207,8 @@ const enrichMediaItemsWithArrResolution = async (config, items = []) => {
             arrInstanceId: resolved.instanceId || null,
             arrInstanceName: resolved.instanceName || null,
             arrAmbiguous: !!resolved.ambiguous,
+            arrDeepUrl,
+            arrQualityProfileId: resolved.entity?.qualityProfileId != null ? Number(resolved.entity.qualityProfileId) : null,
         };
     });
 };
@@ -9483,7 +10217,7 @@ const buildMaintenanceMediaIndex = async ({ actor = null, force = false } = {}) 
     markTaskStart(systemJobs.maintenanceIndex);
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        if (!isMaintenanceExperimentalEnabled(config)) {
+        if (!isMediaQualityIndexEnabled(config)) {
             const payload = {
                 generatedAt: null,
                 itemCount: 0,
@@ -9494,26 +10228,49 @@ const buildMaintenanceMediaIndex = async ({ actor = null, force = false } = {}) 
             markTaskEnd(systemJobs.maintenanceIndex, null);
             return payload;
         }
-        if (!config?.plexToken || !config?.serverIdentifier) {
-            throw new Error('Plex integration is not configured.');
-        }
-        const uri = await getPlexConnectionUri(config);
-        if (!uri) throw new Error('Unable to resolve Plex server URI.');
-        const rawMedia = await fetchPlexLibraryItemsForMaintenance(config, uri);
+
+        const mediaServerType = config.mediaServerType || 'plex';
         const requestIndex = await fetchRequestIndex(config);
-        const merged = attachRequestsToMediaIndex(rawMedia, requestIndex);
-        const enriched = await enrichMediaItemsWithArrResolution(config, merged);
+        let enriched = [];
+
+        if (mediaServerType === 'jellyfin') {
+            if (!isJellyfinConfigured(config)) {
+                throw new Error('Jellyfin integration is not configured.');
+            }
+            const rawMedia = await fetchJellyfinLibraryItemsForMaintenance(config);
+            const merged = attachRequestsToMediaIndex(rawMedia, requestIndex);
+            const arrEnriched = await enrichMediaItemsWithArrResolution(config, merged);
+            enriched = enrichJellyfinItemsWithQuality(config, arrEnriched);
+            if (isUpgraderEnabled(config)) {
+                enriched = await enrichJellyfinShowItemsWithEpisodeStats(config, enriched);
+            }
+        } else {
+            if (!isPlexConfigured(config)) {
+                throw new Error('Plex integration is not configured.');
+            }
+            const uri = await getPlexConnectionUri(config);
+            if (!uri) throw new Error('Unable to resolve Plex server URI.');
+            const rawMedia = await fetchPlexLibraryItemsForMaintenance(config, uri);
+            const merged = attachRequestsToMediaIndex(rawMedia, requestIndex);
+            const arrEnriched = await enrichMediaItemsWithArrResolution(config, merged);
+            enriched = await enrichMaintenanceItemsWithQuality(uri, config, arrEnriched);
+            if (isUpgraderEnabled(config)) {
+                enriched = await enrichShowItemsWithEpisodeStats(uri, config, enriched);
+            }
+        }
+
         const payload = {
             generatedAt: new Date().toISOString(),
             itemCount: enriched.length,
             requestItemCount: (requestIndex.items || []).length,
             force: !!force,
+            mediaServerType,
             items: enriched
         };
         await saveFile(MAINTENANCE_MEDIA_INDEX_PATH, payload);
         await saveFile(MAINTENANCE_REQUEST_INDEX_PATH, requestIndex);
         markTaskEnd(systemJobs.maintenanceIndex, null);
-        await appendAuditLog('maintenance_index_rebuilt', actor, null, { itemCount: enriched.length, requestItemCount: requestIndex.items?.length || 0 });
+        await appendAuditLog('maintenance_index_rebuilt', actor, null, { itemCount: enriched.length, requestItemCount: requestIndex.items?.length || 0, mediaServerType });
         return payload;
     } catch (error) {
         markTaskEnd(systemJobs.maintenanceIndex, error);
@@ -10018,6 +10775,363 @@ app.get('/api/maintenance/library-items', requireAdmin, async (req, res) => {
         });
     } catch (e) {
         res.status(500).json({ error: `Failed to load maintenance library items: ${e.message}` });
+    }
+});
+
+const requireUpgrader = async (req, res, next) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        if (!isUpgraderEnabled(config)) {
+            return res.status(403).json({ error: 'Library Upgrader is disabled. Enable it in Settings first.' });
+        }
+        const mediaServerType = config.mediaServerType || 'plex';
+        if (mediaServerType === 'jellyfin') {
+            if (!isJellyfinConfigured(config)) {
+                return res.status(503).json({ error: 'Jellyfin is not configured.' });
+            }
+        } else if (!isPlexConfigured(config)) {
+            return res.status(503).json({ error: 'Plex is not configured.' });
+        }
+        return next();
+    } catch (e) {
+        return res.status(500).json({ error: 'Failed to check Upgrader feature flag.' });
+    }
+};
+
+app.use('/api/upgrader', requireAdmin, requireUpgrader);
+
+app.get('/api/upgrader/status', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const payload = await loadFile(MAINTENANCE_MEDIA_INDEX_PATH, { generatedAt: null, itemCount: 0, items: [] });
+        const arrCounts = getArrInstanceCounts(config);
+        const arrReady = arrCounts.radarr.ready > 0 || arrCounts.sonarr.ready > 0;
+        res.json({
+            enabled: isUpgraderEnabled(config),
+            generatedAt: payload.generatedAt || null,
+            itemCount: payload.itemCount || (Array.isArray(payload.items) ? payload.items.length : 0),
+            rebuildInProgress: !!systemJobs.maintenanceIndex.running,
+            mediaServerType: config.mediaServerType || 'plex',
+            plexConfigured: !!(config.plexToken && config.serverIdentifier),
+            arrConfigured: arrReady,
+            automationEnabled: !!config.upgraderAutomationEnabled,
+            profileMapConfigured: Object.keys(normalizeUpgraderProfileMap(config.upgraderProfileMap)).length > 0,
+            maxActionsPerHour: Math.max(1, Number(config.upgraderMaxActionsPerHour) || 25),
+            recentUpgradeCount: await countRecentUpgraderActions(1),
+            defaultPreset: config.upgraderDefaultPreset || 'non_hevc',
+            defaultSort: UPGRADER_SORT_IDS.has(String(config.upgraderDefaultSort || '')) ? config.upgraderDefaultSort : 'sizeGB',
+            minSizeGB: Number(config.upgraderMinSizeGB) > 0 ? Number(config.upgraderMinSizeGB) : 5,
+        });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to load upgrader status: ${e.message}` });
+    }
+});
+
+app.get('/api/upgrader/summary', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const payload = await loadFile(MAINTENANCE_MEDIA_INDEX_PATH, { generatedAt: null, items: [] });
+        const allItems = Array.isArray(payload.items) ? payload.items : [];
+        const minSizeGB = Number(config.upgraderMinSizeGB) > 0 ? Number(config.upgraderMinSizeGB) : 5;
+        const nonHevc = allItems.filter((item) => isUpgraderCandidate(item));
+        const nonHevcSizeGB = nonHevc.reduce((sum, item) => {
+            if (item.mediaType === 'show' && Number(item.nonHevcEpisodeSizeGB || 0) > 0) {
+                return sum + Number(item.nonHevcEpisodeSizeGB || 0);
+            }
+            return sum + Number(item.sizeGB || 0);
+        }, 0);
+        res.json({
+            generatedAt: payload.generatedAt || null,
+            totalItems: allItems.length,
+            nonHevcCount: nonHevc.length,
+            hevcCount: allItems.length - nonHevc.length,
+            nonHevc4kCount: nonHevc.filter((item) => !!item.is4k || (item.displayTags || []).includes('4K')).length,
+            nonHevcHdrCount: nonHevc.filter((item) => !!item.hasHdr || (item.displayTags || []).includes('HDR') || (item.displayTags || []).includes('DV')).length,
+            arrMappedCount: nonHevc.filter((item) => !!item.arrMapped).length,
+            arrUnmappedCount: nonHevc.filter((item) => !item.arrMapped).length,
+            estimatedReclaimableGB: Math.round(nonHevcSizeGB * 0.4 * 100) / 100,
+            minSizeGB,
+        });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to load upgrader summary: ${e.message}` });
+    }
+});
+
+app.get('/api/upgrader/items', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const payload = await loadFile(MAINTENANCE_MEDIA_INDEX_PATH, { generatedAt: null, items: [] });
+        const preferences = await loadMaintenancePreferences();
+        const upgraderPrefs = await loadUpgraderPreferences();
+        const allItems = Array.isArray(payload.items) ? payload.items : [];
+        const preset = UPGRADER_PRESET_IDS.has(String(req.query.preset || '')) ? String(req.query.preset) : (config.upgraderDefaultPreset || 'non_hevc');
+        const libraryId = String(req.query.libraryId || 'all');
+        const mediaType = String(req.query.mediaType || 'all').toLowerCase();
+        const search = normalized(String(req.query.search || ''));
+        const sort = UPGRADER_SORT_IDS.has(String(req.query.sort || ''))
+            ? String(req.query.sort)
+            : (UPGRADER_SORT_IDS.has(String(config.upgraderDefaultSort || '')) ? config.upgraderDefaultSort : 'sizeGB');
+        const page = Math.max(1, Number(req.query.page || 1));
+        const limit = Math.min(120, Math.max(12, Number(req.query.limit || 48)));
+        const minSizeGB = Number(req.query.minSizeGB) > 0 ? Number(req.query.minSizeGB) : (Number(config.upgraderMinSizeGB) > 0 ? Number(config.upgraderMinSizeGB) : 5);
+        const codec = String(req.query.codec || '').trim().toLowerCase();
+        const includeExcluded = String(req.query.includeExcluded || 'true') !== 'false';
+        const includeSnoozed = String(req.query.includeSnoozed || 'false') === 'true';
+        const exclusions = buildUpgraderExclusionSets(preferences, upgraderPrefs);
+
+        const librariesMap = allItems.reduce((acc, item) => {
+            const key = String(item?.libraryId || '');
+            if (!key) return acc;
+            if (!acc[key]) {
+                acc[key] = { id: key, title: item?.libraryTitle || `Library ${key}`, count: 0 };
+            }
+            acc[key].count += 1;
+            return acc;
+        }, {});
+
+        const filtered = allItems
+            .filter((item) => {
+                if (!item) return false;
+                if (!applyUpgraderPresetFilter(item, preset, minSizeGB)) return false;
+                if (libraryId !== 'all' && String(item.libraryId || '') !== libraryId) return false;
+                if (mediaType !== 'all' && String(item.mediaType || '') !== mediaType) return false;
+                if (search && !normalized(item.title).includes(search)) return false;
+                if (codec && !String(item.videoCodec || '').toLowerCase().includes(codec)) return false;
+                return true;
+            })
+            .map((item) => mapUpgraderApiItem(item, exclusions))
+            .filter((item) => {
+                if (!includeExcluded && item.excluded && !item.snoozed) return false;
+                if (!includeSnoozed && item.snoozed) return false;
+                return true;
+            });
+
+        const resolvedSort = sort === 'staleAdded' ? 'daysSinceAdded' : sort;
+        const sorters = {
+            sizeGB: (a, b) => Number(b.sizeGB || 0) - Number(a.sizeGB || 0),
+            watchCount: (a, b) => Number(b.watchCount || 0) - Number(a.watchCount || 0),
+            addedAt: (a, b) => Date.parse(b.addedAt || 0) - Date.parse(a.addedAt || 0),
+            daysSinceAdded: (a, b) => Number(b.daysSinceAdded || 0) - Number(a.daysSinceAdded || 0),
+            title: (a, b) => String(a.title || '').localeCompare(String(b.title || ''), undefined, { sensitivity: 'base' }),
+        };
+        filtered.sort(sorters[resolvedSort] || sorters.sizeGB);
+
+        const start = (page - 1) * limit;
+        const pageItems = filtered.slice(start, start + limit);
+        res.json({
+            generatedAt: payload.generatedAt || null,
+            preset,
+            total: filtered.length,
+            page,
+            limit,
+            libraries: Object.values(librariesMap).sort((a, b) => String(a.title).localeCompare(String(b.title), undefined, { sensitivity: 'base' })),
+            items: pageItems,
+        });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to load upgrader items: ${e.message}` });
+    }
+});
+
+app.post('/api/upgrader/rebuild', requireAdmin, async (req, res) => {
+    try {
+        const payload = await buildMaintenanceMediaIndex({ actor: req.user, force: true });
+        res.json({ success: true, generatedAt: payload.generatedAt, itemCount: payload.itemCount, requestItemCount: payload.requestItemCount });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to rebuild upgrader index: ${e.message}` });
+    }
+});
+
+app.get('/api/upgrader/profiles', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const instances = await buildUpgraderProfilesPayload(config);
+        res.json({ instances });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to load upgrader profiles: ${e.message}` });
+    }
+});
+
+app.get('/api/upgrader/audit', requireAdmin, async (req, res) => {
+    try {
+        const limit = Math.min(100, Math.max(1, Number(req.query.limit || 25)));
+        const entries = await loadUpgraderAuditEntries();
+        res.json({ entries: entries.slice(0, limit) });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to load upgrader audit log: ${e.message}` });
+    }
+});
+
+app.get('/api/upgrader/queue', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const queues = await Promise.all(instances.map(async (instance) => {
+            const summary = await fetchArrQueueSummary(instance, { resolveUrl: resolveIntegrationUrlForFetch, fetchImpl: fetch });
+            return {
+                instanceId: instance.id,
+                instanceName: instance.name || (instance.type === 'radarr' ? 'Radarr' : 'Sonarr'),
+                type: instance.type,
+                total: summary.total,
+            };
+        }));
+        res.json({ instances: queues, totalQueued: queues.reduce((sum, entry) => sum + Number(entry.total || 0), 0) });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to load ARR queue summary: ${e.message}` });
+    }
+});
+
+app.post('/api/upgrader/preview', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const ratingKeys = Array.isArray(req.body?.ratingKeys) ? req.body.ratingKeys.map(String) : [];
+        const qualityProfileId = Number(req.body?.qualityProfileId || 0);
+        const payload = await executeUpgraderUpgradeBatch({
+            config,
+            ratingKeys,
+            dryRun: true,
+            qualityProfileId,
+            actor: req.user,
+        });
+        res.json(payload);
+    } catch (e) {
+        res.status(400).json({ error: e.message || 'Failed to preview upgrader actions.' });
+    }
+});
+
+app.post('/api/upgrader/upgrade', requireAdmin, async (req, res) => {
+    if (upgraderUpgradeState.running) {
+        return res.status(409).json({ error: 'An upgrader batch is already running.' });
+    }
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const ratingKeys = Array.isArray(req.body?.ratingKeys) ? req.body.ratingKeys.map(String) : [];
+        const qualityProfileId = Number(req.body?.qualityProfileId || 0);
+        const triggerSearch = req.body?.triggerSearch !== false;
+        upgraderUpgradeState.running = true;
+        const payload = await executeUpgraderUpgradeBatch({
+            config,
+            ratingKeys,
+            dryRun: false,
+            qualityProfileId,
+            triggerSearch,
+            actor: req.user,
+        });
+        res.json(payload);
+    } catch (e) {
+        res.status(400).json({ error: e.message || 'Failed to run upgrader actions.' });
+    } finally {
+        upgraderUpgradeState.running = false;
+    }
+});
+
+app.get('/api/upgrader/items/:ratingKey/episodes', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const ratingKey = String(req.params.ratingKey || '').trim();
+        const preset = String(req.query.preset || 'non_hevc');
+        const payload = await loadFile(MAINTENANCE_MEDIA_INDEX_PATH, { items: [] });
+        const showItem = (Array.isArray(payload.items) ? payload.items : []).find((item) => String(item.ratingKey) === ratingKey);
+        if (!showItem || showItem.mediaType !== 'show') {
+            return res.status(404).json({ error: 'Show not found in media index.' });
+        }
+
+        const mediaServerType = config.mediaServerType || 'plex';
+        let episodes = [];
+        if (mediaServerType === 'jellyfin') {
+            episodes = await fetchJellyfinShowEpisodes(config, showItem);
+        } else {
+            const uri = await getPlexConnectionUri(config);
+            if (!uri) return res.status(503).json({ error: 'Unable to connect to Plex.' });
+            episodes = await fetchPlexShowEpisodes(config, uri, showItem);
+        }
+
+        const filtered = episodes.filter((episode) => {
+            if (preset === 'non_hevc') return !episode.isHevc;
+            if (preset === 'h264_only') {
+                const codec = String(episode.videoCodec || '').toLowerCase();
+                return (episode.displayTags || []).includes('H.264') || /h264|x264|avc/.test(codec);
+            }
+            return !episode.isHevc;
+        });
+
+        res.json({
+            show: {
+                ratingKey: showItem.ratingKey,
+                title: showItem.title,
+                totalEpisodeCount: showItem.totalEpisodeCount || episodes.length,
+                nonHevcEpisodeCount: showItem.nonHevcEpisodeCount || filtered.length,
+            },
+            total: filtered.length,
+            episodes: filtered,
+        });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to load show episodes: ${e.message}` });
+    }
+});
+
+app.get('/api/upgrader/preferences', requireAdmin, async (req, res) => {
+    try {
+        const maintenancePrefs = await loadMaintenancePreferences();
+        const upgraderPrefs = await loadUpgraderPreferences();
+        res.json({
+            maintenanceExclusions: maintenancePrefs.exclusions,
+            upgrader: upgraderPrefs,
+        });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to load upgrader preferences: ${e.message}` });
+    }
+});
+
+app.post('/api/upgrader/preferences', requireAdmin, async (req, res) => {
+    try {
+        const incoming = req.body?.upgrader || req.body || {};
+        const saved = await saveUpgraderPreferences(incoming);
+        await appendAuditLog('upgrader_preferences_updated', req.user, null, {
+            exclusions: {
+                ratingKeys: saved.exclusions.ratingKeys.length,
+                titles: saved.exclusions.titles.length,
+                libraries: saved.exclusions.libraries.length,
+            },
+            snoozed: saved.snoozed.length,
+        });
+        res.json({ success: true, upgrader: saved });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to save upgrader preferences: ${e.message}` });
+    }
+});
+
+app.post('/api/upgrader/snooze', requireAdmin, async (req, res) => {
+    try {
+        const ratingKey = String(req.body?.ratingKey || '').trim();
+        const days = Math.max(1, Math.min(365, Number(req.body?.days || 30)));
+        if (!ratingKey) return res.status(400).json({ error: 'ratingKey is required.' });
+
+        const prefs = await loadUpgraderPreferences();
+        const until = new Date(Date.now() + (days * 24 * 60 * 60 * 1000)).toISOString();
+        const nextSnoozed = [
+            { ratingKey, until, reason: req.body?.reason || `Snoozed for ${days} days` },
+            ...(prefs.snoozed || []).filter((entry) => String(entry.ratingKey) !== ratingKey),
+        ];
+        const saved = await saveUpgraderPreferences({ ...prefs, snoozed: nextSnoozed });
+        await appendAuditLog('upgrader_snoozed', req.user, null, { ratingKey, until, days });
+        res.json({ success: true, ratingKey, until, snoozed: saved.snoozed });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to snooze upgrader item: ${e.message}` });
+    }
+});
+
+app.post('/api/upgrader/unsnooze', requireAdmin, async (req, res) => {
+    try {
+        const ratingKey = String(req.body?.ratingKey || '').trim();
+        if (!ratingKey) return res.status(400).json({ error: 'ratingKey is required.' });
+        const prefs = await loadUpgraderPreferences();
+        const saved = await saveUpgraderPreferences({
+            ...prefs,
+            snoozed: (prefs.snoozed || []).filter((entry) => String(entry.ratingKey) !== ratingKey),
+        });
+        res.json({ success: true, snoozed: saved.snoozed });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to unsnooze upgrader item: ${e.message}` });
     }
 });
 
@@ -10627,17 +11741,21 @@ app.listen(PORT, BIND_HOST, async () => {
     systemJobs.maintenanceIndex.nextRun = new Date(Date.now() + (20 * 1000)).toISOString();
     setTimeout(async () => {
         try {
+            const cfg = await loadFile(CONFIG_PATH, {});
+            if (!isMediaQualityIndexEnabled(cfg)) return;
             await buildMaintenanceMediaIndex({ actor: { username: 'System', email: 'system@local' }, force: false });
         } catch (e) {
-            log(`Initial maintenance index build failed: ${e.message}`);
+            log(`Initial media quality index build failed: ${e.message}`);
         }
     }, 20000);
     setInterval(async () => {
         systemJobs.maintenanceIndex.nextRun = new Date(Date.now() + (6 * 60 * 60 * 1000)).toISOString();
         try {
+            const cfg = await loadFile(CONFIG_PATH, {});
+            if (!isMediaQualityIndexEnabled(cfg)) return;
             await buildMaintenanceMediaIndex({ actor: { username: 'System', email: 'system@local' }, force: false });
         } catch (e) {
-            log(`Scheduled maintenance index build failed: ${e.message}`);
+            log(`Scheduled media quality index build failed: ${e.message}`);
         }
     }, 6 * 60 * 60 * 1000);
 

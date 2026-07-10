@@ -17,6 +17,7 @@ import {
 
 import { RequestsAdminPanel } from './requests/RequestsAdminPanel';
 import { usePendingRequestCount } from './requests/usePendingRequestCount';
+import { UpgraderDashboard } from './upgrader/UpgraderDashboard';
 import {
     updateFavicon,
     Login,
@@ -55,7 +56,7 @@ export const MainApp: React.FC = () => {
         closeConfirm();
     };
 
-    const [currentRoute, setCurrentRoute] = useState<'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'maintenance' | 'requests' | 'invite' | 'loading'>('loading');
+    const [currentRoute, setCurrentRoute] = useState<'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'maintenance' | 'upgrader' | 'requests' | 'invite' | 'loading'>('loading');
     const [sessionInfo, setSessionInfo] = useState<any>(null);
     const [publicConfig, setPublicConfig] = useState<any>({});
     const [releaseNotes, setReleaseNotes] = useState<ReleaseNotes | null>(null);
@@ -157,7 +158,7 @@ export const MainApp: React.FC = () => {
         setShowWhatsNew(false);
     }, [publicConfig?.appVersion]);
 
-    const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'maintenance' | 'requests' | 'invite' | 'loading', options?: { hash?: string }) => {
+    const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'maintenance' | 'upgrader' | 'requests' | 'invite' | 'loading', options?: { hash?: string }) => {
         if (route === 'logs') {
             setCurrentRoute('settings');
             window.history.pushState({}, '', portalUrl('/settings#logs'));
@@ -175,6 +176,7 @@ export const MainApp: React.FC = () => {
             if (route === 'analytics') path = '/analytics';
             if (route === 'mediastack') path = '/mediastack';
             if (route === 'maintenance') path = '/maintenance';
+            if (route === 'upgrader') path = '/upgrader';
             if (route === 'requests') path = '/requests';
             if (options?.hash) path += options.hash;
             window.history.pushState({}, '', portalUrl(path));
@@ -212,6 +214,7 @@ export const MainApp: React.FC = () => {
             }
             else if (path === '/mediastack') setCurrentRoute('mediastack');
             else if (path === '/maintenance' && data.session.isAdmin) setCurrentRoute('maintenance');
+            else if (path === '/upgrader' && data.session.isAdmin) setCurrentRoute('upgrader');
             else if (path === '/requests' && data.session.isAdmin) setCurrentRoute('requests');
             else if (path === '/analytics') setCurrentRoute('analytics');
             else if (path === '/admin' || path === '/users') {
@@ -300,6 +303,7 @@ export const MainApp: React.FC = () => {
         if (currentRoute === 'dashboard') return <LibraryDashboard onBack={() => setRoute('user')} isAdmin={isAdmin} publicConfig={publicConfig} mediaServerType={sessionInfo?.mediaServerType} onViewAnalytics={(hash) => setRoute('analytics', { hash })} />;
         if (currentRoute === 'settings' && isAdmin) return <SettingsDashboard />;
         if (currentRoute === 'maintenance' && isAdmin) return <MaintenanceDashboard />;
+        if (currentRoute === 'upgrader' && isAdmin) return <UpgraderDashboard />;
         if (currentRoute === 'requests' && isAdmin) return <RequestsAdminPanel onCountsChange={refreshPendingRequestCount} />;
         if (currentRoute === 'logs' && isAdmin) return <LogsDashboard onLogout={handleLogout} />;
         if (currentRoute === 'mediastack') return <MediaStackDashboard isAdmin={isAdmin} />;

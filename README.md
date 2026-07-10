@@ -72,6 +72,7 @@ A comprehensive control panel for the server owner:
 - **Customizable Home Layout** - Reorder home page sections and show or hide whole blocks (Personal Wrap-Up, Main grid, Pending Requests, Recently / Most Watched, Recently Added) from **Settings → Home Layout**, with a live preview before saving. The main dashboard grid keeps a fixed balanced two-column layout so card heights stay aligned
 - **Pending Requests Widget** - Surface open Seerr/Jellyseerr requests on the home dashboard with quick review actions, fanart-backed cards, and a count badge in the sidebar
 - **Library Maintenance** - Scan libraries for missing or empty media, manage exclusions, and run cleanup tasks from the Maintenance page
+- **Library Upgrader (Plex / Jellyfin)** — Find non-HEVC titles, browse a poster grid with codec/HDR badges, drill into show episodes, open Plex/Jellyfin or Sonarr/Radarr deep links, snooze titles, and optionally switch ARR quality profiles with search triggers (dry-run preview, bulk select, history tab, rate limits). Enable in **Settings → System → Library Upgrader**.
 
 ---
 
@@ -491,6 +492,7 @@ The **Settings → Background Tasks** page shows the active scheduler and lets a
 | Analytics cache | Uses Plex/Tautulli data where configured | Uses Jellyfin/Jellystat data where configured |
 | Library stats | Plex Stats Builder | Hidden in Jellyfin mode |
 | Maintenance index | Builds media/request index for cleanup rules | Same |
+| Media quality index | Also powers Library Upgrader when enabled (Plex or Jellyfin codec scan) | Episode stats for shows when Upgrader enabled |
 | Auto rolling backup | Creates rolling config backups | Same |
 
 The **Settings → System** diagnostics page uses the same media-aware task list so Jellyfin portals are not penalized for Plex-only jobs.
@@ -508,6 +510,7 @@ Server-Manager-Portal/
 │   ├── screens.tsx     # Dashboards, Discover, login, and shared screens
 │   ├── home/           # User dashboard layout and widget renderers
 │   ├── requests/       # Seerr-style request review UI (admin panel, approval modal, home widget)
+│   ├── upgrader/       # Library Upgrader poster browse (non-HEVC scan)
 │   ├── settings/       # Settings UI (Media Player, Home Layout, System, Background Tasks)
 │   ├── shared/         # API helpers, types, theme, skeletons, wrap-up cards
 │   ├── setup/          # First-time setup wizard

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Features
+
+* **Library Upgrader (Phase 1)** — Admin-only view to scan the Plex library for non-HEVC titles, browse a poster grid with codec/HDR badges, and open Plex or Sonarr/Radarr deep links. Enable in Settings → System. Shares the media quality index with Cleaner; rebuilds every 6 hours when enabled.
+* **Library Upgrader automation (Phase 2)** — Opt-in ARR profile switching with dry-run preview, per-title or bulk “Upgrade to HEVC”, search triggers (`MoviesSearch` / `SeriesSearch`), rate limiting, audit log, and ARR queue summary widget.
+* **Library Upgrader (Phase 3)** — Jellyfin library support, show episode drill-down drawer, per-title snooze and exclusions, upgrade history tab, and stale/oldest-added sort options.
+
 ## [1.5.1](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.5.0...v1.5.1) (2026-07-10)
 
 

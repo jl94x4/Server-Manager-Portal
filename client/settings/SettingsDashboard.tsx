@@ -311,6 +311,15 @@ export const SettingsDashboard: React.FC = () => {
     const [requestAppFetchUrl, setRequestAppFetchUrl] = useState('');
     const [requestAppApiKey, setRequestAppApiKey] = useState('');
     const [maintenanceExperimentalEnabled, setMaintenanceExperimentalEnabled] = useState(false);
+    const [upgraderEnabled, setUpgraderEnabled] = useState(false);
+    const [upgraderDefaultPreset, setUpgraderDefaultPreset] = useState('non_hevc');
+    const [upgraderMinSizeGB, setUpgraderMinSizeGB] = useState(5);
+    const [upgraderAutomationEnabled, setUpgraderAutomationEnabled] = useState(false);
+    const [upgraderMaxActionsPerHour, setUpgraderMaxActionsPerHour] = useState(25);
+    const [upgraderDefaultSort, setUpgraderDefaultSort] = useState('sizeGB');
+    const [upgraderProfileMap, setUpgraderProfileMap] = useState<Record<string, { hevcProfileId: number; fallbackProfileId?: number }>>({});
+    const [upgraderProfileInstances, setUpgraderProfileInstances] = useState<any[]>([]);
+    const [loadingUpgraderProfiles, setLoadingUpgraderProfiles] = useState(false);
     const [dashboardLayout, setDashboardLayout] = useState<DashboardLayoutConfig>(DEFAULT_DASHBOARD_LAYOUT);
     const dashboardLayoutRef = useRef<DashboardLayoutConfig>(DEFAULT_DASHBOARD_LAYOUT);
 
@@ -807,6 +816,15 @@ export const SettingsDashboard: React.FC = () => {
             if (initialSettings.autoBackupIntervalDays !== undefined) setAutoBackupIntervalDays(Number(initialSettings.autoBackupIntervalDays) || 2);
             if (initialSettings.autoBackupRetentionCount !== undefined) setAutoBackupRetentionCount(Number(initialSettings.autoBackupRetentionCount) || 10);
             if (initialSettings.maintenanceExperimentalEnabled !== undefined) setMaintenanceExperimentalEnabled(!!initialSettings.maintenanceExperimentalEnabled);
+            if (initialSettings.upgraderEnabled !== undefined) setUpgraderEnabled(!!initialSettings.upgraderEnabled);
+            if (initialSettings.upgraderDefaultPreset) setUpgraderDefaultPreset(initialSettings.upgraderDefaultPreset);
+            if (initialSettings.upgraderMinSizeGB !== undefined) setUpgraderMinSizeGB(Math.max(0, Number(initialSettings.upgraderMinSizeGB) || 5));
+            if (initialSettings.upgraderAutomationEnabled !== undefined) setUpgraderAutomationEnabled(!!initialSettings.upgraderAutomationEnabled);
+            if (initialSettings.upgraderMaxActionsPerHour !== undefined) setUpgraderMaxActionsPerHour(Math.max(1, Number(initialSettings.upgraderMaxActionsPerHour) || 25));
+            if (initialSettings.upgraderDefaultSort) setUpgraderDefaultSort(initialSettings.upgraderDefaultSort);
+            if (initialSettings.upgraderProfileMap && typeof initialSettings.upgraderProfileMap === 'object') {
+                setUpgraderProfileMap(initialSettings.upgraderProfileMap);
+            }
             const layout = normalizeSectionLayout(initialSettings.dashboardLayout);
             dashboardLayoutRef.current = layout;
             setDashboardLayout(layout);
@@ -814,6 +832,27 @@ export const SettingsDashboard: React.FC = () => {
             setServers([]);
         }
     }, [initialSettings, isConfigLoaded]);
+
+    useEffect(() => {
+        if (!upgraderEnabled) {
+            setUpgraderProfileInstances([]);
+            return;
+        }
+        let cancelled = false;
+        setLoadingUpgraderProfiles(true);
+        apiFetch('/api/upgrader/profiles')
+            .then((data) => {
+                if (cancelled) return;
+                setUpgraderProfileInstances(Array.isArray(data?.instances) ? data.instances : []);
+            })
+            .catch(() => {
+                if (!cancelled) setUpgraderProfileInstances([]);
+            })
+            .finally(() => {
+                if (!cancelled) setLoadingUpgraderProfiles(false);
+            });
+        return () => { cancelled = true; };
+    }, [upgraderEnabled]);
 
     const handleFetchServers = async () => {
         if (!token) {
@@ -940,6 +979,13 @@ export const SettingsDashboard: React.FC = () => {
             autoBackupIntervalDays,
             autoBackupRetentionCount,
             maintenanceExperimentalEnabled,
+            upgraderEnabled,
+            upgraderDefaultPreset,
+            upgraderMinSizeGB,
+            upgraderAutomationEnabled,
+            upgraderMaxActionsPerHour,
+            upgraderDefaultSort,
+            upgraderProfileMap,
             dashboardLayout: normalizeSectionLayout(dashboardLayoutRef.current)
         });
     };
@@ -1621,7 +1667,7 @@ export const SettingsDashboard: React.FC = () => {
                             <div className="flex flex-col gap-2 max-w-md">
                                 {navOrder.map((key, index) => {
                                     const labels: Record<string, string> = {
-                                        'home': 'Home', 'discover': 'Discover', 'status': 'Status', 'logs': 'Logs (Admin Only)', 'analytics': 'Analytics', 'mediastack': 'Integrations', 'maintenance': 'Cleaner (Admin Only)', 'requests': 'Requests (Admin Only)', 'request': 'Request Content', 'settings': 'Settings (Admin Only)', 'logout': 'Logout'
+                                        'home': 'Home', 'discover': 'Discover', 'status': 'Status', 'logs': 'Logs (Admin Only)', 'analytics': 'Analytics', 'mediastack': 'Integrations', 'maintenance': 'Cleaner (Admin Only)', 'upgrader': 'Upgrader (Admin Only)', 'requests': 'Requests (Admin Only)', 'request': 'Request Content', 'settings': 'Settings (Admin Only)', 'logout': 'Logout'
                                     };
                                     return (
                                         <div key={key} className="flex items-center justify-between py-3 border-b border-border/40">
@@ -2073,6 +2119,119 @@ export const SettingsDashboard: React.FC = () => {
                                     Current status: {maintenanceExperimentalEnabled ? 'ON' : 'OFF'}
                                 </p>
                                 <p className="text-[11px] text-muted mt-1">After changing this toggle, click the main Save Settings button.</p>
+                            </section>
+                            <section id={getSettingsSectionElementId('upgrader')} className="space-y-3 mb-8 scroll-mt-24">
+                                <h4 className="font-bold text-text">Library Upgrader</h4>
+                                <SettingsToggleRow
+                                    title="Enable Library Upgrader"
+                                    description="Standalone admin view to find non-HEVC titles with Plex or Jellyfin and Sonarr/Radarr deep links. OFF by default."
+                                    checked={upgraderEnabled}
+                                    onChange={setUpgraderEnabled}
+                                    border={false}
+                                />
+                                <p className={`text-xs mt-2 font-semibold ${upgraderEnabled ? 'text-green-300' : 'text-yellow-300'}`}>
+                                    Current status: {upgraderEnabled ? 'ON' : 'OFF'}
+                                </p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                                    <div>
+                                        <label className="font-semibold text-sm block mb-2">Default filter preset</label>
+                                        <CustomSelect
+                                            value={upgraderDefaultPreset}
+                                            onChange={setUpgraderDefaultPreset}
+                                            options={[
+                                                { value: 'non_hevc', label: 'Non-HEVC' },
+                                                { value: 'h264_only', label: 'H.264 only' },
+                                                { value: '4k_non_hevc', label: '4K non-HEVC' },
+                                                { value: 'hdr_non_hevc', label: 'HDR non-HEVC' },
+                                                { value: 'large_non_hevc', label: 'Large non-HEVC' },
+                                                { value: 'arr_mapped', label: 'ARR mapped' },
+                                                { value: 'arr_unmapped', label: 'ARR unmapped' },
+                                            ]}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="font-semibold text-sm block mb-2">Large non-HEVC minimum size (GB)</label>
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            step={0.5}
+                                            className="w-full p-2 rounded border border-border bg-background text-text"
+                                            value={upgraderMinSizeGB}
+                                            onChange={(e) => setUpgraderMinSizeGB(Math.max(0, Number(e.target.value) || 0))}
+                                        />
+                                    </div>
+                                </div>
+                                <SettingsToggleRow
+                                    title="Enable ARR automation"
+                                    description="Allow Upgrader to switch Sonarr/Radarr quality profiles and trigger searches. Opt-in per action with dry-run preview."
+                                    checked={upgraderAutomationEnabled}
+                                    onChange={setUpgraderAutomationEnabled}
+                                    border={false}
+                                />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                                    <div>
+                                        <label className="font-semibold text-sm block mb-2">Default sort</label>
+                                        <CustomSelect
+                                            value={upgraderDefaultSort}
+                                            onChange={setUpgraderDefaultSort}
+                                            options={[
+                                                { value: 'sizeGB', label: 'Largest first' },
+                                                { value: 'watchCount', label: 'Most watched' },
+                                                { value: 'addedAt', label: 'Recently added' },
+                                                { value: 'daysSinceAdded', label: 'Oldest added' },
+                                                { value: 'staleAdded', label: 'Stale (old + unwatched)' },
+                                                { value: 'title', label: 'Title A–Z' },
+                                            ]}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="font-semibold text-sm block mb-2">Max upgrades per hour</label>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            className="w-full p-2 rounded border border-border bg-background text-text"
+                                            value={upgraderMaxActionsPerHour}
+                                            onChange={(e) => setUpgraderMaxActionsPerHour(Math.max(1, Number(e.target.value) || 25))}
+                                        />
+                                    </div>
+                                </div>
+                                {upgraderAutomationEnabled && (
+                                    <div className="mt-4 space-y-3">
+                                        <h5 className="font-semibold text-sm text-text">HEVC quality profile per ARR instance</h5>
+                                        {loadingUpgraderProfiles ? (
+                                            <p className="text-xs text-muted">Loading quality profiles…</p>
+                                        ) : upgraderProfileInstances.length === 0 ? (
+                                            <p className="text-xs text-yellow-200">Configure ready Sonarr/Radarr instances first.</p>
+                                        ) : upgraderProfileInstances.map((instance) => (
+                                            <div key={instance.id} className="grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-3 items-end border border-border/40 rounded-lg p-3">
+                                                <div>
+                                                    <p className="text-sm font-semibold text-text">{instance.name}</p>
+                                                    <p className="text-[11px] text-muted capitalize">{instance.type}</p>
+                                                </div>
+                                                <CustomSelect
+                                                    value={String(upgraderProfileMap[instance.id]?.hevcProfileId || '')}
+                                                    onChange={(value) => {
+                                                        const hevcProfileId = Number(value);
+                                                        setUpgraderProfileMap((prev) => {
+                                                            const next = { ...prev };
+                                                            if (hevcProfileId > 0) next[instance.id] = { hevcProfileId };
+                                                            else delete next[instance.id];
+                                                            return next;
+                                                        });
+                                                    }}
+                                                    options={[
+                                                        { value: '', label: 'Select HEVC profile…' },
+                                                        ...(instance.profiles || []).map((profile: any) => ({
+                                                            value: String(profile.id),
+                                                            label: profile.name,
+                                                        })),
+                                                    ]}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                <p className="text-[11px] text-muted mt-1">Requires Plex. Sonarr/Radarr recommended for deep links and automation.</p>
                             </section>
                             <section id={getSettingsSectionElementId('backup')} className="space-y-4 mb-8 scroll-mt-24">
                                 <h4 className="font-bold text-text">Backup & Restore</h4>

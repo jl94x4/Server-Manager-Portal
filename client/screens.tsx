@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2, Search, BookOpen, Loader2, Eye, ClipboardList } from 'lucide-react';
+import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2, Search, BookOpen, Loader2, Eye, ClipboardList, ArrowUpCircle } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
 
 import { SettingsDashboard } from './settings/SettingsDashboard';
@@ -4600,7 +4600,7 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | str
     );
 };
 
-const DiscoverPosterCard: React.FC<{
+export const DiscoverPosterCard: React.FC<{
     item: { title: string; thumb?: string; thumbUrl?: string; plexUrl: string; tags?: string[]; year?: number | string; parentTitle?: string };
     aspect?: '2/3' | 'square';
     overlay?: React.ReactNode;
@@ -4608,10 +4608,61 @@ const DiscoverPosterCard: React.FC<{
     className?: string;
     footer?: React.ReactNode;
     showQualityBadges?: boolean;
-}> = ({ item, aspect = '2/3', overlay, variant = 'discover', className = 'w-full', footer, showQualityBadges = true }) => {
+    posterOnlyLink?: boolean;
+}> = ({ item, aspect = '2/3', overlay, variant = 'discover', className = 'w-full', footer, showQualityBadges = true, posterOnlyLink = false }) => {
     const posterShell = variant === 'home'
         ? 'relative rounded-xl overflow-hidden bg-background border border-white/5 transition-[box-shadow,border-color] duration-300 group-hover:shadow-xl group-hover:border-plex/50'
         : 'relative rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md';
+
+    const posterInner = (
+        <div className={`${posterShell} ${aspect === 'square' ? 'aspect-square' : 'aspect-[2/3]'} w-full`}>
+            {item.thumb ? (
+                <img
+                    src={item.thumbUrl ? resolvePortalAssetUrl(item.thumbUrl) : portalUrl(`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=${aspect === 'square' ? 300 : 450}`)}
+                    alt={item.title}
+                    loading="lazy"
+                    className={`w-full h-full object-cover ${variant === 'home' ? 'transition-[transform,opacity] duration-300 group-hover:scale-105 group-hover:opacity-80' : ''}`}
+                />
+            ) : (
+                <div className="w-full h-full flex items-center justify-center p-4 text-center bg-white/5">
+                    <span className="text-xs font-bold text-muted line-clamp-3">{item.title}</span>
+                </div>
+            )}
+            {overlay}
+            {showQualityBadges && item.tags && item.tags.length > 0 && (
+                <div className="absolute bottom-1 left-1 right-1 flex flex-wrap gap-0.5 pointer-events-none z-10">
+                    {item.tags.map((tag) => (
+                        <span key={tag} className="text-[8px] font-bold px-1 py-px rounded bg-black/85 text-white/95 border border-white/15 uppercase tracking-wide">
+                            {tag}
+                        </span>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+
+    const defaultFooter = (
+        <div className={`text-xs font-medium line-clamp-2 leading-tight ${variant === 'home' ? 'text-text text-left px-1' : 'text-white text-center mt-1'}`}>
+            {item.title}
+        </div>
+    );
+
+    if (posterOnlyLink) {
+        return (
+            <div className={`flex flex-col gap-2 group ${className}`} style={{ color: 'inherit' }}>
+                <a
+                    href={item.plexUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block no-underline"
+                    style={{ textDecoration: 'none', color: 'inherit' }}
+                >
+                    {posterInner}
+                </a>
+                {footer ?? defaultFooter}
+            </div>
+        );
+    }
 
     return (
         <a
@@ -4621,35 +4672,8 @@ const DiscoverPosterCard: React.FC<{
             className={`flex flex-col gap-2 group ${className}`}
             style={{ textDecoration: 'none', color: 'inherit' }}
         >
-            <div className={`${posterShell} ${aspect === 'square' ? 'aspect-square' : 'aspect-[2/3]'} w-full`}>
-                {item.thumb ? (
-                    <img
-                        src={item.thumbUrl ? resolvePortalAssetUrl(item.thumbUrl) : portalUrl(`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=${aspect === 'square' ? 300 : 450}`)}
-                        alt={item.title}
-                        loading="lazy"
-                        className={`w-full h-full object-cover ${variant === 'home' ? 'transition-[transform,opacity] duration-300 group-hover:scale-105 group-hover:opacity-80' : ''}`}
-                    />
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center p-4 text-center bg-white/5">
-                        <span className="text-xs font-bold text-muted line-clamp-3">{item.title}</span>
-                    </div>
-                )}
-                {overlay}
-                {showQualityBadges && item.tags && item.tags.length > 0 && (
-                    <div className="absolute bottom-1 left-1 right-1 flex flex-wrap gap-0.5 pointer-events-none z-10">
-                        {item.tags.map((tag) => (
-                            <span key={tag} className="text-[8px] font-bold px-1 py-px rounded bg-black/85 text-white/95 border border-white/15 uppercase tracking-wide">
-                                {tag}
-                            </span>
-                        ))}
-                    </div>
-                )}
-            </div>
-            {footer ?? (
-                <div className={`text-xs font-medium line-clamp-2 leading-tight ${variant === 'home' ? 'text-text text-left px-1' : 'text-white text-center mt-1'}`}>
-                    {item.title}
-                </div>
-            )}
+            {posterInner}
+            {footer ?? defaultFooter}
         </a>
     );
 };
@@ -7590,6 +7614,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         'analytics': { label: 'Analytics', icon: BarChart3, route: 'analytics', adminOnly: false },
         'mediastack': { label: 'Calendar', icon: Layers, route: 'mediastack', adminOnly: false },
         'maintenance': { label: 'Cleaner', icon: Shield, route: 'maintenance', adminOnly: true },
+        'upgrader': { label: 'Upgrader', icon: ArrowUpCircle, route: 'upgrader', adminOnly: true },
         'requests': { label: 'Requests', icon: ClipboardList, route: 'requests', adminOnly: true },
         'request': { label: 'Request Content', icon: Sparkles, route: '', adminOnly: false, href: requestUrl },
         'settings': { label: 'Settings', icon: Settings, route: 'settings', adminOnly: true },
@@ -7601,6 +7626,15 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
             const requestIndex = order.indexOf('request');
             if (requestIndex >= 0) order.splice(requestIndex, 0, 'maintenance');
             else order.push('maintenance');
+        }
+        if (isAdmin && navFeatures?.upgrader && !order.includes('upgrader')) {
+            const maintenanceIndex = order.indexOf('maintenance');
+            if (maintenanceIndex >= 0) order.splice(maintenanceIndex + 1, 0, 'upgrader');
+            else {
+                const requestIndex = order.indexOf('request');
+                if (requestIndex >= 0) order.splice(requestIndex, 0, 'upgrader');
+                else order.push('upgrader');
+            }
         }
         if (isAdmin && navFeatures?.requestsQueue && !order.includes('requests')) {
             const requestIndex = order.indexOf('request');
