@@ -475,9 +475,7 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                                                     {episode.arrHasFile === false && (
                                                                         <span className="text-amber-200">Missing file in Sonarr</span>
                                                                     )}
-                                                                    {episode.matchesPreset === false && (
-                                                                        <span className="text-muted/80">Outside filter</span>
-                                                                    )}
+
                                                                 </div>
                                                             </div>
                                                             <div className="flex flex-col gap-1 shrink-0">
