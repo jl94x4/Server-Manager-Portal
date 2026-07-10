@@ -1,19 +1,6 @@
-export type UpgraderPreset =
-    | 'all'
-    | 'non_hevc'
-    | 'h264_only'
-    | 'x264'
-    | 'hevc_only'
-    | 'av1_only'
-    | 'vp9_only'
-    | 'sd'
-    | '720p'
-    | '1080p'
-    | '4k_all'
-    | '4k_non_hevc'
-    | 'hdr_non_hevc'
-    | 'dolby_vision'
-    | 'large_non_hevc';
+export type UpgraderCodec = 'h264' | 'hevc' | 'av1' | 'vp9';
+export type UpgraderResolution = 'sd' | '720p' | '1080p' | '4k';
+export type UpgraderFeature = 'non_hevc' | 'hdr' | 'dolby_vision' | 'large' | 'arr_mapped' | 'arr_unmapped';
 
 export type UpgraderSort = 'title' | 'sizeGB' | 'watchCount' | 'addedAt' | 'daysSinceAdded' | 'staleAdded';
 
@@ -29,7 +16,7 @@ export type UpgraderStatus = {
     profileMapConfigured: boolean;
     maxActionsPerHour: number;
     recentUpgradeCount: number;
-    defaultPreset: UpgraderPreset;
+    defaultPreset: string;
     defaultSort: UpgraderSort;
     minSizeGB: number;
 };
@@ -121,7 +108,9 @@ export type UpgraderShowDetail = {
         targetQualityProfileId?: number | null;
         targetQualityProfileName?: string | null;
     };
-    preset: string;
+    codecs: string[];
+    resolutions: string[];
+    features: string[];
     episodeSource?: 'sonarr' | 'mixed' | 'plex' | 'none';
     matchMethod?: string | null;
     matchWarning?: string | null;
@@ -146,7 +135,9 @@ export type UpgraderShowDetail = {
 
 export type UpgraderItemsResponse = {
     generatedAt: string | null;
-    preset: UpgraderPreset;
+    codecs: string[];
+    resolutions: string[];
+    features: string[];
     total: number;
     page: number;
     limit: number;

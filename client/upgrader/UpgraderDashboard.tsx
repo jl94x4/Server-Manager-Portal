@@ -13,13 +13,15 @@ import { UpgraderHistoryPanel } from './UpgraderHistoryPanel';
 import { UpgraderExclusionsPanel } from './UpgraderExclusionsPanel';
 import type {
     UpgraderItem,
-    UpgraderPreset,
+    UpgraderCodec,
+    UpgraderResolution,
+    UpgraderFeature,
     UpgraderQueueSummary,
     UpgraderStatus,
     UpgraderSummary,
 } from './types';
 
-import { UPGRADER_PRESET_OPTIONS } from './presets';
+import { UPGRADER_CODEC_OPTIONS, UPGRADER_RESOLUTION_OPTIONS, UPGRADER_FEATURE_OPTIONS } from './presets';
 
 const SORT_OPTIONS = [
     { value: 'sizeGB', label: 'Largest first' },
@@ -67,7 +69,9 @@ export const UpgraderDashboard: React.FC = () => {
     const [items, setItems] = useState<UpgraderItem[]>([]);
     const [total, setTotal] = useState(0);
     const [libraries, setLibraries] = useState<Array<{ id: string; title: string; count: number }>>([]);
-    const [preset, setPreset] = useState<UpgraderPreset>('non_hevc');
+    const [codecs, setCodecs] = useState<Set<UpgraderCodec>>(new Set());
+    const [resolutions, setResolutions] = useState<Set<UpgraderResolution>>(new Set());
+    const [features, setFeatures] = useState<Set<UpgraderFeature>>(new Set());
     const [presetReady, setPresetReady] = useState(false);
     const [sort, setSort] = useState('sizeGB');
     const [libraryId, setLibraryId] = useState('all');
@@ -97,9 +101,7 @@ export const UpgraderDashboard: React.FC = () => {
     useEffect(() => {
         apiFetch('/api/config')
             .then((configData) => {
-                const defaultPreset = configData?.settings?.upgraderDefaultPreset;
                 const defaultSort = configData?.settings?.upgraderDefaultSort;
-                if (defaultPreset) setPreset(defaultPreset);
                 if (defaultSort) setSort(defaultSort);
             })
             .catch(() => {})
@@ -118,7 +120,7 @@ export const UpgraderDashboard: React.FC = () => {
             const [statusData, summaryData, itemsData, queueData, publicConfig] = await Promise.all([
                 apiFetch('/api/upgrader/status'),
                 apiFetch('/api/upgrader/summary'),
-                apiFetch(`/api/upgrader/items?preset=${encodeURIComponent(preset)}&libraryId=${encodeURIComponent(libraryId)}&mediaType=${encodeURIComponent(mediaType)}&search=${encodeURIComponent(search)}&sort=${encodeURIComponent(sort)}&page=${page}&limit=48`),
+                apiFetch(`/api/upgrader/items?codecs=${encodeURIComponent(Array.from(codecs).join(','))}&resolutions=${encodeURIComponent(Array.from(resolutions).join(','))}&features=${encodeURIComponent(Array.from(features).join(','))}&libraryId=${encodeURIComponent(libraryId)}&mediaType=${encodeURIComponent(mediaType)}&search=${encodeURIComponent(search)}&sort=${encodeURIComponent(sort)}&page=${page}&limit=48`),
                 apiFetch('/api/upgrader/queue').catch(() => null),
                 apiFetch('/api/config/public').catch(() => ({})),
             ]);
@@ -139,7 +141,7 @@ export const UpgraderDashboard: React.FC = () => {
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [addToast, libraryId, mediaType, page, preset, presetReady, search, sort]);
+    }, [addToast, libraryId, mediaType, page, codecs, resolutions, features, presetReady, search, sort]);
 
     useEffect(() => {
         loadData();
@@ -155,7 +157,7 @@ export const UpgraderDashboard: React.FC = () => {
 
     useEffect(() => {
         setSelectedKeys(new Set());
-    }, [preset, libraryId, mediaType, search, page, sort]);
+    }, [codecs, resolutions, features, libraryId, mediaType, search, page, sort]);
 
     useEffect(() => {
         if (status?.rebuildInProgress) {
@@ -264,7 +266,9 @@ export const UpgraderDashboard: React.FC = () => {
             />
             <UpgraderShowDrawer
                 show={showDrawerItem}
-                preset={preset}
+                codecs={Array.from(codecs)}
+                resolutions={Array.from(resolutions)}
+                features={Array.from(features)}
                 onClose={() => setShowDrawerItem(null)}
                 addToast={addToast}
                 automationReady={automationReady}
@@ -368,17 +372,70 @@ export const UpgraderDashboard: React.FC = () => {
                         )}
 
                         <div className="flex flex-col lg:flex-row lg:items-end gap-3 p-4 rounded-2xl border border-border/60 bg-card/40">
-                            <div className="flex flex-wrap gap-2">
-                                {UPGRADER_PRESET_OPTIONS.map((option) => (
-                                    <button
-                                        key={option.id}
-                                        type="button"
-                                        onClick={() => { setPreset(option.id); setPage(1); }}
-                                        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${preset === option.id ? 'bg-plex text-background border-plex' : 'bg-white/5 text-muted border-white/10 hover:text-text'}`}
-                                    >
-                                        {option.label}
-                                    </button>
-                                ))}
+                            <div className="flex flex-col gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-xs font-bold text-muted uppercase tracking-wider mr-1">Codec:</span>
+                                    {UPGRADER_CODEC_OPTIONS.map((option) => (
+                                        <button
+                                            key={option.id}
+                                            type="button"
+                                            onClick={() => {
+                                                setCodecs(prev => {
+                                                    const next = new Set(prev);
+                                                    if (next.has(option.id)) next.delete(option.id);
+                                                    else next.add(option.id);
+                                                    return next;
+                                                });
+                                                setPage(1);
+                                            }}
+                                            className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${codecs.has(option.id) ? 'bg-plex text-background border-plex' : 'bg-white/5 text-muted border-white/10 hover:text-text'}`}
+                                        >
+                                            {option.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-xs font-bold text-muted uppercase tracking-wider mr-1">Resolution:</span>
+                                    {UPGRADER_RESOLUTION_OPTIONS.map((option) => (
+                                        <button
+                                            key={option.id}
+                                            type="button"
+                                            onClick={() => {
+                                                setResolutions(prev => {
+                                                    const next = new Set(prev);
+                                                    if (next.has(option.id)) next.delete(option.id);
+                                                    else next.add(option.id);
+                                                    return next;
+                                                });
+                                                setPage(1);
+                                            }}
+                                            className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${resolutions.has(option.id) ? 'bg-plex text-background border-plex' : 'bg-white/5 text-muted border-white/10 hover:text-text'}`}
+                                        >
+                                            {option.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-xs font-bold text-muted uppercase tracking-wider mr-1">Features:</span>
+                                    {UPGRADER_FEATURE_OPTIONS.map((option) => (
+                                        <button
+                                            key={option.id}
+                                            type="button"
+                                            onClick={() => {
+                                                setFeatures(prev => {
+                                                    const next = new Set(prev);
+                                                    if (next.has(option.id)) next.delete(option.id);
+                                                    else next.add(option.id);
+                                                    return next;
+                                                });
+                                                setPage(1);
+                                            }}
+                                            className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${features.has(option.id) ? 'bg-plex text-background border-plex' : 'bg-white/5 text-muted border-white/10 hover:text-text'}`}
+                                        >
+                                            {option.label}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                             <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:ml-auto">
                                 <CustomSelect
@@ -492,7 +549,7 @@ export const UpgraderDashboard: React.FC = () => {
                                                         onClick={() => setShowDrawerItem(item)}
                                                         className="absolute top-2 right-2 z-20 upgrader-card-badge text-[10px] font-bold px-2 py-1 rounded-full bg-black/75 border border-white/20 text-amber-200 hover:border-plex/50"
                                                     >
-                                                        {item.nonHevcEpisodeCount} non-HEVC ep{item.nonHevcEpisodeCount === 1 ? '' : 's'}
+                                                        {item.nonHevcEpisodeCount} {(item.videoCodec || 'codec').toUpperCase()} ep{item.nonHevcEpisodeCount === 1 ? '' : 's'}
                                                     </button>
                                                 )}
                                                 <DiscoverPosterCard
@@ -529,7 +586,7 @@ export const UpgraderDashboard: React.FC = () => {
                                                             <div className="upgrader-card-meta text-[10px] text-muted line-clamp-2">
                                                                 {item.libraryTitle}
                                                                 {item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0
-                                                                    ? ` · ${item.nonHevcEpisodeSizeGB} GB (non-HEVC eps)`
+                                                                    ? ` · ${item.nonHevcEpisodeSizeGB} GB (${(item.videoCodec || 'codec').toUpperCase()} eps)`
                                                                     : item.sizeGB > 0 ? ` · ${item.sizeGB} GB` : ''}
                                                                 {item.arrInstanceName ? ` · ${item.arrInstanceName}` : ''}
                                                             </div>
@@ -549,7 +606,7 @@ export const UpgraderDashboard: React.FC = () => {
                                                                         className="text-[10px] font-bold text-muted hover:underline"
                                                                         onClick={() => setShowDrawerItem(item)}
                                                                     >
-                                                                        {item.nonHevcEpisodeCount} non-HEVC ep{item.nonHevcEpisodeCount === 1 ? '' : 's'}
+                                                                        {item.nonHevcEpisodeCount} {(item.videoCodec || 'codec').toUpperCase()} ep{item.nonHevcEpisodeCount === 1 ? '' : 's'}
                                                                     </button>
                                                                 )}
                                                                 {item.arrDeepUrl && (

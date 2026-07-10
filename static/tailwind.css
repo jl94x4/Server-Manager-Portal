@@ -2111,6 +2111,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   margin-right: 0.125rem;
 }
 
+.mr-1 {
+  margin-right: 0.25rem;
+}
+
 .mr-2 {
   margin-right: 0.5rem;
 }
@@ -5185,6 +5189,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 .text-black {
   --tw-text-opacity: 1;
   color: rgb(0 0 0 / var(--tw-text-opacity, 1));
+}
+
+.text-blue-200 {
+  --tw-text-opacity: 1;
+  color: rgb(191 219 254 / var(--tw-text-opacity, 1));
 }
 
 .text-blue-300 {

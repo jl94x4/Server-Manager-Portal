@@ -1,23 +1,41 @@
-import type { UpgraderPreset } from './types';
+import type { UpgraderCodec, UpgraderResolution, UpgraderFeature } from './types';
 
-export const UPGRADER_PRESET_OPTIONS: Array<{ id: UpgraderPreset; label: string; group?: string }> = [
-    { id: 'all', label: 'All titles', group: 'Browse' },
-    { id: 'non_hevc', label: 'Non-HEVC', group: 'Codec' },
-    { id: 'h264_only', label: 'H.264 / x264', group: 'Codec' },
-    { id: 'hevc_only', label: 'HEVC only', group: 'Codec' },
-    { id: 'av1_only', label: 'AV1 only', group: 'Codec' },
-    { id: 'vp9_only', label: 'VP9 only', group: 'Codec' },
-    { id: 'sd', label: 'SD', group: 'Resolution' },
-    { id: '720p', label: '720p', group: 'Resolution' },
-    { id: '1080p', label: '1080p', group: 'Resolution' },
-    { id: '4k_all', label: '4K (all)', group: 'Resolution' },
-    { id: '4k_non_hevc', label: '4K non-HEVC', group: 'Upgrade' },
-    { id: 'hdr_non_hevc', label: 'HDR non-HEVC', group: 'Upgrade' },
-    { id: 'dolby_vision', label: 'Dolby Vision', group: 'Upgrade' },
-    { id: 'large_non_hevc', label: 'Large non-HEVC', group: 'Upgrade' },
+export const UPGRADER_CODEC_OPTIONS: Array<{ id: UpgraderCodec; label: string }> = [
+    { id: 'h264', label: 'H.264 / x264' },
+    { id: 'hevc', label: 'HEVC' },
+    { id: 'av1', label: 'AV1' },
+    { id: 'vp9', label: 'VP9' },
 ];
 
-export const UPGRADER_PRESET_SELECT_OPTIONS = UPGRADER_PRESET_OPTIONS.map((option) => ({
-    value: option.id,
-    label: option.label,
-}));
+export const UPGRADER_RESOLUTION_OPTIONS: Array<{ id: UpgraderResolution; label: string }> = [
+    { id: 'sd', label: 'SD' },
+    { id: '720p', label: '720p' },
+    { id: '1080p', label: '1080p' },
+    { id: '4k', label: '4K' },
+];
+
+export const UPGRADER_FEATURE_OPTIONS: Array<{ id: UpgraderFeature; label: string }> = [
+    { id: 'non_hevc', label: 'Non-HEVC' },
+    { id: 'hdr', label: 'HDR' },
+    { id: 'dolby_vision', label: 'Dolby Vision' },
+    { id: 'large', label: 'Large Size' },
+    { id: 'arr_mapped', label: 'Mapped' },
+    { id: 'arr_unmapped', label: 'Unmapped' },
+];
+
+export const UPGRADER_PRESET_SELECT_OPTIONS = [
+    { value: 'all', label: 'All titles' },
+    { value: 'non_hevc', label: 'Non-HEVC' },
+    { value: 'h264_only', label: 'H.264 / x264' },
+    { value: 'hevc_only', label: 'HEVC only' },
+    { value: 'av1_only', label: 'AV1 only' },
+    { value: 'vp9_only', label: 'VP9 only' },
+    { value: 'sd', label: 'SD' },
+    { value: '720p', label: '720p' },
+    { value: '1080p', label: '1080p' },
+    { value: '4k_all', label: '4K (all)' },
+    { value: '4k_non_hevc', label: '4K non-HEVC' },
+    { value: 'hdr_non_hevc', label: 'HDR non-HEVC' },
+    { value: 'dolby_vision', label: 'Dolby Vision' },
+    { value: 'large_non_hevc', label: 'Large non-HEVC' },
+];

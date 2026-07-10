@@ -9,7 +9,9 @@ import type { UpgraderItem, UpgraderProfileInstance, UpgraderShowDetail } from '
 
 type UpgraderShowDrawerProps = {
     show: UpgraderItem | null;
-    preset: string;
+    codecs: string[];
+    resolutions: string[];
+    features: string[];
     onClose: () => void;
     addToast?: (message: string, type?: 'success' | 'error') => void;
     automationReady?: boolean;
@@ -22,14 +24,24 @@ const formatSeasonLabel = (seasonNumber: number) => {
     return `Season ${seasonNumber}`;
 };
 
-const EpisodeQualityBadges: React.FC<{ tags: string[]; isHevc?: boolean }> = ({ tags, isHevc }) => (
-    <div className="flex flex-wrap gap-1">
+const EpisodeQualityBadges: React.FC<{ tags: string[]; isHevc?: boolean; codec?: string; sizeGB?: number }> = ({ tags, isHevc, codec, sizeGB }) => (
+    <div className="flex flex-wrap gap-1 items-center">
+        {sizeGB ? (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-200">
+                {sizeGB.toFixed(2)} GB
+            </span>
+        ) : null}
+        {codec ? (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-plex/20 text-plex uppercase">
+                {codec}
+            </span>
+        ) : null}
         {(tags || []).slice(0, 4).map((tag) => (
             <span key={tag} className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-text">
                 {tag}
             </span>
         ))}
-        {isHevc && !(tags || []).includes('HEVC') && (
+        {isHevc && !(tags || []).includes('HEVC') && (!codec || !codec.toLowerCase().includes('hevc')) && (
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-200">HEVC</span>
         )}
     </div>
@@ -37,7 +49,9 @@ const EpisodeQualityBadges: React.FC<{ tags: string[]; isHevc?: boolean }> = ({ 
 
 export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
     show,
-    preset,
+    codecs,
+    resolutions,
+    features,
     onClose,
     addToast,
     automationReady = false,
@@ -59,7 +73,7 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
         setLoading(true);
         try {
             const data = await apiFetch(
-                `/api/upgrader/items/${encodeURIComponent(show.ratingKey)}/detail?preset=${encodeURIComponent(preset)}`,
+                `/api/upgrader/items/${encodeURIComponent(show.ratingKey)}/detail?codecs=${encodeURIComponent(codecs.join(','))}&resolutions=${encodeURIComponent(resolutions.join(','))}&features=${encodeURIComponent(features.join(','))}`,
             );
             setDetail(data as UpgraderShowDetail);
             const seasons = Array.isArray(data?.seasons) ? data.seasons : [];
@@ -79,7 +93,7 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
         } finally {
             setLoading(false);
         }
-    }, [addToast, preset, show]);
+    }, [addToast, show, codecs.join(','), resolutions.join(','), features.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         if (!show) {
@@ -443,7 +457,7 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                                                     <span className="text-sm font-semibold text-text truncate">{episode.title}</span>
                                                                 </div>
                                                                 <div className="mt-1">
-                                                                    <EpisodeQualityBadges tags={episode.displayTags || []} isHevc={episode.isHevc} />
+                                                                    <EpisodeQualityBadges tags={episode.displayTags || []} isHevc={episode.isHevc} codec={episode.videoCodec} sizeGB={episode.sizeGB} />
                                                                 </div>
                                                                 <div className="text-[11px] text-muted mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
                                                                     {episode.arrQualityLabel && (
