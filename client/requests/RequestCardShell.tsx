@@ -38,7 +38,7 @@ export const RequestCardShell: React.FC<Props> = ({ backdropUrl, posterUrl, clas
     );
 };
 
-/** Frosted panel so action buttons stay readable over fanart backdrops. */
+/** Action button column on request cards. */
 export const requestCardActionBtnClass =
     'inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors disabled:opacity-50 whitespace-nowrap';
 
@@ -46,9 +46,7 @@ export const RequestCardActions: React.FC<{ className?: string; children: React.
     className = '',
     children,
 }) => (
-    <div
-        className={`flex sm:flex-col gap-1.5 sm:justify-center shrink-0 rounded-lg bg-background/90 backdrop-blur-md border border-white/10 p-1.5 shadow-lg ${className}`}
-    >
+    <div className={`flex sm:flex-col gap-1.5 sm:justify-center shrink-0 ${className}`}>
         {children}
     </div>
 );
