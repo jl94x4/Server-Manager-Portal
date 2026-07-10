@@ -528,8 +528,19 @@ export const UpgraderDashboard: React.FC = () => {
                                     {items.map((item) => {
                                         const canUpgrade = automationReady && isUpgradableItem(item);
                                         const isSelected = selectedKeys.has(item.ratingKey);
-                                        const showEpisodeBadge = item.mediaType === 'show' && (item.nonHevcEpisodeCount ?? 0) > 0;
                                         const isShow = item.mediaType === 'show';
+                                        const epCount = item.totalEpisodeCount ?? item.nonHevcEpisodeCount ?? 0;
+                                        const codecLabel = item.videoCodec ? item.videoCodec.toUpperCase() : '';
+                                        let badgeText = '';
+                                        if (isShow) {
+                                            if (epCount > 0 && codecLabel) badgeText = `${epCount} ${codecLabel} eps`;
+                                            else if (epCount > 0) badgeText = `${epCount} eps`;
+                                            else if (codecLabel) badgeText = `${codecLabel} eps`;
+                                            else badgeText = 'Episodes';
+                                            if (epCount === 1) badgeText = badgeText.replace('eps', 'ep');
+                                        } else {
+                                            badgeText = codecLabel || 'UNKNOWN';
+                                        }
                                         const checkboxSize = gridSize === 'small' || gridSize === 'medium' ? 'sm' : 'md';
                                         return (
                                             <div key={item.ratingKey} className="relative min-w-0">
@@ -543,13 +554,13 @@ export const UpgraderDashboard: React.FC = () => {
                                                         />
                                                     </div>
                                                 )}
-                                                {showEpisodeBadge && (
+                                                {badgeText && (
                                                     <button
                                                         type="button"
-                                                        onClick={() => setShowDrawerItem(item)}
-                                                        className="absolute top-2 right-2 z-20 upgrader-card-badge text-[10px] font-bold px-2 py-1 rounded-full bg-black/75 border border-white/20 text-amber-200 hover:border-plex/50"
+                                                        onClick={isShow ? () => setShowDrawerItem(item) : undefined}
+                                                        className={`absolute top-2 right-2 z-20 upgrader-card-badge text-[10px] font-bold px-2 py-1 rounded-full bg-black/75 border border-white/20 text-amber-200 ${isShow ? 'hover:border-plex/50 cursor-pointer' : 'cursor-default'}`}
                                                     >
-                                                        {item.nonHevcEpisodeCount} {item.videoCodec ? `${item.videoCodec.toUpperCase()} ` : ''}ep{item.nonHevcEpisodeCount === 1 ? '' : 's'}
+                                                        {badgeText}
                                                     </button>
                                                 )}
                                                 <DiscoverPosterCard
@@ -600,13 +611,13 @@ export const UpgraderDashboard: React.FC = () => {
                                                                         View show
                                                                     </button>
                                                                 )}
-                                                                {showEpisodeBadge && (
+                                                                {isShow && (
                                                                     <button
                                                                         type="button"
                                                                         className="text-[10px] font-bold text-muted hover:underline"
                                                                         onClick={() => setShowDrawerItem(item)}
                                                                     >
-                                                                        {item.nonHevcEpisodeCount} {item.videoCodec ? `${item.videoCodec.toUpperCase()} ` : ''}ep{item.nonHevcEpisodeCount === 1 ? '' : 's'}
+                                                                        {badgeText}
                                                                     </button>
                                                                 )}
                                                                 {item.arrDeepUrl && (
