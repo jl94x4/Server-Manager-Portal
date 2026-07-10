@@ -5511,6 +5511,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   opacity: 0.5;
 }
 
+.opacity-55 {
+  opacity: 0.55;
+}
+
 .opacity-60 {
   opacity: 0.6;
 }

@@ -1,18 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    X, Loader2, ChevronDown, ChevronRight, Search, ArrowUpFromLine, ExternalLink,
+    X, Loader2, ChevronDown, ChevronRight, Search, ExternalLink,
 } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { portalUrl, resolvePortalAssetUrl } from '../shared/basePath';
-import type { UpgraderItem, UpgraderShowDetail } from './types';
+import { CustomSelect } from '../shared/ui';
+import type { UpgraderItem, UpgraderProfileInstance, UpgraderShowDetail } from './types';
 
 type UpgraderShowDrawerProps = {
     show: UpgraderItem | null;
     preset: string;
     onClose: () => void;
-    onUpgrade?: (item: UpgraderItem) => void;
     addToast?: (message: string, type?: 'success' | 'error') => void;
     automationReady?: boolean;
+    onProfileChanged?: () => void;
 };
 
 const formatSeasonLabel = (seasonNumber: number) => {
@@ -38,15 +39,20 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
     show,
     preset,
     onClose,
-    onUpgrade,
     addToast,
     automationReady = false,
+    onProfileChanged,
 }) => {
     const [loading, setLoading] = useState(false);
     const [detail, setDetail] = useState<UpgraderShowDetail | null>(null);
     const [expandedSeasons, setExpandedSeasons] = useState<Set<number>>(new Set());
     const [searchingKey, setSearchingKey] = useState<string | null>(null);
-    const [showAllEpisodes, setShowAllEpisodes] = useState(false);
+    const [highlightFilterOnly, setHighlightFilterOnly] = useState(false);
+    const [profileInstance, setProfileInstance] = useState<UpgraderProfileInstance | null>(null);
+    const [profilesLoading, setProfilesLoading] = useState(false);
+    const [selectedProfileId, setSelectedProfileId] = useState('');
+    const [triggerSearchOnApply, setTriggerSearchOnApply] = useState(true);
+    const [applyingProfile, setApplyingProfile] = useState(false);
 
     const loadDetail = useCallback(async () => {
         if (!show) return;
@@ -79,11 +85,46 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
         if (!show) {
             setDetail(null);
             setExpandedSeasons(new Set());
-            setShowAllEpisodes(false);
+            setHighlightFilterOnly(false);
+            setProfileInstance(null);
+            setSelectedProfileId('');
             return;
         }
         loadDetail();
     }, [loadDetail, show]);
+
+    useEffect(() => {
+        const instanceId = detail?.arr?.instanceId;
+        if (!instanceId || !automationReady) {
+            setProfileInstance(null);
+            return;
+        }
+        let cancelled = false;
+        setProfilesLoading(true);
+        apiFetch('/api/upgrader/profiles')
+            .then((data) => {
+                if (cancelled) return;
+                const instances = Array.isArray(data?.instances) ? data.instances : [];
+                const match = instances.find((entry: UpgraderProfileInstance) => entry.id === instanceId) || null;
+                setProfileInstance(match);
+            })
+            .catch(() => {
+                if (!cancelled) setProfileInstance(null);
+            })
+            .finally(() => {
+                if (!cancelled) setProfilesLoading(false);
+            });
+        return () => { cancelled = true; };
+    }, [automationReady, detail?.arr?.instanceId]);
+
+    useEffect(() => {
+        const arr = detail?.arr;
+        if (!arr) return;
+        const preferred = (arr.targetProfileId && arr.targetProfileId !== arr.currentProfileId)
+            ? arr.targetProfileId
+            : arr.currentProfileId;
+        if (preferred) setSelectedProfileId(String(preferred));
+    }, [detail?.arr?.currentProfileId, detail?.arr?.targetProfileId, detail?.arr?.instanceId]);
 
     const triggerSearch = async (scope: 'series' | 'episode', episodeIds?: number[], label?: string) => {
         if (!show) return;
@@ -115,21 +156,81 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
         });
     };
 
+    const profileOptions = useMemo(
+        () => (profileInstance?.profiles || []).map((profile) => ({
+            value: String(profile.id),
+            label: profile.name,
+        })),
+        [profileInstance?.profiles],
+    );
+
+    const currentProfileId = detail?.arr?.currentProfileId ?? null;
+    const selectedProfileNumeric = Number(selectedProfileId || 0);
+    const profileUnchanged = currentProfileId != null && selectedProfileNumeric === currentProfileId;
+    const canApplyProfile = automationReady
+        && detail?.arr?.mapped
+        && selectedProfileNumeric > 0
+        && !profileUnchanged
+        && !applyingProfile;
+
+    const applyProfile = async () => {
+        if (!show || !canApplyProfile) return;
+        setApplyingProfile(true);
+        try {
+            const result = await apiFetch('/api/upgrader/upgrade', {
+                method: 'POST',
+                body: JSON.stringify({
+                    ratingKeys: [show.ratingKey],
+                    qualityProfileId: selectedProfileNumeric,
+                    profileChangeOnly: true,
+                    triggerSearch: triggerSearchOnApply,
+                }),
+            });
+            const entry = (result?.results || [])[0];
+            if (entry?.skipped) {
+                addToast?.(entry.reason || 'Already on this profile.', 'success');
+            } else if (entry?.success) {
+                const from = entry.currentProfileName || 'current';
+                const to = entry.targetProfileName || `profile ${selectedProfileNumeric}`;
+                addToast?.(`Quality profile updated: ${from} → ${to}`, 'success');
+                await loadDetail();
+                onProfileChanged?.();
+            } else {
+                addToast?.(entry?.reason || 'Profile change failed', 'error');
+            }
+        } catch (e: unknown) {
+            addToast?.((e as Error)?.message || 'Profile change failed', 'error');
+        } finally {
+            setApplyingProfile(false);
+        }
+    };
+
     const displaySeasons = useMemo(() => {
         if (!detail?.seasons) return [];
-        if (showAllEpisodes) return detail.seasons;
-        return detail.seasons.map((season) => ({
-            ...season,
-            episodes: season.episodes.filter((episode) => episode.matchesPreset !== false),
-        })).filter((season) => season.episodes.length > 0);
-    }, [detail?.seasons, showAllEpisodes]);
+        if (highlightFilterOnly) {
+            return detail.seasons.map((season) => ({
+                ...season,
+                episodes: season.episodes.filter((episode) => episode.matchesPreset !== false),
+            })).filter((season) => season.episodes.length > 0);
+        }
+        return detail.seasons;
+    }, [detail?.seasons, highlightFilterOnly]);
+
+    const episodeSourceLabel = (source?: string) => {
+        if (source === 'sonarr') return 'Sonarr';
+        if (source === 'mixed') return 'Sonarr + Plex';
+        if (source === 'plex') return 'Plex';
+        return null;
+    };
 
     if (!show) return null;
 
     const arr = detail?.arr;
     const showMeta = detail?.show || show;
+    const detailReady = !loading && !!detail;
     const canSearch = automationReady && arr?.mapped && arr?.seriesId;
-    const canUpgrade = automationReady && showMeta.arrMapped && onUpgrade;
+    const canChangeProfile = automationReady && arr?.mapped && arr?.instanceId;
+    const sourceLabel = episodeSourceLabel(detail?.episodeSource);
 
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
@@ -162,25 +263,33 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                     <X className="w-4 h-4" />
                                 </button>
                             </div>
-                            {arr?.mapped && (
+                            {detailReady && arr?.mapped && (
                                 <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
                                     <span className="px-2 py-1 rounded-full bg-plex/15 border border-plex/30 text-plex font-semibold">
                                         {arr.instanceName}
                                     </span>
-                                    {arr.currentProfileName && (
-                                        <span className="px-2 py-1 rounded-full bg-white/5 border border-white/10 text-muted">
-                                            Profile: {arr.currentProfileName}
+                                    {sourceLabel && (
+                                        <span className="px-2 py-1 rounded-full bg-green-500/10 border border-green-500/30 text-green-200 font-semibold">
+                                            Episodes from {sourceLabel}
                                         </span>
                                     )}
-                                    {arr.targetProfileName && arr.targetProfileName !== arr.currentProfileName && (
-                                        <span className="px-2 py-1 rounded-full bg-green-500/10 border border-green-500/30 text-green-200">
-                                            Target: {arr.targetProfileName}
+                                    {arr.currentProfileName && (
+                                        <span className="px-2 py-1 rounded-full bg-white/5 border border-white/10 text-muted">
+                                            Current: {arr.currentProfileName}
                                         </span>
                                     )}
                                 </div>
                             )}
-                            {!arr?.mapped && (
-                                <p className="text-[11px] text-amber-200 mt-2">Not mapped to Sonarr — Plex data only.</p>
+                            {detailReady && !arr?.mapped && (
+                                <p className="text-[11px] text-amber-200 mt-2">
+                                    Not found in Sonarr — showing Plex library data only.
+                                </p>
+                            )}
+                            {detailReady && detail?.matchWarning && arr?.mapped && (
+                                <p className="text-[11px] text-muted mt-1">{detail.matchWarning}</p>
+                            )}
+                            {loading && (
+                                <p className="text-[11px] text-muted mt-2">Loading episodes from Sonarr & Plex…</p>
                             )}
                         </div>
                     </div>
@@ -219,29 +328,77 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                 Series search
                             </button>
                         )}
-                        {canUpgrade && (
-                            <button
-                                type="button"
-                                onClick={() => onUpgrade?.(showMeta)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-plex text-background text-xs font-bold hover:bg-plex-hover"
-                            >
-                                <ArrowUpFromLine className="w-3.5 h-3.5" />
-                                Upgrade profile
-                            </button>
-                        )}
                     </div>
 
-                    {detail?.stats && (
+                    {canChangeProfile && (
+                        <div className="rounded-xl border border-border/60 bg-background/40 p-3 space-y-3">
+                            <div>
+                                <p className="text-xs font-bold text-text">Sonarr quality profile</p>
+                                <p className="text-[11px] text-muted mt-0.5">Pick any profile for this series — not limited to your HEVC default.</p>
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+                                {profilesLoading ? (
+                                    <div className="flex items-center gap-2 text-xs text-muted py-2">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        Loading profiles…
+                                    </div>
+                                ) : profileOptions.length ? (
+                                    <CustomSelect
+                                        value={selectedProfileId}
+                                        onChange={setSelectedProfileId}
+                                        options={profileOptions}
+                                        className="flex-1 min-w-[200px]"
+                                    />
+                                ) : (
+                                    <p className="text-xs text-amber-200 py-2">Could not load Sonarr quality profiles.</p>
+                                )}
+                                <button
+                                    type="button"
+                                    disabled={!canApplyProfile}
+                                    onClick={applyProfile}
+                                    className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-plex text-background text-xs font-bold hover:bg-plex-hover disabled:opacity-50 shrink-0"
+                                >
+                                    {applyingProfile ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                                    {applyingProfile ? 'Applying…' : 'Apply profile'}
+                                </button>
+                            </div>
+                            <label className="flex items-start gap-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={triggerSearchOnApply}
+                                    onChange={(e) => setTriggerSearchOnApply(e.target.checked)}
+                                    className="mt-0.5 rounded border-border"
+                                />
+                                <span className="text-[11px] text-muted">Trigger series search after profile change</span>
+                            </label>
+                            {arr?.targetProfileName && arr.targetProfileId && arr.targetProfileId !== arr.currentProfileId && (
+                                <button
+                                    type="button"
+                                    className="text-[11px] font-bold text-green-300 hover:underline"
+                                    onClick={() => setSelectedProfileId(String(arr.targetProfileId))}
+                                >
+                                    Quick pick: {arr.targetProfileName} (Settings HEVC default)
+                                </button>
+                            )}
+                        </div>
+                    )}
+
+                    {detailReady && detail?.stats && (
                         <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted">
-                            <span>{detail.stats.matched} episode{detail.stats.matched === 1 ? '' : 's'} match current filter</span>
+                            <span>
+                                {detail.stats.total} episode{detail.stats.total === 1 ? '' : 's'}
+                                {detail.stats.matched !== detail.stats.total
+                                    ? ` · ${detail.stats.matched} match current filter`
+                                    : ''}
+                            </span>
                             <label className="inline-flex items-center gap-2 cursor-pointer">
                                 <input
                                     type="checkbox"
-                                    checked={showAllEpisodes}
-                                    onChange={(e) => setShowAllEpisodes(e.target.checked)}
+                                    checked={highlightFilterOnly}
+                                    onChange={(e) => setHighlightFilterOnly(e.target.checked)}
                                     className="rounded border-border"
                                 />
-                                Show all episodes
+                                Show filter matches only
                             </label>
                         </div>
                     )}
@@ -254,7 +411,11 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                             Loading show detail…
                         </div>
                     ) : !displaySeasons.length ? (
-                        <p className="text-sm text-muted text-center py-16">No episodes match this filter.</p>
+                        <p className="text-sm text-muted text-center py-16">
+                            {detailReady
+                                ? (highlightFilterOnly ? 'No episodes match the current browse filter.' : 'No episodes found for this show.')
+                                : 'Unable to load episode data.'}
+                        </p>
                     ) : (
                         <div className="space-y-3">
                             {displaySeasons.map((season) => {
@@ -271,7 +432,7 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                                 <span className="text-sm font-bold text-text">{formatSeasonLabel(season.seasonNumber)}</span>
                                                 <span className="text-[11px] text-muted">
                                                     {season.episodes.length} ep{season.episodes.length === 1 ? '' : 's'}
-                                                    {!showAllEpisodes && season.matchedCount !== season.episodeCount
+                                                    {highlightFilterOnly && season.matchedCount !== season.episodeCount
                                                         ? ` · ${season.matchedCount} matched`
                                                         : ''}
                                                 </span>
@@ -288,7 +449,7 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                                     return (
                                                         <div
                                                             key={episode.ratingKey}
-                                                            className={`flex items-start gap-3 px-4 py-3 ${episode.matchesPreset === false ? 'opacity-60' : ''}`}
+                                                            className={`flex items-start gap-3 px-4 py-3 ${highlightFilterOnly ? '' : episode.matchesPreset === false ? 'opacity-55' : ''}`}
                                                         >
                                                             <div className="w-20 h-11 rounded overflow-hidden bg-white/5 shrink-0">
                                                                 {episode.thumb ? (
@@ -314,13 +475,18 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                                                     <EpisodeQualityBadges tags={episode.displayTags || []} isHevc={episode.isHevc} />
                                                                 </div>
                                                                 <div className="text-[11px] text-muted mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
-                                                                    {episode.videoCodec && <span>Plex: {episode.videoCodec}</span>}
-                                                                    {episode.sizeGB > 0 && <span>{episode.sizeGB} GB</span>}
                                                                     {episode.arrQualityLabel && (
-                                                                        <span className="text-plex">Sonarr: {episode.arrQualityLabel}</span>
+                                                                        <span className="text-plex font-semibold">Sonarr: {episode.arrQualityLabel}</span>
                                                                     )}
+                                                                    {episode.videoCodec && !episode.arrQualityLabel && (
+                                                                        <span>Codec: {episode.videoCodec}</span>
+                                                                    )}
+                                                                    {episode.sizeGB > 0 && <span>{episode.sizeGB} GB</span>}
                                                                     {episode.arrHasFile === false && (
-                                                                        <span className="text-amber-200">Missing in Sonarr</span>
+                                                                        <span className="text-amber-200">Missing file in Sonarr</span>
+                                                                    )}
+                                                                    {episode.matchesPreset === false && (
+                                                                        <span className="text-muted/80">Outside filter</span>
                                                                     )}
                                                                 </div>
                                                             </div>

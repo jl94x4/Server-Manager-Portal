@@ -323,6 +323,7 @@ import {
     fetchArrInstanceCatalogItems,
     buildArrLookupMapsForItems,
     resolveArrEntity,
+    resolveSonarrSeriesForShow,
     buildArrDeepUrl,
     fetchArrQualityProfiles,
     updateArrEntityQualityProfile,
@@ -9127,16 +9128,14 @@ const mapPlexEpisodeLeaf = (config, leaf = {}, showTitle = '') => {
 };
 
 const fetchPlexShowEpisodes = async (config, uri, showItem = {}) => {
-    const res = await fetch(`${uri}/library/metadata/${showItem.ratingKey}/allLeaves?X-Plex-Token=${config.plexToken}`, {
-        headers: { Accept: 'application/json' },
-    }).then((r) => r.json()).catch(() => null);
+    const response = await fetchWithTimeout(
+        `${uri}/library/metadata/${showItem.ratingKey}/allLeaves?X-Plex-Token=${config.plexToken}`,
+        { headers: { Accept: 'application/json' } },
+        20000,
+    ).catch(() => null);
+    const res = response?.ok ? await response.json().catch(() => null) : null;
     const leaves = res?.MediaContainer?.Metadata || [];
-    const keys = leaves.map((leaf) => leaf.ratingKey).filter(Boolean);
-    const metaMap = await fetchPlexMetadataMap(uri, config, keys);
-    return leaves.map((leaf) => {
-        const meta = metaMap.get(String(leaf.ratingKey)) || leaf;
-        return mapPlexEpisodeLeaf(config, meta, showItem.title);
-    });
+    return leaves.map((leaf) => mapPlexEpisodeLeaf(config, leaf, showItem.title));
 };
 
 const fetchJellyfinShowEpisodes = async (config, showItem = {}) => {
@@ -9283,65 +9282,144 @@ const getSonarrEpisodeQualityLabel = (episodeFile = null) => {
     return codec ? String(codec) : null;
 };
 
-const buildUpgraderShowDetail = async (config, showItem, preset = 'non_hevc', minSizeGB = 5) => {
-    const mediaServerType = config.mediaServerType || 'plex';
-    let episodes = [];
-    if (mediaServerType === 'jellyfin') {
-        episodes = await fetchJellyfinShowEpisodes(config, showItem);
-    } else {
-        const uri = await getPlexConnectionUri(config);
-        if (!uri) throw new Error('Unable to connect to Plex.');
-        episodes = await fetchPlexShowEpisodes(config, uri, showItem);
-    }
+const mapSonarrFileToEpisodeQuality = (file = null) => {
+    const qualityLabel = getSonarrEpisodeQualityLabel(file);
+    const mediaInfo = file?.mediaInfo || {};
+    const codec = String(mediaInfo.videoCodec || mediaInfo.videoFormat || '').toLowerCase();
+    const width = Number(mediaInfo.width || 0);
+    const height = Number(mediaInfo.height || 0);
+    const tags = [];
+    if (qualityLabel) tags.push(qualityLabel);
+    if (width >= 3800 || height >= 2000) tags.push('4K');
+    else if (height >= 1000) tags.push('1080p');
+    else if (height >= 700) tags.push('720p');
+    const derived = deriveQualityFieldsFromTags(tags, codec);
+    const sizeBytes = Number(file?.size || mediaInfo.size || 0);
+    return {
+        videoCodec: codec,
+        videoResolution: width >= 3800 || height >= 2000 ? '4k' : height >= 1000 ? '1080' : height >= 700 ? '720' : '',
+        displayTags: derived.displayTags.length ? derived.displayTags : (qualityLabel ? [qualityLabel] : []),
+        isHevc: derived.isHevc,
+        hasHdr: derived.hasHdr,
+        hasDolbyVision: derived.hasDolbyVision,
+        sizeGB: sizeBytes ? Math.round((sizeBytes / (1024 ** 3)) * 100) / 100 : 0,
+    };
+};
 
+const buildUpgraderEpisodesFromSonarr = (sonarrEpisodes, sonarrFiles, showTitle, plexByKey, preset, minSizeGB) => {
+    const fileByEpisodeId = new Map(
+        sonarrFiles.map((file) => [Number(file.episodeId), file]),
+    );
+
+    return sonarrEpisodes.map((sonarrEpisode) => {
+        const seasonNumber = sonarrEpisode.seasonNumber != null ? Number(sonarrEpisode.seasonNumber) : null;
+        const episodeNumber = sonarrEpisode.episodeNumber != null ? Number(sonarrEpisode.episodeNumber) : null;
+        const plexKey = seasonNumber != null && episodeNumber != null ? `${seasonNumber}:${episodeNumber}` : null;
+        const plexEpisode = plexKey ? plexByKey.get(plexKey) : null;
+        const sonarrFile = sonarrEpisode?.id ? fileByEpisodeId.get(Number(sonarrEpisode.id)) : null;
+        const sonarrQuality = mapSonarrFileToEpisodeQuality(sonarrFile);
+        const episode = {
+            ratingKey: plexEpisode?.ratingKey || `sonarr:${sonarrEpisode.id}`,
+            title: sonarrEpisode.title || plexEpisode?.title || `Episode ${episodeNumber ?? '?'}`,
+            showTitle,
+            seasonNumber,
+            episodeNumber,
+            thumb: plexEpisode?.thumb || '',
+            thumbUrl: plexEpisode?.thumbUrl || null,
+            mediaType: 'episode',
+            videoCodec: plexEpisode?.videoCodec || sonarrQuality.videoCodec,
+            videoResolution: plexEpisode?.videoResolution || sonarrQuality.videoResolution,
+            sizeGB: plexEpisode?.sizeGB || sonarrQuality.sizeGB,
+            displayTags: (plexEpisode?.displayTags?.length ? plexEpisode.displayTags : sonarrQuality.displayTags),
+            isHevc: plexEpisode?.isHevc ?? sonarrQuality.isHevc,
+            hasHdr: plexEpisode?.hasHdr ?? sonarrQuality.hasHdr,
+            hasDolbyVision: plexEpisode?.hasDolbyVision ?? sonarrQuality.hasDolbyVision,
+            plexUrl: plexEpisode?.plexUrl || null,
+            arrEpisodeId: sonarrEpisode?.id != null ? Number(sonarrEpisode.id) : null,
+            arrHasFile: !!(sonarrEpisode?.hasFile || sonarrFile),
+            arrQualityLabel: getSonarrEpisodeQualityLabel(sonarrFile),
+            arrMonitored: sonarrEpisode?.monitored ?? null,
+            dataSource: plexEpisode ? 'sonarr+plex' : 'sonarr',
+        };
+        episode.matchesPreset = applyUpgraderPresetFilterEpisode(episode, preset, minSizeGB);
+        return episode;
+    });
+};
+
+const buildUpgraderShowDetail = async (config, showItem, preset = 'non_hevc', minSizeGB = 5) => {
     const catalog = await getArrCatalog(config, { force: false });
-    const resolved = resolveArrEntity(showItem, catalog, config);
+    const resolved = resolveSonarrSeriesForShow(showItem, catalog, config);
     const instance = resolved?.instanceId ? getArrInstance(config, resolved.instanceId) : null;
     const arrReady = !!(instance && isArrInstanceReady(instance) && resolved?.entity?.id && resolved.type === 'sonarr');
 
-    let sonarrEpisodes = [];
-    let sonarrFiles = [];
-    let profiles = [];
+    const mediaServerType = config.mediaServerType || 'plex';
+    const sonarrPromise = arrReady
+        ? (async () => {
+            const resolveUrl = resolveIntegrationUrlForFetch;
+            return Promise.all([
+                fetchSonarrEpisodesForSeries(instance, resolved.entity.id, { resolveUrl, fetchImpl: fetch }),
+                fetchSonarrEpisodeFilesForSeries(instance, resolved.entity.id, { resolveUrl, fetchImpl: fetch }),
+                fetchArrQualityProfiles(instance, { resolveUrl, fetchImpl: fetch }),
+            ]);
+        })()
+        : Promise.resolve([[], [], []]);
+
+    const plexPromise = (async () => {
+        try {
+            if (mediaServerType === 'jellyfin') {
+                return fetchJellyfinShowEpisodes(config, showItem);
+            }
+            if (!isPlexConfigured(config)) return [];
+            const uri = await getPlexConnectionUri(config);
+            if (!uri) return [];
+            return fetchPlexShowEpisodes(config, uri, showItem);
+        } catch (error) {
+            log(`Upgrader show detail: Plex/Jellyfin episode fetch failed for ${showItem.title}: ${error.message}`);
+            return [];
+        }
+    })();
+
+    const [[sonarrEpisodes, sonarrFiles, profiles], plexEpisodes] = await Promise.all([sonarrPromise, plexPromise]);
+
+    const plexByKey = new Map(
+        plexEpisodes.map((episode) => [`${episode.seasonNumber}:${episode.episodeNumber}`, episode]),
+    );
+
+    let enrichedEpisodes = [];
+    let episodeSource = 'none';
+
+    if (arrReady && sonarrEpisodes.length) {
+        enrichedEpisodes = buildUpgraderEpisodesFromSonarr(
+            sonarrEpisodes,
+            sonarrFiles,
+            showItem.title,
+            plexByKey,
+            preset,
+            minSizeGB,
+        );
+        episodeSource = plexEpisodes.length ? 'mixed' : 'sonarr';
+    } else if (plexEpisodes.length) {
+        enrichedEpisodes = plexEpisodes.map((episode) => ({
+            ...episode,
+            dataSource: 'plex',
+            matchesPreset: applyUpgraderPresetFilterEpisode(episode, preset, minSizeGB),
+            arrEpisodeId: null,
+            arrHasFile: false,
+            arrQualityLabel: null,
+            arrMonitored: null,
+        }));
+        episodeSource = 'plex';
+    }
+
     let currentProfileName = null;
     let targetProfileId = null;
     let targetProfileName = null;
-
     if (arrReady) {
-        const resolveUrl = resolveIntegrationUrlForFetch;
-        [sonarrEpisodes, sonarrFiles, profiles] = await Promise.all([
-            fetchSonarrEpisodesForSeries(instance, resolved.entity.id, { resolveUrl, fetchImpl: fetch }),
-            fetchSonarrEpisodeFilesForSeries(instance, resolved.entity.id, { resolveUrl, fetchImpl: fetch }),
-            fetchArrQualityProfiles(instance, { resolveUrl, fetchImpl: fetch }),
-        ]);
         const currentProfileId = Number(resolved.entity.qualityProfileId || showItem.arrQualityProfileId || 0) || null;
         currentProfileName = getProfileNameById(profiles, currentProfileId);
         targetProfileId = resolveUpgraderTargetProfileId(config, resolved.instanceId, 0) || null;
         targetProfileName = getProfileNameById(profiles, targetProfileId);
     }
-
-    const sonarrByKey = new Map(
-        sonarrEpisodes.map((entry) => [`${entry.seasonNumber}:${entry.episodeNumber}`, entry]),
-    );
-
-    const enrichedEpisodes = episodes.map((episode) => {
-        const seasonNumber = episode.seasonNumber != null ? Number(episode.seasonNumber) : null;
-        const episodeNumber = episode.episodeNumber != null ? Number(episode.episodeNumber) : null;
-        const sonarrKey = seasonNumber != null && episodeNumber != null ? `${seasonNumber}:${episodeNumber}` : null;
-        const sonarrEpisode = sonarrKey ? sonarrByKey.get(sonarrKey) : null;
-        const sonarrFile = sonarrEpisode?.id
-            ? sonarrFiles.find((file) => Number(file.episodeId) === Number(sonarrEpisode.id))
-            : null;
-        const arrQualityLabel = getSonarrEpisodeQualityLabel(sonarrFile);
-        const matchesPreset = applyUpgraderPresetFilterEpisode(episode, preset, minSizeGB);
-        return {
-            ...episode,
-            matchesPreset,
-            arrEpisodeId: sonarrEpisode?.id != null ? Number(sonarrEpisode.id) : null,
-            arrHasFile: !!(sonarrEpisode?.hasFile || sonarrFile),
-            arrQualityLabel,
-            arrMonitored: sonarrEpisode?.monitored ?? null,
-        };
-    });
 
     const seasonMap = new Map();
     enrichedEpisodes.forEach((episode) => {
@@ -9364,6 +9442,7 @@ const buildUpgraderShowDetail = async (config, showItem, preset = 'non_hevc', mi
         }));
 
     const matchedCount = enrichedEpisodes.filter((episode) => episode.matchesPreset).length;
+    const arrMapped = arrReady;
 
     return {
         show: {
@@ -9374,25 +9453,30 @@ const buildUpgraderShowDetail = async (config, showItem, preset = 'non_hevc', mi
             thumbUrl: showItem.thumbUrl || null,
             mediaType: 'show',
             libraryTitle: showItem.libraryTitle || '',
-            totalEpisodeCount: showItem.totalEpisodeCount || episodes.length,
+            totalEpisodeCount: arrReady ? sonarrEpisodes.length : (showItem.totalEpisodeCount || enrichedEpisodes.length),
             nonHevcEpisodeCount: showItem.nonHevcEpisodeCount || enrichedEpisodes.filter((e) => !e.isHevc).length,
             plexUrl: showItem.plexUrl || null,
-            arrMapped: !!showItem.arrMapped,
-            arrType: showItem.arrType || 'none',
-            arrInstanceId: showItem.arrInstanceId || resolved.instanceId || null,
-            arrInstanceName: showItem.arrInstanceName || resolved.instanceName || instance?.name || null,
-            arrDeepUrl: showItem.arrDeepUrl || buildArrDeepUrl(instance, resolved?.entity, 'sonarr'),
+            arrMapped,
+            arrType: arrMapped ? 'sonarr' : (showItem.arrType || 'none'),
+            arrInstanceId: resolved.instanceId || showItem.arrInstanceId || null,
+            arrInstanceName: resolved.instanceName || showItem.arrInstanceName || instance?.name || null,
+            arrDeepUrl: buildArrDeepUrl(instance, resolved?.entity, 'sonarr') || showItem.arrDeepUrl || null,
             arrQualityProfileId: Number(resolved?.entity?.qualityProfileId || showItem.arrQualityProfileId || 0) || null,
             arrQualityProfileName: currentProfileName,
             targetQualityProfileId: targetProfileId,
             targetQualityProfileName: targetProfileName,
         },
         preset,
+        episodeSource,
+        matchMethod: resolved.matchMethod || null,
+        matchWarning: resolved.warning || null,
         stats: {
             total: enrichedEpisodes.length,
             matched: matchedCount,
+            sonarrEpisodes: sonarrEpisodes.length,
+            plexEpisodes: plexEpisodes.length,
         },
-        arr: arrReady ? {
+        arr: arrMapped ? {
             mapped: true,
             seriesId: Number(resolved.entity.id),
             instanceId: instance.id,
@@ -9402,22 +9486,24 @@ const buildUpgraderShowDetail = async (config, showItem, preset = 'non_hevc', mi
             currentProfileName,
             targetProfileId,
             targetProfileName,
-            deepUrl: showItem.arrDeepUrl || buildArrDeepUrl(instance, resolved.entity, 'sonarr'),
+            deepUrl: buildArrDeepUrl(instance, resolved.entity, 'sonarr'),
+            matchMethod: resolved.matchMethod || 'external_id',
         } : {
-            mapped: !!showItem.arrMapped,
+            mapped: false,
             seriesId: null,
-            instanceId: showItem.arrInstanceId || null,
-            instanceName: showItem.arrInstanceName || null,
+            instanceId: null,
+            instanceName: null,
             monitored: null,
             currentProfileId: null,
             currentProfileName: null,
             targetProfileId: null,
             targetProfileName: null,
-            deepUrl: showItem.arrDeepUrl || null,
+            deepUrl: null,
+            matchMethod: null,
         },
         seasons,
-        episodes: enrichedEpisodes.filter((episode) => episode.matchesPreset),
-        total: matchedCount,
+        episodes: enrichedEpisodes,
+        total: enrichedEpisodes.length,
     };
 };
 
@@ -9609,6 +9695,7 @@ const executeUpgraderUpgradeBatch = async ({
     dryRun = true,
     qualityProfileId = 0,
     triggerSearch = true,
+    profileChangeOnly = false,
     actor = null,
 } = {}) => {
     if (!Array.isArray(ratingKeys) || ratingKeys.length === 0) {
@@ -9643,17 +9730,19 @@ const executeUpgraderUpgradeBatch = async ({
             results.push({ ratingKey, success: false, reason: 'Title not found in media index.' });
             continue;
         }
-        if (item.isHevc && item.mediaType !== 'show') {
-            results.push({ ratingKey, title: item.title, success: false, reason: 'Already HEVC in Plex index.' });
-            continue;
-        }
-        if (item.mediaType === 'show' && Number(item.nonHevcEpisodeCount || 0) === 0 && item.isHevc) {
-            results.push({ ratingKey, title: item.title, success: false, reason: 'All indexed episodes are already HEVC.' });
-            continue;
-        }
-        if (!isUpgraderCandidate(item) && item.mediaType !== 'show') {
-            results.push({ ratingKey, title: item.title, success: false, reason: 'Already HEVC in media index.' });
-            continue;
+        if (!profileChangeOnly) {
+            if (item.isHevc && item.mediaType !== 'show') {
+                results.push({ ratingKey, title: item.title, success: false, reason: 'Already HEVC in Plex index.' });
+                continue;
+            }
+            if (item.mediaType === 'show' && Number(item.nonHevcEpisodeCount || 0) === 0 && item.isHevc) {
+                results.push({ ratingKey, title: item.title, success: false, reason: 'All indexed episodes are already HEVC.' });
+                continue;
+            }
+            if (!isUpgraderCandidate(item) && item.mediaType !== 'show') {
+                results.push({ ratingKey, title: item.title, success: false, reason: 'Already HEVC in media index.' });
+                continue;
+            }
         }
         if (!item.arrMapped) {
             results.push({ ratingKey, title: item.title, success: false, reason: 'Not mapped to Sonarr/Radarr.' });
@@ -9672,13 +9761,17 @@ const executeUpgraderUpgradeBatch = async ({
             continue;
         }
 
-        const targetProfileId = resolveUpgraderTargetProfileId(config, resolved.instanceId, qualityProfileId);
+        const targetProfileId = profileChangeOnly
+            ? Number(qualityProfileId || 0)
+            : resolveUpgraderTargetProfileId(config, resolved.instanceId, qualityProfileId);
         if (!targetProfileId) {
             results.push({
                 ratingKey,
                 title: item.title,
                 success: false,
-                reason: `No HEVC quality profile configured for ${resolved.instanceName || instance.name}.`,
+                reason: profileChangeOnly
+                    ? 'Select a quality profile to apply.'
+                    : `No HEVC quality profile configured for ${resolved.instanceName || instance.name}.`,
             });
             continue;
         }
@@ -9689,6 +9782,27 @@ const executeUpgraderUpgradeBatch = async ({
         }
         const profiles = profileCache.get(instance.id) || [];
         const currentProfileId = Number(resolved.entity.qualityProfileId || item.arrQualityProfileId || 0) || null;
+
+        if (profileChangeOnly && currentProfileId === targetProfileId) {
+            results.push({
+                ratingKey,
+                title: item.title,
+                mediaType: item.mediaType,
+                arrType: resolved.type,
+                arrInstanceId: resolved.instanceId,
+                arrInstanceName: resolved.instanceName || instance.name,
+                currentProfileId,
+                currentProfileName: getProfileNameById(profiles, currentProfileId),
+                targetProfileId,
+                targetProfileName: getProfileNameById(profiles, targetProfileId),
+                dryRun: !!dryRun,
+                success: true,
+                skipped: true,
+                reason: 'Already on this profile.',
+            });
+            continue;
+        }
+
         const preview = {
             ratingKey,
             title: item.title,
@@ -9737,7 +9851,7 @@ const executeUpgraderUpgradeBatch = async ({
         }
 
         const auditEntry = await appendUpgraderAuditEntry({
-            action: 'upgrade',
+            action: profileChangeOnly ? 'profile_change' : 'upgrade',
             success: true,
             ratingKey,
             title: item.title,
@@ -11204,11 +11318,13 @@ app.post('/api/upgrader/preview', requireAdmin, async (req, res) => {
         const config = await loadFile(CONFIG_PATH, {});
         const ratingKeys = Array.isArray(req.body?.ratingKeys) ? req.body.ratingKeys.map(String) : [];
         const qualityProfileId = Number(req.body?.qualityProfileId || 0);
+        const profileChangeOnly = !!req.body?.profileChangeOnly;
         const payload = await executeUpgraderUpgradeBatch({
             config,
             ratingKeys,
             dryRun: true,
             qualityProfileId,
+            profileChangeOnly,
             actor: req.user,
         });
         res.json(payload);
@@ -11226,6 +11342,7 @@ app.post('/api/upgrader/upgrade', requireAdmin, async (req, res) => {
         const ratingKeys = Array.isArray(req.body?.ratingKeys) ? req.body.ratingKeys.map(String) : [];
         const qualityProfileId = Number(req.body?.qualityProfileId || 0);
         const triggerSearch = req.body?.triggerSearch !== false;
+        const profileChangeOnly = !!req.body?.profileChangeOnly;
         upgraderUpgradeState.running = true;
         const payload = await executeUpgraderUpgradeBatch({
             config,
@@ -11233,6 +11350,7 @@ app.post('/api/upgrader/upgrade', requireAdmin, async (req, res) => {
             dryRun: false,
             qualityProfileId,
             triggerSearch,
+            profileChangeOnly,
             actor: req.user,
         });
         res.json(payload);

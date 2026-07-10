@@ -252,9 +252,9 @@ export const UpgraderDashboard: React.FC = () => {
                 show={showDrawerItem}
                 preset={preset}
                 onClose={() => setShowDrawerItem(null)}
-                onUpgrade={(item) => openUpgradeModal([item])}
                 addToast={addToast}
                 automationReady={automationReady}
+                onProfileChanged={() => loadData(true)}
             />
             <div className="flex flex-col gap-6">
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">

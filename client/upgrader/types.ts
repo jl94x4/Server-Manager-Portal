@@ -103,6 +103,7 @@ export type UpgraderEpisode = {
     arrHasFile?: boolean;
     arrQualityLabel?: string | null;
     arrMonitored?: boolean | null;
+    dataSource?: 'sonarr' | 'sonarr+plex' | 'plex';
 };
 
 export type UpgraderShowSeason = {
@@ -119,7 +120,10 @@ export type UpgraderShowDetail = {
         targetQualityProfileName?: string | null;
     };
     preset: string;
-    stats: { total: number; matched: number };
+    episodeSource?: 'sonarr' | 'mixed' | 'plex' | 'none';
+    matchMethod?: string | null;
+    matchWarning?: string | null;
+    stats: { total: number; matched: number; sonarrEpisodes?: number; plexEpisodes?: number };
     arr: {
         mapped: boolean;
         seriesId: number | null;
@@ -131,6 +135,7 @@ export type UpgraderShowDetail = {
         targetProfileId: number | null;
         targetProfileName: string | null;
         deepUrl: string | null;
+        matchMethod?: string | null;
     };
     seasons: UpgraderShowSeason[];
     episodes: UpgraderEpisode[];
@@ -152,10 +157,20 @@ export type UpgraderQueueSummary = {
     totalQueued: number;
 };
 
+export type UpgraderProfileInstance = {
+    id: string;
+    name: string;
+    type: string;
+    profiles: Array<{ id: number; name: string }>;
+    hevcProfileId: number | null;
+    fallbackProfileId: number | null;
+};
+
 export type UpgraderUpgradePreviewEntry = {
     ratingKey: string;
     title?: string;
     success: boolean;
+    skipped?: boolean;
     reason?: string;
     arrInstanceName?: string;
     currentProfileId?: number | null;
@@ -173,7 +188,7 @@ export type UpgraderUpgradePreviewResult = {
 export type UpgraderAuditEntry = {
     id: string;
     timestamp: string;
-    action?: 'upgrade' | 'series_search' | 'episode_search' | 'movie_search' | string;
+    action?: 'upgrade' | 'profile_change' | 'series_search' | 'episode_search' | 'movie_search' | string;
     success?: boolean;
     reason?: string | null;
     ratingKey: string;

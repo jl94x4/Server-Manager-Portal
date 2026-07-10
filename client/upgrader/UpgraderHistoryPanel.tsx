@@ -6,6 +6,7 @@ import type { UpgraderAuditEntry } from './types';
 const actionLabel = (entry: UpgraderAuditEntry) => {
     switch (entry.action) {
         case 'upgrade': return 'Profile upgrade';
+        case 'profile_change': return 'Profile change';
         case 'series_search': return 'Series search';
         case 'episode_search': return 'Episode search';
         case 'movie_search': return 'Movie search';
@@ -20,7 +21,9 @@ const ActionIcon: React.FC<{ entry: UpgraderAuditEntry }> = ({ entry }) => {
     const failed = entry.success === false;
     if (failed) return <XCircle className="w-4 h-4 text-red-400 shrink-0" />;
     if (entry.action?.includes('search') || entry.triggerSearch) return <Search className="w-4 h-4 text-plex shrink-0" />;
-    if (entry.action === 'upgrade' || entry.targetProfileId) return <ArrowUpFromLine className="w-4 h-4 text-green-400 shrink-0" />;
+    if (entry.action === 'upgrade' || entry.action === 'profile_change' || entry.targetProfileId) {
+        return <ArrowUpFromLine className="w-4 h-4 text-green-400 shrink-0" />;
+    }
     return <CheckCircle2 className="w-4 h-4 text-green-400 shrink-0" />;
 };
 
