@@ -332,7 +332,6 @@ import {
     fetchSonarrEpisodesForSeries,
     fetchSonarrEpisodeFilesForSeries,
     fetchSonarrAllEpisodeFiles,
-    fetchSonarrAllEpisodes,
     fetchSonarrSeriesById,
     triggerSonarrEpisodeSearch,
     fetchArrQueueSummary,
@@ -7837,7 +7836,8 @@ const systemJobs = {
     trendingCache: { id: 'trendingCache', name: 'Trending Cache Builder', description: 'Rebuilds trending and leaderboard data every 12 hours.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null },
     plexStats: { id: 'plexStats', name: 'Plex Stats Builder', description: 'Rebuilds cached library size and usage totals every 24 hours.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null },
     autoBackup: { id: 'autoBackup', name: 'Auto Rolling Backup', description: 'Creates rolling backup snapshots on configured interval.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null },
-    maintenanceIndex: { id: 'maintenanceIndex', name: 'Media Quality Index', description: 'Builds per-item media quality index for Cleaner and Upgrader.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null }
+    maintenanceIndex: { id: 'maintenanceIndex', name: 'Media Quality Index', description: 'Builds per-item media quality index for Cleaner and Upgrader.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null },
+    upgraderIndex: { id: 'upgraderIndex', name: 'Upgrader Index', description: 'Rebuilds Sonarr/Radarr library index for Upgrader browse.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null },
 };
 
 const markTaskStart = (task) => {
@@ -9500,8 +9500,119 @@ const mapRadarrMovieToUpgraderItem = (movie, instance, plexItem = null) => {
     };
 };
 
+const buildSonarrSeriesFingerprint = (series, files = []) => {
+    const stats = series?.statistics || {};
+    const filePart = files.length
+        ? files.map((file) => `${file.id}:${file.size || 0}:${file.mediaInfo?.videoCodec || ''}:${file.mediaInfo?.height || 0}`).sort().join(',')
+        : 'none';
+    return `${series?.qualityProfileId || 0}:${stats.episodeFileCount || 0}:${stats.sizeOnDisk || 0}:${filePart}`;
+};
+
+const buildRadarrMovieFingerprint = (movie) => {
+    const file = movie?.movieFile;
+    if (!file) return `empty:${movie?.qualityProfileId || 0}`;
+    const mediaInfo = file.mediaInfo || {};
+    return `${movie?.qualityProfileId || 0}:${file.id}:${file.size || 0}:${mediaInfo.videoCodec || ''}:${mediaInfo.height || 0}`;
+};
+
+const loadUpgraderPlexPosterLookup = async (config) => {
+    if (!isPlexConfigured(config)) return null;
+    const maintenancePayload = await loadFile(MAINTENANCE_MEDIA_INDEX_PATH, { items: [] });
+    const maintenanceItems = Array.isArray(maintenancePayload.items) ? maintenancePayload.items : [];
+    if (!maintenanceItems.length) {
+        log('Upgrader index: no Plex maintenance index — posters will use Sonarr/Radarr covers until maintenance index is built');
+        return null;
+    }
+    return buildPlexPosterLookup(maintenanceItems);
+};
+
+const buildUpgraderItemsForArrInstance = async (instance, { plexLookup, resolveUrl, prevByKey } = {}) => {
+    const items = [];
+    let reused = 0;
+    const instanceLabel = instance.name || instance.id;
+
+    if (instance.type === 'sonarr') {
+        const fetchStarted = Date.now();
+        const [seriesList, allFiles] = await Promise.all([
+            fetchArrInstanceCatalogItems(instance, { resolveUrl, fetchImpl: fetch }),
+            fetchSonarrAllEpisodeFiles(instance, { resolveUrl, fetchImpl: fetch }),
+        ]);
+        log(`Upgrader index: Sonarr "${instanceLabel}" fetched in ${Date.now() - fetchStarted}ms (${seriesList.length} series, ${allFiles.length} episode files)`);
+
+        const filesBySeries = allFiles.reduce((acc, file) => {
+            const seriesId = Number(file.seriesId || 0);
+            if (!seriesId) return acc;
+            if (!acc[seriesId]) acc[seriesId] = [];
+            acc[seriesId].push(file);
+            return acc;
+        }, {});
+
+        seriesList.forEach((series) => {
+            const seriesId = Number(series.id || 0);
+            if (!seriesId) return;
+            const seriesFiles = filesBySeries[seriesId] || [];
+            const fingerprint = buildSonarrSeriesFingerprint(series, seriesFiles);
+            const ratingKey = buildUpgraderItemKey('sonarr', instance.id, seriesId);
+            const prev = prevByKey.get(ratingKey);
+            if (prev?.arrFileFingerprint === fingerprint) {
+                items.push(prev);
+                reused += 1;
+                return;
+            }
+            const fileStats = aggregateSonarrSeriesFileStats(seriesFiles);
+            const plexItem = findPlexPosterItem(plexLookup, {
+                mediaType: 'show',
+                title: series.title,
+                year: series.year,
+                tvdbId: series.tvdbId,
+                tmdbId: series.tmdbId,
+                imdbId: series.imdbId,
+            });
+            const item = mapSonarrSeriesToUpgraderItem(
+                series,
+                instance,
+                fileStats,
+                Number(series.statistics?.episodeCount || 0),
+                plexItem,
+            );
+            item.arrFileFingerprint = fingerprint;
+            items.push(item);
+        });
+    } else if (instance.type === 'radarr') {
+        const fetchStarted = Date.now();
+        const movies = await fetchArrInstanceCatalogItems(instance, { resolveUrl, fetchImpl: fetch });
+        log(`Upgrader index: Radarr "${instanceLabel}" fetched in ${Date.now() - fetchStarted}ms (${movies.length} movies)`);
+
+        movies.forEach((movie) => {
+            if (!movie?.id) return;
+            const fingerprint = buildRadarrMovieFingerprint(movie);
+            const ratingKey = buildUpgraderItemKey('radarr', instance.id, movie.id);
+            const prev = prevByKey.get(ratingKey);
+            if (prev?.arrFileFingerprint === fingerprint) {
+                items.push(prev);
+                reused += 1;
+                return;
+            }
+            const plexItem = findPlexPosterItem(plexLookup, {
+                mediaType: 'movie',
+                title: movie.title,
+                year: movie.year,
+                tvdbId: movie.tvdbId,
+                tmdbId: movie.tmdbId,
+                imdbId: movie.imdbId,
+            });
+            const item = mapRadarrMovieToUpgraderItem(movie, instance, plexItem);
+            item.arrFileFingerprint = fingerprint;
+            items.push(item);
+        });
+    }
+
+    return { items, reused };
+};
+
 const buildUpgraderArrIndex = async (config, { actor = null } = {}) => {
-    markTaskStart(systemJobs.maintenanceIndex);
+    markTaskStart(systemJobs.upgraderIndex);
+    const buildStarted = Date.now();
     try {
         const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
         if (!instances.length) {
@@ -9509,85 +9620,18 @@ const buildUpgraderArrIndex = async (config, { actor = null } = {}) => {
         }
 
         const resolveUrl = resolveIntegrationUrlForFetch;
-        const items = [];
+        const [plexLookup, prevPayload] = await Promise.all([
+            loadUpgraderPlexPosterLookup(config),
+            loadUpgraderIndex(),
+        ]);
+        const prevByKey = new Map((Array.isArray(prevPayload.items) ? prevPayload.items : []).map((item) => [item.ratingKey, item]));
 
-        let plexLookup = null;
-        if (isPlexConfigured(config)) {
-            const maintenancePayload = await loadFile(MAINTENANCE_MEDIA_INDEX_PATH, { items: [] });
-            let maintenanceItems = Array.isArray(maintenancePayload.items) ? maintenancePayload.items : [];
-            if (!maintenanceItems.length) {
-                try {
-                    const uri = await getPlexConnectionUri(config);
-                    if (uri) {
-                        const rawMedia = await fetchPlexLibraryItemsForMaintenance(config, uri);
-                        maintenanceItems = rawMedia.filter((item) => item?.thumb);
-                    }
-                } catch (error) {
-                    log(`Upgrader index: Plex poster lookup skipped (${error.message})`);
-                }
-            }
-            if (maintenanceItems.length) {
-                plexLookup = buildPlexPosterLookup(maintenanceItems);
-            }
-        }
-
-        for (const instance of instances) {
-            if (instance.type === 'sonarr') {
-                const [seriesList, allFiles, allEpisodes] = await Promise.all([
-                    fetchArrInstanceCatalogItems(instance, { resolveUrl, fetchImpl: fetch }),
-                    fetchSonarrAllEpisodeFiles(instance, { resolveUrl, fetchImpl: fetch }),
-                    fetchSonarrAllEpisodes(instance, { resolveUrl, fetchImpl: fetch }),
-                ]);
-                const filesBySeries = allFiles.reduce((acc, file) => {
-                    const seriesId = Number(file.seriesId || 0);
-                    if (!seriesId) return acc;
-                    if (!acc[seriesId]) acc[seriesId] = [];
-                    acc[seriesId].push(file);
-                    return acc;
-                }, {});
-                const episodeCountBySeries = allEpisodes.reduce((acc, episode) => {
-                    const seriesId = Number(episode.seriesId || 0);
-                    if (!seriesId) return acc;
-                    acc[seriesId] = (acc[seriesId] || 0) + 1;
-                    return acc;
-                }, {});
-
-                seriesList.forEach((series) => {
-                    const seriesId = Number(series.id || 0);
-                    if (!seriesId) return;
-                    const fileStats = aggregateSonarrSeriesFileStats(filesBySeries[seriesId] || []);
-                    const plexItem = findPlexPosterItem(plexLookup, {
-                        mediaType: 'show',
-                        title: series.title,
-                        year: series.year,
-                        tvdbId: series.tvdbId,
-                        tmdbId: series.tmdbId,
-                        imdbId: series.imdbId,
-                    });
-                    items.push(mapSonarrSeriesToUpgraderItem(
-                        series,
-                        instance,
-                        fileStats,
-                        episodeCountBySeries[seriesId] || 0,
-                        plexItem,
-                    ));
-                });
-            } else if (instance.type === 'radarr') {
-                const movies = await fetchArrInstanceCatalogItems(instance, { resolveUrl, fetchImpl: fetch });
-                movies.forEach((movie) => {
-                    if (!movie?.id) return;
-                    const plexItem = findPlexPosterItem(plexLookup, {
-                        mediaType: 'movie',
-                        title: movie.title,
-                        year: movie.year,
-                        tvdbId: movie.tvdbId,
-                        tmdbId: movie.tmdbId,
-                        imdbId: movie.imdbId,
-                    });
-                    items.push(mapRadarrMovieToUpgraderItem(movie, instance, plexItem));
-                });
-            }
-        }
+        const instanceResults = await Promise.all(
+            instances.map((instance) => buildUpgraderItemsForArrInstance(instance, { plexLookup, resolveUrl, prevByKey })),
+        );
+        const items = instanceResults.flatMap((result) => result.items);
+        const reusedCount = instanceResults.reduce((sum, result) => sum + result.reused, 0);
+        log(`Upgrader index: ${items.length} items (${reusedCount} unchanged, ${items.length - reusedCount} rebuilt) in ${Date.now() - buildStarted}ms`);
 
         const payload = {
             generatedAt: new Date().toISOString(),
@@ -9596,15 +9640,17 @@ const buildUpgraderArrIndex = async (config, { actor = null } = {}) => {
             items,
         };
         await saveFile(UPGRADER_INDEX_PATH, payload);
-        markTaskEnd(systemJobs.maintenanceIndex, null);
+        markTaskEnd(systemJobs.upgraderIndex, null);
         await appendAuditLog('upgrader_index_rebuilt', actor, null, {
             itemCount: items.length,
+            reusedCount,
+            durationMs: Date.now() - buildStarted,
             sonarrSeries: items.filter((item) => item.mediaType === 'show').length,
             radarrMovies: items.filter((item) => item.mediaType === 'movie').length,
         });
         return payload;
     } catch (error) {
-        markTaskEnd(systemJobs.maintenanceIndex, error);
+        markTaskEnd(systemJobs.upgraderIndex, error);
         throw error;
     }
 };
@@ -11421,7 +11467,7 @@ app.get('/api/upgrader/status', requireAdmin, async (req, res) => {
             enabled: isUpgraderEnabled(config),
             generatedAt: payload.generatedAt || null,
             itemCount: payload.itemCount || (Array.isArray(payload.items) ? payload.items.length : 0),
-            rebuildInProgress: !!systemJobs.maintenanceIndex.running,
+            rebuildInProgress: !!systemJobs.upgraderIndex.running,
             dataSource: payload.dataSource || 'arr',
             mediaServerType: 'arr',
             plexConfigured: !!(config.plexToken && config.serverIdentifier),
@@ -11546,9 +11592,14 @@ app.get('/api/upgrader/items', requireAdmin, async (req, res) => {
 
 app.post('/api/upgrader/rebuild', requireAdmin, async (req, res) => {
     try {
+        if (systemJobs.upgraderIndex.running) {
+            return res.json({ success: true, alreadyRunning: true });
+        }
         const config = await loadFile(CONFIG_PATH, {});
-        const payload = await buildUpgraderArrIndex(config, { actor: req.user });
-        res.json({ success: true, generatedAt: payload.generatedAt, itemCount: payload.itemCount, dataSource: payload.dataSource });
+        res.json({ success: true, started: true });
+        buildUpgraderArrIndex(config, { actor: req.user }).catch((error) => {
+            log(`Upgrader index rebuild failed: ${error.message}`);
+        });
     } catch (e) {
         res.status(500).json({ error: `Failed to rebuild upgrader index: ${e.message}` });
     }

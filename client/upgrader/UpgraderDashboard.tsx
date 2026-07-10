@@ -157,16 +157,30 @@ export const UpgraderDashboard: React.FC = () => {
         setSelectedKeys(new Set());
     }, [preset, libraryId, mediaType, search, page, sort]);
 
+    useEffect(() => {
+        if (status?.rebuildInProgress) {
+            setRebuilding(true);
+        } else if (rebuilding) {
+            setRebuilding(false);
+        }
+    }, [status?.rebuildInProgress]);
+
+    useEffect(() => {
+        if (!rebuilding && !status?.rebuildInProgress) return undefined;
+        const poll = window.setInterval(() => {
+            loadData(true);
+        }, 2500);
+        return () => window.clearInterval(poll);
+    }, [rebuilding, status?.rebuildInProgress, loadData]);
+
     const handleRebuild = async () => {
-        setRebuilding(true);
         try {
             await apiFetch('/api/upgrader/rebuild', { method: 'POST' });
             addToast('Library index rebuild started.', 'success');
+            setRebuilding(true);
             await loadData(true);
         } catch (e: any) {
             addToast(e.message || 'Failed to rebuild index', 'error');
-        } finally {
-            setRebuilding(false);
         }
     };
 
