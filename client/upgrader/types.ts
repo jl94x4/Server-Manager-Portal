@@ -12,9 +12,7 @@ export type UpgraderPreset =
     | '4k_non_hevc'
     | 'hdr_non_hevc'
     | 'dolby_vision'
-    | 'large_non_hevc'
-    | 'arr_mapped'
-    | 'arr_unmapped';
+    | 'large_non_hevc';
 
 export type UpgraderSort = 'title' | 'sizeGB' | 'watchCount' | 'addedAt' | 'daysSinceAdded' | 'staleAdded';
 
@@ -76,8 +74,10 @@ export type UpgraderItem = {
     arrInstanceName: string | null;
     arrInstanceId: string | null;
     arrDeepUrl: string | null;
+    dataSource?: 'sonarr' | 'radarr';
+    arrEntityId?: number;
     arrQualityProfileId?: number | null;
-    excluded: boolean;
+    excluded?: boolean;
     snoozed?: boolean;
 };
 

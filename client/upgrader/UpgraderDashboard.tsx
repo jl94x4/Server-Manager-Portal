@@ -179,12 +179,12 @@ export const UpgraderDashboard: React.FC = () => {
             addToast('Configure HEVC quality profiles per ARR instance in Settings.', 'error');
             return;
         }
-        const mapped = targets.filter((item) => item.arrMapped && isUpgradableItem(item));
-        if (!mapped.length) {
-            addToast('No ARR-mapped non-HEVC titles selected.', 'error');
+        const upgradable = targets.filter((item) => isUpgradableItem(item));
+        if (!upgradable.length) {
+            addToast('No non-HEVC titles selected.', 'error');
             return;
         }
-        setUpgradeItems(mapped);
+        setUpgradeItems(upgradable);
         setUpgradeModalOpen(true);
     };
 
@@ -220,8 +220,8 @@ export const UpgraderDashboard: React.FC = () => {
     const summaryChips = useMemo(() => {
         if (!summary) return [];
         const chips = [
-            `${summary.nonHevcCount} non-HEVC`,
-            `${summary.arrMappedCount} mapped to ARR`,
+            `${summary.nonHevcCount} non-HEVC in Sonarr/Radarr`,
+            `${summary.totalItems} titles indexed`,
             `index ${formatIndexAge(summary.generatedAt)}`,
         ];
         if (status?.automationEnabled) {
@@ -264,7 +264,7 @@ export const UpgraderDashboard: React.FC = () => {
                             <h1 className="page-title">Upgrader</h1>
                         </div>
                         <p className="text-sm text-muted max-w-2xl">
-                            Browse non-HEVC titles from {mediaServerLabel}, open your media server or Sonarr/Radarr, drill into show episodes, or optionally switch ARR profiles and trigger a search.
+                            Browse your Sonarr and Radarr libraries, filter by codec and quality, drill into series episodes, change quality profiles, and trigger searches.
                         </p>
                     </div>
                     {featureEnabled && (
@@ -306,7 +306,7 @@ export const UpgraderDashboard: React.FC = () => {
                                 ))}
                                 {!status?.arrConfigured && (
                                     <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-yellow-500/10 border border-yellow-500/30 text-yellow-200">
-                                        No ARR instances configured — {mediaServerLabel} links still work
+                                        No Sonarr/Radarr instances configured
                                     </span>
                                 )}
                                 {status?.arrConfigured && !status.automationEnabled && (
@@ -382,7 +382,7 @@ export const UpgraderDashboard: React.FC = () => {
                                 <CustomSelect
                                     value={libraryId}
                                     onChange={(value) => { setLibraryId(value); setPage(1); }}
-                                    options={[{ value: 'all', label: 'All libraries' }, ...libraries.map((lib) => ({ value: lib.id, label: `${lib.title} (${lib.count})` }))]}
+                                    options={[{ value: 'all', label: 'All instances' }, ...libraries.map((lib) => ({ value: lib.id, label: `${lib.title} (${lib.count})` }))]}
                                     className="min-w-[180px]"
                                 />
                                 <CustomSelect
@@ -429,23 +429,33 @@ export const UpgraderDashboard: React.FC = () => {
 
                         {loading ? (
                             <Loader isLoading />
-                        ) : items.length === 0 ? (
-                            <div className="rounded-2xl border border-green-500/30 bg-green-500/10 p-8 text-center">
-                                <h3 className="text-xl font-bold text-green-200 mb-2">
-                                    {summary?.nonHevcCount === 0 ? 'All HEVC — nice work!' : 'No matches for this filter'}
-                                </h3>
-                                <p className="text-sm text-muted">
-                                    {summary?.nonHevcCount === 0
-                                        ? 'Every indexed movie and show is already HEVC (or the index needs a rebuild).'
-                                        : 'Try another preset, library, or search term.'}
+                        ) : (status?.itemCount ?? 0) === 0 ? (
+                            <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-8 text-center">
+                                <h3 className="text-xl font-bold text-yellow-200 mb-2">Index empty — rebuild from Sonarr/Radarr</h3>
+                                <p className="text-sm text-muted mb-4">
+                                    Upgrader reads directly from your Sonarr and Radarr libraries. Click Rebuild Index to populate the browse grid.
                                 </p>
+                                <button
+                                    type="button"
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-plex text-background font-bold"
+                                    onClick={handleRebuild}
+                                    disabled={rebuilding || !!status?.rebuildInProgress}
+                                >
+                                    <RefreshCw className={`w-4 h-4 ${rebuilding ? 'animate-spin' : ''}`} />
+                                    Rebuild Index
+                                </button>
+                            </div>
+                        ) : total === 0 ? (
+                            <div className="rounded-2xl border border-border/60 bg-card/40 p-8 text-center">
+                                <h3 className="text-xl font-bold text-text mb-2">No matches for this filter</h3>
+                                <p className="text-sm text-muted">Try another preset, instance, or search term.</p>
                             </div>
                         ) : (
                             <>
                                 <p className="text-xs text-muted">{total} title{total === 1 ? '' : 's'} · page {page} of {totalPages}</p>
                                 <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
                                     {items.map((item) => {
-                                        const canUpgrade = automationReady && item.arrMapped && isUpgradableItem(item);
+                                        const canUpgrade = automationReady && isUpgradableItem(item);
                                         const isSelected = selectedKeys.has(item.ratingKey);
                                         const showEpisodeBadge = item.mediaType === 'show' && (item.nonHevcEpisodeCount ?? 0) > 0;
                                         const isShow = item.mediaType === 'show';
@@ -481,7 +491,7 @@ export const UpgraderDashboard: React.FC = () => {
                                                         title: item.title,
                                                         thumb: item.thumb,
                                                         thumbUrl: item.thumbUrl || undefined,
-                                                        plexUrl: item.plexUrl || '#',
+                                                        plexUrl: item.arrDeepUrl || '#',
                                                         tags: item.displayTags,
                                                         year: item.year ?? undefined,
                                                     }}
@@ -495,7 +505,7 @@ export const UpgraderDashboard: React.FC = () => {
                                                                 {item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0
                                                                     ? ` · ${item.nonHevcEpisodeSizeGB} GB (non-HEVC eps)`
                                                                     : item.sizeGB > 0 ? ` · ${item.sizeGB} GB` : ''}
-                                                                {item.arrMapped && item.arrInstanceName ? ` · ${item.arrInstanceName}` : ''}
+                                                                {item.arrInstanceName ? ` · ${item.arrInstanceName}` : ''}
                                                             </div>
                                                             <div className="upgrader-card-actions flex flex-wrap gap-x-2 gap-y-1">
                                                                 {isShow && (

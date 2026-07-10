@@ -14,8 +14,6 @@ export const UPGRADER_PRESET_OPTIONS: Array<{ id: UpgraderPreset; label: string;
     { id: 'hdr_non_hevc', label: 'HDR non-HEVC', group: 'Upgrade' },
     { id: 'dolby_vision', label: 'Dolby Vision', group: 'Upgrade' },
     { id: 'large_non_hevc', label: 'Large non-HEVC', group: 'Upgrade' },
-    { id: 'arr_mapped', label: 'ARR mapped', group: 'ARR' },
-    { id: 'arr_unmapped', label: 'ARR unmapped', group: 'ARR' },
 ];
 
 export const UPGRADER_PRESET_SELECT_OPTIONS = UPGRADER_PRESET_OPTIONS.map((option) => ({

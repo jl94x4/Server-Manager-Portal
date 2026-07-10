@@ -304,6 +304,7 @@ import {
     MAINTENANCE_PREFS_PATH,
     UPGRADER_AUDIT_PATH,
     UPGRADER_PREFS_PATH,
+    UPGRADER_INDEX_PATH,
     PLEX_STATS_CACHE_PATH,
     migrateConfigFiles,
 } from './lib/data-paths.js';
@@ -330,8 +331,12 @@ import {
     triggerArrEntitySearch,
     fetchSonarrEpisodesForSeries,
     fetchSonarrEpisodeFilesForSeries,
+    fetchSonarrAllEpisodeFiles,
+    fetchSonarrAllEpisodes,
+    fetchSonarrSeriesById,
     triggerSonarrEpisodeSearch,
     fetchArrQueueSummary,
+    fetchArrInstanceJson,
 } from './lib/arr-service.js';
 import { createRequestAppService, getRequestAppGate } from './lib/request-app-service.js';
 const PLEX_API = 'https://plex.tv/api';
@@ -9184,7 +9189,7 @@ const fetchJellyfinShowEpisodes = async (config, showItem = {}) => {
 const UPGRADER_PRESET_IDS = new Set([
     'non_hevc', 'h264_only', 'x264', 'hevc_only', 'av1_only', 'vp9_only',
     'sd', '720p', '1080p', '4k_all', '4k_non_hevc', 'hdr_non_hevc', 'dolby_vision',
-    'large_non_hevc', 'arr_mapped', 'arr_unmapped',
+    'large_non_hevc',
 ]);
 
 const getUpgraderCodecFamily = (item = {}) => {
@@ -9282,6 +9287,255 @@ const getSonarrEpisodeQualityLabel = (episodeFile = null) => {
     return codec ? String(codec) : null;
 };
 
+const buildUpgraderItemKey = (arrType, instanceId, entityId) => `${arrType}:${instanceId}:${Number(entityId)}`;
+
+const parseUpgraderItemKey = (rawKey = '') => {
+    const match = String(rawKey || '').trim().match(/^(sonarr|radarr):([^:]+):(\d+)$/);
+    if (!match) return null;
+    return { type: match[1], instanceId: match[2], entityId: Number(match[3]) };
+};
+
+const analyzeSonarrEpisodeFile = (file = null) => mapSonarrFileToEpisodeQuality(file);
+
+const aggregateSonarrSeriesFileStats = (files = []) => {
+    if (!files.length) {
+        return {
+            totalFiles: 0,
+            nonHevcCount: 0,
+            nonHevcSizeGB: 0,
+            totalSizeGB: 0,
+            videoCodec: '',
+            videoResolution: '',
+            displayTags: [],
+            isHevc: false,
+            hasHdr: false,
+            hasDolbyVision: false,
+            is4k: false,
+        };
+    }
+    let nonHevcCount = 0;
+    let nonHevcSizeGB = 0;
+    let totalSizeGB = 0;
+    let displayFile = null;
+    files.forEach((file) => {
+        const stats = analyzeSonarrEpisodeFile(file);
+        totalSizeGB += stats.sizeGB;
+        if (!stats.isHevc) {
+            nonHevcCount += 1;
+            nonHevcSizeGB += stats.sizeGB;
+            if (!displayFile || stats.sizeGB > displayFile.sizeGB) displayFile = stats;
+        }
+    });
+    if (!displayFile) displayFile = analyzeSonarrEpisodeFile(files[0]);
+    return {
+        totalFiles: files.length,
+        nonHevcCount,
+        nonHevcSizeGB: Math.round(nonHevcSizeGB * 100) / 100,
+        totalSizeGB: Math.round(totalSizeGB * 100) / 100,
+        videoCodec: displayFile.videoCodec || '',
+        videoResolution: displayFile.videoResolution || '',
+        displayTags: displayFile.displayTags || [],
+        isHevc: nonHevcCount === 0,
+        hasHdr: !!displayFile.hasHdr,
+        hasDolbyVision: !!displayFile.hasDolbyVision,
+        is4k: (displayFile.displayTags || []).includes('4K'),
+    };
+};
+
+const analyzeRadarrMovieFile = (movie = null) => {
+    const file = movie?.movieFile || null;
+    if (!file) {
+        return {
+            sizeGB: 0,
+            videoCodec: '',
+            videoResolution: '',
+            displayTags: [],
+            isHevc: false,
+            hasHdr: false,
+            hasDolbyVision: false,
+            is4k: false,
+        };
+    }
+    const mediaInfo = file.mediaInfo || {};
+    const codec = String(mediaInfo.videoCodec || mediaInfo.videoFormat || '').toLowerCase();
+    const width = Number(mediaInfo.width || 0);
+    const height = Number(mediaInfo.height || 0);
+    const qualityLabel = file?.quality?.quality?.name || null;
+    const tags = [];
+    if (qualityLabel) tags.push(String(qualityLabel));
+    if (width >= 3800 || height >= 2000) tags.push('4K');
+    else if (height >= 1000) tags.push('1080p');
+    else if (height >= 700) tags.push('720p');
+    const derived = deriveQualityFieldsFromTags(tags, codec);
+    const sizeBytes = Number(file.size || mediaInfo.size || 0);
+    return {
+        sizeGB: sizeBytes ? Math.round((sizeBytes / (1024 ** 3)) * 100) / 100 : 0,
+        videoCodec: codec,
+        videoResolution: width >= 3800 || height >= 2000 ? '4k' : height >= 1000 ? '1080' : height >= 700 ? '720' : '',
+        displayTags: derived.displayTags.length ? derived.displayTags : tags,
+        isHevc: derived.isHevc,
+        hasHdr: derived.hasHdr,
+        hasDolbyVision: derived.hasDolbyVision,
+        is4k: tags.includes('4K'),
+    };
+};
+
+const buildUpgraderCoverUrl = (arrType, instanceId, entityId) =>
+    withBasePath(`/api/upgrader/arr-cover?type=${encodeURIComponent(arrType)}&instanceId=${encodeURIComponent(instanceId)}&entityId=${encodeURIComponent(entityId)}`);
+
+const mapSonarrSeriesToUpgraderItem = (series, instance, fileStats = {}, episodeCount = 0) => {
+    const instanceName = instance.name || 'Sonarr';
+    const entityId = Number(series.id);
+    const ratingKey = buildUpgraderItemKey('sonarr', instance.id, entityId);
+    const stats = series.statistics || {};
+    const totalEpisodeCount = Number(stats.episodeCount || episodeCount || fileStats.totalFiles || 0);
+    const deepUrl = buildArrDeepUrl(instance, series, 'sonarr');
+    return {
+        ratingKey,
+        title: series.title || 'Unknown',
+        year: series.year != null ? Number(series.year) : null,
+        thumb: '',
+        thumbUrl: buildUpgraderCoverUrl('sonarr', instance.id, entityId),
+        mediaType: 'show',
+        libraryTitle: instanceName,
+        libraryId: String(instance.id),
+        videoCodec: fileStats.videoCodec || '',
+        videoResolution: fileStats.videoResolution || '',
+        displayTags: fileStats.displayTags || [],
+        sizeGB: fileStats.totalSizeGB || (stats.sizeOnDisk ? Math.round((Number(stats.sizeOnDisk) / (1024 ** 3)) * 100) / 100 : 0),
+        watchCount: 0,
+        addedAt: series.added || null,
+        daysSinceAdded: series.added ? Math.floor((Date.now() - Date.parse(series.added)) / (24 * 60 * 60 * 1000)) : null,
+        isHevc: !!fileStats.isHevc,
+        hasHdr: !!fileStats.hasHdr,
+        hasDolbyVision: !!fileStats.hasDolbyVision,
+        is4k: !!fileStats.is4k,
+        totalEpisodeCount,
+        nonHevcEpisodeCount: Number(fileStats.nonHevcCount || 0),
+        nonHevcEpisodeSizeGB: Number(fileStats.nonHevcSizeGB || 0),
+        plexUrl: null,
+        arrMapped: true,
+        arrType: 'sonarr',
+        arrInstanceName: instanceName,
+        arrInstanceId: instance.id,
+        arrEntityId: entityId,
+        arrDeepUrl: deepUrl,
+        arrQualityProfileId: series.qualityProfileId != null ? Number(series.qualityProfileId) : null,
+        dataSource: 'sonarr',
+    };
+};
+
+const mapRadarrMovieToUpgraderItem = (movie, instance) => {
+    const fileStats = analyzeRadarrMovieFile(movie);
+    const instanceName = instance.name || 'Radarr';
+    const entityId = Number(movie.id);
+    const ratingKey = buildUpgraderItemKey('radarr', instance.id, entityId);
+    return {
+        ratingKey,
+        title: movie.title || 'Unknown',
+        year: movie.year != null ? Number(movie.year) : null,
+        thumb: '',
+        thumbUrl: buildUpgraderCoverUrl('radarr', instance.id, entityId),
+        mediaType: 'movie',
+        libraryTitle: instanceName,
+        libraryId: String(instance.id),
+        videoCodec: fileStats.videoCodec,
+        videoResolution: fileStats.videoResolution,
+        displayTags: fileStats.displayTags,
+        sizeGB: fileStats.sizeGB,
+        watchCount: 0,
+        addedAt: movie.added || null,
+        daysSinceAdded: movie.added ? Math.floor((Date.now() - Date.parse(movie.added)) / (24 * 60 * 60 * 1000)) : null,
+        isHevc: fileStats.isHevc,
+        hasHdr: fileStats.hasHdr,
+        hasDolbyVision: fileStats.hasDolbyVision,
+        is4k: fileStats.is4k,
+        plexUrl: null,
+        arrMapped: true,
+        arrType: 'radarr',
+        arrInstanceName: instanceName,
+        arrInstanceId: instance.id,
+        arrEntityId: entityId,
+        arrDeepUrl: buildArrDeepUrl(instance, movie, 'radarr'),
+        arrQualityProfileId: movie.qualityProfileId != null ? Number(movie.qualityProfileId) : null,
+        dataSource: 'radarr',
+    };
+};
+
+const buildUpgraderArrIndex = async (config, { actor = null } = {}) => {
+    markTaskStart(systemJobs.maintenanceIndex);
+    try {
+        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        if (!instances.length) {
+            throw new Error('No ready Sonarr or Radarr instances configured.');
+        }
+
+        const resolveUrl = resolveIntegrationUrlForFetch;
+        const items = [];
+
+        for (const instance of instances) {
+            if (instance.type === 'sonarr') {
+                const [seriesList, allFiles, allEpisodes] = await Promise.all([
+                    fetchArrInstanceCatalogItems(instance, { resolveUrl, fetchImpl: fetch }),
+                    fetchSonarrAllEpisodeFiles(instance, { resolveUrl, fetchImpl: fetch }),
+                    fetchSonarrAllEpisodes(instance, { resolveUrl, fetchImpl: fetch }),
+                ]);
+                const filesBySeries = allFiles.reduce((acc, file) => {
+                    const seriesId = Number(file.seriesId || 0);
+                    if (!seriesId) return acc;
+                    if (!acc[seriesId]) acc[seriesId] = [];
+                    acc[seriesId].push(file);
+                    return acc;
+                }, {});
+                const episodeCountBySeries = allEpisodes.reduce((acc, episode) => {
+                    const seriesId = Number(episode.seriesId || 0);
+                    if (!seriesId) return acc;
+                    acc[seriesId] = (acc[seriesId] || 0) + 1;
+                    return acc;
+                }, {});
+
+                seriesList.forEach((series) => {
+                    const seriesId = Number(series.id || 0);
+                    if (!seriesId) return;
+                    const fileStats = aggregateSonarrSeriesFileStats(filesBySeries[seriesId] || []);
+                    items.push(mapSonarrSeriesToUpgraderItem(
+                        series,
+                        instance,
+                        fileStats,
+                        episodeCountBySeries[seriesId] || 0,
+                    ));
+                });
+            } else if (instance.type === 'radarr') {
+                const movies = await fetchArrInstanceCatalogItems(instance, { resolveUrl, fetchImpl: fetch });
+                movies.forEach((movie) => {
+                    if (!movie?.id) return;
+                    items.push(mapRadarrMovieToUpgraderItem(movie, instance));
+                });
+            }
+        }
+
+        const payload = {
+            generatedAt: new Date().toISOString(),
+            itemCount: items.length,
+            dataSource: 'arr',
+            items,
+        };
+        await saveFile(UPGRADER_INDEX_PATH, payload);
+        markTaskEnd(systemJobs.maintenanceIndex, null);
+        await appendAuditLog('upgrader_index_rebuilt', actor, null, {
+            itemCount: items.length,
+            sonarrSeries: items.filter((item) => item.mediaType === 'show').length,
+            radarrMovies: items.filter((item) => item.mediaType === 'movie').length,
+        });
+        return payload;
+    } catch (error) {
+        markTaskEnd(systemJobs.maintenanceIndex, error);
+        throw error;
+    }
+};
+
+const loadUpgraderIndex = async () => loadFile(UPGRADER_INDEX_PATH, { generatedAt: null, itemCount: 0, items: [] });
+
 const mapSonarrFileToEpisodeQuality = (file = null) => {
     const qualityLabel = getSonarrEpisodeQualityLabel(file);
     const mediaInfo = file?.mediaInfo || {};
@@ -9306,7 +9560,7 @@ const mapSonarrFileToEpisodeQuality = (file = null) => {
     };
 };
 
-const buildUpgraderEpisodesFromSonarr = (sonarrEpisodes, sonarrFiles, showTitle, plexByKey, preset, minSizeGB) => {
+const buildUpgraderEpisodesFromSonarr = (sonarrEpisodes, sonarrFiles, showTitle, preset, minSizeGB) => {
     const fileByEpisodeId = new Map(
         sonarrFiles.map((file) => [Number(file.episodeId), file]),
     );
@@ -9314,32 +9568,30 @@ const buildUpgraderEpisodesFromSonarr = (sonarrEpisodes, sonarrFiles, showTitle,
     return sonarrEpisodes.map((sonarrEpisode) => {
         const seasonNumber = sonarrEpisode.seasonNumber != null ? Number(sonarrEpisode.seasonNumber) : null;
         const episodeNumber = sonarrEpisode.episodeNumber != null ? Number(sonarrEpisode.episodeNumber) : null;
-        const plexKey = seasonNumber != null && episodeNumber != null ? `${seasonNumber}:${episodeNumber}` : null;
-        const plexEpisode = plexKey ? plexByKey.get(plexKey) : null;
         const sonarrFile = sonarrEpisode?.id ? fileByEpisodeId.get(Number(sonarrEpisode.id)) : null;
         const sonarrQuality = mapSonarrFileToEpisodeQuality(sonarrFile);
         const episode = {
-            ratingKey: plexEpisode?.ratingKey || `sonarr:${sonarrEpisode.id}`,
-            title: sonarrEpisode.title || plexEpisode?.title || `Episode ${episodeNumber ?? '?'}`,
+            ratingKey: `sonarr-ep-${sonarrEpisode.id}`,
+            title: sonarrEpisode.title || `Episode ${episodeNumber ?? '?'}`,
             showTitle,
             seasonNumber,
             episodeNumber,
-            thumb: plexEpisode?.thumb || '',
-            thumbUrl: plexEpisode?.thumbUrl || null,
+            thumb: '',
+            thumbUrl: null,
             mediaType: 'episode',
-            videoCodec: plexEpisode?.videoCodec || sonarrQuality.videoCodec,
-            videoResolution: plexEpisode?.videoResolution || sonarrQuality.videoResolution,
-            sizeGB: plexEpisode?.sizeGB || sonarrQuality.sizeGB,
-            displayTags: (plexEpisode?.displayTags?.length ? plexEpisode.displayTags : sonarrQuality.displayTags),
-            isHevc: plexEpisode?.isHevc ?? sonarrQuality.isHevc,
-            hasHdr: plexEpisode?.hasHdr ?? sonarrQuality.hasHdr,
-            hasDolbyVision: plexEpisode?.hasDolbyVision ?? sonarrQuality.hasDolbyVision,
-            plexUrl: plexEpisode?.plexUrl || null,
+            videoCodec: sonarrQuality.videoCodec,
+            videoResolution: sonarrQuality.videoResolution,
+            sizeGB: sonarrQuality.sizeGB,
+            displayTags: sonarrQuality.displayTags,
+            isHevc: sonarrQuality.isHevc,
+            hasHdr: sonarrQuality.hasHdr,
+            hasDolbyVision: sonarrQuality.hasDolbyVision,
+            plexUrl: null,
             arrEpisodeId: sonarrEpisode?.id != null ? Number(sonarrEpisode.id) : null,
             arrHasFile: !!(sonarrEpisode?.hasFile || sonarrFile),
             arrQualityLabel: getSonarrEpisodeQualityLabel(sonarrFile),
             arrMonitored: sonarrEpisode?.monitored ?? null,
-            dataSource: plexEpisode ? 'sonarr+plex' : 'sonarr',
+            dataSource: 'sonarr',
         };
         episode.matchesPreset = applyUpgraderPresetFilterEpisode(episode, preset, minSizeGB);
         return episode;
@@ -9347,79 +9599,40 @@ const buildUpgraderEpisodesFromSonarr = (sonarrEpisodes, sonarrFiles, showTitle,
 };
 
 const buildUpgraderShowDetail = async (config, showItem, preset = 'non_hevc', minSizeGB = 5) => {
-    const catalog = await getArrCatalog(config, { force: false });
-    const resolved = resolveSonarrSeriesForShow(showItem, catalog, config);
-    const instance = resolved?.instanceId ? getArrInstance(config, resolved.instanceId) : null;
-    const arrReady = !!(instance && isArrInstanceReady(instance) && resolved?.entity?.id && resolved.type === 'sonarr');
+    const parsed = parseUpgraderItemKey(showItem.ratingKey);
+    if (!parsed || parsed.type !== 'sonarr') {
+        throw new Error('Show detail is only available for Sonarr series in the Upgrader index.');
+    }
 
-    const mediaServerType = config.mediaServerType || 'plex';
-    const sonarrPromise = arrReady
-        ? (async () => {
-            const resolveUrl = resolveIntegrationUrlForFetch;
-            return Promise.all([
-                fetchSonarrEpisodesForSeries(instance, resolved.entity.id, { resolveUrl, fetchImpl: fetch }),
-                fetchSonarrEpisodeFilesForSeries(instance, resolved.entity.id, { resolveUrl, fetchImpl: fetch }),
-                fetchArrQualityProfiles(instance, { resolveUrl, fetchImpl: fetch }),
-            ]);
-        })()
-        : Promise.resolve([[], [], []]);
+    const instance = getArrInstance(config, parsed.instanceId);
+    if (!instance || !isArrInstanceReady(instance)) {
+        throw new Error('Sonarr instance is not ready.');
+    }
 
-    const plexPromise = (async () => {
-        try {
-            if (mediaServerType === 'jellyfin') {
-                return fetchJellyfinShowEpisodes(config, showItem);
-            }
-            if (!isPlexConfigured(config)) return [];
-            const uri = await getPlexConnectionUri(config);
-            if (!uri) return [];
-            return fetchPlexShowEpisodes(config, uri, showItem);
-        } catch (error) {
-            log(`Upgrader show detail: Plex/Jellyfin episode fetch failed for ${showItem.title}: ${error.message}`);
-            return [];
-        }
-    })();
+    const resolveUrl = resolveIntegrationUrlForFetch;
+    const [series, sonarrEpisodes, sonarrFiles, profiles] = await Promise.all([
+        fetchSonarrSeriesById(instance, parsed.entityId, { resolveUrl, fetchImpl: fetch }),
+        fetchSonarrEpisodesForSeries(instance, parsed.entityId, { resolveUrl, fetchImpl: fetch }),
+        fetchSonarrEpisodeFilesForSeries(instance, parsed.entityId, { resolveUrl, fetchImpl: fetch }),
+        fetchArrQualityProfiles(instance, { resolveUrl, fetchImpl: fetch }),
+    ]);
 
-    const [[sonarrEpisodes, sonarrFiles, profiles], plexEpisodes] = await Promise.all([sonarrPromise, plexPromise]);
+    if (!series?.id) {
+        throw new Error('Series not found in Sonarr.');
+    }
 
-    const plexByKey = new Map(
-        plexEpisodes.map((episode) => [`${episode.seasonNumber}:${episode.episodeNumber}`, episode]),
+    const enrichedEpisodes = buildUpgraderEpisodesFromSonarr(
+        sonarrEpisodes,
+        sonarrFiles,
+        series.title || showItem.title,
+        preset,
+        minSizeGB,
     );
 
-    let enrichedEpisodes = [];
-    let episodeSource = 'none';
-
-    if (arrReady && sonarrEpisodes.length) {
-        enrichedEpisodes = buildUpgraderEpisodesFromSonarr(
-            sonarrEpisodes,
-            sonarrFiles,
-            showItem.title,
-            plexByKey,
-            preset,
-            minSizeGB,
-        );
-        episodeSource = plexEpisodes.length ? 'mixed' : 'sonarr';
-    } else if (plexEpisodes.length) {
-        enrichedEpisodes = plexEpisodes.map((episode) => ({
-            ...episode,
-            dataSource: 'plex',
-            matchesPreset: applyUpgraderPresetFilterEpisode(episode, preset, minSizeGB),
-            arrEpisodeId: null,
-            arrHasFile: false,
-            arrQualityLabel: null,
-            arrMonitored: null,
-        }));
-        episodeSource = 'plex';
-    }
-
-    let currentProfileName = null;
-    let targetProfileId = null;
-    let targetProfileName = null;
-    if (arrReady) {
-        const currentProfileId = Number(resolved.entity.qualityProfileId || showItem.arrQualityProfileId || 0) || null;
-        currentProfileName = getProfileNameById(profiles, currentProfileId);
-        targetProfileId = resolveUpgraderTargetProfileId(config, resolved.instanceId, 0) || null;
-        targetProfileName = getProfileNameById(profiles, targetProfileId);
-    }
+    const currentProfileId = Number(series.qualityProfileId || showItem.arrQualityProfileId || 0) || null;
+    const currentProfileName = getProfileNameById(profiles, currentProfileId);
+    const targetProfileId = resolveUpgraderTargetProfileId(config, instance.id, 0) || null;
+    const targetProfileName = getProfileNameById(profiles, targetProfileId);
 
     const seasonMap = new Map();
     enrichedEpisodes.forEach((episode) => {
@@ -9442,64 +9655,49 @@ const buildUpgraderShowDetail = async (config, showItem, preset = 'non_hevc', mi
         }));
 
     const matchedCount = enrichedEpisodes.filter((episode) => episode.matchesPreset).length;
-    const arrMapped = arrReady;
+    const deepUrl = buildArrDeepUrl(instance, series, 'sonarr');
 
     return {
         show: {
-            ratingKey: String(showItem.ratingKey || ''),
-            title: showItem.title || 'Unknown',
-            year: showItem.year || null,
-            thumb: showItem.thumb || '',
-            thumbUrl: showItem.thumbUrl || null,
+            ratingKey: showItem.ratingKey,
+            title: series.title || showItem.title || 'Unknown',
+            year: series.year != null ? Number(series.year) : (showItem.year ?? null),
+            thumb: '',
+            thumbUrl: buildUpgraderCoverUrl('sonarr', instance.id, series.id),
             mediaType: 'show',
-            libraryTitle: showItem.libraryTitle || '',
-            totalEpisodeCount: arrReady ? sonarrEpisodes.length : (showItem.totalEpisodeCount || enrichedEpisodes.length),
-            nonHevcEpisodeCount: showItem.nonHevcEpisodeCount || enrichedEpisodes.filter((e) => !e.isHevc).length,
-            plexUrl: showItem.plexUrl || null,
-            arrMapped,
-            arrType: arrMapped ? 'sonarr' : (showItem.arrType || 'none'),
-            arrInstanceId: resolved.instanceId || showItem.arrInstanceId || null,
-            arrInstanceName: resolved.instanceName || showItem.arrInstanceName || instance?.name || null,
-            arrDeepUrl: buildArrDeepUrl(instance, resolved?.entity, 'sonarr') || showItem.arrDeepUrl || null,
-            arrQualityProfileId: Number(resolved?.entity?.qualityProfileId || showItem.arrQualityProfileId || 0) || null,
+            libraryTitle: instance.name || 'Sonarr',
+            totalEpisodeCount: sonarrEpisodes.length,
+            nonHevcEpisodeCount: enrichedEpisodes.filter((e) => !e.isHevc).length,
+            plexUrl: null,
+            arrMapped: true,
+            arrType: 'sonarr',
+            arrInstanceId: instance.id,
+            arrInstanceName: instance.name || 'Sonarr',
+            arrDeepUrl: deepUrl,
+            arrQualityProfileId: currentProfileId,
             arrQualityProfileName: currentProfileName,
             targetQualityProfileId: targetProfileId,
             targetQualityProfileName: targetProfileName,
         },
         preset,
-        episodeSource,
-        matchMethod: resolved.matchMethod || null,
-        matchWarning: resolved.warning || null,
+        episodeSource: 'sonarr',
         stats: {
             total: enrichedEpisodes.length,
             matched: matchedCount,
             sonarrEpisodes: sonarrEpisodes.length,
-            plexEpisodes: plexEpisodes.length,
+            plexEpisodes: 0,
         },
-        arr: arrMapped ? {
+        arr: {
             mapped: true,
-            seriesId: Number(resolved.entity.id),
+            seriesId: Number(series.id),
             instanceId: instance.id,
             instanceName: instance.name || 'Sonarr',
-            monitored: resolved.entity.monitored ?? null,
-            currentProfileId: Number(resolved.entity.qualityProfileId || 0) || null,
+            monitored: series.monitored ?? null,
+            currentProfileId,
             currentProfileName,
             targetProfileId,
             targetProfileName,
-            deepUrl: buildArrDeepUrl(instance, resolved.entity, 'sonarr'),
-            matchMethod: resolved.matchMethod || 'external_id',
-        } : {
-            mapped: false,
-            seriesId: null,
-            instanceId: null,
-            instanceName: null,
-            monitored: null,
-            currentProfileId: null,
-            currentProfileName: null,
-            targetProfileId: null,
-            targetProfileName: null,
-            deepUrl: null,
-            matchMethod: null,
+            deepUrl,
         },
         seasons,
         episodes: enrichedEpisodes,
@@ -9716,10 +9914,9 @@ const executeUpgraderUpgradeBatch = async ({
         }
     }
 
-    const payload = await loadFile(MAINTENANCE_MEDIA_INDEX_PATH, { items: [] });
+    const payload = await loadUpgraderIndex();
     const allItems = Array.isArray(payload.items) ? payload.items : [];
     const itemMap = new Map(allItems.map((item) => [String(item.ratingKey || ''), item]));
-    const catalog = await getArrCatalog(config, { force: false });
     const profileCache = new Map();
     const results = [];
 
@@ -9727,12 +9924,12 @@ const executeUpgraderUpgradeBatch = async ({
         const ratingKey = String(rawKey || '').trim();
         const item = itemMap.get(ratingKey);
         if (!item) {
-            results.push({ ratingKey, success: false, reason: 'Title not found in media index.' });
+            results.push({ ratingKey, success: false, reason: 'Title not found in Upgrader index. Rebuild the index first.' });
             continue;
         }
         if (!profileChangeOnly) {
             if (item.isHevc && item.mediaType !== 'show') {
-                results.push({ ratingKey, title: item.title, success: false, reason: 'Already HEVC in Plex index.' });
+                results.push({ ratingKey, title: item.title, success: false, reason: 'Already HEVC in Sonarr/Radarr.' });
                 continue;
             }
             if (item.mediaType === 'show' && Number(item.nonHevcEpisodeCount || 0) === 0 && item.isHevc) {
@@ -9740,26 +9937,36 @@ const executeUpgraderUpgradeBatch = async ({
                 continue;
             }
             if (!isUpgraderCandidate(item) && item.mediaType !== 'show') {
-                results.push({ ratingKey, title: item.title, success: false, reason: 'Already HEVC in media index.' });
+                results.push({ ratingKey, title: item.title, success: false, reason: 'Already HEVC in Sonarr/Radarr.' });
                 continue;
             }
         }
-        if (!item.arrMapped) {
-            results.push({ ratingKey, title: item.title, success: false, reason: 'Not mapped to Sonarr/Radarr.' });
-            continue;
-        }
 
-        const resolved = resolveArrEntity(item, catalog, config);
-        if (!resolved?.entity || resolved.type === 'none') {
-            results.push({ ratingKey, title: item.title, success: false, reason: 'Could not resolve ARR entity.' });
-            continue;
-        }
-
-        const instance = resolved.instanceId ? getArrInstance(config, resolved.instanceId) : null;
+        const instance = item.arrInstanceId ? getArrInstance(config, item.arrInstanceId) : null;
         if (!instance || !isArrInstanceReady(instance)) {
             results.push({ ratingKey, title: item.title, success: false, reason: 'ARR instance is not ready.' });
             continue;
         }
+
+        const resolveUrl = resolveIntegrationUrlForFetch;
+        let entity = null;
+        let arrType = item.arrType || instance.type;
+        if (arrType === 'sonarr') {
+            entity = await fetchSonarrSeriesById(instance, item.arrEntityId, { resolveUrl, fetchImpl: fetch });
+        } else {
+            entity = await fetchArrInstanceJson(instance, `/api/v3/movie/${item.arrEntityId}`, { resolveUrl, fetchImpl: fetch });
+        }
+        if (!entity?.id) {
+            results.push({ ratingKey, title: item.title, success: false, reason: 'Could not load title from Sonarr/Radarr.' });
+            continue;
+        }
+
+        const resolved = {
+            type: arrType,
+            entity,
+            instanceId: instance.id,
+            instanceName: item.arrInstanceName || instance.name,
+        };
 
         const targetProfileId = profileChangeOnly
             ? Number(qualityProfileId || 0)
@@ -11117,13 +11324,9 @@ const requireUpgrader = async (req, res, next) => {
         if (!isUpgraderEnabled(config)) {
             return res.status(403).json({ error: 'Library Upgrader is disabled. Enable it in Settings first.' });
         }
-        const mediaServerType = config.mediaServerType || 'plex';
-        if (mediaServerType === 'jellyfin') {
-            if (!isJellyfinConfigured(config)) {
-                return res.status(503).json({ error: 'Jellyfin is not configured.' });
-            }
-        } else if (!isPlexConfigured(config)) {
-            return res.status(503).json({ error: 'Plex is not configured.' });
+        const arrCounts = getArrInstanceCounts(config);
+        if (arrCounts.sonarr.ready === 0 && arrCounts.radarr.ready === 0) {
+            return res.status(503).json({ error: 'Configure a ready Sonarr or Radarr instance first.' });
         }
         return next();
     } catch (e) {
@@ -11136,7 +11339,7 @@ app.use('/api/upgrader', requireAdmin, requireUpgrader);
 app.get('/api/upgrader/status', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const payload = await loadFile(MAINTENANCE_MEDIA_INDEX_PATH, { generatedAt: null, itemCount: 0, items: [] });
+        const payload = await loadUpgraderIndex();
         const arrCounts = getArrInstanceCounts(config);
         const arrReady = arrCounts.radarr.ready > 0 || arrCounts.sonarr.ready > 0;
         res.json({
@@ -11144,7 +11347,8 @@ app.get('/api/upgrader/status', requireAdmin, async (req, res) => {
             generatedAt: payload.generatedAt || null,
             itemCount: payload.itemCount || (Array.isArray(payload.items) ? payload.items.length : 0),
             rebuildInProgress: !!systemJobs.maintenanceIndex.running,
-            mediaServerType: config.mediaServerType || 'plex',
+            dataSource: payload.dataSource || 'arr',
+            mediaServerType: 'arr',
             plexConfigured: !!(config.plexToken && config.serverIdentifier),
             arrConfigured: arrReady,
             automationEnabled: !!config.upgraderAutomationEnabled,
@@ -11163,7 +11367,7 @@ app.get('/api/upgrader/status', requireAdmin, async (req, res) => {
 app.get('/api/upgrader/summary', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const payload = await loadFile(MAINTENANCE_MEDIA_INDEX_PATH, { generatedAt: null, items: [] });
+        const payload = await loadUpgraderIndex();
         const allItems = Array.isArray(payload.items) ? payload.items : [];
         const minSizeGB = Number(config.upgraderMinSizeGB) > 0 ? Number(config.upgraderMinSizeGB) : 5;
         const nonHevc = allItems.filter((item) => isUpgraderCandidate(item));
@@ -11180,8 +11384,8 @@ app.get('/api/upgrader/summary', requireAdmin, async (req, res) => {
             hevcCount: allItems.length - nonHevc.length,
             nonHevc4kCount: nonHevc.filter((item) => !!item.is4k || (item.displayTags || []).includes('4K')).length,
             nonHevcHdrCount: nonHevc.filter((item) => !!item.hasHdr || (item.displayTags || []).includes('HDR') || (item.displayTags || []).includes('DV')).length,
-            arrMappedCount: nonHevc.filter((item) => !!item.arrMapped).length,
-            arrUnmappedCount: nonHevc.filter((item) => !item.arrMapped).length,
+            arrMappedCount: allItems.length,
+            arrUnmappedCount: 0,
             estimatedReclaimableGB: Math.round(nonHevcSizeGB * 0.4 * 100) / 100,
             minSizeGB,
         });
@@ -11193,7 +11397,7 @@ app.get('/api/upgrader/summary', requireAdmin, async (req, res) => {
 app.get('/api/upgrader/items', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const payload = await loadFile(MAINTENANCE_MEDIA_INDEX_PATH, { generatedAt: null, items: [] });
+        const payload = await loadUpgraderIndex();
         const preferences = await loadMaintenancePreferences();
         const upgraderPrefs = await loadUpgraderPreferences();
         const allItems = Array.isArray(payload.items) ? payload.items : [];
@@ -11213,10 +11417,10 @@ app.get('/api/upgrader/items', requireAdmin, async (req, res) => {
         const exclusions = buildUpgraderExclusionSets(preferences, upgraderPrefs);
 
         const librariesMap = allItems.reduce((acc, item) => {
-            const key = String(item?.libraryId || '');
+            const key = String(item?.libraryId || item?.arrInstanceId || '');
             if (!key) return acc;
             if (!acc[key]) {
-                acc[key] = { id: key, title: item?.libraryTitle || `Library ${key}`, count: 0 };
+                acc[key] = { id: key, title: item?.libraryTitle || item?.arrInstanceName || `Instance ${key}`, count: 0 };
             }
             acc[key].count += 1;
             return acc;
@@ -11226,7 +11430,7 @@ app.get('/api/upgrader/items', requireAdmin, async (req, res) => {
             .filter((item) => {
                 if (!item) return false;
                 if (!applyUpgraderPresetFilter(item, preset, minSizeGB)) return false;
-                if (libraryId !== 'all' && String(item.libraryId || '') !== libraryId) return false;
+                if (libraryId !== 'all' && String(item.libraryId || item.arrInstanceId || '') !== libraryId) return false;
                 if (mediaType !== 'all' && String(item.mediaType || '') !== mediaType) return false;
                 if (search && !normalized(item.title).includes(search)) return false;
                 if (codec && !String(item.videoCodec || '').toLowerCase().includes(codec)) return false;
@@ -11267,10 +11471,42 @@ app.get('/api/upgrader/items', requireAdmin, async (req, res) => {
 
 app.post('/api/upgrader/rebuild', requireAdmin, async (req, res) => {
     try {
-        const payload = await buildMaintenanceMediaIndex({ actor: req.user, force: true });
-        res.json({ success: true, generatedAt: payload.generatedAt, itemCount: payload.itemCount, requestItemCount: payload.requestItemCount });
+        const config = await loadFile(CONFIG_PATH, {});
+        const payload = await buildUpgraderArrIndex(config, { actor: req.user });
+        res.json({ success: true, generatedAt: payload.generatedAt, itemCount: payload.itemCount, dataSource: payload.dataSource });
     } catch (e) {
         res.status(500).json({ error: `Failed to rebuild upgrader index: ${e.message}` });
+    }
+});
+
+app.get('/api/upgrader/arr-cover', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const arrType = String(req.query.type || 'sonarr');
+        const instanceId = String(req.query.instanceId || '');
+        const entityId = Number(req.query.entityId || 0);
+        if (!instanceId || !entityId) return res.status(400).send('Missing instanceId or entityId');
+
+        const instance = getArrInstance(config, instanceId);
+        if (!instance || !isArrInstanceReady(instance)) return res.status(404).send('Instance not ready');
+
+        const resolveUrl = resolveIntegrationUrlForFetch;
+        const base = String(resolveUrl(instance.url) || '').replace(/\/+$/, '');
+        const coverPath = arrType === 'radarr'
+            ? `/MediaCover/${entityId}/poster.jpg`
+            : `/MediaCover/${entityId}/poster.jpg`;
+        const imageRes = await fetch(`${base}${coverPath}`, {
+            headers: { 'X-Api-Key': instance.apiKey },
+        });
+        if (!imageRes.ok) return res.status(imageRes.status).send('Cover not found');
+
+        const contentType = imageRes.headers.get('content-type') || 'image/jpeg';
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        const buffer = Buffer.from(await imageRes.arrayBuffer());
+        res.send(buffer);
+    } catch (e) {
+        res.status(500).send('Failed to load cover art');
     }
 });
 
@@ -11364,14 +11600,14 @@ app.post('/api/upgrader/upgrade', requireAdmin, async (req, res) => {
 app.get('/api/upgrader/items/:ratingKey/episodes', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const ratingKey = String(req.params.ratingKey || '').trim();
+        const ratingKey = decodeURIComponent(String(req.params.ratingKey || '').trim());
         const presetRaw = String(req.query.preset || config.upgraderDefaultPreset || 'non_hevc');
         const preset = UPGRADER_PRESET_IDS.has(presetRaw) ? presetRaw : 'non_hevc';
         const minSizeGB = Math.max(0, Number(config.upgraderMinSizeGB ?? 5));
-        const payload = await loadFile(MAINTENANCE_MEDIA_INDEX_PATH, { items: [] });
+        const payload = await loadUpgraderIndex();
         const showItem = (Array.isArray(payload.items) ? payload.items : []).find((item) => String(item.ratingKey) === ratingKey);
         if (!showItem || showItem.mediaType !== 'show') {
-            return res.status(404).json({ error: 'Show not found in media index.' });
+            return res.status(404).json({ error: 'Series not found in Upgrader index.' });
         }
 
         const detail = await buildUpgraderShowDetail(config, showItem, preset, minSizeGB);
@@ -11388,14 +11624,14 @@ app.get('/api/upgrader/items/:ratingKey/episodes', requireAdmin, async (req, res
 app.get('/api/upgrader/items/:ratingKey/detail', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const ratingKey = String(req.params.ratingKey || '').trim();
+        const ratingKey = decodeURIComponent(String(req.params.ratingKey || '').trim());
         const presetRaw = String(req.query.preset || config.upgraderDefaultPreset || 'non_hevc');
         const preset = UPGRADER_PRESET_IDS.has(presetRaw) ? presetRaw : 'non_hevc';
         const minSizeGB = Math.max(0, Number(config.upgraderMinSizeGB ?? 5));
-        const payload = await loadFile(MAINTENANCE_MEDIA_INDEX_PATH, { items: [] });
+        const payload = await loadUpgraderIndex();
         const showItem = (Array.isArray(payload.items) ? payload.items : []).find((item) => String(item.ratingKey) === ratingKey);
         if (!showItem || showItem.mediaType !== 'show') {
-            return res.status(404).json({ error: 'Show not found in media index.' });
+            return res.status(404).json({ error: 'Series not found in Upgrader index.' });
         }
 
         const detail = await buildUpgraderShowDetail(config, showItem, preset, minSizeGB);
@@ -11420,22 +11656,28 @@ app.post('/api/upgrader/search', requireAdmin, async (req, res) => {
 
         if (!ratingKey) return res.status(400).json({ error: 'ratingKey is required.' });
 
-        const payload = await loadFile(MAINTENANCE_MEDIA_INDEX_PATH, { items: [] });
+        const payload = await loadUpgraderIndex();
         const item = (Array.isArray(payload.items) ? payload.items : []).find((entry) => String(entry.ratingKey) === ratingKey);
-        if (!item) return res.status(404).json({ error: 'Title not found in media index.' });
+        if (!item) return res.status(404).json({ error: 'Title not found in Upgrader index.' });
 
-        const catalog = await getArrCatalog(config, { force: false });
-        const resolved = resolveArrEntity(item, catalog, config);
-        if (!resolved?.entity?.id || resolved.type === 'none') {
-            return res.status(400).json({ error: 'Title is not mapped to Sonarr/Radarr.' });
-        }
-
-        const instance = resolved.instanceId ? getArrInstance(config, resolved.instanceId) : null;
+        const instance = item.arrInstanceId ? getArrInstance(config, item.arrInstanceId) : null;
         if (!instance || !isArrInstanceReady(instance)) {
             return res.status(400).json({ error: 'ARR instance is not ready.' });
         }
 
         const resolveUrl = resolveIntegrationUrlForFetch;
+        let entity = null;
+        const arrType = item.arrType || instance.type;
+        if (arrType === 'sonarr') {
+            entity = await fetchSonarrSeriesById(instance, item.arrEntityId, { resolveUrl, fetchImpl: fetch });
+        } else {
+            entity = await fetchArrInstanceJson(instance, `/api/v3/movie/${item.arrEntityId}`, { resolveUrl, fetchImpl: fetch });
+        }
+        if (!entity?.id) {
+            return res.status(400).json({ error: 'Could not load title from Sonarr/Radarr.' });
+        }
+
+        const resolved = { type: arrType, entity, instanceId: instance.id, instanceName: item.arrInstanceName || instance.name };
         let searchResult = null;
         let action = 'series_search';
 

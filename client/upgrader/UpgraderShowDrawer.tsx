@@ -216,21 +216,15 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
         return detail.seasons;
     }, [detail?.seasons, highlightFilterOnly]);
 
-    const episodeSourceLabel = (source?: string) => {
-        if (source === 'sonarr') return 'Sonarr';
-        if (source === 'mixed') return 'Sonarr + Plex';
-        if (source === 'plex') return 'Plex';
-        return null;
-    };
+    const episodeSourceLabel = () => 'Sonarr';
 
     if (!show) return null;
 
     const arr = detail?.arr;
     const showMeta = detail?.show || show;
     const detailReady = !loading && !!detail;
-    const canSearch = automationReady && arr?.mapped && arr?.seriesId;
-    const canChangeProfile = automationReady && arr?.mapped && arr?.instanceId;
-    const sourceLabel = episodeSourceLabel(detail?.episodeSource);
+    const canSearch = automationReady && !!arr?.seriesId;
+    const canChangeProfile = automationReady && !!arr?.instanceId;
 
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
@@ -239,11 +233,9 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                 <div className="px-5 py-4 border-b border-border/60 space-y-4">
                     <div className="flex items-start gap-4">
                         <div className="w-16 h-24 rounded-lg overflow-hidden bg-white/5 shrink-0 border border-white/10">
-                            {showMeta.thumb ? (
+                            {showMeta.thumbUrl ? (
                                 <img
-                                    src={showMeta.thumbUrl
-                                        ? resolvePortalAssetUrl(showMeta.thumbUrl)
-                                        : portalUrl(`/api/plex/image?path=${encodeURIComponent(showMeta.thumb)}&width=128&height=192`)}
+                                    src={resolvePortalAssetUrl(showMeta.thumbUrl)}
                                     alt={showMeta.title}
                                     className="w-full h-full object-cover"
                                 />
@@ -263,49 +255,28 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                     <X className="w-4 h-4" />
                                 </button>
                             </div>
-                            {detailReady && arr?.mapped && (
+                            {detailReady && (
                                 <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
                                     <span className="px-2 py-1 rounded-full bg-plex/15 border border-plex/30 text-plex font-semibold">
-                                        {arr.instanceName}
+                                        {arr?.instanceName || showMeta.libraryTitle}
                                     </span>
-                                    {sourceLabel && (
-                                        <span className="px-2 py-1 rounded-full bg-green-500/10 border border-green-500/30 text-green-200 font-semibold">
-                                            Episodes from {sourceLabel}
-                                        </span>
-                                    )}
-                                    {arr.currentProfileName && (
+                                    <span className="px-2 py-1 rounded-full bg-green-500/10 border border-green-500/30 text-green-200 font-semibold">
+                                        {episodeSourceLabel()} episodes
+                                    </span>
+                                    {arr?.currentProfileName && (
                                         <span className="px-2 py-1 rounded-full bg-white/5 border border-white/10 text-muted">
                                             Current: {arr.currentProfileName}
                                         </span>
                                     )}
                                 </div>
                             )}
-                            {detailReady && !arr?.mapped && (
-                                <p className="text-[11px] text-amber-200 mt-2">
-                                    Not found in Sonarr — showing Plex library data only.
-                                </p>
-                            )}
-                            {detailReady && detail?.matchWarning && arr?.mapped && (
-                                <p className="text-[11px] text-muted mt-1">{detail.matchWarning}</p>
-                            )}
                             {loading && (
-                                <p className="text-[11px] text-muted mt-2">Loading episodes from Sonarr & Plex…</p>
+                                <p className="text-[11px] text-muted mt-2">Loading episodes from Sonarr…</p>
                             )}
                         </div>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                        {showMeta.plexUrl && (
-                            <a
-                                href={showMeta.plexUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-bold text-text no-underline hover:border-plex/40"
-                            >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                                Open in Plex
-                            </a>
-                        )}
                         {arr?.deepUrl && (
                             <a
                                 href={arr.deepUrl}
@@ -491,16 +462,6 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                                                 </div>
                                                             </div>
                                                             <div className="flex flex-col gap-1 shrink-0">
-                                                                {episode.plexUrl && (
-                                                                    <a
-                                                                        href={episode.plexUrl}
-                                                                        target="_blank"
-                                                                        rel="noreferrer"
-                                                                        className="text-[10px] font-bold text-muted hover:text-text no-underline"
-                                                                    >
-                                                                        Plex
-                                                                    </a>
-                                                                )}
                                                                 {canSearch && episode.arrEpisodeId && (
                                                                     <button
                                                                         type="button"
