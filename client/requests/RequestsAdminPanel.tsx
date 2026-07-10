@@ -4,7 +4,7 @@ import { apiFetch } from '../shared/api';
 import { formatDateTime } from '../shared/format';
 import { Loader, ToastContainer, pushToast, type ToastMessage } from '../shared/toast';
 import { RequestApprovalModal } from './RequestApprovalModal';
-import { RequestCardActions, RequestCardShell } from './RequestCardShell';
+import { RequestCardActions, RequestCardShell, requestCardActionBtnClass } from './RequestCardShell';
 import type { PortalRequestItem } from './types';
 
 export type { PortalRequestItem } from './types';
@@ -354,18 +354,18 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
                                                 type="button"
                                                 disabled={busy}
                                                 onClick={() => setReviewTarget(item)}
-                                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-plex/50 bg-background/80 text-plex font-bold hover:bg-plex/15 transition-colors disabled:opacity-50 min-w-[7.5rem]"
+                                                className={`${requestCardActionBtnClass} border border-plex/50 bg-background/80 text-plex font-bold hover:bg-plex/15`}
                                             >
-                                                <Pencil className="w-4 h-4" />
+                                                <Pencil className="w-3.5 h-3.5" />
                                                 Review
                                             </button>
                                             <button
                                                 type="button"
                                                 disabled={busy}
                                                 onClick={() => handleQuickApprove(item)}
-                                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-plex text-background font-bold hover:bg-plex-hover transition-colors disabled:opacity-50 min-w-[7.5rem] shadow-md shadow-black/20"
+                                                className={`${requestCardActionBtnClass} bg-plex text-background font-bold hover:bg-plex-hover shadow-sm shadow-black/20`}
                                             >
-                                                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                                {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                                                 Quick Approve
                                             </button>
                                             <button
@@ -375,9 +375,9 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
                                                     setDeclineTarget(item);
                                                     setDeclineReason('');
                                                 }}
-                                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-red-500/50 bg-background/80 text-red-200 font-semibold hover:bg-red-500/15 transition-colors disabled:opacity-50 min-w-[7.5rem]"
+                                                className={`${requestCardActionBtnClass} border border-red-500/50 bg-background/80 text-red-200 hover:bg-red-500/15`}
                                             >
-                                                <X className="w-4 h-4" />
+                                                <X className="w-3.5 h-3.5" />
                                                 Decline
                                             </button>
                                         </>
@@ -387,9 +387,9 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
                                             type="button"
                                             disabled={busy}
                                             onClick={() => handleRetry(item)}
-                                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-amber-500/50 bg-background/80 text-amber-200 font-semibold hover:bg-amber-500/15 transition-colors disabled:opacity-50 min-w-[7.5rem]"
+                                            className={`${requestCardActionBtnClass} border border-amber-500/50 bg-background/80 text-amber-200 hover:bg-amber-500/15`}
                                         >
-                                            <RotateCcw className="w-4 h-4" />
+                                            <RotateCcw className="w-3.5 h-3.5" />
                                             Retry
                                         </button>
                                     )}
@@ -398,9 +398,9 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
                                             type="button"
                                             disabled={busy}
                                             onClick={() => setReviewTarget(item)}
-                                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-white/15 bg-background/80 text-text font-semibold hover:bg-white/10 transition-colors disabled:opacity-50 min-w-[7.5rem]"
+                                            className={`${requestCardActionBtnClass} border border-white/15 bg-background/80 text-text hover:bg-white/10`}
                                         >
-                                            <Pencil className="w-4 h-4" />
+                                            <Pencil className="w-3.5 h-3.5" />
                                             Edit
                                         </button>
                                     )}
@@ -408,9 +408,9 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
                                         type="button"
                                         disabled={busy}
                                         onClick={() => setDeleteTarget(item)}
-                                        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-border bg-background/80 text-muted font-semibold hover:text-red-200 hover:border-red-500/40 hover:bg-red-500/10 transition-colors disabled:opacity-50 min-w-[7.5rem]"
+                                        className={`${requestCardActionBtnClass} border border-border bg-background/80 text-muted hover:text-red-200 hover:border-red-500/40 hover:bg-red-500/10`}
                                     >
-                                        <Trash2 className="w-4 h-4" />
+                                        <Trash2 className="w-3.5 h-3.5" />
                                         Delete
                                     </button>
                                 </RequestCardActions>
