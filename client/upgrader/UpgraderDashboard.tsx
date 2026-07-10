@@ -484,6 +484,7 @@ export const UpgraderDashboard: React.FC = () => {
                                                 <DiscoverPosterCard
                                                     variant="home"
                                                     posterOnlyLink
+                                                    onPosterClick={isShow ? () => setShowDrawerItem(item) : undefined}
                                                     showQualityBadges={showQualityBadges}
                                                     posterWidth={600}
                                                     posterHeight={900}
@@ -497,9 +498,19 @@ export const UpgraderDashboard: React.FC = () => {
                                                     }}
                                                     footer={(
                                                         <div className="px-1 space-y-1">
-                                                            <div className="upgrader-card-title text-xs font-medium text-text line-clamp-2 leading-tight">
-                                                                {item.title}{item.year ? ` (${item.year})` : ''}
-                                                            </div>
+                                                            {isShow ? (
+                                                                <button
+                                                                    type="button"
+                                                                    className="upgrader-card-title text-xs font-medium text-text line-clamp-2 leading-tight text-left hover:text-plex transition-colors"
+                                                                    onClick={() => setShowDrawerItem(item)}
+                                                                >
+                                                                    {item.title}{item.year ? ` (${item.year})` : ''}
+                                                                </button>
+                                                            ) : (
+                                                                <div className="upgrader-card-title text-xs font-medium text-text line-clamp-2 leading-tight">
+                                                                    {item.title}{item.year ? ` (${item.year})` : ''}
+                                                                </div>
+                                                            )}
                                                             <div className="upgrader-card-meta text-[10px] text-muted line-clamp-2">
                                                                 {item.libraryTitle}
                                                                 {item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0

@@ -4609,9 +4609,10 @@ export const DiscoverPosterCard: React.FC<{
     footer?: React.ReactNode;
     showQualityBadges?: boolean;
     posterOnlyLink?: boolean;
+    onPosterClick?: () => void;
     posterWidth?: number;
     posterHeight?: number;
-}> = ({ item, aspect = '2/3', overlay, variant = 'discover', className = 'w-full', footer, showQualityBadges = true, posterOnlyLink = false, posterWidth = 300, posterHeight }) => {
+}> = ({ item, aspect = '2/3', overlay, variant = 'discover', className = 'w-full', footer, showQualityBadges = true, posterOnlyLink = false, onPosterClick, posterWidth = 300, posterHeight }) => {
     const resolvedPosterHeight = posterHeight ?? (aspect === 'square' ? posterWidth : Math.round(posterWidth * 1.5));
     const posterShell = variant === 'home'
         ? 'relative rounded-xl overflow-hidden bg-background border border-white/5 transition-[box-shadow,border-color] duration-300 group-hover:shadow-xl group-hover:border-plex/50'
@@ -4651,17 +4652,30 @@ export const DiscoverPosterCard: React.FC<{
     );
 
     if (posterOnlyLink) {
+        const posterWrapper = onPosterClick ? (
+            <button
+                type="button"
+                onClick={onPosterClick}
+                className="block w-full text-left border-0 p-0 bg-transparent cursor-pointer"
+                style={{ color: 'inherit' }}
+            >
+                {posterInner}
+            </button>
+        ) : (
+            <a
+                href={item.plexUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="block no-underline"
+                style={{ textDecoration: 'none', color: 'inherit' }}
+            >
+                {posterInner}
+            </a>
+        );
+
         return (
             <div className={`flex flex-col gap-2 group ${className}`} style={{ color: 'inherit' }}>
-                <a
-                    href={item.plexUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block no-underline"
-                    style={{ textDecoration: 'none', color: 'inherit' }}
-                >
-                    {posterInner}
-                </a>
+                {posterWrapper}
                 {footer ?? defaultFooter}
             </div>
         );
