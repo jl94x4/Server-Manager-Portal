@@ -5163,140 +5163,134 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                         )}
                     </>
                 )}
-                renderWatchRow={() => {
+                renderWatchRowLeft={() => {
                     if (!(sessionInfo.session.isAdmin || user)) return null;
+                    if (analyticsLoading || !analytics?.recentHistory?.length) return null;
                     return (
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 items-stretch">
-                                {!analyticsLoading && analytics?.recentHistory && analytics.recentHistory.length > 0 && (
-                                    <div className="lg:col-span-1 flex min-h-0">
-                                        <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col h-full w-full min-h-0">
-                                            <div className="flex items-center justify-between mb-3 md:mb-4 flex-shrink-0">
-                                                <h3 className="text-lg md:text-xl font-bold text-text">Recently Watched</h3>
-                                                {analytics.recentHistory.length > recentHistoryPageSize && (
-                                                    <div className="flex items-center gap-2">
-                                                        <button
-                                                            onClick={() => setRecentHistoryPage(p => Math.max(0, p - 1))}
-                                                            disabled={recentHistoryPage === 0}
-                                                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
-                                                        >
-                                                            <ChevronUp className="w-4 h-4 -rotate-90" />
-                                                        </button>
-                                                        <span className="text-xs text-muted font-medium w-8 text-center">
-                                                            {recentHistoryPage + 1} / {Math.ceil(analytics.recentHistory.length / recentHistoryPageSize)}
-                                                        </span>
-                                                        <button
-                                                            onClick={() => setRecentHistoryPage(p => Math.min(Math.ceil(analytics.recentHistory.length / recentHistoryPageSize) - 1, p + 1))}
-                                                            disabled={recentHistoryPage >= Math.ceil(analytics.recentHistory.length / recentHistoryPageSize) - 1}
-                                                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
-                                                        >
-                                                            <ChevronDown className="w-4 h-4 -rotate-90" />
-                                                        </button>
+                        <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col h-full w-full min-h-0">
+                            <div className="flex items-center justify-between mb-3 md:mb-4 flex-shrink-0">
+                                <h3 className="text-lg md:text-xl font-bold text-text">Recently Watched</h3>
+                                {analytics.recentHistory.length > recentHistoryPageSize && (
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => setRecentHistoryPage(p => Math.max(0, p - 1))}
+                                            disabled={recentHistoryPage === 0}
+                                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
+                                        >
+                                            <ChevronUp className="w-4 h-4 -rotate-90" />
+                                        </button>
+                                        <span className="text-xs text-muted font-medium w-8 text-center">
+                                            {recentHistoryPage + 1} / {Math.ceil(analytics.recentHistory.length / recentHistoryPageSize)}
+                                        </span>
+                                        <button
+                                            onClick={() => setRecentHistoryPage(p => Math.min(Math.ceil(analytics.recentHistory.length / recentHistoryPageSize) - 1, p + 1))}
+                                            disabled={recentHistoryPage >= Math.ceil(analytics.recentHistory.length / recentHistoryPageSize) - 1}
+                                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
+                                        >
+                                            <ChevronDown className="w-4 h-4 -rotate-90" />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 items-stretch flex-1 min-h-0 content-start">
+                                {analytics.recentHistory.slice(recentHistoryPage * recentHistoryPageSize, (recentHistoryPage + 1) * recentHistoryPageSize).map((item: any, idx: number) => (
+                                    <div key={idx} className="flex items-center self-stretch gap-3 p-2 bg-black/20 rounded-xl border border-white/5 hover:border-plex/50 hover:bg-black/40 hover:shadow-[0_0_15px_rgba(229,160,13,0.15)] transition-all group relative">
+                                        <a href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center flex-1 min-w-0 gap-3">
+                                            <div className="w-10 h-10 rounded-lg overflow-hidden bg-background flex-shrink-0 shadow-md">
+                                                {item.thumbUrl ? (
+                                                    <img src={resolvePortalAssetUrl(item.thumbUrl)} alt={item.title} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center">
+                                                        <PlaySquare className="w-5 h-5 text-muted/50" />
                                                     </div>
                                                 )}
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 items-stretch flex-1 min-h-0 content-start">
-                                                {analytics.recentHistory.slice(recentHistoryPage * recentHistoryPageSize, (recentHistoryPage + 1) * recentHistoryPageSize).map((item: any, idx: number) => (
-                                                    <div key={idx} className="flex items-center self-stretch gap-3 p-2 bg-black/20 rounded-xl border border-white/5 hover:border-plex/50 hover:bg-black/40 hover:shadow-[0_0_15px_rgba(229,160,13,0.15)] transition-all group relative">
-                                                        <a href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center flex-1 min-w-0 gap-3">
-                                                            <div className="w-10 h-10 rounded-lg overflow-hidden bg-background flex-shrink-0 shadow-md">
-                                                                {item.thumbUrl ? (
-                                                                    <img src={resolvePortalAssetUrl(item.thumbUrl)} alt={item.title} className="w-full h-full object-cover" />
-                                                                ) : (
-                                                                    <div className="w-full h-full flex items-center justify-center">
-                                                                        <PlaySquare className="w-5 h-5 text-muted/50" />
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <h4 className="font-bold text-text text-xs truncate group-hover:text-plex transition-colors">{item.title}</h4>
-                                                                {item.episodeTitle && <p className="text-[11px] leading-tight text-muted truncate mt-0.5">{item.episodeTitle}</p>}
-                                                                <div className="flex items-center gap-1 mt-1">
-                                                                    <Clock className="w-3 h-3 text-muted" />
-                                                                    <p className="text-[10px] text-muted">{new Date(item.viewedAt * 1000).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
-                                                                </div>
-                                                            </div>
-                                                        </a>
-                                                        <button
-                                                            onClick={(e) => { e.preventDefault(); setReportItem(item); }}
-                                                            className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-2 text-muted hover:text-red-400 hover:bg-red-400/10 rounded-full transition-all focus:outline-none"
-                                                            title="Report a playback issue"
-                                                        >
-                                                            <AlertTriangle className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                                {analyticsLoading ? (
-                                    <div className="lg:col-span-2 lg:col-start-2 flex min-h-0">
-                                        <TopWatchedGridSkeleton />
-                                    </div>
-                                ) : analytics && analytics.totalPlays > 0 && analytics.topWatched && analytics.topWatched.length > 0 ? (
-                                    <div className={`flex min-h-0 ${analytics.recentHistory?.length ? 'lg:col-span-2' : 'lg:col-span-2 lg:col-start-2'}`}>
-                                        <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col h-full w-full min-h-0">
-                                            <div className="flex flex-wrap items-center justify-between gap-3 mb-3 md:mb-4 flex-shrink-0">
-                                                <div>
-                                                    <h3 className="text-lg md:text-xl font-bold text-text mb-0.5">Your Most Watched</h3>
-                                                    <p className="text-muted text-sm">Based on your {analytics.totalPlays} total plays</p>
-                                                </div>
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    {analytics.topWatched.length > topWatchedPageSize && (
-                                                        <div className="flex items-center gap-2">
-                                                            <button
-                                                                onClick={() => setTopContentPage(p => Math.max(0, p - 1))}
-                                                                disabled={topContentPage === 0}
-                                                                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
-                                                            >
-                                                                <ChevronUp className="w-4 h-4 -rotate-90" />
-                                                            </button>
-                                                            <span className="text-xs text-muted font-medium w-8 text-center">
-                                                                {topContentPage + 1} / {Math.ceil(analytics.topWatched.length / topWatchedPageSize)}
-                                                            </span>
-                                                            <button
-                                                                onClick={() => setTopContentPage(p => Math.min(Math.ceil(analytics.topWatched.length / topWatchedPageSize) - 1, p + 1))}
-                                                                disabled={topContentPage >= Math.ceil(analytics.topWatched.length / topWatchedPageSize) - 1}
-                                                                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
-                                                            >
-                                                                <ChevronDown className="w-4 h-4 -rotate-90" />
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                    <PeriodDropdown
-                                                        value={analyticsDays}
-                                                        open={analyticsDaysOpen}
-                                                        onToggle={() => setAnalyticsDaysOpen(!analyticsDaysOpen)}
-                                                        onClose={() => setAnalyticsDaysOpen(false)}
-                                                        onChange={(value) => setAnalyticsDays(value as number | 'all')}
-                                                        options={ANALYTICS_PERIOD_OPTIONS}
-                                                        buttonClassName="flex items-center gap-2 bg-background border border-border/50 rounded-lg px-3 py-1.5 text-sm font-medium text-text focus:outline-none hover:border-plex/50 transition-colors cursor-pointer shadow-sm"
-                                                    />
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-bold text-text text-xs truncate group-hover:text-plex transition-colors">{item.title}</h4>
+                                                {item.episodeTitle && <p className="text-[11px] leading-tight text-muted truncate mt-0.5">{item.episodeTitle}</p>}
+                                                <div className="flex items-center gap-1 mt-1">
+                                                    <Clock className="w-3 h-3 text-muted" />
+                                                    <p className="text-[10px] text-muted">{new Date(item.viewedAt * 1000).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
                                                 </div>
                                             </div>
-                                            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 md:gap-3.5 flex-1 min-h-0 content-start">
-                                                {analytics.topWatched.slice(topContentPage * topWatchedPageSize, (topContentPage + 1) * topWatchedPageSize).map((item: any) => (
-                                                    <a key={item.key} href={item.plexUrl} target="_blank" rel="noreferrer" className="group flex flex-col gap-1.5">
-                                                        <div className="relative rounded-lg overflow-hidden aspect-[2/3] bg-background border border-white/5 transition-[box-shadow,border-color] duration-300 group-hover:shadow-xl group-hover:border-plex/50">
-                                                            {item.thumbUrl ? (
-                                                                <img src={resolvePortalAssetUrl(item.thumbUrl)} alt={item.title} className="w-full h-full object-cover transition-[transform,opacity] duration-300 group-hover:scale-105 group-hover:opacity-80" />
-                                                            ) : (
-                                                                <div className="w-full h-full flex items-center justify-center p-4 text-center bg-white/5">
-                                                                    <span className="text-xs font-bold text-muted line-clamp-3">{item.title}</span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        <div className="flex flex-col px-0.5">
-                                                            <p className="text-xs sm:text-sm font-bold text-text truncate group-hover:text-plex transition-colors">{item.title}</p>
-                                                            <p className="text-[10px] sm:text-xs text-plex font-black mt-0.5 uppercase tracking-wider">{item.plays} plays</p>
-                                                        </div>
-                                                    </a>
-                                                ))}
-                                            </div>
-                                        </div>
+                                        </a>
+                                        <button
+                                            onClick={(e) => { e.preventDefault(); setReportItem(item); }}
+                                            className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-2 text-muted hover:text-red-400 hover:bg-red-400/10 rounded-full transition-all focus:outline-none"
+                                            title="Report a playback issue"
+                                        >
+                                            <AlertTriangle className="w-4 h-4" />
+                                        </button>
                                     </div>
-                                ) : null}
+                                ))}
                             </div>
+                        </div>
+                    );
+                }}
+                renderWatchRowRight={() => {
+                    if (!(sessionInfo.session.isAdmin || user)) return null;
+                    if (analyticsLoading) return <TopWatchedGridSkeleton />;
+                    if (!(analytics && analytics.totalPlays > 0 && analytics.topWatched && analytics.topWatched.length > 0)) return null;
+                    return (
+                        <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col h-full w-full min-h-0">
+                            <div className="flex flex-wrap items-center justify-between gap-3 mb-3 md:mb-4 flex-shrink-0">
+                                <div>
+                                    <h3 className="text-lg md:text-xl font-bold text-text mb-0.5">Your Most Watched</h3>
+                                    <p className="text-muted text-sm">Based on your {analytics.totalPlays} total plays</p>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    {analytics.topWatched.length > topWatchedPageSize && (
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => setTopContentPage(p => Math.max(0, p - 1))}
+                                                disabled={topContentPage === 0}
+                                                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
+                                            >
+                                                <ChevronUp className="w-4 h-4 -rotate-90" />
+                                            </button>
+                                            <span className="text-xs text-muted font-medium w-8 text-center">
+                                                {topContentPage + 1} / {Math.ceil(analytics.topWatched.length / topWatchedPageSize)}
+                                            </span>
+                                            <button
+                                                onClick={() => setTopContentPage(p => Math.min(Math.ceil(analytics.topWatched.length / topWatchedPageSize) - 1, p + 1))}
+                                                disabled={topContentPage >= Math.ceil(analytics.topWatched.length / topWatchedPageSize) - 1}
+                                                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text"
+                                            >
+                                                <ChevronDown className="w-4 h-4 -rotate-90" />
+                                            </button>
+                                        </div>
+                                    )}
+                                    <PeriodDropdown
+                                        value={analyticsDays}
+                                        open={analyticsDaysOpen}
+                                        onToggle={() => setAnalyticsDaysOpen(!analyticsDaysOpen)}
+                                        onClose={() => setAnalyticsDaysOpen(false)}
+                                        onChange={(value) => setAnalyticsDays(value as number | 'all')}
+                                        options={ANALYTICS_PERIOD_OPTIONS}
+                                        buttonClassName="flex items-center gap-2 bg-background border border-border/50 rounded-lg px-3 py-1.5 text-sm font-medium text-text focus:outline-none hover:border-plex/50 transition-colors cursor-pointer shadow-sm"
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 md:gap-3.5 flex-1 min-h-0 content-start">
+                                {analytics.topWatched.slice(topContentPage * topWatchedPageSize, (topContentPage + 1) * topWatchedPageSize).map((item: any) => (
+                                    <a key={item.key} href={item.plexUrl} target="_blank" rel="noreferrer" className="group flex flex-col gap-1.5">
+                                        <div className="relative rounded-lg overflow-hidden aspect-[2/3] bg-background border border-white/5 transition-[box-shadow,border-color] duration-300 group-hover:shadow-xl group-hover:border-plex/50">
+                                            {item.thumbUrl ? (
+                                                <img src={resolvePortalAssetUrl(item.thumbUrl)} alt={item.title} className="w-full h-full object-cover transition-[transform,opacity] duration-300 group-hover:scale-105 group-hover:opacity-80" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center p-4 text-center bg-white/5">
+                                                    <span className="text-xs font-bold text-muted line-clamp-3">{item.title}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-col px-0.5">
+                                            <p className="text-xs sm:text-sm font-bold text-text truncate group-hover:text-plex transition-colors">{item.title}</p>
+                                            <p className="text-[10px] sm:text-xs text-plex font-black mt-0.5 uppercase tracking-wider">{item.plays} plays</p>
+                                        </div>
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
                     );
                 }}
             />
