@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.4.1...v1.5.0) (2026-07-10)
+
+
+### Features
+
+* add in-portal Seerr request approval with home widget and nav badge ([88240f6](https://github.com/jl94x4/Server-Manager-Portal/commit/88240f632b8eb43ddc0c9cdebde2a284a97de669))
+* add Seerr-style request review with profiles, folders, tags and seasons ([2581633](https://github.com/jl94x4/Server-Manager-Portal/commit/25816339a59c2039a1dbcef2a5b6692de75af7b3))
+* extend settings search with deep links and recent history ([3523960](https://github.com/jl94x4/Server-Manager-Portal/commit/352396081eef9a8557dfbd181ccb430e0fdcac25))
+* show in-app What's new modal after version updates ([e278b85](https://github.com/jl94x4/Server-Manager-Portal/commit/e278b85ae22dcd0f267d48ac786c7e24a7c088bd))
+
+
+### Bug Fixes
+
+* clear stale temp access labels and hero username clipping ([b048696](https://github.com/jl94x4/Server-Manager-Portal/commit/b048696edc796f17665765ee0de2f958b3e3a08e))
+* dashboard section stacking and library stats layout ([a2188f9](https://github.com/jl94x4/Server-Manager-Portal/commit/a2188f91331afc05d54ad2d55a90d3027de4f919))
+* enrich Seerr requests with TMDB title and poster metadata ([fa0c401](https://github.com/jl94x4/Server-Manager-Portal/commit/fa0c4016d5487726b03b9faf07dff1256c3ffdbd))
+* improve mobile nav in iOS web app ([8f93d0e](https://github.com/jl94x4/Server-Manager-Portal/commit/8f93d0e4c840a4187737daefe9ae7388cdf3c6fc))
+* improve Requests page connection handling and layout ([5908949](https://github.com/jl94x4/Server-Manager-Portal/commit/59089497452792471f951956892e932eb6166a07))
+* load declined Seerr requests via filter=all ([989cf3f](https://github.com/jl94x4/Server-Manager-Portal/commit/989cf3ff84e477a06ce33932fee4bd11557fb17d))
+* move referral enable hint behind help button ([dcceb77](https://github.com/jl94x4/Server-Manager-Portal/commit/dcceb773cdbeb953525fb93303fad0998bae66df))
+* paginate Seerr API to load all declined requests ([51084a9](https://github.com/jl94x4/Server-Manager-Portal/commit/51084a90bb04863e616e0cdbcc43f02afc02009b))
+* pin activity stream details above progress bar ([6848704](https://github.com/jl94x4/Server-Manager-Portal/commit/68487042991207d80c409dc3770f764c7784aae5))
+* prevent activity posters from cropping on desktop ([e1a0ca7](https://github.com/jl94x4/Server-Manager-Portal/commit/e1a0ca7aa940bce7cf27fe37fdcd04ea53c79bd9))
+* size activity posters to 2:3 and drop letterboxing ([8fcdedf](https://github.com/jl94x4/Server-Manager-Portal/commit/8fcdedf0f1fa0c52ccaed18f0911ec130714f2f3))
+* stop transient API failures from forcing setup wizard ([7dbe728](https://github.com/jl94x4/Server-Manager-Portal/commit/7dbe72878b51d1f10cf5d082808c6efd2b03f0a4))
+* strip avatars when analytics usernames are hidden ([19a37fc](https://github.com/jl94x4/Server-Manager-Portal/commit/19a37fce6544863cfbe7e0cae4fb5651f01b055f))
+* use correct TMDB poster URLs for Seerr requests ([e54419d](https://github.com/jl94x4/Server-Manager-Portal/commit/e54419d1828ac1beed2c8a7a616d08f1b90ecc41))
+* use w1280 TMDB backdrops for sharper request card fanart ([7d1a207](https://github.com/jl94x4/Server-Manager-Portal/commit/7d1a20738b41e7b9dc9d363577ccbfd07f8fb6f8))
+
 ## [1.4.2](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.4.1...v1.4.2) (2026-07-10)
 
 
