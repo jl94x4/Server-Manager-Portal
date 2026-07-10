@@ -4,7 +4,7 @@ import { apiFetch } from '../shared/api';
 import { formatDateTime } from '../shared/format';
 import { Loader, ToastContainer, pushToast, type ToastMessage } from '../shared/toast';
 import { RequestApprovalModal } from './RequestApprovalModal';
-import { RequestCardShell } from './RequestCardShell';
+import { RequestCardActions, RequestCardShell } from './RequestCardShell';
 import type { PortalRequestItem } from './types';
 
 export type { PortalRequestItem } from './types';
@@ -347,14 +347,14 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
                                     </div>
                                 </div>
 
-                                <div className="flex sm:flex-col gap-2 sm:justify-center shrink-0">
+                                <RequestCardActions>
                                     {showPendingActions && (
                                         <>
                                             <button
                                                 type="button"
                                                 disabled={busy}
                                                 onClick={() => setReviewTarget(item)}
-                                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-plex/40 text-plex font-bold hover:bg-plex/10 transition-colors disabled:opacity-50 min-w-[7.5rem]"
+                                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-plex/50 bg-background/80 text-plex font-bold hover:bg-plex/15 transition-colors disabled:opacity-50 min-w-[7.5rem]"
                                             >
                                                 <Pencil className="w-4 h-4" />
                                                 Review
@@ -363,7 +363,7 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
                                                 type="button"
                                                 disabled={busy}
                                                 onClick={() => handleQuickApprove(item)}
-                                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-plex text-background font-bold hover:bg-plex-hover transition-colors disabled:opacity-50 min-w-[7.5rem]"
+                                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-plex text-background font-bold hover:bg-plex-hover transition-colors disabled:opacity-50 min-w-[7.5rem] shadow-md shadow-black/20"
                                             >
                                                 {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                                                 Quick Approve
@@ -375,7 +375,7 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
                                                     setDeclineTarget(item);
                                                     setDeclineReason('');
                                                 }}
-                                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-red-500/40 text-red-200 font-semibold hover:bg-red-500/10 transition-colors disabled:opacity-50 min-w-[7.5rem]"
+                                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-red-500/50 bg-background/80 text-red-200 font-semibold hover:bg-red-500/15 transition-colors disabled:opacity-50 min-w-[7.5rem]"
                                             >
                                                 <X className="w-4 h-4" />
                                                 Decline
@@ -387,7 +387,7 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
                                             type="button"
                                             disabled={busy}
                                             onClick={() => handleRetry(item)}
-                                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-amber-500/40 text-amber-200 font-semibold hover:bg-amber-500/10 transition-colors disabled:opacity-50 min-w-[7.5rem]"
+                                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-amber-500/50 bg-background/80 text-amber-200 font-semibold hover:bg-amber-500/15 transition-colors disabled:opacity-50 min-w-[7.5rem]"
                                         >
                                             <RotateCcw className="w-4 h-4" />
                                             Retry
@@ -398,7 +398,7 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
                                             type="button"
                                             disabled={busy}
                                             onClick={() => setReviewTarget(item)}
-                                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-white/10 text-text font-semibold hover:bg-white/5 transition-colors disabled:opacity-50 min-w-[7.5rem]"
+                                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-white/15 bg-background/80 text-text font-semibold hover:bg-white/10 transition-colors disabled:opacity-50 min-w-[7.5rem]"
                                         >
                                             <Pencil className="w-4 h-4" />
                                             Edit
@@ -408,12 +408,12 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
                                         type="button"
                                         disabled={busy}
                                         onClick={() => setDeleteTarget(item)}
-                                        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-border text-muted font-semibold hover:text-red-200 hover:border-red-500/30 transition-colors disabled:opacity-50 min-w-[7.5rem]"
+                                        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-border bg-background/80 text-muted font-semibold hover:text-red-200 hover:border-red-500/40 hover:bg-red-500/10 transition-colors disabled:opacity-50 min-w-[7.5rem]"
                                     >
                                         <Trash2 className="w-4 h-4" />
                                         Delete
                                     </button>
-                                </div>
+                                </RequestCardActions>
                             </div>
                             </RequestCardShell>
                         );

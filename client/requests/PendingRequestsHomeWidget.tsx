@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Check, ChevronRight, Film, Loader2, Pencil, RefreshCw, Tv } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { RequestApprovalModal } from './RequestApprovalModal';
-import { RequestCardShell } from './RequestCardShell';
+import { RequestCardActions, RequestCardShell } from './RequestCardShell';
 import type { PortalRequestItem } from './types';
 
 const formatRelativeTime = (value?: string | null) => {
@@ -162,12 +162,12 @@ export const PendingRequestsHomeWidget: React.FC<{
                             )}
                         </div>
                     </div>
-                    <div className="flex sm:flex-col gap-2 sm:justify-center shrink-0">
+                    <RequestCardActions>
                         <button
                             type="button"
                             disabled={busy}
                             onClick={() => setReviewTarget(item)}
-                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-plex/40 text-plex text-sm font-bold hover:bg-plex/10 transition-colors disabled:opacity-50 min-w-[7rem]"
+                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-plex/50 bg-background/80 text-plex text-sm font-bold hover:bg-plex/15 transition-colors disabled:opacity-50 min-w-[7rem]"
                         >
                             <Pencil className="w-4 h-4" />
                             Review
@@ -176,12 +176,12 @@ export const PendingRequestsHomeWidget: React.FC<{
                             type="button"
                             disabled={busy}
                             onClick={() => handleApprove(item)}
-                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-plex text-background text-sm font-bold hover:bg-plex-hover transition-colors disabled:opacity-50 min-w-[7rem]"
+                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-plex text-background text-sm font-bold hover:bg-plex-hover transition-colors disabled:opacity-50 min-w-[7rem] shadow-md shadow-black/20"
                         >
                             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                             Approve
                         </button>
-                    </div>
+                    </RequestCardActions>
                 </div>
                 </RequestCardShell>
             );
@@ -212,7 +212,7 @@ export const PendingRequestsHomeWidget: React.FC<{
                     type="button"
                     disabled={busy}
                     onClick={() => setReviewTarget(item)}
-                    className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg border border-plex/40 text-plex hover:bg-plex/10 transition-colors disabled:opacity-50"
+                    className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg border border-plex/50 bg-background/90 text-plex hover:bg-plex/15 transition-colors disabled:opacity-50 shadow-md shadow-black/20"
                     title="Review"
                 >
                     <Pencil className="w-4 h-4" />
