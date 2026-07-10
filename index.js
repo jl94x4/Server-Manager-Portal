@@ -9606,10 +9606,22 @@ const buildUpgraderItemsForArrInstance = async (instance, { plexLookup, resolveU
 
     if (instance.type === 'sonarr') {
         const fetchStarted = Date.now();
-        const [seriesList, allFiles] = await Promise.all([
-            fetchArrInstanceCatalogItems(instance, { resolveUrl, fetchImpl: fetch }),
-            fetchSonarrAllEpisodeFiles(instance, { resolveUrl, fetchImpl: fetch }),
-        ]);
+        const seriesList = await fetchArrInstanceCatalogItems(instance, { resolveUrl, fetchImpl: fetch });
+        const seriesIdsWithFiles = seriesList.filter((series) => {
+            const stats = series?.statistics || {};
+            return Number(stats.episodeFileCount || 0) > 0 || Number(stats.sizeOnDisk || 0) > 0;
+        }).length;
+        const filesStarted = Date.now();
+        const allFiles = await fetchSonarrAllEpisodeFiles(instance, {
+            resolveUrl,
+            fetchImpl: fetch,
+            seriesList,
+        });
+        if (seriesIdsWithFiles > 0 && allFiles.length === 0) {
+            log(`Upgrader index: Sonarr "${instanceLabel}" warning — ${seriesIdsWithFiles} series report files on disk but 0 episode files were returned`);
+        } else if (allFiles.length > 0) {
+            log(`Upgrader index: Sonarr "${instanceLabel}" loaded ${allFiles.length} episode files in ${Date.now() - filesStarted}ms (${seriesIdsWithFiles} series with files on disk)`);
+        }
         log(`Upgrader index: Sonarr "${instanceLabel}" fetched in ${Date.now() - fetchStarted}ms (${seriesList.length} series, ${allFiles.length} episode files)`);
 
         const filesBySeries = allFiles.reduce((acc, file) => {
