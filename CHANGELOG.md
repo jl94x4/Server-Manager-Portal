@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.2](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.5.1...v1.5.2) (2026-07-10)
+
+
+### Bug Fixes
+
+* gate setup-window integration and Plex discovery endpoints ([49cf1a3](https://github.com/jl94x4/Server-Manager-Portal/commit/49cf1a354b04bd417e3a6bab27710299024c37cc))
+* normalize Plex transcode bandwidth from bps to Kbps ([70e8373](https://github.com/jl94x4/Server-Manager-Portal/commit/70e8373d5cb518c7695e8dae3a5a1d3c44aa63f6))
+* show correct Seerr failed request count in portal tabs ([8a1044c](https://github.com/jl94x4/Server-Manager-Portal/commit/8a1044cd50ba6a4680c1b1cbc890bf9df03f0d3b))
+
 ## [1.5.1](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.5.0...v1.5.1) (2026-07-10)
 
 
