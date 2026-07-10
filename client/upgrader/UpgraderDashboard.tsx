@@ -549,7 +549,7 @@ export const UpgraderDashboard: React.FC = () => {
                                                         onClick={() => setShowDrawerItem(item)}
                                                         className="absolute top-2 right-2 z-20 upgrader-card-badge text-[10px] font-bold px-2 py-1 rounded-full bg-black/75 border border-white/20 text-amber-200 hover:border-plex/50"
                                                     >
-                                                        {item.nonHevcEpisodeCount} {(item.videoCodec || 'codec').toUpperCase()} ep{item.nonHevcEpisodeCount === 1 ? '' : 's'}
+                                                        {item.nonHevcEpisodeCount} {item.videoCodec ? `${item.videoCodec.toUpperCase()} ` : ''}ep{item.nonHevcEpisodeCount === 1 ? '' : 's'}
                                                     </button>
                                                 )}
                                                 <DiscoverPosterCard
@@ -586,7 +586,7 @@ export const UpgraderDashboard: React.FC = () => {
                                                             <div className="upgrader-card-meta text-[10px] text-muted line-clamp-2">
                                                                 {item.libraryTitle}
                                                                 {item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0
-                                                                    ? ` · ${item.nonHevcEpisodeSizeGB} GB (${(item.videoCodec || 'codec').toUpperCase()} eps)`
+                                                                    ? ` · ${item.nonHevcEpisodeSizeGB} GB (${item.videoCodec ? `${item.videoCodec.toUpperCase()} ` : ''}eps)`
                                                                     : item.sizeGB > 0 ? ` · ${item.sizeGB} GB` : ''}
                                                                 {item.arrInstanceName ? ` · ${item.arrInstanceName}` : ''}
                                                             </div>
@@ -606,7 +606,7 @@ export const UpgraderDashboard: React.FC = () => {
                                                                         className="text-[10px] font-bold text-muted hover:underline"
                                                                         onClick={() => setShowDrawerItem(item)}
                                                                     >
-                                                                        {item.nonHevcEpisodeCount} {(item.videoCodec || 'codec').toUpperCase()} ep{item.nonHevcEpisodeCount === 1 ? '' : 's'}
+                                                                        {item.nonHevcEpisodeCount} {item.videoCodec ? `${item.videoCodec.toUpperCase()} ` : ''}ep{item.nonHevcEpisodeCount === 1 ? '' : 's'}
                                                                     </button>
                                                                 )}
                                                                 {item.arrDeepUrl && (
