@@ -324,7 +324,6 @@ import {
     buildArrLookupMapsForItems,
     resolveArrEntity,
     buildArrDeepUrl,
-    getArrInstance,
     fetchArrQualityProfiles,
     updateArrEntityQualityProfile,
     triggerArrEntitySearch,
