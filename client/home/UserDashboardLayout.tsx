@@ -10,6 +10,15 @@ import {
     type RecentlyAddedWidgetId,
 } from '../shared/dashboardLayout';
 
+const findWatchRowIndexAfterMainGrid = (sections: ReturnType<typeof resolveDashboardSections>, mainGridIndex: number) => {
+    for (let j = mainGridIndex + 1; j < sections.length; j += 1) {
+        const id = sections[j];
+        if (id === 'watchRow') return j;
+        if (id !== 'pendingRequests') return -1;
+    }
+    return -1;
+};
+
 type Props = {
     layoutConfig: unknown;
     layoutCtx: DashboardLayoutContext;
@@ -106,6 +115,7 @@ export const UserDashboardLayout: React.FC<Props> = ({
     };
 
     const sectionNodes: React.ReactNode[] = [];
+    const mergedWatchRowIndices = new Set<number>();
     for (let index = 0; index < sections.length; index += 1) {
         const sectionId = sections[index];
         switch (sectionId) {
@@ -121,15 +131,15 @@ export const UserDashboardLayout: React.FC<Props> = ({
             }
             case 'mainGrid': {
                 if (mainGridWidgets.length === 0) break;
-                const nextSection = sections[index + 1];
-                const canMergeWatchRow = nextSection === 'watchRow' && (renderWatchRowLeft || renderWatchRowRight);
+                const watchRowIndex = findWatchRowIndexAfterMainGrid(sections, index);
+                const canMergeWatchRow = watchRowIndex >= 0 && (renderWatchRowLeft || renderWatchRowRight);
                 if (canMergeWatchRow) {
+                    mergedWatchRowIndices.add(watchRowIndex);
                     sectionNodes.push(
                         <div key="mainGrid-watchRow" className="relative w-full min-w-0">
                             {renderMergedMainAndWatchGrid()}
                         </div>
                     );
-                    index += 1;
                     break;
                 }
                 sectionNodes.push(
@@ -150,6 +160,7 @@ export const UserDashboardLayout: React.FC<Props> = ({
                 break;
             }
             case 'watchRow': {
+                if (mergedWatchRowIndices.has(index)) break;
                 const content = renderWatchRowColumns();
                 if (!content) break;
                 sectionNodes.push(
