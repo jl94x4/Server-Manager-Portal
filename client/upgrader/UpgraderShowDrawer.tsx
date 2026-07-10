@@ -221,13 +221,14 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
 
     const displaySeasons = useMemo(() => {
         if (!detail?.seasons) return [];
+        const sortedSeasons = [...detail.seasons].sort((a, b) => b.seasonNumber - a.seasonNumber);
         if (highlightFilterOnly) {
-            return detail.seasons.map((season) => ({
+            return sortedSeasons.map((season) => ({
                 ...season,
                 episodes: season.episodes.filter((episode) => episode.matchesPreset !== false),
             })).filter((season) => season.episodes.length > 0);
         }
-        return detail.seasons;
+        return sortedSeasons;
     }, [detail?.seasons, highlightFilterOnly]);
 
     const episodeSourceLabel = () => 'Sonarr';
@@ -437,11 +438,15 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                                             className={`flex items-start gap-3 px-4 py-3 ${highlightFilterOnly ? '' : episode.matchesPreset === false ? 'opacity-55' : ''}`}
                                                         >
                                                             <div className="w-20 h-11 rounded overflow-hidden bg-white/5 shrink-0">
-                                                                {episode.thumb ? (
+                                                                {episode.thumbUrl || episode.thumb || arr?.thumbUrl || arr?.thumb ? (
                                                                     <img
                                                                         src={episode.thumbUrl
                                                                             ? resolvePortalAssetUrl(episode.thumbUrl)
-                                                                            : portalUrl(`/api/plex/image?path=${encodeURIComponent(episode.thumb)}&width=160&height=90`)}
+                                                                            : episode.thumb
+                                                                                ? portalUrl(`/api/plex/image?path=${encodeURIComponent(episode.thumb)}&width=160&height=90`)
+                                                                                : arr?.thumbUrl
+                                                                                    ? resolvePortalAssetUrl(arr.thumbUrl)
+                                                                                    : portalUrl(`/api/plex/image?path=${encodeURIComponent(arr?.thumb || '')}&width=160&height=90`)}
                                                                         alt={episode.title}
                                                                         className="w-full h-full object-cover"
                                                                     />
