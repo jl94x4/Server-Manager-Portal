@@ -74,6 +74,7 @@ export const UpgraderDashboard: React.FC = () => {
     const [resolutions, setResolutions] = useState<Set<UpgraderResolution>>(new Set());
     const [features, setFeatures] = useState<Set<UpgraderFeature>>(new Set());
     const [qualities, setQualities] = useState<Set<UpgraderQuality>>(new Set());
+    const [filtersExpanded, setFiltersExpanded] = useState(false);
     const [presetReady, setPresetReady] = useState(false);
     const [sort, setSort] = useState('sizeGB');
     const [libraryId, setLibraryId] = useState('all');
@@ -408,9 +409,19 @@ export const UpgraderDashboard: React.FC = () => {
                         )}
 
                         <div className="flex flex-col lg:flex-row lg:items-end gap-3 p-4 rounded-2xl border border-border/60 bg-card/40">
-                            <div className="flex flex-col gap-2">
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span className="text-xs font-bold text-muted uppercase tracking-wider mr-1">Codec:</span>
+                            <div className="flex flex-col w-full lg:w-auto">
+                                <button
+                                    type="button"
+                                    onClick={() => setFiltersExpanded(!filtersExpanded)}
+                                    className="lg:hidden w-full py-2 mb-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-colors"
+                                >
+                                    <Filter className="w-4 h-4" />
+                                    {filtersExpanded ? 'Hide Filters' : 'Show Filters'}
+                                </button>
+                                
+                                <div className={`flex flex-col gap-2 ${filtersExpanded ? 'flex' : 'hidden lg:flex'}`}>
+                                    <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2">
+                                        <span className="text-xs font-bold text-muted uppercase tracking-wider mr-1 hidden lg:inline">Codec:</span>
                                     {UPGRADER_CODEC_OPTIONS.map((option) => (
                                         <button
                                             key={option.id}
@@ -429,9 +440,9 @@ export const UpgraderDashboard: React.FC = () => {
                                             {option.label}
                                         </button>
                                     ))}
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span className="text-xs font-bold text-muted uppercase tracking-wider mr-1">Resolution:</span>
+                                    </div>
+                                    <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2">
+                                        <span className="text-xs font-bold text-muted uppercase tracking-wider mr-1 hidden lg:inline">Resolution:</span>
                                     {UPGRADER_RESOLUTION_OPTIONS.map((option) => (
                                         <button
                                             key={option.id}
@@ -450,9 +461,9 @@ export const UpgraderDashboard: React.FC = () => {
                                             {option.label}
                                         </button>
                                     ))}
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span className="text-xs font-bold text-muted uppercase tracking-wider mr-1">Features:</span>
+                                    </div>
+                                    <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2">
+                                        <span className="text-xs font-bold text-muted uppercase tracking-wider mr-1 hidden lg:inline">Features:</span>
                                     {UPGRADER_FEATURE_OPTIONS.map((option) => (
                                         <button
                                             key={option.id}
@@ -471,9 +482,9 @@ export const UpgraderDashboard: React.FC = () => {
                                             {option.label}
                                         </button>
                                     ))}
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span className="text-xs font-bold text-muted uppercase tracking-wider mr-1">Quality:</span>
+                                    </div>
+                                    <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2">
+                                        <span className="text-xs font-bold text-muted uppercase tracking-wider mr-1 hidden lg:inline">Quality:</span>
                                     {UPGRADER_QUALITY_OPTIONS.map((option) => (
                                         <button
                                             key={option.id}
@@ -492,9 +503,10 @@ export const UpgraderDashboard: React.FC = () => {
                                             {option.label}
                                         </button>
                                     ))}
+                                    </div>
                                 </div>
                             </div>
-                            <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:ml-auto">
+                            <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:ml-auto mt-4 lg:mt-0">
                                 <CustomSelect
                                     value={gridSize}
                                     onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}

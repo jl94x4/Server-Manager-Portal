@@ -2019,6 +2019,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   margin-left: -0.25rem;
 }
 
+.-ml-2 {
+  margin-left: -0.5rem;
+}
+
 .-mr-1 {
   margin-right: -0.25rem;
 }
@@ -2217,6 +2221,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .inline-block {
   display: inline-block;
+}
+
+.inline {
+  display: inline;
 }
 
 .flex {
@@ -8014,6 +8022,14 @@ html.branded-skeleton .skeleton-base::after {
     margin-left: auto;
   }
 
+  .lg\:mt-0 {
+    margin-top: 0px;
+  }
+
+  .lg\:inline {
+    display: inline;
+  }
+
   .lg\:flex {
     display: flex;
   }
@@ -8084,6 +8100,10 @@ html.branded-skeleton .skeleton-base::after {
 
   .lg\:items-end {
     align-items: flex-end;
+  }
+
+  .lg\:justify-start {
+    justify-content: flex-start;
   }
 
   .lg\:border-r {

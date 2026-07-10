@@ -253,6 +253,10 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
             <div className="relative w-full max-w-3xl h-full bg-card border-l border-border/80 shadow-2xl flex flex-col">
                 <div className="px-5 py-4 border-b border-border/60 space-y-4">
+                    <button type="button" onClick={onClose} className="inline-flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-lg hover:bg-white/10 text-muted hover:text-text text-sm font-bold transition-colors">
+                        <ChevronLeft className="w-4 h-4" />
+                        Back to Filter
+                    </button>
                     <div className="flex items-start gap-4">
                         <div className="w-16 h-24 rounded-lg overflow-hidden bg-white/5 shrink-0 border border-white/10">
                             {showMeta.thumbUrl ? (
@@ -273,9 +277,6 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                         {detail?.stats ? ` · ${detail.stats.total} episodes` : ''}
                                     </p>
                                 </div>
-                                <button type="button" onClick={onClose} className="p-2 rounded-full hover:bg-white/10 text-muted shrink-0">
-                                    <X className="w-4 h-4" />
-                                </button>
                             </div>
                             {detailReady && (
                                 <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
@@ -455,7 +456,7 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                                                                     ? resolvePortalAssetUrl(arr.thumbUrl)
                                                                                     : portalUrl(`/api/plex/image?path=${encodeURIComponent(arr?.thumb || '')}&width=160&height=90`)}
                                                                         alt={episode.title}
-                                                                        className="w-full h-full object-cover"
+                                                                        className="w-full h-full object-contain bg-black/40"
                                                                     />
                                                                 ) : null}
                                                             </div>
