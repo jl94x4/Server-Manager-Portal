@@ -1,6 +1,7 @@
 import type { UpgraderPreset } from './types';
 
 export const UPGRADER_PRESET_OPTIONS: Array<{ id: UpgraderPreset; label: string; group?: string }> = [
+    { id: 'all', label: 'All titles', group: 'Browse' },
     { id: 'non_hevc', label: 'Non-HEVC', group: 'Codec' },
     { id: 'h264_only', label: 'H.264 / x264', group: 'Codec' },
     { id: 'hevc_only', label: 'HEVC only', group: 'Codec' },

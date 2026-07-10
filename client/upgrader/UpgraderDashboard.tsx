@@ -506,6 +506,7 @@ export const UpgraderDashboard: React.FC = () => {
                                                         title: item.title,
                                                         thumb: item.thumb,
                                                         thumbUrl: item.thumbUrl || undefined,
+                                                        posterFallbackUrl: item.posterFallbackUrl || undefined,
                                                         plexUrl: item.arrDeepUrl || '#',
                                                         tags: item.displayTags,
                                                         year: item.year ?? undefined,

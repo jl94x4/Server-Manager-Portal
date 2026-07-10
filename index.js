@@ -9187,9 +9187,13 @@ const fetchJellyfinShowEpisodes = async (config, showItem = {}) => {
 };
 
 const UPGRADER_PRESET_IDS = new Set([
-    'non_hevc', 'h264_only', 'x264', 'hevc_only', 'av1_only', 'vp9_only',
+    'all', 'non_hevc', 'h264_only', 'x264', 'hevc_only', 'av1_only', 'vp9_only',
     'sd', '720p', '1080p', '4k_all', '4k_non_hevc', 'hdr_non_hevc', 'dolby_vision',
     'large_non_hevc',
+]);
+
+const UPGRADER_UPGRADE_PRESETS = new Set([
+    'non_hevc', '4k_non_hevc', 'hdr_non_hevc', 'large_non_hevc',
 ]);
 
 const getUpgraderCodecFamily = (item = {}) => {
@@ -9204,17 +9208,21 @@ const getUpgraderCodecFamily = (item = {}) => {
 
 const getUpgraderResolutionBucket = (item = {}) => {
     const tags = item.displayTags || [];
-    if (item.is4k || tags.includes('4K')) return '4k';
+    const tagHaystack = tags.join(' ').toLowerCase();
+    if (item.is4k || tags.includes('4K') || /2160|4k/u.test(tagHaystack)) return '4k';
     const res = String(item.videoResolution || '').toLowerCase();
-    if (res.includes('1080') || tags.includes('1080p')) return '1080p';
-    if (res.includes('720') || tags.includes('720p')) return '720p';
-    if (res.includes('576') || res.includes('480') || res.includes('sd') || tags.includes('480p')) return 'sd';
+    const haystack = `${res} ${tagHaystack}`;
+    if (res.includes('1080') || tags.includes('1080p') || /1080/u.test(haystack)) return '1080p';
+    if (res.includes('720') || tags.includes('720p') || /720/u.test(haystack)) return '720p';
+    if (res.includes('576') || res.includes('480') || res.includes('sd') || tags.includes('480p') || /\bsd\b|576p|480p/u.test(haystack)) return 'sd';
     return 'other';
 };
 
-const applyUpgraderPresetFilter = (item, preset, minSizeGB = 5) => {
+const matchesUpgraderPresetCore = (item, preset, minSizeGB = 5) => {
     const normalizedPreset = preset === 'x264' ? 'h264_only' : preset;
     switch (normalizedPreset) {
+        case 'all':
+            return true;
         case 'h264_only':
             if (item.mediaType === 'show') {
                 return Number(item.nonHevcEpisodeCount || 0) > 0 || getUpgraderCodecFamily(item) === 'h264';
@@ -9222,9 +9230,9 @@ const applyUpgraderPresetFilter = (item, preset, minSizeGB = 5) => {
             return getUpgraderCodecFamily(item) === 'h264';
         case 'hevc_only':
             if (item.mediaType === 'show') {
-                return Number(item.totalEpisodeCount || 0) > 0
-                    ? Number(item.nonHevcEpisodeCount || 0) === 0
-                    : getUpgraderCodecFamily(item) === 'hevc';
+                const filesOnDisk = Number(item.onDiskFileCount || 0);
+                if (filesOnDisk > 0) return Number(item.nonHevcEpisodeCount || 0) === 0;
+                return getUpgraderCodecFamily(item) === 'hevc';
             }
             return getUpgraderCodecFamily(item) === 'hevc';
         case 'av1_only':
@@ -9242,19 +9250,28 @@ const applyUpgraderPresetFilter = (item, preset, minSizeGB = 5) => {
         case 'dolby_vision':
             return !!item.hasDolbyVision || (item.displayTags || []).includes('DV');
         case '4k_non_hevc':
-            return isUpgraderCandidate(item) && getUpgraderResolutionBucket(item) === '4k';
+            return getUpgraderResolutionBucket(item) === '4k';
         case 'hdr_non_hevc':
-            return isUpgraderCandidate(item) && (!!item.hasHdr || (item.displayTags || []).includes('HDR') || (item.displayTags || []).includes('DV'));
+            return !!item.hasHdr || (item.displayTags || []).includes('HDR') || (item.displayTags || []).includes('DV');
         case 'large_non_hevc':
-            return isUpgraderCandidate(item) && Number(item.sizeGB || 0) >= minSizeGB;
+            return Number(item.sizeGB || 0) >= minSizeGB;
         case 'arr_mapped':
             return !!item.arrMapped;
         case 'arr_unmapped':
             return !item.arrMapped;
         case 'non_hevc':
         default:
-            return isUpgraderCandidate(item);
+            return !item.isHevc || Number(item.nonHevcEpisodeCount || 0) > 0;
     }
+};
+
+const applyUpgraderPresetFilter = (item, preset, minSizeGB = 5) => {
+    const normalizedPreset = preset === 'x264' ? 'h264_only' : preset;
+    if (!matchesUpgraderPresetCore(item, normalizedPreset, minSizeGB)) return false;
+    if (UPGRADER_UPGRADE_PRESETS.has(normalizedPreset)) {
+        return isUpgraderCandidate(item);
+    }
+    return true;
 };
 
 const applyUpgraderPresetFilterEpisode = (episode, preset, minSizeGB = 5) => {
@@ -9316,29 +9333,45 @@ const aggregateSonarrSeriesFileStats = (files = []) => {
     let nonHevcCount = 0;
     let nonHevcSizeGB = 0;
     let totalSizeGB = 0;
-    let displayFile = null;
+    let displayFileStats = null;
     files.forEach((file) => {
         const stats = analyzeSonarrEpisodeFile(file);
         totalSizeGB += stats.sizeGB;
         if (!stats.isHevc) {
             nonHevcCount += 1;
             nonHevcSizeGB += stats.sizeGB;
-            if (!displayFile || stats.sizeGB > displayFile.sizeGB) displayFile = stats;
+        }
+        if (!displayFileStats || stats.sizeGB > displayFileStats.sizeGB) {
+            displayFileStats = stats;
         }
     });
-    if (!displayFile) displayFile = analyzeSonarrEpisodeFile(files[0]);
+    if (!displayFileStats) {
+        return {
+            totalFiles: 0,
+            nonHevcCount: 0,
+            nonHevcSizeGB: 0,
+            totalSizeGB: 0,
+            videoCodec: '',
+            videoResolution: '',
+            displayTags: [],
+            isHevc: false,
+            hasHdr: false,
+            hasDolbyVision: false,
+            is4k: false,
+        };
+    }
     return {
         totalFiles: files.length,
         nonHevcCount,
         nonHevcSizeGB: Math.round(nonHevcSizeGB * 100) / 100,
         totalSizeGB: Math.round(totalSizeGB * 100) / 100,
-        videoCodec: displayFile.videoCodec || '',
-        videoResolution: displayFile.videoResolution || '',
-        displayTags: displayFile.displayTags || [],
+        videoCodec: displayFileStats.videoCodec || '',
+        videoResolution: displayFileStats.videoResolution || '',
+        displayTags: displayFileStats.displayTags || [],
         isHevc: nonHevcCount === 0,
-        hasHdr: !!displayFile.hasHdr,
-        hasDolbyVision: !!displayFile.hasDolbyVision,
-        is4k: (displayFile.displayTags || []).includes('4K'),
+        hasHdr: !!displayFileStats.hasHdr,
+        hasDolbyVision: !!displayFileStats.hasDolbyVision,
+        is4k: (displayFileStats.displayTags || []).includes('4K'),
     };
 };
 
@@ -9408,13 +9441,41 @@ const buildPlexPosterLookup = (items = []) => {
 const findPlexPosterItem = (lookup, { mediaType = 'show', title, year, tvdbId, tmdbId, imdbId } = {}) => {
     if (!lookup) return null;
     const type = mediaType === 'show' ? 'show' : 'movie';
-    if (tvdbId && lookup.byTvdb.get(`${type}:${tvdbId}`)) return lookup.byTvdb.get(`${type}:${tvdbId}`);
-    if (tmdbId && lookup.byTmdb.get(`${type}:${tmdbId}`)) return lookup.byTmdb.get(`${type}:${tmdbId}`);
+    if (tvdbId != null && lookup.byTvdb.get(`${type}:${String(tvdbId)}`)) return lookup.byTvdb.get(`${type}:${String(tvdbId)}`);
+    if (tmdbId != null && lookup.byTmdb.get(`${type}:${String(tmdbId)}`)) return lookup.byTmdb.get(`${type}:${String(tmdbId)}`);
     if (imdbId && lookup.byImdb.get(String(imdbId).toLowerCase())) return lookup.byImdb.get(String(imdbId).toLowerCase());
     const titleKey = `${normalized(title)}|${Number(year) || ''}`;
     const match = lookup.byTitleYear.get(titleKey);
     if (match && (match.mediaType === type || !match.mediaType)) return match;
     return null;
+};
+
+const applyUpgraderPosterFields = (item, { arrType, instanceId, entityId, mediaType, title, year, tvdbId, tmdbId, imdbId }, plexLookup) => {
+    const arrCoverUrl = buildUpgraderCoverUrl(arrType, instanceId, entityId);
+    const plexItem = findPlexPosterItem(plexLookup, { mediaType, title, year, tvdbId, tmdbId, imdbId });
+    const plexThumb = plexItem?.thumb || '';
+    return {
+        ...item,
+        thumb: plexThumb,
+        thumbUrl: plexThumb ? upgraderPlexPosterUrl(plexThumb) : arrCoverUrl,
+        posterFallbackUrl: arrCoverUrl,
+        posterSource: plexThumb ? 'plex' : arrType,
+    };
+};
+
+const enrichUpgraderItemPosters = (item, plexLookup) => {
+    if (!item?.arrEntityId || !item?.arrInstanceId || !item?.arrType) return item;
+    return applyUpgraderPosterFields(item, {
+        arrType: item.arrType,
+        instanceId: item.arrInstanceId,
+        entityId: item.arrEntityId,
+        mediaType: item.mediaType === 'show' ? 'show' : 'movie',
+        title: item.title,
+        year: item.year,
+        tvdbId: item.tvdbId,
+        tmdbId: item.tmdbId,
+        imdbId: item.imdbId,
+    }, plexLookup);
 };
 
 const mapSonarrSeriesToUpgraderItem = (series, instance, fileStats = {}, episodeCount = 0, plexItem = null) => {
@@ -9425,13 +9486,15 @@ const mapSonarrSeriesToUpgraderItem = (series, instance, fileStats = {}, episode
     const totalEpisodeCount = Number(stats.episodeCount || episodeCount || fileStats.totalFiles || 0);
     const deepUrl = buildArrDeepUrl(instance, series, 'sonarr');
     const arrCoverUrl = buildUpgraderCoverUrl('sonarr', instance.id, entityId);
+    const plexThumb = plexItem?.thumb || '';
     return {
         ratingKey,
         title: series.title || 'Unknown',
         year: series.year != null ? Number(series.year) : null,
-        thumb: plexItem?.thumb || '',
-        thumbUrl: plexItem?.thumb ? upgraderPlexPosterUrl(plexItem.thumb) : arrCoverUrl,
-        posterSource: plexItem?.thumb ? 'plex' : 'sonarr',
+        thumb: plexThumb,
+        thumbUrl: plexThumb ? upgraderPlexPosterUrl(plexThumb) : arrCoverUrl,
+        posterFallbackUrl: arrCoverUrl,
+        posterSource: plexThumb ? 'plex' : 'sonarr',
         mediaType: 'show',
         libraryTitle: instanceName,
         libraryId: String(instance.id),
@@ -9449,6 +9512,10 @@ const mapSonarrSeriesToUpgraderItem = (series, instance, fileStats = {}, episode
         totalEpisodeCount,
         nonHevcEpisodeCount: Number(fileStats.nonHevcCount || 0),
         nonHevcEpisodeSizeGB: Number(fileStats.nonHevcSizeGB || 0),
+        onDiskFileCount: Number(fileStats.totalFiles || 0),
+        tvdbId: series.tvdbId,
+        tmdbId: series.tmdbId,
+        imdbId: series.imdbId,
         plexUrl: null,
         arrMapped: true,
         arrType: 'sonarr',
@@ -9467,13 +9534,15 @@ const mapRadarrMovieToUpgraderItem = (movie, instance, plexItem = null) => {
     const entityId = Number(movie.id);
     const ratingKey = buildUpgraderItemKey('radarr', instance.id, entityId);
     const arrCoverUrl = buildUpgraderCoverUrl('radarr', instance.id, entityId);
+    const plexThumb = plexItem?.thumb || '';
     return {
         ratingKey,
         title: movie.title || 'Unknown',
         year: movie.year != null ? Number(movie.year) : null,
-        thumb: plexItem?.thumb || '',
-        thumbUrl: plexItem?.thumb ? upgraderPlexPosterUrl(plexItem.thumb) : arrCoverUrl,
-        posterSource: plexItem?.thumb ? 'plex' : 'radarr',
+        thumb: plexThumb,
+        thumbUrl: plexThumb ? upgraderPlexPosterUrl(plexThumb) : arrCoverUrl,
+        posterFallbackUrl: arrCoverUrl,
+        posterSource: plexThumb ? 'plex' : 'radarr',
         mediaType: 'movie',
         libraryTitle: instanceName,
         libraryId: String(instance.id),
@@ -9488,6 +9557,10 @@ const mapRadarrMovieToUpgraderItem = (movie, instance, plexItem = null) => {
         hasHdr: fileStats.hasHdr,
         hasDolbyVision: fileStats.hasDolbyVision,
         is4k: fileStats.is4k,
+        onDiskFileCount: movie?.movieFile ? 1 : 0,
+        tvdbId: movie.tvdbId,
+        tmdbId: movie.tmdbId,
+        imdbId: movie.imdbId,
         plexUrl: null,
         arrMapped: true,
         arrType: 'radarr',
@@ -9553,21 +9626,25 @@ const buildUpgraderItemsForArrInstance = async (instance, { plexLookup, resolveU
             const seriesFiles = filesBySeries[seriesId] || [];
             const fingerprint = buildSonarrSeriesFingerprint(series, seriesFiles);
             const ratingKey = buildUpgraderItemKey('sonarr', instance.id, seriesId);
-            const prev = prevByKey.get(ratingKey);
-            if (prev?.arrFileFingerprint === fingerprint) {
-                items.push(prev);
-                reused += 1;
-                return;
-            }
-            const fileStats = aggregateSonarrSeriesFileStats(seriesFiles);
-            const plexItem = findPlexPosterItem(plexLookup, {
+            const posterMeta = {
+                arrType: 'sonarr',
+                instanceId: instance.id,
+                entityId: seriesId,
                 mediaType: 'show',
                 title: series.title,
                 year: series.year,
                 tvdbId: series.tvdbId,
                 tmdbId: series.tmdbId,
                 imdbId: series.imdbId,
-            });
+            };
+            const prev = prevByKey.get(ratingKey);
+            if (prev?.arrFileFingerprint === fingerprint) {
+                items.push(applyUpgraderPosterFields(prev, posterMeta, plexLookup));
+                reused += 1;
+                return;
+            }
+            const fileStats = aggregateSonarrSeriesFileStats(seriesFiles);
+            const plexItem = findPlexPosterItem(plexLookup, posterMeta);
             const item = mapSonarrSeriesToUpgraderItem(
                 series,
                 instance,
@@ -9587,20 +9664,24 @@ const buildUpgraderItemsForArrInstance = async (instance, { plexLookup, resolveU
             if (!movie?.id) return;
             const fingerprint = buildRadarrMovieFingerprint(movie);
             const ratingKey = buildUpgraderItemKey('radarr', instance.id, movie.id);
-            const prev = prevByKey.get(ratingKey);
-            if (prev?.arrFileFingerprint === fingerprint) {
-                items.push(prev);
-                reused += 1;
-                return;
-            }
-            const plexItem = findPlexPosterItem(plexLookup, {
+            const posterMeta = {
+                arrType: 'radarr',
+                instanceId: instance.id,
+                entityId: movie.id,
                 mediaType: 'movie',
                 title: movie.title,
                 year: movie.year,
                 tvdbId: movie.tvdbId,
                 tmdbId: movie.tmdbId,
                 imdbId: movie.imdbId,
-            });
+            };
+            const prev = prevByKey.get(ratingKey);
+            if (prev?.arrFileFingerprint === fingerprint) {
+                items.push(applyUpgraderPosterFields(prev, posterMeta, plexLookup));
+                reused += 1;
+                return;
+            }
+            const plexItem = findPlexPosterItem(plexLookup, posterMeta);
             const item = mapRadarrMovieToUpgraderItem(movie, instance, plexItem);
             item.arrFileFingerprint = fingerprint;
             items.push(item);
@@ -9909,6 +9990,7 @@ const mapUpgraderApiItem = (item, exclusions = { ratingKeys: new Set(), titles: 
         year: item.year || null,
         thumb: item.thumb || '',
         thumbUrl: item.thumbUrl || null,
+        posterFallbackUrl: item.posterFallbackUrl || null,
         mediaType: item.mediaType || 'movie',
         libraryTitle: item.libraryTitle || 'Library',
         libraryId: String(item.libraryId || ''),
@@ -9930,7 +10012,11 @@ const mapUpgraderApiItem = (item, exclusions = { ratingKeys: new Set(), titles: 
         arrType: item.arrType || 'none',
         arrInstanceName: item.arrInstanceName || null,
         arrInstanceId: item.arrInstanceId || null,
+        arrEntityId: item.arrEntityId != null ? Number(item.arrEntityId) : null,
         arrDeepUrl: item.arrDeepUrl || null,
+        tvdbId: item.tvdbId ?? null,
+        tmdbId: item.tmdbId ?? null,
+        imdbId: item.imdbId ?? null,
         arrQualityProfileId: item.arrQualityProfileId != null ? Number(item.arrQualityProfileId) : null,
         excluded,
         snoozed,
@@ -11521,6 +11607,7 @@ app.get('/api/upgrader/items', requireAdmin, async (req, res) => {
         const payload = await loadUpgraderIndex();
         const preferences = await loadMaintenancePreferences();
         const upgraderPrefs = await loadUpgraderPreferences();
+        const plexLookup = await loadUpgraderPlexPosterLookup(config);
         const allItems = Array.isArray(payload.items) ? payload.items : [];
         const preset = UPGRADER_PRESET_IDS.has(String(req.query.preset || '')) ? String(req.query.preset) : (config.upgraderDefaultPreset || 'non_hevc');
         const libraryId = String(req.query.libraryId || 'all');
@@ -11575,7 +11662,8 @@ app.get('/api/upgrader/items', requireAdmin, async (req, res) => {
         filtered.sort(sorters[resolvedSort] || sorters.sizeGB);
 
         const start = (page - 1) * limit;
-        const pageItems = filtered.slice(start, start + limit);
+        const pageItems = filtered.slice(start, start + limit)
+            .map((item) => enrichUpgraderItemPosters(item, plexLookup));
         res.json({
             generatedAt: payload.generatedAt || null,
             preset,

@@ -1,4 +1,5 @@
 export type UpgraderPreset =
+    | 'all'
     | 'non_hevc'
     | 'h264_only'
     | 'x264'
@@ -52,6 +53,7 @@ export type UpgraderItem = {
     year: number | null;
     thumb: string;
     thumbUrl?: string | null;
+    posterFallbackUrl?: string | null;
     mediaType: string;
     libraryTitle: string;
     libraryId: string;

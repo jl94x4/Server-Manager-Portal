@@ -4601,7 +4601,7 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | str
 };
 
 export const DiscoverPosterCard: React.FC<{
-    item: { title: string; thumb?: string; thumbUrl?: string; plexUrl: string; tags?: string[]; year?: number | string; parentTitle?: string };
+    item: { title: string; thumb?: string; thumbUrl?: string; posterFallbackUrl?: string; plexUrl: string; tags?: string[]; year?: number | string; parentTitle?: string };
     aspect?: '2/3' | 'square';
     overlay?: React.ReactNode;
     variant?: 'discover' | 'home';
@@ -4618,14 +4618,32 @@ export const DiscoverPosterCard: React.FC<{
         ? 'relative rounded-xl overflow-hidden bg-background border border-white/5 transition-[box-shadow,border-color] duration-300 group-hover:shadow-xl group-hover:border-plex/50'
         : 'relative rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md';
 
-    const hasPoster = !!(item.thumb || item.thumbUrl);
+    const primaryPosterSrc = item.thumbUrl
+        ? resolvePortalAssetUrl(item.thumbUrl)
+        : item.thumb
+            ? portalUrl(`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=${posterWidth}&height=${resolvedPosterHeight}`)
+            : '';
+    const fallbackPosterSrc = item.posterFallbackUrl
+        ? resolvePortalAssetUrl(item.posterFallbackUrl)
+        : '';
+    const [posterSrc, setPosterSrc] = useState(primaryPosterSrc);
+    useEffect(() => {
+        setPosterSrc(primaryPosterSrc);
+    }, [primaryPosterSrc]);
+
+    const hasPoster = !!(primaryPosterSrc || fallbackPosterSrc);
     const posterInner = (
         <div className={`${posterShell} ${aspect === 'square' ? 'aspect-square' : 'aspect-[2/3]'} w-full`}>
             {hasPoster ? (
                 <img
-                    src={item.thumbUrl ? resolvePortalAssetUrl(item.thumbUrl) : portalUrl(`/api/plex/image?path=${encodeURIComponent(item.thumb!)}&width=${posterWidth}&height=${resolvedPosterHeight}`)}
+                    src={posterSrc || fallbackPosterSrc}
                     alt={item.title}
                     loading="lazy"
+                    onError={() => {
+                        if (fallbackPosterSrc && posterSrc !== fallbackPosterSrc) {
+                            setPosterSrc(fallbackPosterSrc);
+                        }
+                    }}
                     className={`w-full h-full object-cover ${variant === 'home' ? 'transition-[transform,opacity] duration-300 group-hover:scale-105 group-hover:opacity-80' : ''}`}
                 />
             ) : (
