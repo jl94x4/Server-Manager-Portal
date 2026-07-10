@@ -4,7 +4,7 @@ import { apiFetch } from '../shared/api';
 import { portalUrl } from '../shared/basePath';
 import { CustomSelect } from '../shared/ui';
 import { Loader, ToastContainer, pushToast } from '../shared/toast';
-import { discoverPosterGridClass } from '../shared/portalLayout';
+import { normalizeUpgraderGridSize, UPGRADER_GRID_SIZE_OPTIONS, UPGRADER_GRID_SIZE_STORAGE_KEY, upgraderPosterGridClass, type UpgraderGridSize } from '../shared/portalLayout';
 import { DiscoverPosterCard } from '../screens';
 import type { ToastMessage } from '../shared/types';
 import { UpgraderUpgradeModal } from './UpgraderUpgradeModal';
@@ -89,6 +89,14 @@ export const UpgraderDashboard: React.FC = () => {
     const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<UpgraderTab>('browse');
     const [showDrawerItem, setShowDrawerItem] = useState<UpgraderItem | null>(null);
+    const [gridSize, setGridSize] = useState<UpgraderGridSize>(() => {
+        if (typeof window === 'undefined') return 'medium';
+        return normalizeUpgraderGridSize(window.localStorage.getItem(UPGRADER_GRID_SIZE_STORAGE_KEY));
+    });
+
+    useEffect(() => {
+        window.localStorage.setItem(UPGRADER_GRID_SIZE_STORAGE_KEY, gridSize);
+    }, [gridSize]);
 
     const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
         setToasts((prev) => pushToast(prev, message, type));
@@ -365,6 +373,12 @@ export const UpgraderDashboard: React.FC = () => {
                             </div>
                             <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:ml-auto">
                                 <CustomSelect
+                                    value={gridSize}
+                                    onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}
+                                    options={UPGRADER_GRID_SIZE_OPTIONS}
+                                    className="min-w-[130px]"
+                                />
+                                <CustomSelect
                                     value={sort}
                                     onChange={(value) => { setSort(value); setPage(1); }}
                                     options={SORT_OPTIONS}
@@ -434,7 +448,7 @@ export const UpgraderDashboard: React.FC = () => {
                         ) : (
                             <>
                                 <p className="text-xs text-muted">{total} title{total === 1 ? '' : 's'} · page {page} of {totalPages}</p>
-                                <div className={discoverPosterGridClass}>
+                                <div className={`discover-layout-container ${upgraderPosterGridClass(gridSize)}`}>
                                     {items.map((item) => {
                                         const canUpgrade = automationReady && item.arrMapped && isUpgradableItem(item);
                                         const isSelected = selectedKeys.has(item.ratingKey);
@@ -442,7 +456,7 @@ export const UpgraderDashboard: React.FC = () => {
                                         return (
                                             <div key={item.ratingKey} className="relative">
                                                 {automationReady && (
-                                                    <div className="absolute top-2 left-2 z-20">
+                                                    <div className="absolute top-1.5 left-1.5 z-20 upgrader-card-select">
                                                         <label className="inline-flex cursor-pointer">
                                                             <input
                                                                 type="checkbox"
@@ -457,7 +471,7 @@ export const UpgraderDashboard: React.FC = () => {
                                                     <button
                                                         type="button"
                                                         onClick={() => setShowDrawerItem(item)}
-                                                        className="absolute top-2 right-2 z-20 text-[10px] font-bold px-2 py-1 rounded-full bg-black/75 border border-white/20 text-amber-200 hover:border-plex/50"
+                                                        className="absolute top-2 right-2 z-20 upgrader-card-badge text-[10px] font-bold px-2 py-1 rounded-full bg-black/75 border border-white/20 text-amber-200 hover:border-plex/50"
                                                     >
                                                         {item.nonHevcEpisodeCount} non-HEVC ep{item.nonHevcEpisodeCount === 1 ? '' : 's'}
                                                     </button>
@@ -476,17 +490,17 @@ export const UpgraderDashboard: React.FC = () => {
                                                     }}
                                                     footer={(
                                                         <div className="px-1 space-y-1">
-                                                            <div className="text-xs font-medium text-text line-clamp-2 leading-tight">
+                                                            <div className="upgrader-card-title text-xs font-medium text-text line-clamp-2 leading-tight">
                                                                 {item.title}{item.year ? ` (${item.year})` : ''}
                                                             </div>
-                                                            <div className="text-[10px] text-muted">
+                                                            <div className="upgrader-card-meta text-[10px] text-muted line-clamp-2">
                                                                 {item.libraryTitle}
                                                                 {item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0
                                                                     ? ` · ${item.nonHevcEpisodeSizeGB} GB (non-HEVC eps)`
                                                                     : item.sizeGB > 0 ? ` · ${item.sizeGB} GB` : ''}
                                                                 {item.arrMapped && item.arrInstanceName ? ` · ${item.arrInstanceName}` : ''}
                                                             </div>
-                                                            <div className="flex flex-wrap gap-2">
+                                                            <div className="upgrader-card-actions flex flex-wrap gap-x-2 gap-y-1">
                                                                 {showEpisodeBadge && (
                                                                     <button
                                                                         type="button"
