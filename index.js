@@ -9740,23 +9740,33 @@ const mapSonarrFileToEpisodeQuality = (file = null) => {
     };
 };
 
-const buildUpgraderEpisodesFromSonarr = (sonarrEpisodes, sonarrFiles, showTitle, codecs, resolutions, features, minSizeGB) => {
+const buildUpgraderEpisodesFromSonarr = (sonarrEpisodes, sonarrFiles, showTitle, codecs, resolutions, features, minSizeGB, plexEpisodes = []) => {
     const fileByEpisodeId = new Map(
         sonarrFiles.map((file) => [Number(file.episodeId), file]),
     );
+
+    const plexEpMap = new Map();
+    plexEpisodes.forEach(ep => {
+        if (ep.seasonNumber != null && ep.episodeNumber != null) {
+            plexEpMap.set(`${ep.seasonNumber}-${ep.episodeNumber}`, ep);
+        }
+    });
 
     return sonarrEpisodes.map((sonarrEpisode) => {
         const seasonNumber = sonarrEpisode.seasonNumber != null ? Number(sonarrEpisode.seasonNumber) : null;
         const episodeNumber = sonarrEpisode.episodeNumber != null ? Number(sonarrEpisode.episodeNumber) : null;
         const sonarrFile = sonarrEpisode?.id ? fileByEpisodeId.get(Number(sonarrEpisode.id)) : null;
         const sonarrQuality = mapSonarrFileToEpisodeQuality(sonarrFile);
+        
+        const plexEp = plexEpMap.get(`${seasonNumber}-${episodeNumber}`);
+        
         const episode = {
             ratingKey: `sonarr-ep-${sonarrEpisode.id}`,
             title: sonarrEpisode.title || `Episode ${episodeNumber ?? '?'}`,
             showTitle,
             seasonNumber,
             episodeNumber,
-            thumb: '',
+            thumb: plexEp?.thumb || '',
             thumbUrl: null,
             mediaType: 'episode',
             videoCodec: sonarrQuality.videoCodec,
@@ -9766,7 +9776,7 @@ const buildUpgraderEpisodesFromSonarr = (sonarrEpisodes, sonarrFiles, showTitle,
             isHevc: sonarrQuality.isHevc,
             hasHdr: sonarrQuality.hasHdr,
             hasDolbyVision: sonarrQuality.hasDolbyVision,
-            plexUrl: null,
+            plexUrl: plexEp?.plexUrl || null,
             arrEpisodeId: sonarrEpisode?.id != null ? Number(sonarrEpisode.id) : null,
             arrHasFile: !!(sonarrEpisode?.hasFile || sonarrFile),
             arrQualityLabel: getSonarrEpisodeQualityLabel(sonarrFile),
@@ -9790,15 +9800,30 @@ const buildUpgraderShowDetail = async (config, showItem, codecs = [], resolution
     }
 
     const resolveUrl = resolveIntegrationUrlForFetch;
-    const [series, sonarrEpisodes, sonarrFiles, profiles] = await Promise.all([
+    const [series, sonarrEpisodes, sonarrFiles, profiles, plexLookup] = await Promise.all([
         fetchSonarrSeriesById(instance, parsed.entityId, { resolveUrl, fetchImpl: fetch }),
         fetchSonarrEpisodesForSeries(instance, parsed.entityId, { resolveUrl, fetchImpl: fetch }),
         fetchSonarrEpisodeFilesForSeries(instance, parsed.entityId, { resolveUrl, fetchImpl: fetch }),
         fetchArrQualityProfiles(instance, { resolveUrl, fetchImpl: fetch }),
+        loadUpgraderPlexPosterLookup(config),
     ]);
 
     if (!series?.id) {
         throw new Error('Series not found in Sonarr.');
+    }
+
+    const plexItem = findPlexPosterItem(plexLookup, { 
+        mediaType: 'show', 
+        title: series.title || showItem.title, 
+        year: series.year || showItem.year, 
+        tvdbId: series.tvdbId || showItem.tvdbId, 
+        tmdbId: series.tmdbId || showItem.tmdbId, 
+        imdbId: series.imdbId || showItem.imdbId 
+    });
+
+    let plexEpisodes = [];
+    if (plexItem?.ratingKey && isPlexConfigured(config)) {
+        plexEpisodes = await fetchPlexShowEpisodes(config, config.plexUrl, { ratingKey: plexItem.ratingKey }).catch(() => []);
     }
 
     const enrichedEpisodes = buildUpgraderEpisodesFromSonarr(
@@ -9809,6 +9834,7 @@ const buildUpgraderShowDetail = async (config, showItem, codecs = [], resolution
         resolutions,
         features,
         minSizeGB,
+        plexEpisodes
     );
 
     const currentProfileId = Number(series.qualityProfileId || showItem.arrQualityProfileId || 0) || null;
