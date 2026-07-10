@@ -28,6 +28,7 @@ import {
     type SettingsTabId,
 } from './settingsIndex';
 import { SettingsSearchPanel } from './SettingsSearchPanel';
+import { UPGRADER_PRESET_SELECT_OPTIONS } from '../upgrader/presets';
 
 const normalizeArrInstancesFromSettings = (settings: Record<string, any> = {}): ArrInstance[] => {
     if (Array.isArray(settings.arrInstances) && settings.arrInstances.length > 0) {
@@ -2081,15 +2082,7 @@ export const SettingsDashboard: React.FC = () => {
                                         <CustomSelect
                                             value={upgraderDefaultPreset}
                                             onChange={setUpgraderDefaultPreset}
-                                            options={[
-                                                { value: 'non_hevc', label: 'Non-HEVC' },
-                                                { value: 'h264_only', label: 'H.264 only' },
-                                                { value: '4k_non_hevc', label: '4K non-HEVC' },
-                                                { value: 'hdr_non_hevc', label: 'HDR non-HEVC' },
-                                                { value: 'large_non_hevc', label: 'Large non-HEVC' },
-                                                { value: 'arr_mapped', label: 'ARR mapped' },
-                                                { value: 'arr_unmapped', label: 'ARR unmapped' },
-                                            ]}
+                                            options={UPGRADER_PRESET_SELECT_OPTIONS}
                                         />
                                     </div>
                                     <div>

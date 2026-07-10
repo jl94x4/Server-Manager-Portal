@@ -1,8 +1,17 @@
 export type UpgraderPreset =
     | 'non_hevc'
     | 'h264_only'
+    | 'x264'
+    | 'hevc_only'
+    | 'av1_only'
+    | 'vp9_only'
+    | 'sd'
+    | '720p'
+    | '1080p'
+    | '4k_all'
     | '4k_non_hevc'
     | 'hdr_non_hevc'
+    | 'dolby_vision'
     | 'large_non_hevc'
     | 'arr_mapped'
     | 'arr_unmapped';
@@ -89,6 +98,43 @@ export type UpgraderEpisode = {
     hasHdr?: boolean;
     hasDolbyVision?: boolean;
     plexUrl: string | null;
+    matchesPreset?: boolean;
+    arrEpisodeId?: number | null;
+    arrHasFile?: boolean;
+    arrQualityLabel?: string | null;
+    arrMonitored?: boolean | null;
+};
+
+export type UpgraderShowSeason = {
+    seasonNumber: number;
+    episodeCount: number;
+    matchedCount: number;
+    episodes: UpgraderEpisode[];
+};
+
+export type UpgraderShowDetail = {
+    show: UpgraderItem & {
+        arrQualityProfileName?: string | null;
+        targetQualityProfileId?: number | null;
+        targetQualityProfileName?: string | null;
+    };
+    preset: string;
+    stats: { total: number; matched: number };
+    arr: {
+        mapped: boolean;
+        seriesId: number | null;
+        instanceId: string | null;
+        instanceName: string | null;
+        monitored: boolean | null;
+        currentProfileId: number | null;
+        currentProfileName: string | null;
+        targetProfileId: number | null;
+        targetProfileName: string | null;
+        deepUrl: string | null;
+    };
+    seasons: UpgraderShowSeason[];
+    episodes: UpgraderEpisode[];
+    total: number;
 };
 
 export type UpgraderItemsResponse = {
@@ -127,13 +173,19 @@ export type UpgraderUpgradePreviewResult = {
 export type UpgraderAuditEntry = {
     id: string;
     timestamp: string;
+    action?: 'upgrade' | 'series_search' | 'episode_search' | 'movie_search' | string;
+    success?: boolean;
+    reason?: string | null;
     ratingKey: string;
     title: string;
     arrInstanceId?: string;
     arrInstanceName?: string;
     arrType?: string;
     currentProfileId?: number | null;
+    currentProfileName?: string | null;
     targetProfileId?: number;
+    targetProfileName?: string | null;
+    episodeIds?: number[];
     triggerSearch?: boolean;
     commandId?: string | null;
     dryRun?: boolean;

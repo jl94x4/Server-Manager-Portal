@@ -19,15 +19,7 @@ import type {
     UpgraderSummary,
 } from './types';
 
-const PRESET_OPTIONS: Array<{ id: UpgraderPreset; label: string }> = [
-    { id: 'non_hevc', label: 'Non-HEVC' },
-    { id: 'h264_only', label: 'H.264 only' },
-    { id: '4k_non_hevc', label: '4K non-HEVC' },
-    { id: 'hdr_non_hevc', label: 'HDR non-HEVC' },
-    { id: 'large_non_hevc', label: 'Large non-HEVC' },
-    { id: 'arr_mapped', label: 'ARR mapped' },
-    { id: 'arr_unmapped', label: 'ARR unmapped' },
-];
+import { UPGRADER_PRESET_OPTIONS } from './presets';
 
 const SORT_OPTIONS = [
     { value: 'sizeGB', label: 'Largest first' },
@@ -260,6 +252,9 @@ export const UpgraderDashboard: React.FC = () => {
                 show={showDrawerItem}
                 preset={preset}
                 onClose={() => setShowDrawerItem(null)}
+                onUpgrade={(item) => openUpgradeModal([item])}
+                addToast={addToast}
+                automationReady={automationReady}
             />
             <div className="flex flex-col gap-6">
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -360,7 +355,7 @@ export const UpgraderDashboard: React.FC = () => {
 
                         <div className="flex flex-col lg:flex-row lg:items-end gap-3 p-4 rounded-2xl border border-border/60 bg-card/40">
                             <div className="flex flex-wrap gap-2">
-                                {PRESET_OPTIONS.map((option) => (
+                                {UPGRADER_PRESET_OPTIONS.map((option) => (
                                     <button
                                         key={option.id}
                                         type="button"
@@ -453,6 +448,7 @@ export const UpgraderDashboard: React.FC = () => {
                                         const canUpgrade = automationReady && item.arrMapped && isUpgradableItem(item);
                                         const isSelected = selectedKeys.has(item.ratingKey);
                                         const showEpisodeBadge = item.mediaType === 'show' && (item.nonHevcEpisodeCount ?? 0) > 0;
+                                        const isShow = item.mediaType === 'show';
                                         const checkboxSize = gridSize === 'small' || gridSize === 'medium' ? 'sm' : 'md';
                                         return (
                                             <div key={item.ratingKey} className="relative min-w-0">
@@ -502,13 +498,22 @@ export const UpgraderDashboard: React.FC = () => {
                                                                 {item.arrMapped && item.arrInstanceName ? ` · ${item.arrInstanceName}` : ''}
                                                             </div>
                                                             <div className="upgrader-card-actions flex flex-wrap gap-x-2 gap-y-1">
-                                                                {showEpisodeBadge && (
+                                                                {isShow && (
                                                                     <button
                                                                         type="button"
                                                                         className="text-[10px] font-bold text-amber-200 hover:underline"
                                                                         onClick={() => setShowDrawerItem(item)}
                                                                     >
-                                                                        View episodes
+                                                                        View show
+                                                                    </button>
+                                                                )}
+                                                                {showEpisodeBadge && (
+                                                                    <button
+                                                                        type="button"
+                                                                        className="text-[10px] font-bold text-muted hover:underline"
+                                                                        onClick={() => setShowDrawerItem(item)}
+                                                                    >
+                                                                        {item.nonHevcEpisodeCount} non-HEVC ep{item.nonHevcEpisodeCount === 1 ? '' : 's'}
                                                                     </button>
                                                                 )}
                                                                 {item.arrDeepUrl && (
