@@ -2061,67 +2061,10 @@ export const SettingsDashboard: React.FC = () => {
                             </div>
                         </div>
                     )}
-                    {activeTab === 'system' && (
+                    {activeTab === 'upgrader' && (
                         <div className="mb-8 animate-fade-in space-y-6">
-                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">System</h3>
-                            <section id={getSettingsSectionElementId('health')} className="space-y-4 mb-8 scroll-mt-24">
-                                <div className="flex items-center justify-between">
-                                    <h4 className="font-bold text-text">Health Dashboard</h4>
-                                    <span className={`text-xs px-2 py-1 rounded font-bold ${systemHealth.score >= 85 ? 'bg-green-500/20 text-green-300' : systemHealth.score >= 65 ? 'bg-yellow-500/20 text-yellow-300' : 'bg-red-500/20 text-red-300'}`}>
-                                        {systemHealth.status}
-                                    </span>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 text-sm">
-                                    <div>
-                                        <p className="text-muted text-xs mb-1">Health Score</p>
-                                        <p className="text-xl font-bold text-text">{systemHealth.score}%</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-muted text-xs mb-1">Integrations</p>
-                                        <p className="text-xl font-bold text-text">{systemHealth.integrationsConfigured}/{systemHealth.integrationsTotal}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-muted text-xs mb-1">Caches</p>
-                                        <p className="text-xl font-bold text-text">{systemHealth.cacheHealthy}/{systemHealth.cacheTotal}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-muted text-xs mb-1">Running Jobs</p>
-                                        <p className="text-xl font-bold text-text">{systemHealth.runningJobs}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-muted text-xs mb-1">Failing Jobs</p>
-                                        <p className={`text-xl font-bold ${systemHealth.failingJobs > 0 ? 'text-red-300' : 'text-text'}`}>{systemHealth.failingJobs}</p>
-                                    </div>
-                                </div>
-                                <div>
-                                    <p className="text-xs font-semibold text-muted mb-2">Attention Needed</p>
-                                    {systemHealth.alerts.length === 0 ? (
-                                        <p className="text-sm text-green-300">No active health alerts.</p>
-                                    ) : (
-                                        <ul className="text-sm text-yellow-200 space-y-1">
-                                            {systemHealth.alerts.map((alert, index) => (
-                                                <li key={`health-alert-${index}`}>- {alert}</li>
-                                            ))}
-                                        </ul>
-                                    )}
-                                </div>
-                            </section>
-                            <section id={getSettingsSectionElementId('maintenance')} className={`space-y-3 mb-8 transition-all duration-300 scroll-mt-24 ${highlightMaintenanceToggle ? 'ring-2 ring-plex/50 rounded-lg p-3 -m-3' : ''}`}>
-                                <h4 className="font-bold text-text">Cleaner Experimental Mode</h4>
-                                <SettingsToggleRow
-                                    title="Enable Cleaner Module"
-                                    description="Single global toggle for the main Cleaner navigation section. OFF by default."
-                                    checked={maintenanceExperimentalEnabled}
-                                    onChange={setMaintenanceExperimentalEnabled}
-                                    border={false}
-                                />
-                                <p className={`text-xs mt-2 font-semibold ${maintenanceExperimentalEnabled ? 'text-green-300' : 'text-yellow-300'}`}>
-                                    Current status: {maintenanceExperimentalEnabled ? 'ON' : 'OFF'}
-                                </p>
-                                <p className="text-[11px] text-muted mt-1">After changing this toggle, click the main Save Settings button.</p>
-                            </section>
-                            <section id={getSettingsSectionElementId('upgrader')} className="space-y-3 mb-8 scroll-mt-24">
-                                <h4 className="font-bold text-text">Library Upgrader</h4>
+                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Library Upgrader</h3>
+                            <section id={getSettingsSectionElementId('upgrader')} className="space-y-3 scroll-mt-24">
                                 <SettingsToggleRow
                                     title="Enable Library Upgrader"
                                     description="Standalone admin view to find non-HEVC titles with Plex or Jellyfin and Sonarr/Radarr deep links. OFF by default."
@@ -2231,7 +2174,69 @@ export const SettingsDashboard: React.FC = () => {
                                         ))}
                                     </div>
                                 )}
-                                <p className="text-[11px] text-muted mt-1">Requires Plex. Sonarr/Radarr recommended for deep links and automation.</p>
+                                <p className="text-[11px] text-muted mt-1">Requires Plex or Jellyfin. Sonarr/Radarr recommended for deep links and automation.</p>
+                                <p className="text-[11px] text-muted mt-1">After changing these options, click Save Settings.</p>
+                            </section>
+                        </div>
+                    )}
+                    {activeTab === 'system' && (
+                        <div className="mb-8 animate-fade-in space-y-6">
+                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">System</h3>
+                            <section id={getSettingsSectionElementId('health')} className="space-y-4 mb-8 scroll-mt-24">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="font-bold text-text">Health Dashboard</h4>
+                                    <span className={`text-xs px-2 py-1 rounded font-bold ${systemHealth.score >= 85 ? 'bg-green-500/20 text-green-300' : systemHealth.score >= 65 ? 'bg-yellow-500/20 text-yellow-300' : 'bg-red-500/20 text-red-300'}`}>
+                                        {systemHealth.status}
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 text-sm">
+                                    <div>
+                                        <p className="text-muted text-xs mb-1">Health Score</p>
+                                        <p className="text-xl font-bold text-text">{systemHealth.score}%</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-muted text-xs mb-1">Integrations</p>
+                                        <p className="text-xl font-bold text-text">{systemHealth.integrationsConfigured}/{systemHealth.integrationsTotal}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-muted text-xs mb-1">Caches</p>
+                                        <p className="text-xl font-bold text-text">{systemHealth.cacheHealthy}/{systemHealth.cacheTotal}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-muted text-xs mb-1">Running Jobs</p>
+                                        <p className="text-xl font-bold text-text">{systemHealth.runningJobs}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-muted text-xs mb-1">Failing Jobs</p>
+                                        <p className={`text-xl font-bold ${systemHealth.failingJobs > 0 ? 'text-red-300' : 'text-text'}`}>{systemHealth.failingJobs}</p>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-semibold text-muted mb-2">Attention Needed</p>
+                                    {systemHealth.alerts.length === 0 ? (
+                                        <p className="text-sm text-green-300">No active health alerts.</p>
+                                    ) : (
+                                        <ul className="text-sm text-yellow-200 space-y-1">
+                                            {systemHealth.alerts.map((alert, index) => (
+                                                <li key={`health-alert-${index}`}>- {alert}</li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            </section>
+                            <section id={getSettingsSectionElementId('maintenance')} className={`space-y-3 mb-8 transition-all duration-300 scroll-mt-24 ${highlightMaintenanceToggle ? 'ring-2 ring-plex/50 rounded-lg p-3 -m-3' : ''}`}>
+                                <h4 className="font-bold text-text">Cleaner Experimental Mode</h4>
+                                <SettingsToggleRow
+                                    title="Enable Cleaner Module"
+                                    description="Single global toggle for the main Cleaner navigation section. OFF by default."
+                                    checked={maintenanceExperimentalEnabled}
+                                    onChange={setMaintenanceExperimentalEnabled}
+                                    border={false}
+                                />
+                                <p className={`text-xs mt-2 font-semibold ${maintenanceExperimentalEnabled ? 'text-green-300' : 'text-yellow-300'}`}>
+                                    Current status: {maintenanceExperimentalEnabled ? 'ON' : 'OFF'}
+                                </p>
+                                <p className="text-[11px] text-muted mt-1">After changing this toggle, click the main Save Settings button.</p>
                             </section>
                             <section id={getSettingsSectionElementId('backup')} className="space-y-4 mb-8 scroll-mt-24">
                                 <h4 className="font-bold text-text">Backup & Restore</h4>

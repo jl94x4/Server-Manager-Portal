@@ -3,7 +3,7 @@ import { ArrowUpCircle, RefreshCw, Search, Settings as SettingsIcon, ArrowUpFrom
 import { apiFetch } from '../shared/api';
 import { portalUrl } from '../shared/basePath';
 import { CustomSelect } from '../shared/ui';
-import { Loader, Toast, ToastContainer, pushToast } from '../shared/toast';
+import { Loader, ToastContainer, pushToast } from '../shared/toast';
 import { discoverPosterGridClass } from '../shared/portalLayout';
 import { DiscoverPosterCard } from '../screens';
 import type { ToastMessage } from '../shared/types';
@@ -65,7 +65,7 @@ const isUpgraderDisabledError = (error: unknown) => {
 };
 
 export const UpgraderDashboard: React.FC = () => {
-    const [toast, setToast] = useState<ToastMessage | null>(null);
+    const [toasts, setToasts] = useState<ToastMessage[]>([]);
     const [loading, setLoading] = useState(true);
     const [rebuilding, setRebuilding] = useState(false);
     const [featureEnabled, setFeatureEnabled] = useState(false);
@@ -90,8 +90,8 @@ export const UpgraderDashboard: React.FC = () => {
     const [activeTab, setActiveTab] = useState<UpgraderTab>('browse');
     const [showDrawerItem, setShowDrawerItem] = useState<UpgraderItem | null>(null);
 
-    const addToast = useCallback((message: string, type: ToastMessage['type'] = 'info') => {
-        pushToast(setToast, message, type);
+    const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+        setToasts((prev) => pushToast(prev, message, type));
     }, []);
 
     useEffect(() => {
@@ -240,7 +240,7 @@ export const UpgraderDashboard: React.FC = () => {
 
     return (
         <div className="w-full max-w-[1400px] mx-auto pt-20 md:pt-8 pb-8">
-            <ToastContainer toast={toast} onDismiss={() => setToast(null)} />
+            <ToastContainer toasts={toasts} setToasts={setToasts} />
             <UpgraderUpgradeModal
                 isOpen={upgradeModalOpen}
                 items={upgradeItems}
@@ -281,9 +281,9 @@ export const UpgraderDashboard: React.FC = () => {
                     <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-6 text-center">
                         <h3 className="text-xl font-bold text-plex mb-2">Upgrader Disabled</h3>
                         <p className="text-sm text-muted mb-3">Library Upgrader is currently OFF.</p>
-                        <p className="text-xs text-muted mb-4">Enable it in Settings → System under Library Upgrader, then click Save Settings.</p>
+                        <p className="text-xs text-muted mb-4">Enable it in Settings → Library Upgrader, then click Save Settings.</p>
                         <a
-                            href={portalUrl('/settings#system/upgrader')}
+                            href={portalUrl('/settings#upgrader')}
                             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-plex text-background font-bold no-underline hover:bg-plex-hover transition-colors"
                         >
                             <SettingsIcon className="w-4 h-4" />

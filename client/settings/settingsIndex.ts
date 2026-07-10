@@ -1,6 +1,6 @@
 export const SETTINGS_TABS = [
     'plex', 'smtp', 'newsletter', 'cleanup', 'mediastack', 'branding', 'navigation', 'home-layout',
-    'status', 'invites', 'tasks', 'system', 'contact', 'broadcast', 'stream-rules', 'logs',
+    'status', 'invites', 'tasks', 'upgrader', 'system', 'contact', 'broadcast', 'stream-rules', 'logs',
 ] as const;
 
 export type SettingsTabId = typeof SETTINGS_TABS[number];
@@ -54,10 +54,10 @@ export const SETTINGS_INDEX: SettingsIndexEntry[] = [
     { id: 'cleanup', tabId: 'cleanup', label: 'Cleanup', group: 'Automation', keywords: ['inactive', 'revoke', 'expiry', 'cleanup'] },
     { id: 'stream-rules', tabId: 'stream-rules', label: 'Stream Rules', group: 'Automation', keywords: ['kill', 'transcode', 'rule', 'stream'] },
     { id: 'tasks', tabId: 'tasks', label: 'Background Tasks', group: 'Automation', keywords: ['jobs', 'scheduler', 'run now', 'tasks'] },
+    { id: 'upgrader', tabId: 'upgrader', label: 'Library Upgrader', group: 'Automation', keywords: ['upgrader', 'hevc', 'h264', 'codec', 'upgrade', 'sonarr', 'radarr'] },
     { id: 'system', tabId: 'system', label: 'System', group: 'Automation', keywords: ['system', 'diagnostics', 'backup'] },
     { id: 'system/health', tabId: 'system', sectionId: 'health', label: 'Health Dashboard', group: 'Automation', keywords: ['health', 'score', 'alerts', 'integrations'] },
     { id: 'system/maintenance', tabId: 'system', sectionId: 'maintenance', label: 'Cleaner Experimental Mode', group: 'Automation', keywords: ['cleaner', 'maintenance', 'experimental'] },
-    { id: 'system/upgrader', tabId: 'system', sectionId: 'upgrader', label: 'Library Upgrader', group: 'Automation', keywords: ['upgrader', 'hevc', 'h264', 'codec', 'upgrade', 'sonarr', 'radarr'] },
     { id: 'system/backup', tabId: 'system', sectionId: 'backup', label: 'Backup & Restore', group: 'Automation', keywords: ['backup', 'restore', 'export', 'import'] },
     { id: 'system/diagnostics', tabId: 'system', sectionId: 'diagnostics', label: 'Diagnostics', group: 'Automation', keywords: ['diagnostics', 'version', 'node', 'debug'] },
     { id: 'logs', tabId: 'logs', label: 'Logs & Audit', group: 'Automation', keywords: ['audit', 'emails', 'deleted users', 'history', 'logs'] },
@@ -83,6 +83,7 @@ const RECENT_LIMIT = 6;
 export const parseSettingsHash = (hash: string): { tabId: SettingsTabId | null; sectionId: string | null } => {
     const raw = hash.replace(/^#/, '').trim();
     if (!raw) return { tabId: null, sectionId: null };
+    if (raw === 'system/upgrader') return { tabId: 'upgrader', sectionId: null };
     const [tabPart, ...sectionParts] = raw.split('/');
     const tabId = SETTINGS_TABS.includes(tabPart as SettingsTabId) ? tabPart as SettingsTabId : null;
     const sectionId = sectionParts.length > 0 ? sectionParts.join('/') : null;
