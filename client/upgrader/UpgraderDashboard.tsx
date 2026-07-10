@@ -16,12 +16,13 @@ import type {
     UpgraderCodec,
     UpgraderResolution,
     UpgraderFeature,
+    UpgraderQuality,
     UpgraderQueueSummary,
     UpgraderStatus,
     UpgraderSummary,
 } from './types';
 
-import { UPGRADER_CODEC_OPTIONS, UPGRADER_RESOLUTION_OPTIONS, UPGRADER_FEATURE_OPTIONS } from './presets';
+import { UPGRADER_CODEC_OPTIONS, UPGRADER_RESOLUTION_OPTIONS, UPGRADER_FEATURE_OPTIONS, UPGRADER_QUALITY_OPTIONS } from './presets';
 
 const SORT_OPTIONS = [
     { value: 'sizeGB', label: 'Largest first' },
@@ -72,6 +73,7 @@ export const UpgraderDashboard: React.FC = () => {
     const [codecs, setCodecs] = useState<Set<UpgraderCodec>>(new Set());
     const [resolutions, setResolutions] = useState<Set<UpgraderResolution>>(new Set());
     const [features, setFeatures] = useState<Set<UpgraderFeature>>(new Set());
+    const [qualities, setQualities] = useState<Set<UpgraderQuality>>(new Set());
     const [presetReady, setPresetReady] = useState(false);
     const [sort, setSort] = useState('sizeGB');
     const [libraryId, setLibraryId] = useState('all');
@@ -99,10 +101,32 @@ export const UpgraderDashboard: React.FC = () => {
     }, []);
 
     useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const qCodecs = new Set((params.get('codecs') || '').split(',').filter(Boolean) as UpgraderCodec[]);
+        const qResolutions = new Set((params.get('resolutions') || '').split(',').filter(Boolean) as UpgraderResolution[]);
+        const qFeatures = new Set((params.get('features') || '').split(',').filter(Boolean) as UpgraderFeature[]);
+        const qQualities = new Set((params.get('qualities') || '').split(',').filter(Boolean) as UpgraderQuality[]);
+        const qLibrary = params.get('library') || 'all';
+        const qType = params.get('type') || 'all';
+        const qSort = params.get('sort') || 'sizeGB';
+        const qSearch = params.get('search') || '';
+        const qPage = Number(params.get('page')) || 1;
+
+        setCodecs(qCodecs);
+        setResolutions(qResolutions);
+        setFeatures(qFeatures);
+        setQualities(qQualities);
+        setLibraryId(qLibrary);
+        setMediaType(qType);
+        setSort(qSort);
+        setSearch(qSearch);
+        setSearchInput(qSearch);
+        setPage(qPage);
+
         apiFetch('/api/config')
             .then((configData) => {
                 const defaultSort = configData?.settings?.upgraderDefaultSort;
-                if (defaultSort) setSort(defaultSort);
+                if (!params.has('sort') && defaultSort) setSort(defaultSort);
             })
             .catch(() => {})
             .finally(() => setPresetReady(true));
@@ -117,10 +141,22 @@ export const UpgraderDashboard: React.FC = () => {
             setFeatureEnabled(enabled);
             if (!enabled) return;
 
+            const newParams = new URLSearchParams();
+            if (codecs.size > 0) newParams.set('codecs', Array.from(codecs).join(','));
+            if (resolutions.size > 0) newParams.set('resolutions', Array.from(resolutions).join(','));
+            if (features.size > 0) newParams.set('features', Array.from(features).join(','));
+            if (qualities.size > 0) newParams.set('qualities', Array.from(qualities).join(','));
+            if (libraryId !== 'all') newParams.set('library', libraryId);
+            if (mediaType !== 'all') newParams.set('type', mediaType);
+            if (sort !== 'sizeGB') newParams.set('sort', sort);
+            if (search) newParams.set('search', search);
+            if (page > 1) newParams.set('page', String(page));
+            window.history.replaceState(null, '', `?${newParams.toString()}`);
+
             const [statusData, summaryData, itemsData, queueData, publicConfig] = await Promise.all([
                 apiFetch('/api/upgrader/status'),
                 apiFetch('/api/upgrader/summary'),
-                apiFetch(`/api/upgrader/items?codecs=${encodeURIComponent(Array.from(codecs).join(','))}&resolutions=${encodeURIComponent(Array.from(resolutions).join(','))}&features=${encodeURIComponent(Array.from(features).join(','))}&libraryId=${encodeURIComponent(libraryId)}&mediaType=${encodeURIComponent(mediaType)}&search=${encodeURIComponent(search)}&sort=${encodeURIComponent(sort)}&page=${page}&limit=48`),
+                apiFetch(`/api/upgrader/items?codecs=${encodeURIComponent(Array.from(codecs).join(','))}&resolutions=${encodeURIComponent(Array.from(resolutions).join(','))}&features=${encodeURIComponent(Array.from(features).join(','))}&qualities=${encodeURIComponent(Array.from(qualities).join(','))}&libraryId=${encodeURIComponent(libraryId)}&mediaType=${encodeURIComponent(mediaType)}&search=${encodeURIComponent(search)}&sort=${encodeURIComponent(sort)}&page=${page}&limit=48`),
                 apiFetch('/api/upgrader/queue').catch(() => null),
                 apiFetch('/api/config/public').catch(() => ({})),
             ]);
@@ -141,7 +177,7 @@ export const UpgraderDashboard: React.FC = () => {
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [addToast, libraryId, mediaType, page, codecs, resolutions, features, presetReady, search, sort]);
+    }, [addToast, libraryId, mediaType, page, codecs, resolutions, features, qualities, presetReady, search, sort]);
 
     useEffect(() => {
         loadData();
@@ -157,7 +193,7 @@ export const UpgraderDashboard: React.FC = () => {
 
     useEffect(() => {
         setSelectedKeys(new Set());
-    }, [codecs, resolutions, features, libraryId, mediaType, search, page, sort]);
+    }, [codecs, resolutions, features, qualities, libraryId, mediaType, search, page, sort]);
 
     useEffect(() => {
         if (status?.rebuildInProgress) {
@@ -197,7 +233,7 @@ export const UpgraderDashboard: React.FC = () => {
         }
         const upgradable = targets.filter((item) => isUpgradableItem(item));
         if (!upgradable.length) {
-            addToast('No non-HEVC titles selected.', 'error');
+            addToast('No valid titles selected.', 'error');
             return;
         }
         setUpgradeItems(upgradable);
@@ -236,7 +272,6 @@ export const UpgraderDashboard: React.FC = () => {
     const summaryChips = useMemo(() => {
         if (!summary) return [];
         const chips = [
-            `${summary.nonHevcCount} non-HEVC in Sonarr/Radarr`,
             `${summary.totalItems} titles indexed`,
             `index ${formatIndexAge(summary.generatedAt)}`,
         ];
@@ -255,7 +290,7 @@ export const UpgraderDashboard: React.FC = () => {
         }`;
 
     return (
-        <div className="w-full max-w-[1400px] mx-auto pt-20 md:pt-8 pb-8">
+        <div className="w-full mx-auto pt-20 md:pt-8 pb-8 px-4 md:px-0">
             <ToastContainer toasts={toasts} setToasts={setToasts} />
             <UpgraderUpgradeModal
                 isOpen={upgradeModalOpen}
@@ -269,6 +304,7 @@ export const UpgraderDashboard: React.FC = () => {
                 codecs={Array.from(codecs)}
                 resolutions={Array.from(resolutions)}
                 features={Array.from(features)}
+                qualities={Array.from(qualities)}
                 onClose={() => setShowDrawerItem(null)}
                 addToast={addToast}
                 automationReady={automationReady}
@@ -431,6 +467,27 @@ export const UpgraderDashboard: React.FC = () => {
                                                 setPage(1);
                                             }}
                                             className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${features.has(option.id) ? 'bg-plex text-background border-plex' : 'bg-white/5 text-muted border-white/10 hover:text-text'}`}
+                                        >
+                                            {option.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-xs font-bold text-muted uppercase tracking-wider mr-1">Quality:</span>
+                                    {UPGRADER_QUALITY_OPTIONS.map((option) => (
+                                        <button
+                                            key={option.id}
+                                            type="button"
+                                            onClick={() => {
+                                                setQualities(prev => {
+                                                    const next = new Set(prev);
+                                                    if (next.has(option.id)) next.delete(option.id);
+                                                    else next.add(option.id);
+                                                    return next;
+                                                });
+                                                setPage(1);
+                                            }}
+                                            className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${qualities.has(option.id) ? 'bg-plex text-background border-plex' : 'bg-white/5 text-muted border-white/10 hover:text-text'}`}
                                         >
                                             {option.label}
                                         </button>
@@ -633,10 +690,13 @@ export const UpgraderDashboard: React.FC = () => {
                                                                 {canUpgrade && (
                                                                     <button
                                                                         type="button"
-                                                                        className="text-[10px] font-bold text-green-300 hover:underline"
-                                                                        onClick={() => openUpgradeModal([item])}
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            handleBulkUpgrade([item]);
+                                                                        }}
+                                                                        className="text-[10px] font-bold text-plex hover:underline"
                                                                     >
-                                                                        Upgrade to HEVC
+                                                                        Trigger Upgrade
                                                                     </button>
                                                                 )}
                                                                 <button

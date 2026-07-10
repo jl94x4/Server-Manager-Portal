@@ -1,4 +1,4 @@
-import type { UpgraderCodec, UpgraderResolution, UpgraderFeature } from './types';
+import type { UpgraderCodec, UpgraderResolution, UpgraderFeature, UpgraderQuality } from './types';
 
 export const UPGRADER_CODEC_OPTIONS: Array<{ id: UpgraderCodec; label: string }> = [
     { id: 'h264', label: 'H.264 / x264' },
@@ -19,8 +19,14 @@ export const UPGRADER_FEATURE_OPTIONS: Array<{ id: UpgraderFeature; label: strin
     { id: 'hdr', label: 'HDR' },
     { id: 'dolby_vision', label: 'Dolby Vision' },
     { id: 'large', label: 'Large Size' },
-    { id: 'arr_mapped', label: 'Mapped' },
-    { id: 'arr_unmapped', label: 'Unmapped' },
+];
+
+export const UPGRADER_QUALITY_OPTIONS: Array<{ id: UpgraderQuality; label: string }> = [
+    { id: 'web-dl', label: 'WEB-DL' },
+    { id: 'webrip', label: 'WEBRip' },
+    { id: 'remux', label: 'Remux' },
+    { id: 'hdtv', label: 'HDTV' },
+    { id: 'bluray', label: 'BluRay' },
 ];
 
 export const UPGRADER_PRESET_SELECT_OPTIONS = [

@@ -9208,7 +9208,7 @@ const getUpgraderResolutionBucket = (item = {}) => {
     return 'other';
 };
 
-const applyUpgraderMultiFilter = (item, codecs = [], resolutions = [], features = [], minSizeGB = 5) => {
+const applyUpgraderMultiFilter = (item, codecs = [], resolutions = [], features = [], qualities = [], minSizeGB = 5) => {
     if (codecs.length > 0) {
         let itemCodec = getUpgraderCodecFamily(item);
         if (!codecs.includes(itemCodec)) {
@@ -9231,17 +9231,23 @@ const applyUpgraderMultiFilter = (item, codecs = [], resolutions = [], features 
             if (feat === 'hdr') return !!item.hasHdr || (item.displayTags || []).includes('HDR') || (item.displayTags || []).includes('DV');
             if (feat === 'dolby_vision') return !!item.hasDolbyVision || (item.displayTags || []).includes('DV');
             if (feat === 'large') return Number(item.sizeGB || 0) >= minSizeGB;
-            if (feat === 'arr_mapped') return !!item.arrMapped;
-            if (feat === 'arr_unmapped') return !item.arrMapped;
             return false;
         });
         if (!hasFeature) return false;
+    }
+
+    if (qualities.length > 0) {
+        const hasQuality = qualities.some(qual => {
+            const tags = (item.displayTags || []).map(t => String(t).toLowerCase());
+            return tags.some(t => t.includes(qual));
+        });
+        if (!hasQuality) return false;
     }
     
     return true;
 };
 
-const applyUpgraderMultiFilterEpisode = (episode, codecs = [], resolutions = [], features = [], minSizeGB = 5) => {
+const applyUpgraderMultiFilterEpisode = (episode, codecs = [], resolutions = [], features = [], qualities = [], minSizeGB = 5) => {
     const pseudoItem = {
         mediaType: 'movie',
         isHevc: !!episode.isHevc,
@@ -9255,9 +9261,8 @@ const applyUpgraderMultiFilterEpisode = (episode, codecs = [], resolutions = [],
             || /2160|4k/.test(String(episode.videoResolution || '').toLowerCase()),
         nonHevcEpisodeCount: episode.isHevc ? 0 : 1,
         totalEpisodeCount: 1,
-        arrMapped: false,
     };
-    return applyUpgraderMultiFilter(pseudoItem, codecs, resolutions, features, minSizeGB);
+    return applyUpgraderMultiFilter(pseudoItem, codecs, resolutions, features, qualities, minSizeGB);
 };
 
 const getSonarrEpisodeQualityLabel = (episodeFile = null) => {
@@ -9740,7 +9745,7 @@ const mapSonarrFileToEpisodeQuality = (file = null) => {
     };
 };
 
-const buildUpgraderEpisodesFromSonarr = (sonarrEpisodes, sonarrFiles, showTitle, codecs, resolutions, features, minSizeGB, plexEpisodes = []) => {
+const buildUpgraderEpisodesFromSonarr = (sonarrEpisodes, sonarrFiles, showTitle, codecs, resolutions, features, qualities, minSizeGB, plexEpisodes = []) => {
     const fileByEpisodeId = new Map(
         sonarrFiles.map((file) => [Number(file.episodeId), file]),
     );
@@ -9783,12 +9788,12 @@ const buildUpgraderEpisodesFromSonarr = (sonarrEpisodes, sonarrFiles, showTitle,
             arrMonitored: sonarrEpisode?.monitored ?? null,
             dataSource: 'sonarr',
         };
-        episode.matchesPreset = applyUpgraderMultiFilterEpisode(episode, codecs, resolutions, features, minSizeGB);
+        episode.matchesPreset = applyUpgraderMultiFilterEpisode(episode, codecs, resolutions, features, qualities, minSizeGB);
         return episode;
     });
 };
 
-const buildUpgraderShowDetail = async (config, showItem, codecs = [], resolutions = [], features = [], minSizeGB = 5) => {
+const buildUpgraderShowDetail = async (config, showItem, codecs = [], resolutions = [], features = [], qualities = [], minSizeGB = 5) => {
     const parsed = parseUpgraderItemKey(showItem.ratingKey);
     if (!parsed || parsed.type !== 'sonarr') {
         throw new Error('Show detail is only available for Sonarr series in the Upgrader index.');
@@ -9833,6 +9838,7 @@ const buildUpgraderShowDetail = async (config, showItem, codecs = [], resolution
         codecs,
         resolutions,
         features,
+        qualities,
         minSizeGB,
         plexEpisodes
     );
@@ -11620,6 +11626,7 @@ app.get('/api/upgrader/items', requireAdmin, async (req, res) => {
         const codecs = String(req.query.codecs || '').toLowerCase().split(',').filter(Boolean);
         const resolutions = String(req.query.resolutions || '').toLowerCase().split(',').filter(Boolean);
         const features = String(req.query.features || '').toLowerCase().split(',').filter(Boolean);
+        const qualities = String(req.query.qualities || '').toLowerCase().split(',').filter(Boolean);
         const libraryId = String(req.query.libraryId || 'all');
         const mediaType = String(req.query.mediaType || 'all').toLowerCase();
         const search = normalized(String(req.query.search || ''));
@@ -11647,7 +11654,7 @@ app.get('/api/upgrader/items', requireAdmin, async (req, res) => {
         const filtered = allItems
             .filter((item) => {
                 if (!item) return false;
-                if (!applyUpgraderMultiFilter(item, codecs, resolutions, features, minSizeGB)) return false;
+                if (!applyUpgraderMultiFilter(item, codecs, resolutions, features, qualities, minSizeGB)) return false;
                 if (libraryId !== 'all' && String(item.libraryId || item.arrInstanceId || '') !== libraryId) return false;
                 if (mediaType !== 'all' && String(item.mediaType || '') !== mediaType) return false;
                 if (search && !normalized(item.title).includes(search)) return false;
@@ -11678,6 +11685,7 @@ app.get('/api/upgrader/items', requireAdmin, async (req, res) => {
             codecs,
             resolutions,
             features,
+            qualities,
             total: filtered.length,
             page,
             limit,

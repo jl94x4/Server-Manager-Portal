@@ -12,6 +12,7 @@ type UpgraderShowDrawerProps = {
     codecs: string[];
     resolutions: string[];
     features: string[];
+    qualities: string[];
     onClose: () => void;
     addToast?: (message: string, type?: 'success' | 'error') => void;
     automationReady?: boolean;
@@ -52,6 +53,7 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
     codecs,
     resolutions,
     features,
+    qualities,
     onClose,
     addToast,
     automationReady = false,
@@ -68,12 +70,17 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
     const [triggerSearchOnApply, setTriggerSearchOnApply] = useState(true);
     const [applyingProfile, setApplyingProfile] = useState(false);
 
+    const codecsArr = highlightFilterOnly ? codecs : [];
+    const resolutionsArr = highlightFilterOnly ? resolutions : [];
+    const featuresArr = highlightFilterOnly ? features : [];
+    const qualitiesArr = highlightFilterOnly ? qualities : [];
+
     const loadDetail = useCallback(async () => {
         if (!show) return;
         setLoading(true);
         try {
             const data = await apiFetch(
-                `/api/upgrader/items/${encodeURIComponent(show.ratingKey)}/detail?codecs=${encodeURIComponent(codecs.join(','))}&resolutions=${encodeURIComponent(resolutions.join(','))}&features=${encodeURIComponent(features.join(','))}`,
+                `/api/upgrader/items/${encodeURIComponent(show.ratingKey)}/detail?codecs=${encodeURIComponent(codecsArr.join(','))}&resolutions=${encodeURIComponent(resolutionsArr.join(','))}&features=${encodeURIComponent(featuresArr.join(','))}&qualities=${encodeURIComponent(qualitiesArr.join(','))}`,
             );
             setDetail(data as UpgraderShowDetail);
             const seasons = Array.isArray(data?.seasons) ? data.seasons : [];
@@ -93,7 +100,7 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
         } finally {
             setLoading(false);
         }
-    }, [addToast, show, codecs.join(','), resolutions.join(','), features.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [addToast, show, codecsArr.join(','), resolutionsArr.join(','), featuresArr.join(','), qualitiesArr.join(',')]);
 
     useEffect(() => {
         if (!show) {
