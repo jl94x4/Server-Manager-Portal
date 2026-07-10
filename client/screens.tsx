@@ -4618,11 +4618,12 @@ export const DiscoverPosterCard: React.FC<{
         ? 'relative rounded-xl overflow-hidden bg-background border border-white/5 transition-[box-shadow,border-color] duration-300 group-hover:shadow-xl group-hover:border-plex/50'
         : 'relative rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md';
 
+    const hasPoster = !!(item.thumb || item.thumbUrl);
     const posterInner = (
         <div className={`${posterShell} ${aspect === 'square' ? 'aspect-square' : 'aspect-[2/3]'} w-full`}>
-            {item.thumb ? (
+            {hasPoster ? (
                 <img
-                    src={item.thumbUrl ? resolvePortalAssetUrl(item.thumbUrl) : portalUrl(`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=${posterWidth}&height=${resolvedPosterHeight}`)}
+                    src={item.thumbUrl ? resolvePortalAssetUrl(item.thumbUrl) : portalUrl(`/api/plex/image?path=${encodeURIComponent(item.thumb!)}&width=${posterWidth}&height=${resolvedPosterHeight}`)}
                     alt={item.title}
                     loading="lazy"
                     className={`w-full h-full object-cover ${variant === 'home' ? 'transition-[transform,opacity] duration-300 group-hover:scale-105 group-hover:opacity-80' : ''}`}

@@ -9383,19 +9383,55 @@ const analyzeRadarrMovieFile = (movie = null) => {
 const buildUpgraderCoverUrl = (arrType, instanceId, entityId) =>
     withBasePath(`/api/upgrader/arr-cover?type=${encodeURIComponent(arrType)}&instanceId=${encodeURIComponent(instanceId)}&entityId=${encodeURIComponent(entityId)}`);
 
-const mapSonarrSeriesToUpgraderItem = (series, instance, fileStats = {}, episodeCount = 0) => {
+const upgraderPlexPosterUrl = (thumbPath) =>
+    withBasePath(`/api/plex/image?path=${encodeURIComponent(thumbPath)}&width=600&height=900`);
+
+const buildPlexPosterLookup = (items = []) => {
+    const lookup = {
+        byTvdb: new Map(),
+        byTmdb: new Map(),
+        byImdb: new Map(),
+        byTitleYear: new Map(),
+    };
+    (Array.isArray(items) ? items : []).forEach((item) => {
+        if (!item?.thumb) return;
+        const mediaType = item.mediaType === 'show' ? 'show' : 'movie';
+        if (item.tvdbId) lookup.byTvdb.set(`${mediaType}:${item.tvdbId}`, item);
+        if (item.tmdbId) lookup.byTmdb.set(`${mediaType}:${item.tmdbId}`, item);
+        if (item.imdbId) lookup.byImdb.set(String(item.imdbId).toLowerCase(), item);
+        const titleKey = `${normalized(item.title)}|${Number(item.year) || ''}`;
+        if (!lookup.byTitleYear.has(titleKey)) lookup.byTitleYear.set(titleKey, item);
+    });
+    return lookup;
+};
+
+const findPlexPosterItem = (lookup, { mediaType = 'show', title, year, tvdbId, tmdbId, imdbId } = {}) => {
+    if (!lookup) return null;
+    const type = mediaType === 'show' ? 'show' : 'movie';
+    if (tvdbId && lookup.byTvdb.get(`${type}:${tvdbId}`)) return lookup.byTvdb.get(`${type}:${tvdbId}`);
+    if (tmdbId && lookup.byTmdb.get(`${type}:${tmdbId}`)) return lookup.byTmdb.get(`${type}:${tmdbId}`);
+    if (imdbId && lookup.byImdb.get(String(imdbId).toLowerCase())) return lookup.byImdb.get(String(imdbId).toLowerCase());
+    const titleKey = `${normalized(title)}|${Number(year) || ''}`;
+    const match = lookup.byTitleYear.get(titleKey);
+    if (match && (match.mediaType === type || !match.mediaType)) return match;
+    return null;
+};
+
+const mapSonarrSeriesToUpgraderItem = (series, instance, fileStats = {}, episodeCount = 0, plexItem = null) => {
     const instanceName = instance.name || 'Sonarr';
     const entityId = Number(series.id);
     const ratingKey = buildUpgraderItemKey('sonarr', instance.id, entityId);
     const stats = series.statistics || {};
     const totalEpisodeCount = Number(stats.episodeCount || episodeCount || fileStats.totalFiles || 0);
     const deepUrl = buildArrDeepUrl(instance, series, 'sonarr');
+    const arrCoverUrl = buildUpgraderCoverUrl('sonarr', instance.id, entityId);
     return {
         ratingKey,
         title: series.title || 'Unknown',
         year: series.year != null ? Number(series.year) : null,
-        thumb: '',
-        thumbUrl: buildUpgraderCoverUrl('sonarr', instance.id, entityId),
+        thumb: plexItem?.thumb || '',
+        thumbUrl: plexItem?.thumb ? upgraderPlexPosterUrl(plexItem.thumb) : arrCoverUrl,
+        posterSource: plexItem?.thumb ? 'plex' : 'sonarr',
         mediaType: 'show',
         libraryTitle: instanceName,
         libraryId: String(instance.id),
@@ -9425,17 +9461,19 @@ const mapSonarrSeriesToUpgraderItem = (series, instance, fileStats = {}, episode
     };
 };
 
-const mapRadarrMovieToUpgraderItem = (movie, instance) => {
+const mapRadarrMovieToUpgraderItem = (movie, instance, plexItem = null) => {
     const fileStats = analyzeRadarrMovieFile(movie);
     const instanceName = instance.name || 'Radarr';
     const entityId = Number(movie.id);
     const ratingKey = buildUpgraderItemKey('radarr', instance.id, entityId);
+    const arrCoverUrl = buildUpgraderCoverUrl('radarr', instance.id, entityId);
     return {
         ratingKey,
         title: movie.title || 'Unknown',
         year: movie.year != null ? Number(movie.year) : null,
-        thumb: '',
-        thumbUrl: buildUpgraderCoverUrl('radarr', instance.id, entityId),
+        thumb: plexItem?.thumb || '',
+        thumbUrl: plexItem?.thumb ? upgraderPlexPosterUrl(plexItem.thumb) : arrCoverUrl,
+        posterSource: plexItem?.thumb ? 'plex' : 'radarr',
         mediaType: 'movie',
         libraryTitle: instanceName,
         libraryId: String(instance.id),
@@ -9473,6 +9511,26 @@ const buildUpgraderArrIndex = async (config, { actor = null } = {}) => {
         const resolveUrl = resolveIntegrationUrlForFetch;
         const items = [];
 
+        let plexLookup = null;
+        if (isPlexConfigured(config)) {
+            const maintenancePayload = await loadFile(MAINTENANCE_MEDIA_INDEX_PATH, { items: [] });
+            let maintenanceItems = Array.isArray(maintenancePayload.items) ? maintenancePayload.items : [];
+            if (!maintenanceItems.length) {
+                try {
+                    const uri = await getPlexConnectionUri(config);
+                    if (uri) {
+                        const rawMedia = await fetchPlexLibraryItemsForMaintenance(config, uri);
+                        maintenanceItems = rawMedia.filter((item) => item?.thumb);
+                    }
+                } catch (error) {
+                    log(`Upgrader index: Plex poster lookup skipped (${error.message})`);
+                }
+            }
+            if (maintenanceItems.length) {
+                plexLookup = buildPlexPosterLookup(maintenanceItems);
+            }
+        }
+
         for (const instance of instances) {
             if (instance.type === 'sonarr') {
                 const [seriesList, allFiles, allEpisodes] = await Promise.all([
@@ -9498,18 +9556,35 @@ const buildUpgraderArrIndex = async (config, { actor = null } = {}) => {
                     const seriesId = Number(series.id || 0);
                     if (!seriesId) return;
                     const fileStats = aggregateSonarrSeriesFileStats(filesBySeries[seriesId] || []);
+                    const plexItem = findPlexPosterItem(plexLookup, {
+                        mediaType: 'show',
+                        title: series.title,
+                        year: series.year,
+                        tvdbId: series.tvdbId,
+                        tmdbId: series.tmdbId,
+                        imdbId: series.imdbId,
+                    });
                     items.push(mapSonarrSeriesToUpgraderItem(
                         series,
                         instance,
                         fileStats,
                         episodeCountBySeries[seriesId] || 0,
+                        plexItem,
                     ));
                 });
             } else if (instance.type === 'radarr') {
                 const movies = await fetchArrInstanceCatalogItems(instance, { resolveUrl, fetchImpl: fetch });
                 movies.forEach((movie) => {
                     if (!movie?.id) return;
-                    items.push(mapRadarrMovieToUpgraderItem(movie, instance));
+                    const plexItem = findPlexPosterItem(plexLookup, {
+                        mediaType: 'movie',
+                        title: movie.title,
+                        year: movie.year,
+                        tvdbId: movie.tvdbId,
+                        tmdbId: movie.tmdbId,
+                        imdbId: movie.imdbId,
+                    });
+                    items.push(mapRadarrMovieToUpgraderItem(movie, instance, plexItem));
                 });
             }
         }
@@ -11492,13 +11567,27 @@ app.get('/api/upgrader/arr-cover', requireAdmin, async (req, res) => {
 
         const resolveUrl = resolveIntegrationUrlForFetch;
         const base = String(resolveUrl(instance.url) || '').replace(/\/+$/, '');
-        const coverPath = arrType === 'radarr'
-            ? `/MediaCover/${entityId}/poster.jpg`
-            : `/MediaCover/${entityId}/poster.jpg`;
-        const imageRes = await fetch(`${base}${coverPath}`, {
+        const coverPath = `/MediaCover/${entityId}/poster.jpg`;
+        let imageRes = await fetch(`${base}${coverPath}`, {
             headers: { 'X-Api-Key': instance.apiKey },
         });
-        if (!imageRes.ok) return res.status(imageRes.status).send('Cover not found');
+
+        if (!imageRes.ok) {
+            let entity = null;
+            if (arrType === 'sonarr') {
+                entity = await fetchSonarrSeriesById(instance, entityId, { resolveUrl, fetchImpl: fetch });
+            } else {
+                entity = await fetchArrInstanceJson(instance, `/api/v3/movie/${entityId}`, { resolveUrl, fetchImpl: fetch });
+            }
+            const posterImage = (entity?.images || []).find((img) => img.coverType === 'poster')
+                || (entity?.images || []).find((img) => img.coverType === 'fanart');
+            const remoteUrl = posterImage?.remoteUrl || posterImage?.url || null;
+            if (remoteUrl) {
+                imageRes = await fetch(remoteUrl.startsWith('http') ? remoteUrl : `${base}${remoteUrl.startsWith('/') ? '' : '/'}${remoteUrl}`);
+            }
+        }
+
+        if (!imageRes?.ok) return res.status(imageRes?.status || 404).send('Cover not found');
 
         const contentType = imageRes.headers.get('content-type') || 'image/jpeg';
         res.setHeader('Content-Type', contentType);
