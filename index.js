@@ -45,6 +45,15 @@ const resolveAppVersion = () => {
 
 const appVersion = resolveAppVersion();
 
+/** Plex session bandwidth is usually Kbps, but transcodes can report bps — normalize to Kbps. */
+const normalizePlexBandwidthKbps = (raw) => {
+    const n = Number(raw) || 0;
+    if (!n) return 0;
+    // >500 Mbps in Kbps is unrealistic for Plex; treat as bps misreport (e.g. 10_000_000 bps → 10 Mbps).
+    if (n > 500_000) return Math.round(n / 1000);
+    return Math.round(n);
+};
+
 const app = express();
 app.use(compression());
 const PORT = parseInt(process.env.PORT || '2121', 10);
@@ -2905,6 +2914,43 @@ const testSeerrFamilyConnection = async (baseUrl, apiKey) => {
     return { version, message: `Seerr v${version} connected` };
 };
 
+const UNCONFIGURED_SETUP_ACCESS_DENIED = 'Initial setup access denied. Use localhost, configure SETUP_TOKEN, or provide a valid Plex server owner token.';
+
+const verifyPlexOwnerTokenForSetup = async (plexToken, plexServerUrl = '') => {
+    const token = normalizePlexToken(plexToken);
+    if (!token || token === SECRET_MASK) return false;
+    try {
+        const servers = await fetchOwnedPlexServers(token);
+        if (servers.length > 0) return true;
+    } catch (e) {
+        log(`Plex owner token verification via Plex.tv failed: ${e.message}`);
+    }
+    const directUrl = String(plexServerUrl || '').trim();
+    if (directUrl) {
+        return validatePlexServerAdminToken(token, directUrl);
+    }
+    return false;
+};
+
+const assertUnconfiguredSensitiveSetupAccess = async (req, res, { plexToken, plexServerUrl, integrationType, serverIdentifier } = {}) => {
+    if (canRunInitialSetup(req)) return true;
+    const token = plexToken ?? req.body?.token;
+    const directUrl = plexServerUrl ?? req.body?.plexServerUrl;
+    const type = integrationType ?? req.body?.type;
+    const identifier = serverIdentifier ?? req.body?.serverIdentifier;
+    if (type === 'plex' && identifier) {
+        const stored = await loadFile(CONFIG_PATH, {});
+        if (await verifyInitialSetupPlexOwner(token, identifier, directUrl, stored)) {
+            return true;
+        }
+    }
+    if (await verifyPlexOwnerTokenForSetup(token, directUrl)) {
+        return true;
+    }
+    res.status(403).json({ error: UNCONFIGURED_SETUP_ACCESS_DENIED });
+    return false;
+};
+
 const assertIntegrationTestAccess = async (req, res) => {
     const stored = await loadFile(CONFIG_PATH, {});
     const isConfigured = isPortalConfigured(stored);
@@ -2926,8 +2972,9 @@ const assertIntegrationTestAccess = async (req, res) => {
             res.status(403).json({ error: 'Forbidden: invalid session.' });
             return false;
         }
+        return true;
     }
-    return true;
+    return assertUnconfiguredSensitiveSetupAccess(req, res);
 };
 
 app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
@@ -4024,8 +4071,9 @@ app.post('/api/plex/servers', setupRateLimit, async (req, res) => {
             if (!isAdmin) {
                 return res.status(403).json({ error: 'Forbidden: Admins only.' });
             }
+        } else if (!(await assertUnconfiguredSensitiveSetupAccess(req, res, { plexToken: normalizedToken, plexServerUrl }))) {
+            return;
         }
-        // During first-run setup, allow server discovery from LAN/Docker without localhost/SETUP_TOKEN.
 
         log('Fetching Plex servers using /pms/servers XML API...');
         let servers = [];
@@ -5601,7 +5649,7 @@ app.get('/api/plex/dashboard', requireAuth, requireMember, async (req, res) => {
                     episode: m.index,
                     progress: progress,
                     timeRemaining: Math.max(0, duration - viewOffset),
-                    bandwidth: (session && session.bandwidth) || (m.Media && m.Media[0] && m.Media[0].bitrate) || 0,
+                    bandwidth: normalizePlexBandwidthKbps((session && session.bandwidth) || (m.Media && m.Media[0] && m.Media[0].bitrate) || 0),
                     plexUrl: plexUrl
                 };
             });
@@ -10481,7 +10529,7 @@ async function monitorConcurrentSessions() {
                         isTranscoding: isTranscode,
                         sourceResolution: sourceResolution ? String(sourceResolution).toLowerCase() : null,
                         resolution: normalizeRuleResolution(sourceResolution, isTranscode, transcodeResolutionRaw),
-                        bandwidth: (session && session.bandwidth) || (m.Media && m.Media[0] && m.Media[0].bitrate) || 0,
+                        bandwidth: normalizePlexBandwidthKbps((session && session.bandwidth) || (m.Media && m.Media[0] && m.Media[0].bitrate) || 0),
                         playerProduct: player.product || '',
                         playerTitle: player.title || '',
                         state: player.state || 'playing',
