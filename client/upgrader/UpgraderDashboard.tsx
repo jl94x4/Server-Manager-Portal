@@ -70,15 +70,25 @@ export const UpgraderDashboard: React.FC = () => {
     const [items, setItems] = useState<UpgraderItem[]>([]);
     const [total, setTotal] = useState(0);
     const [libraries, setLibraries] = useState<Array<{ id: string; title: string; count: number }>>([]);
-    const [codecs, setCodecs] = useState<Set<UpgraderCodec>>(new Set());
-    const [resolutions, setResolutions] = useState<Set<UpgraderResolution>>(new Set());
-    const [features, setFeatures] = useState<Set<UpgraderFeature>>(new Set());
-    const [qualities, setQualities] = useState<Set<UpgraderQuality>>(new Set());
-    const [filtersExpanded, setFiltersExpanded] = useState(false);
+    const [codecs, setCodecs] = useState<Set<UpgraderCodec>>(() => {
+        try { const s = window.localStorage.getItem('upgrader_filters_codecs'); return s ? new Set(JSON.parse(s)) : new Set(); } catch { return new Set(); }
+    });
+    const [resolutions, setResolutions] = useState<Set<UpgraderResolution>>(() => {
+        try { const s = window.localStorage.getItem('upgrader_filters_resolutions'); return s ? new Set(JSON.parse(s)) : new Set(); } catch { return new Set(); }
+    });
+    const [features, setFeatures] = useState<Set<UpgraderFeature>>(() => {
+        try { const s = window.localStorage.getItem('upgrader_filters_features'); return s ? new Set(JSON.parse(s)) : new Set(); } catch { return new Set(); }
+    });
+    const [qualities, setQualities] = useState<Set<UpgraderQuality>>(() => {
+        try { const s = window.localStorage.getItem('upgrader_filters_qualities'); return s ? new Set(JSON.parse(s)) : new Set(); } catch { return new Set(); }
+    });
+    const [filtersExpanded, setFiltersExpanded] = useState(() => {
+        try { return window.localStorage.getItem('upgrader_filters_expanded') === 'true'; } catch { return false; }
+    });
     const [presetReady, setPresetReady] = useState(false);
-    const [sort, setSort] = useState('sizeGB');
-    const [libraryId, setLibraryId] = useState('all');
-    const [mediaType, setMediaType] = useState('all');
+    const [sort, setSort] = useState(() => window.localStorage.getItem('upgrader_filters_sort') || 'sizeGB');
+    const [libraryId, setLibraryId] = useState(() => window.localStorage.getItem('upgrader_filters_library') || 'all');
+    const [mediaType, setMediaType] = useState(() => window.localStorage.getItem('upgrader_filters_type') || 'all');
     const [search, setSearch] = useState('');
     const [searchInput, setSearchInput] = useState('');
     const [page, setPage] = useState(1);
@@ -95,7 +105,15 @@ export const UpgraderDashboard: React.FC = () => {
 
     useEffect(() => {
         window.localStorage.setItem(UPGRADER_GRID_SIZE_STORAGE_KEY, gridSize);
-    }, [gridSize]);
+        window.localStorage.setItem('upgrader_filters_codecs', JSON.stringify(Array.from(codecs)));
+        window.localStorage.setItem('upgrader_filters_resolutions', JSON.stringify(Array.from(resolutions)));
+        window.localStorage.setItem('upgrader_filters_features', JSON.stringify(Array.from(features)));
+        window.localStorage.setItem('upgrader_filters_qualities', JSON.stringify(Array.from(qualities)));
+        window.localStorage.setItem('upgrader_filters_expanded', String(filtersExpanded));
+        window.localStorage.setItem('upgrader_filters_sort', sort);
+        window.localStorage.setItem('upgrader_filters_library', libraryId);
+        window.localStorage.setItem('upgrader_filters_type', mediaType);
+    }, [gridSize, codecs, resolutions, features, qualities, filtersExpanded, sort, libraryId, mediaType]);
 
     const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
         setToasts((prev) => pushToast(prev, message, type));
@@ -103,31 +121,26 @@ export const UpgraderDashboard: React.FC = () => {
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
-        const qCodecs = new Set((params.get('codecs') || '').split(',').filter(Boolean) as UpgraderCodec[]);
-        const qResolutions = new Set((params.get('resolutions') || '').split(',').filter(Boolean) as UpgraderResolution[]);
-        const qFeatures = new Set((params.get('features') || '').split(',').filter(Boolean) as UpgraderFeature[]);
-        const qQualities = new Set((params.get('qualities') || '').split(',').filter(Boolean) as UpgraderQuality[]);
-        const qLibrary = params.get('library') || 'all';
-        const qType = params.get('type') || 'all';
-        const qSort = params.get('sort') || 'sizeGB';
-        const qSearch = params.get('search') || '';
-        const qPage = Number(params.get('page')) || 1;
-
-        setCodecs(qCodecs);
-        setResolutions(qResolutions);
-        setFeatures(qFeatures);
-        setQualities(qQualities);
-        setLibraryId(qLibrary);
-        setMediaType(qType);
-        setSort(qSort);
-        setSearch(qSearch);
-        setSearchInput(qSearch);
-        setPage(qPage);
+        
+        if (params.has('codecs')) setCodecs(new Set(params.get('codecs')!.split(',').filter(Boolean) as UpgraderCodec[]));
+        if (params.has('resolutions')) setResolutions(new Set(params.get('resolutions')!.split(',').filter(Boolean) as UpgraderResolution[]));
+        if (params.has('features')) setFeatures(new Set(params.get('features')!.split(',').filter(Boolean) as UpgraderFeature[]));
+        if (params.has('qualities')) setQualities(new Set(params.get('qualities')!.split(',').filter(Boolean) as UpgraderQuality[]));
+        if (params.has('library')) setLibraryId(params.get('library')!);
+        if (params.has('type')) setMediaType(params.get('type')!);
+        if (params.has('sort')) setSort(params.get('sort')!);
+        if (params.has('search')) {
+            setSearch(params.get('search')!);
+            setSearchInput(params.get('search')!);
+        }
+        if (params.has('page')) setPage(Number(params.get('page')) || 1);
 
         apiFetch('/api/config')
             .then((configData) => {
                 const defaultSort = configData?.settings?.upgraderDefaultSort;
-                if (!params.has('sort') && defaultSort) setSort(defaultSort);
+                if (!params.has('sort') && !window.localStorage.getItem('upgrader_filters_sort') && defaultSort) {
+                    setSort(defaultSort);
+                }
             })
             .catch(() => {})
             .finally(() => setPresetReady(true));
@@ -291,7 +304,7 @@ export const UpgraderDashboard: React.FC = () => {
         }`;
 
     return (
-        <div className="w-full mx-auto pt-4 md:pt-8 pb-8 px-4 md:px-0">
+        <div className="w-full flex flex-col gap-6 pb-8">
             <ToastContainer toasts={toasts} setToasts={setToasts} />
             <UpgraderUpgradeModal
                 isOpen={upgradeModalOpen}

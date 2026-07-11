@@ -184,7 +184,8 @@ export const MainApp: React.FC = () => {
     }, []);
 
     const checkSession = useCallback(async () => {
-        const path = stripBasePath(window.location.pathname);
+        let path = stripBasePath(window.location.pathname);
+        if (path.endsWith('/') && path.length > 1) path = path.slice(0, -1);
         if (path.startsWith('/invite/')) {
             setCurrentRoute('invite');
             return;
