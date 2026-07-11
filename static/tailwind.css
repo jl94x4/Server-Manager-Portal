@@ -6889,6 +6889,11 @@ html.branded-skeleton .skeleton-base::after {
   --tw-bg-opacity: 0.8;
 }
 
+.hover\:text-orange-400:hover {
+  --tw-text-opacity: 1;
+  color: rgb(251 146 60 / var(--tw-text-opacity, 1));
+}
+
 .hover\:text-plex:hover {
   --tw-text-opacity: 1;
   color: rgb(var(--color-plex) / var(--tw-text-opacity, 1));
@@ -7272,12 +7277,20 @@ html.branded-skeleton .skeleton-base::after {
     display: none;
   }
 
+  .sm\:aspect-auto {
+    aspect-ratio: auto;
+  }
+
   .sm\:h-2 {
     height: 0.5rem;
   }
 
   .sm\:h-32 {
     height: 8rem;
+  }
+
+  .sm\:h-36 {
+    height: 9rem;
   }
 
   .sm\:h-5 {
@@ -7298,6 +7311,10 @@ html.branded-skeleton .skeleton-base::after {
 
   .sm\:w-20 {
     width: 5rem;
+  }
+
+  .sm\:w-24 {
+    width: 6rem;
   }
 
   .sm\:w-32 {

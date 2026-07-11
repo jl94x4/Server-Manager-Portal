@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowUpCircle, RefreshCw, Search, Settings as SettingsIcon, ArrowUpFromLine, Layers, Clock, History, Ban, Filter } from 'lucide-react';
 import { apiFetch } from '../shared/api';
-import { portalUrl } from '../shared/basePath';
+import { portalUrl, resolvePortalAssetUrl } from '../shared/basePath';
 import { CustomSelect, OverlayCheckbox } from '../shared/ui';
 import { Loader, ToastContainer, pushToast } from '../shared/toast';
 import { normalizeUpgraderGridSize, UPGRADER_GRID_SIZE_OPTIONS, UPGRADER_GRID_SIZE_STORAGE_KEY, upgraderPosterGridClass, upgraderPosterGridStyle, type UpgraderGridSize } from '../shared/portalLayout';
@@ -659,6 +659,87 @@ export const UpgraderDashboard: React.FC = () => {
                                         } else {
                                             badgeText = showCodecLabel || 'UNKNOWN';
                                         }
+                                        if (gridSize === 'list') {
+                                            return (
+                                                <div key={item.ratingKey} className="flex flex-col sm:flex-row gap-4 p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors relative">
+                                                    {automationReady && (
+                                                        <div className="absolute top-2 left-2 z-20">
+                                                            <OverlayCheckbox
+                                                                checked={isSelected}
+                                                                onChange={() => toggleSelected(item.ratingKey)}
+                                                                size="md"
+                                                                title={isSelected ? 'Deselect' : 'Select for upgrade'}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                    <div className="w-full sm:w-24 shrink-0 aspect-[2/3] sm:aspect-auto sm:h-36 rounded-md overflow-hidden bg-black/50 relative border border-white/5 cursor-pointer" onClick={isShow ? () => handleOpenDrawer(item) : undefined}>
+                                                        <img src={item.thumbUrl ? resolvePortalAssetUrl(item.thumbUrl) : (item.thumb ? portalUrl(`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=200&height=300`) : item.posterFallbackUrl ? resolvePortalAssetUrl(item.posterFallbackUrl) : '')} alt={item.title} className="w-full h-full object-cover" />
+                                                        {showQualityBadges && item.displayTags && item.displayTags.length > 0 && (
+                                                            <div className="absolute bottom-1 left-1 right-1 flex flex-wrap gap-0.5 pointer-events-none z-10">
+                                                                {item.displayTags.map((tag) => (
+                                                                    <span key={tag} className="text-[8px] font-bold px-1 py-px rounded bg-black/85 text-white/95 border border-white/15 uppercase tracking-wide">
+                                                                        {tag}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
+                                                        <div className="flex items-start justify-between gap-4">
+                                                            <div>
+                                                                <button
+                                                                    type="button"
+                                                                    className={`text-lg font-bold text-white line-clamp-1 text-left ${isShow ? 'hover:text-plex transition-colors' : 'cursor-default'}`}
+                                                                    onClick={isShow ? () => handleOpenDrawer(item) : undefined}
+                                                                >
+                                                                    {item.title}{item.year ? ` (${item.year})` : ''}
+                                                                </button>
+                                                                <p className="text-sm text-muted mt-0.5">
+                                                                    {item.libraryTitle}
+                                                                    {item.arrInstanceName && item.arrInstanceName.toLowerCase() !== (item.libraryTitle || '').toLowerCase() ? ` · ${item.arrInstanceName}` : ''}
+                                                                </p>
+                                                            </div>
+                                                            {badgeText && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={isShow ? () => handleOpenDrawer(item) : undefined}
+                                                                    className={`shrink-0 text-xs font-bold px-2.5 py-1 rounded-full bg-black/75 border border-white/20 text-amber-200 ${isShow ? 'hover:border-plex/50 cursor-pointer' : 'cursor-default'}`}
+                                                                >
+                                                                    {badgeText}
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                        <div className="mt-2 text-sm text-gray-400">
+                                                            {item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0
+                                                                ? `${item.nonHevcEpisodeSizeGB < 1 ? Math.round(item.nonHevcEpisodeSizeGB * 1024) + ' MB' : item.nonHevcEpisodeSizeGB + ' GB'}${showCodecLabel ? ` (${showCodecLabel.toUpperCase()} eps)` : ''}`
+                                                                : item.sizeGB > 0 ? `${item.sizeGB < 1 ? Math.round(item.sizeGB * 1024) + ' MB' : item.sizeGB + ' GB'}` : ''}
+                                                        </div>
+                                                        <div className="mt-auto pt-3 flex flex-wrap items-center gap-4">
+                                                            {isShow && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="text-xs font-bold text-gray-300 hover:text-white transition-colors"
+                                                                    onClick={() => handleOpenDrawer(item)}
+                                                                >
+                                                                    View Episodes
+                                                                </button>
+                                                            )}
+                                                            {item.arrDeepUrl && (
+                                                                <a
+                                                                    href={item.arrDeepUrl}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="text-xs font-bold text-plex hover:text-orange-400 transition-colors"
+                                                                >
+                                                                    Open in {item.arrType === 'radarr' ? 'Radarr' : 'Sonarr'}
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        }
+
                                         const checkboxSize = gridSize === 'small' || gridSize === 'medium' ? 'sm' : 'md';
                                         return (
                                             <div key={item.ratingKey} className="relative min-w-0">
