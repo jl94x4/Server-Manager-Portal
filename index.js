@@ -8846,6 +8846,52 @@ const startAnalyticsStatsBackgroundTask = async () => {
     scheduleAnalyticsRebuild(INITIAL_CACHE_BUILD_DELAY_MS + 5000);
 };
 
+const UPGRADER_INDEX_INTERVAL_MS = 4 * 60 * 60 * 1000;
+let upgraderIndexTimer = null;
+
+const scheduleUpgraderIndexRebuild = (delayMs) => {
+    if (upgraderIndexTimer) clearTimeout(upgraderIndexTimer);
+    const safeDelay = Math.max(0, delayMs);
+    systemJobs.upgraderIndex.nextRun = new Date(Date.now() + safeDelay).toISOString();
+    upgraderIndexTimer = setTimeout(async () => {
+        try {
+            const config = await loadFile(CONFIG_PATH, {});
+            if (isUpgraderEnabled(config)) {
+                await buildUpgraderArrIndex(config, { actor: { username: 'System', email: 'system@local' } });
+            } else {
+                markTaskEnd(systemJobs.upgraderIndex, 'Upgrader is disabled.');
+            }
+        } catch (e) {
+            log(`[UpgraderIndex] Scheduled rebuild failed: ${e.message}`);
+        }
+        scheduleUpgraderIndexRebuild(UPGRADER_INDEX_INTERVAL_MS);
+    }, safeDelay);
+};
+
+const startUpgraderIndexBackgroundTask = async () => {
+    let existing = null;
+    try {
+        const loaded = await loadFile(UPGRADER_INDEX_PATH, null);
+        if (loaded && loaded.generatedAt) existing = loaded;
+    } catch { /* no cache yet */ }
+
+    if (existing) {
+        systemJobs.upgraderIndex.lastRun = existing.generatedAt;
+        const ageMs = Date.now() - new Date(existing.generatedAt).getTime();
+        const remainingMs = Math.max(0, UPGRADER_INDEX_INTERVAL_MS - ageMs);
+        log(`[UpgraderIndex] Loaded existing index (age: ${Math.round(ageMs / 60000)} min). Next rebuild in ${Math.round(remainingMs / 60000)} min.`);
+        if (ageMs >= UPGRADER_INDEX_INTERVAL_MS) {
+            scheduleUpgraderIndexRebuild(0);
+        } else {
+            scheduleUpgraderIndexRebuild(remainingMs);
+        }
+        return;
+    }
+
+    log('[UpgraderIndex] No cache found — scheduling first build shortly.');
+    scheduleUpgraderIndexRebuild(INITIAL_CACHE_BUILD_DELAY_MS + 10000);
+};
+
 app.get('/api/plex/stats/trending', requireAuth, requireMember, async (req, res) => {
     try {
         const stats = await loadFile(TRENDING_CACHE_PATH, {
@@ -12664,6 +12710,7 @@ app.listen(PORT, BIND_HOST, async () => {
     // Background cache builders: reuse on-disk cache and schedule next run by interval.
     startTrendingStatsBackgroundTask();
     startAnalyticsStatsBackgroundTask();
+    startUpgraderIndexBackgroundTask();
     systemJobs.maintenanceIndex.nextRun = new Date(Date.now() + (20 * 1000)).toISOString();
     setTimeout(async () => {
         try {
