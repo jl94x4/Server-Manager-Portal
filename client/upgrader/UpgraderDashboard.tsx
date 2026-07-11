@@ -721,15 +721,17 @@ export const UpgraderDashboard: React.FC = () => {
                                                                         Trigger Upgrade
                                                                     </button>
                                                                 )}
-                                                                <button
-                                                                    type="button"
-                                                                    className="inline-flex items-center gap-1 text-[10px] font-bold text-muted hover:text-text"
-                                                                    onClick={() => handleSnooze(item)}
-                                                                    title="Hide from Upgrader for 30 days"
-                                                                >
-                                                                    <Clock className="w-3 h-3" />
-                                                                    Snooze
-                                                                </button>
+                                                                {automationReady && (
+                                                                    <button
+                                                                        type="button"
+                                                                        className="inline-flex items-center gap-1 text-[10px] font-bold text-muted hover:text-text"
+                                                                        onClick={() => handleSnooze(item)}
+                                                                        title="Hide from Upgrader for 30 days"
+                                                                    >
+                                                                        <Clock className="w-3 h-3" />
+                                                                        Snooze
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     )}
