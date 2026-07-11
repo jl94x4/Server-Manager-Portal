@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowUpCircle, RefreshCw, Search, Settings as SettingsIcon, ArrowUpFromLine, Layers, Clock, History, Ban } from 'lucide-react';
+import { ArrowUpCircle, RefreshCw, Search, Settings as SettingsIcon, ArrowUpFromLine, Layers, Clock, History, Ban, Filter } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { portalUrl } from '../shared/basePath';
 import { CustomSelect, OverlayCheckbox } from '../shared/ui';
@@ -704,7 +704,7 @@ export const UpgraderDashboard: React.FC = () => {
                                                                         type="button"
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
-                                                                            handleBulkUpgrade([item]);
+                                                                            openUpgradeModal([item]);
                                                                         }}
                                                                         className="text-[10px] font-bold text-plex hover:underline"
                                                                     >

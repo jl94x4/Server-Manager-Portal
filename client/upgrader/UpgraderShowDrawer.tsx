@@ -446,15 +446,15 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                                             className={`flex items-start gap-3 px-4 py-3 ${highlightFilterOnly ? '' : episode.matchesPreset === false ? 'opacity-55' : ''}`}
                                                         >
                                                             <div className="w-20 h-11 rounded overflow-hidden bg-white/5 shrink-0">
-                                                                {episode.thumbUrl || episode.thumb || arr?.thumbUrl || arr?.thumb ? (
+                                                                {episode.thumbUrl || episode.thumb || showMeta.thumbUrl || showMeta.thumb ? (
                                                                     <img
                                                                         src={episode.thumbUrl
                                                                             ? resolvePortalAssetUrl(episode.thumbUrl)
                                                                             : episode.thumb
                                                                                 ? portalUrl(`/api/plex/image?path=${encodeURIComponent(episode.thumb)}&width=160&height=90`)
-                                                                                : arr?.thumbUrl
-                                                                                    ? resolvePortalAssetUrl(arr.thumbUrl)
-                                                                                    : portalUrl(`/api/plex/image?path=${encodeURIComponent(arr?.thumb || '')}&width=160&height=90`)}
+                                                                                : showMeta.thumbUrl
+                                                                                    ? resolvePortalAssetUrl(showMeta.thumbUrl)
+                                                                                    : portalUrl(`/api/plex/image?path=${encodeURIComponent(showMeta.thumb || '')}&width=160&height=90`)}
                                                                         alt={episode.title}
                                                                         className="w-full h-full object-contain bg-black/40"
                                                                     />
