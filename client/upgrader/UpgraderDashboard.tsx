@@ -644,18 +644,20 @@ export const UpgraderDashboard: React.FC = () => {
                                         const isSelected = selectedKeys.has(item.ratingKey);
                                         const isShow = item.mediaType === 'show';
                                         const epCount = (item as any).matchedEpisodeCount ?? item.nonHevcEpisodeCount ?? 0;
+                                        const isCodecFiltered = codecs.size > 0 || features.has('non_hevc');
                                         const codecLabel = item.videoCodec
                                             ? (item.videoCodec.match(/^(h|x)26[45]$/i) ? item.videoCodec.toLowerCase() : item.videoCodec.toUpperCase())
                                             : '';
+                                        const showCodecLabel = isShow ? (isCodecFiltered ? codecLabel : '') : codecLabel;
                                         let badgeText = '';
                                         if (isShow) {
-                                            if (epCount > 0 && codecLabel) badgeText = `${epCount} ${codecLabel} eps`;
+                                            if (epCount > 0 && showCodecLabel) badgeText = `${epCount} ${showCodecLabel} eps`;
                                             else if (epCount > 0) badgeText = `${epCount} eps`;
-                                            else if (codecLabel) badgeText = `${codecLabel} eps`;
+                                            else if (showCodecLabel) badgeText = `${showCodecLabel} eps`;
                                             else badgeText = 'Episodes';
                                             if (epCount === 1) badgeText = badgeText.replace('eps', 'ep');
                                         } else {
-                                            badgeText = codecLabel || 'UNKNOWN';
+                                            badgeText = showCodecLabel || 'UNKNOWN';
                                         }
                                         const checkboxSize = gridSize === 'small' || gridSize === 'medium' ? 'sm' : 'md';
                                         return (
@@ -713,7 +715,7 @@ export const UpgraderDashboard: React.FC = () => {
                                                             <div className="upgrader-card-meta text-[10px] text-muted line-clamp-2">
                                                                 {item.libraryTitle}
                                                                 {item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0
-                                                                    ? ` · ${item.nonHevcEpisodeSizeGB < 1 ? Math.round(item.nonHevcEpisodeSizeGB * 1024) + ' MB' : item.nonHevcEpisodeSizeGB + ' GB'} (${item.videoCodec ? `${item.videoCodec.toUpperCase()} ` : ''}eps)`
+                                                                    ? ` · ${item.nonHevcEpisodeSizeGB < 1 ? Math.round(item.nonHevcEpisodeSizeGB * 1024) + ' MB' : item.nonHevcEpisodeSizeGB + ' GB'} (${showCodecLabel ? `${showCodecLabel.toUpperCase()} ` : ''}eps)`
                                                                     : item.sizeGB > 0 ? ` · ${item.sizeGB < 1 ? Math.round(item.sizeGB * 1024) + ' MB' : item.sizeGB + ' GB'}` : ''}
                                                                 {item.arrInstanceName ? ` · ${item.arrInstanceName}` : ''}
                                                             </div>
