@@ -2068,7 +2068,7 @@ export const SettingsDashboard: React.FC = () => {
                             <section id={getSettingsSectionElementId('upgrader')} className="space-y-3 scroll-mt-24">
                                 <SettingsToggleRow
                                     title="Enable Library Upgrader"
-                                    description="Standalone admin view to find non-HEVC titles with Plex or Jellyfin and Sonarr/Radarr deep links. OFF by default."
+                                    hint={<SettingHint>Standalone admin view to find non-HEVC titles with Plex or Jellyfin and Sonarr/Radarr deep links. OFF by default.</SettingHint>}
                                     checked={upgraderEnabled}
                                     onChange={setUpgraderEnabled}
                                     border={false}
@@ -2099,7 +2099,7 @@ export const SettingsDashboard: React.FC = () => {
                                 </div>
                                 <SettingsToggleRow
                                     title="Enable ARR automation"
-                                    description="Allow Upgrader to switch Sonarr/Radarr quality profiles and trigger searches. Opt-in per action with dry-run preview."
+                                    hint={<SettingHint>Allow Upgrader to switch Sonarr/Radarr quality profiles and trigger searches. Opt-in per action with dry-run preview.</SettingHint>}
                                     checked={upgraderAutomationEnabled}
                                     onChange={setUpgraderAutomationEnabled}
                                     border={false}
