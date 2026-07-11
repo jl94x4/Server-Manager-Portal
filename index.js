@@ -2429,6 +2429,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 upgraderProfileMap: config.upgraderProfileMap && typeof config.upgraderProfileMap === 'object' ? config.upgraderProfileMap : {},
                 upgraderMaxActionsPerHour: Math.max(1, Number(config.upgraderMaxActionsPerHour) || 25),
                 upgraderDefaultSort: config.upgraderDefaultSort || 'sizeGB',
+                upgraderDrawerPosition: config.upgraderDrawerPosition || 'sidebar',
                 dashboardLayout: normalizeSectionLayout(config.dashboardLayout),
                 showUsernamesInAnalytics: !!config.showUsernamesInAnalytics,
                 useTrendingSlideshowOnLogin: config.useTrendingSlideshowOnLogin !== false
@@ -2504,6 +2505,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 upgraderProfileMap: {},
                 upgraderMaxActionsPerHour: 25,
                 upgraderDefaultSort: 'sizeGB',
+                upgraderDrawerPosition: 'sidebar',
                 dashboardLayout: DEFAULT_DASHBOARD_LAYOUT
             },
         });
@@ -2521,7 +2523,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         inactiveCleanupEnabled, inactiveCleanupDays,
         primaryColor, customLogoUrl, brandingTheme, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges,
         showPublicStatusMonitor, showPublicLibraryStats,
-        autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, upgraderEnabled, upgraderDefaultPreset, upgraderMinSizeGB, upgraderAutomationEnabled, upgraderProfileMap, upgraderMaxActionsPerHour, upgraderDefaultSort, dashboardLayout,
+        autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, upgraderEnabled, upgraderDefaultPreset, upgraderMinSizeGB, upgraderAutomationEnabled, upgraderProfileMap, upgraderMaxActionsPerHour, upgraderDefaultSort, upgraderDrawerPosition, dashboardLayout,
         showUsernamesInAnalytics, useTrendingSlideshowOnLogin
     } = req.body;
 
@@ -2691,6 +2693,9 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         upgraderDefaultSort: ['title', 'sizeGB', 'watchCount', 'addedAt'].includes(String(upgraderDefaultSort || existingConfig.upgraderDefaultSort || 'sizeGB'))
             ? String(upgraderDefaultSort || existingConfig.upgraderDefaultSort || 'sizeGB')
             : 'sizeGB',
+        upgraderDrawerPosition: ['sidebar', 'modal'].includes(String(upgraderDrawerPosition || existingConfig.upgraderDrawerPosition || 'sidebar'))
+            ? String(upgraderDrawerPosition || existingConfig.upgraderDrawerPosition || 'sidebar')
+            : 'sidebar',
         showUsernamesInAnalytics: showUsernamesInAnalytics !== undefined ? !!showUsernamesInAnalytics : !!existingConfig.showUsernamesInAnalytics,
         useTrendingSlideshowOnLogin: useTrendingSlideshowOnLogin !== undefined ? !!useTrendingSlideshowOnLogin : (existingConfig.useTrendingSlideshowOnLogin !== false),
         dashboardLayout: ('dashboardLayout' in req.body)
