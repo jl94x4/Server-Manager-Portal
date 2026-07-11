@@ -34,6 +34,9 @@ export const UpgraderProfilesTab: React.FC = () => {
     const [profiles, setProfiles] = useState<QualityProfile[]>([]);
     const [editingFormat, setEditingFormat] = useState<{ show: boolean; format: CustomFormat | null }>({ show: false, format: null });
     const [editingProfile, setEditingProfile] = useState<{ show: boolean; profile: QualityProfile | null }>({ show: false, profile: null });
+    const [formatPage, setFormatPage] = useState(1);
+    const [profilePage, setProfilePage] = useState(1);
+    const pageSize = 18;
 
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -108,6 +111,8 @@ export const UpgraderProfilesTab: React.FC = () => {
 
     useEffect(() => {
         if (selectedInstanceId) {
+            setFormatPage(1);
+            setProfilePage(1);
             loadInstanceData(selectedInstanceId);
         } else {
             setFormats([]);
@@ -165,7 +170,7 @@ export const UpgraderProfilesTab: React.FC = () => {
                                 </button>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {formats.slice(0, 18).map(f => (
+                                {formats.slice((formatPage - 1) * pageSize, formatPage * pageSize).map(f => (
                                     <div
                                         key={f.id}
                                         onClick={() => setEditingFormat({ show: true, format: f })}
@@ -178,12 +183,28 @@ export const UpgraderProfilesTab: React.FC = () => {
                                         <div className="text-xs text-muted mt-1">{f.specifications?.length || 0} conditions</div>
                                     </div>
                                 ))}
-                                {formats.length > 18 && (
-                                    <div className="bg-background border border-border border-dashed p-4 rounded-lg flex items-center justify-center text-sm text-muted">
-                                        + {formats.length - 18} more formats
-                                    </div>
-                                )}
                             </div>
+                            {formats.length > pageSize && (
+                                <div className="flex items-center justify-center gap-2 mt-4">
+                                    <button 
+                                        disabled={formatPage === 1}
+                                        onClick={() => setFormatPage(p => p - 1)}
+                                        className="px-3 py-1 bg-background border border-border rounded-lg text-sm text-muted hover:text-text disabled:opacity-50"
+                                    >
+                                        Previous
+                                    </button>
+                                    <span className="text-sm text-muted">
+                                        Page {formatPage} of {Math.ceil(formats.length / pageSize)}
+                                    </span>
+                                    <button 
+                                        disabled={formatPage >= Math.ceil(formats.length / pageSize)}
+                                        onClick={() => setFormatPage(p => p + 1)}
+                                        className="px-3 py-1 bg-background border border-border rounded-lg text-sm text-muted hover:text-text disabled:opacity-50"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         {/* Quality Profiles Section */}
@@ -192,7 +213,7 @@ export const UpgraderProfilesTab: React.FC = () => {
                                 <h4 className="text-md font-semibold text-text">Quality Profiles ({profiles.length})</h4>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {profiles.map(p => (
+                                {profiles.slice((profilePage - 1) * pageSize, profilePage * pageSize).map(p => (
                                     <div
                                         key={p.id}
                                         onClick={() => setEditingProfile({ show: true, profile: p })}
@@ -206,6 +227,27 @@ export const UpgraderProfilesTab: React.FC = () => {
                                     </div>
                                 ))}
                             </div>
+                            {profiles.length > pageSize && (
+                                <div className="flex items-center justify-center gap-2 mt-4">
+                                    <button 
+                                        disabled={profilePage === 1}
+                                        onClick={() => setProfilePage(p => p - 1)}
+                                        className="px-3 py-1 bg-background border border-border rounded-lg text-sm text-muted hover:text-text disabled:opacity-50"
+                                    >
+                                        Previous
+                                    </button>
+                                    <span className="text-sm text-muted">
+                                        Page {profilePage} of {Math.ceil(profiles.length / pageSize)}
+                                    </span>
+                                    <button 
+                                        disabled={profilePage >= Math.ceil(profiles.length / pageSize)}
+                                        onClick={() => setProfilePage(p => p + 1)}
+                                        className="px-3 py-1 bg-background border border-border rounded-lg text-sm text-muted hover:text-text disabled:opacity-50"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

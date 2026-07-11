@@ -63,7 +63,7 @@ export const UpgraderQualityProfileModal: React.FC<Props> = ({ profile, formats,
 
     return (
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-card border border-border shadow-xl rounded-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+            <div className="bg-card border border-border shadow-xl rounded-2xl w-full max-w-5xl flex flex-col max-h-[90vh]">
                 <div className="flex items-center justify-between p-6 border-b border-border">
                     <div>
                         <h3 className="text-xl font-bold text-text">Edit Quality Profile</h3>
@@ -85,13 +85,13 @@ export const UpgraderQualityProfileModal: React.FC<Props> = ({ profile, formats,
                         <h4 className="text-sm font-semibold text-text mb-4">Custom Format Scores</h4>
                         <p className="text-xs text-muted mb-4">Assign positive or negative scores to custom formats to prioritize or exclude them during upgrades. Formats with a score of 0 are effectively ignored.</p>
                         
-                        <div className="space-y-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             {formats.length === 0 && (
-                                <div className="text-sm text-muted text-center py-8 border border-dashed border-border rounded-lg">
+                                <div className="text-sm text-muted text-center py-8 border border-dashed border-border rounded-lg md:col-span-2">
                                     No custom formats exist on this instance yet.
                                 </div>
                             )}
-                            {formats.map(f => {
+                            {[...formats].sort((a, b) => (scores[a.id!] || 0) - (scores[b.id!] || 0)).map(f => {
                                 if (!f.id) return null;
                                 const score = scores[f.id] || 0;
                                 return (

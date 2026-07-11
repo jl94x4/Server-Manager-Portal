@@ -30,50 +30,121 @@ export const UpgraderCustomFormatModal: React.FC<Props> = ({ format, onClose, on
     const [matchAll, setMatchAll] = useState(true);
     const [keywords, setKeywords] = useState<string[]>([]);
     const [negateKeywords, setNegateKeywords] = useState<string[]>([]);
+    const [otherSpecifications, setOtherSpecifications] = useState<any[]>([]);
     const [keywordInput, setKeywordInput] = useState('');
     const [negateInput, setNegateInput] = useState('');
     const [saving, setSaving] = useState(false);
     const [rawJson, setRawJson] = useState('');
     const [error, setError] = useState('');
 
+    const parseSpecificationsToSimple = (specs: any[]) => {
+        const kw: string[] = [];
+        const nkw: string[] = [];
+        const others: any[] = [];
+        let isMatchAll = true;
+
+        specs.forEach(s => {
+            if (s.implementation === 'ReleaseTitleSpecification') {
+                const val = String(s.fields?.find((f: any) => f.name === 'value')?.value || '');
+                // Basic cleanup of our naive regexes
+                let clean = val.replace(/^\\b/, '').replace(/\\b$/, '').replace(/^\(/, '').replace(/\)$/, '');
+                
+                if (s.negate) {
+                    nkw.push(...clean.split('|').filter(Boolean));
+                } else {
+                    kw.push(...clean.split('|').filter(Boolean));
+                    if (val.includes('|')) isMatchAll = false;
+                }
+            } else {
+                others.push(s);
+            }
+        });
+
+        setKeywords(kw);
+        setNegateKeywords(nkw);
+        setMatchAll(isMatchAll);
+        setOtherSpecifications(others);
+    };
+
+    const buildSpecifications = (): any[] => {
+        const specs: any[] = [...otherSpecifications];
+        
+        if (matchAll) {
+            keywords.forEach(kw => {
+                specs.push({
+                    name: `Match ${kw}`,
+                    implementation: 'ReleaseTitleSpecification',
+                    implementationName: 'Release Title',
+                    infoLink: 'https://wiki.servarr.com/sonarr/settings#custom-formats',
+                    negate: false,
+                    required: true,
+                    fields: [{ name: 'value', value: `\\b${kw}\\b` }]
+                });
+            });
+        } else if (keywords.length > 0) {
+            specs.push({
+                name: 'Match Any',
+                implementation: 'ReleaseTitleSpecification',
+                implementationName: 'Release Title',
+                infoLink: 'https://wiki.servarr.com/sonarr/settings#custom-formats',
+                negate: false,
+                required: true,
+                fields: [{ name: 'value', value: `\\b(${keywords.join('|')})\\b` }]
+            });
+        }
+
+        negateKeywords.forEach(kw => {
+            specs.push({
+                name: `Exclude ${kw}`,
+                implementation: 'ReleaseTitleSpecification',
+                implementationName: 'Release Title',
+                infoLink: 'https://wiki.servarr.com/sonarr/settings#custom-formats',
+                negate: true,
+                required: true,
+                fields: [{ name: 'value', value: `\\b${kw}\\b` }]
+            });
+        });
+
+        return specs;
+    };
+
     useEffect(() => {
         if (format) {
-            // Attempt to parse existing simple format
             try {
                 if (format.specifications?.length > 0) {
-                    const isSimple = format.specifications.every(s => s.implementation === 'ReleaseTitleSpecification');
-                    if (isSimple) {
-                        const kw: string[] = [];
-                        const nkw: string[] = [];
-                        let isMatchAll = true;
-                        
-                        format.specifications.forEach(s => {
-                            const val = String(s.fields?.find((f: any) => f.name === 'value')?.value || '');
-                            // Very naive parsing of Regex to simple keywords:
-                            const clean = val.replace(/^\\b/, '').replace(/\\b$/, '').replace(/\|/g, ',');
-                            if (s.negate) {
-                                nkw.push(...clean.split(',').filter(Boolean));
-                            } else {
-                                kw.push(...clean.split(',').filter(Boolean));
-                                if (val.includes('|')) isMatchAll = false;
-                            }
-                        });
-                        setKeywords(kw);
-                        setNegateKeywords(nkw);
-                        setMatchAll(isMatchAll);
-                    } else {
-                        setAdvanced(true);
-                        setRawJson(JSON.stringify(format.specifications, null, 2));
-                    }
+                    parseSpecificationsToSimple(format.specifications);
+                    setAdvanced(false);
                 }
             } catch {
                 setAdvanced(true);
                 setRawJson(JSON.stringify(format.specifications, null, 2));
             }
+            setRawJson(JSON.stringify(format.specifications || [], null, 2));
         } else {
             setRawJson('[\n  \n]');
         }
     }, [format]);
+
+    const handleSwitchMode = (toAdvanced: boolean) => {
+        setError('');
+        if (toAdvanced) {
+            const generated = buildSpecifications();
+            setRawJson(JSON.stringify(generated, null, 2));
+            setAdvanced(true);
+        } else {
+            try {
+                const specs = JSON.parse(rawJson);
+                if (Array.isArray(specs)) {
+                    parseSpecificationsToSimple(specs);
+                    setAdvanced(false);
+                } else {
+                    setError('Cannot switch to Simple mode: Advanced mode must contain a valid JSON array.');
+                }
+            } catch (e) {
+                setError('Cannot switch to Simple mode: Invalid JSON in Advanced mode.');
+            }
+        }
+    };
 
     const handleSave = async () => {
         setError('');
@@ -89,44 +160,8 @@ export const UpgraderCustomFormatModal: React.FC<Props> = ({ format, onClose, on
                 return setError(`Invalid JSON: ${e.message}`);
             }
         } else {
-            if (keywords.length === 0) return setError('At least one keyword is required');
-            
-            // Build the specifications array
-            if (matchAll) {
-                keywords.forEach((kw, i) => {
-                    specifications.push({
-                        name: `Match ${kw}`,
-                        implementation: 'ReleaseTitleSpecification',
-                        implementationName: 'Release Title',
-                        infoLink: 'https://wiki.servarr.com/sonarr/settings#custom-formats',
-                        negate: false,
-                        required: true,
-                        fields: [{ name: 'value', value: `\\b${kw}\\b` }]
-                    });
-                });
-            } else {
-                specifications.push({
-                    name: 'Match Any',
-                    implementation: 'ReleaseTitleSpecification',
-                    implementationName: 'Release Title',
-                    infoLink: 'https://wiki.servarr.com/sonarr/settings#custom-formats',
-                    negate: false,
-                    required: true,
-                    fields: [{ name: 'value', value: `\\b(${keywords.join('|')})\\b` }]
-                });
-            }
-
-            negateKeywords.forEach((kw, i) => {
-                specifications.push({
-                    name: `Exclude ${kw}`,
-                    implementation: 'ReleaseTitleSpecification',
-                    implementationName: 'Release Title',
-                    infoLink: 'https://wiki.servarr.com/sonarr/settings#custom-formats',
-                    negate: true,
-                    required: true,
-                    fields: [{ name: 'value', value: `\\b${kw}\\b` }]
-                });
-            });
+            if (keywords.length === 0 && otherSpecifications.length === 0) return setError('At least one keyword or specification is required');
+            specifications = buildSpecifications();
         }
 
         const payload: CustomFormat = {
@@ -178,13 +213,13 @@ export const UpgraderCustomFormatModal: React.FC<Props> = ({ format, onClose, on
 
                     <div className="flex items-center justify-between bg-background border border-border rounded-lg p-1">
                         <button
-                            onClick={() => setAdvanced(false)}
+                            onClick={() => handleSwitchMode(false)}
                             className={`flex-1 text-sm font-medium py-1.5 rounded-md transition-colors ${!advanced ? 'bg-plex text-background' : 'text-muted hover:text-text'}`}
                         >
                             Simple Keywords
                         </button>
                         <button
-                            onClick={() => setAdvanced(true)}
+                            onClick={() => handleSwitchMode(true)}
                             className={`flex-1 text-sm font-medium py-1.5 rounded-md transition-colors ${advanced ? 'bg-plex text-background' : 'text-muted hover:text-text'}`}
                         >
                             Advanced Regex JSON
