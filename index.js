@@ -9265,10 +9265,23 @@ const applyUpgraderMultiFilter = (item, codecs = [], resolutions = [], features 
         if (!codecs.includes(itemCodec)) {
             let matched = false;
             if (item.mediaType === 'show') {
-                const total = Number(item.totalEpisodeCount || 0);
-                const nonHevc = Number(item.nonHevcEpisodeCount || 0);
-                if (codecs.includes('h264') && nonHevc > 0) matched = true;
-                if ((codecs.includes('hevc') || codecs.includes('h265')) && (total - nonHevc) > 0) matched = true;
+                if (item.codecCounts) {
+                    for (const reqCodec of codecs) {
+                        for (const [actualCodec, count] of Object.entries(item.codecCounts)) {
+                            const family = getUpgraderCodecFamily({ videoCodec: actualCodec });
+                            if (family === reqCodec && count > 0) {
+                                matched = true;
+                                break;
+                            }
+                        }
+                        if (matched) break;
+                    }
+                } else {
+                    const total = Number(item.totalEpisodeCount || 0);
+                    const nonHevc = Number(item.nonHevcEpisodeCount || 0);
+                    if (codecs.includes('h264') && nonHevc > 0) matched = true;
+                    if ((codecs.includes('hevc') || codecs.includes('h265')) && (total - nonHevc) > 0) matched = true;
+                }
             }
             if (!matched) return false;
         }
@@ -11752,16 +11765,36 @@ app.get('/api/upgrader/items', requireAdmin, async (req, res) => {
                     const nonHevc = Number(item.nonHevcEpisodeCount || 0);
                     const hevcCount = total - nonHevc;
                     if (codecs.length > 0) {
-                        const wantsHevc = codecs.includes('hevc') || codecs.includes('h265');
-                        const wantsH264 = codecs.includes('h264');
-                        if (wantsHevc && !wantsH264) {
-                            mapped.matchedEpisodeCount = hevcCount;
-                            mapped.videoCodec = 'hevc';
-                        } else if (wantsH264 && !wantsHevc) {
-                            mapped.matchedEpisodeCount = nonHevc;
-                            mapped.videoCodec = 'h264';
+                        if (item.codecCounts) {
+                            let matchedEps = 0;
+                            let dominantMatchedFamily = '';
+                            let maxCount = -1;
+                            for (const [actualCodec, count] of Object.entries(item.codecCounts)) {
+                                const family = getUpgraderCodecFamily({ videoCodec: actualCodec });
+                                if (codecs.includes(family)) {
+                                    matchedEps += count;
+                                    if (count > maxCount) {
+                                        maxCount = count;
+                                        dominantMatchedFamily = family;
+                                    }
+                                }
+                            }
+                            mapped.matchedEpisodeCount = matchedEps;
+                            if (dominantMatchedFamily) {
+                                mapped.videoCodec = dominantMatchedFamily;
+                            }
                         } else {
-                            mapped.matchedEpisodeCount = total;
+                            const wantsHevc = codecs.includes('hevc') || codecs.includes('h265');
+                            const wantsH264 = codecs.includes('h264');
+                            if (wantsHevc && !wantsH264) {
+                                mapped.matchedEpisodeCount = hevcCount;
+                                mapped.videoCodec = 'hevc';
+                            } else if (wantsH264 && !wantsHevc) {
+                                mapped.matchedEpisodeCount = nonHevc;
+                                mapped.videoCodec = 'h264';
+                            } else {
+                                mapped.matchedEpisodeCount = total;
+                            }
                         }
                     } else if (features.includes('non_hevc')) {
                         mapped.matchedEpisodeCount = nonHevc;
