@@ -9351,6 +9351,8 @@ const aggregateSonarrSeriesFileStats = (files = []) => {
     let nonHevcSizeGB = 0;
     let totalSizeGB = 0;
     let displayFileStats = null;
+    const codecCounts = {};
+    const resCounts = {};
     files.forEach((file) => {
         const stats = analyzeSonarrEpisodeFile(file);
         totalSizeGB += stats.sizeGB;
@@ -9361,6 +9363,9 @@ const aggregateSonarrSeriesFileStats = (files = []) => {
         if (!displayFileStats || stats.sizeGB > displayFileStats.sizeGB) {
             displayFileStats = stats;
         }
+        // Tally codec and resolution occurrences
+        if (stats.videoCodec) codecCounts[stats.videoCodec] = (codecCounts[stats.videoCodec] || 0) + 1;
+        if (stats.videoResolution) resCounts[stats.videoResolution] = (resCounts[stats.videoResolution] || 0) + 1;
     });
     if (!displayFileStats) {
         return {
@@ -9377,13 +9382,16 @@ const aggregateSonarrSeriesFileStats = (files = []) => {
             is4k: false,
         };
     }
+    // Use the most common codec and resolution, not just the largest file's
+    const dominantCodec = Object.entries(codecCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || displayFileStats.videoCodec || '';
+    const dominantRes = Object.entries(resCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || displayFileStats.videoResolution || '';
     return {
         totalFiles: files.length,
         nonHevcCount,
         nonHevcSizeGB: Math.round(nonHevcSizeGB * 100) / 100,
         totalSizeGB: Math.round(totalSizeGB * 100) / 100,
-        videoCodec: displayFileStats.videoCodec || '',
-        videoResolution: displayFileStats.videoResolution || '',
+        videoCodec: dominantCodec,
+        videoResolution: dominantRes,
         displayTags: displayFileStats.displayTags || [],
         isHevc: nonHevcCount === 0,
         hasHdr: !!displayFileStats.hasHdr,

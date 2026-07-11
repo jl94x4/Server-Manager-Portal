@@ -622,9 +622,7 @@ export const UpgraderDashboard: React.FC = () => {
                                             : '';
                                         let badgeText = '';
                                         if (isShow) {
-                                            // Only show the codec label if no explicit codec filter is selected
-                                            const hasCodecFilter = codecs.size > 0;
-                                            if (epCount > 0 && codecLabel && !hasCodecFilter) badgeText = `${epCount} ${codecLabel} eps`;
+                                            if (epCount > 0 && codecLabel) badgeText = `${epCount} ${codecLabel} eps`;
                                             else if (epCount > 0) badgeText = `${epCount} eps`;
                                             else if (codecLabel) badgeText = `${codecLabel} eps`;
                                             else badgeText = 'Episodes';
