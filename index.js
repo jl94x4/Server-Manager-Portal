@@ -12006,6 +12006,21 @@ app.get('/api/upgrader/profiles', requireAdmin, async (req, res) => {
     }
 });
 
+const normalizeCustomFormatPayload = (body = {}, { keepIds = false } = {}) => {
+    const specifications = (Array.isArray(body.specifications) ? body.specifications : []).map((spec) => {
+        const next = { ...spec };
+        if (!keepIds) delete next.id;
+        return next;
+    });
+    const payload = {
+        name: String(body.name || '').trim(),
+        includeCustomFormatWhenRenaming: !!body.includeCustomFormatWhenRenaming,
+        specifications,
+    };
+    if (keepIds && body.id != null) payload.id = Number(body.id);
+    return payload;
+};
+
 app.get('/api/upgrader/arr/:instanceId/customformats', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
@@ -12036,7 +12051,8 @@ app.post('/api/upgrader/arr/:instanceId/customformats', requireAdmin, async (req
         const baseUrl = String(instance.url || '').replace(/\/+$/, '');
         const headers = { 'X-Api-Key': instance.apiKey, 'Content-Type': 'application/json' };
         const url = `${baseUrl}/api/v3/customformat`;
-        const result = await fetchWithTimeout(url, { method: 'POST', headers, body: JSON.stringify(req.body) }).then(r => r.json());
+        const payload = normalizeCustomFormatPayload(req.body, { keepIds: false });
+        const result = await fetchWithTimeout(url, { method: 'POST', headers, body: JSON.stringify(payload) }).then(r => r.json());
         
         if (result.message) throw new Error(result.message);
         res.json(result);
@@ -12066,7 +12082,8 @@ app.put('/api/upgrader/arr/:instanceId/customformats/:id', requireAdmin, async (
         }
 
         const url = `${baseUrl}/api/v3/customformat/${id}`;
-        const result = await fetchWithTimeout(url, { method: 'PUT', headers, body: JSON.stringify(req.body) }).then(r => r.json());
+        const payload = normalizeCustomFormatPayload({ ...req.body, id: Number(id) }, { keepIds: true });
+        const result = await fetchWithTimeout(url, { method: 'PUT', headers, body: JSON.stringify(payload) }).then(r => r.json());
         
         if (result.message) throw new Error(result.message);
         res.json(result);
