@@ -10076,6 +10076,7 @@ const mapUpgraderApiItem = (item, exclusions = { ratingKeys: new Set(), titles: 
     return {
         ratingKey: String(item.ratingKey || ''),
         title: item.title || 'Unknown',
+        overview: item.overview || '',
         year: item.year || null,
         thumb: item.thumb || '',
         thumbUrl: item.thumbUrl || null,
