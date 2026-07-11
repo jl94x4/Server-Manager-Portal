@@ -22,6 +22,12 @@ import type {
     UpgraderStatus,
     UpgraderSummary,
 } from './types';
+import {
+    readUpgraderUrl,
+    replaceUpgraderUrl,
+    type UpgraderProfilesUrlState,
+    type UpgraderTab,
+} from './upgraderUrlState';
 
 import { UPGRADER_CODEC_OPTIONS, UPGRADER_RESOLUTION_OPTIONS, UPGRADER_FEATURE_OPTIONS, UPGRADER_QUALITY_OPTIONS } from './presets';
 
@@ -45,7 +51,16 @@ const isUpgradableItem = (item: UpgraderItem) => {
     return !item.isHevc;
 };
 
-type UpgraderTab = 'browse' | 'history' | 'exclusions' | 'profiles';
+type UpgraderTabId = UpgraderTab;
+
+const readStoredSet = <T extends string>(key: string): Set<T> => {
+    try {
+        const raw = window.localStorage.getItem(key);
+        return raw ? new Set(JSON.parse(raw) as T[]) : new Set();
+    } catch {
+        return new Set();
+    }
+};
 
 const formatIndexAge = (generatedAt: string | null) => {
     if (!generatedAt) return 'never built';
@@ -64,6 +79,7 @@ const isUpgraderDisabledError = (error: unknown) => {
 };
 
 export const UpgraderDashboard: React.FC = () => {
+    const initialUrl = useMemo(() => readUpgraderUrl(), []);
     const [toasts, setToasts] = useState<ToastMessage[]>([]);
     const [loading, setLoading] = useState(true);
     const [rebuilding, setRebuilding] = useState(false);
@@ -75,32 +91,41 @@ export const UpgraderDashboard: React.FC = () => {
     const [total, setTotal] = useState(0);
     const [libraries, setLibraries] = useState<Array<{ id: string; title: string; count: number }>>([]);
     const [codecs, setCodecs] = useState<Set<UpgraderCodec>>(() => {
-        try { const s = window.localStorage.getItem('upgrader_filters_codecs'); return s ? new Set(JSON.parse(s)) : new Set(); } catch { return new Set(); }
+        const fromUrl = initialUrl.browse.codecs;
+        if (fromUrl.length) return new Set(fromUrl as UpgraderCodec[]);
+        return readStoredSet<UpgraderCodec>('upgrader_filters_codecs');
     });
     const [resolutions, setResolutions] = useState<Set<UpgraderResolution>>(() => {
-        try { const s = window.localStorage.getItem('upgrader_filters_resolutions'); return s ? new Set(JSON.parse(s)) : new Set(); } catch { return new Set(); }
+        const fromUrl = initialUrl.browse.resolutions;
+        if (fromUrl.length) return new Set(fromUrl as UpgraderResolution[]);
+        return readStoredSet<UpgraderResolution>('upgrader_filters_resolutions');
     });
     const [features, setFeatures] = useState<Set<UpgraderFeature>>(() => {
-        try { const s = window.localStorage.getItem('upgrader_filters_features'); return s ? new Set(JSON.parse(s)) : new Set(); } catch { return new Set(); }
+        const fromUrl = initialUrl.browse.features;
+        if (fromUrl.length) return new Set(fromUrl as UpgraderFeature[]);
+        return readStoredSet<UpgraderFeature>('upgrader_filters_features');
     });
     const [qualities, setQualities] = useState<Set<UpgraderQuality>>(() => {
-        try { const s = window.localStorage.getItem('upgrader_filters_qualities'); return s ? new Set(JSON.parse(s)) : new Set(); } catch { return new Set(); }
+        const fromUrl = initialUrl.browse.qualities;
+        if (fromUrl.length) return new Set(fromUrl as UpgraderQuality[]);
+        return readStoredSet<UpgraderQuality>('upgrader_filters_qualities');
     });
     const [filtersExpanded, setFiltersExpanded] = useState(() => {
         try { return window.localStorage.getItem('upgrader_filters_expanded') === 'true'; } catch { return false; }
     });
     const [presetReady, setPresetReady] = useState(false);
-    const [sort, setSort] = useState(() => window.localStorage.getItem('upgrader_filters_sort') || 'sizeGB');
-    const [libraryId, setLibraryId] = useState(() => window.localStorage.getItem('upgrader_filters_library') || 'all');
-    const [mediaType, setMediaType] = useState(() => window.localStorage.getItem('upgrader_filters_type') || 'all');
-    const [search, setSearch] = useState('');
-    const [searchInput, setSearchInput] = useState('');
-    const [page, setPage] = useState(1);
+    const [sort, setSort] = useState(() => initialUrl.browse.sort || window.localStorage.getItem('upgrader_filters_sort') || 'sizeGB');
+    const [libraryId, setLibraryId] = useState(() => initialUrl.browse.library || window.localStorage.getItem('upgrader_filters_library') || 'all');
+    const [mediaType, setMediaType] = useState(() => initialUrl.browse.type || window.localStorage.getItem('upgrader_filters_type') || 'all');
+    const [search, setSearch] = useState(initialUrl.browse.search);
+    const [searchInput, setSearchInput] = useState(initialUrl.browse.search);
+    const [page, setPage] = useState(initialUrl.browse.page);
     const [showQualityBadges, setShowQualityBadges] = useState(true);
     const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
     const [upgradeItems, setUpgradeItems] = useState<UpgraderItem[]>([]);
     const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState<UpgraderTab>('browse');
+    const [activeTab, setActiveTab] = useState<UpgraderTabId>(initialUrl.tab);
+    const [profilesUrl, setProfilesUrl] = useState<UpgraderProfilesUrlState>(initialUrl.profiles);
     const [showDrawerItem, setShowDrawerItem] = useState<UpgraderItem | null>(null);
     const [drawerPosition, setDrawerPosition] = useState<'sidebar' | 'modal'>('sidebar');
 
@@ -149,30 +174,66 @@ export const UpgraderDashboard: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        
-        if (params.has('codecs')) setCodecs(new Set(params.get('codecs')!.split(',').filter(Boolean) as UpgraderCodec[]));
-        if (params.has('resolutions')) setResolutions(new Set(params.get('resolutions')!.split(',').filter(Boolean) as UpgraderResolution[]));
-        if (params.has('features')) setFeatures(new Set(params.get('features')!.split(',').filter(Boolean) as UpgraderFeature[]));
-        if (params.has('qualities')) setQualities(new Set(params.get('qualities')!.split(',').filter(Boolean) as UpgraderQuality[]));
-        if (params.has('library')) setLibraryId(params.get('library')!);
-        if (params.has('type')) setMediaType(params.get('type')!);
-        if (params.has('sort')) setSort(params.get('sort')!);
-        if (params.has('search')) {
-            setSearch(params.get('search')!);
-            setSearchInput(params.get('search')!);
-        }
-        if (params.has('page')) setPage(Number(params.get('page')) || 1);
-
         apiFetch('/api/config')
             .then((configData) => {
                 const defaultSort = configData?.settings?.upgraderDefaultSort;
-                if (!params.has('sort') && !window.localStorage.getItem('upgrader_filters_sort') && defaultSort) {
+                const hasUrlSort = new URLSearchParams(window.location.search).has('sort');
+                if (!hasUrlSort && !window.localStorage.getItem('upgrader_filters_sort') && defaultSort) {
                     setSort(defaultSort);
                 }
             })
             .catch(() => {})
             .finally(() => setPresetReady(true));
+    }, []);
+
+    const syncUpgraderUrl = useCallback(() => {
+        replaceUpgraderUrl({
+            tab: activeTab,
+            browse: {
+                codecs: Array.from(codecs),
+                resolutions: Array.from(resolutions),
+                features: Array.from(features),
+                qualities: Array.from(qualities),
+                library: libraryId,
+                type: mediaType,
+                sort,
+                search,
+                page,
+            },
+            profiles: profilesUrl,
+        });
+    }, [activeTab, codecs, resolutions, features, qualities, libraryId, mediaType, sort, search, page, profilesUrl]);
+
+    useEffect(() => {
+        syncUpgraderUrl();
+    }, [syncUpgraderUrl]);
+
+    useEffect(() => {
+        const onPopState = () => {
+            const next = readUpgraderUrl();
+            setActiveTab(next.tab);
+            setCodecs(new Set(next.browse.codecs as UpgraderCodec[]));
+            setResolutions(new Set(next.browse.resolutions as UpgraderResolution[]));
+            setFeatures(new Set(next.browse.features as UpgraderFeature[]));
+            setQualities(new Set(next.browse.qualities as UpgraderQuality[]));
+            setLibraryId(next.browse.library);
+            setMediaType(next.browse.type);
+            setSort(next.browse.sort);
+            setSearch(next.browse.search);
+            setSearchInput(next.browse.search);
+            setPage(next.browse.page);
+            setProfilesUrl(next.profiles);
+        };
+        window.addEventListener('popstate', onPopState);
+        return () => window.removeEventListener('popstate', onPopState);
+    }, []);
+
+    const handleTabChange = useCallback((tab: UpgraderTabId) => {
+        setActiveTab(tab);
+    }, []);
+
+    const handleProfilesUrlChange = useCallback((patch: Partial<UpgraderProfilesUrlState>) => {
+        setProfilesUrl((prev) => ({ ...prev, ...patch }));
     }, []);
 
     const loadData = useCallback(async (silent = false) => {
@@ -184,18 +245,6 @@ export const UpgraderDashboard: React.FC = () => {
             setFeatureEnabled(enabled);
             if (configData?.settings?.upgraderDrawerPosition) setDrawerPosition(configData.settings.upgraderDrawerPosition);
             if (!enabled) return;
-
-            const newParams = new URLSearchParams();
-            if (codecs.size > 0) newParams.set('codecs', Array.from(codecs).join(','));
-            if (resolutions.size > 0) newParams.set('resolutions', Array.from(resolutions).join(','));
-            if (features.size > 0) newParams.set('features', Array.from(features).join(','));
-            if (qualities.size > 0) newParams.set('qualities', Array.from(qualities).join(','));
-            if (libraryId !== 'all') newParams.set('library', libraryId);
-            if (mediaType !== 'all') newParams.set('type', mediaType);
-            if (sort !== 'sizeGB') newParams.set('sort', sort);
-            if (search) newParams.set('search', search);
-            if (page > 1) newParams.set('page', String(page));
-            window.history.replaceState(null, '', `${window.location.pathname}?${newParams.toString()}`);
 
             const [statusData, summaryData, itemsData, queueData, publicConfig] = await Promise.all([
                 apiFetch('/api/upgrader/status'),
@@ -328,7 +377,7 @@ export const UpgraderDashboard: React.FC = () => {
     const totalPages = Math.max(1, Math.ceil(total / 48));
     const automationReady = !!status?.automationEnabled && !!status?.profileMapConfigured;
 
-    const tabButtonClass = (tab: UpgraderTab) =>
+    const tabButtonClass = (tab: UpgraderTabId) =>
         `inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${
             activeTab === tab ? 'bg-plex text-background border-plex' : 'bg-white/5 text-muted border-white/10 hover:text-text'
         }`;
@@ -422,18 +471,18 @@ export const UpgraderDashboard: React.FC = () => {
                         )}
 
                         <div className="flex flex-wrap gap-2">
-                            <button type="button" className={tabButtonClass('browse')} onClick={() => setActiveTab('browse')}>
+                            <button type="button" className={tabButtonClass('browse')} onClick={() => handleTabChange('browse')}>
                                 Browse
                             </button>
-                            <button type="button" className={tabButtonClass('history')} onClick={() => setActiveTab('history')}>
+                            <button type="button" className={tabButtonClass('history')} onClick={() => handleTabChange('history')}>
                                 <History className="w-4 h-4" />
                                 History
                             </button>
-                            <button type="button" className={tabButtonClass('exclusions')} onClick={() => setActiveTab('exclusions')}>
+                            <button type="button" className={tabButtonClass('exclusions')} onClick={() => handleTabChange('exclusions')}>
                                 <Ban className="w-4 h-4" />
                                 Exclusions
                             </button>
-                            <button type="button" className={tabButtonClass('profiles')} onClick={() => setActiveTab('profiles')}>
+                            <button type="button" className={tabButtonClass('profiles')} onClick={() => handleTabChange('profiles')}>
                                 <Settings2 className="w-4 h-4" />
                                 Profiles
                             </button>
@@ -445,7 +494,14 @@ export const UpgraderDashboard: React.FC = () => {
                             <UpgraderExclusionsPanel addToast={addToast} onChanged={() => loadData(true)} />
                         )}
 
-                        {activeTab === 'profiles' && <UpgraderProfilesTab />}
+                        {activeTab === 'profiles' && (
+                            <UpgraderProfilesTab
+                                initialInstanceId={profilesUrl.instance}
+                                initialFormatPage={profilesUrl.formatPage}
+                                initialProfilePage={profilesUrl.profilePage}
+                                onUrlStateChange={handleProfilesUrlChange}
+                            />
+                        )}
 
                         {activeTab === 'browse' && (
                             <>

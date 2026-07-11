@@ -3,6 +3,7 @@ import { RefreshCw, Server, Plus, Settings2, Code, Trash2, Check, X, Save, Edit3
 import { apiFetch } from '../shared/api';
 import { UpgraderCustomFormatModal } from './UpgraderCustomFormatModal';
 import { UpgraderQualityProfileModal } from './UpgraderQualityProfileModal';
+import type { UpgraderProfilesUrlState } from './upgraderUrlState';
 
 interface ArrInstance {
     id: string;
@@ -77,17 +78,52 @@ const InstanceDropdown = ({ options, value, onChange, disabled }: {
     );
 };
 
-export const UpgraderProfilesTab: React.FC = () => {
+type UpgraderProfilesTabProps = {
+    initialInstanceId?: string;
+    initialFormatPage?: number;
+    initialProfilePage?: number;
+    onUrlStateChange?: (patch: Partial<UpgraderProfilesUrlState>) => void;
+};
+
+export const UpgraderProfilesTab: React.FC<UpgraderProfilesTabProps> = ({
+    initialInstanceId = '',
+    initialFormatPage = 1,
+    initialProfilePage = 1,
+    onUrlStateChange,
+}) => {
     const [loading, setLoading] = useState(true);
     const [instances, setInstances] = useState<ArrInstance[]>([]);
-    const [selectedInstanceId, setSelectedInstanceId] = useState<string>('');
+    const [selectedInstanceId, setSelectedInstanceId] = useState(initialInstanceId);
     const [formats, setFormats] = useState<CustomFormat[]>([]);
     const [profiles, setProfiles] = useState<QualityProfile[]>([]);
     const [editingFormat, setEditingFormat] = useState<{ show: boolean; format: CustomFormat | null }>({ show: false, format: null });
     const [editingProfile, setEditingProfile] = useState<{ show: boolean; profile: QualityProfile | null }>({ show: false, profile: null });
-    const [formatPage, setFormatPage] = useState(1);
-    const [profilePage, setProfilePage] = useState(1);
+    const [formatPage, setFormatPage] = useState(initialFormatPage);
+    const [profilePage, setProfilePage] = useState(initialProfilePage);
     const pageSize = 18;
+
+    useEffect(() => {
+        setSelectedInstanceId(initialInstanceId);
+        setFormatPage(initialFormatPage);
+        setProfilePage(initialProfilePage);
+    }, [initialInstanceId, initialFormatPage, initialProfilePage]);
+
+    const handleInstanceChange = (instanceId: string) => {
+        setSelectedInstanceId(instanceId);
+        setFormatPage(1);
+        setProfilePage(1);
+        onUrlStateChange?.({ instance: instanceId, formatPage: 1, profilePage: 1 });
+    };
+
+    const handleFormatPageChange = (nextPage: number) => {
+        setFormatPage(nextPage);
+        onUrlStateChange?.({ formatPage: nextPage });
+    };
+
+    const handleProfilePageChange = (nextPage: number) => {
+        setProfilePage(nextPage);
+        onUrlStateChange?.({ profilePage: nextPage });
+    };
 
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -99,15 +135,21 @@ export const UpgraderProfilesTab: React.FC = () => {
                 type: i.type,
             })) || [];
             setInstances(loadedInstances);
-            if (loadedInstances.length > 0 && !selectedInstanceId) {
-                setSelectedInstanceId(loadedInstances[0].id);
+            if (loadedInstances.length > 0) {
+                setSelectedInstanceId((current) => {
+                    if (current && loadedInstances.some((i) => i.id === current)) return current;
+                    const preferred = initialInstanceId && loadedInstances.find((i) => i.id === initialInstanceId)?.id;
+                    const next = preferred || loadedInstances[0].id;
+                    if (next !== current) onUrlStateChange?.({ instance: next });
+                    return next;
+                });
             }
         } catch (e) {
             console.error('Failed to load instances', e);
         } finally {
             setLoading(false);
         }
-    }, [selectedInstanceId]);
+    }, [initialInstanceId, onUrlStateChange]);
 
     const loadInstanceData = useCallback(async (instanceId: string) => {
         setLoading(true);
@@ -162,8 +204,6 @@ export const UpgraderProfilesTab: React.FC = () => {
 
     useEffect(() => {
         if (selectedInstanceId) {
-            setFormatPage(1);
-            setProfilePage(1);
             loadInstanceData(selectedInstanceId);
         } else {
             setFormats([]);
@@ -186,7 +226,7 @@ export const UpgraderProfilesTab: React.FC = () => {
                         <InstanceDropdown
                             options={instances}
                             value={selectedInstanceId}
-                            onChange={setSelectedInstanceId}
+                            onChange={handleInstanceChange}
                             disabled={loading}
                         />
                         <button
@@ -235,7 +275,7 @@ export const UpgraderProfilesTab: React.FC = () => {
                                 <div className="flex items-center justify-center gap-2 mt-4">
                                     <button 
                                         disabled={formatPage === 1}
-                                        onClick={() => setFormatPage(p => p - 1)}
+                                        onClick={() => handleFormatPageChange(formatPage - 1)}
                                         className="px-3 py-1 bg-background border border-border rounded-lg text-sm text-muted hover:text-text disabled:opacity-50"
                                     >
                                         Previous
@@ -245,7 +285,7 @@ export const UpgraderProfilesTab: React.FC = () => {
                                     </span>
                                     <button 
                                         disabled={formatPage >= Math.ceil(formats.length / pageSize)}
-                                        onClick={() => setFormatPage(p => p + 1)}
+                                        onClick={() => handleFormatPageChange(formatPage + 1)}
                                         className="px-3 py-1 bg-background border border-border rounded-lg text-sm text-muted hover:text-text disabled:opacity-50"
                                     >
                                         Next
@@ -278,7 +318,7 @@ export const UpgraderProfilesTab: React.FC = () => {
                                 <div className="flex items-center justify-center gap-2 mt-4">
                                     <button 
                                         disabled={profilePage === 1}
-                                        onClick={() => setProfilePage(p => p - 1)}
+                                        onClick={() => handleProfilePageChange(profilePage - 1)}
                                         className="px-3 py-1 bg-background border border-border rounded-lg text-sm text-muted hover:text-text disabled:opacity-50"
                                     >
                                         Previous
@@ -288,7 +328,7 @@ export const UpgraderProfilesTab: React.FC = () => {
                                     </span>
                                     <button 
                                         disabled={profilePage >= Math.ceil(profiles.length / pageSize)}
-                                        onClick={() => setProfilePage(p => p + 1)}
+                                        onClick={() => handleProfilePageChange(profilePage + 1)}
                                         className="px-3 py-1 bg-background border border-border rounded-lg text-sm text-muted hover:text-text disabled:opacity-50"
                                     >
                                         Next
