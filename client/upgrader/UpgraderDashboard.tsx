@@ -715,8 +715,6 @@ export const UpgraderDashboard: React.FC = () => {
                                                     dominantCodecColorClass = 'bg-amber-500/10 border-amber-500/20 text-amber-400';
                                                 }
                                             }
-                                                }
-                                            }
                                         }
 
                                         const sizesToShow: { label: string; sizeGB: number }[] = [];
