@@ -193,7 +193,7 @@ export const UpgraderCustomFormatModal: React.FC<Props> = ({ format, onClose, on
                     </button>
                 </div>
 
-                <div className="p-6 flex-1 overflow-y-auto space-y-6">
+                <div className="p-6 flex-1 overflow-y-auto space-y-6 custom-scrollbar">
                     {error && (
                         <div className="bg-red-500/10 border border-red-500/20 text-red-500 px-4 py-3 rounded-lg text-sm">
                             {error}

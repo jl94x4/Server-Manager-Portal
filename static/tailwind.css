@@ -2849,6 +2849,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   min-width: 600px;
 }
 
+.min-w-\[9rem\] {
+  min-width: 9rem;
+}
+
 .min-w-max {
   min-width: -moz-max-content;
   min-width: max-content;
@@ -2944,6 +2948,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .border-collapse {
   border-collapse: collapse;
+}
+
+.origin-top-right {
+  transform-origin: top right;
 }
 
 .-translate-x-1\/2 {
@@ -5647,6 +5655,12 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
 
+.shadow-\[0_0_0_2px_rgb\(var\(--color-plex\)\/0\.15\)\] {
+  --tw-shadow: 0 0 0 2px rgb(var(--color-plex)/0.15);
+  --tw-shadow-colored: 0 0 0 2px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
 .shadow-\[0_0_10px_rgba\(168\2c 85\2c 247\2c 0\.5\)\] {
   --tw-shadow: 0 0 10px rgba(168,85,247,0.5);
   --tw-shadow-colored: 0 0 10px var(--tw-shadow-color);
@@ -6242,6 +6256,31 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   background-color: rgb(var(--color-plex) / var(--tw-bg-opacity, 1));
 }
 
+/* Thin custom scrollbar for modals / panels */
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgb(var(--color-border));
+  border-radius: 999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--color-plex) / 0.7);
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--color-border)) transparent;
+}
+
 @keyframes spin {
   0% {
     transform: rotate(0deg);
@@ -6757,6 +6796,10 @@ html.branded-skeleton .skeleton-base::after {
 
 .hover\:border-plex\/50:hover {
   border-color: rgb(var(--color-plex) / 0.5);
+}
+
+.hover\:border-plex\/60:hover {
+  border-color: rgb(var(--color-plex) / 0.6);
 }
 
 .hover\:border-red-500\/40:hover {

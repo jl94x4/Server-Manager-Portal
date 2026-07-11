@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Server, Plus, Settings2, Code, Trash2, Check, X, Save, Edit3 } from 'lucide-react';
+import { RefreshCw, Server, Plus, Settings2, Code, Trash2, Check, X, Save, Edit3, ChevronDown } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { UpgraderCustomFormatModal } from './UpgraderCustomFormatModal';
 import { UpgraderQualityProfileModal } from './UpgraderQualityProfileModal';
@@ -25,6 +25,57 @@ interface QualityProfile {
     items: any[];
     formatItems: { format: number; score: number }[];
 }
+
+const InstanceDropdown = ({ options, value, onChange, disabled }: {
+    options: ArrInstance[];
+    value: string;
+    onChange: (val: string) => void;
+    disabled?: boolean;
+}) => {
+    const [open, setOpen] = useState(false);
+    const selected = options.find(o => o.id === value);
+
+    useEffect(() => {
+        if (!open) return;
+        const close = () => setOpen(false);
+        document.addEventListener('click', close);
+        return () => document.removeEventListener('click', close);
+    }, [open]);
+
+    return (
+        <div className="relative inline-block" onClick={e => e.stopPropagation()}>
+            <button
+                type="button"
+                onClick={() => !disabled && setOpen(o => !o)}
+                className={`flex items-center justify-between gap-2 bg-background border border-border rounded-lg px-3 py-1.5 text-sm font-medium text-text focus:outline-none transition-all min-w-[9rem] ${
+                    disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-plex/60 cursor-pointer'
+                } ${open ? 'border-plex shadow-[0_0_0_2px_rgb(var(--color-plex)/0.15)]' : ''}`}
+            >
+                <span className="truncate">{selected?.name || 'Select...'}</span>
+                <ChevronDown className={`w-3.5 h-3.5 text-muted flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+            </button>
+            {open && (
+                <div className="absolute right-0 mt-1.5 w-full min-w-max origin-top-right bg-card border border-border rounded-xl shadow-2xl z-50 py-1 overflow-hidden animate-slide-up">
+                    {options.map(opt => (
+                        <button
+                            key={opt.id}
+                            className={`w-full flex items-center gap-2 text-left px-3 py-2 text-sm transition-colors ${
+                                opt.id === value
+                                    ? 'bg-plex/15 text-plex font-semibold'
+                                    : 'text-text hover:bg-white/8'
+                            }`}
+                            onClick={() => { onChange(opt.id); setOpen(false); }}
+                        >
+                            {opt.id === value && <Check className="w-3 h-3 flex-shrink-0" />}
+                            {opt.id !== value && <span className="w-3" />}
+                            {opt.name}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
 
 export const UpgraderProfilesTab: React.FC = () => {
     const [loading, setLoading] = useState(true);
@@ -132,16 +183,12 @@ export const UpgraderProfilesTab: React.FC = () => {
                         <p className="text-sm text-muted mt-1">Manage and sync Quality Profiles and Custom Formats directly to Sonarr and Radarr.</p>
                     </div>
                     <div className="flex items-center gap-3">
-                        <select
-                            className="bg-background border border-border rounded-lg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-plex"
+                        <InstanceDropdown
+                            options={instances}
                             value={selectedInstanceId}
-                            onChange={(e) => setSelectedInstanceId(e.target.value)}
+                            onChange={setSelectedInstanceId}
                             disabled={loading}
-                        >
-                            {instances.map(inst => (
-                                <option key={inst.id} value={inst.id}>{inst.name}</option>
-                            ))}
-                        </select>
+                        />
                         <button
                             type="button"
                             className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-muted hover:text-text transition-colors"
