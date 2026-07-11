@@ -9165,7 +9165,7 @@ const mapPlexEpisodeLeaf = (config, leaf = {}, showTitle = '') => {
         showTitle,
         seasonNumber,
         episodeNumber,
-        thumb: leaf.thumb || leaf.grandparentThumb || '',
+        thumb: leaf.thumb || '',
         mediaType: 'episode',
         videoCodec: String(mediaInfo.videoCodec || '').toLowerCase(),
         videoResolution: String(mediaInfo.videoResolution || '').toLowerCase(),

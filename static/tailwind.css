@@ -5292,6 +5292,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   color: rgb(var(--color-muted) / 0.3);
 }
 
+.text-muted\/40 {
+  color: rgb(var(--color-muted) / 0.4);
+}
+
 .text-muted\/50 {
   color: rgb(var(--color-muted) / 0.5);
 }

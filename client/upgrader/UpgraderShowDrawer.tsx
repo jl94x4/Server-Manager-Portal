@@ -445,20 +445,19 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                                             key={episode.ratingKey}
                                                             className={`flex items-start gap-3 px-4 py-3 ${highlightFilterOnly ? '' : episode.matchesPreset === false ? 'opacity-55' : ''}`}
                                                         >
-                                                            <div className="w-32 aspect-video rounded overflow-hidden bg-white/5 shrink-0">
-                                                                {episode.thumbUrl || episode.thumb || showMeta.thumbUrl || showMeta.thumb ? (
+                                                            <div className="w-32 aspect-video rounded overflow-hidden bg-white/5 shrink-0 flex items-center justify-center">
+                                                                {episode.thumbUrl || episode.thumb ? (
                                                                     <img
                                                                         src={episode.thumbUrl
                                                                             ? resolvePortalAssetUrl(episode.thumbUrl)
-                                                                            : episode.thumb
-                                                                                ? portalUrl(`/api/plex/image?path=${encodeURIComponent(episode.thumb)}&width=160&height=90`)
-                                                                                : showMeta.thumbUrl
-                                                                                    ? resolvePortalAssetUrl(showMeta.thumbUrl)
-                                                                                    : portalUrl(`/api/plex/image?path=${encodeURIComponent(showMeta.thumb || '')}&width=160&height=90`)}
+                                                                            : portalUrl(`/api/plex/image?path=${encodeURIComponent(episode.thumb)}&width=256&height=144`)}
                                                                         alt={episode.title}
                                                                         className="w-full h-full object-cover bg-black/40"
+                                                                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                                                     />
-                                                                ) : null}
+                                                                ) : (
+                                                                    <span className="text-[10px] text-muted/40 font-medium">No image</span>
+                                                                )}
                                                             </div>
                                                             <div className="min-w-0 flex-1">
                                                                 <div className="flex flex-wrap items-center gap-2">
