@@ -15,8 +15,15 @@ const hasCredentials = (
     return Boolean(effectiveUrl && effectiveKey && effectiveKey !== SECRET_MASK);
 };
 
+const generateId = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+};
+
 export const createEmptyArrInstance = (type: 'sonarr' | 'radarr', isDefault = false): ArrInstance => ({
-    id: crypto.randomUUID(),
+    id: generateId(),
     type,
     name: type === 'radarr' ? 'Radarr' : 'Sonarr',
     url: '',
