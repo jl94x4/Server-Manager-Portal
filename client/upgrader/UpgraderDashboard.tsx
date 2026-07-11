@@ -26,6 +26,9 @@ import { UPGRADER_CODEC_OPTIONS, UPGRADER_RESOLUTION_OPTIONS, UPGRADER_FEATURE_O
 
 const SORT_OPTIONS = [
     { value: 'sizeGB', label: 'Largest first' },
+    { value: 'hevcFirst', label: 'Largest HEVC first' },
+    { value: 'h264First', label: 'Largest H.264 first' },
+    { value: 'av1First', label: 'Largest AV1 first' },
     { value: 'watchCount', label: 'Most watched' },
     { value: 'addedAt', label: 'Recently added' },
     { value: 'daysSinceAdded', label: 'Oldest added' },

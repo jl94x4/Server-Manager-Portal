@@ -11824,12 +11824,28 @@ app.get('/api/upgrader/items', requireAdmin, async (req, res) => {
             });
 
         const resolvedSort = sort === 'staleAdded' ? 'daysSinceAdded' : sort;
+        
+        const getFamilySize = (item, fam) => {
+            if (item.codecSizesGB) {
+                let s = 0;
+                for (const [c, sz] of Object.entries(item.codecSizesGB)) {
+                    if (getUpgraderCodecFamily({ videoCodec: c }) === fam) s += sz;
+                }
+                return s;
+            }
+            if (getUpgraderCodecFamily(item) === fam) return Number(item.sizeGB || 0);
+            return 0;
+        };
+
         const sorters = {
             sizeGB: (a, b) => Number(b.sizeGB || 0) - Number(a.sizeGB || 0),
             watchCount: (a, b) => Number(b.watchCount || 0) - Number(a.watchCount || 0),
             addedAt: (a, b) => Date.parse(b.addedAt || 0) - Date.parse(a.addedAt || 0),
             daysSinceAdded: (a, b) => Number(b.daysSinceAdded || 0) - Number(a.daysSinceAdded || 0),
             title: (a, b) => String(a.title || '').localeCompare(String(b.title || ''), undefined, { sensitivity: 'base' }),
+            hevcFirst: (a, b) => getFamilySize(b, 'hevc') - getFamilySize(a, 'hevc'),
+            h264First: (a, b) => getFamilySize(b, 'h264') - getFamilySize(a, 'h264'),
+            av1First: (a, b) => getFamilySize(b, 'av1') - getFamilySize(a, 'av1'),
         };
         filtered.sort(sorters[resolvedSort] || sorters.sizeGB);
 
