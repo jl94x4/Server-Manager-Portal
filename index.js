@@ -9720,7 +9720,7 @@ const buildUpgraderItemsForArrInstance = async (instance, { plexLookup, resolveU
                 imdbId: series.imdbId,
             };
             const prev = prevByKey.get(ratingKey);
-            if (prev?.arrFileFingerprint === fingerprint) {
+            if (prev?.arrFileFingerprint === fingerprint && prev.zeroSizeCount != null) {
                 prev.overview = series.overview || '';
                 items.push(applyUpgraderPosterFields(prev, posterMeta, plexLookup));
                 reused += 1;
@@ -9759,7 +9759,7 @@ const buildUpgraderItemsForArrInstance = async (instance, { plexLookup, resolveU
                 imdbId: movie.imdbId,
             };
             const prev = prevByKey.get(ratingKey);
-            if (prev?.arrFileFingerprint === fingerprint) {
+            if (prev?.arrFileFingerprint === fingerprint && prev.zeroSizeCount != null) {
                 prev.overview = movie.overview || '';
                 items.push(applyUpgraderPosterFields(prev, posterMeta, plexLookup));
                 reused += 1;
