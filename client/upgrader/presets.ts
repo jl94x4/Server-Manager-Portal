@@ -19,6 +19,7 @@ export const UPGRADER_FEATURE_OPTIONS: Array<{ id: UpgraderFeature; label: strin
     { id: 'hdr', label: 'HDR' },
     { id: 'dolby_vision', label: 'Dolby Vision' },
     { id: 'large', label: 'Large Size' },
+    { id: 'zero_size', label: '0 Byte Files' },
 ];
 
 export const UPGRADER_QUALITY_OPTIONS: Array<{ id: UpgraderQuality; label: string }> = [

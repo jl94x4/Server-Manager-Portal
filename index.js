@@ -9298,6 +9298,7 @@ const applyUpgraderMultiFilter = (item, codecs = [], resolutions = [], features 
             if (feat === 'hdr') return !!item.hasHdr || (item.displayTags || []).includes('HDR') || (item.displayTags || []).includes('DV');
             if (feat === 'dolby_vision') return !!item.hasDolbyVision || (item.displayTags || []).includes('DV');
             if (feat === 'large') return Number(item.sizeGB || 0) >= minSizeGB;
+            if (feat === 'zero_size') return Number(item.zeroSizeCount || 0) > 0;
             return false;
         });
         if (!hasFeature) return false;
@@ -9328,6 +9329,7 @@ const applyUpgraderMultiFilterEpisode = (episode, codecs = [], resolutions = [],
             || /2160|4k/.test(String(episode.videoResolution || '').toLowerCase()),
         nonHevcEpisodeCount: episode.isHevc ? 0 : 1,
         totalEpisodeCount: 1,
+        zeroSizeCount: Number(episode.sizeGB || 0) === 0 ? 1 : 0,
     };
     return applyUpgraderMultiFilter(pseudoItem, codecs, resolutions, features, qualities, minSizeGB);
 };
@@ -9430,6 +9432,7 @@ const aggregateSonarrSeriesFileStats = (files = []) => {
         hasHdr: !!displayFileStats.hasHdr,
         hasDolbyVision: !!displayFileStats.hasDolbyVision,
         is4k: (displayFileStats.displayTags || []).includes('4K'),
+        zeroSizeCount: Object.values(codecSizesGB).reduce((a, b) => a + b, 0) === 0 ? files.length : files.filter(f => !f.size || f.size === 0).length,
     };
 };
 
@@ -9445,6 +9448,7 @@ const analyzeRadarrMovieFile = (movie = null) => {
             hasHdr: false,
             hasDolbyVision: false,
             is4k: false,
+            zeroSizeCount: 0,
         };
     }
     const mediaInfo = file.mediaInfo || {};
@@ -9468,6 +9472,7 @@ const analyzeRadarrMovieFile = (movie = null) => {
         hasHdr: derived.hasHdr,
         hasDolbyVision: derived.hasDolbyVision,
         is4k: tags.includes('4K'),
+        zeroSizeCount: (file && (!file.size || file.size === 0)) ? 1 : 0,
     };
 };
 
@@ -9574,6 +9579,7 @@ const mapSonarrSeriesToUpgraderItem = (series, instance, fileStats = {}, episode
         totalEpisodeCount,
         nonHevcEpisodeCount: Number(fileStats.nonHevcCount || 0),
         nonHevcEpisodeSizeGB: Number(fileStats.nonHevcSizeGB || 0),
+        zeroSizeCount: Number(fileStats.zeroSizeCount || 0),
         onDiskFileCount: Number(fileStats.totalFiles || 0),
         tvdbId: series.tvdbId,
         tmdbId: series.tmdbId,
@@ -9620,6 +9626,7 @@ const mapRadarrMovieToUpgraderItem = (movie, instance, plexItem = null) => {
         hasHdr: fileStats.hasHdr,
         hasDolbyVision: fileStats.hasDolbyVision,
         is4k: fileStats.is4k,
+        zeroSizeCount: fileStats.zeroSizeCount,
         onDiskFileCount: movie?.movieFile ? 1 : 0,
         tvdbId: movie.tvdbId,
         tmdbId: movie.tmdbId,
