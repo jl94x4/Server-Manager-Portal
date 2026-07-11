@@ -246,7 +246,7 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
     const arr = detail?.arr;
     const showMeta = detail?.show || show;
     const detailReady = !loading && !!detail;
-    const canSearch = automationReady && !!arr?.seriesId;
+    const canSearch = !!arr?.seriesId;
     const canChangeProfile = automationReady && !!arr?.instanceId;
 
     return (

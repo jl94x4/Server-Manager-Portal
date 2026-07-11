@@ -11984,9 +11984,6 @@ app.get('/api/upgrader/items/:ratingKey/detail', requireAdmin, async (req, res) 
 app.post('/api/upgrader/search', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        if (!config?.upgraderAutomationEnabled) {
-            return res.status(400).json({ error: 'Upgrader automation is disabled. Enable it in Settings first.' });
-        }
 
         const ratingKey = String(req.body?.ratingKey || '').trim();
         const scope = String(req.body?.scope || 'series').toLowerCase();
