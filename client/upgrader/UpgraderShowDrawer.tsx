@@ -255,7 +255,7 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
     return (
         <div className={`fixed inset-0 z-[60] flex ${position === 'modal' ? 'items-center justify-center p-4 sm:p-6 md:p-12' : 'justify-end'}`}>
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-            <div className={`relative w-full max-w-3xl bg-card border-border/80 shadow-2xl flex flex-col ${position === 'modal' ? 'h-[90vh] rounded-2xl border overflow-hidden' : 'h-full border-l'}`}>
+            <div className={`relative w-full max-w-3xl bg-card border-border/80 shadow-2xl flex flex-col ${position === 'modal' ? 'h-[90vh] rounded-2xl border overflow-hidden mx-auto' : 'h-full border-l'}`}>
                 <div className="px-5 py-4 border-b border-border/60 space-y-4">
                     <button type="button" onClick={onClose} className="inline-flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-lg hover:bg-white/10 text-muted hover:text-text text-sm font-bold transition-colors">
                         <ChevronLeft className="w-4 h-4" />
