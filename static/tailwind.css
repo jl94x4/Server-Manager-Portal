@@ -2866,10 +2866,6 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   max-width: 8rem;
 }
 
-.max-w-3xl {
-  max-width: 48rem;
-}
-
 .max-w-4xl {
   max-width: 56rem;
 }
