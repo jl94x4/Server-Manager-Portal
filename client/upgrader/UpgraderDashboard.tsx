@@ -649,15 +649,36 @@ export const UpgraderDashboard: React.FC = () => {
                                             ? (item.videoCodec.match(/^(h|x)26[45]$/i) ? item.videoCodec.toLowerCase() : item.videoCodec.toUpperCase())
                                             : '';
                                         const showCodecLabel = isShow ? (isCodecFiltered ? codecLabel : '') : codecLabel;
-                                        let badgeText = '';
+                                        let gridBadgeText = '';
+                                        let listBadgeText = '';
                                         if (isShow) {
-                                            if (epCount > 0 && showCodecLabel) badgeText = `${epCount} ${showCodecLabel} eps`;
-                                            else if (epCount > 0) badgeText = `${epCount} eps`;
-                                            else if (showCodecLabel) badgeText = `${showCodecLabel} eps`;
-                                            else badgeText = 'Episodes';
-                                            if (epCount === 1) badgeText = badgeText.replace('eps', 'ep');
+                                            const codecc = (item as any).codecCounts || {};
+                                            const ressc = (item as any).resCounts || {};
+                                            const parts: string[] = [];
+                                            
+                                            Object.entries(codecc).sort((a: any, b: any) => b[1] - a[1]).forEach(([c, count]) => {
+                                                const label = c.match(/^(h|x)26[45]$/i) ? c.toLowerCase() : c.toUpperCase();
+                                                parts.push(`${count} ${label} eps`);
+                                            });
+                                            Object.entries(ressc).sort((a: any, b: any) => b[1] - a[1]).forEach(([r, count]) => {
+                                                let label = 'SD';
+                                                if (r === '1080') label = '1080p';
+                                                else if (r === '720') label = '720p';
+                                                else if (r === '4k') label = '4K';
+                                                parts.push(`${count} ${label} eps`);
+                                            });
+                                            const snapshot = parts.join(' | ');
+
+                                            if (epCount > 0 && showCodecLabel) gridBadgeText = `${epCount} ${showCodecLabel} eps`;
+                                            else if (epCount > 0) gridBadgeText = `${epCount} eps`;
+                                            else if (showCodecLabel) gridBadgeText = `${showCodecLabel} eps`;
+                                            else gridBadgeText = 'Episodes';
+                                            if (epCount === 1) gridBadgeText = gridBadgeText.replace('eps', 'ep');
+                                            
+                                            listBadgeText = snapshot || gridBadgeText;
                                         } else {
-                                            badgeText = showCodecLabel || 'UNKNOWN';
+                                            gridBadgeText = showCodecLabel || 'UNKNOWN';
+                                            listBadgeText = gridBadgeText;
                                         }
                                         if (gridSize === 'list') {
                                             return (
@@ -707,13 +728,13 @@ export const UpgraderDashboard: React.FC = () => {
                                                                     )}
                                                                 </div>
                                                             </div>
-                                                            {badgeText && (
+                                                            {listBadgeText && (
                                                                 <button
                                                                     type="button"
                                                                     onClick={isShow ? () => handleOpenDrawer(item) : undefined}
                                                                     className={`shrink-0 text-xs font-bold px-2.5 py-1 rounded-full bg-black/75 border border-white/20 text-amber-200 ${isShow ? 'hover:border-plex/50 cursor-pointer' : 'cursor-default'}`}
                                                                 >
-                                                                    {badgeText}
+                                                                    {listBadgeText}
                                                                 </button>
                                                             )}
                                                         </div>
@@ -761,13 +782,13 @@ export const UpgraderDashboard: React.FC = () => {
                                                         />
                                                     </div>
                                                 )}
-                                                {badgeText && (
+                                                {gridBadgeText && (
                                                     <button
                                                         type="button"
                                                         onClick={isShow ? () => handleOpenDrawer(item) : undefined}
                                                         className={`absolute top-2 right-2 z-20 upgrader-card-badge text-[10px] font-bold px-2 py-1 rounded-full bg-black/75 border border-white/20 text-amber-200 ${isShow ? 'hover:border-plex/50 cursor-pointer' : 'cursor-default'}`}
                                                     >
-                                                        {badgeText}
+                                                        {gridBadgeText}
                                                     </button>
                                                 )}
                                                 <DiscoverPosterCard
@@ -821,7 +842,7 @@ export const UpgraderDashboard: React.FC = () => {
                                                                         className="text-[10px] font-bold text-muted hover:underline"
                                                                         onClick={() => handleOpenDrawer(item)}
                                                                     >
-                                                                        {badgeText}
+                                                                        {gridBadgeText}
                                                                     </button>
                                                                 )}
                                                                 {item.arrDeepUrl && (
