@@ -9791,7 +9791,7 @@ const mapSonarrFileToEpisodeQuality = (file = null) => {
     };
 };
 
-const buildUpgraderEpisodesFromSonarr = (sonarrEpisodes, sonarrFiles, showTitle, codecs, resolutions, features, qualities, minSizeGB, plexEpisodes = []) => {
+const buildUpgraderEpisodesFromSonarr = (sonarrEpisodes, sonarrFiles, showTitle, codecs, resolutions, features, qualities, minSizeGB, plexEpisodes = [], arrInstanceId = null) => {
     const fileById = new Map(
         sonarrFiles.map((file) => [Number(file.id), file]),
     );
@@ -9811,6 +9811,14 @@ const buildUpgraderEpisodesFromSonarr = (sonarrEpisodes, sonarrFiles, showTitle,
         
         const plexEp = plexEpMap.get(`${seasonNumber}-${episodeNumber}`);
         
+        let thumbUrl = plexEp?.thumb ? `/api/plex/image?path=${encodeURIComponent(plexEp.thumb)}&width=400&height=225` : null;
+        if (!thumbUrl && arrInstanceId && sonarrEpisode.images && Array.isArray(sonarrEpisode.images)) {
+            const screenshot = sonarrEpisode.images.find(img => img.coverType === 'screenshot');
+            if (screenshot && screenshot.url) {
+                thumbUrl = `/api/upgrader/arr-episode-image?instanceId=${arrInstanceId}&episodeId=${sonarrEpisode.id}`;
+            }
+        }
+
         const episode = {
             ratingKey: `sonarr-ep-${sonarrEpisode.id}`,
             title: sonarrEpisode.title || `Episode ${episodeNumber ?? '?'}`,
@@ -9820,7 +9828,7 @@ const buildUpgraderEpisodesFromSonarr = (sonarrEpisodes, sonarrFiles, showTitle,
             seasonNumber,
             episodeNumber,
             thumb: plexEp?.thumb || '',
-            thumbUrl: plexEp?.thumb ? `/api/plex/image?path=${encodeURIComponent(plexEp.thumb)}&width=400&height=225` : null,
+            thumbUrl,
             mediaType: 'episode',
             videoCodec: sonarrQuality.videoCodec,
             videoResolution: sonarrQuality.videoResolution,
@@ -9888,7 +9896,8 @@ const buildUpgraderShowDetail = async (config, showItem, codecs = [], resolution
         features,
         qualities,
         minSizeGB,
-        plexEpisodes
+        plexEpisodes,
+        instance.id
     );
 
     const currentProfileId = Number(series.qualityProfileId || showItem.arrQualityProfileId || 0) || null;
@@ -11802,6 +11811,40 @@ app.get('/api/upgrader/arr-cover', requireAdmin, async (req, res) => {
         res.send(buffer);
     } catch (e) {
         res.status(500).send('Failed to load cover art');
+    }
+});
+
+app.get('/api/upgrader/arr-episode-image', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const instanceId = String(req.query.instanceId || '');
+        const episodeId = Number(req.query.episodeId || 0);
+        if (!instanceId || !episodeId) return res.status(400).send('Missing instanceId or episodeId');
+
+        const instance = getArrInstance(config, instanceId);
+        if (!instance || !isArrInstanceReady(instance)) return res.status(404).send('Instance not ready');
+
+        const resolveUrl = resolveIntegrationUrlForFetch;
+        const base = String(resolveUrl(instance.url) || '').replace(/\/+$/, '');
+        
+        const episode = await fetchArrInstanceJson(instance, `/api/v3/episode/${episodeId}`, { resolveUrl, fetchImpl: fetch });
+        const screenshot = (episode?.images || []).find((img) => img.coverType === 'screenshot');
+        const remoteUrl = screenshot?.remoteUrl || screenshot?.url || null;
+        if (!remoteUrl) return res.status(404).send('No screenshot found');
+
+        const imageRes = await fetch(remoteUrl.startsWith('http') ? remoteUrl : `${base}${remoteUrl.startsWith('/') ? '' : '/'}${remoteUrl}`, {
+            headers: { 'X-Api-Key': instance.apiKey },
+        });
+
+        if (!imageRes?.ok) return res.status(imageRes?.status || 404).send('Cover not found');
+
+        const contentType = imageRes.headers.get('content-type') || 'image/jpeg';
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        const buffer = Buffer.from(await imageRes.arrayBuffer());
+        res.send(buffer);
+    } catch (e) {
+        res.status(500).send('Failed to load episode image');
     }
 });
 

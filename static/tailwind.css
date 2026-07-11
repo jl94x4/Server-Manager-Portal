@@ -2259,6 +2259,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   aspect-ratio: 1 / 1;
 }
 
+.aspect-video {
+  aspect-ratio: 16 / 9;
+}
+
 .h-0 {
   height: 0px;
 }

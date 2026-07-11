@@ -91,7 +91,8 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                     .map((season: { seasonNumber: number }) => season.seasonNumber),
             );
             if (!defaultExpanded.size && seasons.length) {
-                defaultExpanded.add(seasons[0].seasonNumber);
+                const latestSeason = seasons.reduce((max: number, s: any) => Math.max(max, s.seasonNumber), -1);
+                if (latestSeason >= 0) defaultExpanded.add(latestSeason);
             }
             setExpandedSeasons(defaultExpanded);
         } catch (e: unknown) {
@@ -445,7 +446,7 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                                             key={episode.ratingKey}
                                                             className={`flex items-start gap-3 px-4 py-3 ${highlightFilterOnly ? '' : episode.matchesPreset === false ? 'opacity-55' : ''}`}
                                                         >
-                                                            <div className="w-20 h-11 rounded overflow-hidden bg-white/5 shrink-0">
+                                                            <div className="w-32 aspect-video rounded overflow-hidden bg-white/5 shrink-0">
                                                                 {episode.thumbUrl || episode.thumb || showMeta.thumbUrl || showMeta.thumb ? (
                                                                     <img
                                                                         src={episode.thumbUrl
