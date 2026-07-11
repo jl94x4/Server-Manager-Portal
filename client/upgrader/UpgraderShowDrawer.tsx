@@ -33,8 +33,8 @@ const EpisodeQualityBadges: React.FC<{ tags: string[]; isHevc?: boolean; codec?:
             </span>
         ) : null}
         {codec ? (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-plex/20 text-plex uppercase">
-                {codec}
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-plex/20 text-plex">
+                {codec.match(/^(h|x)26[45]$/i) ? codec.toLowerCase() : codec.toUpperCase()}
             </span>
         ) : null}
         {(tags || []).slice(0, 4).map((tag) => (

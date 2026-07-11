@@ -165,7 +165,7 @@ export const UpgraderDashboard: React.FC = () => {
             if (sort !== 'sizeGB') newParams.set('sort', sort);
             if (search) newParams.set('search', search);
             if (page > 1) newParams.set('page', String(page));
-            window.history.replaceState(null, '', `?${newParams.toString()}`);
+            window.history.replaceState(null, '', `${window.location.pathname}?${newParams.toString()}`);
 
             const [statusData, summaryData, itemsData, queueData, publicConfig] = await Promise.all([
                 apiFetch('/api/upgrader/status'),
