@@ -11,6 +11,7 @@ import { UpgraderUpgradeModal } from './UpgraderUpgradeModal';
 import { UpgraderShowDrawer } from './UpgraderShowDrawer';
 import { UpgraderHistoryPanel } from './UpgraderHistoryPanel';
 import { UpgraderExclusionsPanel } from './UpgraderExclusionsPanel';
+import { UpgraderProfilesTab } from './UpgraderProfilesTab';
 import type {
     UpgraderItem,
     UpgraderCodec,
@@ -44,7 +45,7 @@ const isUpgradableItem = (item: UpgraderItem) => {
     return !item.isHevc;
 };
 
-type UpgraderTab = 'browse' | 'history' | 'exclusions';
+type UpgraderTab = 'browse' | 'history' | 'exclusions' | 'profiles';
 
 const formatIndexAge = (generatedAt: string | null) => {
     if (!generatedAt) return 'never built';
@@ -432,6 +433,10 @@ export const UpgraderDashboard: React.FC = () => {
                                 <Ban className="w-4 h-4" />
                                 Exclusions
                             </button>
+                            <button type="button" className={tabButtonClass('profiles')} onClick={() => setActiveTab('profiles')}>
+                                <Settings2 className="w-4 h-4" />
+                                Profiles
+                            </button>
                         </div>
 
                         {activeTab === 'history' && <UpgraderHistoryPanel />}
@@ -439,6 +444,8 @@ export const UpgraderDashboard: React.FC = () => {
                         {activeTab === 'exclusions' && (
                             <UpgraderExclusionsPanel addToast={addToast} onChanged={() => loadData(true)} />
                         )}
+
+                        {activeTab === 'profiles' && <UpgraderProfilesTab />}
 
                         {activeTab === 'browse' && (
                             <>

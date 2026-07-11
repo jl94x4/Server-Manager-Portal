@@ -11996,6 +11996,124 @@ app.get('/api/upgrader/arr-episode-image', requireAdmin, async (req, res) => {
     }
 });
 
+app.get('/api/upgrader/arr/:instanceId/customformats', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const instanceId = req.params.instanceId;
+        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instance = instances.find(i => i.id === instanceId);
+        if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
+        
+        const baseUrl = getArrBaseUrl(instance);
+        const headers = arrHeaders(instance);
+        const url = `${baseUrl}/api/v3/customformat`;
+        const formats = await fetchWithTimeout(url, { headers }).then(r => r.json());
+        
+        res.json({ formats: Array.isArray(formats) ? formats : [] });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to fetch custom formats: ${e.message}` });
+    }
+});
+
+app.post('/api/upgrader/arr/:instanceId/customformats', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const instanceId = req.params.instanceId;
+        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instance = instances.find(i => i.id === instanceId);
+        if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
+        
+        const baseUrl = getArrBaseUrl(instance);
+        const headers = { ...arrHeaders(instance), 'Content-Type': 'application/json' };
+        const url = `${baseUrl}/api/v3/customformat`;
+        const result = await fetchWithTimeout(url, { method: 'POST', headers, body: JSON.stringify(req.body) }).then(r => r.json());
+        
+        if (result.message) throw new Error(result.message);
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ error: `Failed to create custom format: ${e.message}` });
+    }
+});
+
+app.put('/api/upgrader/arr/:instanceId/customformats/:id', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const instanceId = req.params.instanceId;
+        const id = req.params.id;
+        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instance = instances.find(i => i.id === instanceId);
+        if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
+        
+        const baseUrl = getArrBaseUrl(instance);
+        const headers = { ...arrHeaders(instance), 'Content-Type': 'application/json' };
+        
+        const backupsDir = path.join(CONFIG_DIR, 'backups');
+        await fs.mkdir(backupsDir, { recursive: true }).catch(() => {});
+        const backupPath = path.join(backupsDir, `customformat_${instanceId}_${id}_${Date.now()}.json`);
+        const existing = await fetchWithTimeout(`${baseUrl}/api/v3/customformat/${id}`, { headers: arrHeaders(instance) }).then(r => r.json()).catch(() => null);
+        if (existing && !existing.message) {
+            await fs.writeFile(backupPath, JSON.stringify(existing, null, 2)).catch(() => {});
+        }
+
+        const url = `${baseUrl}/api/v3/customformat/${id}`;
+        const result = await fetchWithTimeout(url, { method: 'PUT', headers, body: JSON.stringify(req.body) }).then(r => r.json());
+        
+        if (result.message) throw new Error(result.message);
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ error: `Failed to update custom format: ${e.message}` });
+    }
+});
+
+app.get('/api/upgrader/arr/:instanceId/qualityprofiles', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const instanceId = req.params.instanceId;
+        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instance = instances.find(i => i.id === instanceId);
+        if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
+        
+        const baseUrl = getArrBaseUrl(instance);
+        const headers = arrHeaders(instance);
+        const url = `${baseUrl}/api/v3/qualityprofile`;
+        const profiles = await fetchWithTimeout(url, { headers }).then(r => r.json());
+        
+        res.json({ profiles: Array.isArray(profiles) ? profiles : [] });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to fetch quality profiles: ${e.message}` });
+    }
+});
+
+app.put('/api/upgrader/arr/:instanceId/qualityprofiles/:id', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const instanceId = req.params.instanceId;
+        const id = req.params.id;
+        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instance = instances.find(i => i.id === instanceId);
+        if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
+        
+        const baseUrl = getArrBaseUrl(instance);
+        const headers = { ...arrHeaders(instance), 'Content-Type': 'application/json' };
+        
+        const backupsDir = path.join(CONFIG_DIR, 'backups');
+        await fs.mkdir(backupsDir, { recursive: true }).catch(() => {});
+        const backupPath = path.join(backupsDir, `qualityprofile_${instanceId}_${id}_${Date.now()}.json`);
+        const existing = await fetchWithTimeout(`${baseUrl}/api/v3/qualityprofile/${id}`, { headers: arrHeaders(instance) }).then(r => r.json()).catch(() => null);
+        if (existing && !existing.message) {
+            await fs.writeFile(backupPath, JSON.stringify(existing, null, 2)).catch(() => {});
+        }
+
+        const url = `${baseUrl}/api/v3/qualityprofile/${id}`;
+        const result = await fetchWithTimeout(url, { method: 'PUT', headers, body: JSON.stringify(req.body) }).then(r => r.json());
+        
+        if (result.message) throw new Error(result.message);
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ error: `Failed to update quality profile: ${e.message}` });
+    }
+});
+
 app.get('/api/upgrader/profiles', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
