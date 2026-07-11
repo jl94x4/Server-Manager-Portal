@@ -9820,11 +9820,9 @@ const buildUpgraderEpisodesFromSonarr = (sonarrEpisodes, sonarrFiles, showTitle,
         const plexEp = plexEpMap.get(`${seasonNumber}-${episodeNumber}`);
         
         let thumbUrl = plexEp?.thumb ? `/api/plex/image?path=${encodeURIComponent(plexEp.thumb)}&width=400&height=225` : null;
-        if (!thumbUrl && arrInstanceId && sonarrEpisode.images && Array.isArray(sonarrEpisode.images)) {
-            const screenshot = sonarrEpisode.images.find(img => img.coverType === 'screenshot');
-            if (screenshot && screenshot.url) {
-                thumbUrl = `/api/upgrader/arr-episode-image?instanceId=${arrInstanceId}&episodeId=${sonarrEpisode.id}`;
-            }
+        // Always provide an episode image URL when we have instance+episode data — the endpoint handles fallbacks
+        if (!thumbUrl && arrInstanceId && sonarrEpisode.id) {
+            thumbUrl = `/api/upgrader/arr-episode-image?instanceId=${arrInstanceId}&episodeId=${sonarrEpisode.id}`;
         }
 
         const episode = {
@@ -11858,23 +11856,40 @@ app.get('/api/upgrader/arr-episode-image', requireAdmin, async (req, res) => {
 
         const resolveUrl = resolveIntegrationUrlForFetch;
         const base = String(resolveUrl(instance.url) || '').replace(/\/+$/, '');
-        
-        const episode = await fetchArrInstanceJson(instance, `/api/v3/episode/${episodeId}`, { resolveUrl, fetchImpl: fetch });
+        const headers = { 'X-Api-Key': instance.apiKey };
+
+        // Strategy 1: try the direct MediaCover path (Sonarr stores local thumbnails here)
+        const directPaths = [
+            `/MediaCover/EpisodeImages/${episodeId}.jpg`,
+            `/MediaCover/EpisodeImages/${episodeId}.png`,
+            `/MediaCover/EpisodeImages/${episodeId}-thumb.jpg`,
+        ];
+        for (const path of directPaths) {
+            const tryRes = await fetch(`${base}${path}`, { headers }).catch(() => null);
+            if (tryRes?.ok) {
+                const contentType = tryRes.headers.get('content-type') || 'image/jpeg';
+                if (contentType.startsWith('image/')) {
+                    res.setHeader('Content-Type', contentType);
+                    res.setHeader('Cache-Control', 'public, max-age=86400');
+                    res.send(Buffer.from(await tryRes.arrayBuffer()));
+                    return;
+                }
+            }
+        }
+
+        // Strategy 2: fetch via the episode API and look at images array
+        const episode = await fetchArrInstanceJson(instance, `/api/v3/episode/${episodeId}`, { resolveUrl, fetchImpl: fetch }).catch(() => null);
         const screenshot = (episode?.images || []).find((img) => img.coverType === 'screenshot');
         const remoteUrl = screenshot?.remoteUrl || screenshot?.url || null;
         if (!remoteUrl) return res.status(404).send('No screenshot found');
 
-        const imageRes = await fetch(remoteUrl.startsWith('http') ? remoteUrl : `${base}${remoteUrl.startsWith('/') ? '' : '/'}${remoteUrl}`, {
-            headers: { 'X-Api-Key': instance.apiKey },
-        });
-
+        const imageRes = await fetch(remoteUrl.startsWith('http') ? remoteUrl : `${base}${remoteUrl.startsWith('/') ? '' : '/'}${remoteUrl}`, { headers });
         if (!imageRes?.ok) return res.status(imageRes?.status || 404).send('Cover not found');
 
         const contentType = imageRes.headers.get('content-type') || 'image/jpeg';
         res.setHeader('Content-Type', contentType);
         res.setHeader('Cache-Control', 'public, max-age=86400');
-        const buffer = Buffer.from(await imageRes.arrayBuffer());
-        res.send(buffer);
+        res.send(Buffer.from(await imageRes.arrayBuffer()));
     } catch (e) {
         res.status(500).send('Failed to load episode image');
     }

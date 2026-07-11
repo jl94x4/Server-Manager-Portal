@@ -84,16 +84,15 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
             );
             setDetail(data as UpgraderShowDetail);
             const seasons = Array.isArray(data?.seasons) ? data.seasons : [];
-            const defaultExpanded = new Set<number>(
-                seasons
-                    .filter((season: { matchedCount?: number }) => (season.matchedCount ?? 0) > 0)
-                    .slice(0, 3)
-                    .map((season: { seasonNumber: number }) => season.seasonNumber),
-            );
-            if (!defaultExpanded.size && seasons.length) {
-                const latestSeason = seasons.reduce((max: number, s: any) => Math.max(max, s.seasonNumber), -1);
-                if (latestSeason >= 0) defaultExpanded.add(latestSeason);
-            }
+            const latestSeason = seasons.reduce((max: number, s: any) => Math.max(max, s.seasonNumber ?? -1), -1);
+            const defaultExpanded = new Set<number>();
+            // Always expand the latest season
+            if (latestSeason >= 0) defaultExpanded.add(latestSeason);
+            // Also expand up to 2 seasons that have filter matches (if different from latest)
+            seasons
+                .filter((season: any) => (season.matchedCount ?? 0) > 0 && season.seasonNumber !== latestSeason)
+                .slice(0, 2)
+                .forEach((season: any) => defaultExpanded.add(season.seasonNumber));
             setExpandedSeasons(defaultExpanded);
         } catch (e: unknown) {
             setDetail(null);
