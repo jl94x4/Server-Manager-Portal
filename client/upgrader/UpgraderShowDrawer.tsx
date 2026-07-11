@@ -456,7 +456,7 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                                                                     ? resolvePortalAssetUrl(showMeta.thumbUrl)
                                                                                     : portalUrl(`/api/plex/image?path=${encodeURIComponent(showMeta.thumb || '')}&width=160&height=90`)}
                                                                         alt={episode.title}
-                                                                        className="w-full h-full object-contain bg-black/40"
+                                                                        className="w-full h-full object-cover bg-black/40"
                                                                     />
                                                                 ) : null}
                                                             </div>
@@ -468,22 +468,31 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                                                         </span>
                                                                     )}
                                                                     <span className="text-sm font-semibold text-text truncate">{episode.title}</span>
+                                                                    {episode.airDateUtc && (
+                                                                        <span className="text-[10px] text-muted ml-auto shrink-0 font-medium">
+                                                                            Aired: {new Date(episode.airDateUtc).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                                        </span>
+                                                                    )}
                                                                 </div>
-                                                                <div className="mt-1">
+                                                                {episode.overview && (
+                                                                    <p className="text-[11px] text-muted mt-1.5 line-clamp-2 leading-relaxed">
+                                                                        {episode.overview}
+                                                                    </p>
+                                                                )}
+                                                                <div className="mt-2.5 flex flex-wrap items-center gap-3">
                                                                     <EpisodeQualityBadges tags={episode.displayTags || []} isHevc={episode.isHevc} codec={episode.videoCodec} sizeGB={episode.sizeGB} />
-                                                                </div>
-                                                                <div className="text-[11px] text-muted mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
-                                                                    {episode.arrQualityLabel && (
-                                                                        <span className="text-plex font-semibold">Sonarr: {episode.arrQualityLabel}</span>
-                                                                    )}
-                                                                    {episode.videoCodec && !episode.arrQualityLabel && (
-                                                                        <span>Codec: {episode.videoCodec}</span>
-                                                                    )}
-                                                                    {episode.sizeGB > 0 && <span>{episode.sizeGB} GB</span>}
-                                                                    {episode.arrHasFile === false && (
-                                                                        <span className="text-amber-200">Missing file in Sonarr</span>
-                                                                    )}
-
+                                                                    <div className="text-[10px] text-muted flex flex-wrap gap-x-2.5 gap-y-1 ml-auto shrink-0 font-medium bg-black/20 px-2.5 py-1 rounded-lg border border-white/5">
+                                                                        {episode.arrQualityLabel && (
+                                                                            <span className="text-plex">{episode.arrQualityLabel}</span>
+                                                                        )}
+                                                                        {episode.videoCodec && !episode.arrQualityLabel && (
+                                                                            <span>{episode.videoCodec}</span>
+                                                                        )}
+                                                                        {episode.sizeGB > 0 && <span>{episode.sizeGB} GB</span>}
+                                                                        {episode.arrHasFile === false && (
+                                                                            <span className="text-amber-200">Missing in Sonarr</span>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                             <div className="flex flex-col gap-1 shrink-0">

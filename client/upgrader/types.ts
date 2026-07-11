@@ -74,6 +74,9 @@ export type UpgraderEpisode = {
     ratingKey: string;
     title: string;
     showTitle?: string;
+    overview?: string;
+    airDateUtc?: string;
+    year?: number;
     seasonNumber?: number | null;
     episodeNumber?: number | null;
     thumb?: string;

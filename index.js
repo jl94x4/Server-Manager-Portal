@@ -9792,8 +9792,8 @@ const mapSonarrFileToEpisodeQuality = (file = null) => {
 };
 
 const buildUpgraderEpisodesFromSonarr = (sonarrEpisodes, sonarrFiles, showTitle, codecs, resolutions, features, qualities, minSizeGB, plexEpisodes = []) => {
-    const fileByEpisodeId = new Map(
-        sonarrFiles.map((file) => [Number(file.episodeId), file]),
+    const fileById = new Map(
+        sonarrFiles.map((file) => [Number(file.id), file]),
     );
 
     const plexEpMap = new Map();
@@ -9806,7 +9806,7 @@ const buildUpgraderEpisodesFromSonarr = (sonarrEpisodes, sonarrFiles, showTitle,
     return sonarrEpisodes.map((sonarrEpisode) => {
         const seasonNumber = sonarrEpisode.seasonNumber != null ? Number(sonarrEpisode.seasonNumber) : null;
         const episodeNumber = sonarrEpisode.episodeNumber != null ? Number(sonarrEpisode.episodeNumber) : null;
-        const sonarrFile = sonarrEpisode?.id ? fileByEpisodeId.get(Number(sonarrEpisode.id)) : null;
+        const sonarrFile = sonarrEpisode?.episodeFileId ? fileById.get(Number(sonarrEpisode.episodeFileId)) : null;
         const sonarrQuality = mapSonarrFileToEpisodeQuality(sonarrFile);
         
         const plexEp = plexEpMap.get(`${seasonNumber}-${episodeNumber}`);
@@ -9814,11 +9814,13 @@ const buildUpgraderEpisodesFromSonarr = (sonarrEpisodes, sonarrFiles, showTitle,
         const episode = {
             ratingKey: `sonarr-ep-${sonarrEpisode.id}`,
             title: sonarrEpisode.title || `Episode ${episodeNumber ?? '?'}`,
+            overview: sonarrEpisode.overview || '',
+            airDateUtc: sonarrEpisode.airDateUtc || null,
             showTitle,
             seasonNumber,
             episodeNumber,
             thumb: plexEp?.thumb || '',
-            thumbUrl: null,
+            thumbUrl: plexEp?.thumb ? `/api/plex/image?path=${encodeURIComponent(plexEp.thumb)}&width=400&height=225` : null,
             mediaType: 'episode',
             videoCodec: sonarrQuality.videoCodec,
             videoResolution: sonarrQuality.videoResolution,

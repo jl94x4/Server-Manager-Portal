@@ -3314,6 +3314,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
        column-gap: 0.5rem;
 }
 
+.gap-x-2\.5 {
+  -moz-column-gap: 0.625rem;
+       column-gap: 0.625rem;
+}
+
 .gap-x-3 {
   -moz-column-gap: 0.75rem;
        column-gap: 0.75rem;
