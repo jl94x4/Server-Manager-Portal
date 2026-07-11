@@ -740,6 +740,20 @@ export const UpgraderDashboard: React.FC = () => {
                                             }
                                         }
                                         
+                                        if (sizesToShow.length === 0 && isShow && codecs.size > 0 && item.sizeGB > 0) {
+                                            const totalSize = item.sizeGB || 0;
+                                            const nonHevcSize = item.nonHevcEpisodeSizeGB || 0;
+                                            const hevcSize = Math.max(0, totalSize - nonHevcSize);
+                                            
+                                            // If multiple are selected, we can show fallback sizes for H264 and HEVC
+                                            if (codecs.has('h264') && nonHevcSize > 0) {
+                                                sizesToShow.push({ label: 'h264 eps', sizeGB: nonHevcSize });
+                                            }
+                                            if (codecs.has('hevc') && hevcSize > 0) {
+                                                sizesToShow.push({ label: 'HEVC eps', sizeGB: hevcSize });
+                                            }
+                                        }
+                                        
                                         if (sizesToShow.length === 0 && (((item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0) || item.sizeGB > 0))) {
                                             const label = item.mediaType === 'show' ? (showCodecLabel ? `${showCodecLabel.toUpperCase()} eps` : '') : '';
                                             sizesToShow.push({
