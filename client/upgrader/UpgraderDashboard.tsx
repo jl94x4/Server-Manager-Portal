@@ -694,10 +694,18 @@ export const UpgraderDashboard: React.FC = () => {
                                                                 >
                                                                     {item.title}{item.year ? ` (${item.year})` : ''}
                                                                 </button>
-                                                                <p className="text-sm text-muted mt-0.5">
-                                                                    {item.libraryTitle}
-                                                                    {item.arrInstanceName && item.arrInstanceName.toLowerCase() !== (item.libraryTitle || '').toLowerCase() ? ` · ${item.arrInstanceName}` : ''}
-                                                                </p>
+                                                                <div className="flex flex-wrap gap-2 mt-2">
+                                                                    <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/5 text-xs font-semibold text-gray-300">
+                                                                        {item.arrInstanceName || (item.arrType === 'radarr' ? 'Radarr' : 'Sonarr')}
+                                                                    </span>
+                                                                    {((item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0) || item.sizeGB > 0) && (
+                                                                        <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/5 text-xs font-semibold text-gray-300">
+                                                                            {item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0
+                                                                                ? `${item.nonHevcEpisodeSizeGB < 1 ? Math.round(item.nonHevcEpisodeSizeGB * 1024) + ' MB' : item.nonHevcEpisodeSizeGB + ' GB'}${showCodecLabel ? ` (${showCodecLabel.toUpperCase()} eps)` : ''}`
+                                                                                : `${item.sizeGB < 1 ? Math.round(item.sizeGB * 1024) + ' MB' : item.sizeGB + ' GB'}`}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                             {badgeText && (
                                                                 <button
@@ -708,11 +716,6 @@ export const UpgraderDashboard: React.FC = () => {
                                                                     {badgeText}
                                                                 </button>
                                                             )}
-                                                        </div>
-                                                        <div className="mt-2 text-sm text-gray-400">
-                                                            {item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0
-                                                                ? `${item.nonHevcEpisodeSizeGB < 1 ? Math.round(item.nonHevcEpisodeSizeGB * 1024) + ' MB' : item.nonHevcEpisodeSizeGB + ' GB'}${showCodecLabel ? ` (${showCodecLabel.toUpperCase()} eps)` : ''}`
-                                                                : item.sizeGB > 0 ? `${item.sizeGB < 1 ? Math.round(item.sizeGB * 1024) + ' MB' : item.sizeGB + ' GB'}` : ''}
                                                         </div>
                                                         {item.overview && (
                                                             <div className="mt-2 text-xs text-muted line-clamp-2 md:line-clamp-3">
@@ -798,12 +801,17 @@ export const UpgraderDashboard: React.FC = () => {
                                                                     {item.title}{item.year ? ` (${item.year})` : ''}
                                                                 </div>
                                                             )}
-                                                            <div className="upgrader-card-meta text-[10px] text-muted line-clamp-2">
-                                                                {item.libraryTitle}
-                                                                {item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0
-                                                                    ? ` · ${item.nonHevcEpisodeSizeGB < 1 ? Math.round(item.nonHevcEpisodeSizeGB * 1024) + ' MB' : item.nonHevcEpisodeSizeGB + ' GB'}${showCodecLabel ? ` (${showCodecLabel.toUpperCase()} eps)` : ''}`
-                                                                    : item.sizeGB > 0 ? ` · ${item.sizeGB < 1 ? Math.round(item.sizeGB * 1024) + ' MB' : item.sizeGB + ' GB'}` : ''}
-                                                                {item.arrInstanceName && item.arrInstanceName.toLowerCase() !== (item.libraryTitle || '').toLowerCase() ? ` · ${item.arrInstanceName}` : ''}
+                                                            <div className="upgrader-card-meta flex flex-wrap gap-1.5 mt-2">
+                                                                <span className="px-1.5 py-0.5 rounded-md bg-white/10 border border-white/5 text-[10px] font-semibold text-gray-300">
+                                                                    {item.arrInstanceName || (item.arrType === 'radarr' ? 'Radarr' : 'Sonarr')}
+                                                                </span>
+                                                                {((item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0) || item.sizeGB > 0) && (
+                                                                    <span className="px-1.5 py-0.5 rounded-md bg-white/10 border border-white/5 text-[10px] font-semibold text-gray-300">
+                                                                        {item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0
+                                                                            ? `${item.nonHevcEpisodeSizeGB < 1 ? Math.round(item.nonHevcEpisodeSizeGB * 1024) + ' MB' : item.nonHevcEpisodeSizeGB + ' GB'}${showCodecLabel ? ` (${showCodecLabel.toUpperCase()} eps)` : ''}`
+                                                                            : `${item.sizeGB < 1 ? Math.round(item.sizeGB * 1024) + ' MB' : item.sizeGB + ' GB'}`}
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                             <div className="upgrader-card-actions flex flex-wrap gap-x-2 gap-y-1">
 
