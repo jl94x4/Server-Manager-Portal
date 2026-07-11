@@ -408,8 +408,8 @@ export const UpgraderDashboard: React.FC = () => {
                             </div>
                         )}
 
-                        <div className="flex flex-col lg:flex-row lg:items-end gap-3 p-4 rounded-2xl border border-border/60 bg-card/40">
-                            <div className="flex flex-col w-full lg:w-auto">
+                        <div className="flex flex-col gap-4 p-4 rounded-2xl border border-border/60 bg-card/40">
+                            <div className="flex flex-col w-full">
                                 <button
                                     type="button"
                                     onClick={() => setFiltersExpanded(!filtersExpanded)}
@@ -506,24 +506,24 @@ export const UpgraderDashboard: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:ml-auto mt-4 lg:mt-0">
+                            <div className="flex flex-col sm:flex-row flex-wrap items-center gap-3 w-full pt-4 border-t border-white/5">
                                 <CustomSelect
                                     value={gridSize}
                                     onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}
                                     options={UPGRADER_GRID_SIZE_OPTIONS}
-                                    className="min-w-[130px]"
+                                    className="flex-1 w-full sm:w-auto min-w-[140px]"
                                 />
                                 <CustomSelect
                                     value={sort}
                                     onChange={(value) => { setSort(value); setPage(1); }}
                                     options={SORT_OPTIONS}
-                                    className="min-w-[150px]"
+                                    className="flex-1 w-full sm:w-auto min-w-[140px]"
                                 />
                                 <CustomSelect
                                     value={libraryId}
                                     onChange={(value) => { setLibraryId(value); setPage(1); }}
                                     options={[{ value: 'all', label: 'All instances' }, ...libraries.map((lib) => ({ value: lib.id, label: `${lib.title} (${lib.count})` }))]}
-                                    className="min-w-[180px]"
+                                    className="flex-1 w-full sm:w-auto min-w-[140px]"
                                 />
                                 <CustomSelect
                                     value={mediaType}
@@ -533,16 +533,16 @@ export const UpgraderDashboard: React.FC = () => {
                                         { value: 'movie', label: 'Movies only' },
                                         { value: 'show', label: 'Shows only' },
                                     ]}
-                                    className="min-w-[150px]"
+                                    className="flex-1 w-full sm:w-auto min-w-[140px]"
                                 />
-                                <div className="relative min-w-[200px]">
+                                <div className="relative flex-1 w-full sm:w-auto min-w-[140px]">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
                                     <input
                                         type="search"
                                         value={searchInput}
                                         onChange={(e) => setSearchInput(e.target.value)}
                                         placeholder="Search titles…"
-                                        className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-background text-text text-sm outline-none focus:border-plex"
+                                        className="w-full pl-9 pr-3 py-2 h-[38px] rounded-lg border border-border bg-background text-text text-sm outline-none focus:border-plex"
                                     />
                                 </div>
                             </div>

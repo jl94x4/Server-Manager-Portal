@@ -2399,6 +2399,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   height: 360px;
 }
 
+.h-\[38px\] {
+  height: 38px;
+}
+
 .h-\[400px\] {
   height: 400px;
 }
@@ -2809,16 +2813,8 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   min-width: 14px;
 }
 
-.min-w-\[150px\] {
-  min-width: 150px;
-}
-
 .min-w-\[160px\] {
   min-width: 160px;
-}
-
-.min-w-\[180px\] {
-  min-width: 180px;
 }
 
 .min-w-\[200px\] {
@@ -8018,14 +8014,6 @@ html.branded-skeleton .skeleton-base::after {
     grid-column-start: 2;
   }
 
-  .lg\:ml-auto {
-    margin-left: auto;
-  }
-
-  .lg\:mt-0 {
-    margin-top: 0px;
-  }
-
   .lg\:inline {
     display: inline;
   }
@@ -8056,10 +8044,6 @@ html.branded-skeleton .skeleton-base::after {
 
   .lg\:w-\[calc\(150\%\+1rem\)\] {
     width: calc(150% + 1rem);
-  }
-
-  .lg\:w-auto {
-    width: auto;
   }
 
   .lg\:max-w-6xl {
@@ -8096,10 +8080,6 @@ html.branded-skeleton .skeleton-base::after {
 
   .lg\:flex-row {
     flex-direction: row;
-  }
-
-  .lg\:items-end {
-    align-items: flex-end;
   }
 
   .lg\:justify-start {
