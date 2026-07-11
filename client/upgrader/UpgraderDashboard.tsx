@@ -715,9 +715,9 @@ export const UpgraderDashboard: React.FC = () => {
                                                             <div className="upgrader-card-meta text-[10px] text-muted line-clamp-2">
                                                                 {item.libraryTitle}
                                                                 {item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0
-                                                                    ? ` · ${item.nonHevcEpisodeSizeGB < 1 ? Math.round(item.nonHevcEpisodeSizeGB * 1024) + ' MB' : item.nonHevcEpisodeSizeGB + ' GB'} (${showCodecLabel ? `${showCodecLabel.toUpperCase()} ` : ''}eps)`
+                                                                    ? ` · ${item.nonHevcEpisodeSizeGB < 1 ? Math.round(item.nonHevcEpisodeSizeGB * 1024) + ' MB' : item.nonHevcEpisodeSizeGB + ' GB'}${showCodecLabel ? ` (${showCodecLabel.toUpperCase()} eps)` : ''}`
                                                                     : item.sizeGB > 0 ? ` · ${item.sizeGB < 1 ? Math.round(item.sizeGB * 1024) + ' MB' : item.sizeGB + ' GB'}` : ''}
-                                                                {item.arrInstanceName ? ` · ${item.arrInstanceName}` : ''}
+                                                                {item.arrInstanceName && item.arrInstanceName.toLowerCase() !== (item.libraryTitle || '').toLowerCase() ? ` · ${item.arrInstanceName}` : ''}
                                                             </div>
                                                             <div className="upgrader-card-actions flex flex-wrap gap-x-2 gap-y-1">
 
