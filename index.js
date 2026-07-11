@@ -337,6 +337,7 @@ import {
     fetchArrQueueSummary,
     fetchArrInstanceJson,
 } from './lib/arr-service.js';
+import { getSonarrTrashCatalog, getSonarrTrashCustomFormat } from './lib/trash-guides-catalog.js';
 import { createRequestAppService, getRequestAppGate } from './lib/request-app-service.js';
 const PLEX_API = 'https://plex.tv/api';
 
@@ -12020,6 +12021,51 @@ const normalizeCustomFormatPayload = (body = {}, { keepIds = false } = {}) => {
     if (keepIds && body.id != null) payload.id = Number(body.id);
     return payload;
 };
+
+app.get('/api/upgrader/trash/sonarr/catalog', requireAdmin, async (req, res) => {
+    try {
+        const refresh = String(req.query.refresh || '') === '1';
+        const catalog = await getSonarrTrashCatalog(CONFIG_DIR, { refresh });
+        res.json({
+            source: catalog.source,
+            fetchedAt: catalog.fetchedAt,
+            itemCount: catalog.itemCount,
+            categories: catalog.categories,
+            items: catalog.items,
+        });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to load TRaSH catalog: ${e.message}` });
+    }
+});
+
+app.get('/api/upgrader/trash/sonarr/catalog/:slug', requireAdmin, async (req, res) => {
+    try {
+        const format = await getSonarrTrashCustomFormat(req.params.slug);
+        if (!format?.name) return res.status(404).json({ error: 'Custom format not found' });
+        res.json({ format });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to load TRaSH custom format: ${e.message}` });
+    }
+});
+
+app.get('/api/upgrader/arr/:instanceId/customformats/schema', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const instanceId = req.params.instanceId;
+        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instance = instances.find(i => i.id === instanceId);
+        if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
+
+        const baseUrl = String(instance.url || '').replace(/\/+$/, '');
+        const headers = { 'X-Api-Key': instance.apiKey };
+        const url = `${baseUrl}/api/v3/customformat/schema`;
+        const schema = await fetchWithTimeout(url, { headers }).then(r => r.json());
+
+        res.json({ schema: Array.isArray(schema) ? schema : [] });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to fetch custom format schema: ${e.message}` });
+    }
+});
 
 app.get('/api/upgrader/arr/:instanceId/customformats', requireAdmin, async (req, res) => {
     try {

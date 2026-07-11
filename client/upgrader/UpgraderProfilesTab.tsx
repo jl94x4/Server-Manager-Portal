@@ -303,6 +303,7 @@ export const UpgraderProfilesTab: React.FC = () => {
             {editingFormat.show && (
                 <UpgraderCustomFormatModal
                     format={editingFormat.format}
+                    instanceId={selectedInstanceId}
                     onClose={() => setEditingFormat({ show: false, format: null })}
                     onSave={handleSaveFormat}
                 />

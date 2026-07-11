@@ -1,6 +1,16 @@
-/** Sonarr / Radarr custom format spec helpers — Trash Guides compatible round-trip. */
+/** Sonarr / Radarr custom format spec helpers — TRaSH Guides compatible round-trip. */
 
 export const CF_INFO_LINK = 'https://wiki.servarr.com/sonarr/settings#custom-formats-2';
+
+export type SchemaTemplate = {
+    implementation: string;
+    implementationName?: string;
+    name?: string;
+    infoLink?: string;
+    negate?: boolean;
+    required?: boolean;
+    fields?: any[];
+};
 
 export const SONARR_RESOLUTION_OPTIONS = [
     { value: 0, name: 'Unknown' },
@@ -24,36 +34,30 @@ export const SONARR_SOURCE_OPTIONS = [
     { value: 7, name: 'BlurayRaw' },
 ] as const;
 
-export type SourceRule = {
-    value: number;
-    label: string;
-    negate: boolean;
-    required: boolean;
-};
+export const SONARR_QUALITY_MODIFIER_OPTIONS = [
+    { value: 0, name: 'None' },
+    { value: 1, name: 'Regional' },
+    { value: 2, name: 'SCENE' },
+    { value: 3, name: 'WEBDL' },
+    { value: 4, name: 'WEBRIP' },
+    { value: 5, name: 'REMUX' },
+] as const;
 
-export type ReleaseGroupRule = {
-    name: string;
-    required: boolean;
-};
+export const SONARR_RELEASE_TYPE_OPTIONS = [
+    { value: 0, name: 'Unknown' },
+    { value: 1, name: 'SingleEpisode' },
+    { value: 2, name: 'MultiEpisode' },
+    { value: 3, name: 'SeasonPack' },
+    { value: 4, name: 'SingleEpisodeSeasonPack' },
+    { value: 5, name: 'MultiEpisodeSeasonPack' },
+] as const;
 
 export type SimpleFormatState = {
-    resolution: { value: number; required: boolean; negate: boolean } | null;
-    sourceRules: SourceRule[];
-    releaseGroups: ReleaseGroupRule[];
-    keywords: string[];
-    negateKeywords: string[];
-    matchAll: boolean;
-    otherSpecifications: any[];
+    specifications: any[];
 };
 
 export const emptySimpleFormatState = (): SimpleFormatState => ({
-    resolution: null,
-    sourceRules: [],
-    releaseGroups: [],
-    keywords: [],
-    negateKeywords: [],
-    matchAll: true,
-    otherSpecifications: [],
+    specifications: [],
 });
 
 export const getSpecFieldValue = (spec: any, fieldName = 'value') => {
@@ -67,6 +71,25 @@ export const getSpecFieldValue = (spec: any, fieldName = 'value') => {
     return undefined;
 };
 
+export const setSpecFieldValue = (spec: any, fieldName: string, value: unknown) => {
+    if (Array.isArray(spec?.fields)) {
+        const hasField = spec.fields.some((f: any) => f?.name === fieldName);
+        return {
+            ...spec,
+            fields: hasField
+                ? spec.fields.map((f: any) => (f?.name === fieldName ? { ...f, value } : f))
+                : [...spec.fields, { name: fieldName, label: fieldName, type: 'textbox', value, order: spec.fields.length }],
+        };
+    }
+    if (spec?.fields && typeof spec.fields === 'object') {
+        return { ...spec, fields: { ...spec.fields, [fieldName]: value } };
+    }
+    return {
+        ...spec,
+        fields: [{ name: fieldName, label: fieldName, type: 'textbox', value, order: 0 }],
+    };
+};
+
 const sourceLabel = (value: number) =>
     SONARR_SOURCE_OPTIONS.find((o) => o.value === Number(value))?.name || `Source ${value}`;
 
@@ -75,7 +98,7 @@ const resolutionLabel = (value: number) =>
 
 const escapeRegexLiteral = (text: string) => String(text || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** Extract release group name from Trash / Sonarr regex patterns. */
+/** Extract release group name from TRaSH / Sonarr regex patterns. */
 export const parseReleaseGroupName = (spec: any): string => {
     const raw = String(getSpecFieldValue(spec) ?? '');
     const lookbehind = raw.match(/\(\?<=[^)]+\)(.+?)\\b/i);
@@ -112,6 +135,18 @@ const buildTextField = (value: string, label = 'Regular Expression', helpText = 
     helpText,
     value,
     type: 'textbox',
+    advanced: false,
+    privacy: 'normal',
+    isFloat: false,
+}];
+
+const buildNumberField = (value: number, label: string, helpText?: string) => [{
+    order: 0,
+    name: 'value',
+    label,
+    helpText,
+    value: Number(value),
+    type: 'number',
     advanced: false,
     privacy: 'normal',
     isFloat: false,
@@ -172,155 +207,242 @@ export const buildReleaseTitleSpecification = (
     fields: buildTextField(pattern, 'Regular Expression'),
 });
 
-/** Parse Sonarr / Trash Guides specifications into the simple editor state. */
-export const parseSpecificationsToSimple = (specs: any[] = []): SimpleFormatState => {
-    const state = emptySimpleFormatState();
-    let isMatchAll = true;
+/** Static fallback when Sonarr/Radarr schema API is unreachable. */
+export const FALLBACK_SPEC_SCHEMA: SchemaTemplate[] = [
+    {
+        implementation: 'ReleaseTitleSpecification',
+        implementationName: 'Release Title',
+        name: 'Release Title',
+        fields: buildTextField(''),
+    },
+    {
+        implementation: 'ReleaseGroupSpecification',
+        implementationName: 'Release Group',
+        name: 'Release Group',
+        fields: buildTextField(''),
+    },
+    {
+        implementation: 'SourceSpecification',
+        implementationName: 'Source',
+        name: 'Source',
+        fields: buildSelectField(3, 'Source', SONARR_SOURCE_OPTIONS),
+    },
+    {
+        implementation: 'ResolutionSpecification',
+        implementationName: 'Resolution',
+        name: 'Resolution',
+        fields: buildSelectField(1080, 'Resolution', SONARR_RESOLUTION_OPTIONS),
+    },
+    {
+        implementation: 'QualityModifierSpecification',
+        implementationName: 'Quality Modifier',
+        name: 'Quality Modifier',
+        fields: buildSelectField(0, 'Quality Modifier', SONARR_QUALITY_MODIFIER_OPTIONS),
+    },
+    {
+        implementation: 'LanguageSpecification',
+        implementationName: 'Language',
+        name: 'Language',
+        fields: buildNumberField(1, 'Language', 'Language ID (e.g. 1 = English)'),
+    },
+    {
+        implementation: 'SizeSpecification',
+        implementationName: 'Size',
+        name: 'Size',
+        fields: [
+            { order: 0, name: 'min', label: 'Min Size (MB)', value: 0, type: 'number', advanced: false, privacy: 'normal', isFloat: false },
+            { order: 1, name: 'max', label: 'Max Size (MB)', value: 0, type: 'number', advanced: false, privacy: 'normal', isFloat: false },
+        ],
+    },
+    {
+        implementation: 'IndexerSpecification',
+        implementationName: 'Indexer',
+        name: 'Indexer',
+        fields: buildNumberField(0, 'Indexer', 'Indexer ID from Prowlarr/Sonarr'),
+    },
+    {
+        implementation: 'ReleaseTypeSpecification',
+        implementationName: 'Release Type',
+        name: 'Release Type',
+        fields: buildSelectField(1, 'Release Type', SONARR_RELEASE_TYPE_OPTIONS),
+    },
+    {
+        implementation: 'YearSpecification',
+        implementationName: 'Year',
+        name: 'Year',
+        fields: buildNumberField(0, 'Year'),
+    },
+    {
+        implementation: 'MultiPartSpecification',
+        implementationName: 'Multi Part',
+        name: 'Multi Part',
+        fields: buildNumberField(0, 'Multi Part'),
+    },
+    {
+        implementation: 'EditionSpecification',
+        implementationName: 'Edition',
+        name: 'Edition',
+        fields: buildTextField(''),
+    },
+    {
+        implementation: 'UntilQualitySpecification',
+        implementationName: 'Until Quality',
+        name: 'Until Quality',
+        fields: buildNumberField(0, 'Quality'),
+    },
+    {
+        implementation: 'UntilScoreSpecification',
+        implementationName: 'Until Score',
+        name: 'Until Score',
+        fields: buildNumberField(0, 'Score'),
+    },
+];
 
-    (Array.isArray(specs) ? specs : []).forEach((spec) => {
-        const impl = String(spec?.implementation || '');
+export const findSchemaForSpec = (schema: SchemaTemplate[], spec: any): SchemaTemplate | null => {
+    const impl = String(spec?.implementation || '');
+    return schema.find((s) => s.implementation === impl) || null;
+};
 
-        if (impl === 'ResolutionSpecification') {
-            const value = Number(getSpecFieldValue(spec) ?? 0);
-            if (value > 0) {
-                state.resolution = {
-                    value,
-                    required: !!spec.required,
-                    negate: !!spec.negate,
-                };
-            }
-            return;
+/** Normalize spec fields (object or array) for the editor UI. */
+export const normalizeSpecificationForEditor = (spec: any, schema?: SchemaTemplate | null) => {
+    const base = {
+        ...spec,
+        infoLink: spec?.infoLink || schema?.infoLink || CF_INFO_LINK,
+        implementationName: spec?.implementationName || schema?.implementationName || spec?.implementation,
+    };
+    const fields = spec?.fields;
+    if (Array.isArray(fields)) {
+        return {
+            ...base,
+            fields: fields.map((f: any, i: number) => ({ ...f, order: f.order ?? i })),
+        };
+    }
+    if (fields && typeof fields === 'object') {
+        const schemaFields = schema?.fields;
+        if (Array.isArray(schemaFields) && schemaFields.length) {
+            return {
+                ...base,
+                fields: schemaFields.map((sf: any, i: number) => ({
+                    ...sf,
+                    order: sf.order ?? i,
+                    value: fields[sf.name] ?? sf.value ?? '',
+                })),
+            };
         }
-
-        if (impl === 'SourceSpecification') {
-            const value = Number(getSpecFieldValue(spec) ?? 0);
-            state.sourceRules.push({
+        const entries = Object.entries(fields);
+        if (entries.length === 1 && entries[0][0] === 'value') {
+            const isSelect = spec.implementation === 'ResolutionSpecification'
+                || spec.implementation === 'SourceSpecification'
+                || spec.implementation === 'QualityModifierSpecification'
+                || spec.implementation === 'ReleaseTypeSpecification';
+            if (isSelect) {
+                const options = spec.implementation === 'ResolutionSpecification'
+                    ? SONARR_RESOLUTION_OPTIONS
+                    : spec.implementation === 'SourceSpecification'
+                        ? SONARR_SOURCE_OPTIONS
+                        : spec.implementation === 'QualityModifierSpecification'
+                            ? SONARR_QUALITY_MODIFIER_OPTIONS
+                            : SONARR_RELEASE_TYPE_OPTIONS;
+                const label = spec.implementationName || 'Value';
+                return { ...base, fields: buildSelectField(Number(entries[0][1]), label, options) };
+            }
+            return { ...base, fields: buildTextField(String(entries[0][1] ?? '')) };
+        }
+        return {
+            ...base,
+            fields: entries.map(([name, value], i) => ({
+                name,
+                label: name,
                 value,
-                label: sourceLabel(value),
-                negate: !!spec.negate,
-                required: spec.required !== false,
-            });
-            return;
-        }
-
-        if (impl === 'ReleaseGroupSpecification') {
-            state.releaseGroups.push({
-                name: parseReleaseGroupName(spec),
-                required: !!spec.required,
-            });
-            return;
-        }
-
-        if (impl === 'ReleaseTitleSpecification') {
-            const val = String(getSpecFieldValue(spec) ?? '');
-            const clean = val
-                .replace(/^\\b/, '')
-                .replace(/\\b$/, '')
-                .replace(/^\(/, '')
-                .replace(/\)$/, '')
-                .replace(/^\(\?i:/, '')
-                .replace(/\)$/, '');
-
-            if (spec.negate) {
-                clean.split('|').filter(Boolean).forEach((part) => {
-                    state.negateKeywords.push(part.replace(/\\b/g, '').trim());
-                });
-            } else if (val.includes('|') && !val.includes('(?<=')) {
-                isMatchAll = false;
-                clean.split('|').filter(Boolean).forEach((part) => {
-                    state.keywords.push(part.replace(/\\b/g, '').trim());
-                });
-            } else if (val.includes('|')) {
-                clean.split('|').filter(Boolean).forEach((part) => state.keywords.push(part.trim()));
-            } else {
-                const kw = clean.replace(/\\b/g, '').trim();
-                if (kw) state.keywords.push(kw);
-            }
-            return;
-        }
-
-        state.otherSpecifications.push(spec);
-    });
-
-    state.matchAll = isMatchAll;
-    return state;
+                type: typeof value === 'number' ? 'number' : 'textbox',
+                order: i,
+            })),
+        };
+    }
+    return base;
 };
 
-/** Build Sonarr-compatible specifications from simple editor state. */
-export const buildSpecificationsFromSimple = (state: SimpleFormatState): any[] => {
-    const specs: any[] = [...state.otherSpecifications];
-
-    if (state.resolution && state.resolution.value > 0) {
-        specs.push(buildResolutionSpecification(state.resolution.value, {
-            required: state.resolution.required,
-            negate: state.resolution.negate,
-        }));
-    }
-
-    state.sourceRules.forEach((rule) => {
-        specs.push(buildSourceSpecification(rule.value, {
-            negate: rule.negate,
-            required: rule.required,
-            name: rule.negate ? `Not ${rule.label}` : rule.label,
-        }));
-    });
-
-    state.releaseGroups.forEach((group) => {
-        if (!group.name.trim()) return;
-        specs.push(buildReleaseGroupSpecification(group.name.trim(), { required: group.required }));
-    });
-
-    if (state.matchAll) {
-        state.keywords.filter(Boolean).forEach((kw) => {
-            specs.push(buildReleaseTitleSpecification(`\\b${escapeRegexLiteral(kw)}\\b`, {
-                name: kw,
-                required: true,
-            }));
+/** Strip editor-only metadata; keep Sonarr-compatible shape. */
+export const normalizeSpecificationForSave = (spec: any) => {
+    const { id, ...rest } = spec || {};
+    const next: any = { ...rest };
+    if (Array.isArray(next.fields)) {
+        next.fields = next.fields.map((f: any, i: number) => {
+            const field = { ...f, order: f.order ?? i };
+            return field;
         });
-    } else if (state.keywords.length > 0) {
-        const pattern = `\\b(${state.keywords.map(escapeRegexLiteral).join('|')})\\b`;
-        specs.push(buildReleaseTitleSpecification(pattern, { name: 'Match Any', required: true }));
     }
-
-    state.negateKeywords.filter(Boolean).forEach((kw) => {
-        specs.push(buildReleaseTitleSpecification(`\\b${escapeRegexLiteral(kw)}\\b`, {
-            name: `Not ${kw}`,
-            negate: true,
-            required: true,
-        }));
-    });
-
-    return specs;
+    return next;
 };
 
-/** Normalize Trash Guides JSON import (strip sync metadata, keep specifications). */
-export const normalizeTrashGuidesCustomFormat = (raw: any) => {
+export const parseSpecificationsToSimple = (
+    specs: any[] = [],
+    schema: SchemaTemplate[] = [],
+): SimpleFormatState => ({
+    specifications: (Array.isArray(specs) ? specs : []).map((spec) => {
+        const schemaItem = findSchemaForSpec(schema, spec);
+        return normalizeSpecificationForEditor(spec, schemaItem);
+    }),
+});
+
+export const buildSpecificationsFromSimple = (state: SimpleFormatState): any[] =>
+    (state.specifications || []).map(normalizeSpecificationForSave);
+
+export const upsertResolution = (
+    specs: any[],
+    value: number | null,
+    opts: { required?: boolean; negate?: boolean } = {},
+) => {
+    const filtered = specs.filter((s) => s.implementation !== 'ResolutionSpecification');
+    if (value == null || value <= 0) return filtered;
+    return [...filtered, buildResolutionSpecification(value, opts)];
+};
+
+export const addSourceRule = (specs: any[], value: number, negate: boolean) => [
+    ...specs,
+    buildSourceSpecification(value, { negate, required: true }),
+];
+
+export const addReleaseGroup = (specs: any[], groupName: string) => [
+    ...specs,
+    buildReleaseGroupSpecification(groupName.trim(), { required: false }),
+];
+
+export const addReleaseTitleKeyword = (
+    specs: any[],
+    keyword: string,
+    { negate = false }: { negate?: boolean } = {},
+) => [
+    ...specs,
+    buildReleaseTitleSpecification(`\\b${escapeRegexLiteral(keyword)}\\b`, {
+        name: negate ? `Not ${keyword}` : keyword,
+        negate,
+        required: true,
+    }),
+];
+
+/** Normalize TRaSH Guides JSON import (strip sync metadata, normalize specifications). */
+export const normalizeTrashGuidesCustomFormat = (
+    raw: any,
+    schema: SchemaTemplate[] = [],
+) => {
     const payload = raw && typeof raw === 'object' ? raw : {};
     const specifications = Array.isArray(payload.specifications) ? payload.specifications : [];
     return {
         name: String(payload.name || '').trim(),
         includeCustomFormatWhenRenaming: !!payload.includeCustomFormatWhenRenaming,
         specifications: specifications.map((spec: any) => {
-            const fields = spec?.fields;
-            if (fields && !Array.isArray(fields) && typeof fields === 'object') {
-                const value = fields.value;
-                const isSelect = spec.implementation === 'ResolutionSpecification'
-                    || spec.implementation === 'SourceSpecification';
-                return {
-                    ...spec,
-                    infoLink: spec.infoLink || CF_INFO_LINK,
-                    fields: isSelect
-                        ? buildSelectField(
-                            Number(value),
-                            spec.implementation === 'ResolutionSpecification' ? 'Resolution' : 'Source',
-                            spec.implementation === 'ResolutionSpecification'
-                                ? SONARR_RESOLUTION_OPTIONS
-                                : SONARR_SOURCE_OPTIONS,
-                        )
-                        : buildTextField(String(value ?? '')),
-                };
-            }
-            return spec;
+            const schemaItem = findSchemaForSpec(schema, spec);
+            return normalizeSpecificationForEditor(spec, schemaItem);
         }),
     };
+};
+
+export const mergeSchemaLists = (live: SchemaTemplate[] = [], fallback = FALLBACK_SPEC_SCHEMA) => {
+    const map = new Map<string, SchemaTemplate>();
+    fallback.forEach((s) => map.set(s.implementation, s));
+    live.forEach((s) => map.set(s.implementation, s));
+    return Array.from(map.values()).sort((a, b) =>
+        String(a.implementationName || a.implementation).localeCompare(String(b.implementationName || b.implementation)),
+    );
 };
