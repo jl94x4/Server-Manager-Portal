@@ -11745,13 +11745,16 @@ app.get('/api/upgrader/items', requireAdmin, async (req, res) => {
                         const wantsH264 = codecs.includes('h264');
                         if (wantsHevc && !wantsH264) {
                             mapped.matchedEpisodeCount = hevcCount;
+                            mapped.videoCodec = 'hevc';
                         } else if (wantsH264 && !wantsHevc) {
                             mapped.matchedEpisodeCount = nonHevc;
+                            mapped.videoCodec = 'h264';
                         } else {
                             mapped.matchedEpisodeCount = total;
                         }
                     } else if (features.includes('non_hevc')) {
                         mapped.matchedEpisodeCount = nonHevc;
+                        mapped.videoCodec = 'h264';
                     } else {
                         mapped.matchedEpisodeCount = nonHevc;
                     }
