@@ -1,7 +1,7 @@
 export type UpgraderCodec = 'h264' | 'hevc' | 'av1' | 'vp9';
 export type UpgraderResolution = 'sd' | '720p' | '1080p' | '4k';
 export type UpgraderFeature = 'non_hevc' | 'hdr' | 'dolby_vision' | 'large';
-export type UpgraderQuality = 'web-dl' | 'webrip' | 'remux' | 'hdtv' | 'bluray';
+export type UpgraderQuality = 'webdl' | 'webrip' | 'remux' | 'hdtv' | 'bluray';
 export type UpgraderSort = 'title' | 'sizeGB' | 'watchCount' | 'addedAt' | 'daysSinceAdded' | 'staleAdded';
 
 export type UpgraderStatus = {

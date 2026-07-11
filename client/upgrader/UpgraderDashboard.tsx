@@ -98,6 +98,7 @@ export const UpgraderDashboard: React.FC = () => {
     const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<UpgraderTab>('browse');
     const [showDrawerItem, setShowDrawerItem] = useState<UpgraderItem | null>(null);
+    const [drawerPosition, setDrawerPosition] = useState<'sidebar' | 'modal'>('sidebar');
 
     const handleOpenDrawer = useCallback((item: UpgraderItem) => {
         window.history.pushState({ drawerOpen: true }, '', window.location.href);
@@ -177,6 +178,7 @@ export const UpgraderDashboard: React.FC = () => {
             const configData = await apiFetch('/api/config');
             const enabled = !!configData?.settings?.upgraderEnabled;
             setFeatureEnabled(enabled);
+            if (configData?.settings?.upgraderDrawerPosition) setDrawerPosition(configData.settings.upgraderDrawerPosition);
             if (!enabled) return;
 
             const newParams = new URLSearchParams();
@@ -347,6 +349,7 @@ export const UpgraderDashboard: React.FC = () => {
                 addToast={addToast}
                 automationReady={automationReady}
                 onProfileChanged={() => loadData(true)}
+                position={drawerPosition}
             />
             <div className="flex flex-col gap-6">
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">

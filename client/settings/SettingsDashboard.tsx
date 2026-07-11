@@ -318,6 +318,7 @@ export const SettingsDashboard: React.FC = () => {
     const [upgraderAutomationEnabled, setUpgraderAutomationEnabled] = useState(false);
     const [upgraderMaxActionsPerHour, setUpgraderMaxActionsPerHour] = useState(25);
     const [upgraderDefaultSort, setUpgraderDefaultSort] = useState('sizeGB');
+    const [upgraderDrawerPosition, setUpgraderDrawerPosition] = useState('sidebar');
     const [upgraderProfileMap, setUpgraderProfileMap] = useState<Record<string, { hevcProfileId: number; fallbackProfileId?: number }>>({});
     const [upgraderProfileInstances, setUpgraderProfileInstances] = useState<any[]>([]);
     const [loadingUpgraderProfiles, setLoadingUpgraderProfiles] = useState(false);
@@ -823,6 +824,7 @@ export const SettingsDashboard: React.FC = () => {
             if (initialSettings.upgraderAutomationEnabled !== undefined) setUpgraderAutomationEnabled(!!initialSettings.upgraderAutomationEnabled);
             if (initialSettings.upgraderMaxActionsPerHour !== undefined) setUpgraderMaxActionsPerHour(Math.max(1, Number(initialSettings.upgraderMaxActionsPerHour) || 25));
             if (initialSettings.upgraderDefaultSort) setUpgraderDefaultSort(initialSettings.upgraderDefaultSort);
+            if (initialSettings.upgraderDrawerPosition) setUpgraderDrawerPosition(initialSettings.upgraderDrawerPosition);
             if (initialSettings.upgraderProfileMap && typeof initialSettings.upgraderProfileMap === 'object') {
                 setUpgraderProfileMap(initialSettings.upgraderProfileMap);
             }
@@ -986,6 +988,7 @@ export const SettingsDashboard: React.FC = () => {
             upgraderAutomationEnabled,
             upgraderMaxActionsPerHour,
             upgraderDefaultSort,
+            upgraderDrawerPosition,
             upgraderProfileMap,
             dashboardLayout: normalizeSectionLayout(dashboardLayoutRef.current)
         });
@@ -2120,6 +2123,19 @@ export const SettingsDashboard: React.FC = () => {
                                             ]}
                                         />
                                     </div>
+                                    <div>
+                                        <label className="font-semibold text-sm block mb-2">Drawer display mode</label>
+                                        <CustomSelect
+                                            value={upgraderDrawerPosition}
+                                            onChange={setUpgraderDrawerPosition}
+                                            options={[
+                                                { value: 'sidebar', label: 'Right sidebar (default)' },
+                                                { value: 'modal', label: 'Center modal' },
+                                            ]}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
                                     <div>
                                         <label className="font-semibold text-sm block mb-2">Max upgrades per hour</label>
                                         <input

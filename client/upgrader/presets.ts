@@ -22,7 +22,7 @@ export const UPGRADER_FEATURE_OPTIONS: Array<{ id: UpgraderFeature; label: strin
 ];
 
 export const UPGRADER_QUALITY_OPTIONS: Array<{ id: UpgraderQuality; label: string }> = [
-    { id: 'web-dl', label: 'WEB-DL' },
+    { id: 'webdl', label: 'WEB-DL' },
     { id: 'webrip', label: 'WEBRip' },
     { id: 'remux', label: 'Remux' },
     { id: 'hdtv', label: 'HDTV' },

@@ -1933,6 +1933,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   z-index: 50;
 }
 
+.z-\[60\] {
+  z-index: 60;
+}
+
 .z-\[9998\] {
   z-index: 9998;
 }
@@ -2421,6 +2425,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .h-\[520px\] {
   height: 520px;
+}
+
+.h-\[90vh\] {
+  height: 90vh;
 }
 
 .h-dvh {
@@ -4145,6 +4153,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   background-color: rgb(var(--color-plex) / 0.08);
 }
 
+.bg-purple-500\/20 {
+  background-color: rgb(168 85 247 / 0.2);
+}
+
 .bg-red-400 {
   --tw-bg-opacity: 1;
   background-color: rgb(248 113 113 / var(--tw-bg-opacity, 1));
@@ -5341,6 +5353,11 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
 
 .text-plex\/90 {
   color: rgb(var(--color-plex) / 0.9);
+}
+
+.text-purple-300 {
+  --tw-text-opacity: 1;
+  color: rgb(216 180 254 / var(--tw-text-opacity, 1));
 }
 
 .text-purple-400 {
@@ -7847,6 +7864,10 @@ html.branded-skeleton .skeleton-base::after {
 
   .md\:p-10 {
     padding: 2.5rem;
+  }
+
+  .md\:p-12 {
+    padding: 3rem;
   }
 
   .md\:p-3 {

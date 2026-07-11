@@ -17,6 +17,7 @@ type UpgraderShowDrawerProps = {
     addToast?: (message: string, type?: 'success' | 'error') => void;
     automationReady?: boolean;
     onProfileChanged?: () => void;
+    position?: 'sidebar' | 'modal';
 };
 
 const formatSeasonLabel = (seasonNumber: number) => {
@@ -43,7 +44,9 @@ const EpisodeQualityBadges: React.FC<{ tags: string[]; isHevc?: boolean; codec?:
             </span>
         ))}
         {isHevc && !(tags || []).includes('HEVC') && (!codec || !codec.toLowerCase().includes('hevc')) && (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-200">HEVC</span>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300">
+                HEVC
+            </span>
         )}
     </div>
 );
@@ -58,6 +61,7 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
     addToast,
     automationReady = false,
     onProfileChanged,
+    position = 'sidebar',
 }) => {
     const [loading, setLoading] = useState(false);
     const [detail, setDetail] = useState<UpgraderShowDetail | null>(null);
@@ -249,9 +253,9 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
     const canChangeProfile = automationReady && !!arr?.instanceId;
 
     return (
-        <div className="fixed inset-0 z-50 flex justify-end">
+        <div className={`fixed inset-0 z-[60] flex ${position === 'modal' ? 'items-center justify-center p-4 sm:p-6 md:p-12' : 'justify-end'}`}>
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative w-full max-w-3xl h-full bg-card border-l border-border/80 shadow-2xl flex flex-col">
+            <div className={`relative w-full max-w-3xl bg-card border-border/80 shadow-2xl flex flex-col ${position === 'modal' ? 'h-[90vh] rounded-2xl border overflow-hidden' : 'h-full border-l'}`}>
                 <div className="px-5 py-4 border-b border-border/60 space-y-4">
                     <button type="button" onClick={onClose} className="inline-flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-lg hover:bg-white/10 text-muted hover:text-text text-sm font-bold transition-colors">
                         <ChevronLeft className="w-4 h-4" />
