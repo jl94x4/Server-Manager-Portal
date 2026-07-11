@@ -98,6 +98,30 @@ export const UpgraderDashboard: React.FC = () => {
     const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<UpgraderTab>('browse');
     const [showDrawerItem, setShowDrawerItem] = useState<UpgraderItem | null>(null);
+
+    const handleOpenDrawer = useCallback((item: UpgraderItem) => {
+        window.history.pushState({ drawerOpen: true }, '', window.location.href);
+        setShowDrawerItem(item);
+    }, []);
+
+    const handleCloseDrawer = useCallback(() => {
+        if (window.history.state?.drawerOpen) {
+            window.history.back();
+        } else {
+            setShowDrawerItem(null);
+        }
+    }, []);
+
+    useEffect(() => {
+        const onPopState = (e: PopStateEvent) => {
+            if (!e.state?.drawerOpen) {
+                setShowDrawerItem(null);
+            }
+        };
+        window.addEventListener('popstate', onPopState);
+        return () => window.removeEventListener('popstate', onPopState);
+    }, []);
+
     const [gridSize, setGridSize] = useState<UpgraderGridSize>(() => {
         if (typeof window === 'undefined') return 'medium';
         return normalizeUpgraderGridSize(window.localStorage.getItem(UPGRADER_GRID_SIZE_STORAGE_KEY));
@@ -319,7 +343,7 @@ export const UpgraderDashboard: React.FC = () => {
                 resolutions={Array.from(resolutions)}
                 features={Array.from(features)}
                 qualities={Array.from(qualities)}
-                onClose={() => setShowDrawerItem(null)}
+                onClose={handleCloseDrawer}
                 addToast={addToast}
                 automationReady={automationReady}
                 onProfileChanged={() => loadData(true)}
@@ -646,7 +670,7 @@ export const UpgraderDashboard: React.FC = () => {
                                                 {badgeText && (
                                                     <button
                                                         type="button"
-                                                        onClick={isShow ? () => setShowDrawerItem(item) : undefined}
+                                                        onClick={isShow ? () => handleOpenDrawer(item) : undefined}
                                                         className={`absolute top-2 right-2 z-20 upgrader-card-badge text-[10px] font-bold px-2 py-1 rounded-full bg-black/75 border border-white/20 text-amber-200 ${isShow ? 'hover:border-plex/50 cursor-pointer' : 'cursor-default'}`}
                                                     >
                                                         {badgeText}
@@ -655,7 +679,7 @@ export const UpgraderDashboard: React.FC = () => {
                                                 <DiscoverPosterCard
                                                     variant="home"
                                                     posterOnlyLink
-                                                    onPosterClick={isShow ? () => setShowDrawerItem(item) : undefined}
+                                                    onPosterClick={isShow ? () => handleOpenDrawer(item) : undefined}
                                                     showQualityBadges={showQualityBadges}
                                                     posterWidth={600}
                                                     posterHeight={900}
@@ -674,7 +698,7 @@ export const UpgraderDashboard: React.FC = () => {
                                                                 <button
                                                                     type="button"
                                                                     className="upgrader-card-title text-xs font-medium text-text line-clamp-2 leading-tight text-left hover:text-plex transition-colors"
-                                                                    onClick={() => setShowDrawerItem(item)}
+                                                                    onClick={() => handleOpenDrawer(item)}
                                                                 >
                                                                     {item.title}{item.year ? ` (${item.year})` : ''}
                                                                 </button>
@@ -696,7 +720,7 @@ export const UpgraderDashboard: React.FC = () => {
                                                                     <button
                                                                         type="button"
                                                                         className="text-[10px] font-bold text-muted hover:underline"
-                                                                        onClick={() => setShowDrawerItem(item)}
+                                                                        onClick={() => handleOpenDrawer(item)}
                                                                     >
                                                                         {badgeText}
                                                                     </button>

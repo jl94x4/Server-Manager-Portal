@@ -478,9 +478,9 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                                                         {episode.overview}
                                                                     </p>
                                                                 )}
-                                                                <div className="mt-2.5 flex flex-wrap items-center gap-3">
+                                                                <div className="mt-2.5 flex flex-wrap items-center gap-2">
                                                                     <EpisodeQualityBadges tags={episode.displayTags || []} isHevc={episode.isHevc} codec={episode.videoCodec} sizeGB={episode.sizeGB} />
-                                                                    <div className="text-[10px] text-muted flex flex-wrap gap-x-2.5 gap-y-1 ml-auto shrink-0 font-medium bg-black/20 px-2.5 py-1 rounded-lg border border-white/5">
+                                                                    <div className="text-[10px] text-muted flex flex-wrap gap-x-2.5 gap-y-1 font-medium bg-black/20 px-2.5 py-1 rounded-lg border border-white/5">
                                                                         {(episode as any).arrReleaseGroup && (
                                                                             <span className="text-plex font-bold">{(episode as any).arrReleaseGroup}</span>
                                                                         )}
