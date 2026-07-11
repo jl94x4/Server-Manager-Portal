@@ -10146,7 +10146,7 @@ const mapUpgraderApiItem = (item, exclusions = { ratingKeys: new Set(), titles: 
     };
 };
 
-const UPGRADER_SORT_IDS = new Set(['title', 'sizeGB', 'watchCount', 'addedAt', 'daysSinceAdded', 'staleAdded']);
+const UPGRADER_SORT_IDS = new Set(['title', 'sizeGB', 'watchCount', 'addedAt', 'daysSinceAdded', 'staleAdded', 'hevcFirst', 'h264First', 'av1First']);
 const upgraderUpgradeState = { running: false };
 
 const normalizeUpgraderProfileMap = (raw = {}) => {
@@ -11843,9 +11843,18 @@ app.get('/api/upgrader/items', requireAdmin, async (req, res) => {
             addedAt: (a, b) => Date.parse(b.addedAt || 0) - Date.parse(a.addedAt || 0),
             daysSinceAdded: (a, b) => Number(b.daysSinceAdded || 0) - Number(a.daysSinceAdded || 0),
             title: (a, b) => String(a.title || '').localeCompare(String(b.title || ''), undefined, { sensitivity: 'base' }),
-            hevcFirst: (a, b) => getFamilySize(b, 'hevc') - getFamilySize(a, 'hevc'),
-            h264First: (a, b) => getFamilySize(b, 'h264') - getFamilySize(a, 'h264'),
-            av1First: (a, b) => getFamilySize(b, 'av1') - getFamilySize(a, 'av1'),
+            hevcFirst: (a, b) => {
+                const diff = getFamilySize(b, 'hevc') - getFamilySize(a, 'hevc');
+                return diff !== 0 ? diff : Number(b.sizeGB || 0) - Number(a.sizeGB || 0);
+            },
+            h264First: (a, b) => {
+                const diff = getFamilySize(b, 'h264') - getFamilySize(a, 'h264');
+                return diff !== 0 ? diff : Number(b.sizeGB || 0) - Number(a.sizeGB || 0);
+            },
+            av1First: (a, b) => {
+                const diff = getFamilySize(b, 'av1') - getFamilySize(a, 'av1');
+                return diff !== 0 ? diff : Number(b.sizeGB || 0) - Number(a.sizeGB || 0);
+            },
         };
         filtered.sort(sorters[resolvedSort] || sorters.sizeGB);
 
