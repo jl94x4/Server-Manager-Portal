@@ -714,8 +714,15 @@ export const UpgraderDashboard: React.FC = () => {
                                                     dominantCodecColorClass = 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
                                                 } else {
                                                     const percent = Math.round((nonHevcEps / totalEps) * 100);
-                                                    dominantCodecPercentageLabel = `${percent}% H264`;
-                                                    dominantCodecColorClass = 'bg-amber-500/10 border-amber-500/20 text-amber-400';
+                                                    const fallbackCodec = item.videoCodec && !item.videoCodec.toLowerCase().includes('hevc') && !item.videoCodec.toLowerCase().includes('265') 
+                                                        ? (item.videoCodec.match(/^(h|x)26[45]$/i) ? item.videoCodec.toLowerCase() : item.videoCodec.toUpperCase())
+                                                        : 'H264';
+                                                    dominantCodecPercentageLabel = `${percent}% ${fallbackCodec}`;
+                                                    if (fallbackCodec.includes('AV1') || fallbackCodec.includes('AV01')) {
+                                                        dominantCodecColorClass = 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
+                                                    } else {
+                                                        dominantCodecColorClass = 'bg-amber-500/10 border-amber-500/20 text-amber-400';
+                                                    }
                                                 }
                                             }
                                         }
