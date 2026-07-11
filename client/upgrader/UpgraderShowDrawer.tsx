@@ -29,7 +29,7 @@ const EpisodeQualityBadges: React.FC<{ tags: string[]; isHevc?: boolean; codec?:
     <div className="flex flex-wrap gap-1 items-center">
         {sizeGB ? (
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-200">
-                {sizeGB.toFixed(2)} GB
+                {sizeGB < 1 ? `${Math.round(sizeGB * 1024)} MB` : `${sizeGB.toFixed(2)} GB`}
             </span>
         ) : null}
         {codec ? (
@@ -481,13 +481,15 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                                                 <div className="mt-2.5 flex flex-wrap items-center gap-3">
                                                                     <EpisodeQualityBadges tags={episode.displayTags || []} isHevc={episode.isHevc} codec={episode.videoCodec} sizeGB={episode.sizeGB} />
                                                                     <div className="text-[10px] text-muted flex flex-wrap gap-x-2.5 gap-y-1 ml-auto shrink-0 font-medium bg-black/20 px-2.5 py-1 rounded-lg border border-white/5">
-                                                                        {episode.arrQualityLabel && (
-                                                                            <span className="text-plex">{episode.arrQualityLabel}</span>
+                                                                        {(episode as any).arrReleaseGroup && (
+                                                                            <span className="text-plex font-bold">{(episode as any).arrReleaseGroup}</span>
                                                                         )}
-                                                                        {episode.videoCodec && !episode.arrQualityLabel && (
-                                                                            <span>{episode.videoCodec}</span>
+                                                                        {((episode as any).arrCustomFormats || []).map((cf: string) => (
+                                                                            <span key={cf} className="text-white/70">{cf}</span>
+                                                                        ))}
+                                                                        {!(episode as any).arrReleaseGroup && !((episode as any).arrCustomFormats || []).length && episode.arrQualityLabel && (
+                                                                            <span>{episode.arrQualityLabel}</span>
                                                                         )}
-                                                                        {episode.sizeGB > 0 && <span>{episode.sizeGB} GB</span>}
                                                                         {episode.arrHasFile === false && (
                                                                             <span className="text-amber-200">Missing in Sonarr</span>
                                                                         )}
