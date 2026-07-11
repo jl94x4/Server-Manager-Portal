@@ -681,13 +681,40 @@ export const UpgraderDashboard: React.FC = () => {
                                             listBadgeText = gridBadgeText;
                                         }
                                         
-                                        let hevcPercentageLabel = '';
+                                        let dominantCodecPercentageLabel = '';
+                                        let dominantCodecColorClass = 'bg-white/10 border-white/20 text-gray-300';
+                                        
                                         if (isShow && (item as any).totalEpisodeCount > 0) {
                                             const totalEps = (item as any).totalEpisodeCount;
-                                            const nonHevcEps = item.nonHevcEpisodeCount || 0;
-                                            const hevcEps = Math.max(0, totalEps - nonHevcEps);
-                                            const percent = Math.round((hevcEps / totalEps) * 100);
-                                            hevcPercentageLabel = `${percent}% HEVC`;
+                                            const codecc = (item as any).codecCounts || {};
+                                            const sortedCodecs = Object.entries(codecc).sort((a: any, b: any) => b[1] - a[1]);
+                                            
+                                            if (sortedCodecs.length > 0) {
+                                                const [dominantCodec, count] = sortedCodecs[0];
+                                                const percent = Math.round(((count as number) / totalEps) * 100);
+                                                const label = dominantCodec.match(/^(h|x)26[45]$/i) ? dominantCodec.toLowerCase() : dominantCodec.toUpperCase();
+                                                dominantCodecPercentageLabel = `${percent}% ${label}`;
+                                                
+                                                if (label.includes('265') || label.includes('hevc') || label.includes('HEVC') || label.includes('AV1')) {
+                                                    dominantCodecColorClass = 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
+                                                } else if (label.includes('264') || label.includes('AVC')) {
+                                                    dominantCodecColorClass = 'bg-amber-500/10 border-amber-500/20 text-amber-400';
+                                                } else {
+                                                    dominantCodecColorClass = 'bg-blue-500/10 border-blue-500/20 text-blue-400';
+                                                }
+                                            } else {
+                                                const nonHevcEps = item.nonHevcEpisodeCount || 0;
+                                                const hevcEps = Math.max(0, totalEps - nonHevcEps);
+                                                if (hevcEps >= nonHevcEps) {
+                                                    const percent = Math.round((hevcEps / totalEps) * 100);
+                                                    dominantCodecPercentageLabel = `${percent}% HEVC`;
+                                                    dominantCodecColorClass = 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
+                                                } else {
+                                                    const percent = Math.round((nonHevcEps / totalEps) * 100);
+                                                    dominantCodecPercentageLabel = `${percent}% H264`;
+                                                    dominantCodecColorClass = 'bg-amber-500/10 border-amber-500/20 text-amber-400';
+                                                }
+                                            }
                                         }
                                         
                                         if (gridSize === 'list') {
@@ -736,9 +763,9 @@ export const UpgraderDashboard: React.FC = () => {
                                                                                 : `${item.sizeGB < 1 ? Math.round(item.sizeGB * 1024) + ' MB' : item.sizeGB + ' GB'}`}
                                                                         </span>
                                                                     )}
-                                                                    {hevcPercentageLabel && (
-                                                                        <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-400">
-                                                                            {hevcPercentageLabel}
+                                                                    {dominantCodecPercentageLabel && (
+                                                                        <span className={`px-2 py-0.5 rounded-md border text-xs font-semibold ${dominantCodecColorClass}`}>
+                                                                            {dominantCodecPercentageLabel}
                                                                         </span>
                                                                     )}
                                                                 </div>
@@ -848,9 +875,9 @@ export const UpgraderDashboard: React.FC = () => {
                                                                             : `${item.sizeGB < 1 ? Math.round(item.sizeGB * 1024) + ' MB' : item.sizeGB + ' GB'}`}
                                                                     </span>
                                                                 )}
-                                                                {hevcPercentageLabel && (
-                                                                    <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-semibold text-emerald-400">
-                                                                        {hevcPercentageLabel}
+                                                                {dominantCodecPercentageLabel && (
+                                                                    <span className={`px-1.5 py-0.5 rounded-md border text-[10px] font-semibold ${dominantCodecColorClass}`}>
+                                                                        {dominantCodecPercentageLabel}
                                                                     </span>
                                                                 )}
                                                             </div>
