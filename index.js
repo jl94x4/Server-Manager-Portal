@@ -12014,8 +12014,8 @@ app.get('/api/upgrader/arr/:instanceId/customformats', requireAdmin, async (req,
         const instance = instances.find(i => i.id === instanceId);
         if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
         
-        const baseUrl = getArrBaseUrl(instance);
-        const headers = arrHeaders(instance);
+        const baseUrl = String(instance.url || '').replace(/\/+$/, '');
+        const headers = { 'X-Api-Key': instance.apiKey };
         const url = `${baseUrl}/api/v3/customformat`;
         const formats = await fetchWithTimeout(url, { headers }).then(r => r.json());
         
@@ -12033,8 +12033,8 @@ app.post('/api/upgrader/arr/:instanceId/customformats', requireAdmin, async (req
         const instance = instances.find(i => i.id === instanceId);
         if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
         
-        const baseUrl = getArrBaseUrl(instance);
-        const headers = { ...arrHeaders(instance), 'Content-Type': 'application/json' };
+        const baseUrl = String(instance.url || '').replace(/\/+$/, '');
+        const headers = { 'X-Api-Key': instance.apiKey, 'Content-Type': 'application/json' };
         const url = `${baseUrl}/api/v3/customformat`;
         const result = await fetchWithTimeout(url, { method: 'POST', headers, body: JSON.stringify(req.body) }).then(r => r.json());
         
@@ -12054,13 +12054,13 @@ app.put('/api/upgrader/arr/:instanceId/customformats/:id', requireAdmin, async (
         const instance = instances.find(i => i.id === instanceId);
         if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
         
-        const baseUrl = getArrBaseUrl(instance);
-        const headers = { ...arrHeaders(instance), 'Content-Type': 'application/json' };
+        const baseUrl = String(instance.url || '').replace(/\/+$/, '');
+        const headers = { 'X-Api-Key': instance.apiKey, 'Content-Type': 'application/json' };
         
         const backupsDir = path.join(CONFIG_DIR, 'backups');
         await fs.mkdir(backupsDir, { recursive: true }).catch(() => {});
         const backupPath = path.join(backupsDir, `customformat_${instanceId}_${id}_${Date.now()}.json`);
-        const existing = await fetchWithTimeout(`${baseUrl}/api/v3/customformat/${id}`, { headers: arrHeaders(instance) }).then(r => r.json()).catch(() => null);
+        const existing = await fetchWithTimeout(`${baseUrl}/api/v3/customformat/${id}`, { headers: { 'X-Api-Key': instance.apiKey } }).then(r => r.json()).catch(() => null);
         if (existing && !existing.message) {
             await fs.writeFile(backupPath, JSON.stringify(existing, null, 2)).catch(() => {});
         }
@@ -12083,8 +12083,8 @@ app.get('/api/upgrader/arr/:instanceId/qualityprofiles', requireAdmin, async (re
         const instance = instances.find(i => i.id === instanceId);
         if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
         
-        const baseUrl = getArrBaseUrl(instance);
-        const headers = arrHeaders(instance);
+        const baseUrl = String(instance.url || '').replace(/\/+$/, '');
+        const headers = { 'X-Api-Key': instance.apiKey };
         const url = `${baseUrl}/api/v3/qualityprofile`;
         const profiles = await fetchWithTimeout(url, { headers }).then(r => r.json());
         
@@ -12103,13 +12103,13 @@ app.put('/api/upgrader/arr/:instanceId/qualityprofiles/:id', requireAdmin, async
         const instance = instances.find(i => i.id === instanceId);
         if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
         
-        const baseUrl = getArrBaseUrl(instance);
-        const headers = { ...arrHeaders(instance), 'Content-Type': 'application/json' };
+        const baseUrl = String(instance.url || '').replace(/\/+$/, '');
+        const headers = { 'X-Api-Key': instance.apiKey, 'Content-Type': 'application/json' };
         
         const backupsDir = path.join(CONFIG_DIR, 'backups');
         await fs.mkdir(backupsDir, { recursive: true }).catch(() => {});
         const backupPath = path.join(backupsDir, `qualityprofile_${instanceId}_${id}_${Date.now()}.json`);
-        const existing = await fetchWithTimeout(`${baseUrl}/api/v3/qualityprofile/${id}`, { headers: arrHeaders(instance) }).then(r => r.json()).catch(() => null);
+        const existing = await fetchWithTimeout(`${baseUrl}/api/v3/qualityprofile/${id}`, { headers: { 'X-Api-Key': instance.apiKey } }).then(r => r.json()).catch(() => null);
         if (existing && !existing.message) {
             await fs.writeFile(backupPath, JSON.stringify(existing, null, 2)).catch(() => {});
         }
