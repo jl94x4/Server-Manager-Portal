@@ -9263,11 +9263,14 @@ const applyUpgraderMultiFilter = (item, codecs = [], resolutions = [], features 
     if (codecs.length > 0) {
         let itemCodec = getUpgraderCodecFamily(item);
         if (!codecs.includes(itemCodec)) {
-            if (codecs.includes('h264') && (itemCodec === 'h264' || (item.mediaType === 'show' && Number(item.nonHevcEpisodeCount || 0) > 0))) {
-                // allow h264 match for shows with non_hevc episodes
-            } else {
-                return false;
+            let matched = false;
+            if (item.mediaType === 'show') {
+                const total = Number(item.totalEpisodeCount || 0);
+                const nonHevc = Number(item.nonHevcEpisodeCount || 0);
+                if (codecs.includes('h264') && nonHevc > 0) matched = true;
+                if ((codecs.includes('hevc') || codecs.includes('h265')) && (total - nonHevc) > 0) matched = true;
             }
+            if (!matched) return false;
         }
     }
     
