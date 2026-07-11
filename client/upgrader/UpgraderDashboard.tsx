@@ -671,15 +671,7 @@ export const UpgraderDashboard: React.FC = () => {
                                                                 {item.arrInstanceName ? ` · ${item.arrInstanceName}` : ''}
                                                             </div>
                                                             <div className="upgrader-card-actions flex flex-wrap gap-x-2 gap-y-1">
-                                                                {isShow && (
-                                                                    <button
-                                                                        type="button"
-                                                                        className="text-[10px] font-bold text-amber-200 hover:underline"
-                                                                        onClick={() => setShowDrawerItem(item)}
-                                                                    >
-                                                                        View show
-                                                                    </button>
-                                                                )}
+
                                                                 {isShow && (
                                                                     <button
                                                                         type="button"
