@@ -27,6 +27,7 @@ export const createEmptyArrInstance = (type: 'sonarr' | 'radarr', isDefault = fa
     type,
     name: type === 'radarr' ? 'Radarr' : 'Sonarr',
     url: '',
+    externalUrl: '',
     apiKey: '',
     enabled: true,
     isDefault,
@@ -194,6 +195,19 @@ export const ArrInstancesPanel: React.FC<Props> = ({
                                         value={instance.url}
                                         onChange={(e) => updateInstance(instance.id, { url: e.target.value })}
                                         placeholder={type === 'radarr' ? 'http://localhost:7878' : 'http://localhost:8989'}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="text-xs text-muted uppercase tracking-wider font-bold mb-1 flex items-center gap-2">
+                                        External URL <span className="text-[10px] font-normal normal-case text-muted/70">(Optional, for UI links)</span>
+                                    </label>
+                                    <input
+                                        className="w-full p-2.5 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all text-sm"
+                                        type="text"
+                                        value={instance.externalUrl || ''}
+                                        onChange={(e) => updateInstance(instance.id, { externalUrl: e.target.value })}
+                                        placeholder={type === 'radarr' ? 'https://radarr.yourdomain.com' : 'https://sonarr.yourdomain.com'}
                                     />
                                 </div>
 

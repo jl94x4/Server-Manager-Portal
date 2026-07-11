@@ -38,6 +38,7 @@ export interface ArrInstance {
     type: 'sonarr' | 'radarr';
     name: string;
     url: string;
+    externalUrl?: string;
     apiKey: string;
     enabled: boolean;
     isDefault: boolean;
