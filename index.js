@@ -11717,7 +11717,31 @@ app.get('/api/upgrader/items', requireAdmin, async (req, res) => {
                 if (search && !normalized(item.title).includes(search)) return false;
                 return true;
             })
-            .map((item) => mapUpgraderApiItem(item, exclusions))
+            .map((item) => {
+                const mapped = mapUpgraderApiItem(item, exclusions);
+                // Compute accurate matched episode count for shows based on active filters
+                if (mapped.mediaType === 'show') {
+                    const total = Number(item.totalEpisodeCount || 0);
+                    const nonHevc = Number(item.nonHevcEpisodeCount || 0);
+                    const hevcCount = total - nonHevc;
+                    if (codecs.length > 0) {
+                        const wantsHevc = codecs.includes('hevc') || codecs.includes('h265');
+                        const wantsH264 = codecs.includes('h264');
+                        if (wantsHevc && !wantsH264) {
+                            mapped.matchedEpisodeCount = hevcCount;
+                        } else if (wantsH264 && !wantsHevc) {
+                            mapped.matchedEpisodeCount = nonHevc;
+                        } else {
+                            mapped.matchedEpisodeCount = total;
+                        }
+                    } else if (features.includes('non_hevc')) {
+                        mapped.matchedEpisodeCount = nonHevc;
+                    } else {
+                        mapped.matchedEpisodeCount = nonHevc;
+                    }
+                }
+                return mapped;
+            })
             .filter((item) => {
                 if (!includeExcluded && item.excluded && !item.snoozed) return false;
                 if (!includeSnoozed && item.snoozed) return false;

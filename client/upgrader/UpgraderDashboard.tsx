@@ -616,11 +616,15 @@ export const UpgraderDashboard: React.FC = () => {
                                         const canUpgrade = automationReady && isUpgradableItem(item);
                                         const isSelected = selectedKeys.has(item.ratingKey);
                                         const isShow = item.mediaType === 'show';
-                                        const epCount = item.totalEpisodeCount ?? item.nonHevcEpisodeCount ?? 0;
-                                        const codecLabel = item.videoCodec ? item.videoCodec.toUpperCase() : '';
+                                        const epCount = (item as any).matchedEpisodeCount ?? item.nonHevcEpisodeCount ?? 0;
+                                        const codecLabel = item.videoCodec
+                                            ? (item.videoCodec.match(/^(h|x)26[45]$/i) ? item.videoCodec.toLowerCase() : item.videoCodec.toUpperCase())
+                                            : '';
                                         let badgeText = '';
                                         if (isShow) {
-                                            if (epCount > 0 && codecLabel) badgeText = `${epCount} ${codecLabel} eps`;
+                                            // Only show the codec label if no explicit codec filter is selected
+                                            const hasCodecFilter = codecs.size > 0;
+                                            if (epCount > 0 && codecLabel && !hasCodecFilter) badgeText = `${epCount} ${codecLabel} eps`;
                                             else if (epCount > 0) badgeText = `${epCount} eps`;
                                             else if (codecLabel) badgeText = `${codecLabel} eps`;
                                             else badgeText = 'Episodes';
