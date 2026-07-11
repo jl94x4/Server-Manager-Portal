@@ -11996,6 +11996,16 @@ app.get('/api/upgrader/arr-episode-image', requireAdmin, async (req, res) => {
     }
 });
 
+app.get('/api/upgrader/profiles', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        res.json({ instances: maskArrInstancesForApi(instances) });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to load profiles instances: ${e.message}` });
+    }
+});
+
 app.get('/api/upgrader/arr/:instanceId/customformats', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
