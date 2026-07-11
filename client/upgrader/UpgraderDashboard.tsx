@@ -419,7 +419,7 @@ export const UpgraderDashboard: React.FC = () => {
                                     {filtersExpanded ? 'Hide Filters' : 'Show Filters'}
                                 </button>
                                 
-                                <div className={`flex flex-col gap-2 ${filtersExpanded ? 'flex' : 'hidden lg:flex'}`}>
+                                <div className={`flex flex-row flex-wrap items-start gap-x-8 gap-y-3 ${filtersExpanded ? 'flex' : 'hidden lg:flex'}`}>
                                     <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2">
                                         <span className="text-xs font-bold text-muted uppercase tracking-wider mr-1 hidden lg:inline">Codec:</span>
                                     {UPGRADER_CODEC_OPTIONS.map((option) => (
