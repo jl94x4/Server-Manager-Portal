@@ -291,7 +291,7 @@ export const UpgraderDashboard: React.FC = () => {
         }`;
 
     return (
-        <div className="w-full mx-auto pt-20 md:pt-8 pb-8 px-4 md:px-0">
+        <div className="w-full mx-auto pt-4 md:pt-8 pb-8 px-4 md:px-0">
             <ToastContainer toasts={toasts} setToasts={setToasts} />
             <UpgraderUpgradeModal
                 isOpen={upgradeModalOpen}
@@ -511,7 +511,7 @@ export const UpgraderDashboard: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex flex-col sm:flex-row flex-wrap items-center gap-3 w-full pt-4 border-t border-white/5">
+                            <div className={`flex flex-col sm:flex-row flex-wrap items-center gap-3 w-full pt-4 border-t border-white/5 ${filtersExpanded ? 'flex' : 'hidden lg:flex'}`}>
                                 <CustomSelect
                                     value={gridSize}
                                     onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}
