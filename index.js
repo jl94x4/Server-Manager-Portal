@@ -9373,6 +9373,7 @@ const aggregateSonarrSeriesFileStats = (files = []) => {
     let totalSizeGB = 0;
     let displayFileStats = null;
     const codecCounts = {};
+    const codecSizesGB = {};
     const resCounts = {};
     files.forEach((file) => {
         const stats = analyzeSonarrEpisodeFile(file);
@@ -9385,7 +9386,10 @@ const aggregateSonarrSeriesFileStats = (files = []) => {
             displayFileStats = stats;
         }
         // Tally codec and resolution occurrences
-        if (stats.videoCodec) codecCounts[stats.videoCodec] = (codecCounts[stats.videoCodec] || 0) + 1;
+        if (stats.videoCodec) {
+            codecCounts[stats.videoCodec] = (codecCounts[stats.videoCodec] || 0) + 1;
+            codecSizesGB[stats.videoCodec] = (codecSizesGB[stats.videoCodec] || 0) + stats.sizeGB;
+        }
         if (stats.videoResolution) resCounts[stats.videoResolution] = (resCounts[stats.videoResolution] || 0) + 1;
     });
     if (!displayFileStats) {
@@ -9406,6 +9410,11 @@ const aggregateSonarrSeriesFileStats = (files = []) => {
     // Use the most common codec and resolution, not just the largest file's
     const dominantCodec = Object.entries(codecCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || displayFileStats.videoCodec || '';
     const dominantRes = Object.entries(resCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || displayFileStats.videoResolution || '';
+    // Round codecSizesGB
+    Object.keys(codecSizesGB).forEach(k => {
+        codecSizesGB[k] = Math.round(codecSizesGB[k] * 100) / 100;
+    });
+
     return {
         totalFiles: files.length,
         nonHevcCount,
@@ -9414,6 +9423,7 @@ const aggregateSonarrSeriesFileStats = (files = []) => {
         videoCodec: dominantCodec,
         videoResolution: dominantRes,
         codecCounts,
+        codecSizesGB,
         resCounts,
         displayTags: displayFileStats.displayTags || [],
         isHevc: nonHevcCount === 0,
@@ -9559,6 +9569,7 @@ const mapSonarrSeriesToUpgraderItem = (series, instance, fileStats = {}, episode
         hasDolbyVision: !!fileStats.hasDolbyVision,
         is4k: !!fileStats.is4k,
         codecCounts: fileStats.codecCounts || {},
+        codecSizesGB: fileStats.codecSizesGB || {},
         resCounts: fileStats.resCounts || {},
         totalEpisodeCount,
         nonHevcEpisodeCount: Number(fileStats.nonHevcCount || 0),
@@ -10098,6 +10109,7 @@ const mapUpgraderApiItem = (item, exclusions = { ratingKeys: new Set(), titles: 
         overview: item.overview || '',
         year: item.year || null,
         codecCounts: item.codecCounts || undefined,
+        codecSizesGB: item.codecSizesGB || undefined,
         resCounts: item.resCounts || undefined,
         thumb: item.thumb || '',
         thumbUrl: item.thumbUrl || null,

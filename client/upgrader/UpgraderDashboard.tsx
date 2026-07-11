@@ -715,6 +715,39 @@ export const UpgraderDashboard: React.FC = () => {
                                                     dominantCodecColorClass = 'bg-amber-500/10 border-amber-500/20 text-amber-400';
                                                 }
                                             }
+                                                }
+                                            }
+                                        }
+
+                                        const sizesToShow: { label: string; sizeGB: number }[] = [];
+                                        if (isShow && (item as any).codecSizesGB && codecs.size > 0) {
+                                            for (const reqCodec of Array.from(codecs)) {
+                                                let sizeForCodec = 0;
+                                                for (const [actualCodec, sizeGB] of Object.entries((item as any).codecSizesGB)) {
+                                                    const actUpper = actualCodec.toUpperCase();
+                                                    let familyStr = 'other';
+                                                    if (actUpper.includes('AV1') || actUpper.includes('AV01')) familyStr = 'av1';
+                                                    else if (actUpper.includes('HEVC') || actUpper.includes('265')) familyStr = 'hevc';
+                                                    else if (actUpper.includes('AVC') || actUpper.includes('264')) familyStr = 'h264';
+                                                    else if (actUpper.includes('VP9')) familyStr = 'vp9';
+                                                    
+                                                    if (familyStr === reqCodec) {
+                                                        sizeForCodec += (sizeGB as number);
+                                                    }
+                                                }
+                                                if (sizeForCodec > 0) {
+                                                    const displayCodec = reqCodec.match(/^(h|x)26[45]$/i) ? reqCodec.toLowerCase() : reqCodec.toUpperCase();
+                                                    sizesToShow.push({ label: `${displayCodec} eps`, sizeGB: sizeForCodec });
+                                                }
+                                            }
+                                        }
+                                        
+                                        if (sizesToShow.length === 0 && (((item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0) || item.sizeGB > 0))) {
+                                            const label = item.mediaType === 'show' ? (showCodecLabel ? `${showCodecLabel.toUpperCase()} eps` : '') : '';
+                                            sizesToShow.push({
+                                                label,
+                                                sizeGB: item.mediaType === 'show' ? (item.nonHevcEpisodeSizeGB ?? 0) : item.sizeGB
+                                            });
                                         }
                                         
                                         if (gridSize === 'list') {
@@ -756,13 +789,11 @@ export const UpgraderDashboard: React.FC = () => {
                                                                     <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/5 text-xs font-semibold text-gray-300">
                                                                         {item.arrInstanceName || (item.arrType === 'radarr' ? 'Radarr' : 'Sonarr')}
                                                                     </span>
-                                                                    {((item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0) || item.sizeGB > 0) && (
-                                                                        <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/5 text-xs font-semibold text-gray-300">
-                                                                            {item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0
-                                                                                ? `${item.nonHevcEpisodeSizeGB < 1 ? Math.round(item.nonHevcEpisodeSizeGB * 1024) + ' MB' : item.nonHevcEpisodeSizeGB + ' GB'}${showCodecLabel ? ` (${showCodecLabel.toUpperCase()} eps)` : ''}`
-                                                                                : `${item.sizeGB < 1 ? Math.round(item.sizeGB * 1024) + ' MB' : item.sizeGB + ' GB'}`}
+                                                                    {sizesToShow.map((s, idx) => (
+                                                                        <span key={idx} className="px-2 py-0.5 rounded-md bg-white/10 border border-white/5 text-xs font-semibold text-gray-300">
+                                                                            {`${s.sizeGB < 1 ? Math.round(s.sizeGB * 1024) + ' MB' : Math.round(s.sizeGB * 100) / 100 + ' GB'}${s.label ? ` (${s.label})` : ''}`}
                                                                         </span>
-                                                                    )}
+                                                                    ))}
                                                                     {dominantCodecPercentageLabel && (
                                                                         <span className={`px-2 py-0.5 rounded-md border text-xs font-semibold ${dominantCodecColorClass}`}>
                                                                             {dominantCodecPercentageLabel}
@@ -868,13 +899,11 @@ export const UpgraderDashboard: React.FC = () => {
                                                                 <span className="px-1.5 py-0.5 rounded-md bg-white/10 border border-white/5 text-[10px] font-semibold text-gray-300">
                                                                     {item.arrInstanceName || (item.arrType === 'radarr' ? 'Radarr' : 'Sonarr')}
                                                                 </span>
-                                                                {((item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0) || item.sizeGB > 0) && (
-                                                                    <span className="px-1.5 py-0.5 rounded-md bg-white/10 border border-white/5 text-[10px] font-semibold text-gray-300">
-                                                                        {item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0
-                                                                            ? `${item.nonHevcEpisodeSizeGB < 1 ? Math.round(item.nonHevcEpisodeSizeGB * 1024) + ' MB' : item.nonHevcEpisodeSizeGB + ' GB'}${showCodecLabel ? ` (${showCodecLabel.toUpperCase()} eps)` : ''}`
-                                                                            : `${item.sizeGB < 1 ? Math.round(item.sizeGB * 1024) + ' MB' : item.sizeGB + ' GB'}`}
+                                                                {sizesToShow.map((s, idx) => (
+                                                                    <span key={idx} className="px-1.5 py-0.5 rounded-md bg-white/10 border border-white/5 text-[10px] font-semibold text-gray-300">
+                                                                        {`${s.sizeGB < 1 ? Math.round(s.sizeGB * 1024) + ' MB' : Math.round(s.sizeGB * 100) / 100 + ' GB'}${s.label ? ` (${s.label})` : ''}`}
                                                                     </span>
-                                                                )}
+                                                                ))}
                                                                 {dominantCodecPercentageLabel && (
                                                                     <span className={`px-1.5 py-0.5 rounded-md border text-[10px] font-semibold ${dominantCodecColorClass}`}>
                                                                         {dominantCodecPercentageLabel}
