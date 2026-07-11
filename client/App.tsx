@@ -184,7 +184,7 @@ export const MainApp: React.FC = () => {
     }, []);
 
     const checkSession = useCallback(async () => {
-        let path = stripBasePath(window.location.pathname);
+        let path = stripBasePath(window.location.pathname).toLowerCase();
         if (path.endsWith('/') && path.length > 1) path = path.slice(0, -1);
         if (path.startsWith('/invite/')) {
             setCurrentRoute('invite');
@@ -206,19 +206,19 @@ export const MainApp: React.FC = () => {
             const data = await apiFetch('/api/users/me');
             setSessionInfo(data);
             if (data.serverName) document.title = `${data.serverName} Portal`;
-            if (path === '/status') setCurrentRoute('status');
-            else if (path === '/dashboard') setCurrentRoute('dashboard');
-            else if (path === '/settings' && data.session.isAdmin) setCurrentRoute('settings');
+            if (path.startsWith('/status')) setCurrentRoute('status');
+            else if (path.startsWith('/dashboard')) setCurrentRoute('dashboard');
+            else if (path.startsWith('/settings') && data.session.isAdmin) setCurrentRoute('settings');
             else if (path === '/logs' && data.session.isAdmin) {
                 window.history.replaceState({}, '', portalUrl('/settings#logs'));
                 setCurrentRoute('settings');
             }
-            else if (path === '/mediastack') setCurrentRoute('mediastack');
-            else if (path === '/maintenance' && data.session.isAdmin) setCurrentRoute('maintenance');
-            else if (path === '/upgrader' && data.session.isAdmin) setCurrentRoute('upgrader');
-            else if (path === '/requests' && data.session.isAdmin) setCurrentRoute('requests');
-            else if (path === '/analytics') setCurrentRoute('analytics');
-            else if (path === '/admin' || path === '/users') {
+            else if (path.startsWith('/mediastack')) setCurrentRoute('mediastack');
+            else if (path.startsWith('/maintenance') && data.session.isAdmin) setCurrentRoute('maintenance');
+            else if (path.startsWith('/upgrader') && data.session.isAdmin) setCurrentRoute('upgrader');
+            else if (path.startsWith('/requests') && data.session.isAdmin) setCurrentRoute('requests');
+            else if (path.startsWith('/analytics')) setCurrentRoute('analytics');
+            else if (path.startsWith('/admin') || path.startsWith('/users')) {
                 if (data.session.isAdmin && !data.impersonation?.active) setCurrentRoute('users');
                 else {
                     window.history.replaceState({}, '', portalUrl('/portal'));
