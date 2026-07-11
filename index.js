@@ -9686,6 +9686,7 @@ const buildUpgraderItemsForArrInstance = async (instance, { plexLookup, resolveU
             };
             const prev = prevByKey.get(ratingKey);
             if (prev?.arrFileFingerprint === fingerprint) {
+                prev.overview = series.overview || '';
                 items.push(applyUpgraderPosterFields(prev, posterMeta, plexLookup));
                 reused += 1;
                 return;
@@ -9724,6 +9725,7 @@ const buildUpgraderItemsForArrInstance = async (instance, { plexLookup, resolveU
             };
             const prev = prevByKey.get(ratingKey);
             if (prev?.arrFileFingerprint === fingerprint) {
+                prev.overview = movie.overview || '';
                 items.push(applyUpgraderPosterFields(prev, posterMeta, plexLookup));
                 reused += 1;
                 return;
