@@ -714,6 +714,11 @@ export const UpgraderDashboard: React.FC = () => {
                                                                 ? `${item.nonHevcEpisodeSizeGB < 1 ? Math.round(item.nonHevcEpisodeSizeGB * 1024) + ' MB' : item.nonHevcEpisodeSizeGB + ' GB'}${showCodecLabel ? ` (${showCodecLabel.toUpperCase()} eps)` : ''}`
                                                                 : item.sizeGB > 0 ? `${item.sizeGB < 1 ? Math.round(item.sizeGB * 1024) + ' MB' : item.sizeGB + ' GB'}` : ''}
                                                         </div>
+                                                        {item.overview && (
+                                                            <div className="mt-2 text-xs text-muted line-clamp-2 md:line-clamp-3">
+                                                                {item.overview}
+                                                            </div>
+                                                        )}
                                                         <div className="mt-auto pt-3 flex flex-wrap items-center gap-4">
                                                             {isShow && (
                                                                 <button

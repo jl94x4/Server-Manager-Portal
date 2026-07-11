@@ -9523,6 +9523,7 @@ const mapSonarrSeriesToUpgraderItem = (series, instance, fileStats = {}, episode
     return {
         ratingKey,
         title: series.title || 'Unknown',
+        overview: series.overview || '',
         year: series.year != null ? Number(series.year) : null,
         thumb: plexThumb,
         thumbUrl: plexThumb ? upgraderPlexPosterUrl(plexThumb) : arrCoverUrl,
@@ -9571,6 +9572,7 @@ const mapRadarrMovieToUpgraderItem = (movie, instance, plexItem = null) => {
     return {
         ratingKey,
         title: movie.title || 'Unknown',
+        overview: movie.overview || '',
         year: movie.year != null ? Number(movie.year) : null,
         thumb: plexThumb,
         thumbUrl: plexThumb ? upgraderPlexPosterUrl(plexThumb) : arrCoverUrl,
