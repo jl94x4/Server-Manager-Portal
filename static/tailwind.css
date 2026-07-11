@@ -3696,6 +3696,10 @@ input[type="date"], input[type="time"], input[type="datetime-local"], input[type
   border-color: currentColor;
 }
 
+.border-emerald-500\/20 {
+  border-color: rgb(16 185 129 / 0.2);
+}
+
 .border-emerald-500\/30 {
   border-color: rgb(16 185 129 / 0.3);
 }

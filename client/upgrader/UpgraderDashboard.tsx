@@ -680,6 +680,16 @@ export const UpgraderDashboard: React.FC = () => {
                                             gridBadgeText = showCodecLabel || 'UNKNOWN';
                                             listBadgeText = gridBadgeText;
                                         }
+                                        
+                                        let hevcPercentageLabel = '';
+                                        if (isShow && (item as any).totalEpisodeCount > 0) {
+                                            const totalEps = (item as any).totalEpisodeCount;
+                                            const nonHevcEps = item.nonHevcEpisodeCount || 0;
+                                            const hevcEps = Math.max(0, totalEps - nonHevcEps);
+                                            const percent = Math.round((hevcEps / totalEps) * 100);
+                                            hevcPercentageLabel = `${percent}% HEVC`;
+                                        }
+                                        
                                         if (gridSize === 'list') {
                                             return (
                                                 <div key={item.ratingKey} className="flex flex-col sm:flex-row gap-4 p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors relative">
@@ -724,6 +734,11 @@ export const UpgraderDashboard: React.FC = () => {
                                                                             {item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0
                                                                                 ? `${item.nonHevcEpisodeSizeGB < 1 ? Math.round(item.nonHevcEpisodeSizeGB * 1024) + ' MB' : item.nonHevcEpisodeSizeGB + ' GB'}${showCodecLabel ? ` (${showCodecLabel.toUpperCase()} eps)` : ''}`
                                                                                 : `${item.sizeGB < 1 ? Math.round(item.sizeGB * 1024) + ' MB' : item.sizeGB + ' GB'}`}
+                                                                        </span>
+                                                                    )}
+                                                                    {hevcPercentageLabel && (
+                                                                        <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-400">
+                                                                            {hevcPercentageLabel}
                                                                         </span>
                                                                     )}
                                                                 </div>
@@ -831,6 +846,11 @@ export const UpgraderDashboard: React.FC = () => {
                                                                         {item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0
                                                                             ? `${item.nonHevcEpisodeSizeGB < 1 ? Math.round(item.nonHevcEpisodeSizeGB * 1024) + ' MB' : item.nonHevcEpisodeSizeGB + ' GB'}${showCodecLabel ? ` (${showCodecLabel.toUpperCase()} eps)` : ''}`
                                                                             : `${item.sizeGB < 1 ? Math.round(item.sizeGB * 1024) + ' MB' : item.sizeGB + ' GB'}`}
+                                                                    </span>
+                                                                )}
+                                                                {hevcPercentageLabel && (
+                                                                    <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-semibold text-emerald-400">
+                                                                        {hevcPercentageLabel}
                                                                     </span>
                                                                 )}
                                                             </div>
