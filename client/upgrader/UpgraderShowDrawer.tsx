@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    X, Loader2, ChevronDown, ChevronRight, Search, ExternalLink,
+    X, Loader2, ChevronDown, ChevronRight, ChevronLeft, Search, ExternalLink,
 } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { portalUrl, resolvePortalAssetUrl } from '../shared/basePath';
