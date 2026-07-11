@@ -364,9 +364,14 @@ export const UpgraderDashboard: React.FC = () => {
                                         No Sonarr/Radarr instances configured
                                     </span>
                                 )}
+                                {status?.arrConfigured && status.automationEnabled && (
+                                    <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/30 text-green-400">
+                                        Automation is ON
+                                    </span>
+                                )}
                                 {status?.arrConfigured && !status.automationEnabled && (
-                                    <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-muted">
-                                        Automation off — browse only
+                                    <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-400">
+                                        Manual Upgrades only
                                     </span>
                                 )}
                             </div>
