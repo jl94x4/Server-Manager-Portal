@@ -85,17 +85,17 @@ export const UpgraderQualityProfileModal: React.FC<Props> = ({ profile, formats,
                         <h4 className="text-sm font-semibold text-text mb-4">Custom Format Scores</h4>
                         <p className="text-xs text-muted mb-4">Assign positive or negative scores to custom formats to prioritize or exclude them during upgrades. Formats with a score of 0 are effectively ignored.</p>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="columns-1 md:columns-2 gap-3">
                             {formats.length === 0 && (
                                 <div className="text-sm text-muted text-center py-8 border border-dashed border-border rounded-lg md:col-span-2">
                                     No custom formats exist on this instance yet.
                                 </div>
                             )}
-                            {[...formats].sort((a, b) => (scores[a.id!] || 0) - (scores[b.id!] || 0)).map(f => {
+                            {[...formats].sort((a, b) => (scores[b.id!] || 0) - (scores[a.id!] || 0)).map(f => {
                                 if (!f.id) return null;
                                 const score = scores[f.id] || 0;
                                 return (
-                                    <div key={f.id} className="flex items-center justify-between bg-background border border-border p-3 rounded-lg">
+                                    <div key={f.id} className="flex items-center justify-between bg-background border border-border p-3 rounded-lg mb-3 break-inside-avoid">
                                         <div className="font-semibold text-sm text-text truncate pr-4">{f.name}</div>
                                         <div className="w-32">
                                             <input
