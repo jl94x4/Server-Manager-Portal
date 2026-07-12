@@ -7714,6 +7714,9 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                     { label: 'Jellyfin Purple', value: 'jellyfin' },
                                     { label: 'Emerald Green', value: 'emerald' },
                                     { label: 'Neon Midnight', value: 'midnight' },
+                                    { label: 'Crimson Red', value: 'crimson' },
+                                    { label: 'Deep Amethyst', value: 'amethyst' },
+                                    { label: 'Sunset Orange', value: 'sunset' },
                                 ].map(opt => (
                                     <div
                                         key={opt.value}
@@ -7811,6 +7814,9 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                     { label: 'Jellyfin Purple', value: 'jellyfin' },
                                     { label: 'Emerald Green', value: 'emerald' },
                                     { label: 'Neon Midnight', value: 'midnight' },
+                                    { label: 'Crimson Red', value: 'crimson' },
+                                    { label: 'Deep Amethyst', value: 'amethyst' },
+                                    { label: 'Sunset Orange', value: 'sunset' },
                                 ]}
                             />
                         </div>

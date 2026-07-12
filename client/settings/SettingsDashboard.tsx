@@ -1760,6 +1760,9 @@ export const SettingsDashboard: React.FC = () => {
                                         { label: 'Jellyfin Purple', value: 'jellyfin' },
                                         { label: 'Emerald Green', value: 'emerald' },
                                         { label: 'Neon Midnight', value: 'midnight' },
+                                        { label: 'Crimson Red', value: 'crimson' },
+                                        { label: 'Deep Amethyst', value: 'amethyst' },
+                                        { label: 'Sunset Orange', value: 'sunset' },
                                     ]}
                                 />
                             </div>
