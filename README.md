@@ -152,6 +152,36 @@ Review and approve media requests from Seerr, Jellyseerr, or Ombi without leavin
 
 ---
 
+### Library Upgrader
+
+A powerful, built-in tool for server admins to identify and upgrade sub-optimal media in your library, fully integrated with your Sonarr and Radarr instances. Enable it in **Settings → System → Library Upgrader**.
+
+**Core Capabilities:**
+- **Automated Media Analysis** - The system scans your entire library to detect non-HEVC (H.264, etc.) files, missing HDR/Dolby Vision flags, and unusually large file sizes.
+- **Deep ARR Integration** - Directly connects to your Sonarr and Radarr instances. Automatically matches Plex/Jellyfin items to their exact Radarr/Sonarr equivalents.
+- **Multi-Instance Support** - Supports multiple Radarr/Sonarr instances simultaneously (e.g., separate 1080p and 4K instances) mapped to different libraries.
+- **Smart Quality Profile Mapping** - Define default fallback and HEVC-target quality profiles per ARR instance so upgrades happen with a single click.
+
+**Dashboard & Navigation:**
+- **Rich Visual Grid** - Browse flagged movies and TV shows through a premium, responsive poster grid overlaid with real-time codec, resolution, size, and HDR badges.
+- **Advanced Filtering & Sorting** - Filter by Codec (H.264, HEVC, AV1, VP9), Resolution (SD, 720p, 1080p, 4K), Quality (WebDL, Remux, Bluray), or special features (Missing HDR, Zero-byte files). Sort by size, watch count, or age.
+- **Deep Episode Inspection** - Click into any TV show to open a detailed, season-by-season episode drawer showing exact file sizes, codecs, and current Sonarr custom formats/qualities for every individual episode.
+- **Missing Episode Detection** - Instantly surfaces episodes that are in Plex but missing from Sonarr, or vice versa.
+
+**Upgrade Actions:**
+- **One-Click Upgrades** - Switch Sonarr/Radarr quality profiles directly from the portal and automatically trigger a search for the new quality.
+- **Bulk Operations** - Select multiple movies or shows at once to upgrade their quality profiles and trigger searches in bulk.
+- **Granular Search Triggers** - Trigger a search for an entire series, a specific season, or drill down to search for a single episode right from the UI.
+- **Background Processing Queue** - Upgrades are sent to a background task queue with configurable rate limits (e.g., max 50 actions per hour) to prevent overwhelming your indexers or ARR instances.
+- **Dry-Run Preview** - Preview exactly which items will be upgraded, skipped (if already on the target profile), or fail, before committing to any bulk changes.
+
+**Management & Tracking:**
+- **Action History** - A dedicated audit log tracking all your manual and automated upgrade actions, profile changes, and search triggers.
+- **Snooze & Ignore** - Snooze specific titles to hide them from the upgrader view for a set duration, or permanently exclude specific libraries, shows, or movies.
+- **Reclaimable Space Estimation** - View live statistics on how many gigabytes of storage could be reclaimed by upgrading large H.264 files to efficient HEVC formats.
+
+---
+
 ### User Onboarding & Access Management
 
 - **Invite Link System** - Generate shareable invite links with a configurable max-use limit and custom duration. Users claim access via a branded landing page
