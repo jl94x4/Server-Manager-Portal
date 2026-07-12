@@ -368,6 +368,9 @@ export const UpgraderDashboard: React.FC = () => {
             `${summary.totalItems} titles indexed`,
             `index ${formatIndexAge(summary.generatedAt)}`,
         ];
+        if (summary.estimatedReclaimableGB > 0) {
+            chips.push(`~${summary.estimatedReclaimableGB} GB reclaimable`);
+        }
         if (status?.automationEnabled) {
             chips.push(`${status.recentUpgradeCount}/${status.maxActionsPerHour} upgrades this hour`);
         }
