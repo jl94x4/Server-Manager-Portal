@@ -7898,7 +7898,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
             <div className="md:hidden fixed bottom-0 left-0 right-0 w-full nav-shell border-t z-50 pb-[env(safe-area-inset-bottom)]">
                 <div className="flex items-center h-16 px-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] gap-1 overflow-x-auto overscroll-x-contain hide-scrollbar">
                     {(() => {
-                        const maxPrimary = 8;
+                        const maxPrimary = 7;
                         const showMore = normalizedNavOrder.length > maxPrimary;
                         const primary = showMore ? normalizedNavOrder.slice(0, maxPrimary) : normalizedNavOrder;
                         return (
@@ -7938,7 +7938,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                         </div>
                         <div className="p-5 grid grid-cols-4 gap-4">
                             {(() => {
-                                const maxPrimary = 8;
+                                const maxPrimary = 7;
                                 const secondary = normalizedNavOrder.length > maxPrimary ? normalizedNavOrder.slice(maxPrimary) : [];
                                 return secondary.map(key => {
                                     const item = navItemsConfig[key];
