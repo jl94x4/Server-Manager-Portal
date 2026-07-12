@@ -160,7 +160,7 @@ A powerful, built-in tool for server admins to identify and upgrade sub-optimal 
 - **Advanced Media Filtering** - Index your entire library to easily filter and browse your media by codec, resolution, and size. Instantly locate H.264 files or check HDR availability per show, so you can easily upgrade to a different codec when you need to.
 - **Deep ARR Integration** - Directly connects to your Sonarr and Radarr instances. Automatically matches Plex/Jellyfin items to their exact Radarr/Sonarr equivalents.
 - **Multi-Instance Support** - Supports multiple Radarr/Sonarr instances simultaneously (e.g., separate 1080p and 4K instances) mapped to different libraries.
-- **Smart Quality Profile Mapping** - Define default fallback and HEVC-target quality profiles per ARR instance so upgrades happen with a single click.
+- **Smart Quality Profile Mapping** - Map your preferred Sonarr and Radarr quality profiles to your libraries, allowing you to easily switch profiles and trigger searches with a single click.
 
 **Dashboard & Navigation:**
 - **Rich Visual Grid** - Browse flagged movies and TV shows through a premium, responsive poster grid overlaid with real-time codec, resolution, size, and HDR badges.
@@ -178,7 +178,7 @@ A powerful, built-in tool for server admins to identify and upgrade sub-optimal 
 **Management & Tracking:**
 - **Action History** - A dedicated audit log tracking all your manual and automated upgrade actions, profile changes, and search triggers.
 - **Snooze & Ignore** - Snooze specific titles to hide them from the upgrader view for a set duration, or permanently exclude specific libraries, shows, or movies.
-- **Reclaimable Space Estimation** - View live statistics on how many gigabytes of storage could be reclaimed by upgrading large H.264 files to efficient HEVC formats.
+- **Reclaimable Space Estimation** - View live statistics on how many gigabytes of storage could be reclaimed by upgrading your media to more efficient formats.
 
 ---
 
