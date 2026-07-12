@@ -7694,7 +7694,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         const label = options.compactLabel || item.label;
         const badgeCount = key === 'requests' ? (options.badgeCount || 0) : 0;
         const baseClass = options.mobile
-            ? `relative flex flex-col items-center justify-center gap-1 h-full flex-shrink-0 min-w-[4.25rem] px-1 text-center text-[0.65rem] transition-colors ${options.isCurrent ? 'text-plex font-bold' : 'text-muted hover:text-text'}`
+            ? `relative flex flex-col items-center justify-center gap-0.5 h-full flex-1 min-w-0 px-0.5 text-center text-[0.6rem] sm:text-[0.65rem] transition-colors ${options.isCurrent ? 'text-plex font-bold' : 'text-muted hover:text-text'}`
             : `flex items-center gap-4 p-3 no-underline rounded-xl transition-all font-medium ${options.isCurrent ? 'nav-item-active' : 'text-muted hover:bg-white/5 hover:text-text'}`;
 
         if (item.href) {
@@ -7896,7 +7896,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
 
             {/* Mobile Bottom Nav */}
             <div className="md:hidden fixed bottom-0 left-0 right-0 w-full nav-shell border-t z-50 pb-[env(safe-area-inset-bottom)]">
-                <div className="flex items-center h-16 px-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] gap-1 overflow-x-auto overscroll-x-contain hide-scrollbar">
+                <div className="flex items-center justify-between w-full h-16 px-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))]">
                     {(() => {
                         const maxPrimary = 7;
                         const showMore = normalizedNavOrder.length > maxPrimary;
