@@ -41,6 +41,7 @@ export type UpgraderItem = {
     thumb: string;
     thumbUrl?: string | null;
     posterFallbackUrl?: string | null;
+    overview?: string | null;
     mediaType: string;
     libraryTitle: string;
     libraryId: string;

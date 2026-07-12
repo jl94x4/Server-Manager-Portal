@@ -27,24 +27,24 @@ const formatSeasonLabel = (seasonNumber: number) => {
 };
 
 const EpisodeQualityBadges: React.FC<{ tags: string[]; isHevc?: boolean; codec?: string; sizeGB?: number }> = ({ tags, isHevc, codec, sizeGB }) => (
-    <div className="flex flex-wrap gap-1 items-center">
+    <div className="flex flex-wrap gap-2 items-center">
         {sizeGB ? (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-200">
+            <span className="text-xs font-bold px-2 py-1 rounded-md bg-blue-500/20 text-blue-200 border border-blue-500/30">
                 {sizeGB < 1 ? `${Math.round(sizeGB * 1024)} MB` : `${sizeGB.toFixed(2)} GB`}
             </span>
         ) : null}
         {codec ? (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-plex/20 text-plex">
+            <span className="text-xs font-bold px-2 py-1 rounded-md bg-plex/20 text-plex border border-plex/30">
                 {codec.match(/^(h|x)26[45]$/i) ? codec.toLowerCase() : codec.toUpperCase()}
             </span>
         ) : null}
         {(tags || []).slice(0, 4).map((tag) => (
-            <span key={tag} className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-text">
+            <span key={tag} className="text-xs font-bold px-2 py-1 rounded-md bg-white/10 text-text border border-white/10 shadow-sm">
                 {tag}
             </span>
         ))}
         {isHevc && !(tags || []).includes('HEVC') && (!codec || !codec.toLowerCase().includes('hevc')) && (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300">
+            <span className="text-xs font-bold px-2 py-1 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30">
                 HEVC
             </span>
         )}
@@ -446,44 +446,45 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                                     return (
                                                         <div
                                                             key={episode.ratingKey}
-                                                            className={`flex items-start gap-3 px-4 py-3 ${highlightFilterOnly ? '' : episode.matchesPreset === false ? 'opacity-55' : ''}`}
+                                                            className={`group flex flex-col sm:flex-row items-start gap-4 p-5 hover:bg-white/[0.02] transition-colors ${highlightFilterOnly ? '' : episode.matchesPreset === false ? 'opacity-55' : ''}`}
                                                         >
-                                                            <div className="w-32 aspect-video rounded overflow-hidden bg-white/5 shrink-0 flex items-center justify-center">
+                                                            <div className="w-full sm:w-48 aspect-video rounded-xl overflow-hidden bg-white/5 shrink-0 flex items-center justify-center relative shadow-lg group-hover:shadow-plex/10 transition-all duration-300">
                                                                 {episode.thumbUrl || episode.thumb ? (
                                                                     <img
                                                                         src={episode.thumbUrl
                                                                             ? resolvePortalAssetUrl(episode.thumbUrl)
-                                                                            : portalUrl(`/api/plex/image?path=${encodeURIComponent(episode.thumb)}&width=256&height=144`)}
+                                                                            : portalUrl(`/api/plex/image?path=${encodeURIComponent(episode.thumb)}&width=384&height=216`)}
                                                                         alt={episode.title}
                                                                         className="w-full h-full object-cover bg-black/40"
                                                                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                                                     />
                                                                 ) : (
-                                                                    <span className="text-[10px] text-muted/40 font-medium">No image</span>
+                                                                    <span className="text-xs text-muted/40 font-medium">No image</span>
                                                                 )}
+                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                                                             </div>
-                                                            <div className="min-w-0 flex-1">
-                                                                <div className="flex flex-wrap items-center gap-2">
+                                                            <div className="min-w-0 flex-1 flex flex-col justify-center">
+                                                                <div className="flex flex-wrap items-center gap-3">
                                                                     {epLabel && (
-                                                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-muted">
+                                                                        <span className="text-xs font-bold px-2 py-1 rounded-md bg-white/10 text-text shadow-sm">
                                                                             {epLabel}
                                                                         </span>
                                                                     )}
-                                                                    <span className="text-sm font-semibold text-text truncate">{episode.title}</span>
+                                                                    <h4 className="text-base font-bold text-text truncate group-hover:text-plex transition-colors">{episode.title}</h4>
                                                                     {episode.airDateUtc && (
-                                                                        <span className="text-[10px] text-muted ml-auto shrink-0 font-medium">
-                                                                            Aired: {new Date(episode.airDateUtc).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                                        <span className="text-xs text-muted ml-auto shrink-0 font-medium">
+                                                                            {new Date(episode.airDateUtc).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                                                                         </span>
                                                                     )}
                                                                 </div>
                                                                 {episode.overview && (
-                                                                    <p className="text-[11px] text-muted mt-1.5 line-clamp-2 leading-relaxed">
+                                                                    <p className="text-sm text-muted/90 mt-2 leading-relaxed">
                                                                         {episode.overview}
                                                                     </p>
                                                                 )}
-                                                                <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                                                                <div className="mt-4 flex flex-wrap items-center gap-3">
                                                                     <EpisodeQualityBadges tags={episode.displayTags || []} isHevc={episode.isHevc} codec={episode.videoCodec} sizeGB={episode.sizeGB} />
-                                                                    <div className="text-[10px] text-muted flex flex-wrap gap-x-2.5 gap-y-1 font-medium bg-black/20 px-2.5 py-1 rounded-lg border border-white/5">
+                                                                    <div className="text-xs text-muted flex flex-wrap gap-x-3 gap-y-1.5 font-medium bg-black/30 px-3 py-1.5 rounded-lg border border-white/10 shadow-inner">
                                                                         {(episode as any).arrReleaseGroup && (
                                                                             <span className="text-plex font-bold">{(episode as any).arrReleaseGroup}</span>
                                                                         )}
@@ -499,7 +500,7 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                            <div className="flex flex-col gap-1 shrink-0">
+                                                            <div className="flex flex-col justify-start shrink-0 sm:pl-2">
                                                                 {canSearch && episode.arrEpisodeId && (
                                                                     <button
                                                                         type="button"
@@ -509,9 +510,9 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                                                             [episode.arrEpisodeId!],
                                                                             `Episode search started for ${epLabel || episode.title}.`,
                                                                         )}
-                                                                        className="inline-flex items-center gap-1 text-[10px] font-bold text-plex hover:underline disabled:opacity-50"
+                                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-plex/10 text-plex text-xs font-bold hover:bg-plex hover:text-black transition-colors disabled:opacity-50 border border-plex/20"
                                                                     >
-                                                                        {isSearching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
+                                                                        {isSearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
                                                                         Search
                                                                     </button>
                                                                 )}
