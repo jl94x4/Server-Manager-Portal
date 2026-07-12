@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2, Search, BookOpen, Loader2, Eye, ClipboardList, ArrowUpCircle } from 'lucide-react';
+import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2, Search, BookOpen, Loader2, Eye, ClipboardList, ArrowUpCircle, MoreHorizontal } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
 
 import { SettingsDashboard } from './settings/SettingsDashboard';
@@ -7619,6 +7619,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
     }, [serverIcon]);
 
     const [mobileThemeOpen, setMobileThemeOpen] = useState(false);
+    const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
     const mobileThemeRef = useRef<HTMLDivElement>(null);
     const [mobileThemePos, setMobileThemePos] = useState<{ top: number; right: number } | null>(null);
 
@@ -7895,16 +7896,82 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
 
             {/* Mobile Bottom Nav */}
             <div className="md:hidden fixed bottom-0 left-0 right-0 w-full nav-shell border-t z-50 pb-[env(safe-area-inset-bottom)]">
-                <div className="flex items-center h-16 overflow-x-auto overscroll-x-contain px-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] gap-0.5 hide-scrollbar">
-                    {normalizedNavOrder.map((key) => {
-                        const item = navItemsConfig[key];
-                        if (!item) return null;
-                        const isCurrent = item.route ? isNavCurrent(key, item.route) : false;
-                        const labelOverride = key === 'mediastack' ? 'Media' : key === 'request' ? 'Request' : item.label;
-                        return renderNavAction(key, { ...item, label: labelOverride }, { mobile: true, isCurrent, compactLabel: labelOverride, badgeCount: key === 'requests' ? pendingRequestCount : 0 });
-                    })}
+                <div className="flex items-center h-16 px-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] gap-1 justify-around">
+                    {(() => {
+                        const maxPrimary = 4;
+                        const showMore = normalizedNavOrder.length > maxPrimary;
+                        const primary = showMore ? normalizedNavOrder.slice(0, maxPrimary) : normalizedNavOrder;
+                        return (
+                            <>
+                                {primary.map((key) => {
+                                    const item = navItemsConfig[key];
+                                    if (!item) return null;
+                                    const isCurrent = item.route ? isNavCurrent(key, item.route) : false;
+                                    const labelOverride = key === 'mediastack' ? 'Media' : key === 'request' ? 'Request' : item.label;
+                                    return renderNavAction(key, { ...item, label: labelOverride }, { mobile: true, isCurrent, compactLabel: labelOverride, badgeCount: key === 'requests' ? pendingRequestCount : 0 });
+                                })}
+                                {showMore && (
+                                    <button 
+                                        type="button" 
+                                        className="relative flex flex-col items-center justify-center gap-1 h-full flex-1 min-w-[4.25rem] px-1 text-center text-[0.65rem] transition-colors text-muted hover:text-text bg-transparent border-0" 
+                                        onClick={() => setMobileMoreOpen(true)}
+                                    >
+                                        <span className="relative shrink-0">
+                                            <MoreHorizontal className="w-5 h-5" />
+                                        </span>
+                                        <span>More</span>
+                                    </button>
+                                )}
+                            </>
+                        );
+                    })()}
                 </div>
             </div>
+
+            {/* Mobile More Drawer */}
+            {mobileMoreOpen && (
+                <div className="md:hidden fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm animate-fade-in flex flex-col justify-end" onClick={() => setMobileMoreOpen(false)}>
+                    <div className="bg-card border-t border-border rounded-t-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between p-4 border-b border-white/5">
+                            <h3 className="font-bold text-text">More Menu</h3>
+                            <button className="text-muted hover:text-text p-1 bg-white/5 rounded-full" onClick={() => setMobileMoreOpen(false)}><X className="w-5 h-5" /></button>
+                        </div>
+                        <div className="p-5 grid grid-cols-4 gap-4">
+                            {(() => {
+                                const maxPrimary = 4;
+                                const secondary = normalizedNavOrder.length > maxPrimary ? normalizedNavOrder.slice(maxPrimary) : [];
+                                return secondary.map(key => {
+                                    const item = navItemsConfig[key];
+                                    if (!item) return null;
+                                    const isCurrent = item.route ? isNavCurrent(key, item.route) : false;
+                                    const labelOverride = key === 'mediastack' ? 'Media' : key === 'request' ? 'Request' : item.label;
+                                    const handleActivate = () => {
+                                        setMobileMoreOpen(false);
+                                        if (item.href) window.open(item.href, '_blank');
+                                        else if (item.onClick) item.onClick({ preventDefault: () => {} });
+                                        else if (item.route) onNavigate(item.route as any);
+                                    };
+                                    const badgeCount = key === 'requests' ? pendingRequestCount : 0;
+                                    return (
+                                        <button key={key} onClick={handleActivate} className="flex flex-col items-center gap-2 relative bg-transparent border-0">
+                                            <div className={`w-[3.25rem] h-[3.25rem] rounded-full flex items-center justify-center transition-colors ${isCurrent ? 'bg-plex text-background shadow-[0_0_15px_rgba(229,160,13,0.35)]' : 'bg-background/50 text-text hover:bg-white/10 border border-white/5'}`}>
+                                                <item.icon className="w-6 h-6" />
+                                            </div>
+                                            {badgeCount > 0 && (
+                                                <span className="absolute -top-1 -right-1 min-w-[18px] h-4.5 px-1 rounded-full bg-plex text-background text-[10px] font-bold flex items-center justify-center leading-none">
+                                                    {badgeCount > 9 ? '9+' : badgeCount}
+                                                </span>
+                                            )}
+                                            <span className={`text-[10px] text-center w-full truncate px-1 ${isCurrent ? 'text-plex font-bold' : 'text-muted'}`}>{labelOverride}</span>
+                                        </button>
+                                    );
+                                });
+                            })()}
+                        </div>
+                        <div className="pb-[calc(env(safe-area-inset-bottom)+1rem)]"></div>
+                    </div>
+                </div>
+            )}
         </>
     );
 };
