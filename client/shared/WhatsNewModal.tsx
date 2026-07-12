@@ -49,7 +49,14 @@ export const WhatsNewModal: React.FC<{
                             {section.items.map((item) => (
                                 <li key={item} className="relative pl-4 text-sm text-text/90 leading-relaxed">
                                     <span className="absolute left-0 text-plex select-none" aria-hidden>•</span>
-                                    <span>{item}</span>
+                                    <span>
+                                        {item.split(/(\*\*.*?\*\*)/g).map((part, i) => {
+                                            if (part.startsWith('**') && part.endsWith('**')) {
+                                                return <strong key={i} className="font-bold text-text">{part.slice(2, -2)}</strong>;
+                                            }
+                                            return <span key={i}>{part}</span>;
+                                        })}
+                                    </span>
                                 </li>
                             ))}
                         </ul>
