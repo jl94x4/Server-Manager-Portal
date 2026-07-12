@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.5.3...v1.6.0) (2026-07-12)
+
+
+### Features
+
+* TRaSH-style simple custom format builder with full Sonarr spec output ([860a9e1](https://github.com/jl94x4/Server-Manager-Portal/commit/860a9e1fe5a47aeef594190ba108c4bce8a63124))
+* **upgrader:** add Profiles & Custom Formats Manager to upgrader UI, allowing seamless generation and syncing of keyword-based custom formats and quality profile scores to sonarr and radarr ([4d71e7e](https://github.com/jl94x4/Server-Manager-Portal/commit/4d71e7e16f52917d75fb8d6361a86f44718f7295))
+* **upgrader:** add sorting by specific codec sizes (HEVC first, H264 first, AV1 first) ([e2abbc2](https://github.com/jl94x4/Server-Manager-Portal/commit/e2abbc2647e0a4ccc034f8ee8509bb6cf39fd3af))
+* **upgrader:** add TRaSH catalog browser and full Sonarr spec editor ([b9dc8a9](https://github.com/jl94x4/Server-Manager-Portal/commit/b9dc8a9d7401976b29545f14acca3b2692da8ac9))
+* **upgrader:** add zero_size filter to find shows and movies with 0-byte episodes or files ([a96b0e3](https://github.com/jl94x4/Server-Manager-Portal/commit/a96b0e3ab2d8775892f6622af1d8d9f47c0b9382))
+* **upgrader:** display dominant codec percentage dynamically instead of hardcoding HEVC ([65a0215](https://github.com/jl94x4/Server-Manager-Portal/commit/65a0215fd3e219a49b5711c121e72bbcb90afe2f))
+* **upgrader:** display full show episode codec/resolution snapshot in list view ([67b5535](https://github.com/jl94x4/Server-Manager-Portal/commit/67b5535d7035807140111f231ea83566ea46d61b))
+* **upgrader:** display HEVC percentage on show cards ([05c100d](https://github.com/jl94x4/Server-Manager-Portal/commit/05c100d734e5661468b81f68ee9ee07bfadb8a92))
+* **upgrader:** display multiple size pills for each active codec filter on shows ([b2d69f9](https://github.com/jl94x4/Server-Manager-Portal/commit/b2d69f9e803acfc15be1ede592e7f42e59b69464))
+* **upgrader:** display size and instance name as pills in list and grid views ([a2c0c36](https://github.com/jl94x4/Server-Manager-Portal/commit/a2c0c363c4bf5b0dbe0b73004dce1c05fdfaf4a6))
+* **upgrader:** paginate custom formats and quality profiles, make simple builder preserve advanced properties, and update quality profile modal layout and live sorting ([715d77b](https://github.com/jl94x4/Server-Manager-Portal/commit/715d77be7f9fbb594fc8981795fb030b7d3934a6))
+* **upgrader:** replace native select with custom dropdown component and add styled custom scrollbars to all modals ([17d0e37](https://github.com/jl94x4/Server-Manager-Portal/commit/17d0e3750e83a815cb7796d0f1e440b78afe6b3e))
+* **upgrader:** update quality profile modal to use css columns for a single continuous list and sort scores descending ([b9efe74](https://github.com/jl94x4/Server-Manager-Portal/commit/b9efe74af44d9658a2f6ff9cf0705f6f1b064539))
+
+
+### Bug Fixes
+
+* **upgrader:** add new codec sort filters to allowed backend sorting parameters and introduce size secondary sort ([3330c89](https://github.com/jl94x4/Server-Manager-Portal/commit/3330c89e6e3abb4d2b8117a1f667e9654f5d7d83))
+* **upgrader:** correct fallback percentage pill to display AV1 instead of hardcoded H264 ([b91754f](https://github.com/jl94x4/Server-Manager-Portal/commit/b91754fc245e922559a5bd1dd5742562367ea7fd))
+* **upgrader:** correctly filter and count AV1 (and other arbitrary codecs) for shows ([f90224a](https://github.com/jl94x4/Server-Manager-Portal/commit/f90224a4634011c5cf5c655ffd307de875c4e94b))
+* **upgrader:** fix missing Settings2 import in UpgraderDashboard and add External URL field to ArrInstances to fix deep linking on local IP instances ([0711a77](https://github.com/jl94x4/Server-Manager-Portal/commit/0711a7785a6daee01f315c34c2c81fc457926fcf))
+* **upgrader:** implement missing profiles endpoint in backend and fix missing Save icon import crashing the new custom format modal ([b20e907](https://github.com/jl94x4/Server-Manager-Portal/commit/b20e907a3d9e6bd7e0bbc9e6fc5e43a418542da0))
+* **upgrader:** implement multiple size pills fallback for when index has not yet been regenerated ([85c5e6f](https://github.com/jl94x4/Server-Manager-Portal/commit/85c5e6fab51c4d6e495d1e9dcda6c21cc627d998))
+* **upgrader:** inject overview into reused cache items during index rebuild ([94672a2](https://github.com/jl94x4/Server-Manager-Portal/commit/94672a2388a98464a1afd39eec1b68d6b2e0cc7a))
+* **upgrader:** invalidate index cache for legacy items to ensure new stats like codecCounts and zeroSizeCount are populated ([58c6e36](https://github.com/jl94x4/Server-Manager-Portal/commit/58c6e360598f12aa570829c68564772f662a9c3a))
+* **upgrader:** persist tab, filters, and profiles state in URL on refresh ([21b7ac8](https://github.com/jl94x4/Server-Manager-Portal/commit/21b7ac83e8f73b822354eec9d5319defbb7f6810))
+* **upgrader:** replace undefined getArrBaseUrl and arrHeaders functions with inline logic in arr API routes to fix 500 errors when fetching profiles ([23bead3](https://github.com/jl94x4/Server-Manager-Portal/commit/23bead32252d44bbe8cfcb98ea7e05882cc8eb29))
+* **upgrader:** resolve syntax error in size pills logic ([33b6cfd](https://github.com/jl94x4/Server-Manager-Portal/commit/33b6cfd485c30176657329b40961c3e57d7c93b6))
+
 ## [Unreleased]
 
 ### Features
