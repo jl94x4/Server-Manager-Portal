@@ -10,6 +10,12 @@ All notable changes to this project will be documented in this file.
 * **Library Upgrader automation (Phase 2)** — Opt-in ARR profile switching with dry-run preview, per-title or bulk “Upgrade to HEVC”, search triggers (`MoviesSearch` / `SeriesSearch`), rate limiting, audit log, and ARR queue summary widget.
 * **Library Upgrader (Phase 3)** — Jellyfin library support, show episode drill-down drawer, per-title snooze and exclusions, upgrade history tab, and stale/oldest-added sort options.
 
+## [1.5.3](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.5.2...v1.5.3) (2026-07-11)
+
+### Bug Fixes
+
+* **client:** polyfill crypto.randomUUID for non-secure contexts (HTTP) ([c42c33a](https://github.com/jl94x4/Server-Manager-Portal/commit/c42c33ac1e0139f1cba51416add012ee010011f1))
+
 ## [1.5.2](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.5.1...v1.5.2) (2026-07-10)
 
 

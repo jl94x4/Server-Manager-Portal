@@ -218,7 +218,7 @@ Beautiful, responsive HTML emails sent automatically:
 
 ### Custom UI Themes
 
-- **Multiple Dark Themes** - Users can select between **Plex Dark** (classic orange), **Sleek Slate** (modern blue), or **Nordic Frost** (cool indigo) directly from the navigation panel.
+- **Multiple Dark Themes** - Users can select between **Plex Dark** (classic orange), **Sleek Slate** (modern blue), **Nordic Frost** (cool indigo), **Jellyfin Purple**, **Emerald Green**, **Neon Midnight**, **Crimson Red**, **Deep Amethyst**, or **Sunset Orange** directly from the navigation panel.
 - **Admin Configuration** - Admins can set the default theme for new users and visitors from **Settings ➔ Portal UI**.
 - **Dynamic Accent Colors** - Interface elements, charts, active navigation states, and borders dynamically update to match the selected theme's brand palette.
 

@@ -63,6 +63,36 @@
     --color-plex-hover: 34 211 238;
   }
 
+  [data-theme="crimson"] {
+    --color-bg: 15 5 5;
+    --color-card: 25 10 10;
+    --color-border: 45 20 20;
+    --color-text: 245 235 235;
+    --color-muted: 170 140 140;
+    --color-plex: 220 38 38;
+    --color-plex-hover: 248 113 113;
+  }
+
+  [data-theme="amethyst"] {
+    --color-bg: 13 8 20;
+    --color-card: 24 16 36;
+    --color-border: 44 32 64;
+    --color-text: 242 238 248;
+    --color-muted: 168 152 192;
+    --color-plex: 168 85 247;
+    --color-plex-hover: 192 132 252;
+  }
+
+  [data-theme="sunset"] {
+    --color-bg: 20 10 5;
+    --color-card: 32 16 10;
+    --color-border: 58 32 20;
+    --color-text: 250 240 235;
+    --color-muted: 180 150 140;
+    --color-plex: 249 115 22;
+    --color-plex-hover: 251 146 60;
+  }
+
   body {
     @apply bg-background text-text font-sans antialiased transition-colors duration-200;
   }
