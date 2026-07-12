@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.1](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.6.0...v1.6.1) (2026-07-12)
+
+
+### Bug Fixes
+
+* **ui:** adjust mobile nav max tabs to 8 and restore scroll ([9e83a03](https://github.com/jl94x4/Server-Manager-Portal/commit/9e83a034c75601e1c1cdee76c8b0ba317e5888fa))
+* **ui:** set exact nav order and 7+1 layout on mobile bottom bar ([f56fb5a](https://github.com/jl94x4/Server-Manager-Portal/commit/f56fb5abdb6b7f7a19e2ffa341285d7d4deb2197))
+* **ui:** squish mobile nav icons to fit exactly 8 items without scroll ([0499eaa](https://github.com/jl94x4/Server-Manager-Portal/commit/0499eaaf42f6644608644d0912fbd02eebf0aec0))
+
 ## [1.6.0](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.5.3...v1.6.0) (2026-07-12)
 
 
