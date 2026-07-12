@@ -157,7 +157,7 @@ Review and approve media requests from Seerr, Jellyseerr, or Ombi without leavin
 A powerful, built-in tool for server admins to identify and upgrade sub-optimal media in your library, fully integrated with your Sonarr and Radarr instances. Enable it in **Settings → System → Library Upgrader**.
 
 **Core Capabilities:**
-- **Automated Media Analysis** - The system scans your entire library to detect non-HEVC (H.264, etc.) files, missing HDR/Dolby Vision flags, and unusually large file sizes.
+- **Advanced Media Filtering** - Index your entire library to easily filter and browse your media by codec, resolution, and size. Instantly locate H.264 files or check HDR availability per show, so you can easily upgrade to a different codec when you need to.
 - **Deep ARR Integration** - Directly connects to your Sonarr and Radarr instances. Automatically matches Plex/Jellyfin items to their exact Radarr/Sonarr equivalents.
 - **Multi-Instance Support** - Supports multiple Radarr/Sonarr instances simultaneously (e.g., separate 1080p and 4K instances) mapped to different libraries.
 - **Smart Quality Profile Mapping** - Define default fallback and HEVC-target quality profiles per ARR instance so upgrades happen with a single click.
