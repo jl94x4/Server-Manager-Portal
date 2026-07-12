@@ -255,7 +255,7 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
         <div className={`fixed inset-0 z-[60] flex ${position === 'modal' ? 'items-center justify-center p-4 sm:p-6 md:p-12' : 'justify-end'}`}>
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
             <div className={`relative w-full max-w-5xl bg-card border-border/80 shadow-2xl flex flex-col ${position === 'modal' ? 'h-[90vh] rounded-2xl border overflow-hidden mx-auto' : 'h-full border-l'}`}>
-                <div className="px-5 py-4 border-b border-border/60 space-y-4">
+                <div className="px-3 sm:px-5 py-4 border-b border-border/60 space-y-4">
                     <button type="button" onClick={onClose} className="inline-flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-lg hover:bg-white/10 text-muted hover:text-text text-sm font-bold transition-colors">
                         <ChevronLeft className="w-4 h-4" />
                         Back to Filter
@@ -401,7 +401,7 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                     )}
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-5 py-4 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto px-0 sm:px-5 py-4 custom-scrollbar">
                     {loading ? (
                         <div className="flex items-center justify-center gap-2 py-16 text-muted">
                             <Loader2 className="w-5 h-5 animate-spin" />
@@ -418,11 +418,11 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                             {displaySeasons.map((season) => {
                                 const expanded = expandedSeasons.has(season.seasonNumber);
                                 return (
-                                    <div key={season.seasonNumber} className="rounded-xl border border-border/60 overflow-hidden">
+                                    <div key={season.seasonNumber} className="sm:rounded-xl sm:border border-y sm:border-x border-border/60 overflow-hidden bg-white/[0.01]">
                                         <button
                                             type="button"
                                             onClick={() => toggleSeason(season.seasonNumber)}
-                                            className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-white/[0.03] hover:bg-white/[0.06] text-left"
+                                            className="w-full flex items-center justify-between gap-3 px-3 sm:px-4 py-3 bg-white/[0.03] hover:bg-white/[0.06] text-left"
                                         >
                                             <div className="flex items-center gap-2">
                                                 {expanded ? <ChevronDown className="w-4 h-4 text-muted" /> : <ChevronRight className="w-4 h-4 text-muted" />}
@@ -446,9 +446,9 @@ export const UpgraderShowDrawer: React.FC<UpgraderShowDrawerProps> = ({
                                                     return (
                                                         <div
                                                             key={episode.ratingKey}
-                                                            className={`group flex flex-col sm:flex-row items-start gap-4 p-5 hover:bg-white/[0.02] transition-colors ${highlightFilterOnly ? '' : episode.matchesPreset === false ? 'opacity-55' : ''}`}
+                                                            className={`group flex flex-row items-start gap-3 sm:gap-4 px-3 py-4 sm:p-5 hover:bg-white/[0.02] transition-colors border-b border-border/40 last:border-0 ${highlightFilterOnly ? '' : episode.matchesPreset === false ? 'opacity-55' : ''}`}
                                                         >
-                                                            <div className="w-full sm:w-48 aspect-video rounded-xl overflow-hidden bg-white/5 shrink-0 flex items-center justify-center relative shadow-lg group-hover:shadow-plex/10 transition-all duration-300">
+                                                            <div className="w-28 sm:w-48 aspect-video rounded-lg sm:rounded-xl overflow-hidden bg-white/5 shrink-0 flex items-center justify-center relative shadow-lg group-hover:shadow-plex/10 transition-all duration-300">
                                                                 {episode.thumbUrl || episode.thumb ? (
                                                                     <img
                                                                         src={episode.thumbUrl
