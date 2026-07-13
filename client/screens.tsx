@@ -5296,34 +5296,37 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                     </div>
                                 )}
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 items-stretch flex-1 min-h-0 content-start">
+                            <div className="flex flex-col gap-3 items-stretch flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1">
                                 {analytics.recentHistory.slice(recentHistoryPage * recentHistoryPageSize, (recentHistoryPage + 1) * recentHistoryPageSize).map((item: any, idx: number) => (
-                                    <div key={idx} className="flex items-center self-stretch gap-3 p-2 bg-black/20 rounded-xl border border-white/5 hover:border-plex/50 hover:bg-black/40 hover:shadow-[0_0_15px_rgba(229,160,13,0.15)] transition-all group relative">
-                                        <a href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center flex-1 min-w-0 gap-3">
-                                            <div className="w-10 h-10 rounded-lg overflow-hidden bg-background flex-shrink-0 shadow-md">
+                                    <div key={idx} className="flex items-center self-stretch gap-4 p-3 bg-gradient-to-r from-black/40 to-black/10 rounded-2xl border border-white/5 hover:border-plex/40 hover:bg-black/60 hover:shadow-[0_0_20px_rgba(229,160,13,0.15)] transition-all duration-300 group relative">
+                                        <a href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center flex-1 min-w-0 gap-4">
+                                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-black/50 flex-shrink-0 shadow-lg relative border border-white/5 group-hover:border-plex/30 transition-colors">
                                                 {item.thumbUrl ? (
-                                                    <img src={resolvePortalAssetUrl(item.thumbUrl)} alt={item.title} className="w-full h-full object-cover" />
+                                                    <img src={resolvePortalAssetUrl(item.thumbUrl)} alt={item.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center">
-                                                        <PlaySquare className="w-5 h-5 text-muted/50" />
+                                                        <PlaySquare className="w-6 h-6 text-muted/50" />
                                                     </div>
                                                 )}
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
+                                                    <Play className="w-8 h-8 text-white fill-white drop-shadow-lg" />
+                                                </div>
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="font-bold text-text text-xs truncate group-hover:text-plex transition-colors">{item.title}</h4>
-                                                {item.episodeTitle && <p className="text-[11px] leading-tight text-muted truncate mt-0.5">{item.episodeTitle}</p>}
-                                                <div className="flex items-center gap-1 mt-1">
-                                                    <Clock className="w-3 h-3 text-muted" />
-                                                    <p className="text-[10px] text-muted">{new Date(item.viewedAt * 1000).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
+                                            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                <h4 className="font-black text-text text-sm sm:text-base truncate group-hover:text-plex transition-colors drop-shadow-sm">{item.title}</h4>
+                                                {item.episodeTitle && <p className="text-xs sm:text-sm font-semibold text-text/70 truncate mt-0.5">{item.episodeTitle}</p>}
+                                                <div className="flex items-center gap-1.5 mt-2 bg-white/5 w-fit px-2.5 py-1 rounded-md border border-white/5">
+                                                    <Clock className="w-3.5 h-3.5 text-plex" />
+                                                    <p className="text-[10px] sm:text-xs font-mono font-bold text-muted uppercase tracking-wider">{new Date(item.viewedAt * 1000).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
                                                 </div>
                                             </div>
                                         </a>
                                         <button
                                             onClick={(e) => { e.preventDefault(); setReportItem(item); }}
-                                            className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-2 text-muted hover:text-red-400 hover:bg-red-400/10 rounded-full transition-all focus:outline-none"
+                                            className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-2.5 text-muted hover:text-red-400 hover:bg-red-400/15 rounded-xl transition-all focus:outline-none flex-shrink-0 border border-transparent hover:border-red-500/30"
                                             title="Report a playback issue"
                                         >
-                                            <AlertTriangle className="w-4 h-4" />
+                                            <AlertTriangle className="w-5 h-5" />
                                         </button>
                                     </div>
                                 ))}
