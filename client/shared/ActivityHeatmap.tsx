@@ -53,43 +53,43 @@ export const ActivityHeatmap: React.FC<{ data: Record<string, number> }> = ({ da
             <div className="w-full overflow-x-auto pb-4 custom-scrollbar">
                 <div className="min-w-max flex flex-col gap-1 pr-4">
                     {/* Month labels */}
-                    <div className="flex gap-[3px] ml-6 mb-1 text-[10px] text-muted font-semibold tracking-wider relative h-4">
+                    <div className="flex gap-[4px] ml-7 mb-1 text-[11px] text-muted font-semibold tracking-wider relative h-4">
                         {weeks.map((week, i) => {
                             const firstDay = week[0];
                             if (!firstDay) return null;
                             const isFirstWeekOfMonth = firstDay.date.getDate() <= 7;
                             if (isFirstWeekOfMonth) {
                                 return (
-                                    <div key={i} className="flex-shrink-0 w-[11px] relative">
+                                    <div key={i} className="flex-shrink-0 w-[14px] relative">
                                         <span className="absolute">{months[firstDay.date.getMonth()]}</span>
                                     </div>
                                 );
                             }
-                            return <div key={i} className="w-[11px] flex-shrink-0"></div>;
+                            return <div key={i} className="w-[14px] flex-shrink-0"></div>;
                         })}
                     </div>
                     
                     {/* Heatmap Grid */}
                     <div className="flex gap-2">
                         {/* Day labels (Sun, Mon, etc.) */}
-                        <div className="flex flex-col gap-[3px] text-[9px] text-muted font-semibold mt-1">
-                            <span style={{ height: '11px', lineHeight: '11px' }}></span>
-                            <span style={{ height: '11px', lineHeight: '11px' }}>Mon</span>
-                            <span style={{ height: '11px', lineHeight: '11px' }}></span>
-                            <span style={{ height: '11px', lineHeight: '11px' }}>Wed</span>
-                            <span style={{ height: '11px', lineHeight: '11px' }}></span>
-                            <span style={{ height: '11px', lineHeight: '11px' }}>Fri</span>
-                            <span style={{ height: '11px', lineHeight: '11px' }}></span>
+                        <div className="flex flex-col gap-[4px] text-[10px] text-muted font-semibold mt-1">
+                            <span style={{ height: '14px', lineHeight: '14px' }}></span>
+                            <span style={{ height: '14px', lineHeight: '14px' }}>Mon</span>
+                            <span style={{ height: '14px', lineHeight: '14px' }}></span>
+                            <span style={{ height: '14px', lineHeight: '14px' }}>Wed</span>
+                            <span style={{ height: '14px', lineHeight: '14px' }}></span>
+                            <span style={{ height: '14px', lineHeight: '14px' }}>Fri</span>
+                            <span style={{ height: '14px', lineHeight: '14px' }}></span>
                         </div>
 
                         {/* Grid */}
-                        <div className="grid grid-rows-7 grid-flow-col gap-[3px]">
+                        <div className="grid grid-rows-7 grid-flow-col gap-[4px]">
                             {days.map((day, i) => {
                                 const intensityClass = getIntensityClass(day.count);
                                 return (
                                     <div 
                                         key={i} 
-                                        className={`w-[11px] h-[11px] rounded-[2px] transition-colors duration-300 group relative ${intensityClass}`}
+                                        className={`w-[14px] h-[14px] rounded-[3px] transition-colors duration-300 group relative ${intensityClass}`}
                                     >
                                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black/95 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-20 font-mono shadow-md border border-white/5 flex gap-2">
                                             <span className="font-bold text-plex">{day.count} plays</span>
@@ -104,12 +104,12 @@ export const ActivityHeatmap: React.FC<{ data: Record<string, number> }> = ({ da
             </div>
             <div className="flex items-center justify-end gap-2 text-[10px] text-muted font-medium mt-2">
                 <span>Less</span>
-                <div className="flex gap-1">
-                    <div className="w-[11px] h-[11px] rounded-[2px] bg-white/5 border border-white/5"></div>
-                    <div className="w-[11px] h-[11px] rounded-[2px] bg-plex/30 border border-plex/20"></div>
-                    <div className="w-[11px] h-[11px] rounded-[2px] bg-plex/50 border border-plex/40"></div>
-                    <div className="w-[11px] h-[11px] rounded-[2px] bg-plex/75 border border-plex/60"></div>
-                    <div className="w-[11px] h-[11px] rounded-[2px] bg-plex border border-plex/80"></div>
+                <div className="flex gap-[4px]">
+                    <div className="w-[14px] h-[14px] rounded-[3px] bg-white/5 border border-white/5"></div>
+                    <div className="w-[14px] h-[14px] rounded-[3px] bg-plex/30 border border-plex/20"></div>
+                    <div className="w-[14px] h-[14px] rounded-[3px] bg-plex/50 border border-plex/40"></div>
+                    <div className="w-[14px] h-[14px] rounded-[3px] bg-plex/75 border border-plex/60"></div>
+                    <div className="w-[14px] h-[14px] rounded-[3px] bg-plex border border-plex/80"></div>
                 </div>
                 <span>More</span>
             </div>
