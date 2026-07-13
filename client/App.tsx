@@ -315,7 +315,7 @@ export const MainApp: React.FC = () => {
         if (currentRoute === 'maintenance' && isAdmin) return <MaintenanceDashboard />;
         if (currentRoute === 'upgrader' && isAdmin) return <UpgraderDashboard />;
         if (currentRoute === 'requests' && isAdmin) return <RequestsAdminPanel onCountsChange={refreshPendingRequestCount} />;
-        if (currentRoute === 'discovery') return <DiscoveryDashboard pushToast={pushToastMsg} onItemClick={(item) => console.log('Item', item)} />;
+        if (currentRoute === 'discovery') return <DiscoveryDashboard onItemClick={(item) => console.log('Item', item)} />;
         if (currentRoute === 'logs' && isAdmin) return <LogsDashboard onLogout={handleLogout} />;
         if (currentRoute === 'mediastack') return <MediaStackDashboard isAdmin={isAdmin} />;
         if (currentRoute === 'analytics') return <AnalyticsDashboard isAdmin={isAdmin} sessionInfo={sessionInfo} />;
