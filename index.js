@@ -4313,6 +4313,72 @@ const buildRequestAppStatusPayload = (config) => {
     };
 };
 
+app.get('/api/discovery/search', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+        
+        const query = req.query.query || '';
+        if (!query) return res.json({ results: [] });
+        
+        const data = await requestAppService.rawFetch(config, `/api/v1/search?query=${encodeURIComponent(query)}`);
+        res.json(data);
+    } catch (e) {
+        log(`Discovery search error: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/discovery/trending', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+        
+        const data = await requestAppService.rawFetch(config, '/api/v1/discover/trending');
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+        
+        const { mediaType, mediaId, is4k, seasons } = req.body;
+        if (!mediaType || !mediaId) return res.status(400).json({ error: 'Missing media details' });
+        
+        const body = { mediaType, mediaId: Number(mediaId) };
+        if (is4k) body.is4k = true;
+        if (mediaType === 'tv' && Array.isArray(seasons)) body.seasons = seasons;
+        
+        // Try to map to the requesting user
+        if (req.user && req.user.email) {
+            try {
+                const users = await requestAppService.listRequestUsers(config);
+                const matchingUser = users.find(u => u.email && u.email.toLowerCase() === req.user.email.toLowerCase());
+                if (matchingUser) {
+                    body.userId = matchingUser.id;
+                }
+            } catch (err) {
+                // Ignore user mapping errors
+            }
+        }
+        
+        const data = await requestAppService.rawFetch(config, '/api/v1/request', {
+            method: 'POST',
+            body
+        });
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.get('/api/requests/pending', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});

@@ -32,6 +32,7 @@ import {
     UserDashboard,
     Navigation,
 } from './screens';
+import { DiscoveryDashboard } from './discovery/DiscoveryDashboard';
 
 export const MainApp: React.FC = () => {
     const [confirmState, setConfirmState] = useState<{ isOpen: boolean, message: string, onConfirm: () => void }>({ isOpen: false, message: '', onConfirm: () => { } });
@@ -56,7 +57,7 @@ export const MainApp: React.FC = () => {
         closeConfirm();
     };
 
-    const [currentRoute, setCurrentRoute] = useState<'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'maintenance' | 'upgrader' | 'requests' | 'invite' | 'loading'>('loading');
+    const [currentRoute, setCurrentRoute] = useState<'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'maintenance' | 'upgrader' | 'requests' | 'discovery' | 'invite' | 'loading'>('loading');
     const [sessionInfo, setSessionInfo] = useState<any>(null);
     const [publicConfig, setPublicConfig] = useState<any>({});
     const [releaseNotes, setReleaseNotes] = useState<ReleaseNotes | null>(null);
@@ -164,7 +165,7 @@ export const MainApp: React.FC = () => {
         setShowWhatsNew(false);
     }, [publicConfig?.appVersion]);
 
-    const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'maintenance' | 'upgrader' | 'requests' | 'invite' | 'loading', options?: { hash?: string }) => {
+    const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'maintenance' | 'upgrader' | 'requests' | 'discovery' | 'invite' | 'loading', options?: { hash?: string }) => {
         if (route === 'logs') {
             setCurrentRoute('settings');
             window.history.pushState({}, '', portalUrl('/settings#logs'));
@@ -184,6 +185,7 @@ export const MainApp: React.FC = () => {
             if (route === 'maintenance') path = '/maintenance';
             if (route === 'upgrader') path = '/upgrader';
             if (route === 'requests') path = '/requests';
+            if (route === 'discovery') path = '/discovery';
             if (options?.hash) path += options.hash;
             window.history.pushState({}, '', portalUrl(path));
         }
@@ -223,6 +225,7 @@ export const MainApp: React.FC = () => {
             else if (path.startsWith('/maintenance') && data.session.isAdmin) setCurrentRoute('maintenance');
             else if (path.startsWith('/upgrader') && data.session.isAdmin) setCurrentRoute('upgrader');
             else if (path.startsWith('/requests') && data.session.isAdmin) setCurrentRoute('requests');
+            else if (path.startsWith('/discovery')) setCurrentRoute('discovery');
             else if (path.startsWith('/analytics')) setCurrentRoute('analytics');
             else if (path.startsWith('/admin') || path.startsWith('/users')) {
                 if (data.session.isAdmin && !data.impersonation?.active) setCurrentRoute('users');
@@ -312,6 +315,7 @@ export const MainApp: React.FC = () => {
         if (currentRoute === 'maintenance' && isAdmin) return <MaintenanceDashboard />;
         if (currentRoute === 'upgrader' && isAdmin) return <UpgraderDashboard />;
         if (currentRoute === 'requests' && isAdmin) return <RequestsAdminPanel onCountsChange={refreshPendingRequestCount} />;
+        if (currentRoute === 'discovery') return <DiscoveryDashboard onItemClick={(item) => console.log('Item', item)} />;
         if (currentRoute === 'logs' && isAdmin) return <LogsDashboard onLogout={handleLogout} />;
         if (currentRoute === 'mediastack') return <MediaStackDashboard isAdmin={isAdmin} />;
         if (currentRoute === 'analytics') return <AnalyticsDashboard isAdmin={isAdmin} sessionInfo={sessionInfo} />;
