@@ -63,15 +63,9 @@ export const DiscoverHome: React.FC<{
         fetchData();
     }, []);
 
-    const TextCard = ({ name, onClick }: { name: string, onClick: () => void }) => (
-        <div onClick={onClick} className="w-[140px] h-[80px] sm:w-[160px] sm:h-[100px] flex-shrink-0 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center cursor-pointer hover:scale-105 hover:bg-white/10 transition-all shadow-lg p-4">
-            <span className="text-white font-bold text-lg sm:text-xl tracking-wider text-center">{name}</span>
-        </div>
-    );
-
-    const ImageCard = ({ name, logo, onClick }: { name: string, logo: string, onClick: () => void }) => (
-        <div onClick={onClick} className="w-[140px] h-[80px] sm:w-[160px] sm:h-[100px] flex-shrink-0 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center cursor-pointer hover:scale-105 hover:bg-white/20 transition-all shadow-lg p-2 sm:p-4 bg-gradient-to-br from-white/10 to-white/5">
-            <img src={logo} alt={name} className="w-full h-full object-contain drop-shadow-md" />
+    const TextCard = ({ name, bgClass, textClass, onClick }: { name: string, bgClass?: string, textClass?: string, onClick: () => void }) => (
+        <div onClick={onClick} className={`w-[140px] h-[80px] sm:w-[160px] sm:h-[100px] flex-shrink-0 rounded-xl border border-white/10 flex items-center justify-center cursor-pointer hover:scale-105 transition-all shadow-lg p-4 ${bgClass || 'bg-white/5 hover:bg-white/10'}`}>
+            <span className={`font-bold text-lg sm:text-xl tracking-wider text-center ${textClass || 'text-white'}`}>{name}</span>
         </div>
     );
 
@@ -150,17 +144,15 @@ export const DiscoverHome: React.FC<{
                         <h2 className="text-xl font-bold text-white px-2">Studios</h2>
                         <Carousel>
                             {[
-                                { id: 2, name: 'Walt Disney', logo: 'https://image.tmdb.org/t/p/w300/wdrCwmRnLFJhEoG8GSfymY85KHT.png' },
-                                { id: 25, name: '20th Century', logo: 'https://image.tmdb.org/t/p/w300/qZCc1lty5FzX30aOCVRXrxSRYcF.png' },
-                                { id: 5, name: 'Sony Pictures', logo: 'https://image.tmdb.org/t/p/w300/71BqEFAF4V3qjjZAJ6NKeDOP2g4.png' },
-                                { id: 174, name: 'Warner Bros', logo: 'https://image.tmdb.org/t/p/w300/ky0xOc5OrhvnX4ElzwaKzG2wz8t.png' },
-                                { id: 33, name: 'Universal', logo: 'https://image.tmdb.org/t/p/w300/8lvHyhjvG0bIVMtd1S1sLcwk801.png' },
-                                { id: 4, name: 'Paramount', logo: 'https://image.tmdb.org/t/p/w300/fycMZtIsqQ8Qv6iYh8sH0Wp21vV.png' },
-                                { id: 41077, name: 'A24', text: true }
+                                { id: 2, name: 'Walt Disney', bgClass: 'bg-[#0B0F19]', textClass: 'text-white font-serif' },
+                                { id: 25, name: '20th Century', bgClass: 'bg-[#0F1B29]', textClass: 'text-amber-200' },
+                                { id: 5, name: 'Sony Pictures', bgClass: 'bg-black', textClass: 'text-white' },
+                                { id: 174, name: 'Warner Bros', bgClass: 'bg-[#0033A0]', textClass: 'text-amber-400 font-bold' },
+                                { id: 33, name: 'Universal', bgClass: 'bg-[#051130]', textClass: 'text-white font-serif uppercase' },
+                                { id: 4, name: 'Paramount', bgClass: 'bg-[#0064B0]', textClass: 'text-white font-serif' },
+                                { id: 41077, name: 'A24', bgClass: 'bg-black', textClass: 'text-white font-serif tracking-widest' }
                             ].map((c, i) => (
-                                c.text ? 
-                                <TextCard key={i} name={c.name} onClick={() => { window.history.pushState({}, '', `/discovery/movies?studio=${c.id}`); window.dispatchEvent(new Event('popstate')); }} /> :
-                                <ImageCard key={i} name={c.name} logo={c.logo!} onClick={() => { window.history.pushState({}, '', `/discovery/movies?studio=${c.id}`); window.dispatchEvent(new Event('popstate')); }} />
+                                <TextCard key={i} name={c.name} bgClass={c.bgClass} textClass={c.textClass} onClick={() => { window.history.pushState({}, '', `/discovery/movies?studio=${c.id}`); window.dispatchEvent(new Event('popstate')); }} />
                             ))}
                         </Carousel>
                     </div>
@@ -205,19 +197,17 @@ export const DiscoverHome: React.FC<{
                         <h2 className="text-xl font-bold text-white px-2">Networks</h2>
                         <Carousel>
                             {[
-                                { id: 213, name: 'Netflix', logo: 'https://image.tmdb.org/t/p/w300/wwemzKWzjKYJFfCeiB57q3r4Bcm.png' },
-                                { id: 2739, name: 'Disney+', logo: 'https://image.tmdb.org/t/p/w300/7rwgEs15tFwyR9NPQ5vpzxTj19Q.png' },
-                                { id: 1024, name: 'Prime Video', logo: 'https://image.tmdb.org/t/p/w300/11A1K11yO4t0vJv7s43r0sWw9Hh.png' },
-                                { id: 2552, name: 'Apple TV+', logo: 'https://image.tmdb.org/t/p/w300/6vA9x4kQk24jU3T9aH2wY4nN6H5.png' },
-                                { id: 453, name: 'Hulu', logo: 'https://image.tmdb.org/t/p/w300/gJ8VX6JSu3cgXID5Lw2vG20N7S8.png' },
-                                { id: 49, name: 'HBO', logo: 'https://image.tmdb.org/t/p/w300/tuomPhY2UtuPTqqFnKMVHvZwH0C.png' },
-                                { id: 4, name: 'BBC', text: true },
-                                { id: 9, name: 'ITV', text: true },
-                                { id: 214, name: 'Sky', text: true }
+                                { id: 213, name: 'Netflix', bgClass: 'bg-[#000000]', textClass: 'text-[#E50914] font-black uppercase tracking-widest' },
+                                { id: 2739, name: 'Disney+', bgClass: 'bg-[#050529]', textClass: 'text-white font-bold' },
+                                { id: 1024, name: 'Prime Video', bgClass: 'bg-[#00A8E1]', textClass: 'text-white font-bold' },
+                                { id: 2552, name: 'Apple TV+', bgClass: 'bg-white', textClass: 'text-black font-bold' },
+                                { id: 453, name: 'Hulu', bgClass: 'bg-[#1CE783]', textClass: 'text-black font-black tracking-tighter' },
+                                { id: 49, name: 'HBO', bgClass: 'bg-black', textClass: 'text-white font-serif font-bold tracking-widest' },
+                                { id: 4, name: 'BBC', bgClass: 'bg-black', textClass: 'text-white tracking-widest font-bold' },
+                                { id: 9, name: 'ITV', bgClass: 'bg-[#003A70]', textClass: 'text-[#00A1E0] font-black' },
+                                { id: 214, name: 'Sky', bgClass: 'bg-gradient-to-r from-[#003A70] to-[#00A1E0]', textClass: 'text-white font-bold' }
                             ].map((c, i) => (
-                                c.text ?
-                                <TextCard key={i} name={c.name} onClick={() => { window.history.pushState({}, '', `/discovery/series?network=${c.id}`); window.dispatchEvent(new Event('popstate')); }} /> :
-                                <ImageCard key={i} name={c.name} logo={c.logo!} onClick={() => { window.history.pushState({}, '', `/discovery/series?network=${c.id}`); window.dispatchEvent(new Event('popstate')); }} />
+                                <TextCard key={i} name={c.name} bgClass={c.bgClass} textClass={c.textClass} onClick={() => { window.history.pushState({}, '', `/discovery/series?network=${c.id}`); window.dispatchEvent(new Event('popstate')); }} />
                             ))}
                         </Carousel>
                     </div>
