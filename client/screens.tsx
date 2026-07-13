@@ -1322,7 +1322,14 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
                 )}
             </div>
 
-            <div className="flex flex-col gap-8 w-full">
+            <button onClick={refreshData} className="px-3 py-1.5 bg-plex/10 hover:bg-plex/20 text-plex text-xs font-bold rounded-lg border border-plex/20 flex items-center gap-2 transition-all">
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+            </button>
+
+            <DetailsModal item={detailsItem} onClose={() => setDetailsItem(null)} />
+
+            <div className="flex flex-col gap-8 w-full max-w-7xl mx-auto">
 
                 <div className="w-full">
 
@@ -2157,7 +2164,7 @@ const AnimatedLeaderboard: React.FC<{ users: any[], resolveAvatar: (thumb: strin
         </div>
     );
 };
-const RecentlyWatchedDetailsModal: React.FC<{ item: any, onClose: () => void }> = ({ item, onClose }) => {
+const DetailsModal: React.FC<{ item: any, onClose: () => void }> = ({ item, onClose }) => {
     const [details, setDetails] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     
@@ -2383,11 +2390,7 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
     const [selectedUser, setSelectedUser] = useState<{ id: string, username: string, thumb: string | null } | null>(null);
     const [selectedItemViewers, setSelectedItemViewers] = useState<{ title: string, viewers: Record<string, any> } | null>(null);
     const [allUsers, setAllUsers] = useState<any[]>([]);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [isSearching, setIsSearching] = useState(false);
     const [contentTab, setContentTab] = useState<'movies' | 'shows' | 'music'>('movies');
-    const [viewerPage, setViewerPage] = useState(1);
-    const viewersPerPage = 10;
     const [viewTab, setViewTab] = useState<'overview' | 'graphs'>('overview');
     const mediaServerType = String(sessionInfo?.mediaServerType || 'plex').toLowerCase();
     const isJellyfinPortal = mediaServerType === 'jellyfin';
@@ -2474,7 +2477,6 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
                         if (cancelled) return;
                         setTautulliData(tData);
                     } catch (e) {
-                        // Tautulli/Jellystat might not be configured, ignore the extra panel.
                         if (!cancelled) setTautulliData(null);
                     }
                 } else {
@@ -2494,30 +2496,15 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
         if (isJellyfinPortal && viewTab === 'graphs') setViewTab('overview');
     }, [isJellyfinPortal, viewTab]);
 
-    const topUsersLength = analyticsData?.topUsers?.length || 0;
-    const totalViewerPages = Math.max(1, Math.ceil(topUsersLength / viewersPerPage));
-
-    useEffect(() => {
-        setViewerPage(1);
-    }, [days]);
-
-    useEffect(() => {
-        if (viewerPage > totalViewerPages) {
-            setViewerPage(totalViewerPages);
-        }
-    }, [viewerPage, totalViewerPages]);
-
     if (isLoading) return <Loader isLoading={true} />;
     if (error) return <div className="text-red-500 font-bold p-8 text-center">{error}</div>;
     if (!analyticsData) return null;
 
-    const { topUsers, topLibraries, topMovies, topShows, topMusic, topDevices, peakHours, totalPlaybacks, maxConcurrentStreams, maxDirectPlays, maxTranscodes } = analyticsData;
+    const { topUsers, topLibraries, topMovies, topShows, topMusic, topDevices, peakHours, totalPlaybacks } = analyticsData;
     const uniqueActiveViewers = topUsers.filter((u: any) => (u.plays || 0) > 0).length;
     const maxLibraryPlays = Math.max(...topLibraries.map(l => l.plays), 1);
     const maxDevicePlays = Math.max(...topDevices.map(d => d.plays), 1);
     const maxPeakHour = Math.max(...peakHours, 1);
-    const viewerPageSafe = Math.min(viewerPage, totalViewerPages);
-    const pagedTopUsers = topUsers.slice((viewerPageSafe - 1) * viewersPerPage, viewerPageSafe * viewersPerPage);
 
     let activeContent = topMovies;
     if (contentTab === 'shows') activeContent = topShows;
@@ -2602,13 +2589,11 @@ return (
 
             {viewTab === 'overview' && (
                 <>
-                    {/* removed erroneous ServerInsightsOverview */}
                     {analyticsData.cacheFallback && (
                         <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">
                             Analytics cache for this period is still building. Showing cached data from the last {analyticsData.cachePeriodDays} day period instead.
                         </div>
                     )}
-                    {/* High Level Stats Overview */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div className="glass-card-sm p-6 flex items-center gap-4">
                             <div className="bg-plex/10 p-4 rounded-full">
@@ -2649,205 +2634,32 @@ return (
                         </div>
                     </div>
                     {libraryHealth && (
-                        <>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                <div className="glass-card-sm p-4">
-                                    <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Library Balance</p>
-                                    <p className="text-xl font-black text-plex">{libraryHealth.healthLabel}</p>
-                                    <p className="text-[10px] text-muted mt-1 leading-snug">How evenly viewing is spread across libraries — not server health.</p>
-                                </div>
-                                <div className="glass-card-sm p-4">
-                                    <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Active Libraries</p>
-                                    <p className="text-xl font-black text-text">{libraryHealth.activeLibraries}</p>
-                                </div>
-                                <div className="glass-card-sm p-4">
-                                    <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Catalog Size</p>
-                                    <p className="text-xl font-black text-text">{libraryHealth.totalCatalogItems.toLocaleString()}</p>
-                                    <p className="text-[11px] text-muted">{formatSizeCeil(libraryHealth.totalCatalogBytes ?? libraryHealth.sizeGB * 1024 ** 3)}</p>
-                                </div>
-                                <div className="glass-card-sm p-4">
-                                    <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Usage Concentration</p>
-                                    <p className="text-xl font-black text-text">{libraryHealth.concentrationPct}%</p>
-                                    <p className="text-[11px] text-muted truncate">Watched: {libraryHealth.catalogWatchedPct || 0}% • 4K: {libraryHealth.fourKPercent}%</p>
-                                </div>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="glass-card-sm p-4">
+                                <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Library Balance</p>
+                                <p className="text-xl font-black text-plex">{libraryHealth.healthLabel}</p>
+                                <p className="text-[10px] text-muted mt-1 leading-snug">How evenly viewing is spread across libraries — not server health.</p>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="glass-card-sm p-4 flex flex-col justify-center">
-                                    <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Movies Catalog</p>
-                                    <div className="flex items-center">
-                                        <p className="text-xl font-black text-text"><CountUp end={libraryHealth.movies || 0} /></p>
-                                        <LibraryDeltaBadge value={libraryDeltas.movies} />
-                                    </div>
-                                    <p className="text-[11px] text-muted">Total movies in library</p>
-                                </div>
-                                <div className="glass-card-sm p-4 flex flex-col justify-center">
-                                    <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">TV Shows Catalog</p>
-                                    <div className="flex items-center gap-1">
-                                        <p className="text-xl font-black text-text"><CountUp end={libraryHealth.shows || 0} /></p>
-                                        <span className="text-xs font-semibold text-muted ml-1">Shows</span>
-                                        <LibraryDeltaBadge value={libraryDeltas.shows} />
-                                    </div>
-                                    <div className="flex items-center text-[11px] text-muted mt-0.5">
-                                        <CountUp end={libraryHealth.episodes || 0} /> <span className="ml-1">episodes</span>
-                                        <LibraryDeltaBadge value={libraryDeltas.episodes} />
-                                    </div>
-                                </div>
-                                <div className="glass-card-sm p-4 flex flex-col justify-center">
-                                    <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Music Catalog</p>
-                                    <div className="flex items-center gap-1">
-                                        <p className="text-xl font-black text-text"><CountUp end={libraryHealth.artists || 0} /></p>
-                                        <span className="text-xs font-semibold text-muted ml-1">Artists</span>
-                                        <LibraryDeltaBadge value={libraryDeltas.artists} />
-                                    </div>
-                                    <div className="flex items-center text-[11px] text-muted mt-0.5">
-                                        <CountUp end={libraryHealth.albums || 0} /> <span className="mx-1">albums</span> <LibraryDeltaBadge value={libraryDeltas.albums} />
-                                        <span className="mx-1">•</span> 
-                                        <CountUp end={libraryHealth.tracks || 0} /> <span className="mx-1">tracks</span> <LibraryDeltaBadge value={libraryDeltas.tracks} />
-                                    </div>
-                                </div>
+                            <div className="glass-card-sm p-4">
+                                <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Active Libraries</p>
+                                <p className="text-xl font-black text-text">{libraryHealth.activeLibraries}</p>
                             </div>
-
-                            {libraryHealth.resolutions && libraryHealth.codecs && libraryHealth.fileSizes && (() => {
-                                const sortedCodecs = Object.entries(libraryHealth.codecs || {})
-                                    .map(([name, count]) => ({ name, count: count as number }))
-                                    .sort((a, b) => b.count - a.count);
-                                const totalCodecs = sortedCodecs.reduce((sum, item) => sum + item.count, 0) || 1;
-
-                                const sortedResolutions = Object.entries(libraryHealth.resolutions || {})
-                                    .map(([name, count]) => ({ name, count: count as number }))
-                                    .sort((a, b) => b.count - a.count);
-                                const totalResolutions = sortedResolutions.reduce((sum, item) => sum + item.count, 0) || 1;
-
-                                const fileSizeEntries = Object.entries(libraryHealth.fileSizes || {})
-                                    .map(([range, val]) => {
-                                        let movies = 0;
-                                        let shows = 0;
-                                        if (val && typeof val === 'object') {
-                                            movies = (val as any).movies || 0;
-                                            shows = (val as any).shows || 0;
-                                        } else if (typeof val === 'number') {
-                                            shows = val;
-                                        }
-                                        return { range, movies, shows, total: movies + shows };
-                                    });
-                                const maxFileSizeCount = Math.max(...fileSizeEntries.map(e => e.total), 1);
-
-                                return (
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div className="glass-card-sm p-5 flex flex-col justify-between">
-                                            <div>
-                                                <h3 className="text-muted text-xs uppercase tracking-wider font-bold mb-4">Video Codecs</h3>
-                                                <div className="flex flex-col gap-3">
-                                                    {sortedCodecs.map((item) => {
-                                                        const pct = Math.round((item.count / totalCodecs) * 100);
-                                                        return (
-                                                            <div key={item.name} className="flex flex-col gap-1">
-                                                                <div className="flex justify-between text-xs font-semibold">
-                                                                    <span className="text-text">{item.name}</span>
-                                                                    <span className="text-muted font-mono">{item.count.toLocaleString()} ({pct}%)</span>
-                                                                </div>
-                                                                <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden">
-                                                                    <div className="bg-plex h-full rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="glass-card-sm p-5 flex flex-col justify-between">
-                                            <div>
-                                                <h3 className="text-muted text-xs uppercase tracking-wider font-bold mb-4">Resolutions</h3>
-                                                <div className="flex flex-col gap-3">
-                                                    {sortedResolutions.map((item) => {
-                                                        const pct = Math.round((item.count / totalResolutions) * 100);
-                                                        return (
-                                                            <div key={item.name} className="flex flex-col gap-1">
-                                                                <div className="flex justify-between text-xs font-semibold">
-                                                                    <span className="text-text">{item.name}</span>
-                                                                    <span className="text-muted font-mono">{item.count.toLocaleString()} ({pct}%)</span>
-                                                                </div>
-                                                                <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden">
-                                                                    <div className="bg-plex h-full rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="glass-card-sm p-5 flex flex-col">
-                                            <div className="flex items-center justify-between mb-1">
-                                                <h3 className="text-muted text-xs uppercase tracking-wider font-bold">File Size Distribution</h3>
-                                                <div className="flex items-center gap-3 text-[10px] text-muted font-semibold">
-                                                    <span className="flex items-center gap-1">
-                                                        <span className="w-2 h-2 bg-plex rounded-sm inline-block" />
-                                                        <span>Movies</span>
-                                                    </span>
-                                                    <span className="flex items-center gap-1">
-                                                        <span className="w-2 h-2 bg-plex/30 rounded-sm inline-block border border-plex/20" />
-                                                        <span>TV Shows</span>
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-end justify-between h-40 pt-4 px-2 w-full gap-3 mt-auto">
-                                                {fileSizeEntries.map((item) => {
-                                                    const totalHeightPct = (item.total / maxFileSizeCount) * 100;
-                                                    const moviesPctOfBar = item.total > 0 ? (item.movies / item.total) * 100 : 0;
-                                                    const showsPctOfBar = item.total > 0 ? (item.shows / item.total) * 100 : 0;
-                                                    
-                                                    return (
-                                                        <div key={item.range} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group relative">
-                                                            <div 
-                                                                className="w-full relative transition-all duration-500 flex flex-col justify-end" 
-                                                                style={{ height: `${Math.max(totalHeightPct, 4)}%` }}
-                                                            >
-                                                                {/* Bar container with overflow-hidden for rounded-t corners */}
-                                                                <div className="w-full h-full rounded-t overflow-hidden flex flex-col justify-end">
-                                                                    {/* Movies part (Top) */}
-                                                                    {item.movies > 0 && (
-                                                                        <div 
-                                                                            className="w-full bg-plex hover:opacity-100 transition-opacity" 
-                                                                            style={{ height: `${moviesPctOfBar}%` }} 
-                                                                        />
-                                                                    )}
-                                                                    {/* TV Shows part (Bottom) */}
-                                                                    {item.shows > 0 && (
-                                                                        <div 
-                                                                            className="w-full bg-plex/30 hover:opacity-100 transition-opacity border-t border-black/10" 
-                                                                            style={{ height: `${showsPctOfBar}%` }} 
-                                                                        />
-                                                                    )}
-                                                                </div>
-
-                                                                {/* Detailed Tooltip (Placed outside the overflow-hidden container, inside the height wrapper) */}
-                                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 bg-black/95 text-white text-[10px] px-2.5 py-1.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-20 font-mono shadow-md border border-white/5 flex flex-col gap-0.5 leading-none">
-                                                                    <span className="font-bold text-plex mb-1 text-[11px]">{item.range}</span>
-                                                                    <span className="flex justify-between gap-4"><span>Movies:</span> <span className="text-white font-bold">{item.movies.toLocaleString()}</span></span>
-                                                                    <span className="flex justify-between gap-4"><span>TV Episodes:</span> <span className="text-white font-bold">{item.shows.toLocaleString()}</span></span>
-                                                                    <span className="border-t border-white/10 mt-1 pt-1 flex justify-between gap-4"><span>Total:</span> <span className="text-plex font-bold">{item.total.toLocaleString()}</span></span>
-                                                                </div>
-                                                            </div>
-                                                            <span className="text-[9px] text-muted font-bold tracking-wider text-center line-clamp-1 w-full" title={item.range}>{item.range}</span>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })()}
-                        </>
+                            <div className="glass-card-sm p-4">
+                                <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Catalog Size</p>
+                                <p className="text-xl font-black text-text">{libraryHealth.totalCatalogItems.toLocaleString()}</p>
+                                <p className="text-[11px] text-muted">{formatSizeCeil(libraryHealth.totalCatalogBytes ?? libraryHealth.sizeGB * 1024 ** 3)}</p>
+                            </div>
+                            <div className="glass-card-sm p-4">
+                                <p className="text-muted text-xs uppercase tracking-wider font-bold mb-1">Usage Concentration</p>
+                                <p className="text-xl font-black text-text">{libraryHealth.concentrationPct}%</p>
+                                <p className="text-[11px] text-muted truncate">Watched: {libraryHealth.catalogWatchedPct || 0}% • 4K: {libraryHealth.fourKPercent}%</p>
+                            </div>
+                        </div>
                     )}
-
                     <div className="w-full">
                         <AnimatedLeaderboard users={topUsers} resolveAvatar={resolveUserAvatar} isAdmin={isAdmin} onUserClick={setSelectedUser as any} />
                     </div>
-
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
                         <ServerInsightsWidget 
                             peakHours={analyticsData?.peakHours || []} 
                             tautulliData={tautulliData} 
@@ -2858,10 +2670,7 @@ return (
                             peakDateData={peakDateData}
                             peakDateLoading={peakDateLoading}
                         />
-
-                        {/* Top Devices & Libraries Container */}
                         <div className="flex flex-col gap-6 lg:col-span-1">
-                            {/* Popular Libraries Card */}
                             <div className="glass-card-sm p-4 md:p-6">
                                 <h2 className="text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><PlaySquare className="text-plex w-5 h-5" /> Popular Libraries</h2>
                                 <div className="flex flex-col gap-5 mt-2">
@@ -2878,8 +2687,6 @@ return (
                                     ))}
                                 </div>
                             </div>
-
-                            {/* Top Devices Card */}
                             {topDevices && topDevices.length > 0 && (
                                 <div className="glass-card-sm p-4 md:p-6">
                                     <h2 className="text-xl font-bold text-text mb-4 uppercase tracking-wider flex items-center gap-2"><MonitorSmartphone className="text-plex w-5 h-5" /> Top Devices</h2>
@@ -2901,10 +2708,6 @@ return (
                                 </div>
                             )}
                         </div>
-
-
-
-                        {/* Trending Content Card */}
                         <div className="glass-card-sm p-4 md:p-6 col-span-full">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                                 <h2 className="text-xl font-bold text-text uppercase tracking-wider flex items-center gap-2"><TrendingUp className="text-plex w-5 h-5" /> Trending Content</h2>
@@ -2914,57 +2717,15 @@ return (
                                     <button onClick={() => setContentTab('music')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${contentTab === 'music' ? 'bg-plex text-black shadow-md' : 'text-muted hover:text-text hover:bg-white/5'}`}>Music</button>
                                 </div>
                             </div>
-                            <div className="flex flex-col gap-4">
-                                {activeContent.length === 0 ? <p className="text-muted text-sm col-span-full">No data available.</p> : activeContent.slice(0, 10).map((item, idx) => (
-                                    <a key={item.key} href={item.plexUrl} target="_blank" rel="noreferrer" className="flex flex-col sm:flex-row bg-black/20 rounded-xl overflow-hidden hover:bg-black/40 transition-all cursor-pointer group hover:ring-1 hover:ring-plex shadow-md">
-                                        <div className={`sm:w-32 lg:w-40 flex-shrink-0 relative ${contentTab === 'music' ? 'aspect-square' : 'aspect-[2/3]'}`}>
-                                            {item.thumbUrl ? (
-                                                <img src={resolvePortalAssetUrl(item.thumbUrl)} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center bg-black/40"><Film className="w-8 h-8 opacity-50 text-muted" /></div>
-                                            )}
-                                            <div className="absolute top-2 left-2 bg-plex text-black font-bold text-xs px-2 py-1 rounded-md shadow-lg drop-shadow-md">#{idx + 1}</div>
-                                        </div>
-                                        <div className="p-4 sm:p-5 flex flex-col justify-between flex-grow">
-                                            <div>
-                                                <div className="flex items-start justify-between gap-2 mb-2">
-                                                    <h3 className="text-lg sm:text-xl font-bold text-text group-hover:text-plex transition-colors line-clamp-1">{item.title}</h3>
-                                                    <button 
-                                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedItemViewers({ title: item.title, viewers: item.viewers || {} }); }}
-                                                        className="flex items-center gap-1 bg-white/10 hover:bg-plex/20 hover:text-plex px-2 py-1 rounded-md text-xs font-mono text-plex flex-shrink-0 whitespace-nowrap shadow-sm transition-colors"
-                                                    >
-                                                        <PlaySquare className="w-3 h-3" /> {item.plays} plays
-                                                    </button>
-                                                </div>
-                                                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted mb-3 font-medium">
-                                                    {item.year && <span>{item.year}</span>}
-                                                    {item.year && (item.contentRating || item.rating || item.duration > 0 || (item.genres && item.genres.length > 0)) && <span className="opacity-50">&bull;</span>}
-                                                    {item.contentRating && <span>{item.contentRating}</span>}
-                                                    {item.contentRating && (item.rating || item.duration > 0 || (item.genres && item.genres.length > 0)) && <span className="opacity-50">&bull;</span>}
-                                                    {item.duration > 0 && <span>{Math.round(item.duration / 60000)} min</span>}
-                                                    {item.duration > 0 && item.rating && <span className="opacity-50">&bull;</span>}
-                                                    {item.rating && (
-                                                        <span className="flex items-center gap-1 text-yellow-500">
-                                                            <Star className="w-3 h-3 fill-current" /> {item.rating}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <p className="text-sm text-text/80 line-clamp-2 sm:line-clamp-3 mb-3 leading-relaxed">
-                                                    {item.summary || "No summary available."}
-                                                </p>
-                                            </div>
-                                            {item.genres && item.genres.length > 0 && (
-                                                <div className="flex flex-wrap gap-2 mt-auto">
-                                                    {item.genres.slice(0, 4).map((g: string, i: number) => (
-                                                        <span key={i} className="text-[10px] uppercase tracking-wider bg-white/5 border border-white/10 text-muted px-2 py-1 rounded-full shadow-sm">{g}</span>
-                                                    ))}
-                                                    {item.genres.length > 4 && (
-                                                        <span className="text-[10px] uppercase tracking-wider bg-white/5 border border-white/10 text-muted px-2 py-1 rounded-full shadow-sm">+{item.genres.length - 4}</span>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </a>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                {activeContent.slice(0, 12).map((item, idx) => (
+                                    <DiscoverPosterCard
+                                        key={item.key}
+                                        item={item}
+                                        overlay={discoverViewsOverlay(item.plays)}
+                                        showQualityBadges={showQualityBadges}
+                                        onPosterClick={() => setDetailsItem(item)}
+                                    />
                                 ))}
                             </div>
                         </div>
@@ -4878,14 +4639,22 @@ export const DiscoverPosterCard: React.FC<{
         );
     }
 
+    if (onPosterClick && !posterOnlyLink) {
+        return (
+            <button
+                type="button"
+                onClick={onPosterClick}
+                className={`flex flex-col gap-2 group text-left border-0 p-0 bg-transparent cursor-pointer ${className}`}
+                style={{ color: 'inherit', textDecoration: 'none' }}
+            >
+                {posterInner}
+                {footer ?? defaultFooter}
+            </button>
+        );
+    }
+
     return (
-        <a
-            href={item.plexUrl}
-            target="_blank"
-            rel="noreferrer"
-            className={`flex flex-col gap-2 group ${className}`}
-            style={{ textDecoration: 'none', color: 'inherit' }}
-        >
+        <a href={item.plexUrl} target="_blank" rel="noreferrer" className={`flex flex-col gap-2 group no-underline ${className}`} style={{ color: 'inherit', textDecoration: 'none' }}>
             {posterInner}
             {footer ?? defaultFooter}
         </a>
@@ -4912,7 +4681,7 @@ const DISCOVER_LIMIT_OPTIONS = [
     { value: '250', label: '250 Items' },
 ];
 
-const TrendingDiscoverSection: React.FC<{ title: string; items: any[]; limit: number; showQualityBadges?: boolean; useScrollRevealAnimations?: boolean }> = ({ title, items, limit, showQualityBadges = true, useScrollRevealAnimations }) => {
+const TrendingDiscoverSection: React.FC<{ title: string; items: any[]; limit: number; showQualityBadges?: boolean; useScrollRevealAnimations?: boolean; onItemClick?: (item: any) => void }> = ({ title, items, limit, showQualityBadges = true, useScrollRevealAnimations, onItemClick }) => {
     if (!items?.length) return null;
     return (
         <ScrollReveal enabled={!!useScrollRevealAnimations} className="flex flex-col">
@@ -4924,6 +4693,7 @@ const TrendingDiscoverSection: React.FC<{ title: string; items: any[]; limit: nu
                         item={{ ...item, plexUrl: item.plexUrl || '#' }}
                         overlay={discoverViewsOverlay(item.views)}
                         showQualityBadges={showQualityBadges}
+                        onPosterClick={onItemClick ? () => onItemClick(item) : undefined}
                     />
                 ))}
             </div>
@@ -4953,6 +4723,8 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     const [reportItem, setReportItem] = useState<any>(null);
     const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
     const [shareWrapUpOpen, setShareWrapUpOpen] = useState(false);
+    const [recentLimit, setRecentLimit] = useState(24);
+    const [detailsItem, setDetailsItem] = useState<any>(null);
 
     const user = sessionInfo.account;
     const showQualityBadges = publicConfig?.showPosterQualityBadges !== false;
@@ -5006,9 +4778,6 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
             libraryHealth: data?.libraryHealth || null,
         };
     };
-
-    const [detailsItem, setDetailsItem] = useState<any>(null);
-
     const handleToggleNewsletter = async () => {
         setIsLoading(true);
         try {
@@ -5354,7 +5123,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                 />
             )}
 
-            <RecentlyWatchedDetailsModal item={detailsItem} onClose={() => setDetailsItem(null)} />
+            <UniversalDetailsModal item={detailsItem} onClose={() => setDetailsItem(null)} />
 
             <UserDashboardLayout
                 layoutConfig={publicConfig?.dashboardLayout}
@@ -6470,7 +6239,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                         <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">RECENTLY ADDED MOVIES</h2>
                         <div className={discoverPosterGridClass}>
                             {dashboardData && dashboardData.recentMovies.slice(0, recentLimit).map((item, i) => (
-                                <DiscoverPosterCard key={i} item={item} showQualityBadges={showQualityBadges} />
+                                <DiscoverPosterCard key={i} item={item} showQualityBadges={showQualityBadges} onPosterClick={() => setDetailsItem(item)} />
                             ))}
                             {(!dashboardData || dashboardData.recentMovies.length === 0) && <div className="text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full col-span-full">No recent movies</div>}
                         </div>
@@ -6481,7 +6250,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                         <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">{isJellyfinPortal ? 'RECENTLY ADDED EPISODES' : 'RECENTLY ADDED TV SHOWS'}</h2>
                         <div className={discoverPosterGridClass}>
                             {dashboardData && dashboardData.recentShows.slice(0, recentLimit).map((item, i) => (
-                                <DiscoverPosterCard key={i} item={item} showQualityBadges={showQualityBadges} />
+                                <DiscoverPosterCard key={i} item={item} showQualityBadges={showQualityBadges} onPosterClick={() => setDetailsItem(item)} />
                             ))}
                             {(!dashboardData || dashboardData.recentShows.length === 0) && <div className="text-center text-muted p-8 border border-dashed border-border rounded-xl mt-4 w-full col-span-full">{isJellyfinPortal ? 'No recent episodes' : 'No recent TV shows'}</div>}
                         </div>
@@ -6509,15 +6278,15 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                             <p className="text-muted text-sm max-w-xl">A look at what the community is currently watching across the entire server.</p>
                         </div>
 
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🔥 Trending This Week" items={trendingStats.trending7Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🍿 Most Watched Movies (This Month)" items={trendingStats.movies30Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="📺 Most Watched Shows (This Month)" items={trendingStats.shows30Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🏆 Top of the Year" items={trendingStats.top365Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🌟 All Time Favorites" items={trendingStats.allTime} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🍿 Weekend Warriors" items={trendingStats.weekendWarriors} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🦇 Night Owl Club" items={trendingStats.nightOwls} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="📼 Blast from the Past" items={trendingStats.retroHits} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="💎 Cult Classics" items={trendingStats.cultClassics} limit={recentLimit} showQualityBadges={showQualityBadges} />
+                        <TrendingDiscoverSection onItemClick={setDetailsItem} useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🔥 Trending This Week" items={trendingStats.trending7Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
+                        <TrendingDiscoverSection onItemClick={setDetailsItem} useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🍿 Most Watched Movies (This Month)" items={trendingStats.movies30Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
+                        <TrendingDiscoverSection onItemClick={setDetailsItem} useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="📺 Most Watched Shows (This Month)" items={trendingStats.shows30Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
+                        <TrendingDiscoverSection onItemClick={setDetailsItem} useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🏆 Top of the Year" items={trendingStats.top365Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
+                        <TrendingDiscoverSection onItemClick={setDetailsItem} useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🌟 All Time Favorites" items={trendingStats.allTime} limit={recentLimit} showQualityBadges={showQualityBadges} />
+                        <TrendingDiscoverSection onItemClick={setDetailsItem} useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🍿 Weekend Warriors" items={trendingStats.weekendWarriors} limit={recentLimit} showQualityBadges={showQualityBadges} />
+                        <TrendingDiscoverSection onItemClick={setDetailsItem} useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🦇 Night Owl Club" items={trendingStats.nightOwls} limit={recentLimit} showQualityBadges={showQualityBadges} />
+                        <TrendingDiscoverSection onItemClick={setDetailsItem} useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="📼 Blast from the Past" items={trendingStats.retroHits} limit={recentLimit} showQualityBadges={showQualityBadges} />
+                        <TrendingDiscoverSection onItemClick={setDetailsItem} useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="💎 Cult Classics" items={trendingStats.cultClassics} limit={recentLimit} showQualityBadges={showQualityBadges} />
                     </div>
                 )}
             </main>
