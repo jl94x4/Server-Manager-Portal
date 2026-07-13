@@ -7619,7 +7619,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
     const navItemsConfig: Record<string, { label: string; icon: React.FC<any>; route: string; adminOnly: boolean; href?: string; onClick?: (e: any) => void }> = {
         'home': { label: 'Home', icon: Home, route: 'user', adminOnly: false },
         'users': { label: 'Users', icon: Users, route: 'users', adminOnly: true },
-        'discover': { label: 'Discover', icon: Film, route: 'dashboard', adminOnly: false },
+        'discover': { label: 'Library Dashboard', icon: Film, route: 'dashboard', adminOnly: false },
         'status': { label: 'Status', icon: Activity, route: 'status', adminOnly: false },
         'logs': { label: 'Logs', icon: FileText, route: 'logs', adminOnly: true },
         'analytics': { label: 'Analytics', icon: BarChart3, route: 'analytics', adminOnly: false },
@@ -7627,7 +7627,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         'maintenance': { label: 'Cleaner', icon: Shield, route: 'maintenance', adminOnly: true },
         'upgrader': { label: 'Upgrader', icon: ArrowUpCircle, route: 'upgrader', adminOnly: true },
         'requests': { label: 'Requests', icon: ClipboardList, route: 'requests', adminOnly: true },
-        'request': { label: 'Request Content', icon: Sparkles, route: 'discovery', adminOnly: false },
+        'request': { label: 'Discover & Request', icon: Sparkles, route: 'discovery', adminOnly: false },
         'settings': { label: 'Settings', icon: Settings, route: 'settings', adminOnly: true },
         'logout': { label: 'Logout', icon: LogOut, route: '', adminOnly: false, onClick: onLogout }
     };

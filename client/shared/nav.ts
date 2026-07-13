@@ -25,8 +25,8 @@ export const filterNavOrder = (
     const features = options.features || {};
     const maintenanceEnabled = features.maintenance !== false;
     const upgraderEnabled = !!features.upgrader;
-    const requestEnabled = features.request !== false;
     const requestsQueueEnabled = !!features.requestsQueue;
+    const requestEnabled = features.request !== false || requestsQueueEnabled;
 
     return (Array.isArray(order) ? order : []).filter((key) => {
         if (key === 'logout' || key === 'logs') return false;

@@ -63,6 +63,18 @@ export const DiscoverHome: React.FC<{
         fetchData();
     }, []);
 
+    const TextCard = ({ name, onClick }: { name: string, onClick: () => void }) => (
+        <div onClick={onClick} className="w-[140px] h-[80px] sm:w-[160px] sm:h-[100px] flex-shrink-0 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center cursor-pointer hover:scale-105 hover:bg-white/10 transition-all shadow-lg p-4">
+            <span className="text-white font-bold text-lg sm:text-xl tracking-wider text-center">{name}</span>
+        </div>
+    );
+
+    const ImageCard = ({ name, logo, onClick }: { name: string, logo: string, onClick: () => void }) => (
+        <div onClick={onClick} className="w-[140px] h-[80px] sm:w-[160px] sm:h-[100px] flex-shrink-0 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center cursor-pointer hover:scale-105 hover:bg-white/20 transition-all shadow-lg p-2 sm:p-4 bg-gradient-to-br from-white/10 to-white/5">
+            <img src={logo} alt={name} className="w-full h-full object-contain drop-shadow-md" />
+        </div>
+    );
+
     const DiscoveryRow = ({ title, items }: { title: string, items: any[] }) => {
         if (!items || !items.length) return null;
         return (
