@@ -1,0 +1,138 @@
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Loader2, Star, Calendar, Film } from 'lucide-react';
+import { apiFetch } from '../shared/api';
+import { DiscoverPosterCard } from '../screens';
+
+export const PersonDetailsPage: React.FC<{
+    personId: number;
+    onBack: () => void;
+    onSelect: (item: any) => void;
+    formatItem: (item: any) => any;
+}> = ({ personId, onBack, onSelect, formatItem }) => {
+    const [person, setPerson] = useState<any>(null);
+    const [credits, setCredits] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchPerson = async () => {
+            setLoading(true);
+            try {
+                // Fetch person details
+                const personData = await apiFetch(`/api/discovery/proxy/person/${personId}`);
+                if (personData) setPerson(personData);
+
+                // Fetch person combined credits
+                const creditsData = await apiFetch(`/api/discovery/proxy/person/${personId}/combined_credits`);
+                if (creditsData && creditsData.cast) {
+                    // Sort by popularity or release date
+                    const sorted = creditsData.cast
+                        .filter((c: any) => c.posterPath)
+                        .sort((a: any, b: any) => b.popularity - a.popularity)
+                        .slice(0, 50);
+                    setCredits(sorted);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+            setLoading(false);
+        };
+        fetchPerson();
+    }, [personId]);
+
+    if (loading) {
+        return (
+            <div className="w-full flex justify-center py-32">
+                <Loader2 className="w-12 h-12 text-plex animate-spin" />
+            </div>
+        );
+    }
+
+    if (!person) return null;
+
+    const profileUrl = person.profilePath ? `https://image.tmdb.org/t/p/h632${person.profilePath}` : '';
+    const age = person.birthday ? new Date().getFullYear() - new Date(person.birthday).getFullYear() : null;
+
+    return (
+        <div className="w-full flex flex-col gap-8 pb-12 animate-fade-in relative z-10 px-4 sm:px-8 mt-4">
+            <button 
+                onClick={onBack}
+                className="flex items-center gap-2 text-white/70 hover:text-white font-medium transition-colors w-fit"
+            >
+                <ArrowLeft className="w-5 h-5" /> Back to Discovery
+            </button>
+
+            <div className="flex flex-col md:flex-row gap-8">
+                {/* Profile Image */}
+                <div className="w-full md:w-1/3 max-w-[350px] flex-shrink-0">
+                    {profileUrl ? (
+                        <img 
+                            src={profileUrl} 
+                            alt={person.name}
+                            className="w-full rounded-2xl shadow-2xl object-cover aspect-[2/3] border border-white/10"
+                        />
+                    ) : (
+                        <div className="w-full rounded-2xl bg-white/5 border border-white/10 aspect-[2/3] flex items-center justify-center">
+                            <span className="text-white/30 text-2xl font-bold">No Photo</span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Profile Info */}
+                <div className="flex-1 flex flex-col gap-6">
+                    <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tight drop-shadow-md">
+                        {person.name}
+                    </h1>
+
+                    <div className="flex flex-wrap gap-4 text-sm font-bold text-white/70 uppercase tracking-widest">
+                        {person.knownForDepartment && (
+                            <span className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full border border-white/5">
+                                <Star className="w-4 h-4 text-plex" /> {person.knownForDepartment}
+                            </span>
+                        )}
+                        {person.birthday && (
+                            <span className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full border border-white/5">
+                                <Calendar className="w-4 h-4 text-plex" /> {person.birthday} {age ? `(${age} years old)` : ''}
+                            </span>
+                        )}
+                        {person.placeOfBirth && (
+                            <span className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full border border-white/5">
+                                {person.placeOfBirth}
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="flex flex-col gap-3 mt-4">
+                        <h2 className="text-2xl font-bold text-white">Biography</h2>
+                        <p className="text-white/70 text-lg leading-relaxed whitespace-pre-line">
+                            {person.biography || `We do not have a biography for ${person.name}.`}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Known For Grid */}
+            {credits.length > 0 && (
+                <div className="flex flex-col gap-6 mt-12 border-t border-white/10 pt-12">
+                    <h2 className="text-3xl font-black text-white flex items-center gap-3">
+                        <Film className="w-8 h-8 text-plex" /> Known For
+                    </h2>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                        {credits.map((rawItem, idx) => {
+                            const formatted = formatItem(rawItem);
+                            return (
+                                <DiscoverPosterCard
+                                    key={idx}
+                                    item={formatted}
+                                    overlay={formatted.overlay}
+                                    showQualityBadges={false}
+                                    onPosterClick={() => onSelect(formatted)}
+                                />
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+        </div>
+    );
+};

@@ -234,7 +234,14 @@ export const MediaDetailsPage: React.FC<{
                             <h3 className="text-sm font-bold text-white/40 uppercase tracking-widest">Top Cast</h3>
                             <div className="flex gap-6 overflow-x-auto pb-4 custom-scrollbar">
                                 {details.credits.cast.slice(0, 15).map((actor: any) => (
-                                    <div key={actor.id} className="flex flex-col items-center gap-3 w-32 flex-shrink-0">
+                                    <div 
+                                        key={actor.id} 
+                                        onClick={() => {
+                                            window.history.pushState({}, '', `/discovery/person/${actor.id}`);
+                                            window.dispatchEvent(new Event('popstate'));
+                                        }}
+                                        className="flex flex-col items-center gap-3 w-32 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                                    >
                                         <div className="w-24 h-24 rounded-full bg-black/40 border border-white/10 overflow-hidden shadow-lg">
                                             {actor.profilePath ? (
                                                 <img src={`https://image.tmdb.org/t/p/w185${actor.profilePath}`} alt={actor.name} className="w-full h-full object-cover" />
