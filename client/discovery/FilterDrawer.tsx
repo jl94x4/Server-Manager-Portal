@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, Filter, Calendar, Star, Hash } from 'lucide-react';
+import { X, Filter, Calendar, Star } from 'lucide-react';
+import { DISCOVER_NETWORKS, DISCOVER_STUDIOS, MOVIE_GENRES, TV_GENRES } from './discoverConstants';
 
 export interface FilterState {
     sort: string;
@@ -119,47 +120,9 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                             className="w-full bg-black/50 border border-white/10 focus:border-plex rounded-xl p-4 text-white font-medium outline-none transition-colors shadow-inner"
                         >
                             <option value="">All Genres</option>
-                            {type === 'movie' ? (
-                                <>
-                                    <option value="28">Action</option>
-                                    <option value="12">Adventure</option>
-                                    <option value="16">Animation</option>
-                                    <option value="35">Comedy</option>
-                                    <option value="80">Crime</option>
-                                    <option value="99">Documentary</option>
-                                    <option value="18">Drama</option>
-                                    <option value="10751">Family</option>
-                                    <option value="14">Fantasy</option>
-                                    <option value="36">History</option>
-                                    <option value="27">Horror</option>
-                                    <option value="10402">Music</option>
-                                    <option value="9648">Mystery</option>
-                                    <option value="10749">Romance</option>
-                                    <option value="878">Science Fiction</option>
-                                    <option value="53">Thriller</option>
-                                    <option value="10752">War</option>
-                                    <option value="37">Western</option>
-                                </>
-                            ) : (
-                                <>
-                                    <option value="10759">Action & Adventure</option>
-                                    <option value="16">Animation</option>
-                                    <option value="35">Comedy</option>
-                                    <option value="80">Crime</option>
-                                    <option value="99">Documentary</option>
-                                    <option value="18">Drama</option>
-                                    <option value="10751">Family</option>
-                                    <option value="10762">Kids</option>
-                                    <option value="9648">Mystery</option>
-                                    <option value="10763">News</option>
-                                    <option value="10764">Reality</option>
-                                    <option value="10765">Sci-Fi & Fantasy</option>
-                                    <option value="10766">Soap</option>
-                                    <option value="10767">Talk</option>
-                                    <option value="10768">War & Politics</option>
-                                    <option value="37">Western</option>
-                                </>
-                            )}
+                            {(type === 'movie' ? MOVIE_GENRES : TV_GENRES).map((g) => (
+                                <option key={g.id} value={String(g.id)}>{g.name}</option>
+                            ))}
                         </select>
                     </div>
 
@@ -173,24 +136,9 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                                 className="w-full bg-black/50 border border-white/10 focus:border-plex rounded-xl p-4 text-white font-medium outline-none transition-colors shadow-inner"
                             >
                                 <option value="">All Networks</option>
-                                <option value="213">Netflix</option>
-                                <option value="2739">Disney+</option>
-                                <option value="1024">Amazon Prime Video</option>
-                                <option value="2552">Apple TV+</option>
-                                <option value="453">Hulu</option>
-                                <option value="49">HBO</option>
-                                <option value="4">BBC</option>
-                                <option value="9">ITV</option>
-                                <option value="214">Sky</option>
-                                <option value="4330">Paramount+</option>
-                                <option value="3186">Peacock</option>
-                                <option value="67">Showtime</option>
-                                <option value="174">AMC</option>
-                                <option value="287">The CW</option>
-                                <option value="2">ABC</option>
-                                <option value="16">CBS</option>
-                                <option value="6">NBC</option>
-                                <option value="19">FOX</option>
+                                {DISCOVER_NETWORKS.map((n) => (
+                                    <option key={`${n.id}-${n.name}`} value={String(n.id)}>{n.name}</option>
+                                ))}
                             </select>
                         </div>
                     ) : (
@@ -202,19 +150,9 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                                 className="w-full bg-black/50 border border-white/10 focus:border-plex rounded-xl p-4 text-white font-medium outline-none transition-colors shadow-inner"
                             >
                                 <option value="">All Studios</option>
-                                <option value="2">Walt Disney Pictures</option>
-                                <option value="25">20th Century Studios</option>
-                                <option value="5">Columbia Pictures (Sony)</option>
-                                <option value="174">Warner Bros. Pictures</option>
-                                <option value="33">Universal Pictures</option>
-                                <option value="4">Paramount Pictures</option>
-                                <option value="41077">A24</option>
-                                <option value="3">Pixar</option>
-                                <option value="420">Marvel Studios</option>
-                                <option value="521">DreamWorks</option>
-                                <option value="12">New Line Cinema</option>
-                                <option value="14">Miramax</option>
-                                <option value="1632">Lionsgate</option>
+                                {DISCOVER_STUDIOS.map((s) => (
+                                    <option key={s.id} value={String(s.id)}>{s.name}</option>
+                                ))}
                             </select>
                         </div>
                     )}

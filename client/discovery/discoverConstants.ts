@@ -1,0 +1,107 @@
+/** Overseerr-aligned discovery constants — TMDB IDs + duotone logo URLs. */
+
+export type DiscoverCompany = {
+    id: number;
+    name: string;
+    /** TMDB logo path e.g. /wwemzKWzjKYJFfCeiB57q3r4Bcm.png */
+    logoPath: string;
+};
+
+export type DiscoverGenre = {
+    id: number;
+    name: string;
+    gradient: string;
+};
+
+/** TMDB duotone logo treatment used by Overseerr CompanyCard. */
+export const tmdbDuotoneLogo = (logoPath: string, width: 780 | 300 = 780) =>
+    `https://image.tmdb.org/t/p/w${width}_filter(duotone,ffffff,bababa)${logoPath}`;
+
+export const DISCOVER_STUDIOS: DiscoverCompany[] = [
+    { id: 2, name: 'Disney', logoPath: '/wdrCwmRnLFJhEoH8GSfymY85KHT.png' },
+    { id: 127928, name: '20th Century Studios', logoPath: '/h0rjX5vjW5r8yEnUBStFarjcLT4.png' },
+    { id: 34, name: 'Sony Pictures', logoPath: '/GagSvqWlyPdkFHMfQ3pNq6ix9P.png' },
+    { id: 174, name: 'Warner Bros. Pictures', logoPath: '/ky0xOc5OrhzkZ1N6KyUxacfQsCk.png' },
+    { id: 33, name: 'Universal', logoPath: '/8lvHyhjr8oUKOOy2dKXoALWKdp0.png' },
+    { id: 4, name: 'Paramount', logoPath: '/fycMZt242LVjagMByZOLUGbCvv3.png' },
+    { id: 3, name: 'Pixar', logoPath: '/1TjvGVDMYsj6JBxOAkUHpPEwLf7.png' },
+    { id: 521, name: 'Dreamworks', logoPath: '/kP7t6RwGz2AvvTkvnI1uteEwHet.png' },
+    { id: 420, name: 'Marvel Studios', logoPath: '/hUzeosd33nzE5MCNsZxCGEKTXaQ.png' },
+    { id: 9993, name: 'DC', logoPath: '/2Tc1P3Ac8M479naPp1kYT3izLS5.png' },
+    { id: 41077, name: 'A24', logoPath: '/1ZXsGaFPgrgS6ZZGS37AqD5uU12.png' },
+    { id: 25, name: '20th Century Fox', logoPath: '/qZCc1lty5FzX30aOCVRXrxSRYcF.png' },
+    { id: 5, name: 'Columbia Pictures', logoPath: '/71BqEFAF4V3qjjZAJ6NKeDOP2g4.png' },
+    { id: 12, name: 'New Line Cinema', logoPath: '/jT91plwe0e6Qc1OcUZ6fMelNxQ5.png' },
+    { id: 14, name: 'Miramax', logoPath: '/8C5PWL4j7H13HGPq5xMU9c3uMwr.png' },
+    { id: 1632, name: 'Lionsgate', logoPath: '/f6B6orH0Fk0blmKchvW6y6q2cQ8.png' },
+];
+
+export const DISCOVER_NETWORKS: DiscoverCompany[] = [
+    { id: 213, name: 'Netflix', logoPath: '/wwemzKWzjKYJFfCeiB57q3r4Bcm.png' },
+    { id: 2739, name: 'Disney+', logoPath: '/gJ8VX6JSu3ciXHuC2dDGAo2lvwM.png' },
+    { id: 1024, name: 'Prime Video', logoPath: '/ifhbNuuVnlwYy5oXA5VIb2YR8AZ.png' },
+    { id: 2552, name: 'Apple TV+', logoPath: '/4KAy34EHvRM25Ih8wb82AuGU7zJ.png' },
+    { id: 453, name: 'Hulu', logoPath: '/pqUTCleNUiTLAVlelGxUgWn1ELh.png' },
+    { id: 49, name: 'HBO', logoPath: '/tuomPhY2UtuPTqqFnKMVHvSb724.png' },
+    { id: 4353, name: 'Discovery+', logoPath: '/1D1bS3Dyw4ScYnFWTlBOvJXC3nb.png' },
+    { id: 2, name: 'ABC', logoPath: '/ndAvF4JLsliGreX87jAc9GdjmJY.png' },
+    { id: 19, name: 'FOX', logoPath: '/1DSpHrWyOORkL9N2QHX7Adt31mQ.png' },
+    { id: 359, name: 'Cinemax', logoPath: '/6mSHSquNpfLgDdv6VnOOvC5Uz2h.png' },
+    { id: 174, name: 'AMC', logoPath: '/pmvRmATOCaDykE6JrVoeYxlFHw3.png' },
+    { id: 67, name: 'Showtime', logoPath: '/Allse9kbjiP6ExaQrnSpIhkurEi.png' },
+    { id: 318, name: 'Starz', logoPath: '/8GJjw3HHsAJYwIWKIPBPfqMxlEa.png' },
+    { id: 71, name: 'The CW', logoPath: '/ge9hzeaU7nMtQ4PjkFlc68dGAJ9.png' },
+    { id: 6, name: 'NBC', logoPath: '/o3OedEP0f9mfZr33jz2BfXOUK5.png' },
+    { id: 16, name: 'CBS', logoPath: '/nm8d7P7MJNiBLdgIzUK0gkuEA4r.png' },
+    { id: 4330, name: 'Paramount+', logoPath: '/fi83B1oztoS47xxcemFdPMhIzK.png' },
+    { id: 4, name: 'BBC One', logoPath: '/mVn7xESaTNmjBUyUtGNvDQd3CT1.png' },
+    { id: 56, name: 'Cartoon Network', logoPath: '/c5OC6oVCg6QP4eqzW6XIq17CQjI.png' },
+    { id: 80, name: 'Adult Swim', logoPath: '/9AKyspxVzywuaMuZ1Bvilu8sXly.png' },
+    { id: 13, name: 'Nickelodeon', logoPath: '/ikZXxg6GnwpzqiZbRPhJGaZapqB.png' },
+    { id: 3353, name: 'Peacock', logoPath: '/gIAcGTjKKr0KOHL5s4O36roJ8p7.png' },
+    { id: 9, name: 'ITV', logoPath: '/51sS8y0hVlW3U7u0n72gL8O3JtZ.png' },
+    { id: 214, name: 'Sky', logoPath: '/8lG83k6H3ZkM5Fv7zY0Qz6tX2o.png' },
+    { id: 3186, name: 'Peacock Premium', logoPath: '/gIAcGTjKKr0KOHL5s4O36roJ8p7.png' },
+];
+
+export const MOVIE_GENRES: DiscoverGenre[] = [
+    { id: 28, name: 'Action', gradient: 'from-red-700 to-red-950' },
+    { id: 12, name: 'Adventure', gradient: 'from-violet-700 to-violet-950' },
+    { id: 16, name: 'Animation', gradient: 'from-sky-600 to-sky-900' },
+    { id: 35, name: 'Comedy', gradient: 'from-amber-500 to-amber-800' },
+    { id: 80, name: 'Crime', gradient: 'from-blue-800 to-blue-950' },
+    { id: 99, name: 'Documentary', gradient: 'from-emerald-600 to-emerald-900' },
+    { id: 18, name: 'Drama', gradient: 'from-pink-700 to-pink-950' },
+    { id: 10751, name: 'Family', gradient: 'from-yellow-600 to-yellow-800' },
+    { id: 14, name: 'Fantasy', gradient: 'from-cyan-600 to-cyan-900' },
+    { id: 36, name: 'History', gradient: 'from-orange-700 to-orange-950' },
+    { id: 27, name: 'Horror', gradient: 'from-zinc-900 to-black' },
+    { id: 10402, name: 'Music', gradient: 'from-sky-700 to-sky-950' },
+    { id: 9648, name: 'Mystery', gradient: 'from-purple-700 to-purple-950' },
+    { id: 10749, name: 'Romance', gradient: 'from-rose-700 to-rose-950' },
+    { id: 878, name: 'Science Fiction', gradient: 'from-cyan-700 to-cyan-950' },
+    { id: 53, name: 'Thriller', gradient: 'from-neutral-800 to-black' },
+    { id: 10752, name: 'War', gradient: 'from-red-900 to-black' },
+    { id: 37, name: 'Western', gradient: 'from-orange-800 to-orange-950' },
+];
+
+export const TV_GENRES: DiscoverGenre[] = [
+    { id: 10759, name: 'Action & Adventure', gradient: 'from-violet-700 to-violet-950' },
+    { id: 16, name: 'Animation', gradient: 'from-sky-600 to-sky-900' },
+    { id: 35, name: 'Comedy', gradient: 'from-amber-500 to-amber-800' },
+    { id: 80, name: 'Crime', gradient: 'from-blue-800 to-blue-950' },
+    { id: 99, name: 'Documentary', gradient: 'from-emerald-600 to-emerald-900' },
+    { id: 18, name: 'Drama', gradient: 'from-pink-700 to-pink-950' },
+    { id: 10751, name: 'Family', gradient: 'from-yellow-600 to-yellow-800' },
+    { id: 10762, name: 'Kids', gradient: 'from-sky-500 to-sky-800' },
+    { id: 9648, name: 'Mystery', gradient: 'from-purple-700 to-purple-950' },
+    { id: 10763, name: 'News', gradient: 'from-zinc-800 to-black' },
+    { id: 10764, name: 'Reality', gradient: 'from-orange-700 to-orange-950' },
+    { id: 10765, name: 'Sci-Fi & Fantasy', gradient: 'from-cyan-700 to-cyan-950' },
+    { id: 10766, name: 'Soap', gradient: 'from-rose-700 to-rose-950' },
+    { id: 10767, name: 'Talk', gradient: 'from-emerald-700 to-emerald-950' },
+    { id: 10768, name: 'War & Politics', gradient: 'from-red-900 to-black' },
+];
+
+export const findStudio = (id: number) => DISCOVER_STUDIOS.find((s) => s.id === id);
+export const findNetwork = (id: number) => DISCOVER_NETWORKS.find((n) => n.id === id);
