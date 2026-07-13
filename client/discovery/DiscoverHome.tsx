@@ -123,7 +123,7 @@ export const DiscoverHome: React.FC<{
                                 { id: 80, name: 'Crime', color: 'from-slate-600/80 to-slate-900/80' },
                                 { id: 99, name: 'Documentary', color: 'from-emerald-600/80 to-emerald-900/80' }
                             ].map(g => (
-                                <div key={g.id} onClick={() => window.history.pushState({}, '', `/discovery/movies?genre=${g.id}`) || window.dispatchEvent(new Event('popstate'))} className={`w-[160px] h-[80px] sm:w-[200px] sm:h-[100px] flex-shrink-0 rounded-xl bg-gradient-to-br ${g.color} p-4 flex items-end justify-start cursor-pointer hover:scale-105 transition-transform shadow-lg border border-white/10`}>
+                                <div key={g.id} onClick={() => { window.history.pushState({}, '', `/discovery/movies?genre=${g.id}`); window.dispatchEvent(new Event('popstate')); }} className={`w-[160px] h-[80px] sm:w-[200px] sm:h-[100px] flex-shrink-0 rounded-xl bg-gradient-to-br ${g.color} p-4 flex items-end justify-start cursor-pointer hover:scale-105 transition-transform shadow-lg border border-white/10`}>
                                     <span className="text-lg font-bold text-white drop-shadow-md">{g.name}</span>
                                 </div>
                             ))}
@@ -143,7 +143,7 @@ export const DiscoverHome: React.FC<{
                                 { id: 33, name: 'Universal', logo: 'https://image.tmdb.org/t/p/w300/8lvHyhjvG0bIVMtd1S1sLcwk801.png' },
                                 { id: 4, name: 'Paramount', logo: 'https://image.tmdb.org/t/p/w300/fycMZtIsqQ8Qv6iYh8sH0Wp21vV.png' }
                             ].map((c, i) => (
-                                <div key={i} onClick={() => window.history.pushState({}, '', `/discovery/movies?studio=${c.id}`) || window.dispatchEvent(new Event('popstate'))} className="w-[140px] h-[80px] sm:w-[180px] sm:h-[100px] flex-shrink-0 rounded-xl bg-white/5 border border-white/10 p-4 flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors shadow-lg">
+                                <div key={i} onClick={() => { window.history.pushState({}, '', `/discovery/movies?studio=${c.id}`); window.dispatchEvent(new Event('popstate')); }} className="w-[140px] h-[80px] sm:w-[180px] sm:h-[100px] flex-shrink-0 rounded-xl bg-white/5 border border-white/10 p-4 flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors shadow-lg">
                                     <img src={c.logo} alt={c.name} className="max-w-full max-h-full object-contain filter invert opacity-80" />
                                 </div>
                             ))}
@@ -163,7 +163,7 @@ export const DiscoverHome: React.FC<{
                                 { id: 99, name: 'Documentary', color: 'from-emerald-500/80 to-emerald-800/80' },
                                 { id: 18, name: 'Drama', color: 'from-pink-600/80 to-pink-900/80' }
                             ].map(g => (
-                                <div key={g.id} onClick={() => window.history.pushState({}, '', `/discovery/series?genre=${g.id}`) || window.dispatchEvent(new Event('popstate'))} className={`w-[160px] h-[80px] sm:w-[200px] sm:h-[100px] flex-shrink-0 rounded-xl bg-gradient-to-br ${g.color} p-4 flex items-end justify-start cursor-pointer hover:scale-105 transition-transform shadow-lg border border-white/10`}>
+                                <div key={g.id} onClick={() => { window.history.pushState({}, '', `/discovery/series?genre=${g.id}`); window.dispatchEvent(new Event('popstate')); }} className={`w-[160px] h-[80px] sm:w-[200px] sm:h-[100px] flex-shrink-0 rounded-xl bg-gradient-to-br ${g.color} p-4 flex items-end justify-start cursor-pointer hover:scale-105 transition-transform shadow-lg border border-white/10`}>
                                     <span className="text-lg font-bold text-white drop-shadow-md">{g.name}</span>
                                 </div>
                             ))}
@@ -183,7 +183,7 @@ export const DiscoverHome: React.FC<{
                                 { id: 453, name: 'Hulu', logo: 'https://image.tmdb.org/t/p/w300/gJ8VX6JSu3cgXID5Lw2vG20N7S8.png' },
                                 { id: 49, name: 'HBO', logo: 'https://image.tmdb.org/t/p/w300/tuomPhY2UtuPTqqFnKMVHvZwH0C.png' }
                             ].map((c, i) => (
-                                <div key={i} onClick={() => window.history.pushState({}, '', `/discovery/series?network=${c.id}`) || window.dispatchEvent(new Event('popstate'))} className="w-[140px] h-[80px] sm:w-[180px] sm:h-[100px] flex-shrink-0 rounded-xl bg-white/5 border border-white/10 p-4 flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors shadow-lg">
+                                <div key={i} onClick={() => { window.history.pushState({}, '', `/discovery/series?network=${c.id}`); window.dispatchEvent(new Event('popstate')); }} className="w-[140px] h-[80px] sm:w-[180px] sm:h-[100px] flex-shrink-0 rounded-xl bg-white/5 border border-white/10 p-4 flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors shadow-lg">
                                     <img src={c.logo} alt={c.name} className="max-w-full max-h-full object-contain filter invert opacity-80" />
                                 </div>
                             ))}
