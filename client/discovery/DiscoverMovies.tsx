@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Filter, Film } from 'lucide-react';
 import { apiFetch } from '../shared/api';
-import { DiscoverPosterCard } from '../screens';
 import { FilterDrawer, FilterState } from './FilterDrawer';
+import { DiscoverGridSizeSelect } from './DiscoverGridSizeSelect';
+import { DiscoverPosterGrid } from './DiscoverPosterGrid';
+import { useDiscoverGridSize } from './useDiscoverGridSize';
 import {
     appendDiscoverQuery,
     buildMovieFilterPath,
@@ -17,6 +19,7 @@ export const DiscoverMovies: React.FC<{
     formatItem: (item: any) => any;
     navigate: (path: string) => void;
 }> = ({ onSelect, formatItem, navigate }) => {
+    const [gridSize, setGridSize] = useDiscoverGridSize();
     const [results, setResults] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -85,56 +88,42 @@ export const DiscoverMovies: React.FC<{
                             <p className="text-sm text-muted mt-1">Studio: {studioLabel}</p>
                         )}
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => setShowFilters(true)}
-                        className="relative flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-lg text-white/80 hover:text-white font-bold transition-colors"
-                    >
-                        <Filter className="w-4 h-4" /> Filters
-                        {activeFilterCount > 0 && (
-                            <span className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1 rounded-full bg-plex text-black text-xs font-black flex items-center justify-center">
-                                {activeFilterCount}
-                            </span>
-                        )}
-                    </button>
+                    <div className="flex items-center gap-3 flex-wrap justify-end">
+                        <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
+                        <button
+                            type="button"
+                            onClick={() => setShowFilters(true)}
+                            className="relative flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-lg text-white/80 hover:text-white font-bold transition-colors"
+                        >
+                            <Filter className="w-4 h-4" /> Filters
+                            {activeFilterCount > 0 && (
+                                <span className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1 rounded-full bg-plex text-black text-xs font-black flex items-center justify-center">
+                                    {activeFilterCount}
+                                </span>
+                            )}
+                        </button>
+                    </div>
                 </div>
 
-                {loading ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 animate-pulse">
-                        {[...Array(15)].map((_, i) => (
-                            <div key={i} className="w-full aspect-[2/3] rounded-xl bg-white/5 border border-white/10" />
-                        ))}
-                    </div>
-                ) : (
-                    <>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
-                            {results.map((rawItem, idx) => {
-                                const formatted = formatItem(rawItem);
-                                return (
-                                    <DiscoverPosterCard
-                                        key={`${formatted.id}-${idx}`}
-                                        item={formatted}
-                                        overlay={formatted.overlay}
-                                        showQualityBadges={false}
-                                        onPosterClick={() => onSelect(formatted)}
-                                    />
-                                );
-                            })}
-                        </div>
+                <DiscoverPosterGrid
+                    items={results}
+                    gridSize={gridSize}
+                    formatItem={formatItem}
+                    onSelect={onSelect}
+                    loading={loading}
+                />
 
-                        {page < totalPages && (
-                            <div className="flex justify-center mt-8 mb-12">
-                                <button
-                                    type="button"
-                                    onClick={() => setPage((p) => p + 1)}
-                                    disabled={loadingMore}
-                                    className="px-8 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-white font-bold transition-all disabled:opacity-50"
-                                >
-                                    {loadingMore ? 'Loading…' : 'Load More'}
-                                </button>
-                            </div>
-                        )}
-                    </>
+                {!loading && page < totalPages && (
+                    <div className="flex justify-center mt-8 mb-12">
+                        <button
+                            type="button"
+                            onClick={() => setPage((p) => p + 1)}
+                            disabled={loadingMore}
+                            className="px-8 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-white font-bold transition-all disabled:opacity-50"
+                        >
+                            {loadingMore ? 'Loading…' : 'Load More'}
+                        </button>
+                    </div>
                 )}
             </div>
 

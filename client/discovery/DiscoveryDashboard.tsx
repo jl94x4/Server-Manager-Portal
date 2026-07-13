@@ -8,6 +8,7 @@ import { PersonDetailsPage } from './PersonDetailsPage';
 import { Search, Loader2, Sparkles, Film, Tv, Compass, X } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { portalUrl, stripBasePath } from '../shared/basePath';
+import { normalizeRawDiscoveryItem } from './discoverItemUtils';
 
 export const DiscoveryDashboard: React.FC<{
     onItemClick: (item: any) => void;
@@ -65,10 +66,11 @@ export const DiscoveryDashboard: React.FC<{
         return () => window.clearTimeout(timer);
     }, [query]);
 
-    const formatItem = (item: any) => {
+    const formatItem = (rawItem: any) => {
+        const item = normalizeRawDiscoveryItem(rawItem);
         const isPerson = item.mediaType === 'person';
         const isMovie = item.mediaType === 'movie';
-        const title = isPerson ? item.name : (isMovie ? item.title : item.name);
+        const title = isPerson ? item.name : (isMovie ? (item.title || item.name) : (item.name || item.title));
         const year = (item.releaseDate || item.firstAirDate || '').substring(0, 4);
         const posterUrl = item.posterPath ? `https://image.tmdb.org/t/p/w342${item.posterPath}` : '';
         const profileUrl = item.profilePath ? `https://image.tmdb.org/t/p/w185${item.profilePath}` : '';
@@ -98,7 +100,7 @@ export const DiscoveryDashboard: React.FC<{
 
         return {
             ...item,
-            id: item.id,
+            id: item.tmdbId || item.id,
             mediaType,
             title,
             year,

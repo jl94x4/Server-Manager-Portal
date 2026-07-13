@@ -9,6 +9,7 @@ import {
     MOVIE_GENRES,
     TV_GENRES,
 } from './discoverConstants';
+import { enrichDiscoveryItems } from './discoverItemUtils';
 
 type GenreSliderItem = { id: number; name: string; image?: string };
 
@@ -41,8 +42,8 @@ export const DiscoverHome: React.FC<{
                     popTvRes, upTvRes,
                     movieGenreRes, tvGenreRes,
                 ] = await Promise.all([
-                    apiFetch('/api/discovery/proxy/media?filter=available&take=20&sort=mediaAdded').catch(() => null),
-                    apiFetch('/api/discovery/proxy/request?filter=all&take=20').catch(() => null),
+                    apiFetch('/api/discovery/proxy/media?filter=allavailable&take=20&sort=mediaAdded').catch(() => null),
+                    apiFetch('/api/discovery/proxy/request?filter=all&take=20&sort=modified&skip=0').catch(() => null),
                     apiFetch('/api/discovery/proxy/discover/watchlist').catch(() => null),
                     apiFetch('/api/discovery/trending').catch(() => null),
                     apiFetch('/api/discovery/proxy/discover/movies?sortBy=popularity.desc&language=en').catch(() => null),
@@ -53,10 +54,20 @@ export const DiscoverHome: React.FC<{
                     apiFetch('/api/discovery/proxy/discover/genreslider/tv').catch(() => null),
                 ]);
 
+                const [
+                    recentlyAdded,
+                    recentRequests,
+                    plexWatchlist,
+                ] = await Promise.all([
+                    enrichDiscoveryItems(addedRes?.results || []),
+                    enrichDiscoveryItems(reqRes?.results || []),
+                    enrichDiscoveryItems(watchlistRes?.results || []),
+                ]);
+
                 setRows({
-                    recentlyAdded: addedRes?.results || [],
-                    recentRequests: (reqRes?.results || []).map((r: any) => r.media).filter(Boolean),
-                    plexWatchlist: watchlistRes?.results || [],
+                    recentlyAdded,
+                    recentRequests,
+                    plexWatchlist,
                     trending: trendingRes?.results || [],
                     popularMovies: popMovRes?.results || [],
                     upcomingMovies: upMovRes?.results || [],
