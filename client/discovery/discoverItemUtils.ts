@@ -52,6 +52,7 @@ export const enrichDiscoveryItems = async (items: any[]): Promise<any[]> => {
             return {
                 ...item,
                 ...details,
+                mediaInfo: details?.mediaInfo ?? item.mediaInfo,
                 mediaType,
                 tmdbId,
             };

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Loader2, Star, Calendar, Film } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { DiscoverPosterCard } from '../screens';
+import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
 
 export const PersonDetailsPage: React.FC<{
     personId: number;
@@ -9,6 +10,7 @@ export const PersonDetailsPage: React.FC<{
     onSelect: (item: any) => void;
     formatItem: (item: any) => any;
 }> = ({ personId, onBack, onSelect, formatItem }) => {
+    const { preferences } = useDiscoveryPreferences();
     const [person, setPerson] = useState<any>(null);
     const [credits, setCredits] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -51,6 +53,7 @@ export const PersonDetailsPage: React.FC<{
 
     const profileUrl = person.profilePath ? `https://image.tmdb.org/t/p/h632${person.profilePath}` : '';
     const age = person.birthday ? new Date().getFullYear() - new Date(person.birthday).getFullYear() : null;
+    const visibleCredits = filterHiddenAvailableItems(credits, preferences.hideAvailableMedia);
 
     return (
         <div className="w-full flex flex-col gap-8 pb-12 animate-fade-in relative z-10 px-4 sm:px-8 mt-4">
@@ -111,13 +114,13 @@ export const PersonDetailsPage: React.FC<{
             </div>
 
             {/* Known For Grid */}
-            {credits.length > 0 && (
+            {visibleCredits.length > 0 && (
                 <div className="flex flex-col gap-6 mt-12 border-t border-white/10 pt-12">
                     <h2 className="text-3xl font-black text-white flex items-center gap-3">
                         <Film className="w-8 h-8 text-plex" /> Known For
                     </h2>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                        {credits.map((rawItem, idx) => {
+                        {visibleCredits.map((rawItem, idx) => {
                             const formatted = formatItem(rawItem);
                             return (
                                 <DiscoverPosterCard

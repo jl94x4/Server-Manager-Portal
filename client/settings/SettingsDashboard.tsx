@@ -1716,7 +1716,7 @@ export const SettingsDashboard: React.FC = () => {
                                     title="Hide Available Media"
                                     hint={(
                                         <SettingHint>
-                                            Hides titles already in your library from discover browse pages (home rows, movies, series, studios, networks). Search results are never filtered.
+                                            Hides titles already in your library from discover browse pages (home rows, movies, series, studios, networks). Search results are never filtered. The portal applies this immediately; it also syncs to Seerr when connected.
                                         </SettingHint>
                                     )}
                                     checked={requestHideAvailableMedia}

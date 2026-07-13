@@ -5,6 +5,7 @@ import { DiscoverPosterCard } from '../screens';
 import { Carousel } from './Carousel';
 import { DiscoveryFactWidget } from './DiscoveryFactWidget';
 import { NoPosterPlaceholder } from '../shared/NoPosterPlaceholder';
+import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
 
 const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest">{children}</h3>
@@ -17,6 +18,7 @@ export const MediaDetailsPage: React.FC<{
     formatItem: (item: any) => any;
     pushToast?: (msg: string, type: 'success' | 'error') => void;
 }> = ({ mediaType, mediaId, onBack, formatItem, pushToast }) => {
+    const { preferences } = useDiscoveryPreferences();
     const [details, setDetails] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [requestLoading, setRequestLoading] = useState(false);
@@ -353,11 +355,13 @@ export const MediaDetailsPage: React.FC<{
                     </section>
                 )}
 
-                {recommendations.length > 0 && (
+    const visibleRecommendations = filterHiddenAvailableItems(recommendations, preferences.hideAvailableMedia);
+
+                {visibleRecommendations.length > 0 && (
                     <section className="border-t border-white/5 pt-6 pb-4">
                         <SectionHeading>Recommendations</SectionHeading>
                         <Carousel>
-                            {recommendations.map((item, idx) => {
+                            {visibleRecommendations.map((item, idx) => {
                                 const formatted = formatItem(item);
                                 return (
                                     <div key={`${formatted.id}-${idx}`} className="w-[120px] sm:w-[140px] flex-shrink-0 snap-start">

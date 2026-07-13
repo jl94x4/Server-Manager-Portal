@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../shared/api';
 
 export type DiscoveryPreferences = {
@@ -15,26 +15,16 @@ const DEFAULT_PREFERENCES: DiscoveryPreferences = {
     tmdbLanguage: 'en',
 };
 
-export const filterHiddenAvailableItems = <T extends { mediaInfo?: { status?: number }; media?: { status?: number } }>(
-    items: T[],
-    hideAvailable: boolean,
-): T[] => {
-    if (!hideAvailable || !Array.isArray(items)) return items;
-    return items.filter((item) => {
-        const status = item?.mediaInfo?.status ?? item?.media?.status;
-        return status !== 4 && status !== 5;
-    });
-};
+export { filterHiddenAvailableItems } from './discoverAvailability';
 
 export function useDiscoveryPreferences() {
     const [preferences, setPreferences] = useState<DiscoveryPreferences>(DEFAULT_PREFERENCES);
     const [loaded, setLoaded] = useState(false);
 
-    useEffect(() => {
-        let cancelled = false;
+    const loadPreferences = useCallback(() => {
         apiFetch('/api/discovery/preferences')
             .then((data) => {
-                if (cancelled || !data) return;
+                if (!data) return;
                 setPreferences({
                     discoverRegion: String(data.discoverRegion || ''),
                     discoverLanguage: String(data.discoverLanguage || ''),
@@ -43,15 +33,25 @@ export function useDiscoveryPreferences() {
                 });
             })
             .catch(() => {
-                if (!cancelled) setPreferences(DEFAULT_PREFERENCES);
+                setPreferences(DEFAULT_PREFERENCES);
             })
             .finally(() => {
-                if (!cancelled) setLoaded(true);
+                setLoaded(true);
             });
-        return () => {
-            cancelled = true;
-        };
     }, []);
 
-    return { preferences, loaded };
+    useEffect(() => {
+        let cancelled = false;
+        loadPreferences();
+        const onConfigUpdated = () => {
+            if (!cancelled) loadPreferences();
+        };
+        window.addEventListener('portal-public-config-updated', onConfigUpdated);
+        return () => {
+            cancelled = true;
+            window.removeEventListener('portal-public-config-updated', onConfigUpdated);
+        };
+    }, [loadPreferences]);
+
+    return { preferences, loaded, reloadPreferences: loadPreferences };
 }
