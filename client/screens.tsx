@@ -5354,6 +5354,8 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                 />
             )}
 
+            <RecentlyWatchedDetailsModal item={detailsItem} onClose={() => setDetailsItem(null)} />
+
             <UserDashboardLayout
                 layoutConfig={publicConfig?.dashboardLayout}
                 layoutCtx={layoutCtx}
@@ -5408,7 +5410,6 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                     if (analyticsLoading || !analytics?.recentHistory?.length) return null;
                     return (
                         <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col h-full w-full min-h-0">
-                            <RecentlyWatchedDetailsModal item={detailsItem} onClose={() => setDetailsItem(null)} />
                             <div className="flex items-center justify-between mb-3 md:mb-4 flex-shrink-0">
                                 <h3 className="text-lg md:text-xl font-bold text-text">Recently Watched</h3>
                                 {analytics.recentHistory.length > recentHistoryPageSize && (
