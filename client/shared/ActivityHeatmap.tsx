@@ -53,19 +53,19 @@ export const ActivityHeatmap: React.FC<{ data: Record<string, number> }> = ({ da
             <div className="w-full overflow-x-auto pb-4 custom-scrollbar">
                 <div className="min-w-max flex flex-col gap-1 pr-4">
                     {/* Month labels */}
-                    <div className="flex gap-1 ml-6 mb-1 text-[10px] text-muted font-semibold tracking-wider">
+                    <div className="flex gap-[3px] ml-6 mb-1 text-[10px] text-muted font-semibold tracking-wider relative h-4">
                         {weeks.map((week, i) => {
                             const firstDay = week[0];
                             if (!firstDay) return null;
                             const isFirstWeekOfMonth = firstDay.date.getDate() <= 7;
                             if (isFirstWeekOfMonth) {
                                 return (
-                                    <div key={i} className="flex-shrink-0" style={{ width: '12px', marginRight: 'calc(4 * 14px)' }}>
-                                        {months[firstDay.date.getMonth()]}
+                                    <div key={i} className="flex-shrink-0 w-[11px] relative">
+                                        <span className="absolute">{months[firstDay.date.getMonth()]}</span>
                                     </div>
                                 );
                             }
-                            return <div key={i} style={{ width: '14px' }}></div>;
+                            return <div key={i} className="w-[11px] flex-shrink-0"></div>;
                         })}
                     </div>
                     
