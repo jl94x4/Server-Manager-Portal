@@ -7834,6 +7834,40 @@ app.post('/api/speedtest/upload', requireAuth, requireMember, speedtestRateLimit
 
 // --- Static File Serving ---
 const staticDir = path.join(process.cwd(), 'static');
+const PORTAL_REQUIRED_STATIC_ASSETS = ['tailwind.css', 'index.js'];
+
+const arePortalFrontendAssetsReady = () => (
+    PORTAL_REQUIRED_STATIC_ASSETS.every((file) => fsSync.existsSync(path.join(staticDir, file)))
+);
+
+const buildMissingFrontendAssetsHtml = () => `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portal build required</title>
+  <style>
+    body { font-family: Inter, system-ui, sans-serif; background: #0b0f19; color: #e5e7eb; margin: 0; padding: 2rem; }
+    main { max-width: 42rem; margin: 4rem auto; line-height: 1.6; }
+    h1 { color: #f7c600; margin-bottom: 0.75rem; }
+    code { background: #111827; padding: 0.15rem 0.4rem; border-radius: 0.35rem; }
+    ol { padding-left: 1.25rem; }
+    li { margin: 0.5rem 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Frontend build assets are missing</h1>
+    <p>The portal UI files <code>static/tailwind.css</code> and <code>static/index.js</code> are not on disk. This usually happens after a git pull removed generated build files without rebuilding.</p>
+    <ol>
+      <li><strong>Docker:</strong> pull the latest image tag for your branch (for example <code>ghcr.io/jl94x4/server-manager-portal:beta</code>) and restart the container.</li>
+      <li><strong>Bare metal:</strong> run <code>npm run build</code> in the app directory, then restart the service.</li>
+      <li><strong>Volume mounts:</strong> mount only <code>/app/config</code>, not the whole <code>/app</code> folder, unless you rebuild after every update.</li>
+    </ol>
+  </main>
+</body>
+</html>`;
+
 app.use('/static', express.static(staticDir));
 if (BASE_PATH) {
     app.use(`${BASE_PATH}/static`, express.static(staticDir));
@@ -7924,6 +7958,12 @@ const buildSocialMetaTags = async (req) => {
 
 // Serve the main index.html for SPA routes (after base-path strip, paths are root-relative)
 app.get(/^\/(?!api\/|static\/).*$/, async (req, res) => {
+    if (!arePortalFrontendAssetsReady()) {
+        res.status(503);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store');
+        return res.send(buildMissingFrontendAssetsHtml());
+    }
     try {
         const indexPath = path.join(process.cwd(), 'index.html');
         const html = await fs.readFile(indexPath, 'utf8');
@@ -13314,6 +13354,9 @@ async function monitorConcurrentSessions() {
 app.listen(PORT, BIND_HOST, async () => {
     log(`--- Server Manager Portal Service starting on http://${BIND_HOST}:${PORT} ---`);
     log(`Runtime: CONFIG_DIR=${CONFIG_DIR}, FORCE_SECURE_COOKIES=${FORCE_SECURE_COOKIES}, BASE_PATH=${BASE_PATH || '/'}, appVersion=${appVersion}`);
+    if (!arePortalFrontendAssetsReady()) {
+        log('CRITICAL: Frontend build assets missing (static/tailwind.css and/or static/index.js). Pull the latest Docker image or run npm run build before serving the UI.');
+    }
     if (FORCE_SECURE_COOKIES) {
         log('WARNING: FORCE_SECURE_COOKIES=true — plain HTTP logins (http://LAN-IP:2121) will fail until this is set to false.');
     }

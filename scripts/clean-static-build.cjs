@@ -3,7 +3,7 @@ const path = require('path');
 
 const staticDir = path.join(__dirname, '..', 'static');
 
-const BUILD_ARTIFACT = /^(index\.js|chunk-.+\.js|(?:Upgrader|Settings)Dashboard-.+\.js|RequestsAdminPanel-.+\.js|bundle\.js|tailwind\.css|release-notes\.json)$/;
+const BUILD_ARTIFACT = /^(index\.js|chunk-.+\.js|(?:Upgrader|Settings)Dashboard-.+\.js|RequestsAdminPanel-.+\.js|bundle\.js|release-notes\.json)$/;
 
 if (!fs.existsSync(staticDir)) {
     process.exit(0);
