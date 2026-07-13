@@ -2165,18 +2165,29 @@ const RecentlyWatchedDetailsModal: React.FC<{ item: any, onClose: () => void }> 
         if (!item) return;
         const fetchDetails = async () => {
             try {
-                // Extract rating key from plexUrl (e.g. ...key=%2Flibrary%2Fmetadata%2F1234)
+                // Robust ratingKey extraction
                 let ratingKey = '';
-                if (item.plexUrl) {
-                    const match = item.plexUrl.match(/key=.*?%2F(\d+)$/);
+                if (item.ratingKey) {
+                    ratingKey = item.ratingKey;
+                } else if (item.key) {
+                    const m = String(item.key).match(/\/(\d+)$/);
+                    if (m) ratingKey = m[1];
+                } else if (item.plexUrl) {
+                    const decoded = decodeURIComponent(item.plexUrl);
+                    const match = decoded.match(/metadata\/(\d+)/);
                     if (match) ratingKey = match[1];
                 }
+
                 if (!ratingKey) {
+                    console.warn('Could not extract ratingKey from item:', item);
                     setLoading(false);
                     return;
                 }
                 const res = await apiFetch('/api/plex/item/' + encodeURIComponent(ratingKey));
-                if (res.ok) setDetails(await res.json());
+                if (res.ok) {
+                    const data = await res.json();
+                    if (!data.error) setDetails(data);
+                }
             } catch (e) {
                 console.error(e);
             } finally {
@@ -2202,9 +2213,9 @@ const RecentlyWatchedDetailsModal: React.FC<{ item: any, onClose: () => void }> 
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 animate-fade-in backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-card border border-border w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-slide-up overflow-hidden relative" onClick={e => e.stopPropagation()}>
+            <div className="bg-card border border-border w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-slide-up overflow-hidden relative isolate" onClick={e => e.stopPropagation()}>
                 {/* Header with Background */}
-                <div className="relative h-48 sm:h-56 flex-shrink-0 bg-black/50 border-b border-white/5">
+                <div className="relative h-48 sm:h-56 flex-shrink-0 bg-black/50 border-b border-white/5 rounded-t-2xl overflow-hidden">
                     {details?.art ? (
                         <img src={resolvePortalAssetUrl(details.art)} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
                     ) : null}
