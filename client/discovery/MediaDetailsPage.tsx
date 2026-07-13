@@ -160,7 +160,7 @@ export const MediaDetailsPage: React.FC<{
                     <img
                         src={`https://image.tmdb.org/t/p/w1280${details.backdropPath}`}
                         alt=""
-                        className="w-full h-full object-cover opacity-35"
+                        className="w-full h-full object-cover opacity-60"
                     />
                 ) : null}
                 <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
