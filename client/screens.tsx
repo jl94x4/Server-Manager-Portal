@@ -7619,7 +7619,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
     const navItemsConfig: Record<string, { label: string; icon: React.FC<any>; route: string; adminOnly: boolean; href?: string; onClick?: (e: any) => void }> = {
         'home': { label: 'Home', icon: Home, route: 'user', adminOnly: false },
         'users': { label: 'Users', icon: Users, route: 'users', adminOnly: true },
-        'discover': { label: 'Library Dashboard', icon: Film, route: 'dashboard', adminOnly: false },
+        'discover': { label: 'Dashboard', icon: Film, route: 'dashboard', adminOnly: false },
         'status': { label: 'Status', icon: Activity, route: 'status', adminOnly: false },
         'logs': { label: 'Logs', icon: FileText, route: 'logs', adminOnly: true },
         'analytics': { label: 'Analytics', icon: BarChart3, route: 'analytics', adminOnly: false },
