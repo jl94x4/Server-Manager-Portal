@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { ArrowLeft, Film, Tv } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { DiscoverPosterGrid } from './DiscoverPosterGrid';
@@ -6,6 +6,9 @@ import { DiscoverGridSizeSelect } from './DiscoverGridSizeSelect';
 import { useDiscoverGridSize } from './useDiscoverGridSize';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
 import { findNetwork, findStudio, tmdbDuotoneLogo } from './discoverConstants';
+import { useDiscoverInfiniteScroll } from './useDiscoverInfiniteScroll';
+import { DiscoverInfiniteScrollFooter } from './DiscoverInfiniteScrollFooter';
+import { discoverSkeletonCountForGrid } from './discoverPaginationUtils';
 
 type Props = {
     kind: 'studio' | 'network';
@@ -18,55 +21,58 @@ type Props = {
 export const DiscoverCategoryPage: React.FC<Props> = ({ kind, id, onBack, onSelect, formatItem }) => {
     const { preferences } = useDiscoveryPreferences();
     const [gridSize, setGridSize] = useDiscoverGridSize();
+    const containerRef = useRef<HTMLDivElement>(null);
     const meta = kind === 'studio' ? findStudio(id) : findNetwork(id);
-    const [results, setResults] = useState<any[]>([]);
-    const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [loading, setLoading] = useState(true);
-    const [loadingMore, setLoadingMore] = useState(false);
     const [entityName, setEntityName] = useState(meta?.name || '');
 
-    useEffect(() => {
-        setPage(1);
-        setResults([]);
-    }, [kind, id]);
+    const resetKey = `${kind}:${id}:${preferences.hideAvailableMedia}:${gridSize}`;
 
-    useEffect(() => {
-        const fetchPage = async () => {
-            if (page === 1) setLoading(true);
-            else setLoadingMore(true);
-            try {
-                const path = kind === 'studio'
-                    ? `/api/discovery/proxy/discover/movies/studio/${id}?page=${page}`
-                    : `/api/discovery/proxy/discover/tv/network/${id}?page=${page}`;
-                const res = await apiFetch(path);
-                const studioName = res?.studio?.name;
-                const networkName = res?.network?.name;
-                if (studioName) setEntityName(studioName);
-                if (networkName) setEntityName(networkName);
-                const batch = filterHiddenAvailableItems(res?.results || [], preferences.hideAvailableMedia);
-                setResults((prev) => (page === 1 ? batch : [...prev, ...batch]));
-                setTotalPages(Number(res?.totalPages || 1));
-            } catch (e) {
-                console.error(e);
-                if (page === 1) {
-                    const fallback = kind === 'studio'
-                        ? `/api/discovery/proxy/discover/movies?page=${page}&studio=${id}`
-                        : `/api/discovery/proxy/discover/tv?page=${page}&network=${id}`;
-                    const res = await apiFetch(fallback).catch(() => null);
-                    const batch = filterHiddenAvailableItems(res?.results || [], preferences.hideAvailableMedia);
-                    setResults((prev) => (page === 1 ? batch : [...prev, ...batch]));
-                    setTotalPages(Number(res?.totalPages || 1));
-                }
-            } finally {
-                setLoading(false);
-                setLoadingMore(false);
-            }
-        };
-        fetchPage();
-    }, [kind, id, page, preferences.hideAvailableMedia]);
+    const fetchPage = useCallback(async (page: number) => {
+        const path = kind === 'studio'
+            ? `/api/discovery/proxy/discover/movies/studio/${id}?page=${page}`
+            : `/api/discovery/proxy/discover/tv/network/${id}?page=${page}`;
+
+        try {
+            const res = await apiFetch(path);
+            const studioName = res?.studio?.name;
+            const networkName = res?.network?.name;
+            if (studioName) setEntityName(studioName);
+            if (networkName) setEntityName(networkName);
+            return {
+                results: filterHiddenAvailableItems(res?.results || [], preferences.hideAvailableMedia),
+                totalPages: Number(res?.totalPages) || 1,
+            };
+        } catch (e) {
+            console.error(e);
+            const fallback = kind === 'studio'
+                ? `/api/discovery/proxy/discover/movies?page=${page}&studio=${id}`
+                : `/api/discovery/proxy/discover/tv?page=${page}&network=${id}`;
+            const res = await apiFetch(fallback).catch(() => null);
+            return {
+                results: filterHiddenAvailableItems(res?.results || [], preferences.hideAvailableMedia),
+                totalPages: Number(res?.totalPages) || 1,
+            };
+        }
+    }, [kind, id, preferences.hideAvailableMedia]);
+
+    const {
+        results,
+        loading,
+        loadingMore,
+        hasMore,
+        sentinelRef,
+    } = useDiscoverInfiniteScroll({
+        resetKey,
+        gridSize,
+        containerRef,
+        fetchPage,
+    });
 
     const title = entityName || meta?.name || (kind === 'studio' ? 'Studio' : 'Network');
+    const skeletonCount = discoverSkeletonCountForGrid(
+        gridSize,
+        containerRef.current?.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 1200),
+    );
 
     return (
         <div className="w-full flex flex-col gap-8 pb-12">
@@ -108,28 +114,23 @@ export const DiscoverCategoryPage: React.FC<Props> = ({ kind, id, onBack, onSele
                 <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} className="min-w-[160px] self-start sm:self-center" />
             </div>
 
-            <div className="px-2">
+            <div className="px-2 flex flex-col gap-4" ref={containerRef}>
                 <DiscoverPosterGrid
                     items={results}
                     gridSize={gridSize}
                     formatItem={formatItem}
                     onSelect={onSelect}
                     loading={loading}
+                    skeletonCount={skeletonCount}
+                />
+
+                <DiscoverInfiniteScrollFooter
+                    sentinelRef={sentinelRef}
+                    loadingMore={loadingMore}
+                    hasMore={hasMore}
+                    loading={loading}
                 />
             </div>
-
-            {!loading && page < totalPages && (
-                <div className="flex justify-center mt-4">
-                    <button
-                        type="button"
-                        onClick={() => setPage((p) => p + 1)}
-                        disabled={loadingMore}
-                        className="px-8 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-white font-bold transition-all disabled:opacity-50"
-                    >
-                        {loadingMore ? 'Loading…' : 'Load More'}
-                    </button>
-                </div>
-            )}
         </div>
     );
 };

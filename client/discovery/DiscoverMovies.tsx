@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import { Filter, Film } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { FilterDrawer, FilterState } from './FilterDrawer';
@@ -14,6 +14,9 @@ import {
 } from './discoverUrlUtils';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
 import { findStudio } from './discoverConstants';
+import { useDiscoverInfiniteScroll } from './useDiscoverInfiniteScroll';
+import { DiscoverInfiniteScrollFooter } from './DiscoverInfiniteScrollFooter';
+import { discoverSkeletonCountForGrid } from './discoverPaginationUtils';
 
 export const DiscoverMovies: React.FC<{
     onSelect: (item: any) => void;
@@ -22,14 +25,10 @@ export const DiscoverMovies: React.FC<{
 }> = ({ onSelect, formatItem, navigate }) => {
     const { preferences } = useDiscoveryPreferences();
     const [gridSize, setGridSize] = useDiscoverGridSize();
-    const [results, setResults] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [loadingMore, setLoadingMore] = useState(false);
-    const [showFilters, setShowFilters] = useState(false);
-    const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [showFilters, setShowFilters] = React.useState(false);
 
-    const [filters, setFilters] = useState<FilterState>(() =>
+    const [filters, setFilters] = React.useState<FilterState>(() =>
         parseFiltersFromSearch(typeof window !== 'undefined' ? window.location.search : '', defaultMovieFilters()),
     );
 
@@ -37,39 +36,39 @@ export const DiscoverMovies: React.FC<{
         setFilters(parseFiltersFromSearch(window.location.search, defaultMovieFilters()));
     }, []);
 
-    useEffect(() => {
+    React.useEffect(() => {
         readFiltersFromUrl();
         window.addEventListener('popstate', readFiltersFromUrl);
         return () => window.removeEventListener('popstate', readFiltersFromUrl);
     }, [readFiltersFromUrl]);
 
-    useEffect(() => {
-        setPage(1);
-        setResults([]);
-    }, [filters]);
+    const resetKey = useMemo(
+        () => `${JSON.stringify(filters)}:${preferences.hideAvailableMedia}:${gridSize}`,
+        [filters, preferences.hideAvailableMedia, gridSize],
+    );
 
-    useEffect(() => {
-        const fetchData = async () => {
-            if (page === 1) setLoading(true);
-            else setLoadingMore(true);
-
-            try {
-                let url = `/api/discovery/proxy/discover/movies?page=${page}&sortBy=${filters.sort}`;
-                url = appendDiscoverQuery(url, filters, 'movie');
-                const res = await apiFetch(url);
-                if (res?.results) {
-                    const batch = filterHiddenAvailableItems(res.results, preferences.hideAvailableMedia);
-                    setResults((prev) => (page === 1 ? batch : [...prev, ...batch]));
-                    if (res.totalPages) setTotalPages(res.totalPages);
-                }
-            } catch (err) {
-                console.error(err);
-            }
-            setLoading(false);
-            setLoadingMore(false);
+    const fetchPage = useCallback(async (page: number) => {
+        let url = `/api/discovery/proxy/discover/movies?page=${page}&sortBy=${filters.sort}`;
+        url = appendDiscoverQuery(url, filters, 'movie');
+        const res = await apiFetch(url);
+        return {
+            results: filterHiddenAvailableItems(res?.results || [], preferences.hideAvailableMedia),
+            totalPages: Number(res?.totalPages) || 1,
         };
-        fetchData();
-    }, [filters, page, preferences.hideAvailableMedia]);
+    }, [filters, preferences.hideAvailableMedia]);
+
+    const {
+        results,
+        loading,
+        loadingMore,
+        hasMore,
+        sentinelRef,
+    } = useDiscoverInfiniteScroll({
+        resetKey,
+        gridSize,
+        containerRef,
+        fetchPage,
+    });
 
     const applyFilters = (newFilters: FilterState) => {
         setFilters(newFilters);
@@ -78,10 +77,14 @@ export const DiscoverMovies: React.FC<{
 
     const studioLabel = filters.studio ? findStudio(Number(filters.studio))?.name : null;
     const activeFilterCount = countActiveFilters(filters, 'movie');
+    const skeletonCount = discoverSkeletonCountForGrid(
+        gridSize,
+        containerRef.current?.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 1200),
+    );
 
     return (
         <div className="w-full flex flex-col md:flex-row gap-8 px-4 sm:px-8 mt-4 relative">
-            <div className="flex-1 flex flex-col gap-6">
+            <div className="flex-1 flex flex-col gap-6" ref={containerRef}>
                 <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div>
                         <h2 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
@@ -114,20 +117,15 @@ export const DiscoverMovies: React.FC<{
                     formatItem={formatItem}
                     onSelect={onSelect}
                     loading={loading}
+                    skeletonCount={skeletonCount}
                 />
 
-                {!loading && page < totalPages && (
-                    <div className="flex justify-center mt-8 mb-12">
-                        <button
-                            type="button"
-                            onClick={() => setPage((p) => p + 1)}
-                            disabled={loadingMore}
-                            className="px-8 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-white font-bold transition-all disabled:opacity-50"
-                        >
-                            {loadingMore ? 'Loading…' : 'Load More'}
-                        </button>
-                    </div>
-                )}
+                <DiscoverInfiniteScrollFooter
+                    sentinelRef={sentinelRef}
+                    loadingMore={loadingMore}
+                    hasMore={hasMore}
+                    loading={loading}
+                />
             </div>
 
             <FilterDrawer

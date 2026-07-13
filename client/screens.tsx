@@ -14,6 +14,7 @@ import { PeriodDropdown } from './shared/PeriodDropdown';
 import { ActivityHeatmap } from './shared/ActivityHeatmap';
 import { useDynamicTheme } from './shared/useDynamicTheme';
 import { Loader, Toast, ToastContainer, pushToast } from './shared/toast';
+import { NoPosterPlaceholder } from './shared/NoPosterPlaceholder';
 import {
     ActivityGridSkeleton,
     DiscoverPageSkeleton,
@@ -4571,14 +4572,19 @@ export const DiscoverPosterCard: React.FC<{
         ? resolvePortalAssetUrl(item.posterFallbackUrl)
         : '';
     const [posterSrc, setPosterSrc] = useState(primaryPosterSrc);
+    const [posterFailed, setPosterFailed] = useState(false);
     useEffect(() => {
         setPosterSrc(primaryPosterSrc);
+        setPosterFailed(false);
     }, [primaryPosterSrc]);
 
     const hasPoster = !!(primaryPosterSrc || fallbackPosterSrc);
+    const showPosterPlaceholder = !hasPoster || posterFailed;
     const posterInner = (
         <div className={`${posterShell} ${aspect === 'square' ? 'aspect-square' : 'aspect-[2/3]'} w-full`}>
-            {hasPoster ? (
+            {showPosterPlaceholder ? (
+                <NoPosterPlaceholder />
+            ) : (
                 <img
                     src={posterSrc || fallbackPosterSrc}
                     alt={item.title}
@@ -4586,14 +4592,12 @@ export const DiscoverPosterCard: React.FC<{
                     onError={() => {
                         if (fallbackPosterSrc && posterSrc !== fallbackPosterSrc) {
                             setPosterSrc(fallbackPosterSrc);
+                            return;
                         }
+                        setPosterFailed(true);
                     }}
                     className={`w-full h-full object-cover ${variant === 'home' ? 'transition-[transform,opacity] duration-300 group-hover:scale-105 group-hover:opacity-80' : ''}`}
                 />
-            ) : (
-                <div className="w-full h-full flex items-center justify-center p-4 text-center bg-white/5">
-                    <span className="text-xs font-bold text-muted line-clamp-3">{item.title}</span>
-                </div>
             )}
             {overlay}
             {showQualityBadges && item.tags && item.tags.length > 0 && (

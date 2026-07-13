@@ -4,6 +4,7 @@ import { apiFetch } from '../shared/api';
 import { DiscoverPosterCard } from '../screens';
 import { Carousel } from './Carousel';
 import { DiscoveryFactWidget } from './DiscoveryFactWidget';
+import { NoPosterPlaceholder } from '../shared/NoPosterPlaceholder';
 
 const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest">{children}</h3>
@@ -20,10 +21,12 @@ export const MediaDetailsPage: React.FC<{
     const [loading, setLoading] = useState(true);
     const [requestLoading, setRequestLoading] = useState(false);
     const [recommendations, setRecommendations] = useState<any[]>([]);
+    const [posterFailed, setPosterFailed] = useState(false);
 
     useEffect(() => {
         const fetchDetails = async () => {
             setLoading(true);
+            setPosterFailed(false);
             try {
                 const endpoint = mediaType === 'movie'
                     ? `/api/discovery/proxy/movie/${mediaId}`
@@ -164,9 +167,16 @@ export const MediaDetailsPage: React.FC<{
             <div className="relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 -mt-24 sm:-mt-32 flex flex-col md:flex-row gap-6 lg:gap-10">
                 <div className="flex flex-col gap-4 w-40 sm:w-52 lg:w-56 flex-shrink-0 mx-auto md:mx-0">
                     <div className="w-full aspect-[2/3] rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-black/50">
-                        {posterUrl ? (
-                            <img src={posterUrl} alt="" className="w-full h-full object-cover" />
-                        ) : null}
+                        {posterUrl && !posterFailed ? (
+                            <img
+                                src={posterUrl}
+                                alt=""
+                                className="w-full h-full object-cover"
+                                onError={() => setPosterFailed(true)}
+                            />
+                        ) : (
+                            <NoPosterPlaceholder />
+                        )}
                     </div>
 
                     <button
@@ -326,11 +336,13 @@ export const MediaDetailsPage: React.FC<{
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mt-3">
                             {details.seasons.filter((s: any) => s.seasonNumber >= 0).map((s: any) => (
                                 <div key={s.id} className="bg-white/5 border border-white/10 rounded-lg p-3 flex gap-3 items-center min-w-0">
-                                    {s.posterPath ? (
-                                        <img src={`https://image.tmdb.org/t/p/w92${s.posterPath}`} className="w-10 rounded object-cover flex-shrink-0" alt="" />
-                                    ) : (
-                                        <div className="w-10 h-14 bg-black/40 rounded flex-shrink-0" />
-                                    )}
+                                    <div className="w-10 h-14 rounded overflow-hidden flex-shrink-0 bg-black/40">
+                                        {s.posterPath ? (
+                                            <img src={`https://image.tmdb.org/t/p/w92${s.posterPath}`} className="w-full h-full object-cover" alt="" />
+                                        ) : (
+                                            <NoPosterPlaceholder compact />
+                                        )}
+                                    </div>
                                     <div className="flex flex-col min-w-0">
                                         <span className="font-bold text-white text-sm truncate">{s.name}</span>
                                         <span className="text-xs text-white/50">{s.episodeCount} episodes</span>
