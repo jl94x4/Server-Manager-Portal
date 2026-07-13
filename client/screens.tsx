@@ -11,6 +11,7 @@ import { getPublicOrigin, logoUrl, portalUrl, resolvePortalAssetUrl, stripBasePa
 import { formatDate, getDaysUntilExpiry, getAccessProgressPct, addMonths, addYears, formatTime, formatEventName, formatDateTime, hexToRgb, formatSizeCeil, formatStreamingHour } from './shared/format';
 import { CustomSelect, ConfirmModal, StyledCheckbox, ScrollReveal } from './shared/ui';
 import { PeriodDropdown } from './shared/PeriodDropdown';
+import { ActivityHeatmap } from './shared/ActivityHeatmap';
 import { Loader, Toast, ToastContainer, pushToast } from './shared/toast';
 import {
     ActivityGridSkeleton,
@@ -5170,6 +5171,14 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                     </div>
                                 </div>
                                 <WrapUpCardGrid analytics={analytics} interactive onCardClick={setSelectedMetric} minCardHeight={112} />
+                                {analytics.heatmapData && (
+                                    <div className="mt-6 pt-6 border-t border-white/10">
+                                        <h4 className="text-xs uppercase tracking-widest text-muted font-bold mb-4 flex items-center gap-2">
+                                            <Calendar className="w-4 h-4 text-plex" /> Activity (Last 365 Days)
+                                        </h4>
+                                        <ActivityHeatmap data={analytics.heatmapData} />
+                                    </div>
+                                )}
                             </div>
                         )}
                     </>

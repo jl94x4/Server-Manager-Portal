@@ -7113,7 +7113,15 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
         const { list: plexAccounts } = await fetchPlexServerAccounts(uri, config);
         const plexAccountName = plexAccounts.find((a) => String(a.id) === String(accountID))?.name || null;
 
+        const heatmapData = {};
+        const yearAgo = Math.floor(Date.now() / 1000) - (365 * 24 * 60 * 60);
+
         historyItems.forEach(item => {
+            if (item.viewedAt >= yearAgo) {
+                const dateStr = new Date(item.viewedAt * 1000).toISOString().split('T')[0];
+                heatmapData[dateStr] = (heatmapData[dateStr] || 0) + 1;
+            }
+
             if (cutoffDate > 0 && item.viewedAt < cutoffDate) return;
             totalPlays++;
 
@@ -7346,6 +7354,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
             dayOfWeekCounts,
             hourDistribution,
             allLibraries,
+            heatmapData,
             topShows,
             topMovies,
             recentHistory: recentHistory.map(h => {
