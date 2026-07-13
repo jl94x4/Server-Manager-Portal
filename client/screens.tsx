@@ -1911,7 +1911,7 @@ const ServerInsightsWidget: React.FC<{
     compare: any,
     analyticsSourceLabel: string,
     peakDate?: string,
-    setPeakDate?: (date: string) => void,
+    setPeakDate: (date: string) => void,
     peakDateData?: number[] | null,
     peakDateLoading?: boolean
 }> = ({ peakHours, tautulliData, compare, analyticsSourceLabel, peakDate, setPeakDate, peakDateData, peakDateLoading }) => {
@@ -3911,11 +3911,16 @@ const RebuildLibraryCacheButton: React.FC = () => {
                 const s: any = await apiFetch('/api/plex/stats/status');
                 if (s.lastGeneratedAt) setLastBuilt(s.lastGeneratedAt);
                 if (!s.isBuilding) {
-                    clearInterval(pollRef.current);
+                    if (pollRef.current) clearInterval(pollRef.current);
+                    pollRef.current = null;
                     setStatus('done');
                     setTimeout(() => setStatus('idle'), 4000);
                 }
-            } catch { clearInterval(pollRef.current); setStatus('error'); }
+            } catch {
+                if (pollRef.current) clearInterval(pollRef.current);
+                pollRef.current = null;
+                setStatus('error');
+            }
         }, 3000);
     };
 
