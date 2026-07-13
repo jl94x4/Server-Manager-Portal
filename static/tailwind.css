@@ -7548,10 +7548,6 @@ html.branded-skeleton .skeleton-base::after {
     height: 0.5rem;
   }
 
-  .sm\:h-20 {
-    height: 5rem;
-  }
-
   .sm\:h-32 {
     height: 8rem;
   }
@@ -7574,6 +7570,10 @@ html.branded-skeleton .skeleton-base::after {
 
   .sm\:w-10 {
     width: 2.5rem;
+  }
+
+  .sm\:w-16 {
+    width: 4rem;
   }
 
   .sm\:w-2 {

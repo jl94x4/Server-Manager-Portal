@@ -4811,7 +4811,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     );
     const topWatchedPageSize = (publicConfig?.dashboardLayout?.topWatchedRows || 2) * 6;
     const [recentHistoryPage, setRecentHistoryPage] = useState(0);
-    const recentHistoryPageSize = (publicConfig?.dashboardLayout?.recentHistoryRows || 7) * 2;
+    const recentHistoryPageSize = (publicConfig?.dashboardLayout?.recentHistoryRows || 6);
     const [analyticsDays, setAnalyticsDays] = useState<number | 'all'>(30);
     const [analyticsDaysOpen, setAnalyticsDaysOpen] = useState(false);
     const [wrapUpDaysOpen, setWrapUpDaysOpen] = useState(false);
@@ -5300,7 +5300,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                 {analytics.recentHistory.slice(recentHistoryPage * recentHistoryPageSize, (recentHistoryPage + 1) * recentHistoryPageSize).map((item: any, idx: number) => (
                                     <div key={idx} className="flex items-center self-stretch gap-4 p-3 bg-gradient-to-r from-black/40 to-black/10 rounded-2xl border border-white/5 hover:border-plex/40 hover:bg-black/60 hover:shadow-[0_0_20px_rgba(229,160,13,0.15)] transition-all duration-300 group relative">
                                         <a href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center flex-1 min-w-0 gap-4">
-                                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-black/50 flex-shrink-0 shadow-lg relative border border-white/5 group-hover:border-plex/30 transition-colors">
+                                            <div className="w-14 sm:w-16 aspect-[2/3] rounded-md overflow-hidden bg-black/50 flex-shrink-0 shadow-lg relative border border-white/5 group-hover:border-plex/30 transition-colors">
                                                 {item.thumbUrl ? (
                                                     <img src={resolvePortalAssetUrl(item.thumbUrl)} alt={item.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                                                 ) : (
@@ -5309,7 +5309,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                                     </div>
                                                 )}
                                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
-                                                    <Play className="w-8 h-8 text-white fill-white drop-shadow-lg" />
+                                                    <Play className="w-6 h-6 text-white fill-white drop-shadow-lg" />
                                                 </div>
                                             </div>
                                             <div className="flex-1 min-w-0 flex flex-col justify-center">
