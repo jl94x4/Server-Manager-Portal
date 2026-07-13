@@ -59,6 +59,25 @@ export const DiscoveryDashboard: React.FC<{
         const posterUrl = item.posterPath ? `https://image.tmdb.org/t/p/w342${item.posterPath}` : '';
         const overview = item.overview;
         
+        const status = item.mediaInfo?.status;
+        const isAvailable = status === 4 || status === 5 || status === 5; // 4 = partially available, 5 = available
+        const isPending = status === 2 || status === 3; // 2 = pending, 3 = processing
+        
+        let overlay = null;
+        if (isAvailable) {
+            overlay = (
+                <div className="absolute top-2 right-2 bg-green-500/90 text-white rounded-full p-1 shadow-lg backdrop-blur-sm z-10 border border-green-400/30">
+                    <CheckCircle className="w-4 h-4" />
+                </div>
+            );
+        } else if (isPending) {
+            overlay = (
+                <div className="absolute top-2 right-2 bg-amber-500/90 text-white rounded-full p-1 shadow-lg backdrop-blur-sm z-10 border border-amber-400/30">
+                    <Clock className="w-4 h-4" />
+                </div>
+            );
+        }
+
         return {
             ...item,
             title,
@@ -67,6 +86,10 @@ export const DiscoveryDashboard: React.FC<{
             overview,
             type: isMovie ? 'movie' : 'episode', // Map for details modal
             tags: [isMovie ? 'Movie' : 'TV Show'],
+            status,
+            isAvailable,
+            isPending,
+            overlay,
         };
     };
 
@@ -150,6 +173,7 @@ export const DiscoveryDashboard: React.FC<{
                                 <DiscoverPosterCard
                                     key={idx}
                                     item={formatted}
+                                    overlay={formatted.overlay}
                                     showQualityBadges={false}
                                     onPosterClick={() => setSelectedItem(formatted)}
                                 />
@@ -203,11 +227,27 @@ export const DiscoveryDashboard: React.FC<{
 
                             <button 
                                 onClick={() => handleRequest(selectedItem)}
-                                disabled={requestLoading}
-                                className="w-full py-3 px-4 rounded-xl bg-plex hover:bg-plex-hover text-white font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                                disabled={requestLoading || selectedItem.isAvailable || selectedItem.isPending}
+                                className={`w-full py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors shadow-lg ${
+                                    selectedItem.isAvailable 
+                                        ? 'bg-green-500/20 text-green-500 border border-green-500/30 cursor-default'
+                                        : selectedItem.isPending 
+                                            ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30 cursor-default'
+                                            : 'bg-plex hover:bg-plex-hover text-white disabled:opacity-50 disabled:cursor-not-allowed'
+                                }`}
                             >
                                 {requestLoading ? (
                                     <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : selectedItem.isAvailable ? (
+                                    <>
+                                        <CheckCircle className="w-5 h-5" />
+                                        Available on Server
+                                    </>
+                                ) : selectedItem.isPending ? (
+                                    <>
+                                        <Clock className="w-5 h-5" />
+                                        Request Pending
+                                    </>
                                 ) : (
                                     <>
                                         <PlusCircle className="w-5 h-5" />
