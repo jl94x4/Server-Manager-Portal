@@ -1,8 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Loader2, Star, Calendar, Film } from 'lucide-react';
+import { ArrowLeft, Loader2, Star, Calendar, Film, ChevronDown } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { DiscoverPosterCard } from '../screens';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
+
+const splitBiography = (bio: string) => {
+    const trimmed = bio.trim();
+    if (!trimmed) return { first: '', rest: '', hasMore: false };
+
+    const paragraphs = trimmed.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean);
+    if (paragraphs.length <= 1) {
+        return { first: paragraphs[0] || trimmed, rest: '', hasMore: false };
+    }
+
+    return {
+        first: paragraphs[0],
+        rest: paragraphs.slice(1).join('\n\n'),
+        hasMore: true,
+    };
+};
 
 export const PersonDetailsPage: React.FC<{
     personId: number;
@@ -14,6 +30,7 @@ export const PersonDetailsPage: React.FC<{
     const [person, setPerson] = useState<any>(null);
     const [credits, setCredits] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [bioExpanded, setBioExpanded] = useState(false);
 
     useEffect(() => {
         const fetchPerson = async () => {
@@ -41,6 +58,10 @@ export const PersonDetailsPage: React.FC<{
         fetchPerson();
     }, [personId]);
 
+    useEffect(() => {
+        setBioExpanded(false);
+    }, [personId]);
+
     if (loading) {
         return (
             <div className="w-full flex justify-center py-32">
@@ -54,6 +75,8 @@ export const PersonDetailsPage: React.FC<{
     const profileUrl = person.profilePath ? `https://image.tmdb.org/t/p/h632${person.profilePath}` : '';
     const age = person.birthday ? new Date().getFullYear() - new Date(person.birthday).getFullYear() : null;
     const visibleCredits = filterHiddenAvailableItems(credits, preferences.hideAvailableMedia);
+    const biography = person.biography || `We do not have a biography for ${person.name}.`;
+    const { first: bioFirst, rest: bioRest, hasMore: bioHasMore } = splitBiography(biography);
 
     return (
         <div className="w-full flex flex-col gap-8 pb-12 animate-fade-in relative z-10 px-4 sm:px-8 mt-4">
@@ -106,9 +129,20 @@ export const PersonDetailsPage: React.FC<{
 
                     <div className="flex flex-col gap-3 mt-4">
                         <h2 className="text-2xl font-bold text-white">Biography</h2>
-                        <p className="text-white/70 text-lg leading-relaxed whitespace-pre-line">
-                            {person.biography || `We do not have a biography for ${person.name}.`}
-                        </p>
+                        <div className="text-white/70 text-lg leading-relaxed whitespace-pre-line space-y-4">
+                            <p>{bioFirst}</p>
+                            {bioHasMore && bioExpanded && <p>{bioRest}</p>}
+                        </div>
+                        {bioHasMore && (
+                            <button
+                                type="button"
+                                onClick={() => setBioExpanded((expanded) => !expanded)}
+                                className="inline-flex items-center gap-1.5 text-sm font-bold text-plex hover:text-plex-hover transition-colors w-fit"
+                            >
+                                {bioExpanded ? 'Show less' : 'Read more'}
+                                <ChevronDown className={`w-4 h-4 transition-transform ${bioExpanded ? 'rotate-180' : ''}`} />
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

@@ -6,6 +6,7 @@ import { Carousel } from './Carousel';
 import { DiscoveryFactWidget } from './DiscoveryFactWidget';
 import { NoPosterPlaceholder } from '../shared/NoPosterPlaceholder';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
+import { tmdbBackdropUrl } from './discoverConstants';
 
 const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="flex items-center gap-3 mb-4">
@@ -58,7 +59,11 @@ export const MediaDetailsPage: React.FC<{
         try {
             const res = await apiFetch('/api/discovery/request', {
                 method: 'POST',
-                body: JSON.stringify({ mediaType, mediaId }),
+                body: JSON.stringify({
+                    mediaType,
+                    mediaId,
+                    ...(mediaType === 'tv' ? { seasons: 'all' } : {}),
+                }),
             });
             if (res.error) {
                 pushToast?.(res.error, 'error');
@@ -99,6 +104,7 @@ export const MediaDetailsPage: React.FC<{
     const isAvailable = status === 4 || status === 5;
     const isPending = status === 2 || status === 3;
     const posterUrl = details.posterPath ? `https://image.tmdb.org/t/p/w500${details.posterPath}` : '';
+    const backdropUrl = tmdbBackdropUrl(details.backdropPath || '');
     const creators = details.createdBy?.map((c: any) => c.name).filter(Boolean).join(', ');
     const productionCompanies = details.productionCompanies?.slice(0, 4).map((c: any) => c.name).join(' · ');
     const director = details.credits?.crew?.find((c: any) => c.job === 'Director')?.name;
@@ -154,11 +160,13 @@ export const MediaDetailsPage: React.FC<{
         <div className="w-full flex flex-col min-h-screen bg-card animate-fade-in pb-16 rounded-2xl md:rounded-3xl overflow-x-hidden border border-white/5 shadow-2xl">
             <div className="relative isolate">
                 <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
-                    {details.backdropPath ? (
+                    {backdropUrl ? (
                         <img
-                            src={`https://image.tmdb.org/t/p/w1280${details.backdropPath}`}
+                            src={backdropUrl}
                             alt=""
-                            className="absolute inset-0 w-full h-full object-cover object-[78%_22%] opacity-75 scale-105"
+                            className="absolute inset-0 w-full h-full object-cover object-[78%_22%] opacity-80"
+                            fetchPriority="high"
+                            decoding="async"
                         />
                     ) : (
                         <div className="absolute inset-0 bg-black" />

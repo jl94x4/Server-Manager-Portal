@@ -17,6 +17,12 @@ export type DiscoverGenre = {
 export const tmdbDuotoneLogo = (logoPath: string, width: 780 | 300 = 780) =>
     `https://image.tmdb.org/t/p/w${width}_filter(duotone,ffffff,bababa)${logoPath}`;
 
+export const tmdbBackdropUrl = (backdropPath: string) => {
+    if (!backdropPath) return '';
+    const path = backdropPath.startsWith('/') ? backdropPath : `/${backdropPath}`;
+    return `https://image.tmdb.org/t/p/original${path}`;
+};
+
 export const DISCOVER_STUDIOS: DiscoverCompany[] = [
     { id: 2, name: 'Disney', logoPath: '/wdrCwmRnLFJhEoH8GSfymY85KHT.png' },
     { id: 127928, name: '20th Century Studios', logoPath: '/h0rjX5vjW5r8yEnUBStFarjcLT4.png' },

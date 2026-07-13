@@ -341,6 +341,7 @@ import { getSonarrTrashCatalog, getSonarrTrashCustomFormat } from './lib/trash-g
 import { createRequestAppService, getRequestAppGate } from './lib/request-app-service.js';
 import {
     applyDiscoveryQueryParams,
+    ensureSeerrDiscoverySettings,
     filterDiscoveryPayload,
     getDiscoveryPreferences,
     normalizeDiscoverLanguage,
@@ -4382,7 +4383,8 @@ app.get('/api/discovery/trending', requireAuth, requireMember, async (req, res) 
         const config = await loadFile(CONFIG_PATH, {});
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-        
+
+        await ensureSeerrDiscoverySettings(config, requestAppService.rawFetch);
         const data = await requestAppService.rawFetch(config, '/api/v1/discover/trending');
         const prefs = getDiscoveryPreferences(config);
         res.json(filterDiscoveryPayload(data, '/discover/trending', prefs.hideAvailableMedia));
@@ -4420,33 +4422,39 @@ app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) 
         const config = await loadFile(CONFIG_PATH, {});
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-        
-        const { mediaType, mediaId, is4k, seasons } = req.body;
+
+        const { mediaType, mediaId, is4k, seasons } = req.body || {};
         if (!mediaType || !mediaId) return res.status(400).json({ error: 'Missing media details' });
-        
+
         const body = { mediaType, mediaId: Number(mediaId) };
         if (is4k) body.is4k = true;
-        if (mediaType === 'tv' && Array.isArray(seasons)) body.seasons = seasons;
-        
-        // Try to map to the requesting user
-        if (req.user && req.user.email) {
-            try {
-                const users = await requestAppService.listRequestUsers(config);
-                const matchingUser = users.find(u => u.email && u.email.toLowerCase() === req.user.email.toLowerCase());
-                if (matchingUser) {
-                    body.userId = matchingUser.id;
-                }
-            } catch (err) {
-                // Ignore user mapping errors
+        if (mediaType === 'tv') {
+            if (seasons === 'all') {
+                body.seasons = 'all';
+            } else if (Array.isArray(seasons) && seasons.length > 0) {
+                body.seasons = seasons.map((season) => Number(season)).filter((season) => Number.isFinite(season));
+            } else {
+                body.seasons = 'all';
             }
         }
-        
+
+        if (req.user) {
+            try {
+                const users = await requestAppService.listRequestUsers(config);
+                const userId = requestAppService.resolveSeerrRequestUserId(req.user, users);
+                if (userId) body.userId = userId;
+            } catch (err) {
+                log(`Discovery request user mapping failed: ${err.message}`);
+            }
+        }
+
         const data = await requestAppService.rawFetch(config, '/api/v1/request', {
             method: 'POST',
-            body
+            body,
         });
-        res.json(data);
+        res.status(201).json(data);
     } catch (e) {
+        log(`Discovery request error: ${e.message}`);
         res.status(500).json({ error: e.message });
     }
 });
@@ -4489,7 +4497,9 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
         const config = await loadFile(CONFIG_PATH, {});
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-        
+
+        await ensureSeerrDiscoverySettings(config, requestAppService.rawFetch);
+
         const path = '/' + req.params[0];
         const prefs = getDiscoveryPreferences(config);
 
@@ -13380,6 +13390,11 @@ app.listen(PORT, BIND_HOST, async () => {
     monitorConcurrentSessions();
     setInterval(monitorConcurrentSessions, 15000);
     startBackgroundService();
+    loadFile(CONFIG_PATH, {}).then((config) => {
+        ensureSeerrDiscoverySettings(config, requestAppService.rawFetch).catch((e) => {
+            log(`Request app discovery settings startup sync failed: ${e.message}`);
+        });
+    });
     startPlexStatsBackgroundTask(); // start 24-hour library size cache task
 
     // Background cache builders: reuse on-disk cache and schedule next run by interval.
