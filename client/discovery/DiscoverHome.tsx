@@ -11,6 +11,7 @@ import {
 } from './discoverConstants';
 import { enrichDiscoveryItems } from './discoverItemUtils';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
+import { fetchDiscoverHomeRowResults } from './discoverFetchUtils';
 
 type GenreSliderItem = { id: number; name: string; image?: string };
 

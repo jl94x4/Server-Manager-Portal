@@ -55,8 +55,31 @@ export async function fetchDiscoverPage(
     };
 }
 
-/** Keep fetching pages when hide-available filtering empties early pages. */
-export async function fetchDiscoverPageWithBackfill(
+/** Fetch enough items for a discover home carousel row. */
+export async function fetchDiscoverHomeRowResults(
+    buildUrl: (page: number) => string,
+    hideAvailable: boolean,
+    options: { minItems?: number; maxPages?: number } = {},
+): Promise<any[]> {
+    const minItems = options.minItems ?? 10;
+    const maxPages = options.maxPages ?? 8;
+
+    if (!hideAvailable) {
+        const res = await apiFetch(buildUrl(1));
+        return Array.isArray(res?.results) ? res.results : [];
+    }
+
+    let merged: any[] = [];
+    for (let page = 1; page <= maxPages; page += 1) {
+        const res = await apiFetch(buildUrl(page));
+        const totalPages = Math.max(1, Number(res?.totalPages) || 1);
+        const batch = filterHiddenAvailableItems(res?.results || [], true);
+        merged = [...merged, ...batch];
+        if (merged.length >= minItems || page >= totalPages) break;
+    }
+
+    return merged.slice(0, 20);
+}
     buildUrl: (page: number) => string,
     page: number,
     hideAvailable: boolean,

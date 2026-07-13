@@ -8,7 +8,10 @@ import { NoPosterPlaceholder } from '../shared/NoPosterPlaceholder';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
 
 const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest">{children}</h3>
+    <div className="flex items-center gap-3 mb-4">
+        <h3 className="text-xs font-black text-white/50 uppercase tracking-[0.2em]">{children}</h3>
+        <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
+    </div>
 );
 
 export const MediaDetailsPage: React.FC<{
@@ -98,6 +101,10 @@ export const MediaDetailsPage: React.FC<{
     const posterUrl = details.posterPath ? `https://image.tmdb.org/t/p/w500${details.posterPath}` : '';
     const creators = details.createdBy?.map((c: any) => c.name).filter(Boolean).join(', ');
     const productionCompanies = details.productionCompanies?.slice(0, 4).map((c: any) => c.name).join(' · ');
+    const director = details.credits?.crew?.find((c: any) => c.job === 'Director')?.name;
+    const voteCountLabel = details.voteCount > 0
+        ? `${details.voteCount >= 1000 ? `${(details.voteCount / 1000).toFixed(1)}k` : details.voteCount} votes`
+        : null;
 
     const metaChips: { icon: React.ReactNode; label: string }[] = [];
     if (year) metaChips.push({ icon: <Calendar className="w-3.5 h-3.5 text-white/50" />, label: year });
@@ -131,6 +138,7 @@ export const MediaDetailsPage: React.FC<{
 
     const extraDetails: { label: string; value: string }[] = [];
     if (details.tagline) extraDetails.push({ label: 'Tagline', value: details.tagline });
+    if (director && mediaType === 'movie') extraDetails.push({ label: 'Director', value: director });
     if (creators) extraDetails.push({ label: 'Created by', value: creators });
     if (details.originalLanguage) {
         extraDetails.push({ label: 'Language', value: details.originalLanguage.toUpperCase() });
@@ -144,38 +152,38 @@ export const MediaDetailsPage: React.FC<{
 
     return (
         <div className="w-full flex flex-col min-h-screen bg-card animate-fade-in pb-16 rounded-2xl md:rounded-3xl overflow-x-hidden border border-white/5 shadow-2xl">
-            <div className="sticky top-0 z-50 w-full px-4 sm:px-8 py-4 flex items-center bg-gradient-to-b from-black/80 to-transparent">
+            <div className="relative w-full h-[34vh] min-h-[240px] sm:h-[38vh] bg-black">
+                {details.backdropPath ? (
+                    <img
+                        src={`https://image.tmdb.org/t/p/w1280${details.backdropPath}`}
+                        alt=""
+                        className="w-full h-full object-cover object-[78%_22%] opacity-75 scale-105"
+                    />
+                ) : null}
+                <div className="absolute inset-0 bg-gradient-to-t from-card via-card/55 to-black/20" />
+                <div className="absolute inset-0 bg-gradient-to-r from-card from-0% via-card/75 via-35% to-transparent to-72%" />
+                <div className="absolute inset-0 bg-gradient-to-l from-transparent via-transparent to-black/10" />
+
                 <button
                     type="button"
                     onClick={onBack}
-                    className="flex items-center gap-2 text-white/80 hover:text-white transition-colors bg-black/40 px-4 py-2 rounded-full backdrop-blur-md border border-white/10"
+                    className="absolute top-4 left-4 sm:top-5 sm:left-6 z-20 flex items-center gap-2 text-white/90 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-black/65"
                 >
                     <ArrowLeft className="w-5 h-5" />
                     <span className="font-bold text-sm">Back to Discover</span>
                 </button>
             </div>
 
-            <div className="relative w-full h-[40vh] sm:h-[45vh] -mt-[72px] bg-black">
-                {details.backdropPath ? (
-                    <img
-                        src={`https://image.tmdb.org/t/p/w1280${details.backdropPath}`}
-                        alt=""
-                        className="w-full h-full object-cover opacity-60"
-                    />
-                ) : null}
-                <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-r from-card/90 via-card/30 to-transparent hidden md:block" />
-            </div>
-
             {/* Poster + core info */}
-            <div className="relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 -mt-24 sm:-mt-32 flex flex-col md:flex-row gap-6 lg:gap-10">
-                <div className="flex flex-col gap-4 w-40 sm:w-52 lg:w-56 flex-shrink-0 mx-auto md:mx-0">
-                    <div className="w-full aspect-[2/3] rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-black/50">
+            <div className="relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 -mt-[7.5rem] sm:-mt-36 lg:-mt-40 flex flex-col md:flex-row gap-6 lg:gap-10">
+                <div className="flex flex-col gap-4 w-44 sm:w-52 lg:w-60 flex-shrink-0 mx-auto md:mx-0">
+                    <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.55)] border border-white/15 bg-black/50 ring-1 ring-white/10">
+                        <div className="absolute -inset-4 bg-plex/10 blur-3xl opacity-40 pointer-events-none" />
                         {posterUrl && !posterFailed ? (
                             <img
                                 src={posterUrl}
                                 alt=""
-                                className="w-full h-full object-cover"
+                                className="relative w-full h-full object-cover"
                                 onError={() => setPosterFailed(true)}
                             />
                         ) : (
@@ -218,8 +226,8 @@ export const MediaDetailsPage: React.FC<{
                     )}
                 </div>
 
-                <div className="flex-1 min-w-0 flex flex-col gap-5 pt-2 sm:pt-4 pb-2">
-                    <div className="flex flex-col gap-2">
+                <div className="flex-1 min-w-0 flex flex-col gap-4 pb-2">
+                    <div className="flex flex-col gap-2.5">
                         <div className="flex items-center gap-2 flex-wrap">
                             {mediaType === 'movie' ? <Film className="w-3.5 h-3.5 text-plex" /> : <Tv className="w-3.5 h-3.5 text-plex" />}
                             <span className="text-[10px] font-bold uppercase tracking-widest text-plex">{mediaType}</span>
@@ -230,27 +238,32 @@ export const MediaDetailsPage: React.FC<{
                                 </>
                             )}
                         </div>
-                        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white leading-tight tracking-tight">
+                        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-[1.05] tracking-tight drop-shadow-lg">
                             {title}
                         </h1>
                         {details.tagline && mediaType === 'movie' && (
-                            <p className="text-sm text-white/50 italic">{details.tagline}</p>
+                            <p className="text-sm sm:text-base text-white/55 italic max-w-2xl">{details.tagline}</p>
                         )}
-                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <div className="flex flex-wrap items-center gap-2">
                             {metaChips.map((chip) => (
                                 <div
                                     key={chip.label}
-                                    className="flex items-center gap-1.5 bg-black/40 px-2.5 py-1 rounded-md backdrop-blur-sm border border-white/5 text-xs text-white/80 font-medium"
+                                    className="flex items-center gap-1.5 bg-black/45 px-3 py-1.5 rounded-lg backdrop-blur-md border border-white/10 text-xs text-white/85 font-semibold shadow-sm"
                                 >
                                     {chip.icon}
                                     {chip.label}
                                 </div>
                             ))}
+                            {voteCountLabel && (
+                                <div className="text-[11px] text-white/40 font-medium px-1">
+                                    {voteCountLabel}
+                                </div>
+                            )}
                         </div>
                         {details.genres?.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 mt-1">
+                            <div className="flex flex-wrap gap-2">
                                 {details.genres.map((g: any) => (
-                                    <span key={g.id} className="px-2 py-0.5 bg-white/5 border border-white/10 rounded-md text-xs font-semibold text-white/70">
+                                    <span key={g.id} className="px-2.5 py-1 bg-white/[0.06] border border-white/10 rounded-lg text-xs font-semibold text-white/75 backdrop-blur-sm">
                                         {g.name}
                                     </span>
                                 ))}
@@ -258,18 +271,18 @@ export const MediaDetailsPage: React.FC<{
                         )}
                     </div>
 
-                    <p className="text-sm sm:text-base text-white/80 leading-relaxed max-w-3xl">
+                    <p className="text-sm sm:text-base lg:text-[17px] text-white/82 leading-relaxed max-w-3xl">
                         {details.overview || 'No description available.'}
                     </p>
 
                     <DiscoveryFactWidget mediaType={mediaType} mediaId={mediaId} />
 
                     {extraDetails.length > 0 && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 max-w-3xl">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-3xl p-4 rounded-xl bg-white/[0.03] border border-white/8">
                             {extraDetails.map((row) => (
                                 <div key={row.label} className="flex flex-col gap-0.5 min-w-0">
                                     <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">{row.label}</span>
-                                    <span className="text-sm text-white/75 truncate">{row.value}</span>
+                                    <span className="text-sm text-white/80">{row.value}</span>
                                 </div>
                             ))}
                         </div>
@@ -278,14 +291,14 @@ export const MediaDetailsPage: React.FC<{
                     {details.networks?.length > 0 && (
                         <div className="flex flex-col gap-2">
                             <SectionHeading>Networks</SectionHeading>
-                            <div className="flex flex-wrap gap-3 items-center">
+                            <div className="flex flex-wrap gap-4 items-center">
                                 {details.networks.map((n: any) => (
-                                    <div key={n.id} className="flex items-center">
+                                    <div key={n.id} className="flex items-center px-3 py-2 rounded-lg bg-white/[0.04] border border-white/8">
                                         {n.logoPath ? (
                                             <img
                                                 src={`https://image.tmdb.org/t/p/w92${n.logoPath}`}
                                                 alt={n.name}
-                                                className="h-4 max-w-[64px] object-contain filter invert opacity-70"
+                                                className="h-5 max-w-[80px] object-contain filter invert opacity-80"
                                             />
                                         ) : (
                                             <span className="text-xs font-semibold text-white/70">{n.name}</span>
@@ -299,9 +312,9 @@ export const MediaDetailsPage: React.FC<{
             </div>
 
             {/* Full-width rows below — no nested page scrollbars */}
-            <div className="relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 mt-6 flex flex-col gap-8">
+            <div className="relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 mt-4 flex flex-col gap-10">
                 {details.credits?.cast?.length > 0 && (
-                    <section className="border-t border-white/5 pt-6">
+                    <section className="border-t border-white/5 pt-8">
                         <SectionHeading>Top Cast</SectionHeading>
                         <Carousel>
                             {details.credits.cast.slice(0, 15).map((actor: any) => (
@@ -309,24 +322,24 @@ export const MediaDetailsPage: React.FC<{
                                     key={actor.id}
                                     type="button"
                                     onClick={() => openPerson(actor.id)}
-                                    className="flex flex-col items-center gap-2 w-24 flex-shrink-0 snap-start cursor-pointer hover:opacity-80 transition-opacity border-0 bg-transparent p-0"
+                                    className="group flex flex-col items-center gap-3 w-36 sm:w-40 flex-shrink-0 snap-start cursor-pointer transition-all duration-200 border-0 bg-transparent p-0 hover:-translate-y-1"
                                 >
-                                    <div className="w-16 h-16 rounded-full bg-black/40 border border-white/10 overflow-hidden shadow-lg">
+                                    <div className="w-32 h-32 rounded-full bg-black/40 border-2 border-white/10 group-hover:border-plex/40 overflow-hidden shadow-xl ring-0 group-hover:ring-4 group-hover:ring-plex/10 transition-all">
                                         {actor.profilePath ? (
                                             <img
-                                                src={`https://image.tmdb.org/t/p/w185${actor.profilePath}`}
+                                                src={`https://image.tmdb.org/t/p/w342${actor.profilePath}`}
                                                 alt={actor.name}
-                                                className="w-full h-full object-cover"
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                             />
                                         ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-white/20">
-                                                <Users className="w-6 h-6" />
+                                            <div className="w-full h-full flex items-center justify-center text-white/20 bg-white/5">
+                                                <Users className="w-10 h-10" />
                                             </div>
                                         )}
                                     </div>
                                     <div className="text-center w-full px-1">
-                                        <div className="text-xs font-bold text-white/90 leading-tight line-clamp-2">{actor.name}</div>
-                                        <div className="text-[10px] text-white/45 mt-0.5 leading-snug line-clamp-2">{actor.character}</div>
+                                        <div className="text-sm font-bold text-white/95 leading-tight line-clamp-2 group-hover:text-white transition-colors">{actor.name}</div>
+                                        <div className="text-xs text-white/45 mt-1 leading-snug line-clamp-2">{actor.character}</div>
                                     </div>
                                 </button>
                             ))}
@@ -335,12 +348,12 @@ export const MediaDetailsPage: React.FC<{
                 )}
 
                 {mediaType === 'tv' && details.seasons?.length > 0 && (
-                    <section className="border-t border-white/5 pt-6">
+                    <section className="border-t border-white/5 pt-8">
                         <SectionHeading>Seasons</SectionHeading>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mt-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                             {details.seasons.filter((s: any) => s.seasonNumber >= 0).map((s: any) => (
-                                <div key={s.id} className="bg-white/5 border border-white/10 rounded-lg p-3 flex gap-3 items-center min-w-0">
-                                    <div className="w-10 h-14 rounded overflow-hidden flex-shrink-0 bg-black/40">
+                                <div key={s.id} className="bg-white/[0.04] border border-white/10 rounded-xl p-3 flex gap-3 items-center min-w-0 hover:bg-white/[0.07] hover:border-white/15 transition-colors">
+                                    <div className="w-11 h-16 rounded-md overflow-hidden flex-shrink-0 bg-black/40 border border-white/10">
                                         {s.posterPath ? (
                                             <img src={`https://image.tmdb.org/t/p/w92${s.posterPath}`} className="w-full h-full object-cover" alt="" />
                                         ) : (
@@ -358,7 +371,7 @@ export const MediaDetailsPage: React.FC<{
                 )}
 
                 {visibleRecommendations.length > 0 && (
-                    <section className="border-t border-white/5 pt-6 pb-4">
+                    <section className="border-t border-white/5 pt-8 pb-4">
                         <SectionHeading>Recommendations</SectionHeading>
                         <Carousel>
                             {visibleRecommendations.map((item, idx) => {
