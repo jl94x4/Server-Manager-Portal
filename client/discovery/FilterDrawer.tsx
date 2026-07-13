@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { X, Filter, Calendar, Star } from 'lucide-react';
+import { CustomSelect } from '../shared/ui';
 import { DISCOVER_NETWORKS, DISCOVER_STUDIOS, MOVIE_GENRES, TV_GENRES } from './discoverConstants';
 
 export interface FilterState {
@@ -20,13 +21,55 @@ interface FilterDrawerProps {
     onClear: () => void;
 }
 
+const MOVIE_SORT_OPTIONS = [
+    { value: 'popularity.desc', label: 'Most Popular' },
+    { value: 'vote_average.desc', label: 'Top Rated' },
+    { value: 'revenue.desc', label: 'Highest Revenue' },
+    { value: 'primary_release_date.desc', label: 'Release Date (Newest)' },
+    { value: 'primary_release_date.asc', label: 'Release Date (Oldest)' },
+];
+
+const TV_SORT_OPTIONS = [
+    { value: 'popularity.desc', label: 'Most Popular' },
+    { value: 'vote_average.desc', label: 'Top Rated' },
+    { value: 'first_air_date.desc', label: 'Premiere Date (Newest)' },
+    { value: 'first_air_date.asc', label: 'Premiere Date (Oldest)' },
+];
+
+const RATING_OPTIONS = [
+    { value: '', label: 'Any Score' },
+    { value: '9', label: 'Masterpiece (9+)' },
+    { value: '8', label: 'Great (8+)' },
+    { value: '7', label: 'Good (7+)' },
+    { value: '6', label: 'Okay (6+)' },
+    { value: '5', label: 'Mediocre (5+)' },
+];
+
 export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, type, filters, onApply, onClear }) => {
     const [localFilters, setLocalFilters] = useState<FilterState>(filters);
 
-    // Sync local filters when props change (e.g. initial load)
     React.useEffect(() => {
         setLocalFilters(filters);
     }, [filters]);
+
+    const sortOptions = type === 'movie' ? MOVIE_SORT_OPTIONS : TV_SORT_OPTIONS;
+    const genreOptions = useMemo(() => [
+        { value: '', label: 'All Genres' },
+        ...(type === 'movie' ? MOVIE_GENRES : TV_GENRES).map((genre) => ({
+            value: String(genre.id),
+            label: genre.name,
+        })),
+    ], [type]);
+
+    const studioOptions = useMemo(() => [
+        { value: '', label: 'All Studios' },
+        ...DISCOVER_STUDIOS.map((studio) => ({ value: String(studio.id), label: studio.name })),
+    ], []);
+
+    const networkOptions = useMemo(() => [
+        { value: '', label: 'All Networks' },
+        ...DISCOVER_NETWORKS.map((network) => ({ value: String(network.id), label: network.name })),
+    ], []);
 
     const handleApply = () => {
         onApply(localFilters);
@@ -40,22 +83,20 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
 
     return (
         <>
-            {/* Backdrop */}
-            <div 
+            <div
                 className={`fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
                 onClick={onClose}
             />
 
-            {/* Drawer */}
-            <div 
+            <div
                 className={`fixed top-0 right-0 h-full w-full max-w-[400px] bg-card border-l border-white/10 z-[101] shadow-2xl flex flex-col transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
             >
-                {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-white/10 bg-black/20">
                     <h2 className="text-2xl font-black text-white tracking-tight flex items-center gap-3">
                         <Filter className="w-6 h-6 text-plex" /> Filters
                     </h2>
-                    <button 
+                    <button
+                        type="button"
                         onClick={onClose}
                         className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"
                     >
@@ -63,126 +104,86 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                     </button>
                 </div>
 
-                {/* Filter Options */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-8">
-                    
-                    {/* Sort By */}
                     <div className="flex flex-col gap-3">
                         <label className="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Sort By</label>
-                        <select 
+                        <CustomSelect
                             value={localFilters.sort}
-                            onChange={(e) => setLocalFilters({ ...localFilters, sort: e.target.value })}
-                            className="w-full bg-black/50 border border-white/10 focus:border-plex rounded-xl p-4 text-white font-medium outline-none transition-colors shadow-inner"
-                        >
-                            <option value="popularity.desc">Most Popular</option>
-                            <option value="vote_average.desc">Top Rated</option>
-                            {type === 'movie' ? (
-                                <>
-                                    <option value="revenue.desc">Highest Revenue</option>
-                                    <option value="primary_release_date.desc">Release Date (Newest)</option>
-                                    <option value="primary_release_date.asc">Release Date (Oldest)</option>
-                                </>
-                            ) : (
-                                <>
-                                    <option value="first_air_date.desc">Premiere Date (Newest)</option>
-                                    <option value="first_air_date.asc">Premiere Date (Oldest)</option>
-                                </>
-                            )}
-                        </select>
+                            onChange={(sort) => setLocalFilters({ ...localFilters, sort })}
+                            options={sortOptions}
+                            className="w-full"
+                        />
                     </div>
 
-                    {/* Minimum Rating */}
                     <div className="flex flex-col gap-3">
-                        <label className="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Minimum User Score</label>
-                        <div className="relative">
-                            <Star className="w-5 h-5 text-plex absolute left-4 top-1/2 -translate-y-1/2" />
-                            <select 
-                                value={localFilters.minRating}
-                                onChange={(e) => setLocalFilters({ ...localFilters, minRating: e.target.value })}
-                                className="w-full bg-black/50 border border-white/10 focus:border-plex rounded-xl p-4 pl-12 text-white font-medium outline-none transition-colors shadow-inner appearance-none"
-                            >
-                                <option value="">Any Score</option>
-                                <option value="9">Masterpiece (9+)</option>
-                                <option value="8">Great (8+)</option>
-                                <option value="7">Good (7+)</option>
-                                <option value="6">Okay (6+)</option>
-                                <option value="5">Mediocre (5+)</option>
-                            </select>
-                        </div>
+                        <label className="text-xs font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2">
+                            <Star className="w-4 h-4 text-plex" /> Minimum User Score
+                        </label>
+                        <CustomSelect
+                            value={localFilters.minRating}
+                            onChange={(minRating) => setLocalFilters({ ...localFilters, minRating })}
+                            options={RATING_OPTIONS}
+                            className="w-full"
+                        />
                     </div>
 
-                    {/* Genre */}
                     <div className="flex flex-col gap-3">
                         <label className="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Genre</label>
-                        <select 
+                        <CustomSelect
                             value={localFilters.genre}
-                            onChange={(e) => setLocalFilters({ ...localFilters, genre: e.target.value })}
-                            className="w-full bg-black/50 border border-white/10 focus:border-plex rounded-xl p-4 text-white font-medium outline-none transition-colors shadow-inner"
-                        >
-                            <option value="">All Genres</option>
-                            {(type === 'movie' ? MOVIE_GENRES : TV_GENRES).map((g) => (
-                                <option key={g.id} value={String(g.id)}>{g.name}</option>
-                            ))}
-                        </select>
+                            onChange={(genre) => setLocalFilters({ ...localFilters, genre })}
+                            options={genreOptions}
+                            className="w-full"
+                        />
                     </div>
 
-                    {/* Network / Studio */}
                     {type === 'tv' ? (
                         <div className="flex flex-col gap-3">
                             <label className="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Network</label>
-                            <select 
+                            <CustomSelect
                                 value={localFilters.network}
-                                onChange={(e) => setLocalFilters({ ...localFilters, network: e.target.value })}
-                                className="w-full bg-black/50 border border-white/10 focus:border-plex rounded-xl p-4 text-white font-medium outline-none transition-colors shadow-inner"
-                            >
-                                <option value="">All Networks</option>
-                                {DISCOVER_NETWORKS.map((n) => (
-                                    <option key={`${n.id}-${n.name}`} value={String(n.id)}>{n.name}</option>
-                                ))}
-                            </select>
+                                onChange={(network) => setLocalFilters({ ...localFilters, network })}
+                                options={networkOptions}
+                                className="w-full"
+                            />
                         </div>
                     ) : (
                         <div className="flex flex-col gap-3">
                             <label className="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Studio</label>
-                            <select 
+                            <CustomSelect
                                 value={localFilters.studio}
-                                onChange={(e) => setLocalFilters({ ...localFilters, studio: e.target.value })}
-                                className="w-full bg-black/50 border border-white/10 focus:border-plex rounded-xl p-4 text-white font-medium outline-none transition-colors shadow-inner"
-                            >
-                                <option value="">All Studios</option>
-                                {DISCOVER_STUDIOS.map((s) => (
-                                    <option key={s.id} value={String(s.id)}>{s.name}</option>
-                                ))}
-                            </select>
+                                onChange={(studio) => setLocalFilters({ ...localFilters, studio })}
+                                options={studioOptions}
+                                className="w-full"
+                            />
                         </div>
                     )}
 
-                    {/* Release Year */}
                     <div className="flex flex-col gap-3">
                         <label className="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Release Year</label>
                         <div className="relative">
-                            <Calendar className="w-5 h-5 text-white/30 absolute left-4 top-1/2 -translate-y-1/2" />
-                            <input 
-                                type="number" 
-                                placeholder="e.g. 2024" 
+                            <Calendar className="w-5 h-5 text-white/30 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            <input
+                                type="number"
+                                placeholder="e.g. 2024"
                                 value={localFilters.year}
                                 onChange={(e) => setLocalFilters({ ...localFilters, year: e.target.value })}
                                 className="w-full bg-black/50 border border-white/10 focus:border-plex rounded-xl p-4 pl-12 text-white font-medium outline-none transition-colors shadow-inner"
                             />
                         </div>
                     </div>
-
                 </div>
 
-                {/* Footer Buttons */}
                 <div className="p-6 border-t border-white/10 bg-black/20 flex gap-4">
-                    <button 
+                    <button
+                        type="button"
                         onClick={handleClear}
                         className="flex-1 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white font-bold transition-colors"
                     >
                         Clear All
                     </button>
-                    <button 
+                    <button
+                        type="button"
                         onClick={handleApply}
                         className="flex-1 py-4 bg-plex hover:bg-plex-hover rounded-xl text-black font-black transition-colors shadow-[0_0_15px_rgba(229,160,13,0.3)]"
                     >

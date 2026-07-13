@@ -152,30 +152,32 @@ export const MediaDetailsPage: React.FC<{
 
     return (
         <div className="w-full flex flex-col min-h-screen bg-card animate-fade-in pb-16 rounded-2xl md:rounded-3xl overflow-x-hidden border border-white/5 shadow-2xl">
-            <div className="relative w-full h-[34vh] min-h-[240px] sm:h-[38vh] bg-black">
-                {details.backdropPath ? (
-                    <img
-                        src={`https://image.tmdb.org/t/p/w1280${details.backdropPath}`}
-                        alt=""
-                        className="w-full h-full object-cover object-[78%_22%] opacity-75 scale-105"
-                    />
-                ) : null}
-                <div className="absolute inset-0 bg-gradient-to-t from-card via-card/55 to-black/20" />
-                <div className="absolute inset-0 bg-gradient-to-r from-card from-0% via-card/75 via-35% to-transparent to-72%" />
-                <div className="absolute inset-0 bg-gradient-to-l from-transparent via-transparent to-black/10" />
+            <div className="relative isolate">
+                <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
+                    {details.backdropPath ? (
+                        <img
+                            src={`https://image.tmdb.org/t/p/w1280${details.backdropPath}`}
+                            alt=""
+                            className="absolute inset-0 w-full h-full object-cover object-[78%_22%] opacity-75 scale-105"
+                        />
+                    ) : (
+                        <div className="absolute inset-0 bg-black" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-card from-0% via-card/90 via-[38%] to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-card from-0% via-card/80 via-[32%] to-transparent to-[78%]" />
+                </div>
 
-                <button
-                    type="button"
-                    onClick={onBack}
-                    className="absolute top-4 left-4 sm:top-5 sm:left-6 z-20 flex items-center gap-2 text-white/90 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-black/65"
-                >
-                    <ArrowLeft className="w-5 h-5" />
-                    <span className="font-bold text-sm">Back to Discover</span>
-                </button>
-            </div>
+                <div className="relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 pt-4 sm:pt-5 pb-8">
+                    <button
+                        type="button"
+                        onClick={onBack}
+                        className="mb-6 inline-flex items-center gap-2 text-white/90 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-black/65"
+                    >
+                        <ArrowLeft className="w-5 h-5" />
+                        <span className="font-bold text-sm">Back to Discover</span>
+                    </button>
 
-            {/* Poster + core info */}
-            <div className="relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 -mt-[7.5rem] sm:-mt-36 lg:-mt-40 flex flex-col md:flex-row gap-6 lg:gap-10">
+                    <div className="flex flex-col md:flex-row gap-6 lg:gap-10">
                 <div className="flex flex-col gap-4 w-44 sm:w-52 lg:w-60 flex-shrink-0 mx-auto md:mx-0">
                     <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.55)] border border-white/15 bg-black/50 ring-1 ring-white/10">
                         <div className="absolute -inset-4 bg-plex/10 blur-3xl opacity-40 pointer-events-none" />
@@ -278,7 +280,7 @@ export const MediaDetailsPage: React.FC<{
                     <DiscoveryFactWidget mediaType={mediaType} mediaId={mediaId} />
 
                     {extraDetails.length > 0 && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-3xl p-4 rounded-xl bg-white/[0.03] border border-white/8">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 max-w-3xl">
                             {extraDetails.map((row) => (
                                 <div key={row.label} className="flex flex-col gap-0.5 min-w-0">
                                     <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">{row.label}</span>
@@ -291,14 +293,14 @@ export const MediaDetailsPage: React.FC<{
                     {details.networks?.length > 0 && (
                         <div className="flex flex-col gap-2">
                             <SectionHeading>Networks</SectionHeading>
-                            <div className="flex flex-wrap gap-4 items-center">
+                            <div className="flex flex-wrap gap-5 items-center">
                                 {details.networks.map((n: any) => (
-                                    <div key={n.id} className="flex items-center px-3 py-2 rounded-lg bg-white/[0.04] border border-white/8">
+                                    <div key={n.id} className="flex items-center">
                                         {n.logoPath ? (
                                             <img
-                                                src={`https://image.tmdb.org/t/p/w92${n.logoPath}`}
+                                                src={`https://image.tmdb.org/t/p/w154${n.logoPath}`}
                                                 alt={n.name}
-                                                className="h-5 max-w-[80px] object-contain filter invert opacity-80"
+                                                className="h-6 max-w-[120px] object-contain"
                                             />
                                         ) : (
                                             <span className="text-xs font-semibold text-white/70">{n.name}</span>
@@ -308,6 +310,8 @@ export const MediaDetailsPage: React.FC<{
                             </div>
                         </div>
                     )}
+                </div>
+                    </div>
                 </div>
             </div>
 
