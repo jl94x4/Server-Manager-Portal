@@ -125,13 +125,13 @@ export const UserDashboardLayout: React.FC<Props> = ({
                             <React.Fragment key={id}>{renderMainGridWidget(id)}</React.Fragment>
                         ))}
                         {mostWatched}
-                        {showRecentlyAdded ? (
-                            <div className={`flex flex-col gap-3 md:gap-4 ${RECENTLY_ADDED_FULL_BLEED_CLASS}`}>
-                                {renderRecentlyAddedRows()}
-                            </div>
-                        ) : null}
                     </div>
                 </div>
+                {showRecentlyAdded ? (
+                    <div className="hidden lg:flex flex-col gap-3 md:gap-4 w-full">
+                        {renderRecentlyAddedRows()}
+                    </div>
+                ) : null}
                 <div className="lg:hidden flex flex-col gap-3 md:gap-4 w-full">
                     {renderMainGridColumns()}
                     {renderWatchRowColumns()}
