@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 @layer base {
-  :root, [data-theme="plex"] {
+  :root, [data-theme="plex"], [data-theme="dynamic"] {
     --color-bg: 13 17 23;
     --color-card: 22 27 34;
     --color-border: 48 54 61;

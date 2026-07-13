@@ -4954,6 +4954,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     const heroBg = heroBgRaw
         ? (heroBgRaw.startsWith('http') ? heroBgRaw : resolvePortalAssetUrl(heroBgRaw))
         : '';
+    useDynamicTheme(heroBg);
 
     const wrapUpDaysOptions = ANALYTICS_PERIOD_OPTIONS;
 
@@ -7741,6 +7742,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                 className="bg-card border border-border rounded-lg shadow-2xl py-1 min-w-[140px]"
                             >
                                 {[
+                                    { label: 'Dynamic (Chameleon)', value: 'dynamic' },
                                     { label: 'Plex Dark', value: 'plex' },
                                     { label: 'Sleek Slate', value: 'slate' },
                                     { label: 'Nordic Frost', value: 'nordic' },
@@ -7841,6 +7843,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                 compact={true}
                                 className="w-full [&_div]:pl-9"
                                 options={[
+                                    { label: 'Dynamic (Chameleon)', value: 'dynamic' },
                                     { label: 'Plex Dark', value: 'plex' },
                                     { label: 'Sleek Slate', value: 'slate' },
                                     { label: 'Nordic Frost', value: 'nordic' },

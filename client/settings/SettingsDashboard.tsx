@@ -1804,6 +1804,7 @@ export const SettingsDashboard: React.FC = () => {
                                     value={brandingTheme}
                                     onChange={setBrandingTheme}
                                     options={[
+                                        { label: 'Dynamic (Chameleon)', value: 'dynamic' },
                                         { label: 'Plex Dark', value: 'plex' },
                                         { label: 'Sleek Slate', value: 'slate' },
                                         { label: 'Nordic Frost', value: 'nordic' },
