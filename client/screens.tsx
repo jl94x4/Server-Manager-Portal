@@ -12,6 +12,7 @@ import { formatDate, getDaysUntilExpiry, getAccessProgressPct, addMonths, addYea
 import { CustomSelect, ConfirmModal, StyledCheckbox, ScrollReveal } from './shared/ui';
 import { PeriodDropdown } from './shared/PeriodDropdown';
 import { ActivityHeatmap } from './shared/ActivityHeatmap';
+import { useDynamicTheme } from './shared/useDynamicTheme';
 import { Loader, Toast, ToastContainer, pushToast } from './shared/toast';
 import {
     ActivityGridSkeleton,
@@ -911,6 +912,7 @@ const PersonalAnalyticsDashboard: React.FC<{ username: string, thumb: string | n
 };
 
 export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
+    const [detailsItem, setDetailsItem] = useState<any>(null);
     const [data, setData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
@@ -1323,7 +1325,7 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
                 )}
             </div>
 
-            <button onClick={refreshData} className="px-3 py-1.5 bg-plex/10 hover:bg-plex/20 text-plex text-xs font-bold rounded-lg border border-plex/20 flex items-center gap-2 transition-all">
+            <button onClick={fetchData} className="px-3 py-1.5 bg-plex/10 hover:bg-plex/20 text-plex text-xs font-bold rounded-lg border border-plex/20 flex items-center gap-2 transition-all">
                 <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
                 Refresh
             </button>
@@ -2339,6 +2341,7 @@ const ItemViewersModal: React.FC<{ item: { title: string, viewers: Record<string
 };
 
 export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ isAdmin, sessionInfo }) => {
+    const [detailsItem, setDetailsItem] = useState<any>(null);
     const [analyticsData, setAnalyticsData] = useState<{
         topUsers: any[],
         topLibraries: any[],
@@ -5125,7 +5128,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                 />
             )}
 
-            <UniversalDetailsModal item={detailsItem} onClose={() => setDetailsItem(null)} />
+            <DetailsModal item={detailsItem} onClose={() => setDetailsItem(null)} />
 
             <UserDashboardLayout
                 layoutConfig={publicConfig?.dashboardLayout}
@@ -5811,6 +5814,7 @@ const EmptyStreamsMessage: React.FC = () => {
 };
 
 export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean, publicConfig?: any, mediaServerType?: string, onViewAnalytics?: (hash?: string) => void }> = ({ onBack, isAdmin, publicConfig, mediaServerType, onViewAnalytics }) => {
+    const [detailsItem, setDetailsItem] = useState<any>(null);
     const [dashboardData, setDashboardData] = useState<{ activeSessions: any[], recentMovies: any[], recentShows: any[], recentMusic: any[] } | null>(null);
     const [trendingStats, setTrendingStats] = useState<{ trending7Days: any[], movies30Days: any[], shows30Days: any[], top365Days: any[], allTime: any[], weekendWarriors: any[], nightOwls: any[], retroHits: any[], cultClassics: any[] } | null>(null);
     const [dashboardLoading, setDashboardLoading] = useState(true);
