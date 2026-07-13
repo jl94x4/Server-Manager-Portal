@@ -2,6 +2,7 @@ import {
   AdminDashboard,
   AnalyticsDashboard,
   AppAmbientBackground,
+  DiscoverPosterCard,
   LibraryDashboard,
   Login,
   LogsDashboard,
@@ -10,17 +11,40 @@ import {
   Navigation,
   PublicInviteClaim,
   StatusDashboard,
+  UPGRADER_GRID_SIZE_OPTIONS,
   UserDashboard,
-  updateFavicon
-} from "./chunk-I44LQ32D.js";
+  normalizeUpgraderGridSize,
+  updateFavicon,
+  upgraderPosterGridClass,
+  upgraderPosterGridStyle
+} from "./chunk-JXEHAEPD.js";
 import {
   bindAppConfirm
-} from "./chunk-JYPKUHRN.js";
-import "./chunk-QN6H6AVC.js";
+} from "./chunk-HFN5HWPZ.js";
+import "./chunk-DKMV3X77.js";
 import {
+  ArrowLeft,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  CircleCheckBig,
+  CirclePlus,
+  Clock,
+  Compass,
   ConfirmModal,
+  CustomSelect,
+  Film,
+  Funnel,
+  Globe,
+  Lightbulb,
   Loader,
+  LoaderCircle,
+  RefreshCw,
+  Search,
   Sparkles,
+  Star,
+  Tv,
+  Users,
   X,
   __commonJS,
   __toESM,
@@ -30,7 +54,7 @@ import {
   require_react,
   require_react_dom,
   stripBasePath
-} from "./chunk-EJSHH3Y6.js";
+} from "./chunk-5L3BF6DP.js";
 
 // node_modules/scheduler/cjs/scheduler.development.js
 var require_scheduler_development = __commonJS({
@@ -1648,7 +1672,7 @@ var require_react_dom_client_development = __commonJS({
         "number" === type && getActiveElement(node.ownerDocument) === node || node.defaultValue === "" + value || (node.defaultValue = "" + value);
       }
       function validateOptionProps(element, props) {
-        null == props.value && ("object" === typeof props.children && null !== props.children ? React2.Children.forEach(props.children, function(child) {
+        null == props.value && ("object" === typeof props.children && null !== props.children ? React13.Children.forEach(props.children, function(child) {
           null == child || "string" === typeof child || "number" === typeof child || "bigint" === typeof child || didWarnInvalidChild || (didWarnInvalidChild = true, console.error(
             "Cannot infer the option value of complex children. Pass a `value` prop or use a plain string as children to <option>."
           ));
@@ -17280,14 +17304,14 @@ var require_react_dom_client_development = __commonJS({
         ));
       }
       "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-      var Scheduler = require_scheduler(), React2 = require_react(), ReactDOM = require_react_dom(), assign = Object.assign, REACT_LEGACY_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.element"), REACT_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = /* @__PURE__ */ Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = /* @__PURE__ */ Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = /* @__PURE__ */ Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = /* @__PURE__ */ Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = /* @__PURE__ */ Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = /* @__PURE__ */ Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = /* @__PURE__ */ Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = /* @__PURE__ */ Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = /* @__PURE__ */ Symbol.for("react.memo"), REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy");
+      var Scheduler = require_scheduler(), React13 = require_react(), ReactDOM = require_react_dom(), assign = Object.assign, REACT_LEGACY_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.element"), REACT_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = /* @__PURE__ */ Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = /* @__PURE__ */ Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = /* @__PURE__ */ Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = /* @__PURE__ */ Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = /* @__PURE__ */ Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = /* @__PURE__ */ Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = /* @__PURE__ */ Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = /* @__PURE__ */ Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = /* @__PURE__ */ Symbol.for("react.memo"), REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy");
       /* @__PURE__ */ Symbol.for("react.scope");
       var REACT_ACTIVITY_TYPE = /* @__PURE__ */ Symbol.for("react.activity");
       /* @__PURE__ */ Symbol.for("react.legacy_hidden");
       /* @__PURE__ */ Symbol.for("react.tracing_marker");
       var REACT_MEMO_CACHE_SENTINEL = /* @__PURE__ */ Symbol.for("react.memo_cache_sentinel");
       /* @__PURE__ */ Symbol.for("react.view_transition");
-      var MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE = /* @__PURE__ */ Symbol.for("react.client.reference"), isArrayImpl = Array.isArray, ReactSharedInternals = React2.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, ReactDOMSharedInternals = ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, NotPending = Object.freeze({
+      var MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE = /* @__PURE__ */ Symbol.for("react.client.reference"), isArrayImpl = Array.isArray, ReactSharedInternals = React13.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, ReactDOMSharedInternals = ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, NotPending = Object.freeze({
         pending: false,
         data: null,
         method: null,
@@ -20075,7 +20099,7 @@ var require_react_dom_client_development = __commonJS({
         }
       };
       (function() {
-        var isomorphicReactPackageVersion = React2.version;
+        var isomorphicReactPackageVersion = React13.version;
         if ("19.2.7" !== isomorphicReactPackageVersion)
           throw Error(
             'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' + (isomorphicReactPackageVersion + "\n  - react-dom:  19.2.7\nLearn more: https://react.dev/warnings/version-mismatch")
@@ -20219,7 +20243,7 @@ var require_client = __commonJS({
 var import_client = __toESM(require_client(), 1);
 
 // client/App.tsx
-var import_react2 = __toESM(require_react(), 1);
+var import_react14 = __toESM(require_react(), 1);
 
 // client/shared/WhatsNewModal.tsx
 var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
@@ -20358,21 +20382,1802 @@ var usePendingRequestCount = (enabled) => {
   return { pendingCount: counts.pending, counts, refresh };
 };
 
-// client/App.tsx
+// client/discovery/DiscoveryDashboard.tsx
+var import_react13 = __toESM(require_react(), 1);
+
+// client/discovery/DiscoverHome.tsx
+var import_react4 = __toESM(require_react(), 1);
+
+// client/discovery/Carousel.tsx
+var import_react2 = __toESM(require_react(), 1);
 var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
-var SettingsDashboard = (0, import_react2.lazy)(() => import("./SettingsDashboard-Q4IUYTSF.js").then((m) => ({ default: m.SettingsDashboard })));
-var RequestsAdminPanel = (0, import_react2.lazy)(() => import("./RequestsAdminPanel-6KBXBOYV.js").then((m) => ({ default: m.RequestsAdminPanel })));
-var UpgraderDashboard = (0, import_react2.lazy)(() => import("./UpgraderDashboard-FRGBXJ4I.js").then((m) => ({ default: m.UpgraderDashboard })));
+var Carousel = ({ children }) => {
+  const scrollContainerRef = (0, import_react2.useRef)(null);
+  const [showLeft, setShowLeft] = (0, import_react2.useState)(false);
+  const [showRight, setShowRight] = (0, import_react2.useState)(true);
+  const handleScroll = () => {
+    if (!scrollContainerRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+    setShowLeft(scrollLeft > 20);
+    setShowRight(scrollLeft < scrollWidth - clientWidth - 20);
+  };
+  (0, import_react2.useEffect)(() => {
+    handleScroll();
+    window.addEventListener("resize", handleScroll);
+    return () => window.removeEventListener("resize", handleScroll);
+  }, [children]);
+  const scroll = (direction) => {
+    if (!scrollContainerRef.current) return;
+    const { clientWidth } = scrollContainerRef.current;
+    const scrollAmount = direction === "left" ? -clientWidth + 100 : clientWidth - 100;
+    scrollContainerRef.current.scrollBy({
+      left: scrollAmount,
+      behavior: "smooth"
+    });
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "relative group/carousel w-full", children: [
+    showLeft && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+      "button",
+      {
+        onClick: () => scroll("left"),
+        className: "absolute left-2 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-10 h-10 rounded-full bg-black/60 backdrop-blur-md border border-white/10 opacity-0 group-hover/carousel:opacity-100 transition-all hover:scale-110 hover:bg-black/80 shadow-xl",
+        "aria-label": "Scroll left",
+        children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(ChevronLeft, { className: "w-6 h-6 text-white" })
+      }
+    ),
+    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+      "div",
+      {
+        ref: scrollContainerRef,
+        onScroll: handleScroll,
+        className: "flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide py-4 px-2",
+        style: { scrollbarWidth: "none", msOverflowStyle: "none" },
+        children
+      }
+    ),
+    showRight && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+      "button",
+      {
+        onClick: () => scroll("right"),
+        className: "absolute right-2 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-10 h-10 rounded-full bg-black/60 backdrop-blur-md border border-white/10 opacity-0 group-hover/carousel:opacity-100 transition-all hover:scale-110 hover:bg-black/80 shadow-xl",
+        "aria-label": "Scroll right",
+        children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(ChevronRight, { className: "w-6 h-6 text-white" })
+      }
+    )
+  ] });
+};
+
+// client/discovery/DiscoverCards.tsx
+var import_react3 = __toESM(require_react(), 1);
+
+// client/discovery/discoverConstants.ts
+var tmdbDuotoneLogo = (logoPath, width = 780) => `https://image.tmdb.org/t/p/w${width}_filter(duotone,ffffff,bababa)${logoPath}`;
+var DISCOVER_STUDIOS = [
+  { id: 2, name: "Disney", logoPath: "/wdrCwmRnLFJhEoH8GSfymY85KHT.png" },
+  { id: 127928, name: "20th Century Studios", logoPath: "/h0rjX5vjW5r8yEnUBStFarjcLT4.png" },
+  { id: 34, name: "Sony Pictures", logoPath: "/GagSvqWlyPdkFHMfQ3pNq6ix9P.png" },
+  { id: 174, name: "Warner Bros. Pictures", logoPath: "/ky0xOc5OrhzkZ1N6KyUxacfQsCk.png" },
+  { id: 33, name: "Universal", logoPath: "/8lvHyhjr8oUKOOy2dKXoALWKdp0.png" },
+  { id: 4, name: "Paramount", logoPath: "/fycMZt242LVjagMByZOLUGbCvv3.png" },
+  { id: 3, name: "Pixar", logoPath: "/1TjvGVDMYsj6JBxOAkUHpPEwLf7.png" },
+  { id: 521, name: "Dreamworks", logoPath: "/kP7t6RwGz2AvvTkvnI1uteEwHet.png" },
+  { id: 420, name: "Marvel Studios", logoPath: "/hUzeosd33nzE5MCNsZxCGEKTXaQ.png" },
+  { id: 9993, name: "DC", logoPath: "/2Tc1P3Ac8M479naPp1kYT3izLS5.png" },
+  { id: 41077, name: "A24", logoPath: "/1ZXsGaFPgrgS6ZZGS37AqD5uU12.png" },
+  { id: 25, name: "20th Century Fox", logoPath: "/qZCc1lty5FzX30aOCVRXrxSRYcF.png" },
+  { id: 5, name: "Columbia Pictures", logoPath: "/71BqEFAF4V3qjjZAJ6NKeDOP2g4.png" },
+  { id: 12, name: "New Line Cinema", logoPath: "/jT91plwe0e6Qc1OcUZ6fMelNxQ5.png" },
+  { id: 14, name: "Miramax", logoPath: "/8C5PWL4j7H13HGPq5xMU9c3uMwr.png" },
+  { id: 1632, name: "Lionsgate", logoPath: "/f6B6orH0Fk0blmKchvW6y6q2cQ8.png" }
+];
+var DISCOVER_NETWORKS = [
+  { id: 213, name: "Netflix", logoPath: "/wwemzKWzjKYJFfCeiB57q3r4Bcm.png" },
+  { id: 2739, name: "Disney+", logoPath: "/gJ8VX6JSu3ciXHuC2dDGAo2lvwM.png" },
+  { id: 1024, name: "Prime Video", logoPath: "/ifhbNuuVnlwYy5oXA5VIb2YR8AZ.png" },
+  { id: 2552, name: "Apple TV+", logoPath: "/4KAy34EHvRM25Ih8wb82AuGU7zJ.png" },
+  { id: 453, name: "Hulu", logoPath: "/pqUTCleNUiTLAVlelGxUgWn1ELh.png" },
+  { id: 49, name: "HBO", logoPath: "/tuomPhY2UtuPTqqFnKMVHvSb724.png" },
+  { id: 4353, name: "Discovery+", logoPath: "/1D1bS3Dyw4ScYnFWTlBOvJXC3nb.png" },
+  { id: 2, name: "ABC", logoPath: "/ndAvF4JLsliGreX87jAc9GdjmJY.png" },
+  { id: 19, name: "FOX", logoPath: "/1DSpHrWyOORkL9N2QHX7Adt31mQ.png" },
+  { id: 359, name: "Cinemax", logoPath: "/6mSHSquNpfLgDdv6VnOOvC5Uz2h.png" },
+  { id: 174, name: "AMC", logoPath: "/pmvRmATOCaDykE6JrVoeYxlFHw3.png" },
+  { id: 67, name: "Showtime", logoPath: "/Allse9kbjiP6ExaQrnSpIhkurEi.png" },
+  { id: 318, name: "Starz", logoPath: "/8GJjw3HHsAJYwIWKIPBPfqMxlEa.png" },
+  { id: 71, name: "The CW", logoPath: "/ge9hzeaU7nMtQ4PjkFlc68dGAJ9.png" },
+  { id: 6, name: "NBC", logoPath: "/o3OedEP0f9mfZr33jz2BfXOUK5.png" },
+  { id: 16, name: "CBS", logoPath: "/nm8d7P7MJNiBLdgIzUK0gkuEA4r.png" },
+  { id: 4330, name: "Paramount+", logoPath: "/fi83B1oztoS47xxcemFdPMhIzK.png" },
+  { id: 4, name: "BBC One", logoPath: "/mVn7xESaTNmjBUyUtGNvDQd3CT1.png" },
+  { id: 56, name: "Cartoon Network", logoPath: "/c5OC6oVCg6QP4eqzW6XIq17CQjI.png" },
+  { id: 80, name: "Adult Swim", logoPath: "/9AKyspxVzywuaMuZ1Bvilu8sXly.png" },
+  { id: 13, name: "Nickelodeon", logoPath: "/ikZXxg6GnwpzqiZbRPhJGaZapqB.png" },
+  { id: 3353, name: "Peacock", logoPath: "/gIAcGTjKKr0KOHL5s4O36roJ8p7.png" },
+  { id: 9, name: "ITV", logoPath: "/51sS8y0hVlW3U7u0n72gL8O3JtZ.png" },
+  { id: 214, name: "Sky", logoPath: "/8lG83k6H3ZkM5Fv7zY0Qz6tX2o.png" },
+  { id: 3186, name: "Peacock Premium", logoPath: "/gIAcGTjKKr0KOHL5s4O36roJ8p7.png" }
+];
+var MOVIE_GENRES = [
+  { id: 28, name: "Action", gradient: "from-red-700 to-red-950" },
+  { id: 12, name: "Adventure", gradient: "from-violet-700 to-violet-950" },
+  { id: 16, name: "Animation", gradient: "from-sky-600 to-sky-900" },
+  { id: 35, name: "Comedy", gradient: "from-amber-500 to-amber-800" },
+  { id: 80, name: "Crime", gradient: "from-blue-800 to-blue-950" },
+  { id: 99, name: "Documentary", gradient: "from-emerald-600 to-emerald-900" },
+  { id: 18, name: "Drama", gradient: "from-pink-700 to-pink-950" },
+  { id: 10751, name: "Family", gradient: "from-yellow-600 to-yellow-800" },
+  { id: 14, name: "Fantasy", gradient: "from-cyan-600 to-cyan-900" },
+  { id: 36, name: "History", gradient: "from-orange-700 to-orange-950" },
+  { id: 27, name: "Horror", gradient: "from-zinc-900 to-black" },
+  { id: 10402, name: "Music", gradient: "from-sky-700 to-sky-950" },
+  { id: 9648, name: "Mystery", gradient: "from-purple-700 to-purple-950" },
+  { id: 10749, name: "Romance", gradient: "from-rose-700 to-rose-950" },
+  { id: 878, name: "Science Fiction", gradient: "from-cyan-700 to-cyan-950" },
+  { id: 53, name: "Thriller", gradient: "from-neutral-800 to-black" },
+  { id: 10752, name: "War", gradient: "from-red-900 to-black" },
+  { id: 37, name: "Western", gradient: "from-orange-800 to-orange-950" }
+];
+var TV_GENRES = [
+  { id: 10759, name: "Action & Adventure", gradient: "from-violet-700 to-violet-950" },
+  { id: 16, name: "Animation", gradient: "from-sky-600 to-sky-900" },
+  { id: 35, name: "Comedy", gradient: "from-amber-500 to-amber-800" },
+  { id: 80, name: "Crime", gradient: "from-blue-800 to-blue-950" },
+  { id: 99, name: "Documentary", gradient: "from-emerald-600 to-emerald-900" },
+  { id: 18, name: "Drama", gradient: "from-pink-700 to-pink-950" },
+  { id: 10751, name: "Family", gradient: "from-yellow-600 to-yellow-800" },
+  { id: 10762, name: "Kids", gradient: "from-sky-500 to-sky-800" },
+  { id: 9648, name: "Mystery", gradient: "from-purple-700 to-purple-950" },
+  { id: 10763, name: "News", gradient: "from-zinc-800 to-black" },
+  { id: 10764, name: "Reality", gradient: "from-orange-700 to-orange-950" },
+  { id: 10765, name: "Sci-Fi & Fantasy", gradient: "from-cyan-700 to-cyan-950" },
+  { id: 10766, name: "Soap", gradient: "from-rose-700 to-rose-950" },
+  { id: 10767, name: "Talk", gradient: "from-emerald-700 to-emerald-950" },
+  { id: 10768, name: "War & Politics", gradient: "from-red-900 to-black" }
+];
+var findStudio = (id) => DISCOVER_STUDIOS.find((s) => s.id === id);
+var findNetwork = (id) => DISCOVER_NETWORKS.find((n) => n.id === id);
+
+// client/discovery/DiscoverCards.tsx
+var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
+var CompanyCard = ({ name, logoPath, onClick }) => {
+  const [failed, setFailed] = (0, import_react3.useState)(false);
+  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+    "button",
+    {
+      type: "button",
+      onClick,
+      className: "group relative w-[170px] sm:w-[200px] h-[100px] sm:h-[112px] flex-shrink-0 snap-start rounded-xl border border-white/10 bg-zinc-900/80 overflow-hidden transition-all duration-300 hover:scale-[1.03] hover:border-white/20 hover:shadow-[0_8px_30px_rgba(0,0,0,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-plex",
+      "aria-label": name,
+      children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "absolute inset-0 bg-gradient-to-br from-white/[0.04] to-transparent pointer-events-none" }),
+        !failed ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+          "img",
+          {
+            src: tmdbDuotoneLogo(logoPath),
+            alt: name,
+            loading: "lazy",
+            className: "absolute inset-0 m-auto max-w-[78%] max-h-[58%] object-contain opacity-90 group-hover:opacity-100 transition-opacity",
+            onError: () => setFailed(true)
+          }
+        ) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "absolute inset-0 flex items-center justify-center px-3 text-center text-sm font-bold text-white/90", children: name })
+      ]
+    }
+  );
+};
+var GenreCard = ({ name, gradient, image, onClick }) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+  "button",
+  {
+    type: "button",
+    onClick,
+    className: `relative w-[150px] sm:w-[180px] h-[88px] sm:h-[100px] flex-shrink-0 snap-start rounded-xl overflow-hidden p-4 flex items-end justify-start cursor-pointer hover:scale-[1.03] transition-transform shadow-lg border border-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-plex ${image ? "bg-zinc-900" : `bg-gradient-to-br ${gradient || "from-zinc-800 to-black"}`}`,
+    style: image ? { backgroundImage: `url(${image})`, backgroundSize: "cover", backgroundPosition: "center" } : void 0,
+    children: [
+      image && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" }),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "relative z-10 text-white font-black drop-shadow-md text-left leading-tight", children: name })
+    ]
+  }
+);
+
+// client/discovery/discoverItemUtils.ts
+var normalizeRawDiscoveryItem = (item) => {
+  if (!item || typeof item !== "object") return item;
+  if (item.media && (item.type != null || item.status != null || item.requestedBy)) {
+    const media = item.media;
+    return {
+      ...media,
+      mediaType: item.type || media.mediaType,
+      tmdbId: media.tmdbId,
+      posterPath: media.posterPath,
+      title: media.title || media.name,
+      name: media.name || media.title
+    };
+  }
+  if (item.title && typeof item.title === "object" && !item.posterPath) {
+    return {
+      ...item.title,
+      ...item,
+      mediaType: item.title.mediaType || item.mediaType,
+      tmdbId: item.title.tmdbId ?? item.tmdbId,
+      posterPath: item.title.posterPath ?? item.posterPath
+    };
+  }
+  return item;
+};
+var needsEnrichment = (item) => {
+  const normalized = normalizeRawDiscoveryItem(item);
+  if (normalized.posterPath || normalized.profilePath) return false;
+  const mediaType = normalized.mediaType;
+  const tmdbId = Number(normalized.tmdbId);
+  return (mediaType === "movie" || mediaType === "tv") && Number.isFinite(tmdbId) && tmdbId > 0;
+};
+var enrichDiscoveryItems = async (items) => {
+  if (!items?.length) return [];
+  return Promise.all(items.map(async (raw) => {
+    const item = normalizeRawDiscoveryItem(raw);
+    if (!needsEnrichment(item)) return item;
+    const mediaType = item.mediaType;
+    const tmdbId = Number(item.tmdbId);
+    try {
+      const details = await apiFetch(`/api/discovery/proxy/${mediaType}/${tmdbId}`);
+      return {
+        ...item,
+        ...details,
+        mediaType,
+        tmdbId
+      };
+    } catch {
+      return item;
+    }
+  }));
+};
+
+// client/discovery/DiscoverHome.tsx
+var import_jsx_runtime4 = __toESM(require_jsx_runtime(), 1);
+var DiscoverHome = ({ onSelect, formatItem, navigate }) => {
+  const [rows, setRows] = (0, import_react4.useState)({
+    recentlyAdded: [],
+    recentRequests: [],
+    plexWatchlist: [],
+    trending: [],
+    popularMovies: [],
+    upcomingMovies: [],
+    popularSeries: [],
+    upcomingSeries: []
+  });
+  const [movieGenres, setMovieGenres] = (0, import_react4.useState)([]);
+  const [tvGenres, setTvGenres] = (0, import_react4.useState)([]);
+  const [loading, setLoading] = (0, import_react4.useState)(true);
+  (0, import_react4.useEffect)(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [
+          addedRes,
+          reqRes,
+          watchlistRes,
+          trendingRes,
+          popMovRes,
+          upMovRes,
+          popTvRes,
+          upTvRes,
+          movieGenreRes,
+          tvGenreRes
+        ] = await Promise.all([
+          apiFetch("/api/discovery/proxy/media?filter=allavailable&take=20&sort=mediaAdded").catch(() => null),
+          apiFetch("/api/discovery/proxy/request?filter=all&take=20&sort=modified&skip=0").catch(() => null),
+          apiFetch("/api/discovery/proxy/discover/watchlist").catch(() => null),
+          apiFetch("/api/discovery/trending").catch(() => null),
+          apiFetch("/api/discovery/proxy/discover/movies?sortBy=popularity.desc&language=en").catch(() => null),
+          apiFetch("/api/discovery/proxy/discover/movies/upcoming?language=en").catch(() => null),
+          apiFetch("/api/discovery/proxy/discover/tv?sortBy=popularity.desc&language=en").catch(() => null),
+          apiFetch("/api/discovery/proxy/discover/tv/upcoming?language=en").catch(() => null),
+          apiFetch("/api/discovery/proxy/discover/genreslider/movie").catch(() => null),
+          apiFetch("/api/discovery/proxy/discover/genreslider/tv").catch(() => null)
+        ]);
+        const [
+          recentlyAdded,
+          recentRequests,
+          plexWatchlist
+        ] = await Promise.all([
+          enrichDiscoveryItems(addedRes?.results || []),
+          enrichDiscoveryItems(reqRes?.results || []),
+          enrichDiscoveryItems(watchlistRes?.results || [])
+        ]);
+        setRows({
+          recentlyAdded,
+          recentRequests,
+          plexWatchlist,
+          trending: trendingRes?.results || [],
+          popularMovies: popMovRes?.results || [],
+          upcomingMovies: upMovRes?.results || [],
+          popularSeries: popTvRes?.results || [],
+          upcomingSeries: upTvRes?.results || []
+        });
+        if (Array.isArray(movieGenreRes) && movieGenreRes.length) {
+          setMovieGenres(movieGenreRes);
+        }
+        if (Array.isArray(tvGenreRes) && tvGenreRes.length) {
+          setTvGenres(tvGenreRes);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      setLoading(false);
+    };
+    fetchData();
+  }, []);
+  const DiscoveryRow = ({ title, items, onViewAll }) => {
+    if (!items?.length) return null;
+    return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex flex-col gap-3 relative", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center justify-between px-2", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h2", { className: "text-xl font-bold text-white", children: title }),
+        onViewAll && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("button", { type: "button", onClick: onViewAll, className: "text-xs font-bold text-plex hover:underline", children: "View All" })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Carousel, { children: items.map((rawItem, idx) => {
+        if (!rawItem) return null;
+        const formatted = formatItem(rawItem);
+        return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "w-[140px] sm:w-[160px] flex-shrink-0 relative group", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+          DiscoverPosterCard,
+          {
+            item: formatted,
+            overlay: formatted.overlay,
+            showQualityBadges: false,
+            onPosterClick: () => onSelect(formatted)
+          }
+        ) }, `${title}-${formatted.id || idx}`);
+      }) })
+    ] });
+  };
+  const renderGenreSlider = (title, apiGenres, fallbackGenres, basePath) => {
+    const items = apiGenres.length ? apiGenres : fallbackGenres.map((g) => ({ id: g.id, name: g.name, image: void 0 }));
+    return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex flex-col gap-3 relative", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h2", { className: "text-xl font-bold text-white px-2", children: title }),
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Carousel, { children: items.map((g) => {
+        const fallback = fallbackGenres.find((fg) => fg.id === g.id);
+        return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+          GenreCard,
+          {
+            name: g.name,
+            image: g.image,
+            gradient: fallback?.gradient,
+            onClick: () => navigate(`${basePath}?genre=${g.id}`)
+          },
+          g.id
+        );
+      }) })
+    ] });
+  };
+  if (loading) {
+    return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "flex flex-col gap-8 mt-4 px-2 w-full animate-pulse", children: [...Array(5)].map((_, r) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex flex-col gap-3", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "w-48 h-6 bg-white/5 rounded px-2 ml-2" }),
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "flex gap-4 overflow-hidden px-2", children: [...Array(6)].map((_2, i) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "w-[170px] h-[100px] rounded-xl bg-white/5 border border-white/5 flex-shrink-0" }, i)) })
+    ] }, r)) });
+  }
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex flex-col gap-10 w-full max-w-full overflow-hidden pb-12", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(DiscoveryRow, { title: "Recently Added", items: rows.recentlyAdded }),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(DiscoveryRow, { title: "Recent Requests", items: rows.recentRequests }),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(DiscoveryRow, { title: "Your Plex Watchlist", items: rows.plexWatchlist }),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(DiscoveryRow, { title: "Trending", items: rows.trending }),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(DiscoveryRow, { title: "Popular Movies", items: rows.popularMovies, onViewAll: () => navigate("/discovery/movies") }),
+    renderGenreSlider("Movie Genres", movieGenres, MOVIE_GENRES, "/discovery/movies"),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(DiscoveryRow, { title: "Upcoming Movies", items: rows.upcomingMovies }),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex flex-col gap-3 relative", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h2", { className: "text-xl font-bold text-white px-2", children: "Studios" }),
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Carousel, { children: DISCOVER_STUDIOS.map((studio) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+        CompanyCard,
+        {
+          name: studio.name,
+          logoPath: studio.logoPath,
+          onClick: () => navigate(`/discovery/movies/studio/${studio.id}`)
+        },
+        studio.id
+      )) })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(DiscoveryRow, { title: "Popular Series", items: rows.popularSeries, onViewAll: () => navigate("/discovery/series") }),
+    renderGenreSlider("Series Genres", tvGenres, TV_GENRES, "/discovery/series"),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(DiscoveryRow, { title: "Upcoming Series", items: rows.upcomingSeries }),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex flex-col gap-3 relative", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h2", { className: "text-xl font-bold text-white px-2", children: "Networks" }),
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Carousel, { children: DISCOVER_NETWORKS.map((network) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+        CompanyCard,
+        {
+          name: network.name,
+          logoPath: network.logoPath,
+          onClick: () => navigate(`/discovery/series/network/${network.id}`)
+        },
+        `${network.id}-${network.name}`
+      )) })
+    ] })
+  ] });
+};
+
+// client/discovery/DiscoverMovies.tsx
+var import_react7 = __toESM(require_react(), 1);
+
+// client/discovery/FilterDrawer.tsx
+var import_react5 = __toESM(require_react(), 1);
+var import_jsx_runtime5 = __toESM(require_jsx_runtime(), 1);
+var FilterDrawer = ({ isOpen, onClose, type, filters, onApply, onClear }) => {
+  const [localFilters, setLocalFilters] = (0, import_react5.useState)(filters);
+  import_react5.default.useEffect(() => {
+    setLocalFilters(filters);
+  }, [filters]);
+  const handleApply = () => {
+    onApply(localFilters);
+    onClose();
+  };
+  const handleClear = () => {
+    onClear();
+    onClose();
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_jsx_runtime5.Fragment, { children: [
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+      "div",
+      {
+        className: `fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] transition-opacity duration-300 ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`,
+        onClick: onClose
+      }
+    ),
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+      "div",
+      {
+        className: `fixed top-0 right-0 h-full w-full max-w-[400px] bg-card border-l border-white/10 z-[101] shadow-2xl flex flex-col transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${isOpen ? "translate-x-0" : "translate-x-full"}`,
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex items-center justify-between p-6 border-b border-white/10 bg-black/20", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("h2", { className: "text-2xl font-black text-white tracking-tight flex items-center gap-3", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Funnel, { className: "w-6 h-6 text-plex" }),
+              " Filters"
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+              "button",
+              {
+                onClick: onClose,
+                className: "p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors",
+                children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(X, { className: "w-6 h-6" })
+              }
+            )
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-8", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex flex-col gap-3", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("label", { className: "text-xs font-black text-white/40 uppercase tracking-[0.2em]", children: "Sort By" }),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+                "select",
+                {
+                  value: localFilters.sort,
+                  onChange: (e) => setLocalFilters({ ...localFilters, sort: e.target.value }),
+                  className: "w-full bg-black/50 border border-white/10 focus:border-plex rounded-xl p-4 text-white font-medium outline-none transition-colors shadow-inner",
+                  children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "popularity.desc", children: "Most Popular" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "vote_average.desc", children: "Top Rated" }),
+                    type === "movie" ? /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_jsx_runtime5.Fragment, { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "revenue.desc", children: "Highest Revenue" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "primary_release_date.desc", children: "Release Date (Newest)" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "primary_release_date.asc", children: "Release Date (Oldest)" })
+                    ] }) : /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_jsx_runtime5.Fragment, { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "first_air_date.desc", children: "Premiere Date (Newest)" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "first_air_date.asc", children: "Premiere Date (Oldest)" })
+                    ] })
+                  ]
+                }
+              )
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex flex-col gap-3", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("label", { className: "text-xs font-black text-white/40 uppercase tracking-[0.2em]", children: "Minimum User Score" }),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "relative", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Star, { className: "w-5 h-5 text-plex absolute left-4 top-1/2 -translate-y-1/2" }),
+                /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+                  "select",
+                  {
+                    value: localFilters.minRating,
+                    onChange: (e) => setLocalFilters({ ...localFilters, minRating: e.target.value }),
+                    className: "w-full bg-black/50 border border-white/10 focus:border-plex rounded-xl p-4 pl-12 text-white font-medium outline-none transition-colors shadow-inner appearance-none",
+                    children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "", children: "Any Score" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "9", children: "Masterpiece (9+)" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "8", children: "Great (8+)" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "7", children: "Good (7+)" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "6", children: "Okay (6+)" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "5", children: "Mediocre (5+)" })
+                    ]
+                  }
+                )
+              ] })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex flex-col gap-3", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("label", { className: "text-xs font-black text-white/40 uppercase tracking-[0.2em]", children: "Genre" }),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+                "select",
+                {
+                  value: localFilters.genre,
+                  onChange: (e) => setLocalFilters({ ...localFilters, genre: e.target.value }),
+                  className: "w-full bg-black/50 border border-white/10 focus:border-plex rounded-xl p-4 text-white font-medium outline-none transition-colors shadow-inner",
+                  children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "", children: "All Genres" }),
+                    (type === "movie" ? MOVIE_GENRES : TV_GENRES).map((g) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: String(g.id), children: g.name }, g.id))
+                  ]
+                }
+              )
+            ] }),
+            type === "tv" ? /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex flex-col gap-3", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("label", { className: "text-xs font-black text-white/40 uppercase tracking-[0.2em]", children: "Network" }),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+                "select",
+                {
+                  value: localFilters.network,
+                  onChange: (e) => setLocalFilters({ ...localFilters, network: e.target.value }),
+                  className: "w-full bg-black/50 border border-white/10 focus:border-plex rounded-xl p-4 text-white font-medium outline-none transition-colors shadow-inner",
+                  children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "", children: "All Networks" }),
+                    DISCOVER_NETWORKS.map((n) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: String(n.id), children: n.name }, `${n.id}-${n.name}`))
+                  ]
+                }
+              )
+            ] }) : /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex flex-col gap-3", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("label", { className: "text-xs font-black text-white/40 uppercase tracking-[0.2em]", children: "Studio" }),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+                "select",
+                {
+                  value: localFilters.studio,
+                  onChange: (e) => setLocalFilters({ ...localFilters, studio: e.target.value }),
+                  className: "w-full bg-black/50 border border-white/10 focus:border-plex rounded-xl p-4 text-white font-medium outline-none transition-colors shadow-inner",
+                  children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "", children: "All Studios" }),
+                    DISCOVER_STUDIOS.map((s) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: String(s.id), children: s.name }, s.id))
+                  ]
+                }
+              )
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex flex-col gap-3", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("label", { className: "text-xs font-black text-white/40 uppercase tracking-[0.2em]", children: "Release Year" }),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "relative", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Calendar, { className: "w-5 h-5 text-white/30 absolute left-4 top-1/2 -translate-y-1/2" }),
+                /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                  "input",
+                  {
+                    type: "number",
+                    placeholder: "e.g. 2024",
+                    value: localFilters.year,
+                    onChange: (e) => setLocalFilters({ ...localFilters, year: e.target.value }),
+                    className: "w-full bg-black/50 border border-white/10 focus:border-plex rounded-xl p-4 pl-12 text-white font-medium outline-none transition-colors shadow-inner"
+                  }
+                )
+              ] })
+            ] })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "p-6 border-t border-white/10 bg-black/20 flex gap-4", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+              "button",
+              {
+                onClick: handleClear,
+                className: "flex-1 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white font-bold transition-colors",
+                children: "Clear All"
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+              "button",
+              {
+                onClick: handleApply,
+                className: "flex-1 py-4 bg-plex hover:bg-plex-hover rounded-xl text-black font-black transition-colors shadow-[0_0_15px_rgba(229,160,13,0.3)]",
+                children: "Apply Filters"
+              }
+            )
+          ] })
+        ]
+      }
+    )
+  ] });
+};
+
+// client/discovery/DiscoverGridSizeSelect.tsx
+var import_jsx_runtime6 = __toESM(require_jsx_runtime(), 1);
+var DiscoverGridSizeSelect = ({ value, onChange, className = "min-w-[140px]" }) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+  CustomSelect,
+  {
+    value,
+    onChange: (next) => onChange(normalizeUpgraderGridSize(next)),
+    options: UPGRADER_GRID_SIZE_OPTIONS.filter((opt) => opt.value !== "list"),
+    className
+  }
+);
+
+// client/discovery/DiscoverPosterGrid.tsx
+var import_jsx_runtime7 = __toESM(require_jsx_runtime(), 1);
+var DiscoverPosterGrid = ({
+  items,
+  gridSize,
+  formatItem,
+  onSelect,
+  loading = false,
+  skeletonCount = 15
+}) => {
+  if (loading) {
+    return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: `${upgraderPosterGridClass(gridSize)} animate-pulse`, style: upgraderPosterGridStyle(gridSize), children: [...Array(skeletonCount)].map((_, i) => /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "w-full aspect-[2/3] rounded-xl bg-white/5 border border-white/10" }, i)) });
+  }
+  return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: upgraderPosterGridClass(gridSize), style: upgraderPosterGridStyle(gridSize), children: items.map((rawItem, idx) => {
+    const formatted = formatItem(rawItem);
+    return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+      DiscoverPosterCard,
+      {
+        item: formatted,
+        overlay: formatted.overlay,
+        showQualityBadges: false,
+        onPosterClick: () => onSelect(formatted)
+      },
+      `${formatted.id}-${idx}`
+    );
+  }) });
+};
+
+// client/discovery/useDiscoverGridSize.ts
+var import_react6 = __toESM(require_react(), 1);
+var DISCOVERY_GRID_SIZE_STORAGE_KEY = "discoveryGridSize";
+var useDiscoverGridSize = () => {
+  const [gridSize, setGridSize] = (0, import_react6.useState)(() => {
+    if (typeof window === "undefined") return "medium";
+    return normalizeUpgraderGridSize(window.localStorage.getItem(DISCOVERY_GRID_SIZE_STORAGE_KEY) || "medium");
+  });
+  (0, import_react6.useEffect)(() => {
+    window.localStorage.setItem(DISCOVERY_GRID_SIZE_STORAGE_KEY, gridSize);
+  }, [gridSize]);
+  return [gridSize, setGridSize];
+};
+
+// client/discovery/discoverUrlUtils.ts
+var defaultMovieFilters = () => ({
+  sort: "popularity.desc",
+  genre: "",
+  year: "",
+  network: "",
+  studio: "",
+  minRating: ""
+});
+var defaultSeriesFilters = () => ({
+  sort: "popularity.desc",
+  genre: "",
+  year: "",
+  network: "",
+  studio: "",
+  minRating: ""
+});
+var parseFiltersFromSearch = (search, defaults) => {
+  const params = new URLSearchParams(search);
+  return {
+    ...defaults,
+    sort: params.get("sort") || defaults.sort,
+    genre: params.get("genre") || "",
+    year: params.get("year") || "",
+    studio: params.get("studio") || "",
+    network: params.get("network") || "",
+    minRating: params.get("minRating") || ""
+  };
+};
+var buildMovieFilterPath = (filters) => {
+  const params = new URLSearchParams();
+  if (filters.sort && filters.sort !== "popularity.desc") params.set("sort", filters.sort);
+  if (filters.genre) params.set("genre", filters.genre);
+  if (filters.year) params.set("year", filters.year);
+  if (filters.studio) params.set("studio", filters.studio);
+  if (filters.minRating) params.set("minRating", filters.minRating);
+  const qs = params.toString();
+  return qs ? `/discovery/movies?${qs}` : "/discovery/movies";
+};
+var buildSeriesFilterPath = (filters) => {
+  const params = new URLSearchParams();
+  if (filters.sort && filters.sort !== "popularity.desc") params.set("sort", filters.sort);
+  if (filters.genre) params.set("genre", filters.genre);
+  if (filters.year) params.set("year", filters.year);
+  if (filters.network) params.set("network", filters.network);
+  if (filters.minRating) params.set("minRating", filters.minRating);
+  const qs = params.toString();
+  return qs ? `/discovery/series?${qs}` : "/discovery/series";
+};
+var appendDiscoverQuery = (baseUrl, filters, type) => {
+  let url = baseUrl;
+  if (filters.genre) url += `&genre=${filters.genre}`;
+  if (filters.minRating) url += `&voteAverageGte=${filters.minRating}`;
+  if (type === "movie") {
+    if (filters.year) url += `&primaryReleaseYear=${filters.year}`;
+    if (filters.studio) url += `&studio=${filters.studio}`;
+  } else {
+    if (filters.year) url += `&firstAirDateYear=${filters.year}`;
+    if (filters.network) url += `&network=${filters.network}`;
+  }
+  return url;
+};
+var countActiveFilters = (filters, type) => {
+  let count = 0;
+  if (filters.sort !== "popularity.desc") count += 1;
+  if (filters.genre) count += 1;
+  if (filters.year) count += 1;
+  if (filters.minRating) count += 1;
+  if (type === "movie" && filters.studio) count += 1;
+  if (type === "tv" && filters.network) count += 1;
+  return count;
+};
+
+// client/discovery/DiscoverMovies.tsx
+var import_jsx_runtime8 = __toESM(require_jsx_runtime(), 1);
+var DiscoverMovies = ({ onSelect, formatItem, navigate }) => {
+  const [gridSize, setGridSize] = useDiscoverGridSize();
+  const [results, setResults] = (0, import_react7.useState)([]);
+  const [loading, setLoading] = (0, import_react7.useState)(true);
+  const [loadingMore, setLoadingMore] = (0, import_react7.useState)(false);
+  const [showFilters, setShowFilters] = (0, import_react7.useState)(false);
+  const [page, setPage] = (0, import_react7.useState)(1);
+  const [totalPages, setTotalPages] = (0, import_react7.useState)(1);
+  const [filters, setFilters] = (0, import_react7.useState)(
+    () => parseFiltersFromSearch(typeof window !== "undefined" ? window.location.search : "", defaultMovieFilters())
+  );
+  const readFiltersFromUrl = (0, import_react7.useCallback)(() => {
+    setFilters(parseFiltersFromSearch(window.location.search, defaultMovieFilters()));
+  }, []);
+  (0, import_react7.useEffect)(() => {
+    readFiltersFromUrl();
+    window.addEventListener("popstate", readFiltersFromUrl);
+    return () => window.removeEventListener("popstate", readFiltersFromUrl);
+  }, [readFiltersFromUrl]);
+  (0, import_react7.useEffect)(() => {
+    setPage(1);
+    setResults([]);
+  }, [filters]);
+  (0, import_react7.useEffect)(() => {
+    const fetchData = async () => {
+      if (page === 1) setLoading(true);
+      else setLoadingMore(true);
+      try {
+        let url = `/api/discovery/proxy/discover/movies?page=${page}&sortBy=${filters.sort}&language=en`;
+        url = appendDiscoverQuery(url, filters, "movie");
+        const res = await apiFetch(url);
+        if (res?.results) {
+          setResults((prev) => page === 1 ? res.results : [...prev, ...res.results]);
+          if (res.totalPages) setTotalPages(res.totalPages);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+      setLoading(false);
+      setLoadingMore(false);
+    };
+    fetchData();
+  }, [filters, page]);
+  const applyFilters = (newFilters) => {
+    setFilters(newFilters);
+    navigate(buildMovieFilterPath(newFilters));
+  };
+  const studioLabel = filters.studio ? findStudio(Number(filters.studio))?.name : null;
+  const activeFilterCount = countActiveFilters(filters, "movie");
+  return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "w-full flex flex-col md:flex-row gap-8 px-4 sm:px-8 mt-4 relative", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "flex-1 flex flex-col gap-6", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "flex items-center justify-between gap-4 flex-wrap", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("h2", { className: "text-2xl font-black text-white tracking-tight flex items-center gap-2", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(Film, { className: "w-6 h-6 text-plex" }),
+            " Movies"
+          ] }),
+          studioLabel && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("p", { className: "text-sm text-muted mt-1", children: [
+            "Studio: ",
+            studioLabel
+          ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "flex items-center gap-3 flex-wrap justify-end", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(DiscoverGridSizeSelect, { value: gridSize, onChange: setGridSize }),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "button",
+            {
+              type: "button",
+              onClick: () => setShowFilters(true),
+              className: "relative flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-lg text-white/80 hover:text-white font-bold transition-colors",
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(Funnel, { className: "w-4 h-4" }),
+                " Filters",
+                activeFilterCount > 0 && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "absolute -top-2 -right-2 min-w-[20px] h-5 px-1 rounded-full bg-plex text-black text-xs font-black flex items-center justify-center", children: activeFilterCount })
+              ]
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+        DiscoverPosterGrid,
+        {
+          items: results,
+          gridSize,
+          formatItem,
+          onSelect,
+          loading
+        }
+      ),
+      !loading && page < totalPages && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "flex justify-center mt-8 mb-12", children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+        "button",
+        {
+          type: "button",
+          onClick: () => setPage((p) => p + 1),
+          disabled: loadingMore,
+          className: "px-8 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-white font-bold transition-all disabled:opacity-50",
+          children: loadingMore ? "Loading\u2026" : "Load More"
+        }
+      ) })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+      FilterDrawer,
+      {
+        isOpen: showFilters,
+        onClose: () => setShowFilters(false),
+        type: "movie",
+        filters,
+        onApply: applyFilters,
+        onClear: () => applyFilters(defaultMovieFilters())
+      }
+    )
+  ] });
+};
+
+// client/discovery/DiscoverSeries.tsx
+var import_react8 = __toESM(require_react(), 1);
+var import_jsx_runtime9 = __toESM(require_jsx_runtime(), 1);
+var DiscoverSeries = ({ onSelect, formatItem, navigate }) => {
+  const [gridSize, setGridSize] = useDiscoverGridSize();
+  const [results, setResults] = (0, import_react8.useState)([]);
+  const [loading, setLoading] = (0, import_react8.useState)(true);
+  const [loadingMore, setLoadingMore] = (0, import_react8.useState)(false);
+  const [showFilters, setShowFilters] = (0, import_react8.useState)(false);
+  const [page, setPage] = (0, import_react8.useState)(1);
+  const [totalPages, setTotalPages] = (0, import_react8.useState)(1);
+  const [filters, setFilters] = (0, import_react8.useState)(
+    () => parseFiltersFromSearch(typeof window !== "undefined" ? window.location.search : "", defaultSeriesFilters())
+  );
+  const readFiltersFromUrl = (0, import_react8.useCallback)(() => {
+    setFilters(parseFiltersFromSearch(window.location.search, defaultSeriesFilters()));
+  }, []);
+  (0, import_react8.useEffect)(() => {
+    readFiltersFromUrl();
+    window.addEventListener("popstate", readFiltersFromUrl);
+    return () => window.removeEventListener("popstate", readFiltersFromUrl);
+  }, [readFiltersFromUrl]);
+  (0, import_react8.useEffect)(() => {
+    setPage(1);
+    setResults([]);
+  }, [filters]);
+  (0, import_react8.useEffect)(() => {
+    const fetchData = async () => {
+      if (page === 1) setLoading(true);
+      else setLoadingMore(true);
+      try {
+        let url = `/api/discovery/proxy/discover/tv?page=${page}&sortBy=${filters.sort}&language=en`;
+        url = appendDiscoverQuery(url, filters, "tv");
+        const res = await apiFetch(url);
+        if (res?.results) {
+          setResults((prev) => page === 1 ? res.results : [...prev, ...res.results]);
+          if (res.totalPages) setTotalPages(res.totalPages);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+      setLoading(false);
+      setLoadingMore(false);
+    };
+    fetchData();
+  }, [filters, page]);
+  const applyFilters = (newFilters) => {
+    setFilters(newFilters);
+    navigate(buildSeriesFilterPath(newFilters));
+  };
+  const networkLabel = filters.network ? findNetwork(Number(filters.network))?.name : null;
+  const activeFilterCount = countActiveFilters(filters, "tv");
+  return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "w-full flex flex-col md:flex-row gap-8 px-4 sm:px-8 mt-4 relative", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "flex-1 flex flex-col gap-6", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "flex items-center justify-between gap-4 flex-wrap", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("h2", { className: "text-2xl font-black text-white tracking-tight flex items-center gap-2", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Tv, { className: "w-6 h-6 text-plex" }),
+            " Series"
+          ] }),
+          networkLabel && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("p", { className: "text-sm text-muted mt-1", children: [
+            "Network: ",
+            networkLabel
+          ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "flex items-center gap-3 flex-wrap justify-end", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(DiscoverGridSizeSelect, { value: gridSize, onChange: setGridSize }),
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
+            "button",
+            {
+              type: "button",
+              onClick: () => setShowFilters(true),
+              className: "relative flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-lg text-white/80 hover:text-white font-bold transition-colors",
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Funnel, { className: "w-4 h-4" }),
+                " Filters",
+                activeFilterCount > 0 && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "absolute -top-2 -right-2 min-w-[20px] h-5 px-1 rounded-full bg-plex text-black text-xs font-black flex items-center justify-center", children: activeFilterCount })
+              ]
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+        DiscoverPosterGrid,
+        {
+          items: results,
+          gridSize,
+          formatItem,
+          onSelect,
+          loading
+        }
+      ),
+      !loading && page < totalPages && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "flex justify-center mt-8 mb-12", children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+        "button",
+        {
+          type: "button",
+          onClick: () => setPage((p) => p + 1),
+          disabled: loadingMore,
+          className: "px-8 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-white font-bold transition-all disabled:opacity-50",
+          children: loadingMore ? "Loading\u2026" : "Load More"
+        }
+      ) })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+      FilterDrawer,
+      {
+        isOpen: showFilters,
+        onClose: () => setShowFilters(false),
+        type: "tv",
+        filters,
+        onApply: applyFilters,
+        onClear: () => applyFilters(defaultSeriesFilters())
+      }
+    )
+  ] });
+};
+
+// client/discovery/DiscoverCategoryPage.tsx
+var import_react9 = __toESM(require_react(), 1);
+var import_jsx_runtime10 = __toESM(require_jsx_runtime(), 1);
+var DiscoverCategoryPage = ({ kind, id, onBack, onSelect, formatItem }) => {
+  const [gridSize, setGridSize] = useDiscoverGridSize();
+  const meta = kind === "studio" ? findStudio(id) : findNetwork(id);
+  const [results, setResults] = (0, import_react9.useState)([]);
+  const [page, setPage] = (0, import_react9.useState)(1);
+  const [totalPages, setTotalPages] = (0, import_react9.useState)(1);
+  const [loading, setLoading] = (0, import_react9.useState)(true);
+  const [loadingMore, setLoadingMore] = (0, import_react9.useState)(false);
+  const [entityName, setEntityName] = (0, import_react9.useState)(meta?.name || "");
+  (0, import_react9.useEffect)(() => {
+    setPage(1);
+    setResults([]);
+  }, [kind, id]);
+  (0, import_react9.useEffect)(() => {
+    const fetchPage = async () => {
+      if (page === 1) setLoading(true);
+      else setLoadingMore(true);
+      try {
+        const path = kind === "studio" ? `/api/discovery/proxy/discover/movies/studio/${id}?page=${page}&language=en` : `/api/discovery/proxy/discover/tv/network/${id}?page=${page}&language=en`;
+        const res = await apiFetch(path);
+        const studioName = res?.studio?.name;
+        const networkName = res?.network?.name;
+        if (studioName) setEntityName(studioName);
+        if (networkName) setEntityName(networkName);
+        const batch = res?.results || [];
+        setResults((prev) => page === 1 ? batch : [...prev, ...batch]);
+        setTotalPages(Number(res?.totalPages || 1));
+      } catch (e) {
+        console.error(e);
+        if (page === 1) {
+          const fallback = kind === "studio" ? `/api/discovery/proxy/discover/movies?page=${page}&studio=${id}&language=en` : `/api/discovery/proxy/discover/tv?page=${page}&network=${id}&language=en`;
+          const res = await apiFetch(fallback).catch(() => null);
+          const batch = res?.results || [];
+          setResults((prev) => page === 1 ? batch : [...prev, ...batch]);
+          setTotalPages(Number(res?.totalPages || 1));
+        }
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    };
+    fetchPage();
+  }, [kind, id, page]);
+  const title = entityName || meta?.name || (kind === "studio" ? "Studio" : "Network");
+  return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "w-full flex flex-col gap-8 pb-12", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+      "button",
+      {
+        type: "button",
+        onClick: onBack,
+        className: "inline-flex items-center gap-2 text-sm font-semibold text-muted hover:text-white transition-colors w-fit",
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(ArrowLeft, { className: "w-4 h-4" }),
+          "Back to Discover"
+        ]
+      }
+    ),
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-2", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "flex flex-col sm:flex-row sm:items-center gap-6 p-6 rounded-2xl border border-white/10 bg-gradient-to-br from-zinc-900/90 to-black/60 flex-1", children: [
+        meta?.logoPath ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "w-[200px] h-[112px] rounded-xl border border-white/10 bg-zinc-900/80 flex items-center justify-center flex-shrink-0", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+          "img",
+          {
+            src: tmdbDuotoneLogo(meta.logoPath),
+            alt: title,
+            className: "max-w-[78%] max-h-[58%] object-contain"
+          }
+        ) }) : /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "w-[200px] h-[112px] rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white font-bold", children: title }),
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "flex items-center gap-2 text-plex text-sm font-bold uppercase tracking-wider mb-2", children: [
+            kind === "studio" ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Film, { className: "w-4 h-4" }) : /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Tv, { className: "w-4 h-4" }),
+            kind === "studio" ? "Movie Studio" : "TV Network"
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("h1", { className: "text-3xl sm:text-4xl font-black text-white tracking-tight", children: title }),
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("p", { className: "text-sm text-muted mt-2", children: [
+            "Browse ",
+            kind === "studio" ? "movies" : "series",
+            " from this ",
+            kind === "studio" ? "studio" : "network",
+            "."
+          ] })
+        ] })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(DiscoverGridSizeSelect, { value: gridSize, onChange: setGridSize, className: "min-w-[160px] self-start sm:self-center" })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "px-2", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+      DiscoverPosterGrid,
+      {
+        items: results,
+        gridSize,
+        formatItem,
+        onSelect,
+        loading
+      }
+    ) }),
+    !loading && page < totalPages && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "flex justify-center mt-4", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+      "button",
+      {
+        type: "button",
+        onClick: () => setPage((p) => p + 1),
+        disabled: loadingMore,
+        className: "px-8 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-white font-bold transition-all disabled:opacity-50",
+        children: loadingMore ? "Loading\u2026" : "Load More"
+      }
+    ) })
+  ] });
+};
+
+// client/discovery/MediaDetailsPage.tsx
+var import_react11 = __toESM(require_react(), 1);
+
+// client/discovery/DiscoveryFactWidget.tsx
+var import_react10 = __toESM(require_react(), 1);
+var import_jsx_runtime11 = __toESM(require_jsx_runtime(), 1);
+var DiscoveryFactWidget = ({ mediaType, mediaId }) => {
+  const [facts, setFacts] = (0, import_react10.useState)([]);
+  const [index, setIndex] = (0, import_react10.useState)(0);
+  const [loading, setLoading] = (0, import_react10.useState)(true);
+  (0, import_react10.useEffect)(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const res = await apiFetch(
+          `/api/discovery/fact?mediaType=${encodeURIComponent(mediaType)}&mediaId=${mediaId}`
+        );
+        if (cancelled) return;
+        const pool = Array.isArray(res?.facts) && res.facts.length ? res.facts : res?.fact ? [res.fact] : [];
+        setFacts(pool);
+        setIndex(pool.length ? Math.floor(Math.random() * pool.length) : 0);
+      } catch {
+        if (!cancelled) setFacts([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [mediaType, mediaId]);
+  const showAnother = (0, import_react10.useCallback)(() => {
+    if (facts.length <= 1) return;
+    setIndex((prev) => {
+      if (facts.length === 2) return prev === 0 ? 1 : 0;
+      let next = prev;
+      while (next === prev) {
+        next = Math.floor(Math.random() * facts.length);
+      }
+      return next;
+    });
+  }, [facts.length]);
+  if (loading) {
+    return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "rounded-xl border border-plex/20 bg-plex/5 p-4 flex items-center gap-3 animate-pulse", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "w-9 h-9 rounded-lg bg-plex/10 flex-shrink-0" }),
+      /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "flex-1 space-y-2", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "h-3 w-24 bg-white/10 rounded" }),
+        /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "h-3 w-full bg-white/5 rounded" })
+      ] })
+    ] });
+  }
+  if (!facts.length) return null;
+  const current = facts[index] || facts[0];
+  return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "rounded-xl border border-plex/25 bg-gradient-to-br from-plex/10 via-plex/5 to-transparent p-4 flex gap-3", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "w-9 h-9 rounded-lg bg-plex/15 border border-plex/20 flex items-center justify-center flex-shrink-0", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(Lightbulb, { className: "w-4 h-4 text-plex" }) }),
+    /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "flex-1 min-w-0 flex flex-col gap-2", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "flex items-center justify-between gap-2", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "text-[10px] font-black uppercase tracking-widest text-plex", children: "Did you know?" }),
+        facts.length > 1 && /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(
+          "button",
+          {
+            type: "button",
+            onClick: showAnother,
+            className: "inline-flex items-center gap-1 text-[10px] font-bold text-white/50 hover:text-plex transition-colors",
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(RefreshCw, { className: "w-3 h-3" }),
+              "Another"
+            ]
+          }
+        )
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("p", { className: "text-sm text-white/80 leading-relaxed", children: current })
+    ] })
+  ] });
+};
+
+// client/discovery/MediaDetailsPage.tsx
+var import_jsx_runtime12 = __toESM(require_jsx_runtime(), 1);
+var SectionHeading = ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("h3", { className: "text-xs font-bold text-white/40 uppercase tracking-widest", children });
+var MediaDetailsPage = ({ mediaType, mediaId, onBack, formatItem, pushToast }) => {
+  const [details, setDetails] = (0, import_react11.useState)(null);
+  const [loading, setLoading] = (0, import_react11.useState)(true);
+  const [requestLoading, setRequestLoading] = (0, import_react11.useState)(false);
+  const [recommendations, setRecommendations] = (0, import_react11.useState)([]);
+  (0, import_react11.useEffect)(() => {
+    const fetchDetails = async () => {
+      setLoading(true);
+      try {
+        const endpoint = mediaType === "movie" ? `/api/discovery/proxy/movie/${mediaId}` : `/api/discovery/proxy/tv/${mediaId}`;
+        const res = await apiFetch(endpoint);
+        if (!res.error) setDetails(res);
+        const recEndpoint = mediaType === "movie" ? `/api/discovery/proxy/movie/${mediaId}/recommendations` : `/api/discovery/proxy/tv/${mediaId}/recommendations`;
+        const recRes = await apiFetch(recEndpoint);
+        if (!recRes.error && recRes.results) setRecommendations(recRes.results);
+      } catch (err) {
+        console.error(err);
+      }
+      setLoading(false);
+    };
+    fetchDetails();
+  }, [mediaId, mediaType]);
+  const handleRequest = async () => {
+    if (!details) return;
+    setRequestLoading(true);
+    try {
+      const res = await apiFetch("/api/discovery/request", {
+        method: "POST",
+        body: JSON.stringify({ mediaType, mediaId })
+      });
+      if (res.error) {
+        pushToast?.(res.error, "error");
+      } else {
+        pushToast?.("Request submitted successfully!", "success");
+        setDetails({
+          ...details,
+          mediaInfo: { ...details.mediaInfo, status: 2 }
+        });
+      }
+    } catch (err) {
+      pushToast?.(err.message || "Failed to submit request", "error");
+    }
+    setRequestLoading(false);
+  };
+  const openPerson = (personId) => {
+    window.history.pushState({}, "", `/discovery/person/${personId}`);
+    window.dispatchEvent(new Event("popstate"));
+  };
+  const openMedia = (type, id) => {
+    window.history.pushState({}, "", `/discovery/${type}/${id}`);
+    window.dispatchEvent(new Event("popstate"));
+  };
+  if (loading || !details) {
+    return /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "w-full h-[80vh] flex items-center justify-center", children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(LoaderCircle, { className: "w-8 h-8 text-plex animate-spin" }) });
+  }
+  const title = mediaType === "movie" ? details.title : details.name;
+  const year = (details.releaseDate || details.firstAirDate || "").substring(0, 4);
+  const status = details.mediaInfo?.status;
+  const isAvailable = status === 4 || status === 5;
+  const isPending = status === 2 || status === 3;
+  const posterUrl = details.posterPath ? `https://image.tmdb.org/t/p/w500${details.posterPath}` : "";
+  const creators = details.createdBy?.map((c) => c.name).filter(Boolean).join(", ");
+  const productionCompanies = details.productionCompanies?.slice(0, 4).map((c) => c.name).join(" \xB7 ");
+  const metaChips = [];
+  if (year) metaChips.push({ icon: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(Calendar, { className: "w-3.5 h-3.5 text-white/50" }), label: year });
+  if (details.voteAverage > 0) {
+    metaChips.push({
+      icon: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(Star, { className: "w-3.5 h-3.5 text-yellow-500 fill-yellow-500" }),
+      label: details.voteAverage.toFixed(1)
+    });
+  }
+  if (details.productionCountries?.[0]) {
+    metaChips.push({
+      icon: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(Globe, { className: "w-3.5 h-3.5 text-white/50" }),
+      label: details.productionCountries[0].iso_3166_1
+    });
+  }
+  if (mediaType === "movie" && details.runtime > 0) {
+    metaChips.push({ icon: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(Clock, { className: "w-3.5 h-3.5 text-white/50" }), label: `${details.runtime} min` });
+  }
+  if (mediaType === "tv" && details.numberOfSeasons) {
+    metaChips.push({
+      icon: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(Tv, { className: "w-3.5 h-3.5 text-white/50" }),
+      label: `${details.numberOfSeasons} season${details.numberOfSeasons === 1 ? "" : "s"}`
+    });
+  }
+  if (mediaType === "tv" && details.numberOfEpisodes) {
+    metaChips.push({
+      icon: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(Film, { className: "w-3.5 h-3.5 text-white/50" }),
+      label: `${details.numberOfEpisodes} eps`
+    });
+  }
+  const extraDetails = [];
+  if (details.tagline) extraDetails.push({ label: "Tagline", value: details.tagline });
+  if (creators) extraDetails.push({ label: "Created by", value: creators });
+  if (details.originalLanguage) {
+    extraDetails.push({ label: "Language", value: details.originalLanguage.toUpperCase() });
+  }
+  if (mediaType === "tv" && details.lastAirDate) {
+    extraDetails.push({ label: "Last aired", value: details.lastAirDate.substring(0, 10) });
+  }
+  if (productionCompanies) extraDetails.push({ label: "Studio", value: productionCompanies });
+  return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "w-full flex flex-col min-h-screen bg-card animate-fade-in pb-16 rounded-2xl md:rounded-3xl overflow-x-hidden border border-white/5 shadow-2xl", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "sticky top-0 z-50 w-full px-4 sm:px-8 py-4 flex items-center bg-gradient-to-b from-black/80 to-transparent", children: /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
+      "button",
+      {
+        type: "button",
+        onClick: onBack,
+        className: "flex items-center gap-2 text-white/80 hover:text-white transition-colors bg-black/40 px-4 py-2 rounded-full backdrop-blur-md border border-white/10",
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(ArrowLeft, { className: "w-5 h-5" }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "font-bold text-sm", children: "Back to Discover" })
+        ]
+      }
+    ) }),
+    /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "relative w-full h-[40vh] sm:h-[45vh] -mt-[72px] bg-black", children: [
+      details.backdropPath ? /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+        "img",
+        {
+          src: `https://image.tmdb.org/t/p/w1280${details.backdropPath}`,
+          alt: "",
+          className: "w-full h-full object-cover opacity-35"
+        }
+      ) : null,
+      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" }),
+      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "absolute inset-0 bg-gradient-to-r from-card/90 via-card/30 to-transparent hidden md:block" })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 -mt-24 sm:-mt-32 flex flex-col md:flex-row gap-6 lg:gap-10", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "flex flex-col gap-4 w-40 sm:w-52 lg:w-56 flex-shrink-0 mx-auto md:mx-0", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "w-full aspect-[2/3] rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-black/50", children: posterUrl ? /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("img", { src: posterUrl, alt: "", className: "w-full h-full object-cover" }) : null }),
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+          "button",
+          {
+            type: "button",
+            onClick: handleRequest,
+            disabled: requestLoading || isAvailable || isPending,
+            className: `w-full py-3 px-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors shadow-lg ${isAvailable ? "bg-green-500/20 text-green-500 border border-green-500/30 cursor-default" : isPending ? "bg-amber-500/20 text-amber-500 border border-amber-500/30 cursor-default" : "bg-plex hover:bg-plex-hover text-white disabled:opacity-50 disabled:cursor-not-allowed"}`,
+            children: requestLoading ? /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(LoaderCircle, { className: "w-4 h-4 animate-spin" }) : isAvailable ? /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(import_jsx_runtime12.Fragment, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(CircleCheckBig, { className: "w-4 h-4" }),
+              " Available"
+            ] }) : isPending ? /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(import_jsx_runtime12.Fragment, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(Clock, { className: "w-4 h-4" }),
+              " Request Pending"
+            ] }) : /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(import_jsx_runtime12.Fragment, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(CirclePlus, { className: "w-4 h-4" }),
+              " Request ",
+              mediaType === "tv" ? "Series" : "Movie"
+            ] })
+          }
+        ),
+        details.homepage && /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
+          "a",
+          {
+            href: details.homepage,
+            target: "_blank",
+            rel: "noreferrer",
+            className: "w-full py-2.5 px-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors",
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(Globe, { className: "w-4 h-4" }),
+              " Visit Website"
+            ]
+          }
+        )
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "flex-1 min-w-0 flex flex-col gap-5 pt-2 sm:pt-4 pb-2", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "flex flex-col gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "flex items-center gap-2 flex-wrap", children: [
+            mediaType === "movie" ? /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(Film, { className: "w-3.5 h-3.5 text-plex" }) : /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(Tv, { className: "w-3.5 h-3.5 text-plex" }),
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "text-[10px] font-bold uppercase tracking-widest text-plex", children: mediaType }),
+            details.status && /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(import_jsx_runtime12.Fragment, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "text-white/30", children: "\u2022" }),
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "text-[10px] font-bold text-white/60 uppercase tracking-wide", children: details.status })
+            ] })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("h1", { className: "text-2xl sm:text-3xl lg:text-4xl font-black text-white leading-tight tracking-tight", children: title }),
+          details.tagline && mediaType === "movie" && /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("p", { className: "text-sm text-white/50 italic", children: details.tagline }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "flex flex-wrap items-center gap-2 mt-1", children: metaChips.map((chip) => /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
+            "div",
+            {
+              className: "flex items-center gap-1.5 bg-black/40 px-2.5 py-1 rounded-md backdrop-blur-sm border border-white/5 text-xs text-white/80 font-medium",
+              children: [
+                chip.icon,
+                chip.label
+              ]
+            },
+            chip.label
+          )) }),
+          details.genres?.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "flex flex-wrap gap-1.5 mt-1", children: details.genres.map((g) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "px-2 py-0.5 bg-white/5 border border-white/10 rounded-md text-xs font-semibold text-white/70", children: g.name }, g.id)) })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("p", { className: "text-sm sm:text-base text-white/80 leading-relaxed max-w-3xl", children: details.overview || "No description available." }),
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(DiscoveryFactWidget, { mediaType, mediaId }),
+        extraDetails.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 max-w-3xl", children: extraDetails.map((row) => /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "flex flex-col gap-0.5 min-w-0", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "text-[10px] font-bold uppercase tracking-wider text-white/35", children: row.label }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "text-sm text-white/75 truncate", children: row.value })
+        ] }, row.label)) }),
+        details.networks?.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "flex flex-col gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(SectionHeading, { children: "Networks" }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "flex flex-wrap gap-3 items-center", children: details.networks.map((n) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "flex items-center", children: n.logoPath ? /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+            "img",
+            {
+              src: `https://image.tmdb.org/t/p/w92${n.logoPath}`,
+              alt: n.name,
+              className: "h-4 max-w-[64px] object-contain filter invert opacity-70"
+            }
+          ) : /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "text-xs font-semibold text-white/70", children: n.name }) }, n.id)) })
+        ] })
+      ] })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 mt-6 flex flex-col gap-8", children: [
+      details.credits?.cast?.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("section", { className: "border-t border-white/5 pt-6", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(SectionHeading, { children: "Top Cast" }),
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(Carousel, { children: details.credits.cast.slice(0, 15).map((actor) => /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
+          "button",
+          {
+            type: "button",
+            onClick: () => openPerson(actor.id),
+            className: "flex flex-col items-center gap-2 w-24 flex-shrink-0 snap-start cursor-pointer hover:opacity-80 transition-opacity border-0 bg-transparent p-0",
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "w-16 h-16 rounded-full bg-black/40 border border-white/10 overflow-hidden shadow-lg", children: actor.profilePath ? /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                "img",
+                {
+                  src: `https://image.tmdb.org/t/p/w185${actor.profilePath}`,
+                  alt: actor.name,
+                  className: "w-full h-full object-cover"
+                }
+              ) : /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "w-full h-full flex items-center justify-center text-white/20", children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(Users, { className: "w-6 h-6" }) }) }),
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "text-center w-full px-1", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "text-xs font-bold text-white/90 leading-tight line-clamp-2", children: actor.name }),
+                /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "text-[10px] text-white/45 mt-0.5 leading-snug line-clamp-2", children: actor.character })
+              ] })
+            ]
+          },
+          actor.id
+        )) })
+      ] }),
+      mediaType === "tv" && details.seasons?.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("section", { className: "border-t border-white/5 pt-6", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(SectionHeading, { children: "Seasons" }),
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mt-3", children: details.seasons.filter((s) => s.seasonNumber >= 0).map((s) => /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "bg-white/5 border border-white/10 rounded-lg p-3 flex gap-3 items-center min-w-0", children: [
+          s.posterPath ? /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("img", { src: `https://image.tmdb.org/t/p/w92${s.posterPath}`, className: "w-10 rounded object-cover flex-shrink-0", alt: "" }) : /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "w-10 h-14 bg-black/40 rounded flex-shrink-0" }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "flex flex-col min-w-0", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "font-bold text-white text-sm truncate", children: s.name }),
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { className: "text-xs text-white/50", children: [
+              s.episodeCount,
+              " episodes"
+            ] })
+          ] })
+        ] }, s.id)) })
+      ] }),
+      recommendations.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("section", { className: "border-t border-white/5 pt-6 pb-4", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(SectionHeading, { children: "Recommendations" }),
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(Carousel, { children: recommendations.map((item, idx) => {
+          const formatted = formatItem(item);
+          return /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "w-[120px] sm:w-[140px] flex-shrink-0 snap-start", children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+            DiscoverPosterCard,
+            {
+              item: formatted,
+              overlay: formatted.overlay,
+              showQualityBadges: false,
+              onPosterClick: () => openMedia(formatted.type, formatted.id)
+            }
+          ) }, `${formatted.id}-${idx}`);
+        }) })
+      ] })
+    ] })
+  ] });
+};
+
+// client/discovery/PersonDetailsPage.tsx
+var import_react12 = __toESM(require_react(), 1);
+var import_jsx_runtime13 = __toESM(require_jsx_runtime(), 1);
+var PersonDetailsPage = ({ personId, onBack, onSelect, formatItem }) => {
+  const [person, setPerson] = (0, import_react12.useState)(null);
+  const [credits, setCredits] = (0, import_react12.useState)([]);
+  const [loading, setLoading] = (0, import_react12.useState)(true);
+  (0, import_react12.useEffect)(() => {
+    const fetchPerson = async () => {
+      setLoading(true);
+      try {
+        const personData = await apiFetch(`/api/discovery/proxy/person/${personId}`);
+        if (personData) setPerson(personData);
+        const creditsData = await apiFetch(`/api/discovery/proxy/person/${personId}/combined_credits`);
+        if (creditsData && creditsData.cast) {
+          const sorted = creditsData.cast.filter((c) => c.posterPath).sort((a, b) => b.popularity - a.popularity).slice(0, 50);
+          setCredits(sorted);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+      setLoading(false);
+    };
+    fetchPerson();
+  }, [personId]);
+  if (loading) {
+    return /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "w-full flex justify-center py-32", children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(LoaderCircle, { className: "w-12 h-12 text-plex animate-spin" }) });
+  }
+  if (!person) return null;
+  const profileUrl = person.profilePath ? `https://image.tmdb.org/t/p/h632${person.profilePath}` : "";
+  const age = person.birthday ? (/* @__PURE__ */ new Date()).getFullYear() - new Date(person.birthday).getFullYear() : null;
+  return /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "w-full flex flex-col gap-8 pb-12 animate-fade-in relative z-10 px-4 sm:px-8 mt-4", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+      "button",
+      {
+        onClick: onBack,
+        className: "flex items-center gap-2 text-white/70 hover:text-white font-medium transition-colors w-fit",
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(ArrowLeft, { className: "w-5 h-5" }),
+          " Back to Discovery"
+        ]
+      }
+    ),
+    /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex flex-col md:flex-row gap-8", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "w-full md:w-1/3 max-w-[350px] flex-shrink-0", children: profileUrl ? /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+        "img",
+        {
+          src: profileUrl,
+          alt: person.name,
+          className: "w-full rounded-2xl shadow-2xl object-cover aspect-[2/3] border border-white/10"
+        }
+      ) : /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "w-full rounded-2xl bg-white/5 border border-white/10 aspect-[2/3] flex items-center justify-center", children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "text-white/30 text-2xl font-bold", children: "No Photo" }) }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex-1 flex flex-col gap-6", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("h1", { className: "text-4xl sm:text-6xl font-black text-white tracking-tight drop-shadow-md", children: person.name }),
+        /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex flex-wrap gap-4 text-sm font-bold text-white/70 uppercase tracking-widest", children: [
+          person.knownForDepartment && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { className: "flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full border border-white/5", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Star, { className: "w-4 h-4 text-plex" }),
+            " ",
+            person.knownForDepartment
+          ] }),
+          person.birthday && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { className: "flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full border border-white/5", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Calendar, { className: "w-4 h-4 text-plex" }),
+            " ",
+            person.birthday,
+            " ",
+            age ? `(${age} years old)` : ""
+          ] }),
+          person.placeOfBirth && /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full border border-white/5", children: person.placeOfBirth })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex flex-col gap-3 mt-4", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("h2", { className: "text-2xl font-bold text-white", children: "Biography" }),
+          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("p", { className: "text-white/70 text-lg leading-relaxed whitespace-pre-line", children: person.biography || `We do not have a biography for ${person.name}.` })
+        ] })
+      ] })
+    ] }),
+    credits.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex flex-col gap-6 mt-12 border-t border-white/10 pt-12", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("h2", { className: "text-3xl font-black text-white flex items-center gap-3", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Film, { className: "w-8 h-8 text-plex" }),
+        " Known For"
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4", children: credits.map((rawItem, idx) => {
+        const formatted = formatItem(rawItem);
+        return /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+          DiscoverPosterCard,
+          {
+            item: formatted,
+            overlay: formatted.overlay,
+            showQualityBadges: false,
+            onPosterClick: () => onSelect(formatted)
+          },
+          idx
+        );
+      }) })
+    ] })
+  ] });
+};
+
+// client/discovery/DiscoveryDashboard.tsx
+var import_jsx_runtime14 = __toESM(require_jsx_runtime(), 1);
+var DiscoveryDashboard = ({ pushToast }) => {
+  const [path, setPath] = (0, import_react13.useState)(() => {
+    if (typeof window !== "undefined") return window.location.pathname;
+    return "/discovery";
+  });
+  const [query, setQuery] = (0, import_react13.useState)("");
+  const [searchResults, setSearchResults] = (0, import_react13.useState)([]);
+  const [searchLoading, setSearchLoading] = (0, import_react13.useState)(false);
+  const [searchOpen, setSearchOpen] = (0, import_react13.useState)(false);
+  const refreshPath = (0, import_react13.useCallback)(() => {
+    setPath(window.location.pathname);
+  }, []);
+  (0, import_react13.useEffect)(() => {
+    const handlePopState = () => refreshPath();
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [refreshPath]);
+  const navigate = (0, import_react13.useCallback)((newPath) => {
+    const [pathname, ...rest] = newPath.split("?");
+    const search = rest.length ? `?${rest.join("?")}` : "";
+    const target = `${portalUrl(pathname)}${search}`;
+    window.history.pushState({}, "", target);
+    setPath(window.location.pathname);
+    setSearchOpen(false);
+  }, []);
+  (0, import_react13.useEffect)(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return void 0;
+    }
+    setSearchLoading(true);
+    const timer = window.setTimeout(async () => {
+      try {
+        const res = await apiFetch(`/api/discovery/search?query=${encodeURIComponent(q)}`);
+        setSearchResults(Array.isArray(res?.results) ? res.results : []);
+        setSearchOpen(true);
+      } catch (e) {
+        console.error(e);
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+  const formatItem = (rawItem) => {
+    const item = normalizeRawDiscoveryItem(rawItem);
+    const isPerson = item.mediaType === "person";
+    const isMovie = item.mediaType === "movie";
+    const title = isPerson ? item.name : isMovie ? item.title || item.name : item.name || item.title;
+    const year = (item.releaseDate || item.firstAirDate || "").substring(0, 4);
+    const posterUrl = item.posterPath ? `https://image.tmdb.org/t/p/w342${item.posterPath}` : "";
+    const profileUrl = item.profilePath ? `https://image.tmdb.org/t/p/w185${item.profilePath}` : "";
+    const overview = item.overview;
+    const mediaType = isPerson ? "person" : isMovie ? "movie" : "tv";
+    const status = item.mediaInfo?.status;
+    const isAvailable = status === 4 || status === 5;
+    const isPending = status === 2 || status === 3;
+    let overlay = null;
+    if (!isPerson) {
+      if (isAvailable) {
+        overlay = /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "absolute top-2 right-2 bg-green-500/90 text-white rounded-full p-1 shadow-lg backdrop-blur-sm z-10 border border-green-400/30", children: /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("path", { d: "M22 11.08V12a10 10 0 1 1-5.93-9.14" }),
+          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("polyline", { points: "22 4 12 14.01 9 11.01" })
+        ] }) });
+      } else if (isPending) {
+        overlay = /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "absolute top-2 right-2 bg-amber-500/90 text-white rounded-full p-1 shadow-lg backdrop-blur-sm z-10 border border-amber-400/30", children: /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("circle", { cx: "12", cy: "12", r: "10" }),
+          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("polyline", { points: "12 6 12 12 16 14" })
+        ] }) });
+      }
+    }
+    return {
+      ...item,
+      id: item.tmdbId || item.id,
+      mediaType,
+      title,
+      year,
+      thumbUrl: isPerson ? profileUrl : posterUrl,
+      overview,
+      type: mediaType,
+      tags: [isPerson ? "Person" : isMovie ? "Movie" : "TV Show"],
+      status,
+      isAvailable,
+      isPending,
+      overlay
+    };
+  };
+  const routeParts = stripBasePath(path).split("/").filter(Boolean);
+  const subRoute = routeParts[1] || "home";
+  if (routeParts.length >= 4 && routeParts[1] === "movies" && routeParts[2] === "studio") {
+    const id = parseInt(routeParts[3], 10);
+    if (!Number.isNaN(id)) {
+      return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+        DiscoverCategoryPage,
+        {
+          kind: "studio",
+          id,
+          onBack: () => navigate("/discovery"),
+          onSelect: (item) => navigate(`/discovery/${item.type}/${item.id}`),
+          formatItem
+        }
+      );
+    }
+  }
+  if (routeParts.length >= 4 && routeParts[1] === "series" && routeParts[2] === "network") {
+    const id = parseInt(routeParts[3], 10);
+    if (!Number.isNaN(id)) {
+      return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+        DiscoverCategoryPage,
+        {
+          kind: "network",
+          id,
+          onBack: () => navigate("/discovery"),
+          onSelect: (item) => navigate(`/discovery/${item.type}/${item.id}`),
+          formatItem
+        }
+      );
+    }
+  }
+  if (routeParts.length >= 3 && routeParts[1] === "person") {
+    const id = parseInt(routeParts[2], 10);
+    return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+      PersonDetailsPage,
+      {
+        personId: id,
+        onBack: () => window.history.back(),
+        onSelect: (item) => navigate(`/discovery/${item.type}/${item.id}`),
+        formatItem
+      }
+    );
+  }
+  if (routeParts.length >= 3 && (routeParts[1] === "movie" || routeParts[1] === "tv")) {
+    const type = routeParts[1];
+    const id = parseInt(routeParts[2], 10);
+    return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+      MediaDetailsPage,
+      {
+        mediaType: type,
+        mediaId: id,
+        onBack: () => navigate("/discovery"),
+        formatItem,
+        pushToast
+      }
+    );
+  }
+  const showTabs = ["home", "movies", "series"].includes(subRoute);
+  return /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "w-full flex flex-col gap-8 pb-12", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "relative w-full rounded-2xl overflow-hidden bg-gradient-to-br from-plex/20 to-black/40 border border-white/10 p-8 sm:p-12 flex flex-col items-center justify-center text-center shadow-2xl", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "absolute inset-0 bg-black/40 pointer-events-none" }),
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "relative z-10 max-w-2xl w-full flex flex-col gap-6 items-center", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Sparkles, { className: "w-12 h-12 text-plex opacity-80" }),
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("h1", { className: "text-3xl sm:text-5xl font-bold text-white tracking-tight drop-shadow-md", children: "Discover & Request" }),
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "w-full relative mt-4", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Search, { className: "w-6 h-6 text-muted absolute left-4 top-1/2 -translate-y-1/2" }),
+          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+            "input",
+            {
+              type: "text",
+              placeholder: "Search for a movie, TV show, or person...",
+              value: query,
+              onChange: (e) => setQuery(e.target.value),
+              onFocus: () => query.trim().length >= 2 && setSearchOpen(true),
+              className: "w-full bg-black/50 border-2 border-white/10 focus:border-plex rounded-xl py-4 pl-14 pr-12 text-lg text-white font-medium outline-none transition-all placeholder:text-muted/50 shadow-inner"
+            }
+          ),
+          query && /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+            "button",
+            {
+              type: "button",
+              onClick: () => {
+                setQuery("");
+                setSearchOpen(false);
+                setSearchResults([]);
+              },
+              className: "absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-white",
+              children: /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(X, { className: "w-5 h-5" })
+            }
+          ),
+          searchOpen && query.trim().length >= 2 && /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "absolute left-0 right-0 top-[calc(100%+8px)] z-50 max-h-[420px] overflow-y-auto custom-scrollbar rounded-xl border border-white/10 bg-zinc-950/95 backdrop-blur-xl shadow-2xl", children: searchLoading ? /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex items-center justify-center gap-2 p-6 text-muted", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(LoaderCircle, { className: "w-5 h-5 animate-spin" }),
+            "Searching\u2026"
+          ] }) : searchResults.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "p-6 text-center text-muted text-sm", children: "No results found." }) : searchResults.slice(0, 20).map((rawItem, idx) => {
+            const formatted = formatItem(rawItem);
+            const isPerson = formatted.type === "person";
+            return /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+              "button",
+              {
+                type: "button",
+                onClick: () => navigate(
+                  isPerson ? `/discovery/person/${formatted.id}` : `/discovery/${formatted.type}/${formatted.id}`
+                ),
+                className: "w-full flex items-center gap-4 p-3 hover:bg-white/5 border-b border-white/5 last:border-0 text-left transition-colors",
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: `${isPerson ? "w-12 h-12 rounded-full" : "w-12 h-[72px] rounded-md"} overflow-hidden bg-white/5 flex-shrink-0`, children: formatted.thumbUrl ? /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("img", { src: formatted.thumbUrl, alt: "", className: "w-full h-full object-cover" }) : null }),
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "min-w-0", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "font-bold text-white truncate", children: formatted.title }),
+                    /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "text-xs text-muted", children: isPerson ? formatted.tags?.[0] : `${formatted.year}${formatted.year ? " \xB7 " : ""}${formatted.tags?.[0]}` })
+                  ] })
+                ]
+              },
+              `${formatted.id}-${idx}`
+            );
+          }) })
+        ] })
+      ] })
+    ] }),
+    showTabs && /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(import_jsx_runtime14.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "flex w-full border-b border-white/10 px-4 mt-[-16px]", children: /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex gap-8", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+          "button",
+          {
+            type: "button",
+            onClick: () => navigate("/discovery"),
+            className: `flex items-center gap-2 pb-4 border-b-2 font-bold transition-all ${subRoute === "home" ? "border-plex text-white" : "border-transparent text-white/50 hover:text-white/80"}`,
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Compass, { className: "w-5 h-5" }),
+              " Discover"
+            ]
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+          "button",
+          {
+            type: "button",
+            onClick: () => navigate("/discovery/movies"),
+            className: `flex items-center gap-2 pb-4 border-b-2 font-bold transition-all ${subRoute === "movies" ? "border-plex text-white" : "border-transparent text-white/50 hover:text-white/80"}`,
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Film, { className: "w-5 h-5" }),
+              " Movies"
+            ]
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+          "button",
+          {
+            type: "button",
+            onClick: () => navigate("/discovery/series"),
+            className: `flex items-center gap-2 pb-4 border-b-2 font-bold transition-all ${subRoute === "series" ? "border-plex text-white" : "border-transparent text-white/50 hover:text-white/80"}`,
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Tv, { className: "w-5 h-5" }),
+              " Series"
+            ]
+          }
+        )
+      ] }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "w-full mt-4", children: [
+        subRoute === "home" && /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+          DiscoverHome,
+          {
+            onSelect: (item) => navigate(`/discovery/${item.type}/${item.id}`),
+            formatItem,
+            navigate
+          }
+        ),
+        subRoute === "movies" && /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+          DiscoverMovies,
+          {
+            onSelect: (item) => navigate(`/discovery/${item.type}/${item.id}`),
+            formatItem,
+            navigate
+          }
+        ),
+        subRoute === "series" && /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+          DiscoverSeries,
+          {
+            onSelect: (item) => navigate(`/discovery/${item.type}/${item.id}`),
+            formatItem,
+            navigate
+          }
+        )
+      ] })
+    ] })
+  ] });
+};
+
+// client/App.tsx
+var import_jsx_runtime15 = __toESM(require_jsx_runtime(), 1);
+var SettingsDashboard = (0, import_react14.lazy)(() => import("./SettingsDashboard-TDOKSHWV.js").then((m) => ({ default: m.SettingsDashboard })));
+var RequestsAdminPanel = (0, import_react14.lazy)(() => import("./RequestsAdminPanel-LS7J2FEO.js").then((m) => ({ default: m.RequestsAdminPanel })));
+var UpgraderDashboard = (0, import_react14.lazy)(() => import("./UpgraderDashboard-N4MQBGJN.js").then((m) => ({ default: m.UpgraderDashboard })));
 var MainApp = () => {
-  const [confirmState, setConfirmState] = (0, import_react2.useState)({ isOpen: false, message: "", onConfirm: () => {
+  const [confirmState, setConfirmState] = (0, import_react14.useState)({ isOpen: false, message: "", onConfirm: () => {
   } });
-  const [activeTheme, setActiveTheme] = (0, import_react2.useState)(() => {
+  const [activeTheme, setActiveTheme] = (0, import_react14.useState)(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("portal-theme") || "plex";
     }
     return "plex";
   });
-  (0, import_react2.useEffect)(() => {
+  (0, import_react14.useEffect)(() => {
     bindAppConfirm((message, onConfirm) => {
       setConfirmState({ isOpen: true, message, onConfirm });
     });
@@ -20382,13 +22187,13 @@ var MainApp = () => {
     confirmState.onConfirm();
     closeConfirm();
   };
-  const [currentRoute, setCurrentRoute] = (0, import_react2.useState)("loading");
-  const [sessionInfo, setSessionInfo] = (0, import_react2.useState)(null);
-  const [publicConfig, setPublicConfig] = (0, import_react2.useState)({});
-  const [releaseNotes, setReleaseNotes] = (0, import_react2.useState)(null);
-  const [showWhatsNew, setShowWhatsNew] = (0, import_react2.useState)(false);
-  const whatsNewCheckedRef = (0, import_react2.useRef)(false);
-  const fetchPublicConfig = (0, import_react2.useCallback)(async () => {
+  const [currentRoute, setCurrentRoute] = (0, import_react14.useState)("loading");
+  const [sessionInfo, setSessionInfo] = (0, import_react14.useState)(null);
+  const [publicConfig, setPublicConfig] = (0, import_react14.useState)({});
+  const [releaseNotes, setReleaseNotes] = (0, import_react14.useState)(null);
+  const [showWhatsNew, setShowWhatsNew] = (0, import_react14.useState)(false);
+  const whatsNewCheckedRef = (0, import_react14.useRef)(false);
+  const fetchPublicConfig = (0, import_react14.useCallback)(async () => {
     try {
       const data = await apiFetch("/api/config/public");
       window.__USE_24_HOUR_CLOCK__ = data.use24HourClock === true;
@@ -20402,8 +22207,8 @@ var MainApp = () => {
     } catch (e) {
     }
   }, []);
-  const lastBrandingTheme = (0, import_react2.useRef)(null);
-  (0, import_react2.useEffect)(() => {
+  const lastBrandingTheme = (0, import_react14.useRef)(null);
+  (0, import_react14.useEffect)(() => {
     if (!publicConfig.brandingTheme) return;
     if (lastBrandingTheme.current === null) {
       const theme = localStorage.getItem("portal-theme") || publicConfig.brandingTheme || "plex";
@@ -20415,41 +22220,41 @@ var MainApp = () => {
       lastBrandingTheme.current = publicConfig.brandingTheme;
     }
   }, [publicConfig.brandingTheme]);
-  (0, import_react2.useEffect)(() => {
+  (0, import_react14.useEffect)(() => {
     document.documentElement.setAttribute("data-theme", activeTheme);
     localStorage.setItem("portal-theme", activeTheme);
     document.documentElement.style.removeProperty("--color-plex");
     document.documentElement.style.removeProperty("--color-plex-hover");
   }, [activeTheme]);
-  (0, import_react2.useEffect)(() => {
+  (0, import_react14.useEffect)(() => {
     if (publicConfig?.useBrandedSkeleton !== false) {
       document.documentElement.classList.add("branded-skeleton");
     } else {
       document.documentElement.classList.remove("branded-skeleton");
     }
   }, [publicConfig?.useBrandedSkeleton]);
-  (0, import_react2.useEffect)(() => {
+  (0, import_react14.useEffect)(() => {
     window.scrollTo(0, 0);
     const container2 = document.getElementById("main-scroll-container");
     if (container2) container2.scrollTop = 0;
   }, [currentRoute]);
-  (0, import_react2.useEffect)(() => {
+  (0, import_react14.useEffect)(() => {
     fetchPublicConfig();
   }, [fetchPublicConfig]);
-  (0, import_react2.useEffect)(() => {
+  (0, import_react14.useEffect)(() => {
     if (currentRoute === "status" && !sessionInfo && publicConfig?.showPublicStatusMonitor === false) {
       setCurrentRoute("login");
       window.history.replaceState({}, "", portalUrl("/"));
     }
   }, [currentRoute, publicConfig?.showPublicStatusMonitor, sessionInfo]);
-  (0, import_react2.useEffect)(() => {
+  (0, import_react14.useEffect)(() => {
     const onPublicConfigUpdated = () => {
       fetchPublicConfig();
     };
     window.addEventListener("portal-public-config-updated", onPublicConfigUpdated);
     return () => window.removeEventListener("portal-public-config-updated", onPublicConfigUpdated);
   }, [fetchPublicConfig]);
-  (0, import_react2.useEffect)(() => {
+  (0, import_react14.useEffect)(() => {
     if (!sessionInfo || !publicConfig?.appVersion) return;
     if (currentRoute === "login" || currentRoute === "loading" || currentRoute === "invite") return;
     if (whatsNewCheckedRef.current) return;
@@ -20470,12 +22275,12 @@ var MainApp = () => {
       cancelled = true;
     };
   }, [sessionInfo, publicConfig?.appVersion, currentRoute]);
-  const dismissWhatsNew = (0, import_react2.useCallback)(() => {
+  const dismissWhatsNew = (0, import_react14.useCallback)(() => {
     const semver = parseAppSemver(publicConfig?.appVersion);
     if (semver) setLastSeenVersion(semver);
     setShowWhatsNew(false);
   }, [publicConfig?.appVersion]);
-  const setRoute = (0, import_react2.useCallback)((route, options) => {
+  const setRoute = (0, import_react14.useCallback)((route, options) => {
     if (route === "logs") {
       setCurrentRoute("settings");
       window.history.pushState({}, "", portalUrl("/settings#logs"));
@@ -20495,11 +22300,12 @@ var MainApp = () => {
       if (route === "maintenance") path = "/maintenance";
       if (route === "upgrader") path = "/upgrader";
       if (route === "requests") path = "/requests";
+      if (route === "discovery") path = "/discovery";
       if (options?.hash) path += options.hash;
       window.history.pushState({}, "", portalUrl(path));
     }
   }, []);
-  const checkSession = (0, import_react2.useCallback)(async () => {
+  const checkSession = (0, import_react14.useCallback)(async () => {
     let path = stripBasePath(window.location.pathname).toLowerCase();
     if (path.endsWith("/") && path.length > 1) path = path.slice(0, -1);
     if (path.startsWith("/invite/")) {
@@ -20530,6 +22336,7 @@ var MainApp = () => {
       else if (path.startsWith("/maintenance") && data.session.isAdmin) setCurrentRoute("maintenance");
       else if (path.startsWith("/upgrader") && data.session.isAdmin) setCurrentRoute("upgrader");
       else if (path.startsWith("/requests") && data.session.isAdmin) setCurrentRoute("requests");
+      else if (path.startsWith("/discovery")) setCurrentRoute("discovery");
       else if (path.startsWith("/analytics")) setCurrentRoute("analytics");
       else if (path.startsWith("/admin") || path.startsWith("/users")) {
         if (data.session.isAdmin && !data.impersonation?.active) setCurrentRoute("users");
@@ -20548,10 +22355,10 @@ var MainApp = () => {
       else setCurrentRoute("login");
     }
   }, [publicConfig?.showPublicStatusMonitor]);
-  (0, import_react2.useEffect)(() => {
+  (0, import_react14.useEffect)(() => {
     checkSession();
   }, [checkSession]);
-  (0, import_react2.useEffect)(() => {
+  (0, import_react14.useEffect)(() => {
     const onPopState = () => {
       checkSession();
     };
@@ -20584,10 +22391,10 @@ var MainApp = () => {
   };
   const requestsQueueEnabled = !!sessionInfo?.session?.isAdmin && !!sessionInfo?.navFeatures?.requestsQueue;
   const { pendingCount: pendingRequestCount, refresh: refreshPendingRequestCount } = usePendingRequestCount(requestsQueueEnabled);
-  if (currentRoute === "loading") return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Loader, { isLoading: true, isCinematic: !!publicConfig?.useCinematicLoading });
+  if (currentRoute === "loading") return /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(Loader, { isLoading: true, isCinematic: !!publicConfig?.useCinematicLoading });
   if (currentRoute === "login") {
     const initialLoginError = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("loginError") : null;
-    return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Login, { onLoginSuccess: checkSession, publicConfig, initialError: initialLoginError || void 0 });
+    return /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(Login, { onLoginSuccess: checkSession, publicConfig, initialError: initialLoginError || void 0 });
   }
   const isAdmin = !!sessionInfo?.session?.isAdmin;
   const isImpersonating = !!sessionInfo?.impersonation?.active;
@@ -20597,24 +22404,25 @@ var MainApp = () => {
   const renderView = () => {
     if (currentRoute === "invite") {
       const code = stripBasePath(window.location.pathname).split("/")[2];
-      return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(PublicInviteClaim, { code });
+      return /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(PublicInviteClaim, { code });
     }
-    if (currentRoute === "status") return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(StatusDashboard, { onBack: () => isPublicStatus ? setRoute("login") : setRoute("user"), isAdmin, isPublic: isPublicStatus });
-    if (currentRoute === "dashboard") return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(LibraryDashboard, { onBack: () => setRoute("user"), isAdmin, publicConfig, mediaServerType: sessionInfo?.mediaServerType, onViewAnalytics: (hash) => setRoute("analytics", { hash }) });
-    if (currentRoute === "settings" && isAdmin) return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(SettingsDashboard, {});
-    if (currentRoute === "maintenance" && isAdmin) return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(MaintenanceDashboard, {});
-    if (currentRoute === "upgrader" && isAdmin) return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(UpgraderDashboard, {});
-    if (currentRoute === "requests" && isAdmin) return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(RequestsAdminPanel, { onCountsChange: refreshPendingRequestCount });
-    if (currentRoute === "logs" && isAdmin) return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(LogsDashboard, { onLogout: handleLogout });
-    if (currentRoute === "mediastack") return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(MediaStackDashboard, { isAdmin });
-    if (currentRoute === "analytics") return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(AnalyticsDashboard, { isAdmin, sessionInfo });
-    if (currentRoute === "admin" || currentRoute === "users") return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(AdminDashboard, { onLogout: handleLogout, onViewUserPortal: () => setRoute("user"), onViewStatus: () => setRoute("status"), onViewDashboard: () => setRoute("dashboard"), onViewAsUser: handleViewAsUser });
-    return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(UserDashboard, { sessionInfo, publicConfig, onLogout: handleLogout, refreshSession: checkSession, onViewAdmin: () => setRoute("users"), onViewStatus: () => setRoute("status"), onViewDashboard: () => setRoute("dashboard"), onViewSettings: () => setRoute("settings"), onViewLogs: () => setRoute("logs"), onViewRequests: () => setRoute("requests"), onPendingRequestsChange: refreshPendingRequestCount });
+    if (currentRoute === "status") return /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(StatusDashboard, { onBack: () => isPublicStatus ? setRoute("login") : setRoute("user"), isAdmin, isPublic: isPublicStatus });
+    if (currentRoute === "dashboard") return /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(LibraryDashboard, { onBack: () => setRoute("user"), isAdmin, publicConfig, mediaServerType: sessionInfo?.mediaServerType, onViewAnalytics: (hash) => setRoute("analytics", { hash }) });
+    if (currentRoute === "settings" && isAdmin) return /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(SettingsDashboard, {});
+    if (currentRoute === "maintenance" && isAdmin) return /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(MaintenanceDashboard, {});
+    if (currentRoute === "upgrader" && isAdmin) return /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(UpgraderDashboard, {});
+    if (currentRoute === "requests" && isAdmin) return /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(RequestsAdminPanel, { onCountsChange: refreshPendingRequestCount });
+    if (currentRoute === "discovery") return /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(DiscoveryDashboard, { onItemClick: (item) => console.log("Item", item) });
+    if (currentRoute === "logs" && isAdmin) return /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(LogsDashboard, { onLogout: handleLogout });
+    if (currentRoute === "mediastack") return /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(MediaStackDashboard, { isAdmin });
+    if (currentRoute === "analytics") return /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(AnalyticsDashboard, { isAdmin, sessionInfo });
+    if (currentRoute === "admin" || currentRoute === "users") return /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(AdminDashboard, { onLogout: handleLogout, onViewUserPortal: () => setRoute("user"), onViewStatus: () => setRoute("status"), onViewDashboard: () => setRoute("dashboard"), onViewAsUser: handleViewAsUser });
+    return /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(UserDashboard, { sessionInfo, publicConfig, onLogout: handleLogout, refreshSession: checkSession, onViewAdmin: () => setRoute("users"), onViewStatus: () => setRoute("status"), onViewDashboard: () => setRoute("dashboard"), onViewSettings: () => setRoute("settings"), onViewLogs: () => setRoute("logs"), onViewRequests: () => setRoute("requests"), onPendingRequestsChange: refreshPendingRequestCount });
   };
-  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "relative flex w-full min-h-screen md:h-dvh md:overflow-hidden", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(AppAmbientBackground, { backgroundImageUrl: publicConfig?.backgroundImageUrl }),
-    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(ConfirmModal, { isOpen: confirmState.isOpen, message: confirmState.message, onConfirm: handleConfirm, onCancel: closeConfirm }),
-    showWhatsNew && releaseNotes && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "relative flex w-full min-h-screen md:h-dvh md:overflow-hidden", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(AppAmbientBackground, { backgroundImageUrl: publicConfig?.backgroundImageUrl }),
+    /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(ConfirmModal, { isOpen: confirmState.isOpen, message: confirmState.message, onConfirm: handleConfirm, onCancel: closeConfirm }),
+    showWhatsNew && releaseNotes && /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
       WhatsNewModal,
       {
         notes: releaseNotes,
@@ -20622,14 +22430,14 @@ var MainApp = () => {
         onDismiss: dismissWhatsNew
       }
     ),
-    !isPublicView && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Navigation, { currentRoute, onNavigate: setRoute, onLogout: handleLogout, isAdmin, serverName: sessionInfo?.serverName || "Server Portal", adminThumb: sessionInfo?.adminThumb, customLogoUrl: publicConfig?.customLogoUrl, requestUrl: sessionInfo?.requestUrl || "https://yourdomain.com", navOrder: sessionInfo?.navOrder || ["home", "discover", "users", "analytics", "mediastack", "upgrader", "requests", "status", "maintenance", "request", "logs", "settings", "logout"], navFeatures: sessionInfo?.navFeatures, appVersion: publicConfig.appVersion, activeTheme, setActiveTheme, pendingRequestCount }),
-    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { id: "main-scroll-container", className: `relative z-10 flex-1 min-w-0 min-h-0 flex flex-col items-center px-4 pb-[80px] md:px-8 md:pb-8 overflow-x-visible md:overflow-y-auto custom-scrollbar ${isPublicView ? "!pb-8" : ""}`, children: [
-      isImpersonating && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "w-full max-w-[100%] pt-20 md:pt-0 md:sticky md:top-0 md:z-30", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-100 shadow-lg backdrop-blur-md", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("p", { className: "text-sm font-medium", children: [
+    !isPublicView && /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(Navigation, { currentRoute, onNavigate: setRoute, onLogout: handleLogout, isAdmin, serverName: sessionInfo?.serverName || "Server Portal", adminThumb: sessionInfo?.adminThumb, customLogoUrl: publicConfig?.customLogoUrl, requestUrl: sessionInfo?.requestUrl || "https://yourdomain.com", navOrder: sessionInfo?.navOrder || ["home", "discover", "users", "analytics", "mediastack", "upgrader", "requests", "status", "maintenance", "request", "logs", "settings", "logout"], navFeatures: sessionInfo?.navFeatures, appVersion: publicConfig.appVersion, activeTheme, setActiveTheme, pendingRequestCount }),
+    /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { id: "main-scroll-container", className: `relative z-10 flex-1 min-w-0 min-h-0 flex flex-col items-center px-4 pb-[80px] md:px-8 md:pb-8 overflow-x-visible md:overflow-y-auto custom-scrollbar ${isPublicView ? "!pb-8" : ""}`, children: [
+      isImpersonating && /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { className: "w-full max-w-[100%] pt-20 md:pt-0 md:sticky md:top-0 md:z-30", children: /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-100 shadow-lg backdrop-blur-md", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("p", { className: "text-sm font-medium", children: [
           "Viewing portal as ",
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "font-bold text-white", children: sessionInfo?.impersonation?.targetUsername || sessionInfo?.session?.username })
+          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "font-bold text-white", children: sessionInfo?.impersonation?.targetUsername || sessionInfo?.session?.username })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
           "button",
           {
             type: "button",
@@ -20639,17 +22447,17 @@ var MainApp = () => {
           }
         )
       ] }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: `w-full min-w-0 max-w-[100%] ${isImpersonating ? "pt-3 md:pt-4" : "pt-20 md:pt-8"}`, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react2.Suspense, { fallback: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "flex w-full items-center justify-center pt-20", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Loader, { isLoading: true, isCinematic: false }) }), children: renderView() }) }),
-      !isPublicView && publicConfig?.appVersion && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "md:hidden mt-auto pt-12 pb-4 w-full text-center text-[10px] text-white/30 font-mono tracking-widest pointer-events-none", children: publicConfig.appVersion })
+      /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { className: `w-full min-w-0 max-w-[100%] ${isImpersonating ? "pt-3 md:pt-4" : "pt-20 md:pt-8"}`, children: /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(import_react14.Suspense, { fallback: /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { className: "flex w-full items-center justify-center pt-20", children: /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(Loader, { isLoading: true, isCinematic: false }) }), children: renderView() }) }),
+      !isPublicView && publicConfig?.appVersion && /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { className: "md:hidden mt-auto pt-12 pb-4 w-full text-center text-[10px] text-white/30 font-mono tracking-widest pointer-events-none", children: publicConfig.appVersion })
     ] })
   ] });
 };
 
 // index.tsx
-var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
+var import_jsx_runtime16 = __toESM(require_jsx_runtime(), 1);
 var container = document.getElementById("root");
 var root = (0, import_client.createRoot)(container);
-root.render(/* @__PURE__ */ (0, import_jsx_runtime3.jsx)(MainApp, {}));
+root.render(/* @__PURE__ */ (0, import_jsx_runtime16.jsx)(MainApp, {}));
 /*! Bundled license information:
 
 scheduler/cjs/scheduler.development.js:

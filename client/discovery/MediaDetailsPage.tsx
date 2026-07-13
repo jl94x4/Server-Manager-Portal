@@ -3,6 +3,7 @@ import { PlusCircle, CheckCircle, Clock, ArrowLeft, Star, Calendar, Globe, Film,
 import { apiFetch } from '../shared/api';
 import { DiscoverPosterCard } from '../screens';
 import { Carousel } from './Carousel';
+import { DiscoveryFactWidget } from './DiscoveryFactWidget';
 
 const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest">{children}</h3>
@@ -246,6 +247,8 @@ export const MediaDetailsPage: React.FC<{
                     <p className="text-sm sm:text-base text-white/80 leading-relaxed max-w-3xl">
                         {details.overview || 'No description available.'}
                     </p>
+
+                    <DiscoveryFactWidget mediaType={mediaType} mediaId={mediaId} />
 
                     {extraDetails.length > 0 && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 max-w-3xl">

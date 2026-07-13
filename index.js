@@ -339,6 +339,7 @@ import {
 } from './lib/arr-service.js';
 import { getSonarrTrashCatalog, getSonarrTrashCustomFormat } from './lib/trash-guides-catalog.js';
 import { createRequestAppService, getRequestAppGate } from './lib/request-app-service.js';
+import { buildDiscoveryFacts } from './lib/discovery-facts.js';
 const PLEX_API = 'https://plex.tv/api';
 
 // --- Status App Global State ---
@@ -4375,6 +4376,39 @@ app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) 
         });
         res.json(data);
     } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/discovery/fact', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const mediaType = String(req.query.mediaType || '').toLowerCase();
+        const mediaId = Number(req.query.mediaId);
+        if ((mediaType !== 'movie' && mediaType !== 'tv') || !Number.isFinite(mediaId)) {
+            return res.status(400).json({ error: 'Invalid mediaType or mediaId' });
+        }
+
+        const details = await requestAppService.rawFetch(config, `/api/v1/${mediaType}/${mediaId}`);
+        const wikiFetch = (url, opts = {}) => fetchWithTimeout(
+            url,
+            {
+                ...opts,
+                headers: {
+                    'User-Agent': 'PlexifiedPortal/1.0 (discovery-facts)',
+                    ...(opts.headers || {}),
+                },
+            },
+            opts.timeout || 6000,
+        );
+
+        const payload = await buildDiscoveryFacts({ details, mediaType, fetchFn: wikiFetch });
+        res.json(payload);
+    } catch (e) {
+        log(`Discovery fact error: ${e.message}`);
         res.status(500).json({ error: e.message });
     }
 });
