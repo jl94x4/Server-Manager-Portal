@@ -9,6 +9,7 @@ type Props = {
     onSelect: (item: any) => void;
     loading?: boolean;
     skeletonCount?: number;
+    emptyMessage?: string;
 };
 
 export const DiscoverPosterGrid: React.FC<Props> = ({
@@ -18,6 +19,7 @@ export const DiscoverPosterGrid: React.FC<Props> = ({
     onSelect,
     loading = false,
     skeletonCount = 15,
+    emptyMessage = 'No results found.',
 }) => {
     if (loading) {
         return (
@@ -25,6 +27,15 @@ export const DiscoverPosterGrid: React.FC<Props> = ({
                 {[...Array(skeletonCount)].map((_, i) => (
                     <div key={i} className="w-full aspect-[2/3] rounded-xl bg-white/5 border border-white/10" />
                 ))}
+            </div>
+        );
+    }
+
+    if (items.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center py-16 px-6 rounded-2xl border border-dashed border-white/10 bg-white/[0.02] text-center">
+                <p className="text-white/70 font-semibold">{emptyMessage}</p>
+                <p className="text-sm text-muted mt-2">Try adjusting your filters or turn off Hide Available Media in settings.</p>
             </div>
         );
     }

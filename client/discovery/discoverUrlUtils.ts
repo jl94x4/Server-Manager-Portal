@@ -32,7 +32,19 @@ export const parseFiltersFromSearch = (search: string, defaults: FilterState): F
     };
 };
 
+const hasSecondaryMovieFilters = (filters: FilterState) => (
+    Boolean(filters.genre || filters.year || filters.minRating || (filters.sort && filters.sort !== 'popularity.desc'))
+);
+
+const hasSecondarySeriesFilters = (filters: FilterState) => (
+    Boolean(filters.genre || filters.year || filters.minRating || (filters.sort && filters.sort !== 'popularity.desc'))
+);
+
 export const buildMovieFilterPath = (filters: FilterState) => {
+    if (filters.studio && !hasSecondaryMovieFilters(filters)) {
+        return `/discovery/movies/studio/${filters.studio}`;
+    }
+
     const params = new URLSearchParams();
     if (filters.sort && filters.sort !== 'popularity.desc') params.set('sort', filters.sort);
     if (filters.genre) params.set('genre', filters.genre);
@@ -44,6 +56,10 @@ export const buildMovieFilterPath = (filters: FilterState) => {
 };
 
 export const buildSeriesFilterPath = (filters: FilterState) => {
+    if (filters.network && !hasSecondarySeriesFilters(filters)) {
+        return `/discovery/series/network/${filters.network}`;
+    }
+
     const params = new URLSearchParams();
     if (filters.sort && filters.sort !== 'popularity.desc') params.set('sort', filters.sort);
     if (filters.genre) params.set('genre', filters.genre);
@@ -56,14 +72,20 @@ export const buildSeriesFilterPath = (filters: FilterState) => {
 
 export const appendDiscoverQuery = (baseUrl: string, filters: FilterState, type: 'movie' | 'tv') => {
     let url = baseUrl;
-    if (filters.genre) url += `&genre=${filters.genre}`;
-    if (filters.minRating) url += `&voteAverageGte=${filters.minRating}`;
+    if (filters.genre) url += `&genre=${encodeURIComponent(filters.genre)}`;
+    if (filters.minRating) url += `&voteAverageGte=${encodeURIComponent(filters.minRating)}`;
     if (type === 'movie') {
-        if (filters.year) url += `&primaryReleaseYear=${filters.year}`;
-        if (filters.studio) url += `&studio=${filters.studio}`;
+        if (filters.year) {
+            url += `&primaryReleaseDateGte=${encodeURIComponent(`${filters.year}-01-01`)}`;
+            url += `&primaryReleaseDateLte=${encodeURIComponent(`${filters.year}-12-31`)}`;
+        }
+        if (filters.studio) url += `&studio=${encodeURIComponent(filters.studio)}`;
     } else {
-        if (filters.year) url += `&firstAirDateYear=${filters.year}`;
-        if (filters.network) url += `&network=${filters.network}`;
+        if (filters.year) {
+            url += `&firstAirDateGte=${encodeURIComponent(`${filters.year}-01-01`)}`;
+            url += `&firstAirDateLte=${encodeURIComponent(`${filters.year}-12-31`)}`;
+        }
+        if (filters.network) url += `&network=${encodeURIComponent(filters.network)}`;
     }
     return url;
 };

@@ -42,6 +42,7 @@ export const DiscoveryDashboard: React.FC<{
         window.history.pushState({}, '', target);
         setPath(window.location.pathname);
         setSearchOpen(false);
+        window.dispatchEvent(new Event('portal-discovery-navigate'));
     }, []);
 
     useEffect(() => {

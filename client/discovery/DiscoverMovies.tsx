@@ -1,22 +1,21 @@
 import React, { useCallback, useMemo, useRef } from 'react';
 import { Filter, Film } from 'lucide-react';
-import { apiFetch } from '../shared/api';
 import { FilterDrawer, FilterState } from './FilterDrawer';
 import { DiscoverGridSizeSelect } from './DiscoverGridSizeSelect';
 import { DiscoverPosterGrid } from './DiscoverPosterGrid';
 import { useDiscoverGridSize } from './useDiscoverGridSize';
 import {
-    appendDiscoverQuery,
     buildMovieFilterPath,
     countActiveFilters,
     defaultMovieFilters,
     parseFiltersFromSearch,
 } from './discoverUrlUtils';
-import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
-import { findStudio } from './discoverConstants';
+import { useDiscoveryPreferences } from './useDiscoveryPreferences';
+import { findStudio, MOVIE_GENRES } from './discoverConstants';
 import { useDiscoverInfiniteScroll } from './useDiscoverInfiniteScroll';
 import { DiscoverInfiniteScrollFooter } from './DiscoverInfiniteScrollFooter';
 import { discoverSkeletonCountForGrid } from './discoverPaginationUtils';
+import { buildDiscoverMoviesApiUrl, fetchDiscoverPageWithBackfill } from './discoverFetchUtils';
 
 export const DiscoverMovies: React.FC<{
     onSelect: (item: any) => void;
@@ -39,7 +38,11 @@ export const DiscoverMovies: React.FC<{
     React.useEffect(() => {
         readFiltersFromUrl();
         window.addEventListener('popstate', readFiltersFromUrl);
-        return () => window.removeEventListener('popstate', readFiltersFromUrl);
+        window.addEventListener('portal-discovery-navigate', readFiltersFromUrl);
+        return () => {
+            window.removeEventListener('popstate', readFiltersFromUrl);
+            window.removeEventListener('portal-discovery-navigate', readFiltersFromUrl);
+        };
     }, [readFiltersFromUrl]);
 
     const resetKey = useMemo(
@@ -47,15 +50,11 @@ export const DiscoverMovies: React.FC<{
         [filters, preferences.hideAvailableMedia, gridSize],
     );
 
-    const fetchPage = useCallback(async (page: number) => {
-        let url = `/api/discovery/proxy/discover/movies?page=${page}&sortBy=${filters.sort}`;
-        url = appendDiscoverQuery(url, filters, 'movie');
-        const res = await apiFetch(url);
-        return {
-            results: filterHiddenAvailableItems(res?.results || [], preferences.hideAvailableMedia),
-            totalPages: Number(res?.totalPages) || 1,
-        };
-    }, [filters, preferences.hideAvailableMedia]);
+    const fetchPage = useCallback(async (page: number) => fetchDiscoverPageWithBackfill(
+        (nextPage) => buildDiscoverMoviesApiUrl(nextPage, filters),
+        page,
+        preferences.hideAvailableMedia,
+    ), [filters, preferences.hideAvailableMedia]);
 
     const {
         results,
@@ -76,6 +75,9 @@ export const DiscoverMovies: React.FC<{
     };
 
     const studioLabel = filters.studio ? findStudio(Number(filters.studio))?.name : null;
+    const genreLabel = filters.genre
+        ? MOVIE_GENRES.find((genre) => String(genre.id) === filters.genre)?.name
+        : null;
     const activeFilterCount = countActiveFilters(filters, 'movie');
     const skeletonCount = discoverSkeletonCountForGrid(
         gridSize,
@@ -92,6 +94,9 @@ export const DiscoverMovies: React.FC<{
                         </h2>
                         {studioLabel && (
                             <p className="text-sm text-muted mt-1">Studio: {studioLabel}</p>
+                        )}
+                        {genreLabel && !studioLabel && (
+                            <p className="text-sm text-muted mt-1">Genre: {genreLabel}</p>
                         )}
                     </div>
                     <div className="flex items-center gap-3 flex-wrap justify-end">
@@ -118,6 +123,7 @@ export const DiscoverMovies: React.FC<{
                     onSelect={onSelect}
                     loading={loading}
                     skeletonCount={skeletonCount}
+                    emptyMessage={activeFilterCount > 0 ? 'No movies match your filters.' : 'No movies found.'}
                 />
 
                 <DiscoverInfiniteScrollFooter

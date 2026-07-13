@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UpgraderGridSize } from '../shared/portalLayout';
-import { initialDiscoverPagesForGrid } from './discoverPaginationUtils';
+import { initialDiscoverPagesForGrid, DISCOVER_API_PAGE_SIZE } from './discoverPaginationUtils';
 
 export type DiscoverPagePayload = {
     results: any[];
     totalPages: number;
+    lastFetchedPage?: number;
 };
 
 type Options = {
@@ -42,6 +43,7 @@ export function useDiscoverInfiniteScroll({
             const width = containerRef.current?.clientWidth
                 || (typeof window !== 'undefined' ? Math.max(window.innerWidth - 320, 640) : 1200);
             const initialPages = initialDiscoverPagesForGrid(gridSize, width);
+            const targetItemCount = initialPages * DISCOVER_API_PAGE_SIZE;
 
             fetchingRef.current = false;
             let merged: any[] = [];
@@ -49,14 +51,16 @@ export function useDiscoverInfiniteScroll({
             let maxTotalPages = 1;
 
             try {
-                for (let pageNumber = 1; pageNumber <= initialPages; pageNumber += 1) {
+                let pageNumber = 1;
+                while (merged.length < targetItemCount && pageNumber <= maxTotalPages) {
                     if (cancelled) return;
                     const payload = await fetchPage(pageNumber);
                     maxTotalPages = Math.max(1, Number(payload.totalPages) || 1);
                     const batch = Array.isArray(payload.results) ? payload.results : [];
-                    merged = pageNumber === 1 ? batch : [...merged, ...batch];
-                    lastPage = pageNumber;
-                    if (pageNumber >= maxTotalPages) break;
+                    merged = [...merged, ...batch];
+                    lastPage = payload.lastFetchedPage ?? pageNumber;
+                    if (lastPage >= maxTotalPages) break;
+                    pageNumber = lastPage + 1;
                 }
 
                 if (!cancelled) {
@@ -84,16 +88,17 @@ export function useDiscoverInfiniteScroll({
         if (nextPage > totalPages) return;
 
         setLoadingMore(true);
-        fetchingRef.current = false;
+        fetchingRef.current = true;
         try {
             const payload = await fetchPage(nextPage);
             const batch = Array.isArray(payload.results) ? payload.results : [];
             setResults((prev) => [...prev, ...batch]);
-            setLoadedPage(nextPage);
+            setLoadedPage(payload.lastFetchedPage ?? nextPage);
             setTotalPages(Math.max(1, Number(payload.totalPages) || totalPages));
         } catch (e) {
             console.error(e);
         } finally {
+            fetchingRef.current = false;
             setLoadingMore(false);
         }
     }, [fetchPage, hasMore, loadedPage, loading, loadingMore, totalPages]);

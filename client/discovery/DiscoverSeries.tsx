@@ -1,22 +1,21 @@
 import React, { useCallback, useMemo, useRef } from 'react';
 import { Filter, Tv } from 'lucide-react';
-import { apiFetch } from '../shared/api';
 import { FilterDrawer, FilterState } from './FilterDrawer';
 import { DiscoverGridSizeSelect } from './DiscoverGridSizeSelect';
 import { DiscoverPosterGrid } from './DiscoverPosterGrid';
 import { useDiscoverGridSize } from './useDiscoverGridSize';
 import {
-    appendDiscoverQuery,
     buildSeriesFilterPath,
     countActiveFilters,
     defaultSeriesFilters,
     parseFiltersFromSearch,
 } from './discoverUrlUtils';
-import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
-import { findNetwork } from './discoverConstants';
+import { useDiscoveryPreferences } from './useDiscoveryPreferences';
+import { findNetwork, TV_GENRES } from './discoverConstants';
 import { useDiscoverInfiniteScroll } from './useDiscoverInfiniteScroll';
 import { DiscoverInfiniteScrollFooter } from './DiscoverInfiniteScrollFooter';
 import { discoverSkeletonCountForGrid } from './discoverPaginationUtils';
+import { buildDiscoverSeriesApiUrl, fetchDiscoverPageWithBackfill } from './discoverFetchUtils';
 
 export const DiscoverSeries: React.FC<{
     onSelect: (item: any) => void;
@@ -39,7 +38,11 @@ export const DiscoverSeries: React.FC<{
     React.useEffect(() => {
         readFiltersFromUrl();
         window.addEventListener('popstate', readFiltersFromUrl);
-        return () => window.removeEventListener('popstate', readFiltersFromUrl);
+        window.addEventListener('portal-discovery-navigate', readFiltersFromUrl);
+        return () => {
+            window.removeEventListener('popstate', readFiltersFromUrl);
+            window.removeEventListener('portal-discovery-navigate', readFiltersFromUrl);
+        };
     }, [readFiltersFromUrl]);
 
     const resetKey = useMemo(
@@ -47,15 +50,11 @@ export const DiscoverSeries: React.FC<{
         [filters, preferences.hideAvailableMedia, gridSize],
     );
 
-    const fetchPage = useCallback(async (page: number) => {
-        let url = `/api/discovery/proxy/discover/tv?page=${page}&sortBy=${filters.sort}`;
-        url = appendDiscoverQuery(url, filters, 'tv');
-        const res = await apiFetch(url);
-        return {
-            results: filterHiddenAvailableItems(res?.results || [], preferences.hideAvailableMedia),
-            totalPages: Number(res?.totalPages) || 1,
-        };
-    }, [filters, preferences.hideAvailableMedia]);
+    const fetchPage = useCallback(async (page: number) => fetchDiscoverPageWithBackfill(
+        (nextPage) => buildDiscoverSeriesApiUrl(nextPage, filters),
+        page,
+        preferences.hideAvailableMedia,
+    ), [filters, preferences.hideAvailableMedia]);
 
     const {
         results,
@@ -76,6 +75,9 @@ export const DiscoverSeries: React.FC<{
     };
 
     const networkLabel = filters.network ? findNetwork(Number(filters.network))?.name : null;
+    const genreLabel = filters.genre
+        ? TV_GENRES.find((genre) => String(genre.id) === filters.genre)?.name
+        : null;
     const activeFilterCount = countActiveFilters(filters, 'tv');
     const skeletonCount = discoverSkeletonCountForGrid(
         gridSize,
@@ -92,6 +94,9 @@ export const DiscoverSeries: React.FC<{
                         </h2>
                         {networkLabel && (
                             <p className="text-sm text-muted mt-1">Network: {networkLabel}</p>
+                        )}
+                        {genreLabel && !networkLabel && (
+                            <p className="text-sm text-muted mt-1">Genre: {genreLabel}</p>
                         )}
                     </div>
                     <div className="flex items-center gap-3 flex-wrap justify-end">
@@ -118,6 +123,7 @@ export const DiscoverSeries: React.FC<{
                     onSelect={onSelect}
                     loading={loading}
                     skeletonCount={skeletonCount}
+                    emptyMessage={activeFilterCount > 0 ? 'No series match your filters.' : 'No series found.'}
                 />
 
                 <DiscoverInfiniteScrollFooter
