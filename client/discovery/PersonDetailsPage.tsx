@@ -3,6 +3,7 @@ import { ArrowLeft, Loader2, Star, Calendar, Film, ChevronDown } from 'lucide-re
 import { apiFetch } from '../shared/api';
 import { DiscoverPosterCard } from '../screens';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
+import { discoverPosterGridClass } from '../shared/portalLayout';
 
 const splitBiography = (bio: string) => {
     const trimmed = bio.trim();
@@ -153,16 +154,17 @@ export const PersonDetailsPage: React.FC<{
                     <h2 className="text-3xl font-black text-white flex items-center gap-3">
                         <Film className="w-8 h-8 text-plex" /> Known For
                     </h2>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    <div className={discoverPosterGridClass}>
                         {visibleCredits.map((rawItem, idx) => {
                             const formatted = formatItem(rawItem);
                             return (
                                 <DiscoverPosterCard
-                                    key={idx}
+                                    key={`${formatted.id}-${idx}`}
                                     item={formatted}
                                     overlay={formatted.overlay}
                                     showQualityBadges={false}
                                     onPosterClick={() => onSelect(formatted)}
+                                    posterWidth={185}
                                 />
                             );
                         })}

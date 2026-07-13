@@ -90,6 +90,19 @@ export const MediaDetailsPage: React.FC<{
         window.dispatchEvent(new Event('popstate'));
     };
 
+    const openGenre = (genreId: number) => {
+        const path = mediaType === 'movie'
+            ? `/discovery/movies?genre=${genreId}`
+            : `/discovery/series?genre=${genreId}`;
+        window.history.pushState({}, '', path);
+        window.dispatchEvent(new Event('popstate'));
+    };
+
+    const openNetwork = (networkId: number) => {
+        window.history.pushState({}, '', `/discovery/series/network/${networkId}`);
+        window.dispatchEvent(new Event('popstate'));
+    };
+
     if (loading || !details) {
         return (
             <div className="w-full h-[80vh] flex items-center justify-center">
@@ -273,9 +286,14 @@ export const MediaDetailsPage: React.FC<{
                         {details.genres?.length > 0 && (
                             <div className="flex flex-wrap gap-2">
                                 {details.genres.map((g: any) => (
-                                    <span key={g.id} className="px-2.5 py-1 bg-white/[0.06] border border-white/10 rounded-lg text-xs font-semibold text-white/75 backdrop-blur-sm">
+                                    <button
+                                        key={g.id}
+                                        type="button"
+                                        onClick={() => openGenre(g.id)}
+                                        className="px-2.5 py-1 bg-white/[0.06] border border-white/10 rounded-lg text-xs font-semibold text-white/75 backdrop-blur-sm transition-colors hover:bg-plex/15 hover:border-plex/40 hover:text-white cursor-pointer"
+                                    >
                                         {g.name}
-                                    </span>
+                                    </button>
                                 ))}
                             </div>
                         )}
@@ -303,17 +321,23 @@ export const MediaDetailsPage: React.FC<{
                             <SectionHeading>Networks</SectionHeading>
                             <div className="flex flex-wrap gap-5 items-center">
                                 {details.networks.map((n: any) => (
-                                    <div key={n.id} className="flex items-center">
+                                    <button
+                                        key={n.id}
+                                        type="button"
+                                        onClick={() => openNetwork(n.id)}
+                                        className="flex items-center rounded-lg border border-transparent px-2 py-1.5 transition-all hover:border-white/15 hover:bg-white/[0.04] cursor-pointer"
+                                        title={`Browse ${n.name}`}
+                                    >
                                         {n.logoPath ? (
                                             <img
                                                 src={`https://image.tmdb.org/t/p/w154${n.logoPath}`}
                                                 alt={n.name}
-                                                className="h-6 max-w-[120px] object-contain"
+                                                className="h-6 max-w-[120px] object-contain opacity-90 hover:opacity-100 transition-opacity"
                                             />
                                         ) : (
-                                            <span className="text-xs font-semibold text-white/70">{n.name}</span>
+                                            <span className="text-xs font-semibold text-white/70 hover:text-white transition-colors">{n.name}</span>
                                         )}
-                                    </div>
+                                    </button>
                                 ))}
                             </div>
                         </div>
