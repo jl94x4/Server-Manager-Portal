@@ -140,6 +140,8 @@ export const MediaDetailsPage: React.FC<{
     }
     if (productionCompanies) extraDetails.push({ label: 'Studio', value: productionCompanies });
 
+    const visibleRecommendations = filterHiddenAvailableItems(recommendations, preferences.hideAvailableMedia);
+
     return (
         <div className="w-full flex flex-col min-h-screen bg-card animate-fade-in pb-16 rounded-2xl md:rounded-3xl overflow-x-hidden border border-white/5 shadow-2xl">
             <div className="sticky top-0 z-50 w-full px-4 sm:px-8 py-4 flex items-center bg-gradient-to-b from-black/80 to-transparent">
@@ -354,8 +356,6 @@ export const MediaDetailsPage: React.FC<{
                         </div>
                     </section>
                 )}
-
-    const visibleRecommendations = filterHiddenAvailableItems(recommendations, preferences.hideAvailableMedia);
 
                 {visibleRecommendations.length > 0 && (
                     <section className="border-t border-white/5 pt-6 pb-4">
