@@ -5296,37 +5296,42 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                     </div>
                                 )}
                             </div>
-                            <div className="flex flex-col gap-3 items-stretch flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1">
+                            <div className="relative flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar pl-8 pr-2 pt-2 pb-2">
+                                {/* Vertical Line */}
+                                <div className="absolute left-[15px] top-6 bottom-6 w-[2px] bg-white/5 rounded-full" />
+                                
                                 {analytics.recentHistory.slice(recentHistoryPage * recentHistoryPageSize, (recentHistoryPage + 1) * recentHistoryPageSize).map((item: any, idx: number) => (
-                                    <div key={idx} className="flex items-center self-stretch gap-4 p-3 bg-gradient-to-r from-black/40 to-black/10 rounded-2xl border border-white/5 hover:border-plex/40 hover:bg-black/60 hover:shadow-[0_0_20px_rgba(229,160,13,0.15)] transition-all duration-300 group relative">
-                                        <a href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center flex-1 min-w-0 gap-4">
-                                            <div className={`w-14 sm:w-16 ${item.type === 'track' ? 'aspect-square' : 'aspect-[2/3]'} rounded-md overflow-hidden bg-black/50 flex-shrink-0 shadow-lg relative border border-white/5 group-hover:border-plex/30 transition-colors`}>
+                                    <div key={idx} className="relative flex items-center py-2.5 group">
+                                        {/* Timeline Node */}
+                                        <div className="absolute -left-[21px] w-[10px] h-[10px] rounded-full bg-white/20 group-hover:bg-plex group-hover:scale-[1.6] group-hover:shadow-[0_0_15px_rgba(229,160,13,0.8)] transition-all duration-300 z-10" />
+                                        
+                                        <a href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center flex-1 min-w-0 gap-4 p-2.5 -my-2.5 rounded-2xl hover:bg-white/5 transition-colors">
+                                            <div className="w-12 h-12 rounded-full overflow-hidden bg-black/50 flex-shrink-0 shadow-lg border border-white/5 group-hover:border-plex/40 transition-colors">
                                                 {item.thumbUrl ? (
-                                                    <img src={resolvePortalAssetUrl(item.thumbUrl)} alt={item.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                                                    <img src={resolvePortalAssetUrl(item.thumbUrl)} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center">
-                                                        <PlaySquare className="w-6 h-6 text-muted/50" />
+                                                        <PlaySquare className="w-5 h-5 text-muted/50" />
                                                     </div>
                                                 )}
-                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
-                                                    <Play className="w-6 h-6 text-white fill-white drop-shadow-lg" />
-                                                </div>
                                             </div>
                                             <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                                <h4 className="font-black text-text text-sm sm:text-base truncate group-hover:text-plex transition-colors drop-shadow-sm">{item.title}</h4>
-                                                {item.episodeTitle && <p className="text-xs sm:text-sm font-semibold text-text/70 truncate mt-0.5">{item.episodeTitle}</p>}
-                                                <div className="flex items-center gap-1.5 mt-2 bg-white/5 w-fit px-2.5 py-1 rounded-md border border-white/5">
-                                                    <Clock className="w-3.5 h-3.5 text-plex" />
-                                                    <p className="text-[10px] sm:text-xs font-mono font-bold text-muted uppercase tracking-wider">{new Date(item.viewedAt * 1000).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
+                                                <p className="text-sm text-muted truncate">
+                                                    Watched <span className="font-bold text-text group-hover:text-plex transition-colors">{item.title}</span>
+                                                </p>
+                                                {item.episodeTitle && <p className="text-[11px] font-semibold text-muted/70 truncate mt-0.5">{item.episodeTitle}</p>}
+                                                <div className="flex items-center gap-1.5 mt-1.5">
+                                                    <Clock className="w-3 h-3 text-plex/80" />
+                                                    <p className="text-[10px] font-mono font-bold text-muted/60 uppercase tracking-wider">{new Date(item.viewedAt * 1000).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
                                                 </div>
                                             </div>
                                         </a>
                                         <button
                                             onClick={(e) => { e.preventDefault(); setReportItem(item); }}
-                                            className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-2.5 text-muted hover:text-red-400 hover:bg-red-400/15 rounded-xl transition-all focus:outline-none flex-shrink-0 border border-transparent hover:border-red-500/30"
+                                            className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-2.5 ml-2 text-muted hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all focus:outline-none flex-shrink-0"
                                             title="Report a playback issue"
                                         >
-                                            <AlertTriangle className="w-5 h-5" />
+                                            <AlertTriangle className="w-[18px] h-[18px]" />
                                         </button>
                                     </div>
                                 ))}

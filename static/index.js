@@ -12,7 +12,7 @@ import {
   StatusDashboard,
   UserDashboard,
   updateFavicon
-} from "./chunk-N33LQTVO.js";
+} from "./chunk-NYDKWS73.js";
 import {
   bindAppConfirm
 } from "./chunk-JYPKUHRN.js";
@@ -20362,7 +20362,7 @@ var usePendingRequestCount = (enabled) => {
 var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
 var SettingsDashboard = (0, import_react2.lazy)(() => import("./SettingsDashboard-Q4IUYTSF.js").then((m) => ({ default: m.SettingsDashboard })));
 var RequestsAdminPanel = (0, import_react2.lazy)(() => import("./RequestsAdminPanel-6KBXBOYV.js").then((m) => ({ default: m.RequestsAdminPanel })));
-var UpgraderDashboard = (0, import_react2.lazy)(() => import("./UpgraderDashboard-V2EPHLS2.js").then((m) => ({ default: m.UpgraderDashboard })));
+var UpgraderDashboard = (0, import_react2.lazy)(() => import("./UpgraderDashboard-7QSSPH47.js").then((m) => ({ default: m.UpgraderDashboard })));
 var MainApp = () => {
   const [confirmState, setConfirmState] = (0, import_react2.useState)({ isOpen: false, message: "", onConfirm: () => {
   } });
