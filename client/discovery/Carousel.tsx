@@ -40,10 +40,10 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
             {showLeft && (
                 <button 
                     onClick={() => scroll('left')}
-                    className="absolute left-0 top-0 bottom-4 w-12 z-20 flex items-center justify-center bg-gradient-to-r from-card via-card/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-10 h-10 rounded-full bg-black/60 backdrop-blur-md border border-white/10 opacity-0 group-hover:opacity-100 transition-all hover:scale-110 hover:bg-black/80 shadow-xl"
                     aria-label="Scroll left"
                 >
-                    <ChevronLeft className="w-8 h-8 text-white drop-shadow-lg transform -translate-x-1" />
+                    <ChevronLeft className="w-6 h-6 text-white transform -translate-x-0.5" />
                 </button>
             )}
 
@@ -51,7 +51,7 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
             <div 
                 ref={scrollContainerRef}
                 onScroll={handleScroll}
-                className="flex gap-4 overflow-x-auto pb-4 px-2 custom-scrollbar no-scrollbar"
+                className="flex gap-4 overflow-x-auto pb-4 px-2 custom-scrollbar no-scrollbar scroll-smooth"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
                 {children}
@@ -61,10 +61,10 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
             {showRight && (
                 <button 
                     onClick={() => scroll('right')}
-                    className="absolute right-0 top-0 bottom-4 w-12 z-20 flex items-center justify-center bg-gradient-to-l from-card via-card/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-10 h-10 rounded-full bg-black/60 backdrop-blur-md border border-white/10 opacity-0 group-hover:opacity-100 transition-all hover:scale-110 hover:bg-black/80 shadow-xl"
                     aria-label="Scroll right"
                 >
-                    <ChevronRight className="w-8 h-8 text-white drop-shadow-lg transform translate-x-1" />
+                    <ChevronRight className="w-6 h-6 text-white transform translate-x-0.5" />
                 </button>
             )}
         </div>

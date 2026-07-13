@@ -40,10 +40,10 @@ export const DiscoverHome: React.FC<{
                     apiFetch('/api/discovery/proxy/media?filter=available&take=20&sort=mediaAdded').catch(() => null),
                     apiFetch('/api/discovery/proxy/request?filter=all&take=20').catch(() => null),
                     apiFetch('/api/discovery/trending').catch(() => null),
-                    apiFetch('/api/discovery/proxy/discover/movies?sortBy=popularity.desc').catch(() => null),
-                    apiFetch('/api/discovery/proxy/discover/movies/upcoming').catch(() => null),
-                    apiFetch('/api/discovery/proxy/discover/tv?sortBy=popularity.desc').catch(() => null),
-                    apiFetch('/api/discovery/proxy/discover/tv/upcoming').catch(() => null),
+                    apiFetch('/api/discovery/proxy/discover/movies?sortBy=popularity.desc&withOriginalLanguage=en').catch(() => null),
+                    apiFetch('/api/discovery/proxy/discover/movies/upcoming?withOriginalLanguage=en').catch(() => null),
+                    apiFetch('/api/discovery/proxy/discover/tv?sortBy=popularity.desc&withOriginalLanguage=en').catch(() => null),
+                    apiFetch('/api/discovery/proxy/discover/tv/upcoming?withOriginalLanguage=en').catch(() => null),
                 ]);
 
                 setRows({
@@ -136,15 +136,16 @@ export const DiscoverHome: React.FC<{
                         <h2 className="text-xl font-bold text-white px-2">Studios</h2>
                         <Carousel>
                             {[
-                                { id: 2, name: 'Walt Disney', logo: 'https://image.tmdb.org/t/p/w300/wdrCwmRnLFJhEoG8GSfymY85KHT.png' },
-                                { id: 25, name: '20th Century', logo: 'https://image.tmdb.org/t/p/w300/qZCc1lty5FzX30aOCVRXrxSRYcF.png' },
-                                { id: 5, name: 'Sony Pictures', logo: 'https://image.tmdb.org/t/p/w300/71BqEFAF4V3qjjZAJ6NKeDOP2g4.png' },
-                                { id: 174, name: 'Warner Bros', logo: 'https://image.tmdb.org/t/p/w300/ky0xOc5OrhvnX4ElzwaKzG2wz8t.png' },
-                                { id: 33, name: 'Universal', logo: 'https://image.tmdb.org/t/p/w300/8lvHyhjvG0bIVMtd1S1sLcwk801.png' },
-                                { id: 4, name: 'Paramount', logo: 'https://image.tmdb.org/t/p/w300/fycMZtIsqQ8Qv6iYh8sH0Wp21vV.png' }
+                                { id: 2, name: 'Walt Disney', logo: 'https://upload.wikimedia.org/wikipedia/commons/3/3e/Disney%2B_logo.svg' },
+                                { id: 25, name: '20th Century', logo: 'https://upload.wikimedia.org/wikipedia/commons/c/cc/20th_Century_Studios_logo.svg' },
+                                { id: 5, name: 'Sony Pictures', logo: 'https://upload.wikimedia.org/wikipedia/commons/8/87/Sony_Pictures_Television_logo.svg' },
+                                { id: 174, name: 'Warner Bros', logo: 'https://upload.wikimedia.org/wikipedia/commons/d/d2/Warner_Bros._%282019%29_logo.svg' },
+                                { id: 33, name: 'Universal', logo: 'https://upload.wikimedia.org/wikipedia/commons/7/7b/Universal_Pictures_logo.svg' },
+                                { id: 4, name: 'Paramount', logo: 'https://upload.wikimedia.org/wikipedia/commons/8/8b/Paramount_Pictures_2022.svg' },
+                                { id: 41077, name: 'A24', logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b5/A24_logo.svg' }
                             ].map((c, i) => (
                                 <div key={i} onClick={() => { window.history.pushState({}, '', `/discovery/movies?studio=${c.id}`); window.dispatchEvent(new Event('popstate')); }} className="w-[140px] h-[80px] sm:w-[180px] sm:h-[100px] flex-shrink-0 rounded-xl bg-white/5 border border-white/10 p-4 flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors shadow-lg">
-                                    <img src={c.logo} alt={c.name} className="max-w-full max-h-full object-contain filter invert opacity-80" />
+                                    <img src={c.logo} alt={c.name} className="max-w-[80%] max-h-[80%] object-contain drop-shadow-md" />
                                 </div>
                             ))}
                         </Carousel>
@@ -176,15 +177,18 @@ export const DiscoverHome: React.FC<{
                         <h2 className="text-xl font-bold text-white px-2">Networks</h2>
                         <Carousel>
                             {[
-                                { id: 213, name: 'Netflix', logo: 'https://image.tmdb.org/t/p/w300/wwemzKWzjKYJFfCeiB57q3r4Bcm.png' },
-                                { id: 2739, name: 'Disney+', logo: 'https://image.tmdb.org/t/p/w300/7rwgEs15tFwyR9NPQ5vpzxTj19Q.png' },
-                                { id: 1024, name: 'Prime Video', logo: 'https://image.tmdb.org/t/p/w300/11A1K11yO4t0vJv7s43r0sWw9Hh.png' },
-                                { id: 2552, name: 'Apple TV+', logo: 'https://image.tmdb.org/t/p/w300/6vA9x4kQk24jU3T9aH2wY4nN6H5.png' },
-                                { id: 453, name: 'Hulu', logo: 'https://image.tmdb.org/t/p/w300/gJ8VX6JSu3cgXID5Lw2vG20N7S8.png' },
-                                { id: 49, name: 'HBO', logo: 'https://image.tmdb.org/t/p/w300/tuomPhY2UtuPTqqFnKMVHvZwH0C.png' }
+                                { id: 213, name: 'Netflix', logo: 'https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg' },
+                                { id: 2739, name: 'Disney+', logo: 'https://upload.wikimedia.org/wikipedia/commons/3/3e/Disney%2B_logo.svg' },
+                                { id: 1024, name: 'Prime Video', logo: 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Prime_Video.svg' },
+                                { id: 2552, name: 'Apple TV+', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/28/Apple_TV_Plus_Logo.svg' },
+                                { id: 453, name: 'Hulu', logo: 'https://upload.wikimedia.org/wikipedia/commons/e/e4/Hulu_Logo.svg' },
+                                { id: 49, name: 'HBO', logo: 'https://upload.wikimedia.org/wikipedia/commons/d/de/HBO_logo.svg' },
+                                { id: 4, name: 'BBC', logo: 'https://upload.wikimedia.org/wikipedia/commons/5/5f/BBC_blocks_dark_mode.svg' },
+                                { id: 9, name: 'ITV', logo: 'https://upload.wikimedia.org/wikipedia/commons/4/4b/ITVX_logo.svg' },
+                                { id: 214, name: 'Sky', logo: 'https://upload.wikimedia.org/wikipedia/commons/8/8b/Sky_logo_2020.svg' }
                             ].map((c, i) => (
-                                <div key={i} onClick={() => { window.history.pushState({}, '', `/discovery/series?network=${c.id}`); window.dispatchEvent(new Event('popstate')); }} className="w-[140px] h-[80px] sm:w-[180px] sm:h-[100px] flex-shrink-0 rounded-xl bg-white/5 border border-white/10 p-4 flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors shadow-lg">
-                                    <img src={c.logo} alt={c.name} className="max-w-full max-h-full object-contain filter invert opacity-80" />
+                                <div key={i} onClick={() => { window.history.pushState({}, '', `/discovery/series?network=${c.id}`); window.dispatchEvent(new Event('popstate')); }} className="w-[140px] h-[80px] sm:w-[180px] sm:h-[100px] flex-shrink-0 rounded-xl bg-zinc-100 p-4 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform shadow-lg">
+                                    <img src={c.logo} alt={c.name} className="max-w-[80%] max-h-[80%] object-contain" />
                                 </div>
                             ))}
                         </Carousel>
