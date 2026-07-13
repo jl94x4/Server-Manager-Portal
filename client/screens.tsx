@@ -5300,7 +5300,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                 {analytics.recentHistory.slice(recentHistoryPage * recentHistoryPageSize, (recentHistoryPage + 1) * recentHistoryPageSize).map((item: any, idx: number) => (
                                     <div key={idx} className="flex items-center self-stretch gap-4 p-3 bg-gradient-to-r from-black/40 to-black/10 rounded-2xl border border-white/5 hover:border-plex/40 hover:bg-black/60 hover:shadow-[0_0_20px_rgba(229,160,13,0.15)] transition-all duration-300 group relative">
                                         <a href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center flex-1 min-w-0 gap-4">
-                                            <div className="w-14 sm:w-16 aspect-[2/3] rounded-md overflow-hidden bg-black/50 flex-shrink-0 shadow-lg relative border border-white/5 group-hover:border-plex/30 transition-colors">
+                                            <div className={`w-14 sm:w-16 ${item.type === 'track' ? 'aspect-square' : 'aspect-[2/3]'} rounded-md overflow-hidden bg-black/50 flex-shrink-0 shadow-lg relative border border-white/5 group-hover:border-plex/30 transition-colors`}>
                                                 {item.thumbUrl ? (
                                                     <img src={resolvePortalAssetUrl(item.thumbUrl)} alt={item.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                                                 ) : (
