@@ -2157,6 +2157,129 @@ const AnimatedLeaderboard: React.FC<{ users: any[], resolveAvatar: (thumb: strin
         </div>
     );
 };
+const RecentlyWatchedDetailsModal: React.FC<{ item: any, onClose: () => void }> = ({ item, onClose }) => {
+    const [details, setDetails] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    
+    useEffect(() => {
+        if (!item) return;
+        const fetchDetails = async () => {
+            try {
+                // Extract rating key from plexUrl (e.g. ...key=%2Flibrary%2Fmetadata%2F1234)
+                let ratingKey = '';
+                if (item.plexUrl) {
+                    const match = item.plexUrl.match(/key=.*?%2F(\d+)$/);
+                    if (match) ratingKey = match[1];
+                }
+                if (!ratingKey) {
+                    setLoading(false);
+                    return;
+                }
+                const res = await apiFetch('/api/plex/item/' + encodeURIComponent(ratingKey));
+                if (res.ok) setDetails(await res.json());
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchDetails();
+    }, [item]);
+
+    if (!item) return null;
+
+    const formatDuration = (ms: number) => {
+        if (!ms) return '0m';
+        const mins = Math.floor(ms / 60000);
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        return h > 0 ? `${h}h ${m}m` : `${m}m`;
+    };
+
+    const hasProgress = details?.viewOffset > 0 && details?.duration > 0;
+    const progressPct = hasProgress ? Math.min(100, Math.max(0, (details.viewOffset / details.duration) * 100)) : 0;
+    const isCompleted = details?.viewCount > 0;
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 animate-fade-in backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-card border border-border w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-slide-up overflow-hidden relative" onClick={e => e.stopPropagation()}>
+                {/* Header with Background */}
+                <div className="relative h-48 sm:h-56 flex-shrink-0 bg-black/50 border-b border-white/5">
+                    {details?.art ? (
+                        <img src={resolvePortalAssetUrl(details.art)} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+                    ) : null}
+                    <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" />
+                    
+                    <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-black/40 hover:bg-black/60 rounded-full transition-colors text-white/70 hover:text-white z-10 border border-white/10">
+                        <X className="w-5 h-5" />
+                    </button>
+
+                    <div className="absolute bottom-0 left-0 right-0 p-5 flex gap-4">
+                        <div className={`w-16 sm:w-20 ${item.type === 'track' ? 'aspect-square' : 'aspect-[2/3]'} rounded-md overflow-hidden flex-shrink-0 shadow-lg border border-white/10 bg-black/50 z-10`}>
+                            {details?.thumb || item.thumbUrl ? (
+                                <img src={resolvePortalAssetUrl(details?.thumb || item.thumbUrl)} alt="" className="w-full h-full object-cover" />
+                            ) : null}
+                        </div>
+                        <div className="flex-1 min-w-0 flex flex-col justify-end pb-1 z-10">
+                            <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight drop-shadow-md">
+                                {details?.title || item.title}
+                            </h2>
+                            {(details?.year || details?.grandparentTitle) && (
+                                <span className="text-sm text-white/70 font-semibold drop-shadow-sm mt-1">
+                                    {details?.grandparentTitle ? `${details.grandparentTitle} • ` : ''}{details?.year || ''}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Content */}
+                <div className="p-5 flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+                    {loading ? (
+                        <div className="flex justify-center items-center py-12"><span className="animate-pulse text-muted font-medium">Loading details...</span></div>
+                    ) : details ? (
+                        <div className="space-y-6">
+                            {/* Watch Progress */}
+                            <div className="bg-white/5 rounded-xl p-4 border border-white/5 shadow-inner">
+                                <div className="flex justify-between items-end mb-2.5">
+                                    <div>
+                                        <h4 className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Watch Status</h4>
+                                        <p className="text-sm font-semibold text-text">
+                                            {isCompleted ? 'Completed' : hasProgress ? `Watched ${formatDuration(details.viewOffset)} of ${formatDuration(details.duration)}` : `Duration: ${formatDuration(details.duration)}`}
+                                        </p>
+                                    </div>
+                                    {isCompleted && <div className="text-plex drop-shadow-[0_0_8px_rgba(229,160,13,0.5)]"><CheckCircle className="w-5 h-5" /></div>}
+                                </div>
+                                {(hasProgress || isCompleted) && (
+                                    <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
+                                        <div className="h-full bg-plex rounded-full transition-all duration-1000" style={{ width: isCompleted ? '100%' : `${progressPct}%` }} />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Summary */}
+                            {details.summary && (
+                                <div>
+                                    <h4 className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">Overview</h4>
+                                    <p className="text-sm text-text/80 leading-relaxed font-medium">{details.summary}</p>
+                                </div>
+                            )}
+                            
+                            <div className="pt-2">
+                                <a href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm font-bold text-text transition-colors border border-white/5 hover:border-white/10">
+                                    <PlaySquare className="w-4 h-4 text-plex" /> View on Plex
+                                </a>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-center py-12 text-muted font-medium">Details not available.</div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const ItemViewersModal: React.FC<{ item: { title: string, viewers: Record<string, any> } | null, onClose: () => void, resolveAvatar: (t: string|null|undefined) => string }> = ({ item, onClose, resolveAvatar }) => {
     if (!item) return null;
     const viewersArray = item.viewers ? Object.values(item.viewers).sort((a: any, b: any) => b.plays - a.plays) : [];
@@ -4873,6 +4996,8 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
         };
     };
 
+    const [detailsItem, setDetailsItem] = useState<any>(null);
+
     const handleToggleNewsletter = async () => {
         setIsLoading(true);
         try {
@@ -5272,6 +5397,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                     if (analyticsLoading || !analytics?.recentHistory?.length) return null;
                     return (
                         <div className="glass-card p-4 md:p-5 shadow-xl flex flex-col h-full w-full min-h-0">
+                            <RecentlyWatchedDetailsModal item={detailsItem} onClose={() => setDetailsItem(null)} />
                             <div className="flex items-center justify-between mb-3 md:mb-4 flex-shrink-0">
                                 <h3 className="text-lg md:text-xl font-bold text-text">Recently Watched</h3>
                                 {analytics.recentHistory.length > recentHistoryPageSize && (
@@ -5305,8 +5431,8 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                         {/* Timeline Node */}
                                         <div className="absolute -left-[21px] w-[10px] h-[10px] rounded-full bg-white/20 group-hover:bg-plex group-hover:scale-[1.6] group-hover:shadow-[0_0_15px_rgba(229,160,13,0.8)] transition-all duration-300 z-10" />
                                         
-                                        <a href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center flex-1 min-w-0 gap-4 p-2.5 -my-2.5 rounded-2xl hover:bg-white/5 transition-colors">
-                                            <div className="w-12 h-12 rounded-full overflow-hidden bg-black/50 flex-shrink-0 shadow-lg border border-white/5 group-hover:border-plex/40 transition-colors">
+                                        <button onClick={() => setDetailsItem(item)} className="flex items-center flex-1 min-w-0 gap-4 p-2.5 -my-2.5 rounded-2xl hover:bg-white/5 transition-colors border-0 bg-transparent text-left cursor-pointer outline-none w-full relative group">
+                                            <div className={`w-10 sm:w-12 ${item.type === 'track' ? 'aspect-square' : 'aspect-[2/3]'} rounded-md overflow-hidden bg-black/50 flex-shrink-0 shadow-lg border border-white/5 group-hover:border-plex/40 transition-colors`}>
                                                 {item.thumbUrl ? (
                                                     <img src={resolvePortalAssetUrl(item.thumbUrl)} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                                 ) : (
@@ -5325,7 +5451,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                                     <p className="text-[10px] font-mono font-bold text-muted/60 uppercase tracking-wider">{new Date(item.viewedAt * 1000).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
                                                 </div>
                                             </div>
-                                        </a>
+                                        </button>
                                         <button
                                             onClick={(e) => { e.preventDefault(); setReportItem(item); }}
                                             className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-2.5 ml-2 text-muted hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all focus:outline-none flex-shrink-0"

@@ -5516,6 +5516,43 @@ app.post('/api/status/reset', requireAuth, requireAdmin, async (req, res) => {
 
 // --- Plex Dashboard & Image Proxy ---
 
+app.get('/api/plex/item/:ratingKey', requireAuth, requireMember, async (req, res) => {
+    try {
+        const ratingKey = String(req.params.ratingKey || '').trim();
+        if (!ratingKey) return res.status(400).json({ error: 'ratingKey required' });
+        const config = await loadFile(CONFIG_PATH, null);
+        if (!config || !config.plexToken || !config.serverIdentifier) return res.status(503).json({ error: 'Plex not configured' });
+        const uri = await getPlexConnectionUri(config);
+        if (!uri) return res.status(503).json({ error: 'Cannot connect to Plex' });
+
+        const metaRes = await fetch(`${uri}/library/metadata/${encodeURIComponent(ratingKey)}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+        
+        if (!metaRes || !metaRes.MediaContainer || !metaRes.MediaContainer.Metadata || !metaRes.MediaContainer.Metadata[0]) {
+            return res.status(404).json({ error: 'Item not found' });
+        }
+        
+        const item = metaRes.MediaContainer.Metadata[0];
+        res.json({
+            title: item.title,
+            originalTitle: item.originalTitle,
+            summary: item.summary,
+            duration: item.duration,
+            viewOffset: item.viewOffset,
+            viewCount: item.viewCount,
+            year: item.year,
+            type: item.type,
+            art: item.art,
+            thumb: item.thumb,
+            grandparentTitle: item.grandparentTitle,
+            parentTitle: item.parentTitle
+        });
+    } catch (e) {
+        log(`Error fetching Plex item: ${e.message}`);
+        res.status(500).json({ error: 'Failed to fetch item' });
+    }
+});
+
+
 app.get('/api/plex/libraries', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, null);
