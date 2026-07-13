@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { DiscoverHeroHeader } from './DiscoverHeroHeader';
 import { DiscoverHome } from './DiscoverHome';
 import { DiscoverMovies } from './DiscoverMovies';
 import { DiscoverSeries } from './DiscoverSeries';
 import { DiscoverCategoryPage } from './DiscoverCategoryPage';
 import { MediaDetailsPage } from './MediaDetailsPage';
 import { PersonDetailsPage } from './PersonDetailsPage';
-import { Search, Loader2, Sparkles, Film, Tv, Compass, X } from 'lucide-react';
+import { Film, Tv, Compass } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { portalUrl, stripBasePath } from '../shared/basePath';
 import { normalizeRawDiscoveryItem } from './discoverItemUtils';
@@ -178,77 +179,24 @@ export const DiscoveryDashboard: React.FC<{
 
     return (
         <div className="w-full flex flex-col gap-8 pb-12">
-            <div className="relative w-full rounded-2xl overflow-hidden bg-gradient-to-br from-plex/20 to-black/40 border border-white/10 p-8 sm:p-12 flex flex-col items-center justify-center text-center shadow-2xl">
-                <div className="absolute inset-0 bg-black/40 pointer-events-none" />
-                <div className="relative z-10 max-w-2xl w-full flex flex-col gap-6 items-center">
-                    <Sparkles className="w-12 h-12 text-plex opacity-80" />
-                    <h1 className="text-3xl sm:text-5xl font-bold text-white tracking-tight drop-shadow-md">
-                        Discover & Request
-                    </h1>
-
-                    <div className="w-full relative mt-4">
-                        <Search className="w-6 h-6 text-muted absolute left-4 top-1/2 -translate-y-1/2" />
-                        <input
-                            type="text"
-                            placeholder="Search for a movie, TV show, or person..."
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            onFocus={() => query.trim().length >= 2 && setSearchOpen(true)}
-                            className="w-full bg-black/50 border-2 border-white/10 focus:border-plex rounded-xl py-4 pl-14 pr-12 text-lg text-white font-medium outline-none transition-all placeholder:text-muted/50 shadow-inner"
-                        />
-                        {query && (
-                            <button
-                                type="button"
-                                onClick={() => { setQuery(''); setSearchOpen(false); setSearchResults([]); }}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-white"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        )}
-                        {searchOpen && query.trim().length >= 2 && (
-                            <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 max-h-[420px] overflow-y-auto custom-scrollbar rounded-xl border border-white/10 bg-zinc-950/95 backdrop-blur-xl shadow-2xl">
-                                {searchLoading ? (
-                                    <div className="flex items-center justify-center gap-2 p-6 text-muted">
-                                        <Loader2 className="w-5 h-5 animate-spin" />
-                                        Searching…
-                                    </div>
-                                ) : searchResults.length === 0 ? (
-                                    <div className="p-6 text-center text-muted text-sm">No results found.</div>
-                                ) : (
-                                    searchResults.slice(0, 20).map((rawItem, idx) => {
-                                        const formatted = formatItem(rawItem);
-                                        const isPerson = formatted.type === 'person';
-                                        return (
-                                            <button
-                                                key={`${formatted.id}-${idx}`}
-                                                type="button"
-                                                onClick={() => navigate(
-                                                    isPerson
-                                                        ? `/discovery/person/${formatted.id}`
-                                                        : `/discovery/${formatted.type}/${formatted.id}`,
-                                                )}
-                                                className="w-full flex items-center gap-4 p-3 hover:bg-white/5 border-b border-white/5 last:border-0 text-left transition-colors"
-                                            >
-                                                <div className={`${isPerson ? 'w-12 h-12 rounded-full' : 'w-12 h-[72px] rounded-md'} overflow-hidden bg-white/5 flex-shrink-0`}>
-                                                    {formatted.thumbUrl ? (
-                                                        <img src={formatted.thumbUrl} alt="" className="w-full h-full object-cover" />
-                                                    ) : null}
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <div className="font-bold text-white truncate">{formatted.title}</div>
-                                                    <div className="text-xs text-muted">
-                                                        {isPerson ? formatted.tags?.[0] : `${formatted.year}${formatted.year ? ' · ' : ''}${formatted.tags?.[0]}`}
-                                                    </div>
-                                                </div>
-                                            </button>
-                                        );
-                                    })
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
+            <DiscoverHeroHeader
+                query={query}
+                searchOpen={searchOpen}
+                searchLoading={searchLoading}
+                searchResults={searchResults}
+                onClose={() => setSearchOpen(false)}
+                onClear={() => { setQuery(''); setSearchOpen(false); setSearchResults([]); }}
+                onQueryChange={setQuery}
+                onFocus={() => query.trim().length >= 2 && setSearchOpen(true)}
+                formatItem={formatItem}
+                onSelect={(formatted) => {
+                    if (formatted.type === 'person') {
+                        navigate(`/discovery/person/${formatted.id}`);
+                    } else {
+                        navigate(`/discovery/${formatted.type}/${formatted.id}`);
+                    }
+                }}
+            />
 
             {showTabs && (
                 <>

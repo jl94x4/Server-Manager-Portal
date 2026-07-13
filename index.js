@@ -340,6 +340,7 @@ import {
 import { getSonarrTrashCatalog, getSonarrTrashCustomFormat } from './lib/trash-guides-catalog.js';
 import { createRequestAppService, getRequestAppGate } from './lib/request-app-service.js';
 import { buildDiscoveryFacts } from './lib/discovery-facts.js';
+import { fetchDiscoveryHeroBackdrops } from './lib/discovery-hero.js';
 const PLEX_API = 'https://plex.tv/api';
 
 // --- Status App Global State ---
@@ -4340,6 +4341,30 @@ app.get('/api/discovery/trending', requireAuth, requireMember, async (req, res) 
         const data = await requestAppService.rawFetch(config, '/api/v1/discover/trending');
         res.json(data);
     } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+let discoveryHeroCache = { data: null, lastFetch: 0 };
+
+app.get('/api/discovery/hero-backdrops', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        if (discoveryHeroCache.data && Date.now() - discoveryHeroCache.lastFetch < 6 * 60 * 60 * 1000) {
+            return res.json(discoveryHeroCache.data);
+        }
+
+        const payload = await fetchDiscoveryHeroBackdrops({
+            config,
+            rawFetch: (path) => requestAppService.rawFetch(config, path),
+        });
+        discoveryHeroCache = { data: payload, lastFetch: Date.now() };
+        res.json(payload);
+    } catch (e) {
+        log(`Discovery hero backdrops error: ${e.message}`);
         res.status(500).json({ error: e.message });
     }
 });
