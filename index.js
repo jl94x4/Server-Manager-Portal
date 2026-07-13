@@ -6682,10 +6682,23 @@ const aggregateAnalyticsWindow = (historyItems, { afterTs = 0, beforeTs = null }
                     type: item.type === 'episode' ? 'show' : item.type === 'track' ? 'track' : item.type,
                     thumb: contentThumb,
                     plays: 0,
+                    viewers: {},
                     plexUrl: `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent('/library/metadata/' + contentKey.split('/').pop())}`
                 };
             }
             targetDict[contentKey].plays++;
+            
+            if (item.accountID && userCounts[item.accountID]) {
+                const u = userCounts[item.accountID];
+                if (!targetDict[contentKey].viewers[item.accountID]) {
+                    targetDict[contentKey].viewers[item.accountID] = {
+                        username: u.username,
+                        thumb: u.thumb,
+                        plays: 0
+                    };
+                }
+                targetDict[contentKey].viewers[item.accountID].plays++;
+            }
         }
     });
 

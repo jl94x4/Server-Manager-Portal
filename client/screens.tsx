@@ -2157,6 +2157,44 @@ const AnimatedLeaderboard: React.FC<{ users: any[], resolveAvatar: (thumb: strin
         </div>
     );
 };
+const ItemViewersModal: React.FC<{ item: { title: string, viewers: Record<string, any> } | null, onClose: () => void, resolveAvatar: (t: string|null|undefined) => string }> = ({ item, onClose, resolveAvatar }) => {
+    if (!item) return null;
+    const viewersArray = item.viewers ? Object.values(item.viewers).sort((a: any, b: any) => b.plays - a.plays) : [];
+    
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 animate-fade-in backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-card border border-border w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[80vh] animate-slide-up overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between p-5 border-b border-white/5 bg-black/20">
+                    <h2 className="text-lg font-bold text-white pr-4 line-clamp-1 flex items-center gap-2"><PlaySquare className="w-5 h-5 text-plex" /> {item.title}</h2>
+                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors text-muted hover:text-white flex-shrink-0">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
+                    {viewersArray.length === 0 ? (
+                        <p className="p-4 text-center text-muted text-sm leading-relaxed">No specific viewer data available for this item yet. Viewer data will populate automatically as new views occur.</p>
+                    ) : (
+                        <div className="flex flex-col gap-1 p-2">
+                            {viewersArray.map((v: any, i: number) => (
+                                <div key={i} className="flex items-center justify-between p-3 bg-background/50 hover:bg-white/5 rounded-xl transition-colors border border-transparent hover:border-white/5">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full overflow-hidden bg-white/10 shadow-inner flex-shrink-0">
+                                            <img src={resolveAvatar(v.thumb)} alt={v.username} className="w-full h-full object-cover" />
+                                        </div>
+                                        <span className="font-bold text-text truncate max-w-[150px] sm:max-w-[200px]">{v.username}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 bg-plex/10 text-plex px-3 py-1.5 rounded-lg text-sm font-mono font-bold shadow-sm">
+                                        {v.plays} {v.plays === 1 ? 'play' : 'plays'}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
 
 export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ isAdmin, sessionInfo }) => {
     const [analyticsData, setAnalyticsData] = useState<{
@@ -2209,6 +2247,7 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
     const [peakDateData, setPeakDateData] = useState<number[] | null>(null);
     const [peakDateLoading, setPeakDateLoading] = useState(false);
     const [selectedUser, setSelectedUser] = useState<{ id: string, username: string, thumb: string | null } | null>(null);
+    const [selectedItemViewers, setSelectedItemViewers] = useState<{ title: string, viewers: Record<string, any> } | null>(null);
     const [allUsers, setAllUsers] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
@@ -2756,9 +2795,12 @@ return (
                                             <div>
                                                 <div className="flex items-start justify-between gap-2 mb-2">
                                                     <h3 className="text-lg sm:text-xl font-bold text-text group-hover:text-plex transition-colors line-clamp-1">{item.title}</h3>
-                                                    <div className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded-md text-xs font-mono text-plex flex-shrink-0 whitespace-nowrap shadow-sm">
+                                                    <button 
+                                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedItemViewers({ title: item.title, viewers: item.viewers || {} }); }}
+                                                        className="flex items-center gap-1 bg-white/10 hover:bg-plex/20 hover:text-plex px-2 py-1 rounded-md text-xs font-mono text-plex flex-shrink-0 whitespace-nowrap shadow-sm transition-colors"
+                                                    >
                                                         <PlaySquare className="w-3 h-3" /> {item.plays} plays
-                                                    </div>
+                                                    </button>
                                                 </div>
                                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted mb-3 font-medium">
                                                     {item.year && <span>{item.year}</span>}
@@ -2801,12 +2843,14 @@ return (
                     username={selectedUser.username}
                     thumb={selectedUser.thumb}
                     days={days}
-                    onClose={() => {
-                        setSelectedUser(null);
-                        if (window.location.hash.startsWith('#user=')) {
-                            window.history.pushState('', document.title, window.location.pathname + window.location.search);
-                        }
-                    }}
+                    onClose={() => setSelectedUser(null)}
+                />
+            )}
+            {isAdmin && selectedItemViewers && (
+                <ItemViewersModal 
+                    item={selectedItemViewers}
+                    onClose={() => setSelectedItemViewers(null)}
+                    resolveAvatar={resolveUserAvatar}
                 />
             )}
         </div>
