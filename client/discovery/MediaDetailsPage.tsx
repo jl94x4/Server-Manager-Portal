@@ -104,10 +104,10 @@ export const MediaDetailsPage: React.FC<{
             </div>
 
             {/* Main Content Area */}
-            <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-8 -mt-32 sm:-mt-48 flex flex-col md:flex-row gap-8 lg:gap-12">
+            <div className="relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 -mt-32 sm:-mt-48 flex flex-col md:flex-row gap-8 lg:gap-16">
                 
                 {/* Left Column (Poster & Actions) */}
-                <div className="flex flex-col gap-6 w-48 sm:w-64 flex-shrink-0 mx-auto md:mx-0">
+                <div className="flex flex-col gap-6 w-48 sm:w-[280px] flex-shrink-0 mx-auto md:mx-0">
                     <div className="w-full aspect-[2/3] rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-black/50">
                         {posterUrl ? (
                             <img src={posterUrl} alt="" className="w-full h-full object-cover" />
@@ -234,7 +234,7 @@ export const MediaDetailsPage: React.FC<{
                             <h3 className="text-sm font-bold text-white/40 uppercase tracking-widest">Top Cast</h3>
                             <div className="flex gap-6 overflow-x-auto pb-4 custom-scrollbar">
                                 {details.credits.cast.slice(0, 15).map((actor: any) => (
-                                    <div key={actor.id} className="flex flex-col items-center gap-3 w-28 flex-shrink-0">
+                                    <div key={actor.id} className="flex flex-col items-center gap-3 w-32 flex-shrink-0">
                                         <div className="w-24 h-24 rounded-full bg-black/40 border border-white/10 overflow-hidden shadow-lg">
                                             {actor.profilePath ? (
                                                 <img src={`https://image.tmdb.org/t/p/w185${actor.profilePath}`} alt={actor.name} className="w-full h-full object-cover" />
@@ -245,8 +245,8 @@ export const MediaDetailsPage: React.FC<{
                                             )}
                                         </div>
                                         <div className="text-center">
-                                            <div className="text-sm font-bold text-white/90 leading-tight truncate w-full">{actor.name}</div>
-                                            <div className="text-xs text-white/50 truncate w-full mt-1">{actor.character}</div>
+                                            <div className="text-sm font-bold text-white/90 leading-tight text-center">{actor.name}</div>
+                                            <div className="text-xs text-white/50 text-center mt-1 leading-snug line-clamp-2">{actor.character}</div>
                                         </div>
                                     </div>
                                 ))}
