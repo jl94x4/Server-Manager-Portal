@@ -4379,6 +4379,25 @@ app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) 
     }
 });
 
+app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+        
+        const path = '/' + req.params[0];
+        
+        // Build query string
+        const qs = new URLSearchParams(req.query).toString();
+        const fullPath = qs ? `${path}?${qs}` : path;
+        
+        const data = await requestAppService.rawFetch(config, '/api/v1' + fullPath);
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.get('/api/requests/pending', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
