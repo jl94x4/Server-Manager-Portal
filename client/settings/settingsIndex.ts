@@ -1,5 +1,5 @@
 export const SETTINGS_TABS = [
-    'plex', 'smtp', 'newsletter', 'cleanup', 'mediastack', 'branding', 'navigation', 'home-layout',
+    'plex', 'smtp', 'newsletter', 'cleanup', 'mediastack', 'request', 'branding', 'navigation', 'home-layout',
     'status', 'invites', 'tasks', 'upgrader', 'system', 'contact', 'broadcast', 'stream-rules', 'logs',
 ] as const;
 
@@ -41,6 +41,11 @@ export const SETTINGS_INDEX: SettingsIndexEntry[] = [
     { id: 'mediastack/jellystat', tabId: 'mediastack', sectionId: 'jellystat', label: 'Jellystat Integration', group: 'Media Stack', keywords: ['jellystat', 'jellyfin', 'analytics'] },
     { id: 'mediastack/seerr', tabId: 'mediastack', sectionId: 'seerr', label: 'Request App (Seerr/Ombi)', group: 'Media Stack', keywords: ['seerr', 'overseerr', 'jellyseerr', 'ombi', 'request'] },
     { id: 'mediastack/tmdb', tabId: 'mediastack', sectionId: 'tmdb', label: 'TMDB API Key', group: 'Media Stack', keywords: ['tmdb', 'api', 'trending', 'metadata'] },
+
+    { id: 'request', tabId: 'request', label: 'Request Discovery', group: 'Media Stack', keywords: ['request', 'discover', 'discovery', 'region', 'language', 'hide available'] },
+    { id: 'request/region', tabId: 'request', sectionId: 'region', label: 'Discover Region', group: 'Media Stack', keywords: ['discover region', 'country', 'region', 'availability'] },
+    { id: 'request/language', tabId: 'request', sectionId: 'language', label: 'Discover Language', group: 'Media Stack', keywords: ['discover language', 'original language', 'filter language'] },
+    { id: 'request/hide-available', tabId: 'request', sectionId: 'hide-available', label: 'Hide Available Media', group: 'Media Stack', keywords: ['hide available', 'library', 'discover filter'] },
 
     { id: 'status', tabId: 'status', label: 'Status Monitor', group: 'Media Stack', keywords: ['uptime', 'health', 'services', 'monitor'] },
 

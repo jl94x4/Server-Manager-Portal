@@ -339,6 +339,14 @@ import {
 } from './lib/arr-service.js';
 import { getSonarrTrashCatalog, getSonarrTrashCustomFormat } from './lib/trash-guides-catalog.js';
 import { createRequestAppService, getRequestAppGate } from './lib/request-app-service.js';
+import {
+    applyDiscoveryQueryParams,
+    filterDiscoveryPayload,
+    getDiscoveryPreferences,
+    normalizeDiscoverLanguage,
+    normalizeDiscoverRegion,
+    syncSeerrDiscoverySettings,
+} from './lib/discovery-settings.js';
 import { buildDiscoveryFacts } from './lib/discovery-facts.js';
 import { fetchDiscoveryHeroBackdrops } from './lib/discovery-hero.js';
 const PLEX_API = 'https://plex.tv/api';
@@ -2399,6 +2407,9 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 requestAppUrl: config.requestAppUrl || '',
                 requestAppFetchUrl: config.requestAppFetchUrl || '',
                 requestAppApiKey: config.requestAppApiKey ? SECRET_MASK : '',
+                requestDiscoverRegion: config.requestDiscoverRegion || '',
+                requestDiscoverLanguage: config.requestDiscoverLanguage || '',
+                requestHideAvailableMedia: !!config.requestHideAvailableMedia,
                 primaryColor: config.primaryColor || '#F7C600',
                 customLogoUrl: config.customLogoUrl || '',
                 brandingTheme: config.brandingTheme || 'plex',
@@ -2475,6 +2486,9 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 requestAppType: 'none',
                 requestAppUrl: '',
                 requestAppApiKey: '',
+                requestDiscoverRegion: '',
+                requestDiscoverLanguage: '',
+                requestHideAvailableMedia: false,
                 primaryColor: '#F7C600',
                 customLogoUrl: '',
                 brandingTheme: 'plex',
@@ -2523,6 +2537,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         newsletterFrequency, newsletterDay, publicDomain, requestUrl, contactUrl, contactWhatsApp, contactEmail,
         sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, arrInstances, tautulliUrl, tautulliApiKey, jellystatUrl, jellystatApiKey,
         requestAppType, requestAppUrl, requestAppFetchUrl, requestAppApiKey,
+        requestDiscoverRegion, requestDiscoverLanguage, requestHideAvailableMedia,
         inactiveCleanupEnabled, inactiveCleanupDays,
         primaryColor, customLogoUrl, brandingTheme, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges,
         showPublicStatusMonitor, showPublicLibraryStats,
@@ -2659,6 +2674,15 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         requestAppUrl: safeRequestAppUrl,
         requestAppFetchUrl: safeRequestAppFetchUrl,
         requestAppApiKey: resolveSecret(requestAppApiKey, existingConfig.requestAppApiKey),
+        requestDiscoverRegion: normalizeDiscoverRegion(
+            requestDiscoverRegion !== undefined ? requestDiscoverRegion : existingConfig.requestDiscoverRegion
+        ),
+        requestDiscoverLanguage: normalizeDiscoverLanguage(
+            requestDiscoverLanguage !== undefined ? requestDiscoverLanguage : existingConfig.requestDiscoverLanguage
+        ),
+        requestHideAvailableMedia: requestHideAvailableMedia !== undefined
+            ? !!requestHideAvailableMedia
+            : !!existingConfig.requestHideAvailableMedia,
         primaryColor: primaryColor || '#F7C600',
         customLogoUrl: customLogoUrl || '',
         brandingTheme: ['plex', 'slate', 'nordic'].includes(String(brandingTheme || '').toLowerCase()) ? String(brandingTheme).toLowerCase() : (existingConfig.brandingTheme || 'plex'),
@@ -2725,6 +2749,18 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
     cachedArrCatalogAt = 0;
     systemJobs.autoBackup.nextRun = config.autoBackupEnabled ? computeNextBackupRun(config) : null;
     log('Configuration saved successfully.');
+    let seerrDiscoverySync = { ok: false, skipped: true };
+    try {
+        seerrDiscoverySync = await syncSeerrDiscoverySettings(config, requestAppService.rawFetch);
+        if (seerrDiscoverySync.ok) {
+            log('Request app discovery settings synced.');
+        } else if (!seerrDiscoverySync.skipped && seerrDiscoverySync.error) {
+            log(`Request app discovery settings sync failed: ${seerrDiscoverySync.error}`);
+        }
+    } catch (e) {
+        seerrDiscoverySync = { ok: false, error: e.message || 'Sync failed' };
+        log(`Request app discovery settings sync failed: ${e.message}`);
+    }
     startBackgroundService(); // (Re)start service with new config
     const becameConfigured = !isConfigured && isPortalConfigured(config);
     const maintenanceJustEnabled = !wasMaintenanceEnabled && !!config.maintenanceExperimentalEnabled;
@@ -2740,7 +2776,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
             }
         }, 1000);
     }
-    res.json({ message: 'Configuration saved.' });
+    res.json({ message: 'Configuration saved.', seerrDiscoverySync });
 });
 
 let tmdbCache = { data: null, lastFetch: 0 };
@@ -4315,6 +4351,15 @@ const buildRequestAppStatusPayload = (config) => {
     };
 };
 
+app.get('/api/discovery/preferences', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        res.json(getDiscoveryPreferences(config));
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.get('/api/discovery/search', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
@@ -4339,7 +4384,8 @@ app.get('/api/discovery/trending', requireAuth, requireMember, async (req, res) 
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
         
         const data = await requestAppService.rawFetch(config, '/api/v1/discover/trending');
-        res.json(data);
+        const prefs = getDiscoveryPreferences(config);
+        res.json(filterDiscoveryPayload(data, '/discover/trending', prefs.hideAvailableMedia));
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -4445,12 +4491,14 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
         
         const path = '/' + req.params[0];
-        
-        // Build query string
-        const qs = new URLSearchParams(req.query).toString();
+        const prefs = getDiscoveryPreferences(config);
+
+        const params = applyDiscoveryQueryParams(new URLSearchParams(req.query), path, prefs);
+        const qs = params.toString();
         const fullPath = qs ? `${path}?${qs}` : path;
-        
-        const data = await requestAppService.rawFetch(config, '/api/v1' + fullPath);
+
+        let data = await requestAppService.rawFetch(config, '/api/v1' + fullPath);
+        data = filterDiscoveryPayload(data, path, prefs.hideAvailableMedia);
         res.json(data);
     } catch (e) {
         res.status(500).json({ error: e.message });

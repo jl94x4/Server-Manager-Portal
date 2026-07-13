@@ -10,6 +10,7 @@ import {
     TV_GENRES,
 } from './discoverConstants';
 import { enrichDiscoveryItems } from './discoverItemUtils';
+import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
 
 type GenreSliderItem = { id: number; name: string; image?: string };
 
@@ -18,6 +19,7 @@ export const DiscoverHome: React.FC<{
     formatItem: (item: any) => any;
     navigate: (path: string) => void;
 }> = ({ onSelect, formatItem, navigate }) => {
+    const { preferences, loaded } = useDiscoveryPreferences();
     const [rows, setRows] = useState({
         recentlyAdded: [] as any[],
         recentRequests: [] as any[],
@@ -33,23 +35,27 @@ export const DiscoverHome: React.FC<{
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (!loaded) return undefined;
         const fetchData = async () => {
             setLoading(true);
             try {
+                const hideAvailable = preferences.hideAvailableMedia;
                 const [
                     addedRes, reqRes, watchlistRes, trendingRes,
                     popMovRes, upMovRes,
                     popTvRes, upTvRes,
                     movieGenreRes, tvGenreRes,
                 ] = await Promise.all([
-                    apiFetch('/api/discovery/proxy/media?filter=allavailable&take=20&sort=mediaAdded').catch(() => null),
+                    hideAvailable
+                        ? Promise.resolve(null)
+                        : apiFetch('/api/discovery/proxy/media?filter=allavailable&take=20&sort=mediaAdded').catch(() => null),
                     apiFetch('/api/discovery/proxy/request?filter=all&take=20&sort=modified&skip=0').catch(() => null),
                     apiFetch('/api/discovery/proxy/discover/watchlist').catch(() => null),
                     apiFetch('/api/discovery/trending').catch(() => null),
-                    apiFetch('/api/discovery/proxy/discover/movies?sortBy=popularity.desc&language=en').catch(() => null),
-                    apiFetch('/api/discovery/proxy/discover/movies/upcoming?language=en').catch(() => null),
-                    apiFetch('/api/discovery/proxy/discover/tv?sortBy=popularity.desc&language=en').catch(() => null),
-                    apiFetch('/api/discovery/proxy/discover/tv/upcoming?language=en').catch(() => null),
+                    apiFetch('/api/discovery/proxy/discover/movies?sortBy=popularity.desc').catch(() => null),
+                    apiFetch('/api/discovery/proxy/discover/movies/upcoming').catch(() => null),
+                    apiFetch('/api/discovery/proxy/discover/tv?sortBy=popularity.desc').catch(() => null),
+                    apiFetch('/api/discovery/proxy/discover/tv/upcoming').catch(() => null),
                     apiFetch('/api/discovery/proxy/discover/genreslider/movie').catch(() => null),
                     apiFetch('/api/discovery/proxy/discover/genreslider/tv').catch(() => null),
                 ]);
@@ -66,13 +72,13 @@ export const DiscoverHome: React.FC<{
 
                 setRows({
                     recentlyAdded,
-                    recentRequests,
-                    plexWatchlist,
-                    trending: trendingRes?.results || [],
-                    popularMovies: popMovRes?.results || [],
-                    upcomingMovies: upMovRes?.results || [],
-                    popularSeries: popTvRes?.results || [],
-                    upcomingSeries: upTvRes?.results || [],
+                    recentRequests: filterHiddenAvailableItems(recentRequests, hideAvailable),
+                    plexWatchlist: filterHiddenAvailableItems(plexWatchlist, hideAvailable),
+                    trending: filterHiddenAvailableItems(trendingRes?.results || [], hideAvailable),
+                    popularMovies: filterHiddenAvailableItems(popMovRes?.results || [], hideAvailable),
+                    upcomingMovies: filterHiddenAvailableItems(upMovRes?.results || [], hideAvailable),
+                    popularSeries: filterHiddenAvailableItems(popTvRes?.results || [], hideAvailable),
+                    upcomingSeries: filterHiddenAvailableItems(upTvRes?.results || [], hideAvailable),
                 });
 
                 if (Array.isArray(movieGenreRes) && movieGenreRes.length) {
@@ -87,7 +93,8 @@ export const DiscoverHome: React.FC<{
             setLoading(false);
         };
         fetchData();
-    }, []);
+        return undefined;
+    }, [loaded, preferences.hideAvailableMedia]);
 
     const DiscoveryRow = ({ title, items, onViewAll }: { title: string; items: any[]; onViewAll?: () => void }) => {
         if (!items?.length) return null;
@@ -171,7 +178,6 @@ export const DiscoverHome: React.FC<{
 
     return (
         <div className="flex flex-col gap-10 w-full max-w-full overflow-hidden pb-12">
-            {/* Overseerr default slider order */}
             <DiscoveryRow title="Recently Added" items={rows.recentlyAdded} />
             <DiscoveryRow title="Recent Requests" items={rows.recentRequests} />
             <DiscoveryRow title="Your Plex Watchlist" items={rows.plexWatchlist} />

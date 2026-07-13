@@ -16,6 +16,7 @@ import { BroadcastSettingsTab } from './BroadcastSettingsTab';
 import { IntegrationTestButton } from '../shared/IntegrationTestButton';
 import { HomeLayoutSettings } from './HomeLayoutSettings';
 import { ArrInstancesPanel } from './ArrInstancesPanel';
+import { DISCOVER_LANGUAGE_OPTIONS, DISCOVER_REGION_OPTIONS } from './discoverySettingsOptions';
 import { DEFAULT_DASHBOARD_LAYOUT, normalizeSectionLayout, type DashboardLayoutConfig } from '../shared/dashboardLayout';
 import {
     SETTINGS_TAB_GROUPS,
@@ -168,13 +169,17 @@ export const SettingsDashboard: React.FC = () => {
     const handleSaveConfig = async (newConfig: any) => {
         setLoading(true);
         try {
-            await apiFetch('/api/config', { method: 'POST', body: JSON.stringify(newConfig) });
+            const result = await apiFetch('/api/config', { method: 'POST', body: JSON.stringify(newConfig) });
             const configData = await apiFetch('/api/config');
             if (configData.settings) {
                 setInitialSettings(configData.settings);
             }
             window.dispatchEvent(new CustomEvent('portal-public-config-updated'));
-            addToast('Settings Saved!');
+            if (result?.seerrDiscoverySync && !result.seerrDiscoverySync.ok && !result.seerrDiscoverySync.skipped) {
+                addToast(`Settings saved, but request app sync failed: ${result.seerrDiscoverySync.error}`, 'error');
+            } else {
+                addToast('Settings Saved!');
+            }
         } catch (e: any) {
             addToast(e.message || 'Failed to save config', 'error');
         } finally {
@@ -311,6 +316,9 @@ export const SettingsDashboard: React.FC = () => {
     const [requestAppUrl, setRequestAppUrl] = useState('');
     const [requestAppFetchUrl, setRequestAppFetchUrl] = useState('');
     const [requestAppApiKey, setRequestAppApiKey] = useState('');
+    const [requestDiscoverRegion, setRequestDiscoverRegion] = useState('');
+    const [requestDiscoverLanguage, setRequestDiscoverLanguage] = useState('');
+    const [requestHideAvailableMedia, setRequestHideAvailableMedia] = useState(false);
     const [maintenanceExperimentalEnabled, setMaintenanceExperimentalEnabled] = useState(false);
     const [upgraderEnabled, setUpgraderEnabled] = useState(false);
     const [upgraderDefaultPreset, setUpgraderDefaultPreset] = useState('non_hevc');
@@ -790,6 +798,9 @@ export const SettingsDashboard: React.FC = () => {
             setRequestAppUrl(initialSettings.requestAppUrl || '');
             setRequestAppFetchUrl(initialSettings.requestAppFetchUrl || '');
             setRequestAppApiKey(initialSettings.requestAppApiKey || '');
+            setRequestDiscoverRegion(initialSettings.requestDiscoverRegion || '');
+            setRequestDiscoverLanguage(initialSettings.requestDiscoverLanguage || '');
+            setRequestHideAvailableMedia(!!initialSettings.requestHideAvailableMedia);
             const savedBrandingTheme = localStorage.getItem('portal-theme') || initialSettings.brandingTheme || 'plex';
             setBrandingTheme(savedBrandingTheme);
             setCustomLogoUrl(initialSettings.customLogoUrl || '');
@@ -954,6 +965,9 @@ export const SettingsDashboard: React.FC = () => {
             requestAppUrl,
             requestAppFetchUrl,
             requestAppApiKey,
+            requestDiscoverRegion,
+            requestDiscoverLanguage,
+            requestHideAvailableMedia,
             primaryColor: '',
             customLogoUrl,
             brandingTheme,
@@ -1657,6 +1671,68 @@ export const SettingsDashboard: React.FC = () => {
                                 onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
                             />
                             </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'request' && (
+                        <div className="mb-8 animate-fade-in space-y-6">
+                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Request Discovery</h3>
+                            <p className="text-muted text-sm max-w-3xl">
+                                Control how the in-portal Discover experience behaves. These settings are synced to your Seerr/Overseerr instance when connected, matching Overseerr&apos;s main settings.
+                            </p>
+
+                            <div id={getSettingsSectionElementId('region')} className="scroll-mt-24">
+                                <SettingFieldLabel
+                                    htmlFor="requestDiscoverRegion"
+                                    hint={<SettingHint>Prioritizes content for your region on discover pages. Does not fully restrict results to that country.</SettingHint>}
+                                >
+                                    Discover Region
+                                </SettingFieldLabel>
+                                <CustomSelect
+                                    id="requestDiscoverRegion"
+                                    value={requestDiscoverRegion}
+                                    onChange={setRequestDiscoverRegion}
+                                    options={DISCOVER_REGION_OPTIONS}
+                                />
+                            </div>
+
+                            <div id={getSettingsSectionElementId('language')} className="scroll-mt-24">
+                                <SettingFieldLabel
+                                    htmlFor="requestDiscoverLanguage"
+                                    hint={<SettingHint>Only show titles whose original language matches your selection on discover browse pages.</SettingHint>}
+                                >
+                                    Discover Language
+                                </SettingFieldLabel>
+                                <CustomSelect
+                                    id="requestDiscoverLanguage"
+                                    value={requestDiscoverLanguage}
+                                    onChange={setRequestDiscoverLanguage}
+                                    options={DISCOVER_LANGUAGE_OPTIONS}
+                                />
+                            </div>
+
+                            <div id={getSettingsSectionElementId('hide-available')} className="scroll-mt-24">
+                                <SettingsToggleRow
+                                    title="Hide Available Media"
+                                    hint={(
+                                        <SettingHint>
+                                            Hides titles already in your library from discover browse pages (home rows, movies, series, studios, networks). Search results are never filtered.
+                                        </SettingHint>
+                                    )}
+                                    checked={requestHideAvailableMedia}
+                                    onChange={setRequestHideAvailableMedia}
+                                    border={false}
+                                />
+                                <span className="inline-flex items-center rounded-md bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300 border border-amber-500/20 mt-2">
+                                    Experimental
+                                </span>
+                            </div>
+
+                            {requestAppType === 'none' && (
+                                <p className="text-sm text-yellow-300/90 border border-yellow-500/20 bg-yellow-500/10 rounded-lg px-4 py-3">
+                                    Connect a request app under Integrations to sync these settings automatically.
+                                </p>
+                            )}
                         </div>
                     )}
 

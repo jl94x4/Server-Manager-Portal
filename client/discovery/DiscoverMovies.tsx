@@ -12,6 +12,7 @@ import {
     defaultMovieFilters,
     parseFiltersFromSearch,
 } from './discoverUrlUtils';
+import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
 import { findStudio } from './discoverConstants';
 
 export const DiscoverMovies: React.FC<{
@@ -19,6 +20,7 @@ export const DiscoverMovies: React.FC<{
     formatItem: (item: any) => any;
     navigate: (path: string) => void;
 }> = ({ onSelect, formatItem, navigate }) => {
+    const { preferences } = useDiscoveryPreferences();
     const [gridSize, setGridSize] = useDiscoverGridSize();
     const [results, setResults] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -52,11 +54,12 @@ export const DiscoverMovies: React.FC<{
             else setLoadingMore(true);
 
             try {
-                let url = `/api/discovery/proxy/discover/movies?page=${page}&sortBy=${filters.sort}&language=en`;
+                let url = `/api/discovery/proxy/discover/movies?page=${page}&sortBy=${filters.sort}`;
                 url = appendDiscoverQuery(url, filters, 'movie');
                 const res = await apiFetch(url);
                 if (res?.results) {
-                    setResults((prev) => (page === 1 ? res.results : [...prev, ...res.results]));
+                    const batch = filterHiddenAvailableItems(res.results, preferences.hideAvailableMedia);
+                    setResults((prev) => (page === 1 ? batch : [...prev, ...batch]));
                     if (res.totalPages) setTotalPages(res.totalPages);
                 }
             } catch (err) {
@@ -66,7 +69,7 @@ export const DiscoverMovies: React.FC<{
             setLoadingMore(false);
         };
         fetchData();
-    }, [filters, page]);
+    }, [filters, page, preferences.hideAvailableMedia]);
 
     const applyFilters = (newFilters: FilterState) => {
         setFilters(newFilters);

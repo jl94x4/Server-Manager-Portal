@@ -4,6 +4,7 @@ import { apiFetch } from '../shared/api';
 import { DiscoverPosterGrid } from './DiscoverPosterGrid';
 import { DiscoverGridSizeSelect } from './DiscoverGridSizeSelect';
 import { useDiscoverGridSize } from './useDiscoverGridSize';
+import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
 import { findNetwork, findStudio, tmdbDuotoneLogo } from './discoverConstants';
 
 type Props = {
@@ -15,6 +16,7 @@ type Props = {
 };
 
 export const DiscoverCategoryPage: React.FC<Props> = ({ kind, id, onBack, onSelect, formatItem }) => {
+    const { preferences } = useDiscoveryPreferences();
     const [gridSize, setGridSize] = useDiscoverGridSize();
     const meta = kind === 'studio' ? findStudio(id) : findNetwork(id);
     const [results, setResults] = useState<any[]>([]);
@@ -35,24 +37,24 @@ export const DiscoverCategoryPage: React.FC<Props> = ({ kind, id, onBack, onSele
             else setLoadingMore(true);
             try {
                 const path = kind === 'studio'
-                    ? `/api/discovery/proxy/discover/movies/studio/${id}?page=${page}&language=en`
-                    : `/api/discovery/proxy/discover/tv/network/${id}?page=${page}&language=en`;
+                    ? `/api/discovery/proxy/discover/movies/studio/${id}?page=${page}`
+                    : `/api/discovery/proxy/discover/tv/network/${id}?page=${page}`;
                 const res = await apiFetch(path);
                 const studioName = res?.studio?.name;
                 const networkName = res?.network?.name;
                 if (studioName) setEntityName(studioName);
                 if (networkName) setEntityName(networkName);
-                const batch = res?.results || [];
+                const batch = filterHiddenAvailableItems(res?.results || [], preferences.hideAvailableMedia);
                 setResults((prev) => (page === 1 ? batch : [...prev, ...batch]));
                 setTotalPages(Number(res?.totalPages || 1));
             } catch (e) {
                 console.error(e);
                 if (page === 1) {
                     const fallback = kind === 'studio'
-                        ? `/api/discovery/proxy/discover/movies?page=${page}&studio=${id}&language=en`
-                        : `/api/discovery/proxy/discover/tv?page=${page}&network=${id}&language=en`;
+                        ? `/api/discovery/proxy/discover/movies?page=${page}&studio=${id}`
+                        : `/api/discovery/proxy/discover/tv?page=${page}&network=${id}`;
                     const res = await apiFetch(fallback).catch(() => null);
-                    const batch = res?.results || [];
+                    const batch = filterHiddenAvailableItems(res?.results || [], preferences.hideAvailableMedia);
                     setResults((prev) => (page === 1 ? batch : [...prev, ...batch]));
                     setTotalPages(Number(res?.totalPages || 1));
                 }
@@ -62,7 +64,7 @@ export const DiscoverCategoryPage: React.FC<Props> = ({ kind, id, onBack, onSele
             }
         };
         fetchPage();
-    }, [kind, id, page]);
+    }, [kind, id, page, preferences.hideAvailableMedia]);
 
     const title = entityName || meta?.name || (kind === 'studio' ? 'Studio' : 'Network');
 
