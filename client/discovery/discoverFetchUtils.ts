@@ -80,6 +80,9 @@ export async function fetchDiscoverHomeRowResults(
 
     return merged.slice(0, 20);
 }
+
+/** Keep fetching pages when hide-available filtering empties early pages. */
+export async function fetchDiscoverPageWithBackfill(
     buildUrl: (page: number) => string,
     page: number,
     hideAvailable: boolean,
