@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { SettingsDashboard } from './settings/SettingsDashboard';
+import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+const SettingsDashboard = lazy(() => import('./settings/SettingsDashboard').then(m => ({ default: m.SettingsDashboard })));
 import { bindAppConfirm } from './shared/confirm';
 import { apiFetch } from './shared/api';
 import { getPublicOrigin, portalUrl, resolvePortalAssetUrl, stripBasePath } from './shared/basePath';
@@ -15,9 +15,9 @@ import {
     type ReleaseNotes,
 } from './shared/releaseNotes';
 
-import { RequestsAdminPanel } from './requests/RequestsAdminPanel';
+const RequestsAdminPanel = lazy(() => import('./requests/RequestsAdminPanel').then(m => ({ default: m.RequestsAdminPanel })));
 import { usePendingRequestCount } from './requests/usePendingRequestCount';
-import { UpgraderDashboard } from './upgrader/UpgraderDashboard';
+const UpgraderDashboard = lazy(() => import('./upgrader/UpgraderDashboard').then(m => ({ default: m.UpgraderDashboard })));
 import {
     updateFavicon,
     Login,
@@ -343,7 +343,9 @@ export const MainApp: React.FC = () => {
                     </div>
                 )}
                 <div className={`w-full min-w-0 max-w-[100%] ${isImpersonating ? 'pt-3 md:pt-4' : 'pt-20 md:pt-8'}`}>
-                    {renderView()}
+                    <Suspense fallback={<div className="flex w-full items-center justify-center pt-20"><Loader isLoading={true} isCinematic={false} /></div>}>
+                        {renderView()}
+                    </Suspense>
                 </div>
 
                 {/* Mobile Bottom Version */}
