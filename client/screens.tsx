@@ -2727,7 +2727,7 @@ return (
                                         key={item.key}
                                         item={item}
                                         overlay={discoverViewsOverlay(item.plays)}
-                                        showQualityBadges={showQualityBadges}
+                                        showQualityBadges={false}
                                         onPosterClick={() => setDetailsItem(item)}
                                     />
                                 ))}
