@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { PlayCircle, PlusCircle, CheckCircle, Clock, ArrowLeft, Star, Calendar, Globe, Film, Tv, Loader2 } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { DiscoverPosterCard } from '../screens';
-import { pushToast } from '../shared/toast';
 
 export const MediaDetailsPage: React.FC<{
     mediaType: 'movie' | 'tv';
     mediaId: number;
     onBack: () => void;
     formatItem: (item: any) => any;
-}> = ({ mediaType, mediaId, onBack, formatItem }) => {
+    pushToast?: (msg: string, type: 'success' | 'error') => void;
+}> = ({ mediaType, mediaId, onBack, formatItem, pushToast }) => {
     const [details, setDetails] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [requestLoading, setRequestLoading] = useState(false);
@@ -52,9 +52,9 @@ export const MediaDetailsPage: React.FC<{
             });
             
             if (res.error) {
-                pushToast(res.error, 'error');
+                if (pushToast) pushToast(res.error, 'error');
             } else {
-                pushToast('Request submitted successfully!', 'success');
+                if (pushToast) pushToast('Request submitted successfully!', 'success');
                 setDetails({
                     ...details,
                     mediaInfo: {
@@ -64,7 +64,7 @@ export const MediaDetailsPage: React.FC<{
                 });
             }
         } catch (err: any) {
-            pushToast(err.message || 'Failed to submit request', 'error');
+            if (pushToast) pushToast(err.message || 'Failed to submit request', 'error');
         }
         setRequestLoading(false);
     };

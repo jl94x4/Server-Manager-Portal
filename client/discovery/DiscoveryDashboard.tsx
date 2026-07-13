@@ -9,7 +9,8 @@ import { apiFetch } from '../shared/api';
 
 export const DiscoveryDashboard: React.FC<{
     onItemClick: (item: any) => void;
-}> = ({ onItemClick }) => {
+    pushToast?: (msg: string, type: 'success' | 'error') => void;
+}> = ({ onItemClick, pushToast }) => {
     const [path, setPath] = useState(() => {
         if (typeof window !== 'undefined') return window.location.pathname;
         return '/discovery';
@@ -105,6 +106,7 @@ export const DiscoveryDashboard: React.FC<{
                     navigate('/discovery');
                 }} 
                 formatItem={formatItem}
+                pushToast={pushToast}
             />
         );
     }
