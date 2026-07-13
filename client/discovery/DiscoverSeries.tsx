@@ -38,7 +38,7 @@ export const DiscoverSeries: React.FC<{
         const fetchData = async () => {
             setLoading(true);
             try {
-                let url = `/api/discovery/proxy/discover/tv?sortBy=${filters.sort}&withOriginalLanguage=en`;
+                let url = `/api/discovery/proxy/discover/tv?sortBy=${filters.sort}&language=en`;
                 if (filters.genre) url += `&withGenres=${filters.genre}`;
                 if (filters.year) url += `&firstAirDateYear=${filters.year}`;
                 if (filters.network) url += `&withNetworks=${filters.network}`;
