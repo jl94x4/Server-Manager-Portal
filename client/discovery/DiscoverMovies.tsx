@@ -10,7 +10,10 @@ export const DiscoverMovies: React.FC<{
 }> = ({ onSelect, formatItem }) => {
     const [results, setResults] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
     
     // Filter State
     const defaultFilters: FilterState = {
@@ -34,27 +37,40 @@ export const DiscoverMovies: React.FC<{
         }
     }, []);
 
+    // Reset page when filters change
+    useEffect(() => {
+        setPage(1);
+        setResults([]);
+    }, [filters]);
+
     useEffect(() => {
         const fetchData = async () => {
-            setLoading(true);
+            if (page === 1) setLoading(true);
+            else setLoadingMore(true);
+
             try {
-                let url = `/api/discovery/proxy/discover/movies?sortBy=${filters.sort}&language=en`;
-                if (filters.genre) url += `&withGenres=${filters.genre}`;
+                let url = `/api/discovery/proxy/discover/movies?page=${page}&sortBy=${filters.sort}&language=en`;
+                if (filters.genre) url += `&genre=${filters.genre}`;
                 if (filters.year) url += `&primaryReleaseYear=${filters.year}`;
-                if (filters.studio) url += `&withCompanies=${filters.studio}`;
-                if (filters.minRating) url += `&voteAverage.gte=${filters.minRating}&voteCount.gte=100`;
+                if (filters.studio) url += `&studio=${filters.studio}`;
                 
                 const res = await apiFetch(url);
                 if (res && res.results) {
-                    setResults(res.results);
+                    if (page === 1) {
+                        setResults(res.results);
+                    } else {
+                        setResults(prev => [...prev, ...res.results]);
+                    }
+                    if (res.totalPages) setTotalPages(res.totalPages);
                 }
             } catch (err) {
                 console.error(err);
             }
             setLoading(false);
+            setLoadingMore(false);
         };
         fetchData();
-    }, [filters]);
+    }, [filters, page]);
 
     return (
         <div className="w-full flex flex-col md:flex-row gap-8 px-4 sm:px-8 mt-4 relative">
@@ -79,20 +95,34 @@ export const DiscoverMovies: React.FC<{
                         ))}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
-                        {results.map((rawItem, idx) => {
-                            const formatted = formatItem(rawItem);
-                            return (
-                                <DiscoverPosterCard
-                                    key={idx}
-                                    item={formatted}
-                                    overlay={formatted.overlay}
-                                    showQualityBadges={false}
-                                    onPosterClick={() => onSelect(formatted)}
-                                />
-                            );
-                        })}
-                    </div>
+                    <>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+                            {results.map((rawItem, idx) => {
+                                const formatted = formatItem(rawItem);
+                                return (
+                                    <DiscoverPosterCard
+                                        key={idx}
+                                        item={formatted}
+                                        overlay={formatted.overlay}
+                                        showQualityBadges={false}
+                                        onPosterClick={() => onSelect(formatted)}
+                                    />
+                                );
+                            })}
+                        </div>
+                        
+                        {page < totalPages && (
+                            <div className="flex justify-center mt-8 mb-12">
+                                <button 
+                                    onClick={() => setPage(p => p + 1)}
+                                    disabled={loadingMore}
+                                    className="px-8 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-white font-bold transition-all disabled:opacity-50"
+                                >
+                                    {loadingMore ? 'Loading...' : 'Load More'}
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 
