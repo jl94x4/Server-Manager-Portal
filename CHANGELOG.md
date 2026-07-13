@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.2](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.6.1...v1.6.2) (2026-07-13)
+
+
+### Bug Fixes
+
+* **client:** reset scroll position to top on route change ([ba973b5](https://github.com/jl94x4/Server-Manager-Portal/commit/ba973b532b8e55606f9189da08124abf9c2bfb9d))
+
 ## [1.6.1](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.6.0...v1.6.1) (2026-07-12)
 
 
