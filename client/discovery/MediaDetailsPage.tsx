@@ -85,7 +85,7 @@ export const MediaDetailsPage: React.FC<{
     const posterUrl = details.posterPath ? `https://image.tmdb.org/t/p/w500${details.posterPath}` : '';
 
     return (
-        <div className="w-full flex flex-col min-h-screen bg-card animate-fade-in pb-20">
+        <div className="w-full flex flex-col min-h-screen bg-card animate-fade-in pb-20 rounded-2xl md:rounded-3xl overflow-hidden border border-white/5 shadow-2xl">
             {/* Top Navigation Bar */}
             <div className="sticky top-0 z-50 w-full px-4 sm:px-8 py-4 flex items-center bg-gradient-to-b from-black/80 to-transparent">
                 <button onClick={onBack} className="flex items-center gap-2 text-white/80 hover:text-white transition-colors bg-black/40 px-4 py-2 rounded-full backdrop-blur-md border border-white/10">

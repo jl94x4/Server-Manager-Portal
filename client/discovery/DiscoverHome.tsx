@@ -193,4 +193,24 @@ export const DiscoverHome: React.FC<{
                         <h2 className="text-xl font-bold text-white px-2">Networks</h2>
                         <Carousel>
                             {[
+                                { id: 213, name: 'Netflix', logo: 'https://image.tmdb.org/t/p/w300/wwemzKWzjKYJFfCeiB57q3r4Bcm.png' },
+                                { id: 2739, name: 'Disney+', logo: 'https://image.tmdb.org/t/p/w300/7rwgEs15tFwyR9NPQ5vpzxTj19Q.png' },
+                                { id: 1024, name: 'Prime Video', logo: 'https://image.tmdb.org/t/p/w300/11A1K11yO4t0vJv7s43r0sWw9Hh.png' },
+                                { id: 2552, name: 'Apple TV+', logo: 'https://image.tmdb.org/t/p/w300/6vA9x4kQk24jU3T9aH2wY4nN6H5.png' },
+                                { id: 453, name: 'Hulu', logo: 'https://image.tmdb.org/t/p/w300/gJ8VX6JSu3cgXID5Lw2vG20N7S8.png' },
+                                { id: 49, name: 'HBO', logo: 'https://image.tmdb.org/t/p/w300/tuomPhY2UtuPTqqFnKMVHvZwH0C.png' },
+                                { id: 4, name: 'BBC', text: true },
+                                { id: 9, name: 'ITV', text: true },
+                                { id: 214, name: 'Sky', text: true }
+                            ].map((c, i) => (
+                                c.text ?
+                                <TextCard key={i} name={c.name} onClick={() => { window.history.pushState({}, '', `/discovery/series?network=${c.id}`); window.dispatchEvent(new Event('popstate')); }} /> :
+                                <ImageCard key={i} name={c.name} logo={c.logo!} onClick={() => { window.history.pushState({}, '', `/discovery/series?network=${c.id}`); window.dispatchEvent(new Event('popstate')); }} />
+                            ))}
+                        </Carousel>
+                    </div>
+                </>
+            )}
+        </div>
+    );
 };
