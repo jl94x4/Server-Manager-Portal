@@ -209,8 +209,6 @@ export const DiscoverHome: React.FC<{
                             ))}
                         </Carousel>
                     </div>
-                </>
-            )}
         </div>
     );
 };
