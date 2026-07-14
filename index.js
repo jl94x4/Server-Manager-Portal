@@ -4508,6 +4508,251 @@ app.post('/api/discovery/my-requests/:id/retry', requireAuth, requireMember, asy
     }
 });
 
+app.get('/api/discovery/my-issues/count', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const counts = await requestAppService.getMemberIssueCounts(config, req.user);
+        res.json({ configured: true, ...counts });
+    } catch (e) {
+        log(`Discovery my-issues count error: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/discovery/my-issues', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const filter = String(req.query.filter || 'all').toLowerCase();
+        const take = Math.min(50, Math.max(1, Number(req.query.take) || 20));
+        const skip = Math.max(0, Number(req.query.skip) || 0);
+
+        const payload = await requestAppService.listMemberIssues(config, req.user, { filter, take, skip });
+        res.json({ configured: true, ...payload });
+    } catch (e) {
+        log(`Discovery my-issues error: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/discovery/issues', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const { mediaId, issueType, message, problemSeason, problemEpisode } = req.body || {};
+        const issue = await requestAppService.createIssue(config, req.user, {
+            mediaId,
+            issueType,
+            message,
+            problemSeason,
+            problemEpisode,
+        });
+        res.status(201).json({ success: true, issue });
+    } catch (e) {
+        log(`Discovery create issue error: ${e.message}`);
+        res.status(e.message?.includes('not linked') ? 403 : 502).json({ error: e.message });
+    }
+});
+
+app.post('/api/discovery/my-issues/:id/comment', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const issueId = String(req.params.id || '').trim();
+        if (!issueId) return res.status(400).json({ error: 'Issue ID is required' });
+
+        await requestAppService.assertMemberOwnsIssue(config, req.user, issueId);
+        await requestAppService.addIssueComment(config, issueId, req.body?.message);
+        res.json({ success: true, message: 'Comment added.' });
+    } catch (e) {
+        log(`Discovery issue comment error: ${e.message}`);
+        res.status(e.message?.includes('not linked') || e.message?.includes('only manage') ? 403 : 502).json({ error: e.message });
+    }
+});
+
+app.post('/api/discovery/my-issues/:id/:status', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const issueId = String(req.params.id || '').trim();
+        const status = String(req.params.status || '').toLowerCase();
+        if (!issueId) return res.status(400).json({ error: 'Issue ID is required' });
+        if (status !== 'open' && status !== 'resolved') {
+            return res.status(400).json({ error: 'Status must be open or resolved' });
+        }
+
+        await requestAppService.assertMemberOwnsIssue(config, req.user, issueId);
+        await requestAppService.updateIssueStatus(config, issueId, status);
+        res.json({ success: true, message: status === 'resolved' ? 'Issue marked resolved.' : 'Issue reopened.' });
+    } catch (e) {
+        log(`Discovery issue status error: ${e.message}`);
+        res.status(e.message?.includes('not linked') || e.message?.includes('only manage') ? 403 : 502).json({ error: e.message });
+    }
+});
+
+app.delete('/api/discovery/my-issues/:id', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const issueId = String(req.params.id || '').trim();
+        if (!issueId) return res.status(400).json({ error: 'Issue ID is required' });
+
+        const { issue } = await requestAppService.assertMemberOwnsIssue(config, req.user, issueId);
+        if ((issue?.commentCount || 0) > 1) {
+            return res.status(403).json({ error: 'Issues with replies cannot be deleted.' });
+        }
+
+        await requestAppService.deleteIssue(config, issueId);
+        res.json({ success: true, message: 'Issue deleted.' });
+    } catch (e) {
+        log(`Discovery delete issue error: ${e.message}`);
+        res.status(e.message?.includes('not linked') || e.message?.includes('only manage') ? 403 : 502).json({ error: e.message });
+    }
+});
+
+app.get('/api/issues/count', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) {
+            return res.json(buildRequestAppStatusPayload(config));
+        }
+        try {
+            const counts = await requestAppService.getIssueCounts(config);
+            res.json({ configured: true, supported: true, connected: true, ...counts });
+        } catch (error) {
+            res.json({
+                ...buildRequestAppStatusPayload(config),
+                configured: true,
+                supported: true,
+                connected: false,
+                error: error.message || 'Failed to connect to request app',
+            });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'Failed to fetch issue counts' });
+    }
+});
+
+app.get('/api/issues', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) {
+            return res.json({ ...buildRequestAppStatusPayload(config), results: [] });
+        }
+
+        const filter = String(req.query.filter || 'open').toLowerCase();
+        const take = Math.min(50, Math.max(1, Number(req.query.take) || 30));
+        const skip = Math.max(0, Number(req.query.skip) || 0);
+
+        try {
+            const payload = await requestAppService.listIssues(config, { filter, take, skip });
+            res.json({ configured: true, supported: true, connected: true, ...payload });
+        } catch (error) {
+            res.json({
+                ...buildRequestAppStatusPayload(config),
+                configured: true,
+                supported: true,
+                connected: false,
+                error: error.message || 'Failed to connect to request app',
+                results: [],
+            });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'Failed to fetch issues' });
+    }
+});
+
+app.get('/api/issues/:id', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const issueId = String(req.params.id || '').trim();
+        if (!issueId) return res.status(400).json({ error: 'Issue ID is required' });
+
+        const issue = await requestAppService.getIssue(config, issueId);
+        res.json({ configured: true, issue });
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to fetch issue' });
+    }
+});
+
+app.post('/api/issues/:id/comment', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const issueId = String(req.params.id || '').trim();
+        if (!issueId) return res.status(400).json({ error: 'Issue ID is required' });
+
+        await requestAppService.addIssueComment(config, issueId, req.body?.message);
+        res.json({ success: true, message: 'Comment added.' });
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to add comment' });
+    }
+});
+
+app.post('/api/issues/:id/:status', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const issueId = String(req.params.id || '').trim();
+        const status = String(req.params.status || '').toLowerCase();
+        if (!issueId) return res.status(400).json({ error: 'Issue ID is required' });
+        if (status !== 'open' && status !== 'resolved') {
+            return res.status(400).json({ error: 'Status must be open or resolved' });
+        }
+
+        await requestAppService.updateIssueStatus(config, issueId, status);
+        const title = String(req.body?.title || '').trim();
+        await appendAuditLog(
+            status === 'resolved' ? 'issue_resolved' : 'issue_reopened',
+            req.user,
+            null,
+            { issueId, title: title || null },
+        );
+        res.json({ success: true, message: status === 'resolved' ? 'Issue resolved.' : 'Issue reopened.' });
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to update issue' });
+    }
+});
+
+app.delete('/api/issues/:id', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const issueId = String(req.params.id || '').trim();
+        if (!issueId) return res.status(400).json({ error: 'Issue ID is required' });
+
+        await requestAppService.deleteIssue(config, issueId);
+        await appendAuditLog('issue_deleted', req.user, null, { issueId });
+        res.json({ success: true, message: 'Issue deleted.' });
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to delete issue' });
+    }
+});
+
 app.get('/api/discovery/watchlist', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});

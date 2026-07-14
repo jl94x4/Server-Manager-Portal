@@ -326,26 +326,8 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
 
 /** Whether an item should be hidden when "hide available" is enabled. */
 export const shouldHideAvailableItem = (item: any): boolean => {
-    const mediaType = resolveMediaType(item);
-    const mediaStatus = Number(item?.mediaInfo?.status ?? item?.media?.status);
-
-    if (mediaType === 'movie') {
-        return mediaStatus === MEDIA_STATUS.AVAILABLE;
-    }
-
-    if (mediaType === 'tv') {
-        const seasonRows = buildSeasonStatusFromDetails(item);
-        if (seasonRows.length > 0) {
-            const requestable = seasonRows.filter((s) => s.requestable);
-            return requestable.length === 0 && seasonRows.some(
-                (s) => s.statusLabel === 'Available' || isSeasonUpToDateLabel(s.statusLabel),
-            );
-        }
-        if (mediaStatus === MEDIA_STATUS.PARTIAL) return false;
-        return mediaStatus === MEDIA_STATUS.AVAILABLE;
-    }
-
-    return mediaStatus === MEDIA_STATUS.AVAILABLE || mediaStatus === MEDIA_STATUS.PARTIAL;
+    const { kind } = resolveMediaAvailabilityState(item);
+    return kind === 'available' || kind === 'partial';
 };
 
 export const isMediaAvailableInLibrary = (item: any = {}) => {

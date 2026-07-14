@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { PlusCircle, CheckCircle, Clock, ArrowLeft, Star, Calendar, Globe, Film, Tv, Loader2, Users, Ticket, Cloud, Disc } from 'lucide-react';
+import { PlusCircle, CheckCircle, Clock, ArrowLeft, Star, Calendar, Globe, Film, Tv, Loader2, Users, Ticket, Cloud, Disc, AlertTriangle } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { portalUrl } from '../shared/basePath';
 import { DiscoverPosterCard } from '../screens';
@@ -9,6 +9,7 @@ import { NoPosterPlaceholder } from '../shared/NoPosterPlaceholder';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
 import { tmdbBackdropUrl } from './discoverConstants';
 import { RequestModal } from './RequestModal';
+import { ReportIssueModal } from './ReportIssueModal';
 import { resolveMediaAvailabilityState } from './discoverAvailability';
 import { MediaStatusPanel } from './DiscoverStatusOverlay';
 import { DiscoveryLogo } from './DiscoveryLogo';
@@ -53,6 +54,7 @@ export const MediaDetailsPage: React.FC<{
     const [posterFailed, setPosterFailed] = useState(false);
     const [radarrReleases, setRadarrReleases] = useState<RadarrReleaseDates | null>(null);
     const [requestModalOpen, setRequestModalOpen] = useState(false);
+    const [issueModalOpen, setIssueModalOpen] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -233,6 +235,13 @@ export const MediaDetailsPage: React.FC<{
     const year = (details.releaseDate || details.firstAirDate || '').substring(0, 4);
     const mediaStatus = details.mediaInfo?.status ?? null;
     const requestButton = getRequestButtonState(mediaType, mediaStatus, seasonRows, details.mediaInfo, details);
+    const seerrMediaId = Number(details.mediaInfo?.id);
+    const canReportIssue = Number.isFinite(seerrMediaId) && seerrMediaId > 0 && (
+        mediaStatus === 4
+        || mediaStatus === 5
+        || availability?.kind === 'available'
+        || availability?.kind === 'partial'
+    );
     const posterUrl = details.posterPath ? `https://image.tmdb.org/t/p/w500${details.posterPath}` : '';
     const backdropUrl = tmdbBackdropUrl(details.backdropPath || '');
     const creators = details.createdBy?.map((c: any) => c.name).filter(Boolean).join(', ');
@@ -361,6 +370,17 @@ export const MediaDetailsPage: React.FC<{
                             <><PlusCircle className="w-4 h-4" /> {requestButton.label}</>
                         )}
                     </button>
+
+                    {canReportIssue && (
+                        <button
+                            type="button"
+                            onClick={() => setIssueModalOpen(true)}
+                            className="w-full py-3 px-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors shadow-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-100 border border-amber-500/30"
+                        >
+                            <AlertTriangle className="w-4 h-4" />
+                            Report Issue
+                        </button>
+                    )}
 
                     {availability && availability.kind !== 'none' && (
                         <MediaStatusPanel
@@ -611,6 +631,17 @@ export const MediaDetailsPage: React.FC<{
             onSuccess={handleRequestSuccess}
             onError={(msg) => pushToast?.(msg, 'error')}
         />
+        {canReportIssue && (
+            <ReportIssueModal
+                open={issueModalOpen}
+                mediaType={mediaType}
+                title={title}
+                seerrMediaId={seerrMediaId}
+                onClose={() => setIssueModalOpen(false)}
+                onSuccess={(msg) => pushToast?.(msg, 'success')}
+                onError={(msg) => pushToast?.(msg, 'error')}
+            />
+        )}
         </>
     );
 };

@@ -52,6 +52,63 @@ export type PortalRequestItem = {
 
 export type PortalRequestDetail = PortalRequestItem;
 
+export type PortalIssueComment = {
+    id: number | null;
+    message: string;
+    createdAt: string | null;
+    updatedAt: string | null;
+    user: {
+        id: number | null;
+        displayName: string;
+        avatar: string;
+    };
+};
+
+export type PortalIssueItem = {
+    id: number;
+    status: number | null;
+    statusLabel: string;
+    issueType: number | null;
+    issueTypeLabel: string;
+    problemSeason: number | null;
+    problemEpisode: number | null;
+    type: 'movie' | 'tv';
+    title: string;
+    year: string | null;
+    overview: string;
+    posterUrl: string;
+    backdropUrl?: string;
+    posterPath?: string | null;
+    tmdbId?: number | null;
+    mediaId?: number | null;
+    createdAt: string | null;
+    updatedAt: string | null;
+    createdBy: {
+        id: number | null;
+        displayName: string;
+        email?: string | null;
+        avatar: string;
+    };
+    modifiedBy?: {
+        id: number;
+        displayName: string;
+    } | null;
+    comments: PortalIssueComment[];
+    commentCount: number;
+    seerrUrl: string;
+};
+
+export type PortalIssueCounts = {
+    configured?: boolean;
+    connected?: boolean;
+    supported?: boolean;
+    open: number;
+    closed?: number;
+    resolved?: number;
+    total: number;
+    error?: string | null;
+};
+
 export type PortalServiceServer = {
     id: number;
     name: string;

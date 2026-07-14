@@ -15,8 +15,9 @@ import {
     type ReleaseNotes,
 } from './shared/releaseNotes';
 
-const RequestsAdminPanel = lazy(() => import('./requests/RequestsAdminPanel').then(m => ({ default: m.RequestsAdminPanel })));
+const RequestQueueDashboard = lazy(() => import('./requests/RequestQueueDashboard').then(m => ({ default: m.RequestQueueDashboard })));
 import { usePendingRequestCount } from './requests/usePendingRequestCount';
+import { useOpenIssueCount } from './requests/useOpenIssueCount';
 const UpgraderDashboard = lazy(() => import('./upgrader/UpgraderDashboard').then(m => ({ default: m.UpgraderDashboard })));
 import {
     updateFavicon,
@@ -288,6 +289,12 @@ export const MainApp: React.FC = () => {
 
     const requestsQueueEnabled = !!sessionInfo?.session?.isAdmin && !!sessionInfo?.navFeatures?.requestsQueue;
     const { pendingCount: pendingRequestCount, refresh: refreshPendingRequestCount } = usePendingRequestCount(requestsQueueEnabled);
+    const { openCount: openIssueCount, refresh: refreshOpenIssueCount } = useOpenIssueCount(requestsQueueEnabled);
+    const queueBadgeCount = pendingRequestCount + openIssueCount;
+    const refreshQueueCounts = useCallback(() => {
+        refreshPendingRequestCount();
+        refreshOpenIssueCount();
+    }, [refreshPendingRequestCount, refreshOpenIssueCount]);
 
     if (currentRoute === 'loading') return <Loader isLoading={true} isCinematic={!!publicConfig?.useCinematicLoading} />;
     if (currentRoute === 'login') {
@@ -314,7 +321,14 @@ export const MainApp: React.FC = () => {
         if (currentRoute === 'settings' && isAdmin) return <SettingsDashboard />;
         if (currentRoute === 'maintenance' && isAdmin) return <MaintenanceDashboard />;
         if (currentRoute === 'upgrader' && isAdmin) return <UpgraderDashboard />;
-        if (currentRoute === 'requests' && isAdmin) return <RequestsAdminPanel onCountsChange={refreshPendingRequestCount} />;
+        if (currentRoute === 'requests' && isAdmin) {
+            return (
+                <RequestQueueDashboard
+                    onCountsChange={refreshQueueCounts}
+                    openIssueCount={openIssueCount}
+                />
+            );
+        }
         if (currentRoute === 'discovery') return <DiscoveryDashboard onItemClick={(item) => console.log('Item', item)} />;
         if (currentRoute === 'logs' && isAdmin) return <LogsDashboard onLogout={handleLogout} />;
         if (currentRoute === 'mediastack') return <MediaStackDashboard isAdmin={isAdmin} />;
@@ -334,7 +348,7 @@ export const MainApp: React.FC = () => {
                     onDismiss={dismissWhatsNew}
                 />
             )}
-            {!isPublicView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Server Portal'} adminThumb={sessionInfo?.adminThumb} customLogoUrl={publicConfig?.customLogoUrl} requestUrl={sessionInfo?.requestUrl || 'https://yourdomain.com'} navOrder={sessionInfo?.navOrder || ['home', 'discover', 'users', 'analytics', 'mediastack', 'upgrader', 'requests', 'status', 'maintenance', 'request', 'logs', 'settings', 'logout']} navFeatures={sessionInfo?.navFeatures} appVersion={publicConfig.appVersion} activeTheme={activeTheme} setActiveTheme={setActiveTheme} pendingRequestCount={pendingRequestCount} />}
+            {!isPublicView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Server Portal'} adminThumb={sessionInfo?.adminThumb} customLogoUrl={publicConfig?.customLogoUrl} requestUrl={sessionInfo?.requestUrl || 'https://yourdomain.com'} navOrder={sessionInfo?.navOrder || ['home', 'discover', 'users', 'analytics', 'mediastack', 'upgrader', 'requests', 'status', 'maintenance', 'request', 'logs', 'settings', 'logout']} navFeatures={sessionInfo?.navFeatures} appVersion={publicConfig.appVersion} activeTheme={activeTheme} setActiveTheme={setActiveTheme} pendingRequestCount={queueBadgeCount} />}
             <div id="main-scroll-container" className={`relative z-10 flex-1 min-w-0 min-h-0 flex flex-col items-center px-4 pb-[80px] md:px-8 md:pb-8 overflow-x-visible md:overflow-y-auto custom-scrollbar ${isPublicView ? '!pb-8' : ''}`}>
                 {isImpersonating && (
                     <div className="w-full max-w-[100%] pt-20 md:pt-0 md:sticky md:top-0 md:z-30">

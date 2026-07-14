@@ -39,7 +39,7 @@ const RequestTypeBadge: React.FC<{ type: string; is4k: boolean }> = ({ type, is4
     </span>
 );
 
-export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ onCountsChange }) => {
+export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void; embedded?: boolean }> = ({ onCountsChange, embedded = false }) => {
     const [toasts, setToasts] = useState<ToastMessage[]>([]);
     const [filter, setFilter] = useState<RequestFilter>('pending');
     const [requests, setRequests] = useState<PortalRequestItem[]>([]);
@@ -198,10 +198,11 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
     const showPendingActions = filter === 'pending';
 
     return (
-        <div className="w-full max-w-[100%] animate-fade-in">
+        <div className={`w-full max-w-[100%] ${embedded ? '' : 'animate-fade-in'}`}>
             <Loader isLoading={loading && requests.length === 0} />
             <ToastContainer toasts={toasts} setToasts={setToasts} />
 
+            {!embedded && (
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
                 <div>
                     <h1 className="text-2xl md:text-3xl font-bold text-plex">Requests</h1>
@@ -235,6 +236,7 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void }> = ({ 
                     </button>
                 </div>
             </div>
+            )}
 
             <div className="glass-card p-4 md:p-6 shadow-2xl">
                 <div className="flex flex-wrap gap-2 mb-5">
