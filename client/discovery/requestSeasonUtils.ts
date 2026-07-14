@@ -28,6 +28,58 @@ export type SeasonStatusInfo = {
     requestable: boolean;
 };
 
+/** True when Seerr's download tracker reports active Radarr/Sonarr queue items. */
+export const hasActiveSeerrDownloads = (
+    mediaInfo: any,
+    opts?: { is4k?: boolean | null; seasonNumber?: number | null },
+): boolean => {
+    if (!mediaInfo || typeof mediaInfo !== 'object') return false;
+
+    const hd = Array.isArray(mediaInfo.downloadStatus) ? mediaInfo.downloadStatus : [];
+    const fourK = Array.isArray(mediaInfo.downloadStatus4k) ? mediaInfo.downloadStatus4k : [];
+    let queues: any[] = [];
+    if (opts?.is4k === true) queues = fourK;
+    else if (opts?.is4k === false) queues = hd;
+    else queues = [...hd, ...fourK];
+
+    if (typeof opts?.seasonNumber === 'number' && Number.isFinite(opts.seasonNumber)) {
+        return queues.some((item) => Number(item?.episode?.seasonNumber) === opts.seasonNumber);
+    }
+
+    return queues.length > 0;
+};
+
+export const isMediaActivelyProcessing = (
+    mediaInfo: any,
+    mediaStatus?: number | null,
+): boolean => {
+    const status = Number(mediaStatus ?? mediaInfo?.status);
+    if (status !== MEDIA_STATUS.PROCESSING) return false;
+    return hasActiveSeerrDownloads(mediaInfo);
+};
+
+export const resolveInProgressDisplay = (
+    mediaInfo: any,
+    mediaStatus?: number | null,
+): { kind: 'processing' | 'requested'; label: string; detail: string } | null => {
+    const status = Number(mediaStatus ?? mediaInfo?.status);
+    if (status !== MEDIA_STATUS.PROCESSING) return null;
+
+    if (hasActiveSeerrDownloads(mediaInfo)) {
+        return {
+            kind: 'processing',
+            label: 'Processing',
+            detail: 'Your request is being downloaded or imported.',
+        };
+    }
+
+    return {
+        kind: 'requested',
+        label: 'Requested',
+        detail: 'Your request was sent to the media server and is waiting to download.',
+    };
+};
+
 export const mediaLibraryStatusLabel = (status: number | null | undefined): string | null => {
     const value = Number(status);
     if (value === MEDIA_STATUS.AVAILABLE) return 'Available';
@@ -41,6 +93,7 @@ export const mediaLibraryStatusLabel = (status: number | null | undefined): stri
 export const seasonStatusBadgeClass = (label: string, requestable: boolean): string => {
     if (label === 'Available') return 'bg-green-500/15 text-green-400 border-green-500/25';
     if (label === 'Processing' || label === 'Approved') return 'bg-blue-500/15 text-blue-300 border-blue-500/25';
+    if (label === 'Requested') return 'bg-indigo-500/15 text-indigo-300 border-indigo-500/25';
     if (label === 'Pending') return 'bg-amber-500/15 text-amber-400 border-amber-500/25';
     if (label === 'Declined') return 'bg-red-500/15 text-red-400 border-red-500/25';
     if (!requestable) return 'bg-white/5 text-white/40 border-white/10';
@@ -131,7 +184,9 @@ export const buildSeasonStatusFromDetails = (details: any): SeasonStatusInfo[] =
                 statusLabel = 'Available';
             } else if (libraryStatus === MEDIA_STATUS.PROCESSING) {
                 requestable = false;
-                statusLabel = 'Processing';
+                statusLabel = hasActiveSeerrDownloads(mediaInfo, { seasonNumber })
+                    ? 'Processing'
+                    : 'Requested';
             } else if (libraryStatus === MEDIA_STATUS.PENDING) {
                 requestable = false;
                 statusLabel = 'Pending';
@@ -165,6 +220,7 @@ export const getRequestButtonState = (
     mediaType: 'movie' | 'tv',
     mediaStatus: number | null | undefined,
     seasonRows: SeasonStatusInfo[],
+    mediaInfo?: any,
 ) => {
     const status = Number(mediaStatus) || null;
     if (mediaType === 'movie') {
@@ -172,7 +228,8 @@ export const getRequestButtonState = (
             return { label: 'Available', disabled: true, variant: 'available' as const };
         }
         if (status === MEDIA_STATUS.PROCESSING) {
-            return { label: 'Processing', disabled: true, variant: 'pending' as const };
+            const label = isMediaActivelyProcessing(mediaInfo, status) ? 'Processing' : 'Requested';
+            return { label, disabled: true, variant: 'pending' as const };
         }
         if (status === MEDIA_STATUS.PENDING) {
             return { label: 'Request Pending', disabled: true, variant: 'pending' as const };

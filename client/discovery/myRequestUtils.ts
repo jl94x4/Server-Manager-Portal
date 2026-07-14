@@ -19,6 +19,7 @@ export const portalRequestToDiscoveryRowItem = (item: PortalRequestItem) => ({
 export const memberRequestStatusClass = (label: string) => {
     if (label === 'Available') return 'bg-green-500/15 text-green-400 border-green-500/25';
     if (label === 'Processing' || label === 'Approved') return 'bg-blue-500/15 text-blue-300 border-blue-500/25';
+    if (label === 'Requested') return 'bg-indigo-500/15 text-indigo-300 border-indigo-500/25';
     if (label === 'Pending Approval') return 'bg-amber-500/15 text-amber-400 border-amber-500/25';
     if (label === 'Declined') return 'bg-red-500/15 text-red-400 border-red-500/25';
     if (label === 'Failed') return 'bg-red-500/15 text-red-300 border-red-500/30';
@@ -32,7 +33,9 @@ export const memberRequestDisplayStatus = (item: PortalRequestItem) => {
     if (status === 4) return 'Failed';
     if (status === 1) return 'Pending Approval';
     if (status === 2 && (mediaStatus === 4 || mediaStatus === 5)) return 'Available';
-    if (status === 2 && mediaStatus === 3) return 'Processing';
+    if (status === 2 && mediaStatus === 3) {
+        return item.isDownloading ? 'Processing' : 'Requested';
+    }
     if (status === 2) return 'Approved';
     return item.statusLabel || 'Unknown';
 };

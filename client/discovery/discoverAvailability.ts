@@ -3,6 +3,7 @@ import {
     buildSeasonStatusFromDetails,
     MEDIA_STATUS,
     REQUEST_STATUS,
+    resolveInProgressDisplay,
     type SeasonStatusInfo,
 } from './requestSeasonUtils';
 
@@ -10,6 +11,7 @@ export type MediaAvailabilityKind =
     | 'available'
     | 'partial'
     | 'processing'
+    | 'requested'
     | 'pending'
     | 'failed'
     | 'declined'
@@ -103,6 +105,8 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
     const availableSeasons = seasonRows.filter((s) => s.statusLabel === 'Available');
     const pendingSeasons = seasonRows.filter((s) => s.statusLabel === 'Pending' || s.statusLabel === 'Approved');
     const processingSeasons = seasonRows.filter((s) => s.statusLabel === 'Processing');
+    const requestedSeasons = seasonRows.filter((s) => s.statusLabel === 'Requested');
+    const inProgressDisplay = resolveInProgressDisplay(mediaInfo, mediaStatus);
 
     if (mediaType === 'tv' && seasonRows.length > 0) {
         const requestable = seasonRows.filter((s) => s.requestable);
@@ -122,12 +126,23 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
                 detail: `${formatSeasonSummary(seasonRows) || 'Some seasons in library'}. ${requestable.length} season${requestable.length === 1 ? '' : 's'} still requestable.`,
             };
         }
-        if (processingSeasons.length > 0 || mediaStatus === MEDIA_STATUS.PROCESSING) {
+        if (processingSeasons.length > 0) {
             return {
                 ...base,
                 kind: 'processing',
                 label: 'Processing',
                 detail: 'Your request is being downloaded or imported.',
+            };
+        }
+        if (inProgressDisplay) {
+            return { ...base, ...inProgressDisplay };
+        }
+        if (requestedSeasons.length > 0) {
+            return {
+                ...base,
+                kind: 'requested',
+                label: 'Requested',
+                detail: 'Your request was sent to the media server and is waiting to download.',
             };
         }
         if (pendingSeasons.length > 0 || userRequestStatus === REQUEST_STATUS.PENDING || mediaStatus === MEDIA_STATUS.PENDING) {
@@ -149,13 +164,8 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
                 detail: 'This movie is already in your media library.',
             };
         }
-        if (mediaStatus === MEDIA_STATUS.PROCESSING) {
-            return {
-                ...base,
-                kind: 'processing',
-                label: 'Processing',
-                detail: 'Your request is being downloaded or imported.',
-            };
+        if (inProgressDisplay) {
+            return { ...base, ...inProgressDisplay };
         }
         if (mediaStatus === MEDIA_STATUS.PENDING || userRequestStatus === REQUEST_STATUS.PENDING) {
             return {
@@ -192,13 +202,8 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
         };
     }
 
-    if (mediaStatus === MEDIA_STATUS.PROCESSING) {
-        return {
-            ...base,
-            kind: 'processing',
-            label: 'Processing',
-            detail: 'Downloading or importing into your library.',
-        };
+    if (inProgressDisplay) {
+        return { ...base, ...inProgressDisplay };
     }
 
     if (mediaStatus === MEDIA_STATUS.PENDING) {
@@ -222,9 +227,9 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
     if (userRequestStatus === REQUEST_STATUS.APPROVED && mediaStatus !== MEDIA_STATUS.AVAILABLE) {
         return {
             ...base,
-            kind: 'processing',
-            label: 'Approved',
-            detail: 'Approved and being sent to your media server.',
+            kind: 'requested',
+            label: 'Requested',
+            detail: 'Approved and sent to your media server.',
         };
     }
 

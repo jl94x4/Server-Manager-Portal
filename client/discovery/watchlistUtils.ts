@@ -30,6 +30,7 @@ export const watchlistItemStatusLabel = (item: any): string | null => {
     if (availability.kind === 'available') return 'Available';
     if (availability.kind === 'partial') return 'Partial';
     if (availability.kind === 'processing') return 'Processing';
+    if (availability.kind === 'requested') return 'Requested';
     if (availability.kind === 'pending') return 'Pending';
     if (availability.kind === 'failed') return 'Failed';
     if (availability.kind === 'declined') return 'Declined';

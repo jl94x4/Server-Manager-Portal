@@ -31,6 +31,7 @@ export type PortalRequestItem = {
     createdAt: string | null;
     updatedAt: string | null;
     mediaStatus: number | null;
+    isDownloading?: boolean;
     seerrUrl: string;
     tmdbId?: number | null;
     mediaId?: number | null;

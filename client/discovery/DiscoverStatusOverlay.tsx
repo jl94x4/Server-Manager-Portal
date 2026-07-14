@@ -43,6 +43,18 @@ export const DiscoverStatusOverlay: React.FC<{ state: MediaAvailabilityState }> 
         );
     }
 
+    if (state.kind === 'requested') {
+        return (
+            <div
+                className="absolute top-2 right-2 z-10 flex items-center gap-1 px-2 py-1 rounded-full bg-indigo-500/90 text-white text-[10px] font-black uppercase tracking-wide shadow-lg backdrop-blur-sm border border-indigo-400/30"
+                title={state.detail || state.label}
+            >
+                <Clock className="w-3 h-3" />
+                Requested
+            </div>
+        );
+    }
+
     if (state.kind === 'pending') {
         return (
             <div className={`${badgeClass} bg-amber-500/90 text-white border-amber-400/30`} title={state.label}>
@@ -86,6 +98,7 @@ export const mediaStatusPanelClass = (kind: MediaAvailabilityState['kind']) => {
     if (kind === 'available') return 'border-green-500/25 bg-green-500/10 text-green-200';
     if (kind === 'partial') return 'border-emerald-500/25 bg-emerald-500/10 text-emerald-100';
     if (kind === 'processing') return 'border-blue-500/25 bg-blue-500/10 text-blue-100';
+    if (kind === 'requested') return 'border-indigo-500/25 bg-indigo-500/10 text-indigo-100';
     if (kind === 'pending') return 'border-amber-500/25 bg-amber-500/10 text-amber-100';
     if (kind === 'failed' || kind === 'declined') return 'border-red-500/25 bg-red-500/10 text-red-100';
     if (kind === 'blacklisted') return 'border-white/15 bg-white/5 text-white/60';
@@ -100,33 +113,35 @@ export const MediaStatusPanel: React.FC<{
     if (state.kind === 'none') return null;
 
     return (
-        <div className={`rounded-xl border px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 ${mediaStatusPanelClass(state.kind)}`}>
+        <div className={`rounded-xl border px-4 py-3 flex flex-col gap-3 ${mediaStatusPanelClass(state.kind)}`}>
             <div className="min-w-0">
                 <p className="text-sm font-bold">{state.label}</p>
                 {state.detail && (
-                    <p className="text-xs opacity-80 mt-0.5">{state.detail}</p>
+                    <p className="text-xs opacity-80 mt-0.5 leading-relaxed">{state.detail}</p>
                 )}
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-                {state.kind === 'failed' && onRetry && (
-                    <button
-                        type="button"
-                        onClick={onRetry}
-                        className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-bold transition-colors"
-                    >
-                        Retry request
-                    </button>
-                )}
-                {state.hasUserRequest && onViewRequests && (
-                    <button
-                        type="button"
-                        onClick={onViewRequests}
-                        className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-bold transition-colors"
-                    >
-                        View in My Requests
-                    </button>
-                )}
-            </div>
+            {(onRetry || onViewRequests) && (
+                <div className="flex flex-col gap-2 w-full">
+                    {state.kind === 'failed' && onRetry && (
+                        <button
+                            type="button"
+                            onClick={onRetry}
+                            className="w-full px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-bold transition-colors text-center"
+                        >
+                            Retry request
+                        </button>
+                    )}
+                    {state.hasUserRequest && onViewRequests && (
+                        <button
+                            type="button"
+                            onClick={onViewRequests}
+                            className="w-full px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-bold transition-colors text-center"
+                        >
+                            View in My Requests
+                        </button>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

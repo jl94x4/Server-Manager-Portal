@@ -176,7 +176,7 @@ export const MediaDetailsPage: React.FC<{
     const title = mediaType === 'movie' ? details.title : details.name;
     const year = (details.releaseDate || details.firstAirDate || '').substring(0, 4);
     const mediaStatus = details.mediaInfo?.status ?? null;
-    const requestButton = getRequestButtonState(mediaType, mediaStatus, seasonRows);
+    const requestButton = getRequestButtonState(mediaType, mediaStatus, seasonRows, details.mediaInfo);
     const posterUrl = details.posterPath ? `https://image.tmdb.org/t/p/w500${details.posterPath}` : '';
     const backdropUrl = tmdbBackdropUrl(details.backdropPath || '');
     const creators = details.createdBy?.map((c: any) => c.name).filter(Boolean).join(', ');
