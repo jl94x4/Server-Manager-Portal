@@ -10,6 +10,8 @@ import { Film, Tv, Compass, ClipboardList } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { portalUrl, stripBasePath } from '../shared/basePath';
 import { normalizeRawDiscoveryItem } from './discoverItemUtils';
+import { resolveMediaAvailabilityState } from './discoverAvailability';
+import { DiscoverStatusOverlay } from './DiscoverStatusOverlay';
 import { MyRequestsPage } from './MyRequestsPage';
 import { useMyRequestCount } from './useMyRequestCount';
 import { WatchlistPage } from './WatchlistPage';
@@ -83,26 +85,10 @@ export const DiscoveryDashboard: React.FC<{
         const overview = item.overview;
         const mediaType = isPerson ? 'person' : (isMovie ? 'movie' : 'tv');
 
-        const status = item.mediaInfo?.status;
-        const isAvailable = status === 4 || status === 5;
-        const isPending = status === 2 || status === 3;
-
-        let overlay = null;
-        if (!isPerson) {
-            if (isAvailable) {
-                overlay = (
-                    <div className="absolute top-2 right-2 bg-green-500/90 text-white rounded-full p-1 shadow-lg backdrop-blur-sm z-10 border border-green-400/30">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                    </div>
-                );
-            } else if (isPending) {
-                overlay = (
-                    <div className="absolute top-2 right-2 bg-amber-500/90 text-white rounded-full p-1 shadow-lg backdrop-blur-sm z-10 border border-amber-400/30">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                    </div>
-                );
-            }
-        }
+        const availability = resolveMediaAvailabilityState(item);
+        const overlay = !isPerson && availability.kind !== 'none'
+            ? <DiscoverStatusOverlay state={availability} />
+            : null;
 
         return {
             ...item,
@@ -114,9 +100,11 @@ export const DiscoveryDashboard: React.FC<{
             overview,
             type: mediaType,
             tags: [isPerson ? 'Person' : (isMovie ? 'Movie' : 'TV Show')],
-            status,
-            isAvailable,
-            isPending,
+            status: item.mediaInfo?.status,
+            availability,
+            isAvailable: availability.kind === 'available',
+            isPartial: availability.kind === 'partial',
+            isPending: availability.kind === 'pending' || availability.kind === 'processing',
             overlay,
         };
     };

@@ -1,4 +1,5 @@
 import { normalizeRawDiscoveryItem } from './discoverItemUtils';
+import { resolveMediaAvailabilityState } from './discoverAvailability';
 import { buildSeasonStatusFromDetails, isMovieFullyAvailable, isMovieRequestPending, MEDIA_STATUS } from './requestSeasonUtils';
 
 export type WatchlistMediaRef = {
@@ -24,47 +25,39 @@ export const resolveWatchlistMediaRef = (item: any): WatchlistMediaRef | null =>
 };
 
 export const watchlistItemStatusLabel = (item: any): string | null => {
-    const ref = resolveWatchlistMediaRef(item);
-    if (!ref) return null;
-    const mediaStatus = Number(item?.mediaInfo?.status ?? item?.media?.status);
-
-    if (mediaStatus === MEDIA_STATUS.BLACKLISTED) return 'Blacklisted';
-    if (ref.mediaType === 'movie') {
-        if (isMovieFullyAvailable(mediaStatus)) return 'Available';
-        if (isMovieRequestPending(mediaStatus)) return mediaStatus === MEDIA_STATUS.PROCESSING ? 'Processing' : 'Pending';
-    }
-    if (ref.mediaType === 'tv') {
-        if (mediaStatus === MEDIA_STATUS.AVAILABLE) return 'Available';
-        if (mediaStatus === MEDIA_STATUS.PARTIAL) return 'Partial';
-        if (mediaStatus === MEDIA_STATUS.PROCESSING) return 'Processing';
-        if (mediaStatus === MEDIA_STATUS.PENDING) return 'Pending';
-        const seasons = buildSeasonStatusFromDetails(item);
-        if (seasons.length > 0) {
-            const requestable = seasons.filter((s) => s.requestable).length;
-            if (requestable === 0) return 'Requested';
-        }
-    }
-    return null;
+    const availability = resolveMediaAvailabilityState(item);
+    if (availability.kind === 'none') return null;
+    if (availability.kind === 'available') return 'Available';
+    if (availability.kind === 'partial') return 'Partial';
+    if (availability.kind === 'processing') return 'Processing';
+    if (availability.kind === 'pending') return 'Pending';
+    if (availability.kind === 'failed') return 'Failed';
+    if (availability.kind === 'declined') return 'Declined';
+    if (availability.kind === 'blacklisted') return 'Blacklisted';
+    return availability.label || null;
 };
 
 /** Quick client-side check — modal/backend still enforce rules. */
 export const isWatchlistItemRequestable = (item: any): boolean => {
     const ref = resolveWatchlistMediaRef(item);
     if (!ref) return false;
-    const mediaStatus = Number(item?.mediaInfo?.status ?? item?.media?.status);
-    if (mediaStatus === MEDIA_STATUS.BLACKLISTED) return false;
+    const availability = resolveMediaAvailabilityState(item);
+    if (availability.kind === 'blacklisted' || availability.kind === 'failed' || availability.kind === 'declined') {
+        return false;
+    }
 
+    const mediaStatus = Number(item?.mediaInfo?.status ?? item?.media?.status);
     if (ref.mediaType === 'movie') {
         if (isMovieFullyAvailable(mediaStatus)) return false;
         if (isMovieRequestPending(mediaStatus)) return false;
-        return true;
+        return availability.kind !== 'available';
     }
 
     const seasons = buildSeasonStatusFromDetails(item);
     if (seasons.length > 0) return seasons.some((s) => s.requestable);
     if (mediaStatus === MEDIA_STATUS.AVAILABLE) return false;
     if (mediaStatus === MEDIA_STATUS.PROCESSING || mediaStatus === MEDIA_STATUS.PENDING) return false;
-    return true;
+    return availability.kind !== 'available';
 };
 
 export const countRequestableWatchlistItems = (items: any[]) => (

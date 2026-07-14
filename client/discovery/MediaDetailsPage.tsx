@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PlusCircle, CheckCircle, Clock, ArrowLeft, Star, Calendar, Globe, Film, Tv, Loader2, Users, Ticket, Cloud, Disc } from 'lucide-react';
 import { apiFetch } from '../shared/api';
+import { portalUrl } from '../shared/basePath';
 import { DiscoverPosterCard } from '../screens';
 import { Carousel } from './Carousel';
 import { DiscoveryFactWidget } from './DiscoveryFactWidget';
@@ -8,6 +9,8 @@ import { NoPosterPlaceholder } from '../shared/NoPosterPlaceholder';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
 import { tmdbBackdropUrl } from './discoverConstants';
 import { RequestModal } from './RequestModal';
+import { resolveMediaAvailabilityState } from './discoverAvailability';
+import { MediaStatusPanel } from './DiscoverStatusOverlay';
 import {
     buildSeasonStatusFromDetails,
     getRequestButtonState,
@@ -137,6 +140,30 @@ export const MediaDetailsPage: React.FC<{
         () => (mediaType === 'tv' && details ? buildSeasonStatusFromDetails(details) : []),
         [details, mediaType],
     );
+
+    const availability = useMemo(
+        () => (details ? resolveMediaAvailabilityState(details) : null),
+        [details],
+    );
+
+    const handleRetryRequest = async () => {
+        if (!availability?.userRequestId) return;
+        try {
+            const res = await apiFetch(`/api/discovery/my-requests/${availability.userRequestId}/retry`, {
+                method: 'POST',
+            });
+            if (res?.error) throw new Error(res.error);
+            pushToast?.(res?.message || 'Request retry submitted.', 'success');
+            await refreshDetails();
+        } catch (err: any) {
+            pushToast?.(err?.message || 'Failed to retry request', 'error');
+        }
+    };
+
+    const openMyRequests = () => {
+        window.history.pushState({}, '', portalUrl('/discovery/requests'));
+        window.dispatchEvent(new Event('popstate'));
+    };
 
     if (loading || !details) {
         return (
@@ -278,6 +305,14 @@ export const MediaDetailsPage: React.FC<{
                             <><PlusCircle className="w-4 h-4" /> {requestButton.label}</>
                         )}
                     </button>
+
+                    {availability && availability.kind !== 'none' && (
+                        <MediaStatusPanel
+                            state={availability}
+                            onViewRequests={availability.hasUserRequest ? openMyRequests : undefined}
+                            onRetry={availability.kind === 'failed' ? handleRetryRequest : undefined}
+                        />
+                    )}
 
                     {details.homepage && (
                         <a
