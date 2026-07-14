@@ -204,9 +204,9 @@ export const MediaDetailsPage: React.FC<{
     const visibleRecommendations = filterHiddenAvailableItems(recommendations, preferences.hideAvailableMedia);
     const releaseDateRows = mediaType === 'movie' && radarrReleases
         ? [
-            { key: 'cinema', icon: Ticket, label: 'Cinema release', date: formatRadarrReleaseDate(radarrReleases.inCinemas) },
-            { key: 'streaming', icon: Cloud, label: 'Streaming release', date: formatRadarrReleaseDate(radarrReleases.digitalRelease) },
-            { key: 'bluray', icon: Disc, label: 'Blu-ray release', date: formatRadarrReleaseDate(radarrReleases.physicalRelease) },
+            { key: 'cinema', icon: Ticket, label: 'Cinema', date: formatRadarrReleaseDate(radarrReleases.inCinemas) },
+            { key: 'streaming', icon: Cloud, label: 'Streaming', date: formatRadarrReleaseDate(radarrReleases.digitalRelease) },
+            { key: 'bluray', icon: Disc, label: 'Blu-ray', date: formatRadarrReleaseDate(radarrReleases.physicalRelease) },
         ].filter((row) => row.date)
         : [];
 
@@ -345,16 +345,40 @@ export const MediaDetailsPage: React.FC<{
                     </p>
 
                     {releaseDateRows.length > 0 && (
-                        <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-8 max-w-3xl">
-                            <h3 className="text-base sm:text-lg font-bold text-white shrink-0">Release Dates</h3>
-                            <div className="flex flex-col gap-2.5">
+                        <div className="max-w-3xl rounded-2xl border border-white/10 bg-black/45 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.35)] overflow-hidden ring-1 ring-white/[0.04]">
+                            <div className="px-4 sm:px-5 py-3 border-b border-white/[0.06] bg-gradient-to-r from-white/[0.04] to-transparent">
+                                <span className="text-[10px] font-black uppercase tracking-[0.22em] text-white/45">
+                                    Release Dates
+                                </span>
+                            </div>
+                            <div
+                                className={`grid divide-white/[0.06] ${
+                                    releaseDateRows.length === 1
+                                        ? 'grid-cols-1'
+                                        : releaseDateRows.length === 2
+                                            ? 'grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x'
+                                            : 'grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x'
+                                }`}
+                            >
                                 {releaseDateRows.map((row) => {
                                     const Icon = row.icon;
                                     return (
-                                        <div key={row.key} className="flex items-center gap-3 text-white/70">
-                                            <Icon className="w-4 h-4 text-white/45 shrink-0" aria-hidden />
-                                            <span className="text-sm sm:text-base">{row.date}</span>
-                                            <span className="sr-only">{row.label}</span>
+                                        <div
+                                            key={row.key}
+                                            className="group relative px-4 sm:px-5 py-4 flex flex-col gap-3 min-w-0"
+                                        >
+                                            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                                            <div className="relative flex items-center gap-2.5">
+                                                <div className="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center shadow-inner group-hover:border-plex/30 group-hover:bg-plex/10 transition-colors">
+                                                    <Icon className="w-4 h-4 text-white/55 group-hover:text-plex transition-colors" aria-hidden />
+                                                </div>
+                                                <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+                                                    {row.label}
+                                                </span>
+                                            </div>
+                                            <p className="relative text-sm sm:text-[15px] font-semibold text-white/90 leading-snug pl-0.5">
+                                                {row.date}
+                                            </p>
                                         </div>
                                     );
                                 })}
