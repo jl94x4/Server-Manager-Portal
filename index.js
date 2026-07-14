@@ -336,6 +336,7 @@ import {
     triggerSonarrEpisodeSearch,
     fetchArrQueueSummary,
     fetchArrInstanceJson,
+    fetchRadarrMovieReleaseDates,
 } from './lib/arr-service.js';
 import { getSonarrTrashCatalog, getSonarrTrashCustomFormat } from './lib/trash-guides-catalog.js';
 import { createRequestAppService, getRequestAppGate } from './lib/request-app-service.js';
@@ -4488,6 +4489,27 @@ app.get('/api/discovery/fact', requireAuth, requireMember, async (req, res) => {
         res.json(payload);
     } catch (e) {
         log(`Discovery fact error: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/discovery/radarr-releases', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const tmdbId = Number(req.query.tmdbId || req.query.mediaId);
+        if (!Number.isFinite(tmdbId) || tmdbId <= 0) {
+            return res.status(400).json({ error: 'Invalid tmdbId' });
+        }
+        if (!isArrTypeConfigured(config, 'radarr')) {
+            return res.json({ configured: false, releases: null });
+        }
+        const releases = await fetchRadarrMovieReleaseDates(config, tmdbId, {
+            resolveUrl: resolveIntegrationUrlForFetch,
+            fetchImpl: fetch,
+        });
+        res.json({ configured: true, releases });
+    } catch (e) {
+        log(`Discovery Radarr releases error: ${e.message}`);
         res.status(500).json({ error: e.message });
     }
 });

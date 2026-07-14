@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, CheckCircle, Clock, ArrowLeft, Star, Calendar, Globe, Film, Tv, Loader2, Users } from 'lucide-react';
+import { PlusCircle, CheckCircle, Clock, ArrowLeft, Star, Calendar, Globe, Film, Tv, Loader2, Users, Ticket, Cloud, Disc } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { DiscoverPosterCard } from '../screens';
 import { Carousel } from './Carousel';
@@ -15,6 +15,19 @@ const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) =
     </div>
 );
 
+type RadarrReleaseDates = {
+    inCinemas?: string | null;
+    digitalRelease?: string | null;
+    physicalRelease?: string | null;
+};
+
+const formatRadarrReleaseDate = (value?: string | null) => {
+    if (!value) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+};
+
 export const MediaDetailsPage: React.FC<{
     mediaType: 'movie' | 'tv';
     mediaId: number;
@@ -28,6 +41,7 @@ export const MediaDetailsPage: React.FC<{
     const [requestLoading, setRequestLoading] = useState(false);
     const [recommendations, setRecommendations] = useState<any[]>([]);
     const [posterFailed, setPosterFailed] = useState(false);
+    const [radarrReleases, setRadarrReleases] = useState<RadarrReleaseDates | null>(null);
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -51,6 +65,26 @@ export const MediaDetailsPage: React.FC<{
             setLoading(false);
         };
         fetchDetails();
+    }, [mediaId, mediaType]);
+
+    useEffect(() => {
+        if (mediaType !== 'movie') {
+            setRadarrReleases(null);
+            return;
+        }
+        let cancelled = false;
+        apiFetch(`/api/discovery/radarr-releases?tmdbId=${mediaId}`)
+            .then((res) => {
+                if (!cancelled && res?.configured && res?.releases) {
+                    setRadarrReleases(res.releases);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) setRadarrReleases(null);
+            });
+        return () => {
+            cancelled = true;
+        };
     }, [mediaId, mediaType]);
 
     const handleRequest = async () => {
@@ -168,6 +202,13 @@ export const MediaDetailsPage: React.FC<{
     if (productionCompanies) extraDetails.push({ label: 'Studio', value: productionCompanies });
 
     const visibleRecommendations = filterHiddenAvailableItems(recommendations, preferences.hideAvailableMedia);
+    const releaseDateRows = mediaType === 'movie' && radarrReleases
+        ? [
+            { key: 'cinema', icon: Ticket, label: 'Cinema release', date: formatRadarrReleaseDate(radarrReleases.inCinemas) },
+            { key: 'streaming', icon: Cloud, label: 'Streaming release', date: formatRadarrReleaseDate(radarrReleases.digitalRelease) },
+            { key: 'bluray', icon: Disc, label: 'Blu-ray release', date: formatRadarrReleaseDate(radarrReleases.physicalRelease) },
+        ].filter((row) => row.date)
+        : [];
 
     return (
         <div className="w-full flex flex-col min-h-screen bg-card animate-fade-in pb-16 rounded-2xl md:rounded-3xl overflow-x-hidden border border-white/5 shadow-2xl">
@@ -302,6 +343,24 @@ export const MediaDetailsPage: React.FC<{
                     <p className="text-sm sm:text-base lg:text-[17px] text-white/82 leading-relaxed max-w-3xl">
                         {details.overview || 'No description available.'}
                     </p>
+
+                    {releaseDateRows.length > 0 && (
+                        <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-8 max-w-3xl">
+                            <h3 className="text-base sm:text-lg font-bold text-white shrink-0">Release Dates</h3>
+                            <div className="flex flex-col gap-2.5">
+                                {releaseDateRows.map((row) => {
+                                    const Icon = row.icon;
+                                    return (
+                                        <div key={row.key} className="flex items-center gap-3 text-white/70">
+                                            <Icon className="w-4 h-4 text-white/45 shrink-0" aria-hidden />
+                                            <span className="text-sm sm:text-base">{row.date}</span>
+                                            <span className="sr-only">{row.label}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
 
                     <DiscoveryFactWidget mediaType={mediaType} mediaId={mediaId} />
 
