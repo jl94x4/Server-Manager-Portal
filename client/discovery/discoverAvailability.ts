@@ -1,6 +1,7 @@
 import { normalizeRawDiscoveryItem } from './discoverItemUtils';
 import {
     buildSeasonStatusFromDetails,
+    isReturningSeries,
     isSeasonUpToDateLabel,
     MEDIA_STATUS,
     REQUEST_STATUS,
@@ -67,7 +68,10 @@ const formatUpToDateSeasonSummary = (seasonRows: SeasonStatusInfo[]) => {
 
 const formatTvLibraryDetail = (seasonRows: SeasonStatusInfo[], airingDetail?: string) => {
     const parts = [formatSeasonSummary(seasonRows), formatUpToDateSeasonSummary(seasonRows)].filter(Boolean);
-    if (parts.length) return parts.join('. ');
+    if (parts.length) {
+        if (airingDetail) return `${parts.join('. ')}. ${airingDetail}`;
+        return parts.join('. ');
+    }
     return airingDetail || 'All requested seasons are available.';
 };
 
@@ -123,28 +127,33 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
     const processingSeasons = seasonRows.filter((s) => s.statusLabel === 'Processing');
     const requestedSeasons = seasonRows.filter((s) => s.statusLabel === 'Requested');
     const inProgressDisplay = resolveInProgressDisplay(mediaInfo, mediaStatus);
-    const showInProduction = item?.inProduction === true;
+    const returningSeries = isReturningSeries(item);
 
     if (mediaType === 'tv' && seasonRows.length > 0) {
         const requestable = seasonRows.filter((s) => s.requestable);
-        if (requestable.length === 0 && (availableSeasons.length > 0 || upToDateSeasons.length > 0)) {
-            if (upToDateSeasons.length > 0 && (showInProduction || upToDateSeasons.length === seasonRows.length)) {
+        const handledSeasons = seasonRows.filter(
+            (s) => !s.requestable && s.statusLabel !== 'Not requested' && s.statusLabel !== 'Declined',
+        );
+        if (requestable.length === 0 && handledSeasons.length > 0) {
+            if (returningSeries) {
                 return {
                     ...base,
                     kind: 'available',
                     label: 'Up to date',
                     detail: formatTvLibraryDetail(
                         seasonRows,
-                        'All aired episodes are in your library. New episodes will be added as they air.',
+                        'New episodes will be added as they air.',
                     ),
                 };
             }
-            return {
-                ...base,
-                kind: 'available',
-                label: 'Available in library',
-                detail: formatTvLibraryDetail(seasonRows),
-            };
+            if (availableSeasons.length > 0 || upToDateSeasons.length > 0) {
+                return {
+                    ...base,
+                    kind: 'available',
+                    label: 'Available in library',
+                    detail: formatTvLibraryDetail(seasonRows),
+                };
+            }
         }
         if ((availableSeasons.length > 0 || upToDateSeasons.length > 0) && requestable.length > 0) {
             const handledSummary = formatTvLibraryDetail(seasonRows);

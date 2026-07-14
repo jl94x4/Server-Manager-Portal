@@ -81,6 +81,11 @@ export const resolveInProgressDisplay = (
 };
 
 /** Whether a season still has unaired episodes scheduled (currently airing). */
+export const isReturningSeries = (details: any): boolean => (
+    details?.inProduction === true
+    || String(details?.status || '').toLowerCase() === 'returning series'
+);
+
 export const isSeasonStillAiring = (details: any, seasonNumber: number): boolean => {
     const next = details?.nextEpisodeToAir;
     if (next && Number(next.seasonNumber) === seasonNumber) return true;
@@ -91,13 +96,9 @@ export const isSeasonStillAiring = (details: any, seasonNumber: number): boolean
     );
     const totalEpisodes = Number(tmdbSeason?.episodeCount ?? tmdbSeason?.episode_count) || 0;
 
-    if (
-        details?.inProduction
-        && last
-        && Number(last.seasonNumber) === seasonNumber
-        && totalEpisodes > Number(last.episodeNumber)
-    ) {
-        return true;
+    if (last && Number(last.seasonNumber) === seasonNumber) {
+        if (totalEpisodes > Number(last.episodeNumber)) return true;
+        if (isReturningSeries(details)) return true;
     }
 
     return false;
@@ -106,6 +107,15 @@ export const isSeasonStillAiring = (details: any, seasonNumber: number): boolean
 /** Label for a season Seerr marks as PARTIAL (tracked in Sonarr with not-all episodes). */
 export const resolvePartialSeasonLabel = (details: any, seasonNumber: number): string => (
     isSeasonStillAiring(details, seasonNumber) ? 'Up to date' : 'Partial'
+);
+
+/** Prefer "Up to date" over request/approval labels for ongoing seasons on returning series. */
+export const resolveMonitoredSeasonLabel = (
+    details: any,
+    seasonNumber: number,
+    fallback: string,
+): string => (
+    isReturningSeries(details) && isSeasonStillAiring(details, seasonNumber) ? 'Up to date' : fallback
 );
 
 export const isSeasonUpToDateLabel = (label: string) => label === 'Up to date';
@@ -223,9 +233,10 @@ export const buildSeasonStatusFromDetails = (details: any): SeasonStatusInfo[] =
                 statusLabel = 'Available';
             } else if (libraryStatus === MEDIA_STATUS.PROCESSING) {
                 requestable = false;
-                statusLabel = hasActiveSeerrDownloads(mediaInfo, { seasonNumber })
+                const fallback = hasActiveSeerrDownloads(mediaInfo, { seasonNumber })
                     ? 'Processing'
                     : 'Requested';
+                statusLabel = resolveMonitoredSeasonLabel(details, seasonNumber, fallback);
             } else if (libraryStatus === MEDIA_STATUS.PENDING) {
                 requestable = false;
                 statusLabel = 'Pending';
@@ -237,7 +248,7 @@ export const buildSeasonStatusFromDetails = (details: any): SeasonStatusInfo[] =
                 statusLabel = 'Pending';
             } else if (requestStatus === REQUEST_STATUS.APPROVED) {
                 requestable = false;
-                statusLabel = 'Approved';
+                statusLabel = resolveMonitoredSeasonLabel(details, seasonNumber, 'Approved');
             } else if (requestStatus === REQUEST_STATUS.DECLINED) {
                 requestable = false;
                 statusLabel = 'Declined';
@@ -261,6 +272,7 @@ export const getRequestButtonState = (
     mediaStatus: number | null | undefined,
     seasonRows: SeasonStatusInfo[],
     mediaInfo?: any,
+    details?: any,
 ) => {
     const status = Number(mediaStatus) || null;
     if (mediaType === 'movie') {
@@ -284,10 +296,8 @@ export const getRequestButtonState = (
         return { label: 'Blacklisted', disabled: true, variant: 'blocked' as const };
     }
     const requestableCount = seasonRows.filter((s) => s.requestable).length;
-    const upToDateCount = seasonRows.filter((s) => isSeasonUpToDateLabel(s.statusLabel)).length;
-    const availableCount = seasonRows.filter((s) => s.statusLabel === 'Available').length;
     if (requestableCount === 0 && seasonRows.length > 0) {
-        if (upToDateCount > 0 && availableCount + upToDateCount === seasonRows.length) {
+        if (details && isReturningSeries(details)) {
             return { label: 'Up to date', disabled: true, variant: 'available' as const };
         }
         return { label: 'All Seasons Requested', disabled: true, variant: 'available' as const };
