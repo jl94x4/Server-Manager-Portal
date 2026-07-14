@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { PlusCircle, CheckCircle, Clock, ArrowLeft, Star, Calendar, Globe, Film, Tv, Loader2, Users, Ticket, Cloud, Disc } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { DiscoverPosterCard } from '../screens';
@@ -7,6 +7,12 @@ import { DiscoveryFactWidget } from './DiscoveryFactWidget';
 import { NoPosterPlaceholder } from '../shared/NoPosterPlaceholder';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
 import { tmdbBackdropUrl } from './discoverConstants';
+import { RequestModal } from './RequestModal';
+import {
+    buildSeasonStatusFromDetails,
+    getRequestButtonState,
+    seasonStatusBadgeClass,
+} from './requestSeasonUtils';
 
 const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="flex items-center gap-3 mb-4">
@@ -38,10 +44,10 @@ export const MediaDetailsPage: React.FC<{
     const { preferences } = useDiscoveryPreferences();
     const [details, setDetails] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [requestLoading, setRequestLoading] = useState(false);
     const [recommendations, setRecommendations] = useState<any[]>([]);
     const [posterFailed, setPosterFailed] = useState(false);
     const [radarrReleases, setRadarrReleases] = useState<RadarrReleaseDates | null>(null);
+    const [requestModalOpen, setRequestModalOpen] = useState(false);
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -87,31 +93,21 @@ export const MediaDetailsPage: React.FC<{
         };
     }, [mediaId, mediaType]);
 
-    const handleRequest = async () => {
-        if (!details) return;
-        setRequestLoading(true);
+    const refreshDetails = async () => {
         try {
-            const res = await apiFetch('/api/discovery/request', {
-                method: 'POST',
-                body: JSON.stringify({
-                    mediaType,
-                    mediaId,
-                    ...(mediaType === 'tv' ? { seasons: 'all' } : {}),
-                }),
-            });
-            if (res.error) {
-                pushToast?.(res.error, 'error');
-            } else {
-                pushToast?.('Request submitted successfully!', 'success');
-                setDetails({
-                    ...details,
-                    mediaInfo: { ...details.mediaInfo, status: 2 },
-                });
-            }
-        } catch (err: any) {
-            pushToast?.(err.message || 'Failed to submit request', 'error');
+            const endpoint = mediaType === 'movie'
+                ? `/api/discovery/proxy/movie/${mediaId}`
+                : `/api/discovery/proxy/tv/${mediaId}`;
+            const res = await apiFetch(endpoint);
+            if (!res.error) setDetails(res);
+        } catch (err) {
+            console.error(err);
         }
-        setRequestLoading(false);
+    };
+
+    const handleRequestSuccess = (message: string) => {
+        pushToast?.(message, 'success');
+        refreshDetails();
     };
 
     const openPerson = (personId: number) => {
@@ -137,6 +133,11 @@ export const MediaDetailsPage: React.FC<{
         window.dispatchEvent(new Event('popstate'));
     };
 
+    const seasonRows = useMemo(
+        () => (mediaType === 'tv' && details ? buildSeasonStatusFromDetails(details) : []),
+        [details, mediaType],
+    );
+
     if (loading || !details) {
         return (
             <div className="w-full h-[80vh] flex items-center justify-center">
@@ -147,9 +148,8 @@ export const MediaDetailsPage: React.FC<{
 
     const title = mediaType === 'movie' ? details.title : details.name;
     const year = (details.releaseDate || details.firstAirDate || '').substring(0, 4);
-    const status = details.mediaInfo?.status;
-    const isAvailable = status === 4 || status === 5;
-    const isPending = status === 2 || status === 3;
+    const mediaStatus = details.mediaInfo?.status ?? null;
+    const requestButton = getRequestButtonState(mediaType, mediaStatus, seasonRows);
     const posterUrl = details.posterPath ? `https://image.tmdb.org/t/p/w500${details.posterPath}` : '';
     const backdropUrl = tmdbBackdropUrl(details.backdropPath || '');
     const creators = details.createdBy?.map((c: any) => c.name).filter(Boolean).join(', ');
@@ -211,6 +211,7 @@ export const MediaDetailsPage: React.FC<{
         : [];
 
     return (
+        <>
         <div className="w-full flex flex-col min-h-screen bg-card animate-fade-in pb-16 rounded-2xl md:rounded-3xl overflow-x-hidden border border-white/5 shadow-2xl">
             <div className="relative isolate">
                 <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
@@ -257,24 +258,24 @@ export const MediaDetailsPage: React.FC<{
 
                     <button
                         type="button"
-                        onClick={handleRequest}
-                        disabled={requestLoading || isAvailable || isPending}
+                        onClick={() => setRequestModalOpen(true)}
+                        disabled={requestButton.disabled}
                         className={`w-full py-3 px-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors shadow-lg ${
-                            isAvailable
+                            requestButton.variant === 'available'
                                 ? 'bg-green-500/20 text-green-500 border border-green-500/30 cursor-default'
-                                : isPending
+                                : requestButton.variant === 'pending'
                                     ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30 cursor-default'
-                                    : 'bg-plex hover:bg-plex-hover text-white disabled:opacity-50 disabled:cursor-not-allowed'
+                                    : requestButton.variant === 'blocked'
+                                        ? 'bg-red-500/15 text-red-400 border border-red-500/25 cursor-default'
+                                        : 'bg-plex hover:bg-plex-hover text-white disabled:opacity-50 disabled:cursor-not-allowed'
                         }`}
                     >
-                        {requestLoading ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : isAvailable ? (
-                            <><CheckCircle className="w-4 h-4" /> Available</>
-                        ) : isPending ? (
-                            <><Clock className="w-4 h-4" /> Request Pending</>
+                        {requestButton.variant === 'available' ? (
+                            <><CheckCircle className="w-4 h-4" /> {requestButton.label}</>
+                        ) : requestButton.variant === 'pending' ? (
+                            <><Clock className="w-4 h-4" /> {requestButton.label}</>
                         ) : (
-                            <><PlusCircle className="w-4 h-4" /> Request {mediaType === 'tv' ? 'Series' : 'Movie'}</>
+                            <><PlusCircle className="w-4 h-4" /> {requestButton.label}</>
                         )}
                     </button>
 
@@ -461,22 +462,25 @@ export const MediaDetailsPage: React.FC<{
                     </section>
                 )}
 
-                {mediaType === 'tv' && details.seasons?.length > 0 && (
+                {mediaType === 'tv' && seasonRows.length > 0 && (
                     <section className="border-t border-white/5 pt-8">
                         <SectionHeading>Seasons</SectionHeading>
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                            {details.seasons.filter((s: any) => s.seasonNumber >= 0).map((s: any) => (
-                                <div key={s.id} className="bg-white/[0.04] border border-white/10 rounded-xl p-3 flex gap-3 items-center min-w-0 hover:bg-white/[0.07] hover:border-white/15 transition-colors">
+                            {seasonRows.map((season) => (
+                                <div key={season.seasonNumber} className="bg-white/[0.04] border border-white/10 rounded-xl p-3 flex gap-3 items-center min-w-0 hover:bg-white/[0.07] hover:border-white/15 transition-colors">
                                     <div className="w-11 h-16 rounded-md overflow-hidden flex-shrink-0 bg-black/40 border border-white/10">
-                                        {s.posterPath ? (
-                                            <img src={`https://image.tmdb.org/t/p/w92${s.posterPath}`} className="w-full h-full object-cover" alt="" />
+                                        {season.posterPath ? (
+                                            <img src={`https://image.tmdb.org/t/p/w92${season.posterPath}`} className="w-full h-full object-cover" alt="" />
                                         ) : (
                                             <NoPosterPlaceholder compact />
                                         )}
                                     </div>
-                                    <div className="flex flex-col min-w-0">
-                                        <span className="font-bold text-white text-sm truncate">{s.name}</span>
-                                        <span className="text-xs text-white/50">{s.episodeCount} episodes</span>
+                                    <div className="flex flex-col min-w-0 gap-1">
+                                        <span className="font-bold text-white text-sm truncate">{season.name}</span>
+                                        <span className="text-xs text-white/50">{season.episodeCount} episodes</span>
+                                        <span className={`self-start text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${seasonStatusBadgeClass(season.statusLabel, season.requestable)}`}>
+                                            {season.statusLabel}
+                                        </span>
                                     </div>
                                 </div>
                             ))}
@@ -506,5 +510,15 @@ export const MediaDetailsPage: React.FC<{
                 )}
             </div>
         </div>
+        <RequestModal
+            open={requestModalOpen}
+            mediaType={mediaType}
+            mediaId={mediaId}
+            title={title}
+            onClose={() => setRequestModalOpen(false)}
+            onSuccess={handleRequestSuccess}
+            onError={(msg) => pushToast?.(msg, 'error')}
+        />
+        </>
     );
 };

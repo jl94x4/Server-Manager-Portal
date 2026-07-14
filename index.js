@@ -4418,6 +4418,29 @@ app.get('/api/discovery/hero-backdrops', requireAuth, requireMember, async (req,
     }
 });
 
+app.get('/api/discovery/request-options', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const mediaType = String(req.query.mediaType || '').toLowerCase();
+        const mediaId = Number(req.query.mediaId);
+        if ((mediaType !== 'movie' && mediaType !== 'tv') || !Number.isFinite(mediaId)) {
+            return res.status(400).json({ error: 'Invalid mediaType or mediaId' });
+        }
+
+        const payload = await requestAppService.getMemberRequestOptions(config, req.user, {
+            mediaType,
+            mediaId,
+        });
+        res.json(payload);
+    } catch (e) {
+        log(`Discovery request-options error: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
