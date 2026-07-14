@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle, Film, Loader2, Tv, X } from 'lucide-react';
 import { apiFetch } from '../shared/api';
+import { ModalPortal } from '../shared/ModalPortal';
 import { NoPosterPlaceholder } from '../shared/NoPosterPlaceholder';
 import type { RequestOptionsPayload } from './requestSeasonUtils';
 import {
@@ -148,7 +149,8 @@ export const RequestModal: React.FC<Props> = ({
     const posterUrl = options?.posterPath ? `https://image.tmdb.org/t/p/w342${options.posterPath}` : '';
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <ModalPortal open={open}>
+        <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4">
             <button
                 type="button"
                 aria-label="Close request modal"
@@ -159,7 +161,7 @@ export const RequestModal: React.FC<Props> = ({
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="request-modal-title"
-                className="relative w-full sm:max-w-lg max-h-[92vh] sm:max-h-[85vh] bg-card border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-fade-in"
+                className="relative w-full sm:max-w-lg max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-0.5rem))] sm:max-h-[85vh] bg-card border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-fade-in"
             >
                 <div className="flex items-start justify-between gap-4 p-5 border-b border-white/10 bg-black/20">
                     <div className="flex items-start gap-4 min-w-0">
@@ -328,7 +330,7 @@ export const RequestModal: React.FC<Props> = ({
                     )}
                 </div>
 
-                <div className="p-5 border-t border-white/10 bg-black/20 flex gap-3">
+                <div className="p-4 sm:p-5 pt-4 border-t border-white/10 bg-black/20 flex gap-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-5 shrink-0">
                     <button
                         type="button"
                         onClick={onClose}
@@ -349,5 +351,6 @@ export const RequestModal: React.FC<Props> = ({
                 </div>
             </div>
         </div>
+        </ModalPortal>
     );
 };

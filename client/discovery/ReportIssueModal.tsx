@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Loader2, X } from 'lucide-react';
 import { apiFetch } from '../shared/api';
+import { ModalPortal } from '../shared/ModalPortal';
 import { ISSUE_TYPE_OPTIONS } from './issueUtils';
 
 type Props = {
@@ -82,14 +83,15 @@ export const ReportIssueModal: React.FC<Props> = ({
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-[220] flex items-center justify-center p-4">
+        <ModalPortal open={open}>
+        <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4">
             <button
                 type="button"
                 aria-label="Close"
                 className="absolute inset-0 bg-black/80 backdrop-blur-sm"
                 onClick={() => { if (!submitting) onClose(); }}
             />
-            <div className="relative w-full max-w-lg rounded-2xl border border-white/10 bg-card shadow-2xl overflow-hidden">
+            <div className="relative w-full sm:max-w-lg max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-0.5rem))] sm:max-h-[85vh] rounded-t-2xl sm:rounded-2xl border border-white/10 bg-card shadow-2xl overflow-hidden flex flex-col">
                 <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-white/10">
                     <div className="flex items-center gap-2 min-w-0">
                         <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
@@ -105,7 +107,7 @@ export const ReportIssueModal: React.FC<Props> = ({
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-4">
+                <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 pb-[max(1rem,env(safe-area-inset-bottom))]">
                     <div>
                         <p className="text-xs uppercase tracking-wider text-white/45 font-bold mb-1">Title</p>
                         <p className="text-sm font-semibold text-white">{title}</p>
@@ -195,5 +197,6 @@ export const ReportIssueModal: React.FC<Props> = ({
                 </form>
             </div>
         </div>
+        </ModalPortal>
     );
 };

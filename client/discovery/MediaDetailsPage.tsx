@@ -304,50 +304,80 @@ export const MediaDetailsPage: React.FC<{
 
     return (
         <>
-        <div className="w-full flex flex-col min-h-screen bg-card animate-fade-in pb-16 rounded-2xl md:rounded-3xl overflow-x-hidden border border-white/5 shadow-2xl">
+        <div className="w-[calc(100%+2rem)] -mx-4 md:mx-0 md:w-full flex flex-col min-h-screen bg-card animate-fade-in pb-24 md:pb-16 rounded-none md:rounded-2xl lg:rounded-3xl overflow-x-hidden border-0 md:border border-white/5 shadow-2xl">
             <div className="relative isolate">
                 <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
                     {backdropUrl ? (
                         <img
                             src={backdropUrl}
                             alt=""
-                            className="absolute inset-0 w-full h-full object-cover object-[78%_22%] opacity-80"
+                            className="absolute inset-0 w-full h-full object-cover object-[center_20%] md:object-[78%_22%] opacity-90 md:opacity-80"
                             fetchPriority="high"
                             decoding="async"
                         />
                     ) : (
                         <div className="absolute inset-0 bg-black" />
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-card from-0% via-card/90 via-[38%] to-transparent" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-card from-0% via-card/80 via-[32%] to-transparent to-[78%]" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-card from-0% via-card/95 via-[42%] md:via-card/90 md:via-[38%] to-transparent" />
+                    <div className="absolute inset-0 hidden md:block bg-gradient-to-r from-card from-0% via-card/80 via-[32%] to-transparent to-[78%]" />
                 </div>
 
                 <div className="relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 pt-4 sm:pt-5 pb-8">
                     <button
                         type="button"
                         onClick={onBack}
-                        className="mb-6 inline-flex items-center gap-2 text-white/90 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-black/65"
+                        className="mb-4 md:mb-6 inline-flex items-center gap-2 text-white/90 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-black/65"
                     >
                         <ArrowLeft className="w-5 h-5" />
                         <span className="font-bold text-sm">Back to Discover</span>
                     </button>
 
-                    <div className="flex flex-col md:flex-row gap-6 lg:gap-10">
-                <div className="flex flex-col gap-4 w-44 sm:w-52 lg:w-60 flex-shrink-0 mx-auto md:mx-0">
-                    <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.55)] border border-white/15 bg-black/50 ring-1 ring-white/10">
-                        <div className="absolute -inset-4 bg-plex/10 blur-3xl opacity-40 pointer-events-none" />
-                        {posterUrl && !posterFailed ? (
-                            <img
-                                src={posterUrl}
-                                alt=""
-                                className="relative w-full h-full object-cover"
-                                onError={() => setPosterFailed(true)}
-                            />
-                        ) : (
-                            <NoPosterPlaceholder />
-                        )}
+                    <div className="flex flex-col md:flex-row gap-5 md:gap-6 lg:gap-10">
+                <div className="w-full md:w-52 lg:w-60 flex-shrink-0 flex flex-col gap-4">
+                    <div className="flex flex-row md:flex-col gap-4 items-stretch">
+                        <div className="relative w-[38%] max-w-[10.5rem] sm:max-w-[12rem] md:w-full md:max-w-none aspect-[2/3] rounded-xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.55)] border border-white/15 bg-black/50 ring-1 ring-white/10 flex-shrink-0">
+                            <div className="absolute -inset-4 bg-plex/10 blur-3xl opacity-40 pointer-events-none" />
+                            {posterUrl && !posterFailed ? (
+                                <img
+                                    src={posterUrl}
+                                    alt=""
+                                    className="relative w-full h-full object-cover"
+                                    onError={() => setPosterFailed(true)}
+                                />
+                            ) : (
+                                <NoPosterPlaceholder />
+                            )}
+                        </div>
+
+                        <div className="flex-1 min-w-0 flex flex-col justify-end gap-2 md:hidden">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                {mediaType === 'movie' ? <Film className="w-3.5 h-3.5 text-plex" /> : <Tv className="w-3.5 h-3.5 text-plex" />}
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-plex">{mediaType}</span>
+                                {details.status && (
+                                    <>
+                                        <span className="text-white/30">•</span>
+                                        <span className="text-[10px] font-bold text-white/60 uppercase tracking-wide">{details.status}</span>
+                                    </>
+                                )}
+                            </div>
+                            <h1 className="text-2xl sm:text-3xl font-black text-white leading-[1.08] tracking-tight drop-shadow-lg">
+                                {title}
+                            </h1>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                {metaChips.slice(0, 4).map((chip) => (
+                                    <div
+                                        key={chip.label}
+                                        className="flex items-center gap-1 bg-black/45 px-2 py-1 rounded-md backdrop-blur-md border border-white/10 text-[11px] text-white/85 font-semibold"
+                                    >
+                                        {chip.icon}
+                                        {chip.label}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
 
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-2.5 w-full">
                     <button
                         type="button"
                         onClick={() => setRequestModalOpen(true)}
@@ -383,11 +413,13 @@ export const MediaDetailsPage: React.FC<{
                     )}
 
                     {availability && availability.kind !== 'none' && (
-                        <MediaStatusPanel
-                            state={availability}
-                            onViewRequests={availability.hasUserRequest ? openMyRequests : undefined}
-                            onRetry={availability.kind === 'failed' ? handleRetryRequest : undefined}
-                        />
+                        <div className="sm:col-span-2 md:col-span-1">
+                            <MediaStatusPanel
+                                state={availability}
+                                onViewRequests={availability.hasUserRequest ? openMyRequests : undefined}
+                                onRetry={availability.kind === 'failed' ? handleRetryRequest : undefined}
+                            />
+                        </div>
                     )}
 
                     {details.homepage && (
@@ -395,15 +427,16 @@ export const MediaDetailsPage: React.FC<{
                             href={details.homepage}
                             target="_blank"
                             rel="noreferrer"
-                            className="w-full py-2.5 px-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors"
+                            className="w-full py-2.5 px-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors sm:col-span-2 md:col-span-1"
                         >
                             <Globe className="w-4 h-4" /> Visit Website
                         </a>
                     )}
+                    </div>
                 </div>
 
                 <div className="flex-1 min-w-0 flex flex-col gap-4 pb-2">
-                    <div className="flex flex-col gap-2.5">
+                    <div className="hidden md:flex flex-col gap-2.5">
                         <div className="flex items-center gap-2 flex-wrap">
                             {mediaType === 'movie' ? <Film className="w-3.5 h-3.5 text-plex" /> : <Tv className="w-3.5 h-3.5 text-plex" />}
                             <span className="text-[10px] font-bold uppercase tracking-widest text-plex">{mediaType}</span>
@@ -452,9 +485,24 @@ export const MediaDetailsPage: React.FC<{
                         )}
                     </div>
 
-                    <p className="text-sm sm:text-base lg:text-[17px] text-white/82 leading-relaxed max-w-3xl">
+                    <p className="text-sm sm:text-base lg:text-[17px] text-white/82 leading-relaxed max-w-none md:max-w-3xl">
                         {details.overview || 'No description available.'}
                     </p>
+
+                    {details.genres?.length > 0 && (
+                        <div className="flex flex-wrap gap-2 md:hidden">
+                            {details.genres.map((g: any) => (
+                                <button
+                                    key={g.id}
+                                    type="button"
+                                    onClick={() => openGenre(g.id)}
+                                    className="px-2.5 py-1 bg-white/[0.06] border border-white/10 rounded-lg text-xs font-semibold text-white/75 backdrop-blur-sm transition-colors hover:bg-plex/15 hover:border-plex/40 hover:text-white cursor-pointer"
+                                >
+                                    {g.name}
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
                     {releaseDateRows.length > 0 && (
                         <div className="w-fit max-w-xl rounded-xl border border-white/10 bg-black/45 backdrop-blur-xl shadow-[0_8px_28px_rgba(0,0,0,0.28)] overflow-hidden ring-1 ring-white/[0.04]">
@@ -539,7 +587,7 @@ export const MediaDetailsPage: React.FC<{
             </div>
 
             {/* Full-width rows below — no nested page scrollbars */}
-            <div className="relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 mt-4 flex flex-col gap-10">
+            <div className="relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 mt-2 md:mt-4 flex flex-col gap-8 md:gap-10">
                 {details.credits?.cast?.length > 0 && (
                     <section className="border-t border-white/5 pt-8">
                         <SectionHeading>Top Cast</SectionHeading>
