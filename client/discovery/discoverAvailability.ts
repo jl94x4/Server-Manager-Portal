@@ -1,6 +1,7 @@
 import { normalizeRawDiscoveryItem } from './discoverItemUtils';
 import {
     buildSeasonStatusFromDetails,
+    isSeasonUpToDateLabel,
     MEDIA_STATUS,
     REQUEST_STATUS,
     resolveInProgressDisplay,
@@ -57,6 +58,19 @@ const formatSeasonSummary = (seasonRows: SeasonStatusInfo[]) => {
     return `${available.length} seasons in library`;
 };
 
+const formatUpToDateSeasonSummary = (seasonRows: SeasonStatusInfo[]) => {
+    const upToDate = seasonRows.filter((s) => isSeasonUpToDateLabel(s.statusLabel)).map((s) => s.seasonNumber);
+    if (!upToDate.length) return null;
+    if (upToDate.length <= 4) return `Season${upToDate.length === 1 ? '' : 's'} ${upToDate.join(', ')} up to date`;
+    return `${upToDate.length} seasons up to date`;
+};
+
+const formatTvLibraryDetail = (seasonRows: SeasonStatusInfo[], airingDetail?: string) => {
+    const parts = [formatSeasonSummary(seasonRows), formatUpToDateSeasonSummary(seasonRows)].filter(Boolean);
+    if (parts.length) return parts.join('. ');
+    return airingDetail || 'All requested seasons are available.';
+};
+
 export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState => {
     const mediaInfo = item?.mediaInfo || item?.media?.mediaInfo || {};
     const mediaStatusRaw = item?.mediaInfo?.status ?? item?.media?.status ?? mediaInfo?.status;
@@ -103,27 +117,52 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
 
     const seasonRows = mediaType === 'tv' ? buildSeasonStatusFromDetails(item) : [];
     const availableSeasons = seasonRows.filter((s) => s.statusLabel === 'Available');
+    const upToDateSeasons = seasonRows.filter((s) => isSeasonUpToDateLabel(s.statusLabel));
+    const incompleteSeasons = seasonRows.filter((s) => s.statusLabel === 'Partial');
     const pendingSeasons = seasonRows.filter((s) => s.statusLabel === 'Pending' || s.statusLabel === 'Approved');
     const processingSeasons = seasonRows.filter((s) => s.statusLabel === 'Processing');
     const requestedSeasons = seasonRows.filter((s) => s.statusLabel === 'Requested');
     const inProgressDisplay = resolveInProgressDisplay(mediaInfo, mediaStatus);
+    const showInProduction = item?.inProduction === true;
 
     if (mediaType === 'tv' && seasonRows.length > 0) {
         const requestable = seasonRows.filter((s) => s.requestable);
-        if (requestable.length === 0 && availableSeasons.length > 0) {
+        if (requestable.length === 0 && (availableSeasons.length > 0 || upToDateSeasons.length > 0)) {
+            if (upToDateSeasons.length > 0 && (showInProduction || upToDateSeasons.length === seasonRows.length)) {
+                return {
+                    ...base,
+                    kind: 'available',
+                    label: 'Up to date',
+                    detail: formatTvLibraryDetail(
+                        seasonRows,
+                        'All aired episodes are in your library. New episodes will be added as they air.',
+                    ),
+                };
+            }
             return {
                 ...base,
                 kind: 'available',
                 label: 'Available in library',
-                detail: formatSeasonSummary(seasonRows) || 'All requested seasons are available.',
+                detail: formatTvLibraryDetail(seasonRows),
             };
         }
-        if (availableSeasons.length > 0 && requestable.length > 0) {
+        if ((availableSeasons.length > 0 || upToDateSeasons.length > 0) && requestable.length > 0) {
+            const handledSummary = formatTvLibraryDetail(seasonRows);
             return {
                 ...base,
                 kind: 'partial',
                 label: 'Partially available',
-                detail: `${formatSeasonSummary(seasonRows) || 'Some seasons in library'}. ${requestable.length} season${requestable.length === 1 ? '' : 's'} still requestable.`,
+                detail: handledSummary
+                    ? `${handledSummary}. ${requestable.length} season${requestable.length === 1 ? '' : 's'} still requestable.`
+                    : `${requestable.length} season${requestable.length === 1 ? '' : 's'} still requestable.`,
+            };
+        }
+        if (incompleteSeasons.length > 0 && requestable.length === 0) {
+            return {
+                ...base,
+                kind: 'partial',
+                label: 'Partially available',
+                detail: `${incompleteSeasons.length} season${incompleteSeasons.length === 1 ? '' : 's'} missing episodes in your library.`,
             };
         }
         if (processingSeasons.length > 0) {
@@ -253,7 +292,9 @@ export const shouldHideAvailableItem = (item: any): boolean => {
         const seasonRows = buildSeasonStatusFromDetails(item);
         if (seasonRows.length > 0) {
             const requestable = seasonRows.filter((s) => s.requestable);
-            return requestable.length === 0 && seasonRows.some((s) => s.statusLabel === 'Available');
+            return requestable.length === 0 && seasonRows.some(
+                (s) => s.statusLabel === 'Available' || isSeasonUpToDateLabel(s.statusLabel),
+            );
         }
         if (mediaStatus === MEDIA_STATUS.PARTIAL) return false;
         return mediaStatus === MEDIA_STATUS.AVAILABLE;

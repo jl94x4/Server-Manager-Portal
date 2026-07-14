@@ -27,7 +27,7 @@ export const resolveWatchlistMediaRef = (item: any): WatchlistMediaRef | null =>
 export const watchlistItemStatusLabel = (item: any): string | null => {
     const availability = resolveMediaAvailabilityState(item);
     if (availability.kind === 'none') return null;
-    if (availability.kind === 'available') return 'Available';
+    if (availability.kind === 'available') return availability.label || 'Available';
     if (availability.kind === 'partial') return 'Partial';
     if (availability.kind === 'processing') return 'Processing';
     if (availability.kind === 'requested') return 'Requested';

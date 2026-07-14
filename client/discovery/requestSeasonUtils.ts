@@ -80,6 +80,45 @@ export const resolveInProgressDisplay = (
     };
 };
 
+/** Whether a season still has unaired episodes scheduled (currently airing). */
+export const isSeasonStillAiring = (details: any, seasonNumber: number): boolean => {
+    const next = details?.nextEpisodeToAir;
+    if (next && Number(next.seasonNumber) === seasonNumber) return true;
+
+    const last = details?.lastEpisodeToAir;
+    const tmdbSeason = (Array.isArray(details?.seasons) ? details.seasons : []).find(
+        (s: any) => Number(s?.seasonNumber ?? s?.season_number) === seasonNumber,
+    );
+    const totalEpisodes = Number(tmdbSeason?.episodeCount ?? tmdbSeason?.episode_count) || 0;
+
+    if (
+        details?.inProduction
+        && last
+        && Number(last.seasonNumber) === seasonNumber
+        && totalEpisodes > Number(last.episodeNumber)
+    ) {
+        return true;
+    }
+
+    return false;
+};
+
+/** Label for a season Seerr marks as PARTIAL (tracked in Sonarr with not-all episodes). */
+export const resolvePartialSeasonLabel = (details: any, seasonNumber: number): string => (
+    isSeasonStillAiring(details, seasonNumber) ? 'Up to date' : 'Partial'
+);
+
+export const isSeasonUpToDateLabel = (label: string) => label === 'Up to date';
+
+export const isSeasonHandledInLibrary = (label: string) => (
+    label === 'Available'
+    || label === 'Up to date'
+    || label === 'Requested'
+    || label === 'Processing'
+    || label === 'Pending'
+    || label === 'Approved'
+);
+
 export const mediaLibraryStatusLabel = (status: number | null | undefined): string | null => {
     const value = Number(status);
     if (value === MEDIA_STATUS.AVAILABLE) return 'Available';
@@ -91,7 +130,7 @@ export const mediaLibraryStatusLabel = (status: number | null | undefined): stri
 };
 
 export const seasonStatusBadgeClass = (label: string, requestable: boolean): string => {
-    if (label === 'Available') return 'bg-green-500/15 text-green-400 border-green-500/25';
+    if (label === 'Available' || label === 'Up to date') return 'bg-green-500/15 text-green-400 border-green-500/25';
     if (label === 'Processing' || label === 'Approved') return 'bg-blue-500/15 text-blue-300 border-blue-500/25';
     if (label === 'Requested') return 'bg-indigo-500/15 text-indigo-300 border-indigo-500/25';
     if (label === 'Pending') return 'bg-amber-500/15 text-amber-400 border-amber-500/25';
@@ -191,7 +230,8 @@ export const buildSeasonStatusFromDetails = (details: any): SeasonStatusInfo[] =
                 requestable = false;
                 statusLabel = 'Pending';
             } else if (libraryStatus === MEDIA_STATUS.PARTIAL) {
-                statusLabel = 'Partial';
+                requestable = false;
+                statusLabel = resolvePartialSeasonLabel(details, seasonNumber);
             } else if (requestStatus === REQUEST_STATUS.PENDING) {
                 requestable = false;
                 statusLabel = 'Pending';
@@ -244,7 +284,12 @@ export const getRequestButtonState = (
         return { label: 'Blacklisted', disabled: true, variant: 'blocked' as const };
     }
     const requestableCount = seasonRows.filter((s) => s.requestable).length;
+    const upToDateCount = seasonRows.filter((s) => isSeasonUpToDateLabel(s.statusLabel)).length;
+    const availableCount = seasonRows.filter((s) => s.statusLabel === 'Available').length;
     if (requestableCount === 0 && seasonRows.length > 0) {
+        if (upToDateCount > 0 && availableCount + upToDateCount === seasonRows.length) {
+            return { label: 'Up to date', disabled: true, variant: 'available' as const };
+        }
         return { label: 'All Seasons Requested', disabled: true, variant: 'available' as const };
     }
     if (status === MEDIA_STATUS.AVAILABLE && requestableCount === 0) {
