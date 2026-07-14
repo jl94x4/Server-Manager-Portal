@@ -65,9 +65,9 @@ export const DISCOVER_NETWORKS: DiscoverCompany[] = [
     { id: 80, name: 'Adult Swim', logoPath: '/9AKyspxVzywuaMuZ1Bvilu8sXly.png' },
     { id: 13, name: 'Nickelodeon', logoPath: '/ikZXxg6GnwpzqiZbRPhJGaZapqB.png' },
     { id: 3353, name: 'Peacock', logoPath: '/gIAcGTjKKr0KOHL5s4O36roJ8p7.png' },
-    { id: 9, name: 'ITV', logoPath: '/51sS8y0hVlW3U7u0n72gL8O3JtZ.png' },
-    { id: 214, name: 'Sky', logoPath: '/8lG83k6H3ZkM5Fv7zY0Qz6tX2o.png' },
-    { id: 3186, name: 'Peacock Premium', logoPath: '/gIAcGTjKKr0KOHL5s4O36roJ8p7.png' },
+    // TMDB removed these logo assets (404) — bundled Wikimedia marks instead.
+    { id: 9, name: 'ITV', logoPath: '/static/logos/itv.svg' },
+    { id: 214, name: 'Sky', logoPath: '/static/logos/sky.svg' },
 ];
 
 export const MOVIE_GENRES: DiscoverGenre[] = [

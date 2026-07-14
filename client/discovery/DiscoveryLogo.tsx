@@ -1,5 +1,11 @@
-import React, { useState } from 'react';
-import { shouldInvertDiscoveryLogo, tmdbLogoUrl, isKnownDarkLogoPath } from './discoveryLogoUtils';
+import React, { useEffect, useState } from 'react';
+import {
+    discoveryLogoUrl,
+    isKnownDarkLogoPath,
+    isPredominantlyDarkLogo,
+    shouldInvertByLabel,
+    shouldNeverInvertLogo,
+} from './discoveryLogoUtils';
 
 type Props = {
     logoPath: string;
@@ -17,22 +23,47 @@ export const DiscoveryLogo: React.FC<Props> = ({
     width = 154,
     onError,
 }) => {
-    const [invert, setInvert] = useState(false);
+    const [invert, setInvert] = useState(
+        () => !shouldNeverInvertLogo(logoPath, alt)
+            && (isKnownDarkLogoPath(logoPath) || shouldInvertByLabel(alt)),
+    );
 
-    const handleLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
-        const img = event.currentTarget;
-        if (shouldInvertDiscoveryLogo(logoPath, img) || isKnownDarkLogoPath(logoPath)) {
-            setInvert(true);
+    useEffect(() => {
+        if (shouldNeverInvertLogo(logoPath, alt)) {
+            setInvert(false);
+            return undefined;
         }
-    };
+
+        if (isKnownDarkLogoPath(logoPath) || shouldInvertByLabel(alt)) {
+            setInvert(true);
+            return undefined;
+        }
+
+        let cancelled = false;
+        const probe = new Image();
+        probe.crossOrigin = 'anonymous';
+        probe.onload = () => {
+            if (cancelled) return;
+            try {
+                if (isPredominantlyDarkLogo(probe)) setInvert(true);
+            } catch {
+                // Canvas blocked — keep path/label fallbacks only.
+            }
+        };
+        probe.src = discoveryLogoUrl(logoPath, width);
+
+        return () => {
+            cancelled = true;
+            probe.onload = null;
+            probe.onerror = null;
+        };
+    }, [logoPath, alt, width]);
 
     return (
         <img
-            src={tmdbLogoUrl(logoPath, width)}
+            src={discoveryLogoUrl(logoPath, width)}
             alt={alt}
-            crossOrigin="anonymous"
             loading="lazy"
-            onLoad={handleLoad}
             onError={onError}
             className={`${className}${invert ? ' brightness-0 invert' : ''}`}
         />

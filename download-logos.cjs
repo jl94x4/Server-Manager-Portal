@@ -20,8 +20,8 @@ const logos = {
     'hulu': 'https://upload.wikimedia.org/wikipedia/commons/e/e4/Hulu_Logo.svg',
     'hbo': 'https://upload.wikimedia.org/wikipedia/commons/d/de/HBO_logo.svg',
     'bbc': 'https://upload.wikimedia.org/wikipedia/commons/5/5f/BBC_logo_white.svg',
-    'itv': 'https://upload.wikimedia.org/wikipedia/commons/0/03/ITV_logo_2013.svg',
-    'sky': 'https://upload.wikimedia.org/wikipedia/commons/0/07/Sky_logo_2020.svg',
+    'itv': 'https://upload.wikimedia.org/wikipedia/commons/9/92/ITV_logo_2013.svg',
+    'sky': 'https://upload.wikimedia.org/wikipedia/en/a/a6/Sky_Group_logo_2020.svg',
 };
 
 const targetDir = path.join(__dirname, 'static', 'logos');
