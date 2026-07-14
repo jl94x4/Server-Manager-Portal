@@ -5,7 +5,8 @@ import { DiscoverPosterGrid } from './DiscoverPosterGrid';
 import { DiscoverGridSizeSelect } from './DiscoverGridSizeSelect';
 import { useDiscoverGridSize } from './useDiscoverGridSize';
 import { useDiscoveryPreferences } from './useDiscoveryPreferences';
-import { findNetwork, findStudio, tmdbDuotoneLogo } from './discoverConstants';
+import { findNetwork, findStudio } from './discoverConstants';
+import { DiscoveryLogo } from './DiscoveryLogo';
 import { useDiscoverInfiniteScroll } from './useDiscoverInfiniteScroll';
 import { DiscoverInfiniteScrollFooter } from './DiscoverInfiniteScrollFooter';
 import { discoverSkeletonCountForGrid } from './discoverPaginationUtils';
@@ -106,9 +107,10 @@ export const DiscoverCategoryPage: React.FC<Props> = ({ kind, id, onBack, onSele
                         <div className="flex flex-col sm:flex-row sm:items-center gap-6 flex-1 min-w-0">
                             {meta?.logoPath ? (
                                 <div className="w-[200px] h-[112px] rounded-xl border border-white/10 bg-zinc-900/80 flex items-center justify-center flex-shrink-0">
-                                    <img
-                                        src={tmdbDuotoneLogo(meta.logoPath)}
+                                    <DiscoveryLogo
+                                        logoPath={meta.logoPath}
                                         alt={title}
+                                        width={780}
                                         className="max-w-[78%] max-h-[58%] object-contain"
                                     />
                                 </div>

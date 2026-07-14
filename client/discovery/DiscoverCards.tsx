@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { tmdbDuotoneLogo } from './discoverConstants';
+import { DiscoveryLogo } from './DiscoveryLogo';
 
 type CompanyCardProps = {
     name: string;
@@ -20,12 +20,12 @@ export const CompanyCard: React.FC<CompanyCardProps> = ({ name, logoPath, onClic
         >
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-transparent pointer-events-none" />
             {!failed ? (
-                <img
-                    src={tmdbDuotoneLogo(logoPath)}
+                <DiscoveryLogo
+                    logoPath={logoPath}
                     alt={name}
-                    loading="lazy"
-                    className="absolute inset-0 m-auto max-w-[78%] max-h-[58%] object-contain opacity-90 group-hover:opacity-100 transition-opacity"
+                    width={780}
                     onError={() => setFailed(true)}
+                    className="absolute inset-0 m-auto max-w-[78%] max-h-[58%] object-contain opacity-90 group-hover:opacity-100 transition-opacity"
                 />
             ) : (
                 <span className="absolute inset-0 flex items-center justify-center px-3 text-center text-sm font-bold text-white/90">

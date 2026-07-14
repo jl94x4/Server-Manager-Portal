@@ -11,6 +11,8 @@ import { tmdbBackdropUrl } from './discoverConstants';
 import { RequestModal } from './RequestModal';
 import { resolveMediaAvailabilityState } from './discoverAvailability';
 import { MediaStatusPanel } from './DiscoverStatusOverlay';
+import { DiscoveryLogo } from './DiscoveryLogo';
+import { scrollPortalToTop } from './discoverNavigationUtils';
 import {
     buildSeasonStatusFromDetails,
     getRequestButtonState,
@@ -113,27 +115,29 @@ export const MediaDetailsPage: React.FC<{
         refreshDetails();
     };
 
-    const openPerson = (personId: number) => {
-        window.history.pushState({}, '', `/discovery/person/${personId}`);
+    const discoveryNavigate = (path: string) => {
+        window.history.pushState({}, '', portalUrl(path));
+        scrollPortalToTop();
         window.dispatchEvent(new Event('popstate'));
     };
 
+    const openPerson = (personId: number) => {
+        discoveryNavigate(`/discovery/person/${personId}`);
+    };
+
     const openMedia = (type: string, id: number) => {
-        window.history.pushState({}, '', `/discovery/${type}/${id}`);
-        window.dispatchEvent(new Event('popstate'));
+        discoveryNavigate(`/discovery/${type}/${id}`);
     };
 
     const openGenre = (genreId: number) => {
         const path = mediaType === 'movie'
             ? `/discovery/movies?genre=${genreId}`
             : `/discovery/series?genre=${genreId}`;
-        window.history.pushState({}, '', path);
-        window.dispatchEvent(new Event('popstate'));
+        discoveryNavigate(path);
     };
 
     const openNetwork = (networkId: number) => {
-        window.history.pushState({}, '', `/discovery/series/network/${networkId}`);
-        window.dispatchEvent(new Event('popstate'));
+        discoveryNavigate(`/discovery/series/network/${networkId}`);
     };
 
     const seasonRows = useMemo(
@@ -443,9 +447,10 @@ export const MediaDetailsPage: React.FC<{
                                         title={`Browse ${n.name}`}
                                     >
                                         {n.logoPath ? (
-                                            <img
-                                                src={`https://image.tmdb.org/t/p/w154${n.logoPath}`}
+                                            <DiscoveryLogo
+                                                logoPath={n.logoPath}
                                                 alt={n.name}
+                                                width={154}
                                                 className="h-6 max-w-[120px] object-contain opacity-90 hover:opacity-100 transition-opacity"
                                             />
                                         ) : (

@@ -15,6 +15,7 @@ import { DiscoverStatusOverlay } from './DiscoverStatusOverlay';
 import { MyRequestsPage } from './MyRequestsPage';
 import { useMyRequestCount } from './useMyRequestCount';
 import { WatchlistPage } from './WatchlistPage';
+import { scrollPortalToTop } from './discoverNavigationUtils';
 
 export const DiscoveryDashboard: React.FC<{
     onItemClick: (item: any) => void;
@@ -41,6 +42,10 @@ export const DiscoveryDashboard: React.FC<{
         return () => window.removeEventListener('popstate', handlePopState);
     }, [refreshPath]);
 
+    useEffect(() => {
+        scrollPortalToTop();
+    }, [path]);
+
     const navigate = useCallback((newPath: string) => {
         const [pathname, ...rest] = newPath.split('?');
         const search = rest.length ? `?${rest.join('?')}` : '';
@@ -48,6 +53,7 @@ export const DiscoveryDashboard: React.FC<{
         window.history.pushState({}, '', target);
         setPath(window.location.pathname);
         setSearchOpen(false);
+        scrollPortalToTop();
         window.dispatchEvent(new Event('portal-discovery-navigate'));
     }, []);
 
