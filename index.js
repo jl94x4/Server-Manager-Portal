@@ -4507,6 +4507,39 @@ app.post('/api/discovery/my-requests/:id/retry', requireAuth, requireMember, asy
     }
 });
 
+app.get('/api/discovery/watchlist', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const payload = await requestAppService.getMemberWatchlist(config);
+        res.json(payload);
+    } catch (e) {
+        log(`Discovery watchlist error: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/discovery/watchlist/request', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const { all, items, is4k } = req.body || {};
+        const summary = await requestAppService.requestMemberWatchlist(config, req.user, {
+            all: !!all,
+            items: Array.isArray(items) ? items : [],
+            is4k: !!is4k,
+        });
+        res.status(summary.submitted > 0 ? 201 : 200).json(summary);
+    } catch (e) {
+        log(`Discovery watchlist request error: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});

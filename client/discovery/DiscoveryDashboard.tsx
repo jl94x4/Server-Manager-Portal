@@ -12,6 +12,7 @@ import { portalUrl, stripBasePath } from '../shared/basePath';
 import { normalizeRawDiscoveryItem } from './discoverItemUtils';
 import { MyRequestsPage } from './MyRequestsPage';
 import { useMyRequestCount } from './useMyRequestCount';
+import { WatchlistPage } from './WatchlistPage';
 
 export const DiscoveryDashboard: React.FC<{
     onItemClick: (item: any) => void;
@@ -181,6 +182,37 @@ export const DiscoveryDashboard: React.FC<{
 
     const showTabs = ['home', 'movies', 'series', 'requests'].includes(subRoute);
 
+    if (subRoute === 'watchlist') {
+        return (
+            <div className="w-full flex flex-col gap-8 pb-12">
+                <DiscoverHeroHeader
+                    query={query}
+                    searchOpen={searchOpen}
+                    searchLoading={searchLoading}
+                    searchResults={searchResults}
+                    onClose={() => setSearchOpen(false)}
+                    onClear={() => { setQuery(''); setSearchOpen(false); setSearchResults([]); }}
+                    onQueryChange={setQuery}
+                    onFocus={() => query.trim().length >= 2 && setSearchOpen(true)}
+                    formatItem={formatItem}
+                    onSelect={(formatted) => {
+                        if (formatted.type === 'person') {
+                            navigate(`/discovery/person/${formatted.id}`);
+                        } else {
+                            navigate(`/discovery/${formatted.type}/${formatted.id}`);
+                        }
+                    }}
+                />
+                <WatchlistPage
+                    formatItem={formatItem}
+                    onSelect={(item) => navigate(`/discovery/${item.type}/${item.id}`)}
+                    navigate={navigate}
+                    pushToast={pushToast}
+                />
+            </div>
+        );
+    }
+
     if (subRoute === 'requests') {
         return (
             <div className="w-full flex flex-col gap-8 pb-12">
@@ -299,6 +331,7 @@ export const DiscoveryDashboard: React.FC<{
                                 onSelect={(item) => navigate(`/discovery/${item.type}/${item.id}`)}
                                 formatItem={formatItem}
                                 navigate={navigate}
+                                pushToast={pushToast}
                             />
                         )}
                         {subRoute === 'movies' && (
