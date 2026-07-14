@@ -5186,7 +5186,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                 </div>
                                 <WrapUpCardGrid analytics={analytics} interactive onCardClick={setSelectedMetric} minCardHeight={112} />
                                 {analytics.heatmapData && (
-                                    <div className="mt-6 pt-6 border-t border-white/10">
+                                    <div className="mt-6 pt-6 border-t border-white/10 overflow-visible">
                                         <h4 className="text-xs uppercase tracking-widest text-muted font-bold mb-4 flex items-center gap-2">
                                             <Calendar className="w-4 h-4 text-plex" /> Activity (Last 365 Days)
                                         </h4>

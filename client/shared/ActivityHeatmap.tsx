@@ -1,35 +1,32 @@
 import React from 'react';
 
+const DAY_LABELS = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 export const ActivityHeatmap: React.FC<{ data: Record<string, number> }> = ({ data }) => {
-    // Generate the last 365 days
-    const days = [];
+    const days: { dateStr: string; count: number; date: Date }[] = [];
     const today = new Date();
-    // Round today to the start of the day
     const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    
-    // Start date is 365 days ago, adjusted to start on a Sunday so the grid aligns
+
     const start = new Date(end);
     start.setDate(start.getDate() - 364);
-    
     while (start.getDay() !== 0) {
         start.setDate(start.getDate() - 1);
     }
 
     const current = new Date(start);
     while (current <= end) {
-        // use local timezone offset format to prevent ISO 8601 UTC shifting issues
-        const dateStr = current.getFullYear() + '-' + String(current.getMonth() + 1).padStart(2, '0') + '-' + String(current.getDate()).padStart(2, '0');
+        const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
         const count = data ? (data[dateStr] || 0) : 0;
         days.push({ dateStr, count, date: new Date(current) });
         current.setDate(current.getDate() + 1);
     }
 
-    const getMaxCount = () => {
+    const maxCount = (() => {
         if (!data) return 1;
         const vals = Object.values(data);
         return vals.length ? Math.max(...vals) : 1;
-    };
-    const maxCount = getMaxCount();
+    })();
 
     const getIntensityClass = (count: number) => {
         if (count === 0) return 'bg-white/5 border border-white/5';
@@ -40,76 +37,72 @@ export const ActivityHeatmap: React.FC<{ data: Record<string, number> }> = ({ da
         return 'bg-plex border border-plex/80 shadow-[0_0_8px_rgba(229,160,13,0.5)]';
     };
 
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    
-    // Group weeks for month labels
-    const weeks = [];
+    const weeks: typeof days[] = [];
     for (let i = 0; i < days.length; i += 7) {
         weeks.push(days.slice(i, i + 7));
     }
+    const weekCount = weeks.length;
 
     return (
-        <div className="w-full flex flex-col gap-2 relative">
-            <div className="w-full overflow-x-auto pb-4 custom-scrollbar">
-                <div className="min-w-max flex flex-col gap-1 pr-4">
-                    {/* Month labels */}
-                    <div className="flex gap-[4px] ml-7 mb-1 text-[11px] text-muted font-semibold tracking-wider relative h-4">
-                        {weeks.map((week, i) => {
-                            const firstDay = week[0];
-                            if (!firstDay) return null;
-                            const isFirstWeekOfMonth = firstDay.date.getDate() <= 7;
-                            if (isFirstWeekOfMonth) {
-                                return (
-                                    <div key={i} className="flex-shrink-0 w-[14px] relative">
-                                        <span className="absolute">{months[firstDay.date.getMonth()]}</span>
-                                    </div>
-                                );
-                            }
-                            return <div key={i} className="w-[14px] flex-shrink-0"></div>;
-                        })}
-                    </div>
-                    
-                    {/* Heatmap Grid */}
-                    <div className="flex gap-2">
-                        {/* Day labels (Sun, Mon, etc.) */}
-                        <div className="flex flex-col gap-[4px] text-[10px] text-muted font-semibold mt-1">
-                            <span style={{ height: '14px', lineHeight: '14px' }}></span>
-                            <span style={{ height: '14px', lineHeight: '14px' }}>Mon</span>
-                            <span style={{ height: '14px', lineHeight: '14px' }}></span>
-                            <span style={{ height: '14px', lineHeight: '14px' }}>Wed</span>
-                            <span style={{ height: '14px', lineHeight: '14px' }}></span>
-                            <span style={{ height: '14px', lineHeight: '14px' }}>Fri</span>
-                            <span style={{ height: '14px', lineHeight: '14px' }}></span>
+        <div className="w-full flex flex-col gap-2 overflow-visible">
+            <div className="w-full overflow-x-auto overflow-y-visible md:overflow-x-visible custom-scrollbar">
+                <div className="w-full min-w-[320px]">
+                    <div className="flex gap-2 w-full items-stretch overflow-visible">
+                        <div className="grid grid-rows-7 gap-[3px] shrink-0 w-7 text-[10px] text-muted font-semibold pt-5">
+                            {DAY_LABELS.map((label, i) => (
+                                <div key={i} className="flex items-center justify-end pr-0.5 min-h-0 leading-none">
+                                    {label}
+                                </div>
+                            ))}
                         </div>
 
-                        {/* Grid */}
-                        <div className="grid grid-rows-7 grid-flow-col gap-[4px]">
-                            {days.map((day, i) => {
-                                const intensityClass = getIntensityClass(day.count);
-                                return (
-                                    <div 
-                                        key={i} 
-                                        className={`w-[14px] h-[14px] rounded-[3px] transition-colors duration-300 group relative ${intensityClass}`}
+                        <div className="flex-1 min-w-0 flex flex-col gap-1 overflow-visible">
+                            <div
+                                className="grid gap-[3px] h-4 text-[10px] sm:text-[11px] text-muted font-semibold tracking-wider"
+                                style={{ gridTemplateColumns: `repeat(${weekCount}, minmax(0, 1fr))` }}
+                            >
+                                {weeks.map((week, i) => {
+                                    const firstDay = week[0];
+                                    if (!firstDay) return <div key={i} />;
+                                    const isFirstWeekOfMonth = firstDay.date.getDate() <= 7;
+                                    return (
+                                        <div key={i} className="min-w-0 truncate leading-4">
+                                            {isFirstWeekOfMonth ? MONTHS[firstDay.date.getMonth()] : null}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div
+                                className="grid grid-rows-7 grid-flow-col gap-[3px] w-full overflow-visible"
+                                style={{ gridAutoColumns: 'minmax(0, 1fr)' }}
+                            >
+                                {days.map((day) => (
+                                    <div
+                                        key={day.dateStr}
+                                        className={`aspect-square w-full rounded-[3px] transition-colors duration-300 group relative ${getIntensityClass(day.count)}`}
                                     >
-                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black/95 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-20 font-mono shadow-md border border-white/5 flex gap-2">
+                                        <div className="pointer-events-none absolute top-full left-1/2 z-[100] mt-1.5 -translate-x-1/2 whitespace-nowrap rounded border border-white/10 bg-black/95 px-2 py-1 text-[10px] font-mono text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                                             <span className="font-bold text-plex">{day.count} plays</span>
+                                            {' '}
                                             <span className="text-muted">{day.dateStr}</span>
                                         </div>
                                     </div>
-                                );
-                            })}
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div className="flex items-center justify-end gap-2 text-[10px] text-muted font-medium mt-2">
+
+            <div className="flex items-center justify-end gap-2 text-[10px] text-muted font-medium">
                 <span>Less</span>
-                <div className="flex gap-[4px]">
-                    <div className="w-[14px] h-[14px] rounded-[3px] bg-white/5 border border-white/5"></div>
-                    <div className="w-[14px] h-[14px] rounded-[3px] bg-plex/30 border border-plex/20"></div>
-                    <div className="w-[14px] h-[14px] rounded-[3px] bg-plex/50 border border-plex/40"></div>
-                    <div className="w-[14px] h-[14px] rounded-[3px] bg-plex/75 border border-plex/60"></div>
-                    <div className="w-[14px] h-[14px] rounded-[3px] bg-plex border border-plex/80"></div>
+                <div className="flex gap-[3px]">
+                    <div className="h-3 w-3 rounded-[2px] bg-white/5 border border-white/5 sm:h-[14px] sm:w-[14px] sm:rounded-[3px]" />
+                    <div className="h-3 w-3 rounded-[2px] bg-plex/30 border border-plex/20 sm:h-[14px] sm:w-[14px] sm:rounded-[3px]" />
+                    <div className="h-3 w-3 rounded-[2px] bg-plex/50 border border-plex/40 sm:h-[14px] sm:w-[14px] sm:rounded-[3px]" />
+                    <div className="h-3 w-3 rounded-[2px] bg-plex/75 border border-plex/60 sm:h-[14px] sm:w-[14px] sm:rounded-[3px]" />
+                    <div className="h-3 w-3 rounded-[2px] bg-plex border border-plex/80 sm:h-[14px] sm:w-[14px] sm:rounded-[3px]" />
                 </div>
                 <span>More</span>
             </div>
