@@ -6,7 +6,7 @@ import { DiscoverSeries } from './DiscoverSeries';
 import { DiscoverCategoryPage } from './DiscoverCategoryPage';
 import { MediaDetailsPage } from './MediaDetailsPage';
 import { PersonDetailsPage } from './PersonDetailsPage';
-import { Film, Tv, Compass, ClipboardList, AlertTriangle } from 'lucide-react';
+import { Film, Tv, Compass, ClipboardList, AlertTriangle, ChevronDown } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { portalUrl, stripBasePath } from '../shared/basePath';
 import { normalizeRawDiscoveryItem } from './discoverItemUtils';
@@ -34,6 +34,7 @@ export const DiscoveryDashboard: React.FC<{
     const [searchOpen, setSearchOpen] = useState(false);
     const { pendingCount: myPendingCount, refresh: refreshMyRequestCount } = useMyRequestCount(true);
     const { openCount: myOpenIssueCount, refresh: refreshMyIssueCount } = useMyIssueCount(true);
+    const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
     const refreshPath = useCallback(() => {
         setPath(window.location.pathname);
@@ -177,7 +178,7 @@ export const DiscoveryDashboard: React.FC<{
         );
     }
 
-    const showTabs = ['home', 'movies', 'series', 'requests'].includes(subRoute);
+    const showTabs = ['home', 'movies', 'series', 'requests', 'issues'].includes(subRoute);
 
     if (subRoute === 'watchlist') {
         return (
@@ -210,123 +211,16 @@ export const DiscoveryDashboard: React.FC<{
         );
     }
 
-    if (subRoute === 'issues') {
-        return (
-            <div className="w-full flex flex-col gap-8 pb-12">
-                <DiscoverHeroHeader
-                    query={query}
-                    searchOpen={searchOpen}
-                    searchLoading={searchLoading}
-                    searchResults={searchResults}
-                    onClose={() => setSearchOpen(false)}
-                    onClear={() => { setQuery(''); setSearchOpen(false); setSearchResults([]); }}
-                    onQueryChange={setQuery}
-                    onFocus={() => query.trim().length >= 2 && setSearchOpen(true)}
-                    formatItem={formatItem}
-                    onSelect={(formatted) => {
-                        if (formatted.type === 'person') {
-                            navigate(`/discovery/person/${formatted.id}`);
-                        } else {
-                            navigate(`/discovery/${formatted.type}/${formatted.id}`);
-                        }
-                    }}
-                />
-                <div className="flex w-full border-b border-white/10 px-4 mt-[-16px]">
-                    <div className="flex gap-8 overflow-x-auto custom-scrollbar">
-                        <button type="button" onClick={() => navigate('/discovery')} className="flex items-center gap-2 pb-4 border-b-2 font-bold transition-all border-transparent text-white/50 hover:text-white/80 whitespace-nowrap">
-                            <Compass className="w-5 h-5" /> Discover
-                        </button>
-                        <button type="button" onClick={() => navigate('/discovery/movies')} className="flex items-center gap-2 pb-4 border-b-2 font-bold transition-all border-transparent text-white/50 hover:text-white/80 whitespace-nowrap">
-                            <Film className="w-5 h-5" /> Movies
-                        </button>
-                        <button type="button" onClick={() => navigate('/discovery/series')} className="flex items-center gap-2 pb-4 border-b-2 font-bold transition-all border-transparent text-white/50 hover:text-white/80 whitespace-nowrap">
-                            <Tv className="w-5 h-5" /> Series
-                        </button>
-                        <button type="button" onClick={() => navigate('/discovery/requests')} className="flex items-center gap-2 pb-4 border-b-2 font-bold transition-all border-transparent text-white/50 hover:text-white/80 whitespace-nowrap">
-                            <ClipboardList className="w-5 h-5" /> My Requests
-                            {myPendingCount > 0 && (
-                                <span className="ml-1 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-plex text-black text-[10px] font-black inline-flex items-center justify-center">
-                                    {myPendingCount > 99 ? '99+' : myPendingCount}
-                                </span>
-                            )}
-                        </button>
-                        <button type="button" onClick={() => navigate('/discovery/issues')} className="flex items-center gap-2 pb-4 border-b-2 font-bold transition-all border-plex text-white whitespace-nowrap">
-                            <AlertTriangle className="w-5 h-5" /> My Issues
-                            {myOpenIssueCount > 0 && (
-                                <span className="ml-1 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-amber-500 text-black text-[10px] font-black inline-flex items-center justify-center">
-                                    {myOpenIssueCount > 99 ? '99+' : myOpenIssueCount}
-                                </span>
-                            )}
-                        </button>
-                    </div>
-                </div>
-                <MyIssuesPage
-                    navigate={navigate}
-                    pushToast={pushToast}
-                    onCountsChange={refreshMyIssueCount}
-                />
-            </div>
-        );
-    }
+    const tabs = [
+        { id: 'home', path: '/discovery', label: 'Discover', icon: Compass, count: 0, countColor: '' },
+        { id: 'movies', path: '/discovery/movies', label: 'Movies', icon: Film, count: 0, countColor: '' },
+        { id: 'series', path: '/discovery/series', label: 'Series', icon: Tv, count: 0, countColor: '' },
+        { id: 'requests', path: '/discovery/requests', label: 'My Requests', icon: ClipboardList, count: myPendingCount, countColor: 'bg-plex text-black' },
+        { id: 'issues', path: '/discovery/issues', label: 'My Issues', icon: AlertTriangle, count: myOpenIssueCount, countColor: 'bg-amber-500 text-black' },
+    ];
 
-    if (subRoute === 'requests') {
-        return (
-            <div className="w-full flex flex-col gap-8 pb-12">
-                <DiscoverHeroHeader
-                    query={query}
-                    searchOpen={searchOpen}
-                    searchLoading={searchLoading}
-                    searchResults={searchResults}
-                    onClose={() => setSearchOpen(false)}
-                    onClear={() => { setQuery(''); setSearchOpen(false); setSearchResults([]); }}
-                    onQueryChange={setQuery}
-                    onFocus={() => query.trim().length >= 2 && setSearchOpen(true)}
-                    formatItem={formatItem}
-                    onSelect={(formatted) => {
-                        if (formatted.type === 'person') {
-                            navigate(`/discovery/person/${formatted.id}`);
-                        } else {
-                            navigate(`/discovery/${formatted.type}/${formatted.id}`);
-                        }
-                    }}
-                />
-                <div className="flex w-full border-b border-white/10 px-4 mt-[-16px]">
-                    <div className="flex gap-8 overflow-x-auto custom-scrollbar">
-                        <button type="button" onClick={() => navigate('/discovery')} className="flex items-center gap-2 pb-4 border-b-2 font-bold transition-all border-transparent text-white/50 hover:text-white/80 whitespace-nowrap">
-                            <Compass className="w-5 h-5" /> Discover
-                        </button>
-                        <button type="button" onClick={() => navigate('/discovery/movies')} className="flex items-center gap-2 pb-4 border-b-2 font-bold transition-all border-transparent text-white/50 hover:text-white/80 whitespace-nowrap">
-                            <Film className="w-5 h-5" /> Movies
-                        </button>
-                        <button type="button" onClick={() => navigate('/discovery/series')} className="flex items-center gap-2 pb-4 border-b-2 font-bold transition-all border-transparent text-white/50 hover:text-white/80 whitespace-nowrap">
-                            <Tv className="w-5 h-5" /> Series
-                        </button>
-                        <button type="button" onClick={() => navigate('/discovery/requests')} className="flex items-center gap-2 pb-4 border-b-2 font-bold transition-all border-plex text-white whitespace-nowrap">
-                            <ClipboardList className="w-5 h-5" /> My Requests
-                            {myPendingCount > 0 && (
-                                <span className="ml-1 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-plex text-black text-[10px] font-black inline-flex items-center justify-center">
-                                    {myPendingCount > 99 ? '99+' : myPendingCount}
-                                </span>
-                            )}
-                        </button>
-                        <button type="button" onClick={() => navigate('/discovery/issues')} className="flex items-center gap-2 pb-4 border-b-2 font-bold transition-all border-transparent text-white/50 hover:text-white/80 whitespace-nowrap">
-                            <AlertTriangle className="w-5 h-5" /> My Issues
-                            {myOpenIssueCount > 0 && (
-                                <span className="ml-1 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-amber-500 text-black text-[10px] font-black inline-flex items-center justify-center">
-                                    {myOpenIssueCount > 99 ? '99+' : myOpenIssueCount}
-                                </span>
-                            )}
-                        </button>
-                    </div>
-                </div>
-                <MyRequestsPage
-                    navigate={navigate}
-                    pushToast={pushToast}
-                    onCountsChange={refreshMyRequestCount}
-                />
-            </div>
-        );
-    }
+    const activeTab = tabs.find(t => t.id === subRoute) || tabs[0];
+    const ActiveIcon = activeTab.icon;
 
     return (
         <div className="w-full flex flex-col gap-8 pb-12">
@@ -351,53 +245,64 @@ export const DiscoveryDashboard: React.FC<{
 
             {showTabs && (
                 <>
-                    <div className="flex w-full border-b border-white/10 px-4 mt-[-16px]">
-                        <div className="flex gap-8">
-                            <button
+                    <div className="w-full px-4 mb-4 mt-[-16px]">
+                        {/* Mobile Dropdown */}
+                        <div className="sm:hidden relative">
+                            <button 
                                 type="button"
-                                onClick={() => navigate('/discovery')}
-                                className={`flex items-center gap-2 pb-4 border-b-2 font-bold transition-all ${subRoute === 'home' ? 'border-plex text-white' : 'border-transparent text-white/50 hover:text-white/80'}`}
+                                onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
+                                className="w-full flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10 text-white font-bold"
                             >
-                                <Compass className="w-5 h-5" /> Discover
+                                <span className="flex items-center gap-2">
+                                    <ActiveIcon className="w-5 h-5" /> {activeTab.label}
+                                    {activeTab.count > 0 && (
+                                        <span className={`ml-1 min-w-[1.25rem] h-5 px-1.5 rounded-full ${activeTab.countColor} text-[10px] font-black inline-flex items-center justify-center`}>
+                                            {activeTab.count > 99 ? '99+' : activeTab.count}
+                                        </span>
+                                    )}
+                                </span>
+                                <ChevronDown className={`w-5 h-5 transition-transform ${isMobileNavOpen ? 'rotate-180' : ''}`} />
                             </button>
-                            <button
-                                type="button"
-                                onClick={() => navigate('/discovery/movies')}
-                                className={`flex items-center gap-2 pb-4 border-b-2 font-bold transition-all ${subRoute === 'movies' ? 'border-plex text-white' : 'border-transparent text-white/50 hover:text-white/80'}`}
-                            >
-                                <Film className="w-5 h-5" /> Movies
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => navigate('/discovery/series')}
-                                className={`flex items-center gap-2 pb-4 border-b-2 font-bold transition-all ${subRoute === 'series' ? 'border-plex text-white' : 'border-transparent text-white/50 hover:text-white/80'}`}
-                            >
-                                <Tv className="w-5 h-5" /> Series
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => navigate('/discovery/requests')}
-                                className={`flex items-center gap-2 pb-4 border-b-2 font-bold transition-all ${subRoute === 'requests' ? 'border-plex text-white' : 'border-transparent text-white/50 hover:text-white/80'}`}
-                            >
-                                <ClipboardList className="w-5 h-5" /> My Requests
-                                {myPendingCount > 0 && (
-                                    <span className="ml-1 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-plex text-black text-[10px] font-black inline-flex items-center justify-center">
-                                        {myPendingCount > 99 ? '99+' : myPendingCount}
-                                    </span>
-                                )}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => navigate('/discovery/issues')}
-                                className={`flex items-center gap-2 pb-4 border-b-2 font-bold transition-all ${subRoute === 'issues' ? 'border-plex text-white' : 'border-transparent text-white/50 hover:text-white/80'}`}
-                            >
-                                <AlertTriangle className="w-5 h-5" /> My Issues
-                                {myOpenIssueCount > 0 && (
-                                    <span className="ml-1 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-amber-500 text-black text-[10px] font-black inline-flex items-center justify-center">
-                                        {myOpenIssueCount > 99 ? '99+' : myOpenIssueCount}
-                                    </span>
-                                )}
-                            </button>
+                            {isMobileNavOpen && (
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1b1e] border border-white/10 rounded-lg shadow-xl overflow-hidden z-50">
+                                    {tabs.map(tab => (
+                                        <button
+                                            key={tab.id}
+                                            type="button"
+                                            onClick={() => { navigate(tab.path); setIsMobileNavOpen(false); }}
+                                            className={`w-full flex items-center gap-2 p-3 text-left hover:bg-white/5 ${tab.id === subRoute ? 'text-white bg-white/5' : 'text-white/60'}`}
+                                        >
+                                            <tab.icon className="w-5 h-5" /> {tab.label}
+                                            {tab.count > 0 && (
+                                                <span className={`ml-auto min-w-[1.25rem] h-5 px-1.5 rounded-full ${tab.countColor} text-[10px] font-black inline-flex items-center justify-center`}>
+                                                    {tab.count > 99 ? '99+' : tab.count}
+                                                </span>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Desktop Tabs */}
+                        <div className="hidden sm:flex border-b border-white/10">
+                            <div className="flex gap-8">
+                                {tabs.map(tab => (
+                                    <button
+                                        key={tab.id}
+                                        type="button"
+                                        onClick={() => navigate(tab.path)}
+                                        className={`flex items-center gap-2 pb-4 border-b-2 font-bold transition-all whitespace-nowrap ${tab.id === subRoute ? 'border-plex text-white' : 'border-transparent text-white/50 hover:text-white/80'}`}
+                                    >
+                                        <tab.icon className="w-5 h-5" /> {tab.label}
+                                        {tab.count > 0 && (
+                                            <span className={`ml-1 min-w-[1.25rem] h-5 px-1.5 rounded-full ${tab.countColor} text-[10px] font-black inline-flex items-center justify-center`}>
+                                                {tab.count > 99 ? '99+' : tab.count}
+                                            </span>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
@@ -422,6 +327,20 @@ export const DiscoveryDashboard: React.FC<{
                                 onSelect={(item) => navigate(`/discovery/${item.type}/${item.id}`)}
                                 formatItem={formatItem}
                                 navigate={navigate}
+                            />
+                        )}
+                        {subRoute === 'requests' && (
+                            <MyRequestsPage
+                                navigate={navigate}
+                                pushToast={pushToast}
+                                onCountsChange={refreshMyRequestCount}
+                            />
+                        )}
+                        {subRoute === 'issues' && (
+                            <MyIssuesPage
+                                navigate={navigate}
+                                pushToast={pushToast}
+                                onCountsChange={refreshMyIssueCount}
                             />
                         )}
                     </div>
