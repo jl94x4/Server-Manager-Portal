@@ -38,10 +38,33 @@ const needsEnrichment = (item: any) => {
 };
 
 /** Fetch TMDB poster/title for library media, requests, and watchlist rows. */
+const ENRICH_CONCURRENCY = 4;
+
+const mapWithConcurrency = async <T, R>(
+    items: T[],
+    limit: number,
+    mapper: (item: T) => Promise<R>,
+): Promise<R[]> => {
+    if (!items.length) return [];
+    const results = new Array<R>(items.length);
+    let cursor = 0;
+
+    const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+        while (cursor < items.length) {
+            const index = cursor;
+            cursor += 1;
+            results[index] = await mapper(items[index]);
+        }
+    });
+
+    await Promise.all(workers);
+    return results;
+};
+
 export const enrichDiscoveryItems = async (items: any[]): Promise<any[]> => {
     if (!items?.length) return [];
 
-    return Promise.all(items.map(async (raw) => {
+    return mapWithConcurrency(items, ENRICH_CONCURRENCY, async (raw) => {
         const item = normalizeRawDiscoveryItem(raw);
         if (!needsEnrichment(item)) return item;
 
@@ -59,5 +82,5 @@ export const enrichDiscoveryItems = async (items: any[]): Promise<any[]> => {
         } catch {
             return item;
         }
-    }));
+    });
 };

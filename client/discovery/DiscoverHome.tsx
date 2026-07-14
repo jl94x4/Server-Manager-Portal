@@ -94,7 +94,7 @@ export const DiscoverHome: React.FC<{
             setRows({
                 recentlyAdded,
                 recentRequests: filterHiddenAvailableItems(recentRequests, hideAvailable),
-                plexWatchlist: filterHiddenAvailableItems(plexWatchlist, hideAvailable),
+                plexWatchlist,
                 trending: filterHiddenAvailableItems(trendingRes?.results || [], hideAvailable),
                 popularMovies,
                 upcomingMovies,

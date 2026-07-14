@@ -61,7 +61,7 @@ export const MediaDetailsPage: React.FC<{
             try {
                 const endpoint = mediaType === 'movie'
                     ? `/api/discovery/proxy/movie/${mediaId}`
-                    : `/api/discovery/proxy/tv/${mediaId}`;
+                    : `/api/discovery/proxy/tv/${mediaId}?libraryCheck=1`;
                 const res = await apiFetch(endpoint);
                 if (!res.error) setDetails(res);
 
@@ -102,7 +102,7 @@ export const MediaDetailsPage: React.FC<{
         try {
             const endpoint = mediaType === 'movie'
                 ? `/api/discovery/proxy/movie/${mediaId}`
-                : `/api/discovery/proxy/tv/${mediaId}`;
+                : `/api/discovery/proxy/tv/${mediaId}?libraryCheck=1`;
             const res = await apiFetch(endpoint);
             if (!res.error) setDetails(res);
         } catch (err) {

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { enrichDiscoveryItems } from './discoverItemUtils';
-import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
+import { useDiscoveryPreferences } from './useDiscoveryPreferences';
 import { WatchlistPanel } from './WatchlistPanel';
 
 type Props = {
@@ -13,7 +13,7 @@ type Props = {
 };
 
 export const WatchlistPage: React.FC<Props> = ({ formatItem, onSelect, navigate, pushToast }) => {
-    const { preferences, loaded } = useDiscoveryPreferences();
+    const { loaded } = useDiscoveryPreferences();
     const [items, setItems] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -25,14 +25,14 @@ export const WatchlistPage: React.FC<Props> = ({ formatItem, onSelect, navigate,
             const res = await apiFetch('/api/discovery/watchlist');
             if (res?.error) throw new Error(res.error);
             const enriched = await enrichDiscoveryItems(res?.results || []);
-            setItems(filterHiddenAvailableItems(enriched, preferences.hideAvailableMedia));
+            setItems(enriched);
         } catch (e: any) {
             setError(e?.message || 'Failed to load watchlist');
             setItems([]);
         } finally {
             setLoading(false);
         }
-    }, [preferences.hideAvailableMedia]);
+    }, []);
 
     useEffect(() => {
         if (!loaded) return undefined;

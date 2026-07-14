@@ -4654,14 +4654,22 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
 
         let data = await requestAppService.rawFetch(config, '/api/v1' + fullPath);
         const tvDetailMatch = path.match(/^\/tv\/(\d+)$/);
-        if (tvDetailMatch && data && typeof data === 'object' && !Array.isArray(data)) {
+        const shouldLibraryCheck = String(req.query.libraryCheck || req.query.sonarrCheck || '') === '1';
+        if (tvDetailMatch && shouldLibraryCheck && data && typeof data === 'object' && !Array.isArray(data)) {
             try {
                 const upgraderIndex = await loadUpgraderIndex();
-                data = await enrichTvDetailsWithSonarrLibraryStatus(config, data, {
+                const enrichPromise = enrichTvDetailsWithSonarrLibraryStatus(config, data, {
                     resolveUrl: resolveIntegrationUrlForFetch,
                     fetchImpl: fetch,
                     upgraderItems: upgraderIndex?.items || [],
                 });
+                const timeoutMs = 12000;
+                data = await Promise.race([
+                    enrichPromise,
+                    new Promise((_, reject) => {
+                        setTimeout(() => reject(new Error('Sonarr library check timed out')), timeoutMs);
+                    }),
+                ]);
             } catch (sonarrError) {
                 log(`Discovery Sonarr library check skipped for tv/${tvDetailMatch[1]}: ${sonarrError.message}`);
             }
