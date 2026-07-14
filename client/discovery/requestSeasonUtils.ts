@@ -129,6 +129,84 @@ export const isSeasonHandledInLibrary = (label: string) => (
     || label === 'Approved'
 );
 
+/**
+ * Seerr often lacks per-season rows even when Sonarr is monitoring a season.
+ * Infer "Up to date" for aired seasons on returning/partial shows already in the library.
+ */
+export const inferMissingLibrarySeasonStatus = (
+    details: any,
+    mediaInfo: any,
+    seasonRow: SeasonStatusInfo,
+): { requestable: boolean; statusLabel: string } | null => {
+    if (!seasonRow.requestable || seasonRow.statusLabel !== 'Not requested') return null;
+    if (!Number(mediaInfo?.id)) return null;
+
+    const showStatus = Number(mediaInfo?.status);
+    const librarySeasons = Array.isArray(mediaInfo?.seasons) ? mediaInfo.seasons : [];
+    const hasTrackedSeason = librarySeasons.some(
+        (s: any) => [
+            MEDIA_STATUS.PROCESSING,
+            MEDIA_STATUS.PARTIAL,
+            MEDIA_STATUS.AVAILABLE,
+            MEDIA_STATUS.PENDING,
+        ].includes(Number(s?.status)),
+    );
+    const showInLibrary = showStatus === MEDIA_STATUS.PROCESSING
+        || showStatus === MEDIA_STATUS.PARTIAL
+        || showStatus === MEDIA_STATUS.AVAILABLE
+        || hasTrackedSeason;
+    if (!showInLibrary && !isReturningSeries(details)) return null;
+
+    const seasonNumber = Number(seasonRow.seasonNumber);
+    const lastAiredSeason = Number(details?.lastEpisodeToAir?.seasonNumber);
+    if (!Number.isFinite(seasonNumber) || !Number.isFinite(lastAiredSeason)) return null;
+    if (seasonNumber > lastAiredSeason) return null;
+
+    const knownSeasonNumbers = librarySeasons
+        .map((s: any) => Number(s?.seasonNumber))
+        .filter((n: number) => Number.isFinite(n));
+
+    const requests = Array.isArray(mediaInfo?.requests) ? mediaInfo.requests : [];
+    for (const req of requests) {
+        if (!Array.isArray(req?.seasons)) continue;
+        for (const season of req.seasons) {
+            const num = Number(season?.seasonNumber);
+            if (Number.isFinite(num)) knownSeasonNumbers.push(num);
+        }
+    }
+
+    if (!knownSeasonNumbers.length) {
+        if (showStatus === MEDIA_STATUS.PARTIAL && isReturningSeries(details)) {
+            return { requestable: false, statusLabel: 'Up to date' };
+        }
+        return null;
+    }
+    const maxKnownSeason = Math.max(...knownSeasonNumbers);
+    if (seasonNumber > maxKnownSeason + 1) return null;
+
+    if (isSeasonStillAiring(details, seasonNumber)) {
+        return { requestable: false, statusLabel: 'Up to date' };
+    }
+
+    if (isReturningSeries(details) && seasonNumber <= lastAiredSeason) {
+        return { requestable: false, statusLabel: 'Up to date' };
+    }
+
+    return null;
+};
+
+export const applyMissingLibrarySeasonInference = (
+    details: any,
+    mediaInfo: any,
+    seasonRows: SeasonStatusInfo[],
+): SeasonStatusInfo[] => (
+    seasonRows.map((row) => {
+        const inferred = inferMissingLibrarySeasonStatus(details, mediaInfo, row);
+        if (!inferred) return row;
+        return { ...row, ...inferred };
+    })
+);
+
 export const mediaLibraryStatusLabel = (status: number | null | undefined): string | null => {
     const value = Number(status);
     if (value === MEDIA_STATUS.AVAILABLE) return 'Available';
@@ -217,7 +295,7 @@ export const buildSeasonStatusFromDetails = (details: any): SeasonStatusInfo[] =
         }
     }
 
-    return tmdbSeasons
+    return applyMissingLibrarySeasonInference(details, mediaInfo, tmdbSeasons
         .filter((s: any) => Number(s?.seasonNumber) >= 0)
         .sort((a: any, b: any) => Number(a.seasonNumber) - Number(b.seasonNumber))
         .map((s: any) => {
@@ -264,7 +342,7 @@ export const buildSeasonStatusFromDetails = (details: any): SeasonStatusInfo[] =
                 statusLabel,
                 requestable,
             };
-        });
+        }));
 };
 
 export const getRequestButtonState = (
