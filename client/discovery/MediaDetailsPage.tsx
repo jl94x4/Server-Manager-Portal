@@ -346,11 +346,6 @@ export const MediaDetailsPage: React.FC<{
 
                     {releaseDateRows.length > 0 && (
                         <div className="w-fit max-w-xl rounded-xl border border-white/10 bg-black/45 backdrop-blur-xl shadow-[0_8px_28px_rgba(0,0,0,0.28)] overflow-hidden ring-1 ring-white/[0.04]">
-                            <div className="px-3 py-2 border-b border-white/[0.06] bg-gradient-to-r from-white/[0.04] to-transparent">
-                                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/45">
-                                    Release Dates
-                                </span>
-                            </div>
                             <div
                                 className={`grid divide-white/[0.06] ${
                                     releaseDateRows.length === 1
