@@ -1,6 +1,8 @@
 import { normalizeRawDiscoveryItem } from './discoverItemUtils';
 import {
     buildSeasonStatusFromDetails,
+    isEndedShow,
+    isMainSeasonNumber,
     isReturningSeries,
     isSeasonUpToDateLabel,
     MEDIA_STATUS,
@@ -128,12 +130,38 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
     const requestedSeasons = seasonRows.filter((s) => s.statusLabel === 'Requested');
     const inProgressDisplay = resolveInProgressDisplay(mediaInfo, mediaStatus);
     const returningSeries = isReturningSeries(item);
+    const endedShow = isEndedShow(item);
+
+    if (mediaType === 'tv' && item?.sonarrLibraryStatus?.showComplete) {
+        return {
+            ...base,
+            kind: 'available',
+            label: 'Available in library',
+            detail: 'All aired episodes are on disk (verified via Sonarr).',
+        };
+    }
 
     if (mediaType === 'tv' && seasonRows.length > 0) {
         const requestable = seasonRows.filter((s) => s.requestable);
+        const mainRequestable = requestable.filter((s) => isMainSeasonNumber(s.seasonNumber));
+        const mainAvailable = availableSeasons.filter((s) => isMainSeasonNumber(s.seasonNumber));
+        const mainUpToDate = upToDateSeasons.filter((s) => isMainSeasonNumber(s.seasonNumber));
+        const mainIncomplete = incompleteSeasons.filter((s) => isMainSeasonNumber(s.seasonNumber));
         const handledSeasons = seasonRows.filter(
             (s) => !s.requestable && s.statusLabel !== 'Not requested' && s.statusLabel !== 'Declined',
         );
+        const mainHandled = handledSeasons.filter((s) => isMainSeasonNumber(s.seasonNumber));
+
+        if (endedShow && mainRequestable.length === 0 && mainHandled.length > 0
+            && (mainAvailable.length > 0 || mainUpToDate.length > 0)) {
+            return {
+                ...base,
+                kind: 'available',
+                label: 'Available in library',
+                detail: formatTvLibraryDetail(seasonRows),
+            };
+        }
+
         if (requestable.length === 0 && handledSeasons.length > 0) {
             if (returningSeries) {
                 return {
@@ -155,23 +183,23 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
                 };
             }
         }
-        if ((availableSeasons.length > 0 || upToDateSeasons.length > 0) && requestable.length > 0) {
+        if ((mainAvailable.length > 0 || mainUpToDate.length > 0) && mainRequestable.length > 0) {
             const handledSummary = formatTvLibraryDetail(seasonRows);
             return {
                 ...base,
                 kind: 'partial',
                 label: 'Partially available',
                 detail: handledSummary
-                    ? `${handledSummary}. ${requestable.length} season${requestable.length === 1 ? '' : 's'} still requestable.`
-                    : `${requestable.length} season${requestable.length === 1 ? '' : 's'} still requestable.`,
+                    ? `${handledSummary}. ${mainRequestable.length} season${mainRequestable.length === 1 ? '' : 's'} still requestable.`
+                    : `${mainRequestable.length} season${mainRequestable.length === 1 ? '' : 's'} still requestable.`,
             };
         }
-        if (incompleteSeasons.length > 0 && requestable.length === 0) {
+        if (mainIncomplete.length > 0 && mainRequestable.length === 0) {
             return {
                 ...base,
                 kind: 'partial',
                 label: 'Partially available',
-                detail: `${incompleteSeasons.length} season${incompleteSeasons.length === 1 ? '' : 's'} missing episodes in your library.`,
+                detail: `${mainIncomplete.length} season${mainIncomplete.length === 1 ? '' : 's'} missing episodes in your library.`,
             };
         }
         if (processingSeasons.length > 0) {
@@ -242,6 +270,14 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
     }
 
     if (mediaStatus === MEDIA_STATUS.PARTIAL) {
+        if (mediaType === 'tv' && item?.sonarrLibraryStatus?.showComplete) {
+            return {
+                ...base,
+                kind: 'available',
+                label: 'Available in library',
+                detail: 'All aired episodes are on disk (verified via Sonarr).',
+            };
+        }
         return {
             ...base,
             kind: 'partial',

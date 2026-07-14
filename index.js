@@ -351,6 +351,7 @@ import {
 } from './lib/discovery-settings.js';
 import { buildDiscoveryFacts } from './lib/discovery-facts.js';
 import { fetchDiscoveryHeroBackdrops } from './lib/discovery-hero.js';
+import { enrichTvDetailsWithSonarrLibraryStatus } from './lib/sonarr-library-status.js';
 const PLEX_API = 'https://plex.tv/api';
 
 // --- Status App Global State ---
@@ -4652,6 +4653,19 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
         const fullPath = qs ? `${path}?${qs}` : path;
 
         let data = await requestAppService.rawFetch(config, '/api/v1' + fullPath);
+        const tvDetailMatch = path.match(/^\/tv\/(\d+)$/);
+        if (tvDetailMatch && data && typeof data === 'object' && !Array.isArray(data)) {
+            try {
+                const upgraderIndex = await loadUpgraderIndex();
+                data = await enrichTvDetailsWithSonarrLibraryStatus(config, data, {
+                    resolveUrl: resolveIntegrationUrlForFetch,
+                    fetchImpl: fetch,
+                    upgraderItems: upgraderIndex?.items || [],
+                });
+            } catch (sonarrError) {
+                log(`Discovery Sonarr library check skipped for tv/${tvDetailMatch[1]}: ${sonarrError.message}`);
+            }
+        }
         data = filterDiscoveryPayload(data, path, prefs.hideAvailableMedia);
         res.json(data);
     } catch (e) {

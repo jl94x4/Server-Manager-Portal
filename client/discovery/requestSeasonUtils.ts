@@ -86,6 +86,14 @@ export const isReturningSeries = (details: any): boolean => (
     || String(details?.status || '').toLowerCase() === 'returning series'
 );
 
+export const isEndedShow = (details: any): boolean => {
+    if (details?.inProduction === true) return false;
+    const status = String(details?.status || '').toLowerCase();
+    return status === 'ended' || status === 'canceled' || status === 'cancelled';
+};
+
+export const isMainSeasonNumber = (seasonNumber: number) => Number(seasonNumber) > 0;
+
 export const isSeasonStillAiring = (details: any, seasonNumber: number): boolean => {
     const next = details?.nextEpisodeToAir;
     if (next && Number(next.seasonNumber) === seasonNumber) return true;
@@ -192,6 +200,15 @@ export const inferMissingLibrarySeasonStatus = (
         return { requestable: false, statusLabel: 'Up to date' };
     }
 
+    if (isEndedShow(details) && showInLibrary && seasonNumber > 0 && seasonNumber <= lastAiredSeason) {
+        const mainLibrarySeasons = librarySeasons.filter(
+            (s: any) => isMainSeasonNumber(Number(s?.seasonNumber)),
+        );
+        if (mainLibrarySeasons.length > 0 || showStatus === MEDIA_STATUS.PARTIAL || showStatus === MEDIA_STATUS.AVAILABLE) {
+            return { requestable: false, statusLabel: 'Available' };
+        }
+    }
+
     return null;
 };
 
@@ -206,6 +223,47 @@ export const applyMissingLibrarySeasonInference = (
         return { ...row, ...inferred };
     })
 );
+
+/** Prefer Sonarr episode files over stale Seerr season rows when enrichment is present. */
+export const applySonarrLibrarySeasonOverrides = (
+    details: any,
+    seasonRows: SeasonStatusInfo[],
+): SeasonStatusInfo[] => {
+    const sonarr = details?.sonarrLibraryStatus;
+    if (!sonarr?.matched || !Array.isArray(sonarr.seasons)) return seasonRows;
+
+    const bySeason = new Map<number, any>(
+        sonarr.seasons.map((season: any) => [Number(season.seasonNumber), season]),
+    );
+
+    return seasonRows.map((row) => {
+        const seasonNumber = Number(row.seasonNumber);
+        if (!isMainSeasonNumber(seasonNumber)) return row;
+
+        const probe = bySeason.get(seasonNumber);
+        if (!probe) return row;
+
+        if (probe.complete) {
+            return {
+                ...row,
+                requestable: false,
+                statusLabel: 'Available',
+                libraryStatus: MEDIA_STATUS.AVAILABLE,
+            };
+        }
+
+        if (Number(probe.airedWithFile) > 0 || Number(probe.withFile) > 0) {
+            return {
+                ...row,
+                requestable: false,
+                statusLabel: resolvePartialSeasonLabel(details, seasonNumber),
+                libraryStatus: MEDIA_STATUS.PARTIAL,
+            };
+        }
+
+        return row;
+    });
+};
 
 export const mediaLibraryStatusLabel = (status: number | null | undefined): string | null => {
     const value = Number(status);
@@ -295,7 +353,9 @@ export const buildSeasonStatusFromDetails = (details: any): SeasonStatusInfo[] =
         }
     }
 
-    return applyMissingLibrarySeasonInference(details, mediaInfo, tmdbSeasons
+    return applySonarrLibrarySeasonOverrides(
+        details,
+        applyMissingLibrarySeasonInference(details, mediaInfo, tmdbSeasons
         .filter((s: any) => Number(s?.seasonNumber) >= 0)
         .sort((a: any, b: any) => Number(a.seasonNumber) - Number(b.seasonNumber))
         .map((s: any) => {
@@ -342,7 +402,8 @@ export const buildSeasonStatusFromDetails = (details: any): SeasonStatusInfo[] =
                 statusLabel,
                 requestable,
             };
-        }));
+        })),
+    );
 };
 
 export const getRequestButtonState = (
