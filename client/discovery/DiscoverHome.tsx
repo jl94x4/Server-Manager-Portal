@@ -10,6 +10,7 @@ import {
     TV_GENRES,
 } from './discoverConstants';
 import { enrichDiscoveryItems } from './discoverItemUtils';
+import { portalRequestToDiscoveryRowItem } from './myRequestUtils';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
 import { fetchDiscoverHomeRowResults } from './discoverFetchUtils';
 
@@ -52,7 +53,7 @@ export const DiscoverHome: React.FC<{
                     hideAvailable
                         ? Promise.resolve(null)
                         : apiFetch('/api/discovery/proxy/media?filter=allavailable&take=20&sort=mediaAdded').catch(() => null),
-                    apiFetch('/api/discovery/proxy/request?filter=all&take=20&sort=modified&skip=0').catch(() => null),
+                    apiFetch('/api/discovery/my-requests?filter=all&take=20').catch(() => null),
                     apiFetch('/api/discovery/proxy/discover/watchlist').catch(() => null),
                     apiFetch('/api/discovery/trending').catch(() => null),
                     fetchDiscoverHomeRowResults(
@@ -75,13 +76,17 @@ export const DiscoverHome: React.FC<{
                     apiFetch('/api/discovery/proxy/discover/genreslider/tv').catch(() => null),
                 ]);
 
+                const myRequestItems = Array.isArray(reqRes?.results)
+                    ? reqRes.results.map(portalRequestToDiscoveryRowItem)
+                    : [];
+
                 const [
                     recentlyAdded,
                     recentRequests,
                     plexWatchlist,
                 ] = await Promise.all([
                     enrichDiscoveryItems(addedRes?.results || []),
-                    enrichDiscoveryItems(reqRes?.results || []),
+                    enrichDiscoveryItems(myRequestItems),
                     enrichDiscoveryItems(watchlistRes?.results || []),
                 ]);
 
@@ -194,7 +199,7 @@ export const DiscoverHome: React.FC<{
     return (
         <div className="flex flex-col gap-10 w-full max-w-full overflow-hidden pb-12">
             <DiscoveryRow title="Recently Added" items={rows.recentlyAdded} />
-            <DiscoveryRow title="Recent Requests" items={rows.recentRequests} />
+            <DiscoveryRow title="Your Requests" items={rows.recentRequests} onViewAll={() => navigate('/discovery/requests')} />
             <DiscoveryRow title="Your Plex Watchlist" items={rows.plexWatchlist} />
             <DiscoveryRow title="Trending" items={rows.trending} />
             <DiscoveryRow title="Popular Movies" items={rows.popularMovies} onViewAll={() => navigate('/discovery/movies')} />

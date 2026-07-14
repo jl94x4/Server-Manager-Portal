@@ -6,10 +6,12 @@ import { DiscoverSeries } from './DiscoverSeries';
 import { DiscoverCategoryPage } from './DiscoverCategoryPage';
 import { MediaDetailsPage } from './MediaDetailsPage';
 import { PersonDetailsPage } from './PersonDetailsPage';
-import { Film, Tv, Compass } from 'lucide-react';
+import { Film, Tv, Compass, ClipboardList } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { portalUrl, stripBasePath } from '../shared/basePath';
 import { normalizeRawDiscoveryItem } from './discoverItemUtils';
+import { MyRequestsPage } from './MyRequestsPage';
+import { useMyRequestCount } from './useMyRequestCount';
 
 export const DiscoveryDashboard: React.FC<{
     onItemClick: (item: any) => void;
@@ -24,6 +26,7 @@ export const DiscoveryDashboard: React.FC<{
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [searchLoading, setSearchLoading] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
+    const { pendingCount: myPendingCount, refresh: refreshMyRequestCount } = useMyRequestCount(true);
 
     const refreshPath = useCallback(() => {
         setPath(window.location.pathname);
@@ -176,7 +179,58 @@ export const DiscoveryDashboard: React.FC<{
         );
     }
 
-    const showTabs = ['home', 'movies', 'series'].includes(subRoute);
+    const showTabs = ['home', 'movies', 'series', 'requests'].includes(subRoute);
+
+    if (subRoute === 'requests') {
+        return (
+            <div className="w-full flex flex-col gap-8 pb-12">
+                <DiscoverHeroHeader
+                    query={query}
+                    searchOpen={searchOpen}
+                    searchLoading={searchLoading}
+                    searchResults={searchResults}
+                    onClose={() => setSearchOpen(false)}
+                    onClear={() => { setQuery(''); setSearchOpen(false); setSearchResults([]); }}
+                    onQueryChange={setQuery}
+                    onFocus={() => query.trim().length >= 2 && setSearchOpen(true)}
+                    formatItem={formatItem}
+                    onSelect={(formatted) => {
+                        if (formatted.type === 'person') {
+                            navigate(`/discovery/person/${formatted.id}`);
+                        } else {
+                            navigate(`/discovery/${formatted.type}/${formatted.id}`);
+                        }
+                    }}
+                />
+                <div className="flex w-full border-b border-white/10 px-4 mt-[-16px]">
+                    <div className="flex gap-8 overflow-x-auto custom-scrollbar">
+                        <button type="button" onClick={() => navigate('/discovery')} className="flex items-center gap-2 pb-4 border-b-2 font-bold transition-all border-transparent text-white/50 hover:text-white/80 whitespace-nowrap">
+                            <Compass className="w-5 h-5" /> Discover
+                        </button>
+                        <button type="button" onClick={() => navigate('/discovery/movies')} className="flex items-center gap-2 pb-4 border-b-2 font-bold transition-all border-transparent text-white/50 hover:text-white/80 whitespace-nowrap">
+                            <Film className="w-5 h-5" /> Movies
+                        </button>
+                        <button type="button" onClick={() => navigate('/discovery/series')} className="flex items-center gap-2 pb-4 border-b-2 font-bold transition-all border-transparent text-white/50 hover:text-white/80 whitespace-nowrap">
+                            <Tv className="w-5 h-5" /> Series
+                        </button>
+                        <button type="button" onClick={() => navigate('/discovery/requests')} className="flex items-center gap-2 pb-4 border-b-2 font-bold transition-all border-plex text-white whitespace-nowrap">
+                            <ClipboardList className="w-5 h-5" /> My Requests
+                            {myPendingCount > 0 && (
+                                <span className="ml-1 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-plex text-black text-[10px] font-black inline-flex items-center justify-center">
+                                    {myPendingCount > 99 ? '99+' : myPendingCount}
+                                </span>
+                            )}
+                        </button>
+                    </div>
+                </div>
+                <MyRequestsPage
+                    navigate={navigate}
+                    pushToast={pushToast}
+                    onCountsChange={refreshMyRequestCount}
+                />
+            </div>
+        );
+    }
 
     return (
         <div className="w-full flex flex-col gap-8 pb-12">
@@ -223,6 +277,18 @@ export const DiscoveryDashboard: React.FC<{
                                 className={`flex items-center gap-2 pb-4 border-b-2 font-bold transition-all ${subRoute === 'series' ? 'border-plex text-white' : 'border-transparent text-white/50 hover:text-white/80'}`}
                             >
                                 <Tv className="w-5 h-5" /> Series
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => navigate('/discovery/requests')}
+                                className={`flex items-center gap-2 pb-4 border-b-2 font-bold transition-all ${subRoute === 'requests' ? 'border-plex text-white' : 'border-transparent text-white/50 hover:text-white/80'}`}
+                            >
+                                <ClipboardList className="w-5 h-5" /> My Requests
+                                {myPendingCount > 0 && (
+                                    <span className="ml-1 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-plex text-black text-[10px] font-black inline-flex items-center justify-center">
+                                        {myPendingCount > 99 ? '99+' : myPendingCount}
+                                    </span>
+                                )}
                             </button>
                         </div>
                     </div>

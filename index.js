@@ -4441,6 +4441,72 @@ app.get('/api/discovery/request-options', requireAuth, requireMember, async (req
     }
 });
 
+app.get('/api/discovery/my-requests/count', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const counts = await requestAppService.getMemberRequestCounts(config, req.user);
+        res.json({ configured: true, ...counts });
+    } catch (e) {
+        log(`Discovery my-requests count error: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/discovery/my-requests', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const filter = String(req.query.filter || 'all').toLowerCase();
+        const take = Math.min(50, Math.max(1, Number(req.query.take) || 20));
+        const skip = Math.max(0, Number(req.query.skip) || 0);
+
+        const payload = await requestAppService.listMemberRequests(config, req.user, { filter, take, skip });
+        res.json({ configured: true, ...payload });
+    } catch (e) {
+        log(`Discovery my-requests error: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.delete('/api/discovery/my-requests/:id', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const requestId = String(req.params.id || '').trim();
+        if (!requestId) return res.status(400).json({ error: 'Request ID is required' });
+
+        await requestAppService.cancelMemberRequest(config, req.user, requestId);
+        res.json({ success: true, message: 'Request cancelled.' });
+    } catch (e) {
+        log(`Discovery cancel request error: ${e.message}`);
+        res.status(e.message?.includes('not linked') || e.message?.includes('only manage') ? 403 : 502).json({ error: e.message });
+    }
+});
+
+app.post('/api/discovery/my-requests/:id/retry', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const requestId = String(req.params.id || '').trim();
+        if (!requestId) return res.status(400).json({ error: 'Request ID is required' });
+
+        await requestAppService.retryMemberRequest(config, req.user, requestId);
+        res.json({ success: true, message: 'Request retry submitted.' });
+    } catch (e) {
+        log(`Discovery retry request error: ${e.message}`);
+        res.status(e.message?.includes('not linked') || e.message?.includes('only manage') ? 403 : 502).json({ error: e.message });
+    }
+});
+
 app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});

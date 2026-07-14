@@ -20,6 +20,7 @@ export type PortalRequestItem = {
     year: string | null;
     overview: string;
     posterUrl: string;
+    posterPath?: string | null;
     backdropUrl?: string;
     requestedBy: {
         id: number | null;
@@ -43,6 +44,7 @@ export type PortalRequestItem = {
     tvSeasons?: PortalTvSeasonInfo[];
     routingSummary?: string | null;
     canRemove?: boolean | null;
+    canCancel?: boolean;
     canRetry?: boolean;
     isAnime?: boolean;
 };
