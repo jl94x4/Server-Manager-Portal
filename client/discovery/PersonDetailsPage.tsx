@@ -3,7 +3,10 @@ import { ArrowLeft, Loader2, Star, Calendar, Film, ChevronDown } from 'lucide-re
 import { apiFetch } from '../shared/api';
 import { DiscoverPosterCard } from '../screens';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
-import { discoverPosterGridClass } from '../shared/portalLayout';
+
+const PERSON_CREDITS_GRID_STYLE: React.CSSProperties = {
+    gridTemplateColumns: 'repeat(auto-fill, minmax(4.75rem, 1fr))',
+};
 
 const splitBiography = (bio: string) => {
     const trimmed = bio.trim();
@@ -150,11 +153,11 @@ export const PersonDetailsPage: React.FC<{
 
             {/* Known For Grid */}
             {visibleCredits.length > 0 && (
-                <div className="flex flex-col gap-6 mt-12 border-t border-white/10 pt-12">
-                    <h2 className="text-3xl font-black text-white flex items-center gap-3">
-                        <Film className="w-8 h-8 text-plex" /> Known For
+                <div className="flex flex-col gap-4 mt-12 border-t border-white/10 pt-10">
+                    <h2 className="text-2xl font-black text-white flex items-center gap-3">
+                        <Film className="w-6 h-6 text-plex" /> Known For
                     </h2>
-                    <div className={discoverPosterGridClass}>
+                    <div className="grid w-full gap-2 sm:gap-2.5" style={PERSON_CREDITS_GRID_STYLE}>
                         {visibleCredits.map((rawItem, idx) => {
                             const formatted = formatItem(rawItem);
                             return (
@@ -164,7 +167,12 @@ export const PersonDetailsPage: React.FC<{
                                     overlay={formatted.overlay}
                                     showQualityBadges={false}
                                     onPosterClick={() => onSelect(formatted)}
-                                    posterWidth={185}
+                                    posterWidth={154}
+                                    footer={(
+                                        <div className="text-[10px] font-medium line-clamp-2 leading-tight text-white/75 text-center mt-0.5 px-0.5">
+                                            {formatted.title}
+                                        </div>
+                                    )}
                                 />
                             );
                         })}
