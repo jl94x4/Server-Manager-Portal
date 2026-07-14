@@ -345,9 +345,9 @@ export const MediaDetailsPage: React.FC<{
                     </p>
 
                     {releaseDateRows.length > 0 && (
-                        <div className="max-w-3xl rounded-2xl border border-white/10 bg-black/45 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.35)] overflow-hidden ring-1 ring-white/[0.04]">
-                            <div className="px-4 sm:px-5 py-3 border-b border-white/[0.06] bg-gradient-to-r from-white/[0.04] to-transparent">
-                                <span className="text-[10px] font-black uppercase tracking-[0.22em] text-white/45">
+                        <div className="w-fit max-w-xl rounded-xl border border-white/10 bg-black/45 backdrop-blur-xl shadow-[0_8px_28px_rgba(0,0,0,0.28)] overflow-hidden ring-1 ring-white/[0.04]">
+                            <div className="px-3 py-2 border-b border-white/[0.06] bg-gradient-to-r from-white/[0.04] to-transparent">
+                                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/45">
                                     Release Dates
                                 </span>
                             </div>
@@ -365,18 +365,18 @@ export const MediaDetailsPage: React.FC<{
                                     return (
                                         <div
                                             key={row.key}
-                                            className="group relative px-4 sm:px-5 py-4 flex flex-col gap-3 min-w-0"
+                                            className="group relative px-3 py-2.5 flex flex-col gap-1.5 min-w-[7.5rem] sm:min-w-[8.5rem]"
                                         >
                                             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                                            <div className="relative flex items-center gap-2.5">
-                                                <div className="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center shadow-inner group-hover:border-plex/30 group-hover:bg-plex/10 transition-colors">
-                                                    <Icon className="w-4 h-4 text-white/55 group-hover:text-plex transition-colors" aria-hidden />
+                                            <div className="relative flex items-center gap-2">
+                                                <div className="w-7 h-7 rounded-lg bg-white/[0.06] border border-white/10 flex items-center justify-center group-hover:border-plex/30 group-hover:bg-plex/10 transition-colors">
+                                                    <Icon className="w-3.5 h-3.5 text-white/55 group-hover:text-plex transition-colors" aria-hidden />
                                                 </div>
-                                                <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+                                                <span className="text-[9px] font-bold uppercase tracking-wider text-white/40">
                                                     {row.label}
                                                 </span>
                                             </div>
-                                            <p className="relative text-sm sm:text-[15px] font-semibold text-white/90 leading-snug pl-0.5">
+                                            <p className="relative text-xs font-semibold text-white/90 leading-snug">
                                                 {row.date}
                                             </p>
                                         </div>
