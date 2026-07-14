@@ -351,7 +351,7 @@ import {
 } from './lib/discovery-settings.js';
 import { buildDiscoveryFacts } from './lib/discovery-facts.js';
 import { fetchDiscoveryHeroBackdrops } from './lib/discovery-hero.js';
-import { enrichTvDetailsWithSonarrLibraryStatus } from './lib/sonarr-library-status.js';
+import { enrichTvDetailsWithSonarrLibraryStatus, fetchSonarrLibraryStatusForShow } from './lib/sonarr-library-status.js';
 const PLEX_API = 'https://plex.tv/api';
 
 // --- Status App Global State ---
@@ -4637,6 +4637,38 @@ app.get('/api/discovery/radarr-releases', requireAuth, requireMember, async (req
     }
 });
 
+app.get('/api/discovery/tv/:tmdbId/library-status', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const tmdbId = Number(req.params.tmdbId);
+        if (!Number.isFinite(tmdbId) || tmdbId <= 0) {
+            return res.status(400).json({ error: 'Invalid tmdbId' });
+        }
+
+        const upgraderIndex = await loadUpgraderIndex();
+        const statusPromise = fetchSonarrLibraryStatusForShow(config, tmdbId, {
+            resolveUrl: resolveIntegrationUrlForFetch,
+            fetchImpl: fetch,
+            upgraderItems: upgraderIndex?.items || [],
+        });
+        const timeoutMs = 8000;
+        const sonarrLibraryStatus = await Promise.race([
+            statusPromise,
+            new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Sonarr library check timed out')), timeoutMs);
+            }),
+        ]);
+
+        res.json({ sonarrLibraryStatus });
+    } catch (e) {
+        log(`Discovery library-status error: ${e.message}`);
+        res.json({ sonarrLibraryStatus: { matched: false, error: e.message } });
+    }
+});
+
 app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
@@ -4663,7 +4695,7 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
                     fetchImpl: fetch,
                     upgraderItems: upgraderIndex?.items || [],
                 });
-                const timeoutMs = 12000;
+                const timeoutMs = 8000;
                 data = await Promise.race([
                     enrichPromise,
                     new Promise((_, reject) => {

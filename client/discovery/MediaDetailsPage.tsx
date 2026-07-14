@@ -55,28 +55,63 @@ export const MediaDetailsPage: React.FC<{
     const [requestModalOpen, setRequestModalOpen] = useState(false);
 
     useEffect(() => {
+        let cancelled = false;
+
         const fetchDetails = async () => {
             setLoading(true);
             setPosterFailed(false);
             try {
-                const endpoint = mediaType === 'movie'
+                const detailEndpoint = mediaType === 'movie'
                     ? `/api/discovery/proxy/movie/${mediaId}`
-                    : `/api/discovery/proxy/tv/${mediaId}?libraryCheck=1`;
-                const res = await apiFetch(endpoint);
-                if (!res.error) setDetails(res);
-
+                    : `/api/discovery/proxy/tv/${mediaId}`;
                 const recEndpoint = mediaType === 'movie'
                     ? `/api/discovery/proxy/movie/${mediaId}/recommendations`
                     : `/api/discovery/proxy/tv/${mediaId}/recommendations`;
-                const recRes = await apiFetch(recEndpoint);
-                if (!recRes.error && recRes.results) setRecommendations(recRes.results);
+
+                const [res, recRes] = await Promise.all([
+                    apiFetch(detailEndpoint),
+                    apiFetch(recEndpoint).catch(() => null),
+                ]);
+
+                if (cancelled) return;
+                if (!res?.error) setDetails(res);
+                if (recRes && !recRes.error && recRes.results) setRecommendations(recRes.results);
             } catch (err) {
                 console.error(err);
+            } finally {
+                if (!cancelled) setLoading(false);
             }
-            setLoading(false);
         };
+
         fetchDetails();
+        return () => {
+            cancelled = true;
+        };
     }, [mediaId, mediaType]);
+
+    useEffect(() => {
+        if (mediaType !== 'tv' || loading || !details) return undefined;
+
+        let cancelled = false;
+
+        apiFetch(`/api/discovery/tv/${mediaId}/library-status`)
+            .then((res) => {
+                if (cancelled || !res?.sonarrLibraryStatus?.matched) return;
+                setDetails((prev) => (prev ? {
+                    ...prev,
+                    sonarrLibraryStatus: res.sonarrLibraryStatus,
+                    mediaInfo: {
+                        ...(prev.mediaInfo || {}),
+                        ...(res.sonarrLibraryStatus.showComplete ? { status: 5 } : {}),
+                    },
+                } : prev));
+            })
+            .catch(() => undefined);
+
+        return () => {
+            cancelled = true;
+        };
+    }, [mediaId, mediaType, loading, details?.id]);
 
     useEffect(() => {
         if (mediaType !== 'movie') {
@@ -102,9 +137,26 @@ export const MediaDetailsPage: React.FC<{
         try {
             const endpoint = mediaType === 'movie'
                 ? `/api/discovery/proxy/movie/${mediaId}`
-                : `/api/discovery/proxy/tv/${mediaId}?libraryCheck=1`;
+                : `/api/discovery/proxy/tv/${mediaId}`;
             const res = await apiFetch(endpoint);
-            if (!res.error) setDetails(res);
+            if (!res.error) {
+                setDetails(res);
+                if (mediaType === 'tv') {
+                    apiFetch(`/api/discovery/tv/${mediaId}/library-status`)
+                        .then((lib) => {
+                            if (!lib?.sonarrLibraryStatus?.matched) return;
+                            setDetails((prev) => (prev ? {
+                                ...prev,
+                                sonarrLibraryStatus: lib.sonarrLibraryStatus,
+                                mediaInfo: {
+                                    ...(prev.mediaInfo || {}),
+                                    ...(lib.sonarrLibraryStatus.showComplete ? { status: 5 } : {}),
+                                },
+                            } : prev));
+                        })
+                        .catch(() => undefined);
+                }
+            }
         } catch (err) {
             console.error(err);
         }
