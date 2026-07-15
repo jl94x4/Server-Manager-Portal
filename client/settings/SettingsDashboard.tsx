@@ -356,6 +356,9 @@ export const SettingsDashboard: React.FC = () => {
     const [use24HourClock, setUse24HourClock] = useState(initialSettings?.use24HourClock || false);
     const [showPosterQualityBadges, setShowPosterQualityBadges] = useState(initialSettings?.showPosterQualityBadges !== false);
     const [showDashboardWatchingBadge, setShowDashboardWatchingBadge] = useState(!!initialSettings?.showDashboardWatchingBadge);
+    const [dashboardWatchingBadgePollSeconds, setDashboardWatchingBadgePollSeconds] = useState(
+        Math.min(15, Math.max(1, Number(initialSettings?.dashboardWatchingBadgePollSeconds) || 15)),
+    );
     const [showPublicStatusMonitor, setShowPublicStatusMonitor] = useState(initialSettings?.showPublicStatusMonitor !== false);
     const [showPublicLibraryStats, setShowPublicLibraryStats] = useState(initialSettings?.showPublicLibraryStats !== false);
     const [allowTemporaryAccess, setAllowTemporaryAccess] = useState(initialSettings?.allowTemporaryAccess || false);
@@ -824,6 +827,9 @@ export const SettingsDashboard: React.FC = () => {
             if (initialSettings.use24HourClock !== undefined) setUse24HourClock(!!initialSettings.use24HourClock);
             if (initialSettings.showPosterQualityBadges !== undefined) setShowPosterQualityBadges(initialSettings.showPosterQualityBadges !== false);
             if (initialSettings.showDashboardWatchingBadge !== undefined) setShowDashboardWatchingBadge(!!initialSettings.showDashboardWatchingBadge);
+            if (initialSettings.dashboardWatchingBadgePollSeconds !== undefined) {
+                setDashboardWatchingBadgePollSeconds(Math.min(15, Math.max(1, Number(initialSettings.dashboardWatchingBadgePollSeconds) || 15)));
+            }
             if (initialSettings.showPublicStatusMonitor !== undefined) setShowPublicStatusMonitor(initialSettings.showPublicStatusMonitor !== false);
             if (initialSettings.showPublicLibraryStats !== undefined) setShowPublicLibraryStats(initialSettings.showPublicLibraryStats !== false);
             if (initialSettings.allowTemporaryAccess !== undefined) setAllowTemporaryAccess(!!initialSettings.allowTemporaryAccess);
@@ -993,6 +999,7 @@ export const SettingsDashboard: React.FC = () => {
             allowTemporaryAccess,
             showPosterQualityBadges,
             showDashboardWatchingBadge,
+            dashboardWatchingBadgePollSeconds,
             showPublicStatusMonitor,
             showPublicLibraryStats,
             autoBackupEnabled,
@@ -2028,13 +2035,29 @@ export const SettingsDashboard: React.FC = () => {
                                 hint={(
                                     <SettingHint>
                                         Show a live count of people currently watching next to Dashboard in the sidebar.
-                                        Polls your Plex or Jellyfin server every 15 seconds and counts unique viewers with an active stream.
+                                        Polls your Plex or Jellyfin server on the interval below and counts unique viewers with an active stream.
                                     </SettingHint>
                                 )}
                                 checked={showDashboardWatchingBadge}
                                 onChange={setShowDashboardWatchingBadge}
                                 className="mb-4"
-                            />
+                            >
+                                <div className={`transition-all overflow-hidden ${showDashboardWatchingBadge ? 'max-h-[100px] opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
+                                    <label className="text-sm font-medium text-muted">Poll Interval</label>
+                                    <select
+                                        className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all mt-1"
+                                        value={dashboardWatchingBadgePollSeconds}
+                                        onChange={(e) => setDashboardWatchingBadgePollSeconds(parseInt(e.target.value, 10))}
+                                        disabled={!showDashboardWatchingBadge}
+                                    >
+                                        {Array.from({ length: 15 }, (_, i) => i + 1).map((seconds) => (
+                                            <option key={seconds} value={seconds}>
+                                                {seconds} {seconds === 1 ? 'Second' : 'Seconds'}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </SettingsToggleRow>
                             </div>
 
                             <SettingsToggleRow

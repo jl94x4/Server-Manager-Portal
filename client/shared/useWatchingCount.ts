@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from './api';
 
-const POLL_MS = 15_000;
+const clampPollSeconds = (seconds: number | undefined) => {
+    const n = Math.round(Number(seconds));
+    if (!Number.isFinite(n)) return 15;
+    return Math.min(15, Math.max(1, n));
+};
 
-export const useWatchingCount = (enabled: boolean) => {
+export const useWatchingCount = (enabled: boolean, pollSeconds = 15) => {
     const [watchingCount, setWatchingCount] = useState(0);
+    const intervalMs = clampPollSeconds(pollSeconds) * 1000;
 
     const refresh = useCallback(async () => {
         if (!enabled) {
@@ -22,9 +27,9 @@ export const useWatchingCount = (enabled: boolean) => {
     useEffect(() => {
         refresh();
         if (!enabled) return undefined;
-        const timer = window.setInterval(refresh, POLL_MS);
+        const timer = window.setInterval(refresh, intervalMs);
         return () => window.clearInterval(timer);
-    }, [enabled, refresh]);
+    }, [enabled, intervalMs, refresh]);
 
     return { watchingCount, refresh };
 };

@@ -298,7 +298,8 @@ export const MainApp: React.FC = () => {
     const requestsQueueEnabled = !!sessionInfo?.session?.isAdmin && !!sessionInfo?.navFeatures?.requestsQueue;
     const { pendingCount: pendingRequestCount, refresh: refreshPendingRequestCount } = usePendingRequestCount(requestsQueueEnabled);
     const showDashboardWatchingBadge = publicConfig?.showDashboardWatchingBadge === true;
-    const { watchingCount } = useWatchingCount(showDashboardWatchingBadge);
+    const dashboardWatchingBadgePollSeconds = Number(publicConfig?.dashboardWatchingBadgePollSeconds) || 15;
+    const { watchingCount } = useWatchingCount(showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds);
     const { openCount: openIssueCount, refresh: refreshOpenIssueCount } = useOpenIssueCount(requestsQueueEnabled);
     const queueBadgeCount = pendingRequestCount + openIssueCount;
     const refreshQueueCounts = useCallback(() => {

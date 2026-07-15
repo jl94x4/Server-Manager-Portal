@@ -20,7 +20,7 @@ export const SETTINGS_INDEX: SettingsIndexEntry[] = [
     { id: 'branding/theme', tabId: 'branding', sectionId: 'theme', label: 'Portal Theme', group: 'Portal', keywords: ['theme', 'plex dark', 'slate', 'jellyfin purple'] },
     { id: 'branding/announcement', tabId: 'branding', sectionId: 'announcement', label: 'Portal Announcement', group: 'Portal', keywords: ['announcement', 'banner', 'notice'] },
     { id: 'branding/poster-badges', tabId: 'branding', sectionId: 'poster-badges', label: 'Poster Quality Badges', group: 'Portal', keywords: ['poster', 'quality', 'badges', 'hdr', '4k', 'codec'] },
-    { id: 'branding/dashboard-watching-badge', tabId: 'branding', sectionId: 'dashboard-watching-badge', label: 'Dashboard Watching Badge', group: 'Portal', keywords: ['dashboard', 'watching', 'streams', 'sidebar', 'badge', 'nav'] },
+    { id: 'branding/dashboard-watching-badge', tabId: 'branding', sectionId: 'dashboard-watching-badge', label: 'Dashboard Watching Badge', group: 'Portal', keywords: ['dashboard', 'watching', 'streams', 'sidebar', 'badge', 'nav', 'poll', 'interval', 'seconds'] },
     { id: 'branding/slideshow', tabId: 'branding', sectionId: 'slideshow', label: 'TMDB Trending Slideshow', group: 'Portal', keywords: ['slideshow', 'tmdb', 'trending', 'background', 'splash'] },
 
     { id: 'contact', tabId: 'contact', label: 'Contact Details', group: 'Portal', keywords: ['contact', 'support', 'help'] },
