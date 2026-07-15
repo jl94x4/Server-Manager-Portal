@@ -14,6 +14,8 @@ import { resolveMediaAvailabilityState } from './discoverAvailability';
 import { MediaStatusPanel } from './DiscoverStatusOverlay';
 import { DiscoveryLogo } from './DiscoveryLogo';
 import { scrollPortalToTop } from './discoverNavigationUtils';
+import { MediaOverviewExtras } from './MediaOverviewExtras';
+import type { CombinedRatings } from './mediaDetailUtils';
 import {
     buildSeasonStatusFromDetails,
     getRequestButtonState,
@@ -65,6 +67,7 @@ export const MediaDetailsPage: React.FC<{
     const [recommendations, setRecommendations] = useState<any[]>([]);
     const [posterFailed, setPosterFailed] = useState(false);
     const [radarrReleases, setRadarrReleases] = useState<RadarrReleaseDates | null>(null);
+    const [ratings, setRatings] = useState<CombinedRatings | null>(null);
     const [requestModalOpen, setRequestModalOpen] = useState(false);
     const [issueModalOpen, setIssueModalOpen] = useState(false);
 
@@ -126,6 +129,27 @@ export const MediaDetailsPage: React.FC<{
             cancelled = true;
         };
     }, [mediaId, mediaType, loading, details?.id]);
+
+    useEffect(() => {
+        if (!details) {
+            setRatings(null);
+            return undefined;
+        }
+        let cancelled = false;
+        const ratingsPath = mediaType === 'movie'
+            ? `/api/discovery/proxy/movie/${mediaId}/ratingscombined`
+            : `/api/discovery/proxy/tv/${mediaId}/ratingscombined`;
+        apiFetch(ratingsPath)
+            .then((res) => {
+                if (!cancelled && res && !res.error) setRatings(res);
+            })
+            .catch(() => {
+                if (!cancelled) setRatings(null);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [details, mediaId, mediaType]);
 
     useEffect(() => {
         if (mediaType !== 'movie') {
@@ -256,9 +280,6 @@ export const MediaDetailsPage: React.FC<{
     );
     const posterUrl = details.posterPath ? `https://image.tmdb.org/t/p/w500${details.posterPath}` : '';
     const backdropUrl = tmdbBackdropUrl(details.backdropPath || '');
-    const creators = details.createdBy?.map((c: any) => c.name).filter(Boolean).join(', ');
-    const productionCompanies = details.productionCompanies?.slice(0, 4).map((c: any) => c.name).join(' · ');
-    const director = details.credits?.crew?.find((c: any) => c.job === 'Director')?.name;
     const voteCountLabel = details.voteCount > 0
         ? `${details.voteCount >= 1000 ? `${(details.voteCount / 1000).toFixed(1)}k` : details.voteCount} votes`
         : null;
@@ -294,16 +315,9 @@ export const MediaDetailsPage: React.FC<{
     }
 
     const extraDetails: { label: string; value: string }[] = [];
-    if (details.tagline) extraDetails.push({ label: 'Tagline', value: details.tagline });
-    if (director && mediaType === 'movie') extraDetails.push({ label: 'Director', value: director });
-    if (creators) extraDetails.push({ label: 'Created by', value: creators });
-    if (details.originalLanguage) {
-        extraDetails.push({ label: 'Language', value: details.originalLanguage.toUpperCase() });
+    if (details.tagline && mediaType === 'tv') {
+        extraDetails.push({ label: 'Tagline', value: details.tagline });
     }
-    if (mediaType === 'tv' && details.lastAirDate) {
-        extraDetails.push({ label: 'Last aired', value: details.lastAirDate.substring(0, 10) });
-    }
-    if (productionCompanies) extraDetails.push({ label: 'Studio', value: productionCompanies });
 
     const visibleRecommendations = filterHiddenAvailableItems(recommendations, preferences.hideAvailableMedia);
     const releaseDateRows = mediaType === 'movie' && radarrReleases
@@ -552,6 +566,16 @@ export const MediaDetailsPage: React.FC<{
                             </div>
                         </div>
                     )}
+
+                    <MediaOverviewExtras
+                        mediaType={mediaType}
+                        details={details}
+                        ratings={ratings}
+                        onOpenPerson={openPerson}
+                        onOpenCollection={(collectionId) => {
+                            window.open(`https://www.themoviedb.org/collection/${collectionId}`, '_blank', 'noopener,noreferrer');
+                        }}
+                    />
 
                     <DiscoveryFactWidget mediaType={mediaType} mediaId={mediaId} />
 
