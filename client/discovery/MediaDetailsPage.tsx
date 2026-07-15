@@ -361,7 +361,7 @@ export const MediaDetailsPage: React.FC<{
                             className={`absolute inset-0 w-full h-full object-cover ${
                                 heroUsesPosterFallback
                                     ? 'scale-[1.35] blur-2xl opacity-40 md:scale-125 md:blur-xl md:opacity-50'
-                                    : 'scale-110 object-[center_30%] opacity-55 md:scale-100 md:object-[86%_22%] md:opacity-80'
+                                    : 'scale-110 object-[48%_30%] opacity-55 md:scale-100 md:object-[76%_22%] md:opacity-80'
                             }`}
                             fetchPriority="high"
                             decoding="async"
