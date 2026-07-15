@@ -13,6 +13,12 @@ type Props = {
 
 export const RequestQueueDashboard: React.FC<Props> = ({ onCountsChange, openIssueCount = 0 }) => {
     const [tab, setTab] = useState<QueueTab>('requests');
+    const [reviewRequestId, setReviewRequestId] = useState<number | null>(() => {
+        if (typeof window === 'undefined') return null;
+        const raw = new URLSearchParams(window.location.search).get('review');
+        const parsed = Number(raw);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    });
 
     return (
         <div className="w-full max-w-[100%] animate-fade-in">
@@ -61,7 +67,11 @@ export const RequestQueueDashboard: React.FC<Props> = ({ onCountsChange, openIss
             </div>
 
             {tab === 'requests' ? (
-                <RequestsAdminPanel onCountsChange={onCountsChange} embedded />
+                <RequestsAdminPanel
+                    onCountsChange={onCountsChange}
+                    embedded
+                    initialReviewId={reviewRequestId}
+                />
             ) : tab === 'issues' ? (
                 <IssuesAdminPanel onCountsChange={onCountsChange} />
             ) : (

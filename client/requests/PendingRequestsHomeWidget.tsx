@@ -22,10 +22,11 @@ const formatRelativeTime = (value?: string | null) => {
 
 export const PendingRequestsHomeWidget: React.FC<{
     onViewAll?: () => void;
+    onReviewRequest?: (requestId: number) => void;
     onActionComplete?: () => void;
     onToast?: (message: string, type: 'success' | 'error') => void;
     layout?: 'compact' | 'wide';
-}> = ({ onViewAll, onActionComplete, onToast, layout = 'compact' }) => {
+}> = ({ onViewAll, onReviewRequest, onActionComplete, onToast, layout = 'compact' }) => {
     const isWide = layout === 'wide';
     const [requests, setRequests] = useState<PortalRequestItem[]>([]);
     const [pendingTotal, setPendingTotal] = useState(0);
@@ -131,6 +132,14 @@ export const PendingRequestsHomeWidget: React.FC<{
 
     if (pendingTotal === 0) return null;
 
+    const openReview = (item: PortalRequestItem) => {
+        if (onReviewRequest) {
+            onReviewRequest(item.id);
+            return;
+        }
+        setReviewTarget(item);
+    };
+
     const renderRequestRow = (item: PortalRequestItem, wide: boolean) => {
         const TypeIcon = item.type === 'tv' ? Tv : Film;
         const busy = actionId === item.id;
@@ -166,7 +175,7 @@ export const PendingRequestsHomeWidget: React.FC<{
                         <button
                             type="button"
                             disabled={busy}
-                            onClick={() => setReviewTarget(item)}
+                            onClick={() => openReview(item)}
                             className={`${requestCardActionBtnClass} border border-plex/50 bg-background/80 text-plex font-bold hover:bg-plex/15`}
                         >
                             <Pencil className="w-3.5 h-3.5" />
@@ -211,7 +220,7 @@ export const PendingRequestsHomeWidget: React.FC<{
                 <button
                     type="button"
                     disabled={busy}
-                    onClick={() => setReviewTarget(item)}
+                    onClick={() => openReview(item)}
                     className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-md border border-plex/50 bg-background/90 text-plex hover:bg-plex/15 transition-colors disabled:opacity-50 shadow-sm shadow-black/20"
                     title="Review"
                 >
@@ -272,7 +281,7 @@ export const PendingRequestsHomeWidget: React.FC<{
                     {requests.map((item) => renderRequestRow(item, isWide))}
                 </div>
             )}
-            {reviewTarget && typeof document !== 'undefined' && createPortal(
+            {reviewTarget && !onReviewRequest && typeof document !== 'undefined' && createPortal(
                 <RequestApprovalModal
                     requestId={reviewTarget.id}
                     initialTitle={reviewTarget.title}

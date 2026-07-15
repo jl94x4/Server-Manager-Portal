@@ -28,6 +28,11 @@ export type PortalRequestItem = {
         email?: string | null;
         avatar: string;
     };
+    modifiedBy?: {
+        id: number;
+        displayName: string;
+    } | null;
+    declineReason?: string | null;
     createdAt: string | null;
     updatedAt: string | null;
     mediaStatus: number | null;

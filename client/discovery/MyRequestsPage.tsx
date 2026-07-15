@@ -242,6 +242,11 @@ export const MyRequestsPage: React.FC<Props> = ({ navigate, pushToast, onCountsC
                                             <p className="text-xs text-white/45 mt-1">
                                                 Requested {formatRequestRelativeTime(item.createdAt || item.updatedAt)}
                                             </p>
+                                            {statusLabel === 'Declined' && item.declineReason && (
+                                                <p className="text-xs text-red-200/90 mt-2 bg-red-500/10 border border-red-500/20 rounded-lg px-2.5 py-2">
+                                                    {item.declineReason}
+                                                </p>
+                                            )}
                                             {item.type === 'tv' && item.seasons && item.seasons.length > 0 && (
                                                 <p className="text-xs text-white/55 mt-2">
                                                     Seasons: {item.seasons.map((s) => s.seasonNumber).join(', ')}

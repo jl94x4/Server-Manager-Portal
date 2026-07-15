@@ -4715,7 +4715,7 @@ const TrendingDiscoverSection: React.FC<{ title: string; items: any[]; limit: nu
     );
 };
 
-export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: () => void; refreshSession: () => void; onViewAdmin: () => void; onViewStatus: () => void; onViewDashboard: () => void; onViewSettings?: () => void; onViewLogs?: () => void; onViewRequests?: () => void; onPendingRequestsChange?: () => void }> = ({ sessionInfo, publicConfig, onLogout, refreshSession, onViewAdmin, onViewStatus, onViewDashboard, onViewSettings, onViewLogs, onViewRequests, onPendingRequestsChange }) => {
+export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: () => void; refreshSession: () => void; onViewAdmin: () => void; onViewStatus: () => void; onViewDashboard: () => void; onViewSettings?: () => void; onViewLogs?: () => void; onViewRequests?: (reviewId?: number) => void; onPendingRequestsChange?: () => void }> = ({ sessionInfo, publicConfig, onLogout, refreshSession, onViewAdmin, onViewStatus, onViewDashboard, onViewSettings, onViewLogs, onViewRequests, onPendingRequestsChange }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [toast, setToast] = useState<ToastMessage | null>(null);
     const [analytics, setAnalytics] = useState<any>(null);

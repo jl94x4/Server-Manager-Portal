@@ -54,7 +54,7 @@ export type UserDashboardWidgetDeps = {
     onViewAdmin: () => void;
     onViewSettings?: () => void;
     onViewLogs?: () => void;
-    onViewRequests?: () => void;
+    onViewRequests?: (reviewId?: number) => void;
     onPendingRequestsChange?: () => void;
     setToast: (toast: { id: number; message: string; type: 'success' | 'error' }) => void;
     DiscoverPosterCard: React.ComponentType<PosterCardProps>;
@@ -484,7 +484,8 @@ export const createPendingRequestsSectionRenderer = (deps: UserDashboardWidgetDe
         return (
             <PendingRequestsHomeWidget
                 layout="wide"
-                onViewAll={onViewRequests}
+                onViewAll={() => onViewRequests?.()}
+                onReviewRequest={(requestId) => onViewRequests?.(requestId)}
                 onActionComplete={onPendingRequestsChange}
                 onToast={(message, type) => setToast({ id: Date.now(), message, type })}
             />

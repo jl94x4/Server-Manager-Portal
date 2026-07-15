@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check, Film, Loader2, Tv, X } from 'lucide-react';
 import { apiFetch } from '../shared/api';
+import { formatDateTime } from '../shared/format';
 import { CustomSelect, StyledCheckbox } from '../shared/ui';
 import type {
     PortalRequestDetail,
@@ -267,6 +268,24 @@ export const RequestApprovalModal: React.FC<Props> = ({
                             {mode === 'approve' ? 'Review & Approve' : 'Edit Request'}
                         </p>
                         <h3 className="text-xl font-bold text-text truncate">{title}</h3>
+                        {detail && (
+                            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+                                <span>Status: <span className="text-text font-medium capitalize">{detail.statusLabel}</span></span>
+                                <span>Requested by <span className="text-text font-medium">{detail.requestedBy.displayName}</span></span>
+                                {detail.createdAt && (
+                                    <span>Created {formatDateTime(detail.createdAt)}</span>
+                                )}
+                                {detail.updatedAt && detail.updatedAt !== detail.createdAt && (
+                                    <span>Updated {formatDateTime(detail.updatedAt)}</span>
+                                )}
+                                {detail.modifiedBy && (
+                                    <span>Last action by {detail.modifiedBy.displayName}</span>
+                                )}
+                                {detail.declineReason && (
+                                    <span className="text-red-200">Reason: {detail.declineReason}</span>
+                                )}
+                            </div>
+                        )}
                         {detail?.requestedBy?.displayName && (
                             <p className="text-sm text-muted mt-1">
                                 Requested by <span className="text-text font-medium">{detail.requestedBy.displayName}</span>
