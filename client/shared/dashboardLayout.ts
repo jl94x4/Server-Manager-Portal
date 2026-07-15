@@ -77,8 +77,8 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayoutConfig = {
     hiddenWidgets: [],
     widgetSizes: {},
     widgetColumns: {},
-    recentHistoryRows: 4,
-    topWatchedRows: 1,
+    recentHistoryRows: 7,
+    topWatchedRows: 2,
 };
 
 const ALL_SECTIONS: DashboardSectionId[] = ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'recentlyAdded', 'bazarrTools'];

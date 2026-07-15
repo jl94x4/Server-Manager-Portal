@@ -5317,9 +5317,9 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     const [isDesktopMostWatched, setIsDesktopMostWatched] = useState(
         () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
     );
-    const topWatchedPageSize = (dashboardLayoutDraft.topWatchedRows || DEFAULT_DASHBOARD_LAYOUT.topWatchedRows || 1) * 6;
+    const topWatchedPageSize = (dashboardLayoutDraft.topWatchedRows || DEFAULT_DASHBOARD_LAYOUT.topWatchedRows || 2) * 6;
     const [recentHistoryPage, setRecentHistoryPage] = useState(0);
-    const recentHistoryPageSize = (dashboardLayoutDraft.recentHistoryRows || DEFAULT_DASHBOARD_LAYOUT.recentHistoryRows || 4) * 2;
+    const recentHistoryPageSize = (dashboardLayoutDraft.recentHistoryRows || DEFAULT_DASHBOARD_LAYOUT.recentHistoryRows || 6);
     const [analyticsDays, setAnalyticsDays] = useState<number | 'all'>(365);
     const [analyticsDaysOpen, setAnalyticsDaysOpen] = useState(false);
     const [wrapUpDaysOpen, setWrapUpDaysOpen] = useState(false);
@@ -5885,16 +5885,6 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
             <UserDashboardLayout
                 layoutConfig={dashboardLayoutDraft}
                 layoutCtx={layoutCtx}
-                editing={inlineWidgetEditing}
-                onMoveSection={(id, direction) => moveDashboardSection(id as DashboardSectionId, direction)}
-                onReorderSection={(sourceId, targetId) => reorderDashboardSection(sourceId as DashboardSectionId, targetId as DashboardSectionId)}
-                onToggleSection={(id) => toggleDashboardSection(id as DashboardSectionId)}
-                onMoveMainWidget={moveDashboardMainWidget}
-                onReorderMainWidget={reorderDashboardMainWidget}
-                onMoveRecentlyAddedWidget={moveDashboardRecentWidget}
-                onReorderRecentlyAddedWidget={reorderDashboardRecentWidget}
-                onToggleWidget={toggleDashboardWidget}
-                onWidgetSizeChange={setDashboardWidgetSize}
                 renderMainGridWidget={renderMainGridWidget}
                 renderPendingRequests={renderPendingRequests}
                 renderBazarrTools={renderBazarrTools}
