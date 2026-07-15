@@ -85,7 +85,19 @@ export const DiscoveryFactWidget: React.FC<{
                         </button>
                     )}
                 </div>
-                <p className="text-sm text-white/80 leading-relaxed">{current}</p>
+                <p className="text-sm text-white/80 leading-relaxed">
+                    {(() => {
+                        const match = current.match(/^===\s*(.*?)\s*===\s*(.*)$/s);
+                        if (match) {
+                            return (
+                                <>
+                                    <strong className="text-white">{match[1]}:</strong> {match[2]}
+                                </>
+                            );
+                        }
+                        return current;
+                    })()}
+                </p>
             </div>
         </div>
     );

@@ -81,10 +81,11 @@ export const resolveInProgressDisplay = (
 };
 
 /** Whether a season still has unaired episodes scheduled (currently airing). */
-export const isReturningSeries = (details: any): boolean => (
-    details?.inProduction === true
-    || String(details?.status || '').toLowerCase() === 'returning series'
-);
+export const isReturningSeries = (details: any): boolean => {
+    const status = String(details?.status || '').toLowerCase();
+    if (status === 'in production') return false;
+    return details?.inProduction === true || status === 'returning series';
+};
 
 export const isEndedShow = (details: any): boolean => {
     if (details?.inProduction === true) return false;

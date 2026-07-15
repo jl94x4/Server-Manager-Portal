@@ -134,8 +134,8 @@ export const DiscoverHeroHeader: React.FC<SearchResultProps> = (props) => {
                     {backgrounds.length > 0 ? (
                         <SlideshowBackground backgrounds={backgrounds} intervalSeconds={intervalSeconds} opacity={0.55} />
                     ) : null}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/50 to-black/30 pointer-events-none" />
-                    <div className="absolute inset-0 bg-black/25 pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent pointer-events-none" />
+                    <div className="absolute inset-0 bg-black/20 pointer-events-none" />
                 </div>
 
                 <div className="relative z-10 p-6 sm:p-10 flex flex-col items-center justify-center text-center gap-5">
