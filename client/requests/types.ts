@@ -109,6 +109,40 @@ export type PortalIssueCounts = {
     error?: string | null;
 };
 
+export type PortalBlocklistItem = {
+    id: number | null;
+    tmdbId: number | null;
+    mediaType: 'movie' | 'tv';
+    title: string;
+    createdAt: string | null;
+    blocklistedTags?: string | null;
+    posterUrl: string;
+    posterPath?: string | null;
+    addedBy: {
+        id: number | null;
+        displayName: string;
+        avatar?: string;
+    };
+    seerrUrl: string;
+};
+
+export type PortalBlocklistSearchResult = {
+    tmdbId: number | null;
+    mediaType: 'movie' | 'tv';
+    title: string;
+    year?: string | null;
+    posterPath?: string | null;
+    overview?: string;
+};
+
+export type PortalBlocklistCounts = {
+    configured?: boolean;
+    connected?: boolean;
+    supported?: boolean;
+    total: number;
+    error?: string | null;
+};
+
 export type PortalServiceServer = {
     id: number;
     name: string;

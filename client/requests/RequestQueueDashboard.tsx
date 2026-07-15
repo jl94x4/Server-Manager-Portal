@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { AlertTriangle, ClipboardList } from 'lucide-react';
+import { AlertTriangle, Ban, ClipboardList } from 'lucide-react';
 import { RequestsAdminPanel } from './RequestsAdminPanel';
 import { IssuesAdminPanel } from './IssuesAdminPanel';
+import { BlocklistAdminPanel } from './BlocklistAdminPanel';
 
-type QueueTab = 'requests' | 'issues';
+type QueueTab = 'requests' | 'issues' | 'blocklist';
 
 type Props = {
     onCountsChange?: () => void;
@@ -45,12 +46,26 @@ export const RequestQueueDashboard: React.FC<Props> = ({ onCountsChange, openIss
                         </span>
                     )}
                 </button>
+                <button
+                    type="button"
+                    onClick={() => setTab('blocklist')}
+                    className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-colors ${
+                        tab === 'blocklist'
+                            ? 'bg-plex/15 border-plex/40 text-text'
+                            : 'bg-white/[0.03] border-border text-muted hover:text-text hover:border-white/20'
+                    }`}
+                >
+                    <Ban className="w-4 h-4" />
+                    Blocklist
+                </button>
             </div>
 
             {tab === 'requests' ? (
                 <RequestsAdminPanel onCountsChange={onCountsChange} embedded />
-            ) : (
+            ) : tab === 'issues' ? (
                 <IssuesAdminPanel onCountsChange={onCountsChange} />
+            ) : (
+                <BlocklistAdminPanel />
             )}
         </div>
     );

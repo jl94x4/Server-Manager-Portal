@@ -4801,6 +4801,113 @@ app.delete('/api/issues/:id', requireAdmin, async (req, res) => {
     }
 });
 
+app.get('/api/blocklist/count', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) {
+            return res.json(buildRequestAppStatusPayload(config));
+        }
+        try {
+            const total = await requestAppService.getBlocklistCount(config);
+            res.json({ configured: true, supported: true, connected: true, total });
+        } catch (error) {
+            res.json({
+                ...buildRequestAppStatusPayload(config),
+                configured: true,
+                supported: true,
+                connected: false,
+                error: error.message || 'Failed to connect to request app',
+                total: 0,
+            });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'Failed to fetch blocklist count' });
+    }
+});
+
+app.get('/api/blocklist/search', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const query = String(req.query.query || '').trim();
+        const results = await requestAppService.searchBlocklistCandidates(config, query);
+        res.json({ configured: true, results });
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to search titles' });
+    }
+});
+
+app.get('/api/blocklist', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) {
+            return res.json({ ...buildRequestAppStatusPayload(config), results: [] });
+        }
+
+        const take = Math.min(50, Math.max(1, Number(req.query.take) || 30));
+        const skip = Math.max(0, Number(req.query.skip) || 0);
+        const search = String(req.query.search || '').trim();
+        const filter = String(req.query.filter || 'manual').toLowerCase();
+
+        try {
+            const payload = await requestAppService.listBlocklist(config, { take, skip, search, filter });
+            res.json({ configured: true, supported: true, connected: true, ...payload });
+        } catch (error) {
+            res.json({
+                ...buildRequestAppStatusPayload(config),
+                configured: true,
+                supported: true,
+                connected: false,
+                error: error.message || 'Failed to connect to request app',
+                results: [],
+            });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'Failed to fetch blocklist' });
+    }
+});
+
+app.post('/api/blocklist', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const { tmdbId, mediaType, title } = req.body || {};
+        const item = await requestAppService.addToBlocklist(config, req.user, { tmdbId, mediaType, title });
+        await appendAuditLog('blocklist_added', req.user, null, { tmdbId, mediaType, title: title || item?.title || null });
+        res.status(201).json({ success: true, item });
+    } catch (error) {
+        const status = /already blocklisted/i.test(error.message || '') ? 409 : 502;
+        res.status(status).json({ error: error.message || 'Failed to blocklist title' });
+    }
+});
+
+app.delete('/api/blocklist/:tmdbId', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const tmdbId = String(req.params.tmdbId || '').trim();
+        const mediaType = String(req.query.mediaType || '').toLowerCase();
+        if (!tmdbId) return res.status(400).json({ error: 'TMDB ID is required' });
+        if (mediaType !== 'movie' && mediaType !== 'tv') {
+            return res.status(400).json({ error: 'mediaType must be movie or tv' });
+        }
+
+        await requestAppService.removeFromBlocklist(config, tmdbId, mediaType);
+        await appendAuditLog('blocklist_removed', req.user, null, { tmdbId, mediaType });
+        res.json({ success: true, message: 'Title removed from blocklist.' });
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to remove blocklist entry' });
+    }
+});
+
 app.get('/api/discovery/watchlist', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
@@ -5262,7 +5369,31 @@ app.post('/api/requests/:id/decline', requireAdmin, async (req, res) => {
         const result = await requestAppService.declineRequest(config, requestId, reason);
         const title = result?.media?.title || result?.media?.name || req.body?.title || `Request #${requestId}`;
         await appendAuditLog('request_declined', req.user, null, { requestId, title, reason: reason || null });
-        res.json({ success: true, title });
+
+        if (req.body?.blacklist) {
+            const tmdbId = Number(req.body?.tmdbId);
+            const mediaType = String(req.body?.mediaType || '').toLowerCase();
+            if (Number.isFinite(tmdbId) && tmdbId > 0 && (mediaType === 'movie' || mediaType === 'tv')) {
+                try {
+                    await requestAppService.addToBlocklist(config, req.user, { tmdbId, mediaType, title });
+                    await appendAuditLog('blocklist_added', req.user, null, {
+                        tmdbId,
+                        mediaType,
+                        title,
+                        source: 'decline_request',
+                        requestId,
+                    });
+                } catch (blockError) {
+                    if (!/already blocklisted/i.test(blockError?.message || '')) {
+                        return res.status(502).json({
+                            error: `Request declined, but blocklisting failed: ${blockError.message}`,
+                        });
+                    }
+                }
+            }
+        }
+
+        res.json({ success: true, title, blacklisted: !!req.body?.blacklist });
     } catch (error) {
         res.status(502).json({ error: error.message || 'Failed to decline request' });
     }

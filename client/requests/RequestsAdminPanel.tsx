@@ -59,6 +59,7 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void; embedde
     const [actionId, setActionId] = useState<number | null>(null);
     const [declineTarget, setDeclineTarget] = useState<PortalRequestItem | null>(null);
     const [declineReason, setDeclineReason] = useState('');
+    const [declineAndBlocklist, setDeclineAndBlocklist] = useState(false);
     const [reviewTarget, setReviewTarget] = useState<PortalRequestItem | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<PortalRequestItem | null>(null);
 
@@ -144,11 +145,22 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void; embedde
         try {
             await apiFetch(`/api/requests/${declineTarget.id}/decline`, {
                 method: 'POST',
-                body: JSON.stringify({ title: declineTarget.title, reason: declineReason.trim() }),
+                body: JSON.stringify({
+                    title: declineTarget.title,
+                    reason: declineReason.trim(),
+                    blacklist: declineAndBlocklist,
+                    tmdbId: declineTarget.tmdbId,
+                    mediaType: declineTarget.type,
+                }),
             });
-            addToast(`Declined "${declineTarget.title}"`);
+            addToast(
+                declineAndBlocklist
+                    ? `Declined and blocklisted "${declineTarget.title}"`
+                    : `Declined "${declineTarget.title}"`,
+            );
             setDeclineTarget(null);
             setDeclineReason('');
+            setDeclineAndBlocklist(false);
             await loadData({ silent: true });
             onCountsChange?.();
         } catch (e: any) {
@@ -376,6 +388,7 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void; embedde
                                                 onClick={() => {
                                                     setDeclineTarget(item);
                                                     setDeclineReason('');
+                                                    setDeclineAndBlocklist(false);
                                                 }}
                                                 className={`${requestCardActionBtnClass} border border-red-500/50 bg-background/80 text-red-200 hover:bg-red-500/15`}
                                             >
@@ -453,12 +466,26 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void; embedde
                             onChange={(e) => setDeclineReason(e.target.value)}
                             placeholder="Let the requester know why this was declined..."
                         />
+                        {declineTarget.tmdbId && (
+                            <label className="flex items-start gap-3 mb-4 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={declineAndBlocklist}
+                                    onChange={(e) => setDeclineAndBlocklist(e.target.checked)}
+                                    className="mt-1 h-4 w-4 rounded border-border bg-background text-plex focus:ring-plex"
+                                />
+                                <span className="text-sm text-muted">
+                                    Also add <span className="text-text font-medium">{declineTarget.title}</span> to the blocklist so it cannot be requested again.
+                                </span>
+                            </label>
+                        )}
                         <div className="flex justify-end gap-2">
                             <button
                                 type="button"
                                 onClick={() => {
                                     setDeclineTarget(null);
                                     setDeclineReason('');
+                                    setDeclineAndBlocklist(false);
                                 }}
                                 className="px-4 py-2 rounded-lg border border-border text-muted hover:text-text transition-colors"
                             >
@@ -470,7 +497,9 @@ export const RequestsAdminPanel: React.FC<{ onCountsChange?: () => void; embedde
                                 disabled={actionId === declineTarget.id}
                                 className="px-4 py-2 rounded-lg bg-red-600 text-white font-bold hover:bg-red-500 transition-colors disabled:opacity-50"
                             >
-                                {actionId === declineTarget.id ? 'Declining...' : 'Decline request'}
+                                {actionId === declineTarget.id
+                                    ? (declineAndBlocklist ? 'Declining & blocking...' : 'Declining...')
+                                    : (declineAndBlocklist ? 'Decline & blocklist' : 'Decline request')}
                             </button>
                         </div>
                     </div>
