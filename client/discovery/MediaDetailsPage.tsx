@@ -505,7 +505,7 @@ export const MediaDetailsPage: React.FC<{
                     )}
 
                     {releaseDateRows.length > 0 && (
-                        <div className="mx-auto w-fit max-w-full rounded-xl border border-white/10 bg-black/45 backdrop-blur-xl shadow-[0_8px_28px_rgba(0,0,0,0.28)] overflow-hidden ring-1 ring-white/[0.04]">
+                        <div className="mx-auto md:mx-0 w-fit max-w-full rounded-xl border border-white/10 bg-black/45 backdrop-blur-xl shadow-[0_8px_28px_rgba(0,0,0,0.28)] overflow-hidden ring-1 ring-white/[0.04]">
                             <div
                                 className={`grid divide-white/[0.06] ${
                                     releaseDateRows.length === 1
