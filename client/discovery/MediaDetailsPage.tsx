@@ -4,7 +4,6 @@ import { apiFetch } from '../shared/api';
 import { portalUrl } from '../shared/basePath';
 import { DiscoverPosterCard } from '../screens';
 import { Carousel } from './Carousel';
-import { DiscoveryFactWidget } from './DiscoveryFactWidget';
 import { NoPosterPlaceholder } from '../shared/NoPosterPlaceholder';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
 import { tmdbBackdropUrl } from './discoverConstants';
@@ -582,6 +581,7 @@ export const MediaDetailsPage: React.FC<{
 
                     <MediaOverviewExtras
                         mediaType={mediaType}
+                        mediaId={mediaId}
                         details={details}
                         ratings={ratings}
                         onOpenPerson={openPerson}
@@ -591,8 +591,6 @@ export const MediaDetailsPage: React.FC<{
                             window.open(`https://www.themoviedb.org/collection/${collectionId}`, '_blank', 'noopener,noreferrer');
                         }}
                     />
-
-                    <DiscoveryFactWidget mediaType={mediaType} mediaId={mediaId} />
 
                     {extraDetails.length > 0 && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 max-w-3xl">

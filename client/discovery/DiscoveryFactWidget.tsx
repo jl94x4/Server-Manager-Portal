@@ -38,17 +38,20 @@ export const DiscoveryFactWidget: React.FC<{
         return () => { cancelled = true; };
     }, [mediaType, mediaId]);
 
-    const showAnother = useCallback(() => {
+    const advanceFact = useCallback(() => {
         if (facts.length <= 1) return;
-        setIndex((prev) => {
-            if (facts.length === 2) return prev === 0 ? 1 : 0;
-            let next = prev;
-            while (next === prev) {
-                next = Math.floor(Math.random() * facts.length);
-            }
-            return next;
-        });
+        setIndex((prev) => (prev + 1) % facts.length);
     }, [facts.length]);
+
+    useEffect(() => {
+        if (facts.length <= 1) return undefined;
+        const timer = window.setInterval(advanceFact, 10_000);
+        return () => window.clearInterval(timer);
+    }, [facts.length, advanceFact]);
+
+    const showAnother = useCallback(() => {
+        advanceFact();
+    }, [advanceFact]);
 
     if (loading) {
         return (

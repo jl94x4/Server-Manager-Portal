@@ -5024,7 +5024,7 @@ app.get('/api/discovery/fact', requireAuth, requireMember, async (req, res) => {
                     ...(opts.headers || {}),
                 },
             },
-            opts.timeout || 6000,
+            opts.timeout || 8000,
         );
 
         const payload = await buildDiscoveryFacts({ details, mediaType, fetchFn: wikiFetch });

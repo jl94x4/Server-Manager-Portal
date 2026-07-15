@@ -8,16 +8,18 @@ import {
     sortKeyCrew,
 } from './mediaDetailUtils';
 import { MediaRatingPills } from './MediaRatingPills';
+import { DiscoveryFactWidget } from './DiscoveryFactWidget';
 
 export const MediaOverviewExtras: React.FC<{
     mediaType: 'movie' | 'tv';
+    mediaId: number;
     details: any;
     ratings?: CombinedRatings | null;
     onOpenPerson?: (personId: number) => void;
     onOpenCollection?: (collectionId: number) => void;
     onOpenKeyword?: (keyword: { id: number; name: string }) => void;
     onOpenStudio?: (studioId: number) => void;
-}> = ({ mediaType, details, ratings, onOpenPerson, onOpenCollection, onOpenKeyword, onOpenStudio }) => {
+}> = ({ mediaType, mediaId, details, ratings, onOpenPerson, onOpenCollection, onOpenKeyword, onOpenStudio }) => {
     const [showAllStudios, setShowAllStudios] = useState(false);
 
     const factRows = useMemo(() => buildMediaFactRows(mediaType, details), [mediaType, details]);
@@ -71,9 +73,9 @@ export const MediaOverviewExtras: React.FC<{
                             href={trailerUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.06] text-xs font-semibold text-white/85 hover:bg-white/10 hover:border-white/20 transition-colors"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.06] px-2.5 py-1.5 text-xs font-bold text-white/85 transition-all hover:brightness-110 hover:scale-[1.02] hover:bg-white/10 hover:border-white/20"
                         >
-                            <Play className="w-3.5 h-3.5" />
+                            <Play className="w-5 h-5 shrink-0" />
                             Watch trailer
                         </a>
                     )}
@@ -144,6 +146,8 @@ export const MediaOverviewExtras: React.FC<{
                     </div>
                 </button>
             )}
+
+            <DiscoveryFactWidget mediaType={mediaType} mediaId={mediaId} />
 
             {crew.length > 0 && (
                 <div className="flex flex-col gap-3">
