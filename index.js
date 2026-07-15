@@ -2426,8 +2426,9 @@ const DEFAULT_DASHBOARD_LAYOUT = {
     hiddenSections: [],
     hiddenWidgets: [],
     widgetSizes: {},
-    recentHistoryRows: 7,
-    topWatchedRows: 2
+    widgetColumns: {},
+    recentHistoryRows: 4,
+    topWatchedRows: 1
 };
 
 const DASHBOARD_SECTIONS = ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'recentlyAdded', 'bazarrTools'];
@@ -2439,11 +2440,12 @@ const DASHBOARD_RECENTLY_ADDED_WIDGETS = ['recentMovies', 'recentShows', 'recent
 const DASHBOARD_WIDGETS = [...DASHBOARD_MAIN_GRID_WIDGETS, ...DASHBOARD_RECENTLY_ADDED_WIDGETS];
 const DASHBOARD_WIDGET_SIZES = ['compact', 'normal', 'wide', 'full'];
 
-const DOWNLOAD_CLIENT_TYPES = ['qbittorrent', 'transmission', 'bittorrent'];
+const DOWNLOAD_CLIENT_TYPES = ['qbittorrent', 'transmission', 'bittorrent', 'deluge'];
 const downloadClientLabel = (type) => ({
     qbittorrent: 'qBittorrent',
     transmission: 'Transmission',
     bittorrent: 'BitTorrent',
+    deluge: 'Deluge',
 }[type] || 'Download Client');
 
 const normalizeDownloadClients = (incoming, existing = [], { resolveSecret = (v) => v, resolveConfigIntegrationUrl = (v) => String(v || '').trim(), secretMask = SECRET_MASK } = {}) => {
@@ -2515,6 +2517,15 @@ const normalizeDashboardLayout = (raw) => {
             return result;
         }, {});
     };
+    const normalizeWidgetColumns = (values) => {
+        if (!values || typeof values !== 'object') return {};
+        return Object.entries(values).reduce((result, [key, value]) => {
+            if (!DASHBOARD_WIDGETS.includes(key)) return result;
+            const column = Math.max(1, Math.min(12, Math.floor(Number(value))));
+            if (Number.isFinite(column)) result[key] = column;
+            return result;
+        }, {});
+    };
     const input = raw && typeof raw === 'object' ? raw : {};
     return {
         version: 1,
@@ -2524,6 +2535,7 @@ const normalizeDashboardLayout = (raw) => {
         hiddenSections: uniqueValid(input.hiddenSections, DASHBOARD_SECTIONS, [], false),
         hiddenWidgets: uniqueValid(input.hiddenWidgets, DASHBOARD_WIDGETS, [], false),
         widgetSizes: normalizeWidgetSizes(input.widgetSizes),
+        widgetColumns: normalizeWidgetColumns(input.widgetColumns),
         recentHistoryRows: typeof input.recentHistoryRows === 'number' ? input.recentHistoryRows : DEFAULT_DASHBOARD_LAYOUT.recentHistoryRows,
         topWatchedRows: typeof input.topWatchedRows === 'number' ? input.topWatchedRows : DEFAULT_DASHBOARD_LAYOUT.topWatchedRows
     };
@@ -3467,11 +3479,7 @@ app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
                 enabled: true,
             };
             if (!client.url) return res.status(400).json({ error: `${downloadClientLabel(clientType)} URL is required.` });
-            const torrents = client.type === 'transmission'
-                ? await fetchTransmissionTorrents(client)
-                : client.type === 'bittorrent'
-                    ? await fetchBitTorrentTorrents(client)
-                    : await fetchQbitTorrents(client);
+            const torrents = await fetchDownloadClientTorrents(client);
             return res.json({
                 ok: true,
                 message: `${downloadClientLabel(client.type)} connected (${Array.isArray(torrents) ? torrents.length : 0} torrents)`,
@@ -7983,6 +7991,30 @@ const sumJellystatRowCounts = (row = {}) => Object.entries(row)
     .filter(([key]) => key !== 'Key')
     .reduce((sum, [, value]) => sum + toNumber(value?.count, 0), 0);
 
+const normalizeJellystatDateKey = (value) => {
+    if (!value) return null;
+    const raw = String(value);
+    const direct = raw.match(/\d{4}-\d{2}-\d{2}/)?.[0];
+    if (direct) return direct;
+    const date = new Date(`${raw} 00:00:00`);
+    if (Number.isNaN(date.getTime())) return null;
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const buildJellystatHeatmap = (rows = []) => {
+    const heatmap = {};
+    (Array.isArray(rows) ? rows : rows?.stats || []).forEach((row) => {
+        const date = normalizeJellystatDateKey(row?.Key || row?.Date || row?.date || row?.day || row?.Day);
+        if (!date) return;
+        const count = toNumber(row?.Count ?? row?.count ?? row?.Plays ?? row?.plays, sumJellystatRowCounts(row));
+        if (count > 0) heatmap[date] = (heatmap[date] || 0) + count;
+    });
+    return heatmap;
+};
+
 const buildJellystatLibraryHealth = (topLibraries = [], overview = [], metadata = [], libraryTypeTotals = {}) => {
     const metadataById = new Map((Array.isArray(metadata) ? metadata : []).map((item) => [String(item.Id), item]));
     const libraries = Array.isArray(overview) ? overview : [];
@@ -8223,6 +8255,7 @@ app.get('/api/jellystat/analytics', requireAuth, requireMember, async (req, res)
             mostViewedShows,
             mostViewedMusic,
             playbackMethods,
+            dailyViews,
         ] = await Promise.all([
             fetchJellystatJson(config, '/stats/getViewsByLibraryType', { query: { days } }).catch((e) => { log(e.message); return {}; }),
             fetchJellystatJson(config, '/stats/getViewsByHour', { query: { days } }).catch((e) => { log(e.message); return {}; }),
@@ -8235,6 +8268,7 @@ app.get('/api/jellystat/analytics', requireAuth, requireMember, async (req, res)
             fetchJellystatJson(config, '/stats/getMostViewedByType', { method: 'POST', body: { ...postBody, type: 'Series' } }).catch((e) => { log(e.message); return []; }),
             fetchJellystatJson(config, '/stats/getMostViewedByType', { method: 'POST', body: { ...postBody, type: 'Audio' } }).catch((e) => { log(e.message); return []; }),
             fetchJellystatJson(config, '/stats/getPlaybackMethodStats', { method: 'POST', body: postBody }).catch((e) => { log(e.message); return []; }),
+            fetchJellystatJson(config, '/stats/getViewsOverTime', { query: { days: Math.min(days, 365) } }).catch((e) => { log(e.message); return []; }),
         ]);
 
         const peakHours = new Array(24).fill(0);
@@ -8286,6 +8320,7 @@ app.get('/api/jellystat/analytics', requireAuth, requireMember, async (req, res)
             maxTranscodes: toNumber(playbackCounts.transcode, 0),
             compare: null,
             libraryHealth,
+            heatmapData: buildJellystatHeatmap(dailyViews),
             requestedPeriodDays: requestedDays,
             cachePeriodDays: requestedDays,
             cacheFallback: false,
@@ -9548,11 +9583,7 @@ async function performDownloadClientProbe(service) {
     }
     const start = Date.now();
     try {
-        const torrents = client.type === 'transmission'
-            ? await fetchTransmissionTorrents(client)
-            : client.type === 'bittorrent'
-                ? await fetchBitTorrentTorrents(client)
-                : await fetchQbitTorrents(client);
+        const torrents = await fetchDownloadClientTorrents(client);
         return {
             status: 'online',
             latency: Math.round(Date.now() - start),
@@ -10260,6 +10291,68 @@ const fetchBitTorrentTorrents = async (client) => {
     }));
 };
 
+const delugeRpc = async (client, method, params = [], cookie = '') => {
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const response = await fetchWithTimeout(`${base}/json`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            ...(cookie ? { Cookie: cookie } : {}),
+        },
+        body: JSON.stringify({
+            id: Date.now(),
+            method,
+            params,
+        }),
+    }, 12000);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json().catch(() => ({}));
+    if (data?.error) throw new Error(data.error.message || data.error || 'Deluge API error');
+    return { data, cookie: response.headers.get('set-cookie') || cookie };
+};
+
+const fetchDelugeTorrents = async (client) => {
+    const password = client.password || client.username || '';
+    const login = await delugeRpc(client, 'auth.login', [password]);
+    if (login.data?.result !== true) throw new Error('login failed');
+    const fields = [
+        'name',
+        'total_size',
+        'total_done',
+        'progress',
+        'download_payload_rate',
+        'upload_payload_rate',
+        'eta',
+        'state',
+        'label',
+        'save_path',
+        'time_added',
+    ];
+    const torrents = await delugeRpc(client, 'core.get_torrents_status', [{}, fields], login.cookie);
+    return Object.entries(torrents.data?.result || {}).map(([hash, entry]) => normalizeTorrentItem(client, {
+        hash,
+        name: entry.name,
+        size: entry.total_size,
+        downloaded: entry.total_done,
+        progress: entry.progress,
+        downloadSpeed: entry.download_payload_rate,
+        uploadSpeed: entry.upload_payload_rate,
+        eta: entry.eta,
+        state: entry.state,
+        label: entry.label,
+        savePath: entry.save_path,
+        addedDate: entry.time_added,
+    }));
+};
+
+const fetchDownloadClientTorrents = async (client) => {
+    if (client.type === 'transmission') return fetchTransmissionTorrents(client);
+    if (client.type === 'bittorrent') return fetchBitTorrentTorrents(client);
+    if (client.type === 'deluge') return fetchDelugeTorrents(client);
+    return fetchQbitTorrents(client);
+};
+
 app.get('/api/downloads/status', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
@@ -10267,11 +10360,7 @@ app.get('/api/downloads/status', requireAuth, requireMember, async (req, res) =>
         const arrMatcher = await buildDownloadArrMatcher(config);
         const results = await Promise.all(clients.map(async (client) => {
             try {
-                const torrents = client.type === 'transmission'
-                    ? await fetchTransmissionTorrents(client)
-                    : client.type === 'bittorrent'
-                        ? await fetchBitTorrentTorrents(client)
-                        : await fetchQbitTorrents(client);
+                const torrents = await fetchDownloadClientTorrents(client);
                 return { client: { id: client.id, name: client.name, type: client.type }, online: true, torrents, error: null };
             } catch (error) {
                 return { client: { id: client.id, name: client.name, type: client.type }, online: false, torrents: [], error: error.message || 'Unavailable' };

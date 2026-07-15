@@ -27,17 +27,20 @@ Important browser-managed settings include:
 
 | Area | What You Configure |
 | --- | --- |
-| Media Player | Plex or Jellyfin mode |
+| Media Server | Plex, Jellyfin, or Emby mode |
 | Plex | Admin token, selected server, optional direct server URL |
 | Jellyfin | Server URL, API key, login behavior, Quick Connect |
-| Analytics | Tautulli for Plex or JellyStat for Jellyfin |
+| Analytics | Tautulli for Plex or Jellystat for Jellyfin |
 | Branding and UI | Logo, splash assets, accent colors, default theme |
 | Access | Temporary access length, expiry rules, inactivity cleanup |
 | SMTP | Host, port, username, password, sender address |
 | Newsletters | Weekly or monthly schedule and content behavior |
 | Home Layout | Section ordering and visibility |
-| Media Stack | Sonarr and Radarr URLs and API keys |
+| Media Stack | Sonarr, Radarr, Lidarr, Bazarr, request apps, and download clients |
+| Alerts | Gotify connection and alert rules |
 | Status Page | Public service checks and health URLs |
+
+See the [integration list](/guide/integrations) for the complete supported app matrix.
 
 ## Security Defaults
 

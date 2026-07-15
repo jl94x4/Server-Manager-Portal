@@ -64,7 +64,7 @@ const normalizeArrInstancesFromSettings = (settings: Record<string, any> = {}): 
 const createEmptyDownloadClient = (type: DownloadClientConfig['type'] = 'qbittorrent'): DownloadClientConfig => ({
     id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${type}-${Date.now()}`,
     type,
-    name: type === 'transmission' ? 'Transmission' : type === 'bittorrent' ? 'BitTorrent' : 'qBittorrent',
+    name: type === 'transmission' ? 'Transmission' : type === 'bittorrent' ? 'BitTorrent' : type === 'deluge' ? 'Deluge' : 'qBittorrent',
     url: '',
     username: '',
     password: '',
@@ -106,6 +106,7 @@ const APP_ICONS: Record<string, string> = {
     qbittorrent: `${SELFHST_ICON_BASE}/qbittorrent.svg`,
     transmission: `${SELFHST_ICON_BASE}/transmission.svg`,
     bittorrent: `${SIMPLE_ICON_BASE}/bittorrent`,
+    deluge: `${SELFHST_ICON_BASE}/deluge.svg`,
     jellystat: 'https://cdn.jsdelivr.net/gh/selfhst/icons@main/png/jellystat.png',
     tmdb: `${SELFHST_ICON_BASE}/tmdb.svg`,
 };
@@ -1791,7 +1792,7 @@ export const SettingsDashboard: React.FC = () => {
                             </div>
 
                             <div id={getSettingsSectionElementId('download-clients')} className="scroll-mt-24">
-                            <IntegrationHeading app="download" title="Download Clients" subtitle="qBittorrent, Transmission, and BitTorrent status sources" className="mt-10" />
+                            <IntegrationHeading app="download" title="Download Clients" subtitle="qBittorrent, Transmission, BitTorrent, and Deluge status sources" className="mt-10" />
                             <div className="flex items-center justify-between gap-3 mb-4">
                                 <p className="text-sm text-muted">These clients feed the Download Status page.</p>
                                 <button
@@ -1807,7 +1808,7 @@ export const SettingsDashboard: React.FC = () => {
                             ) : (
                                 <div className="space-y-4">
                                     {downloadClients.map((client) => {
-                                        const clientLabel = client.type === 'transmission' ? 'Transmission' : client.type === 'bittorrent' ? 'BitTorrent' : 'qBittorrent';
+                                        const clientLabel = client.type === 'transmission' ? 'Transmission' : client.type === 'bittorrent' ? 'BitTorrent' : client.type === 'deluge' ? 'Deluge' : 'qBittorrent';
                                         return (
                                         <div key={client.id} className="rounded-xl border border-border bg-background/40 p-4">
                                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 pb-3 border-b border-border/50">
@@ -1841,6 +1842,7 @@ export const SettingsDashboard: React.FC = () => {
                                                         { label: 'qBittorrent', value: 'qbittorrent' },
                                                         { label: 'Transmission', value: 'transmission' },
                                                         { label: 'BitTorrent', value: 'bittorrent' },
+                                                        { label: 'Deluge', value: 'deluge' },
                                                     ]}
                                                 />
                                             </div>
@@ -1850,7 +1852,7 @@ export const SettingsDashboard: React.FC = () => {
                                             </div>
                                             <div className="md:col-span-2">
                                                 <label className="text-xs text-muted uppercase tracking-wider font-bold mb-1 block">URL</label>
-                                                <input className="w-full p-2.5 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all text-sm" value={client.url} onChange={(e) => setDownloadClients(downloadClients.map((entry) => entry.id === client.id ? { ...entry, url: e.target.value } : entry))} placeholder={client.type === 'transmission' ? 'http://localhost:9091' : 'http://localhost:8080'} />
+                                                <input className="w-full p-2.5 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all text-sm" value={client.url} onChange={(e) => setDownloadClients(downloadClients.map((entry) => entry.id === client.id ? { ...entry, url: e.target.value } : entry))} placeholder={client.type === 'transmission' ? 'http://localhost:9091' : client.type === 'deluge' ? 'http://localhost:8112' : 'http://localhost:8080'} />
                                             </div>
                                             <div>
                                                 <label className="text-xs text-muted uppercase tracking-wider font-bold mb-1 block">Username</label>

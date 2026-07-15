@@ -28,6 +28,7 @@ export default defineConfig({
           { text: 'Getting Started', link: '/guide/getting-started' },
           { text: 'Docker Deployment', link: '/guide/docker' },
           { text: 'Configuration', link: '/guide/configuration' },
+          { text: 'Integrations', link: '/guide/integrations' },
         ],
       },
       {

@@ -26,7 +26,8 @@ export const PendingRequestsHomeWidget: React.FC<{
     onActionComplete?: () => void;
     onToast?: (message: string, type: 'success' | 'error') => void;
     layout?: 'compact' | 'wide';
-}> = ({ onViewAll, onReviewRequest, onActionComplete, onToast, layout = 'compact' }) => {
+    showEmpty?: boolean;
+}> = ({ onViewAll, onReviewRequest, onActionComplete, onToast, layout = 'compact', showEmpty = false }) => {
     const isWide = layout === 'wide';
     const [requests, setRequests] = useState<PortalRequestItem[]>([]);
     const [pendingTotal, setPendingTotal] = useState(0);
@@ -92,11 +93,28 @@ export const PendingRequestsHomeWidget: React.FC<{
         }
     };
 
-    if (!configured) return null;
-
     const cardClass = isWide
         ? 'glass-card p-4 md:p-5 shadow-xl w-full relative'
         : 'glass-card p-4 md:p-5 shadow-xl flex flex-col flex-shrink-0 relative';
+
+    if (!configured) {
+        if (!showEmpty) return null;
+        return (
+            <div className={`${cardClass} border-white/10`}>
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <p className="text-sm font-semibold text-text">Jellyfin Requests</p>
+                        <p className="text-xs text-muted mt-1">Connect Jellyseerr, Overseerr, or Ombi to show request approvals here.</p>
+                    </div>
+                    {onViewAll && (
+                        <button type="button" onClick={onViewAll} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-sm font-semibold text-text hover:bg-white/5 transition-colors">
+                            Open Requests <ChevronRight className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     if (loading) {
         return (
@@ -130,7 +148,7 @@ export const PendingRequestsHomeWidget: React.FC<{
         );
     }
 
-    if (pendingTotal === 0) return null;
+    if (pendingTotal === 0 && !showEmpty) return null;
 
     const openReview = (item: PortalRequestItem) => {
         if (onReviewRequest) {
@@ -274,7 +292,7 @@ export const PendingRequestsHomeWidget: React.FC<{
 
             {requests.length === 0 ? (
                 <p className="text-sm text-muted">
-                    {pendingTotal} pending in your request app — open Requests to review them.
+                    {pendingTotal > 0 ? `${pendingTotal} pending in your request app — open Requests to review them.` : 'No pending requests right now.'}
                 </p>
             ) : (
                 <div className={isWide ? 'grid grid-cols-1 xl:grid-cols-2 gap-3' : 'space-y-2'}>

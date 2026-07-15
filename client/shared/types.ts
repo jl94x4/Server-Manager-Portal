@@ -52,7 +52,7 @@ export interface ArrInstance {
 
 export interface DownloadClientConfig {
     id: string;
-    type: 'qbittorrent' | 'transmission' | 'bittorrent';
+    type: 'qbittorrent' | 'transmission' | 'bittorrent' | 'deluge';
     name: string;
     url: string;
     username?: string;

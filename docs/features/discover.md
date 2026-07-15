@@ -21,14 +21,16 @@ The page reuses analytics caches where possible so startup and navigation stay f
 
 ## Media Stack
 
-The Media Stack page integrates Sonarr and Radarr:
+The Media Stack page integrates ARR apps, subtitle tools, request apps, and download clients:
 
 | Section | Purpose |
 | --- | --- |
 | Release Calendar | Upcoming episodes and movies with availability state |
-| Active Queue | Current downloads and progress |
-| Recent History | Imports and grab history |
+| Active Queue | Current Sonarr/Radarr/Lidarr-matched downloads and progress |
+| Recent History | Imports, grabs, and service history |
 | Month Navigation | Browse releases across months |
 | ID Matching | Map content through IMDb, TMDB, and TVDB IDs |
+| Bazarr Tools | Subtitle widgets and multi-instance subtitle actions |
+| Download Status | qBittorrent, Transmission, BitTorrent, and Deluge status with source filters |
 
-Configure Sonarr and Radarr URLs and API keys in Settings.
+Configure Sonarr, Radarr, Lidarr, Bazarr, request apps, and download clients in Settings.

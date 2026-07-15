@@ -25,6 +25,7 @@ export interface DashboardLayoutConfig {
     hiddenSections: DashboardSectionId[];
     hiddenWidgets: DashboardWidgetId[];
     widgetSizes: Partial<Record<DashboardWidgetId, DashboardWidgetSize>>;
+    widgetColumns: Partial<Record<DashboardWidgetId, number>>;
     recentHistoryRows?: number;
     topWatchedRows?: number;
 }
@@ -75,8 +76,9 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayoutConfig = {
     hiddenSections: [],
     hiddenWidgets: [],
     widgetSizes: {},
-    recentHistoryRows: 7,
-    topWatchedRows: 2,
+    widgetColumns: {},
+    recentHistoryRows: 4,
+    topWatchedRows: 1,
 };
 
 const ALL_SECTIONS: DashboardSectionId[] = ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'recentlyAdded', 'bazarrTools'];
@@ -115,6 +117,17 @@ const normalizeWidgetSizes = (values: unknown): Partial<Record<DashboardWidgetId
     return result;
 };
 
+const normalizeWidgetColumns = (values: unknown): Partial<Record<DashboardWidgetId, number>> => {
+    if (!values || typeof values !== 'object') return {};
+    const result: Partial<Record<DashboardWidgetId, number>> = {};
+    Object.entries(values as Record<string, unknown>).forEach(([key, value]) => {
+        if (!ALL_WIDGETS.includes(key as DashboardWidgetId)) return;
+        const column = Math.max(1, Math.min(12, Math.floor(Number(value))));
+        if (Number.isFinite(column)) result[key as DashboardWidgetId] = column;
+    });
+    return result;
+};
+
 const migrateDashboardSections = (sections: DashboardSectionId[]): DashboardSectionId[] => {
     const next = sections.filter((id, index) => id !== 'pendingRequests' || sections.indexOf('pendingRequests') === index);
     const mainGridIndex = next.indexOf('mainGrid');
@@ -137,6 +150,7 @@ export const normalizeDashboardLayout = (raw: unknown): DashboardLayoutConfig =>
         hiddenSections: uniqueValid(input.hiddenSections, ALL_SECTIONS, [], false),
         hiddenWidgets: uniqueValid(input.hiddenWidgets, ALL_WIDGETS, [], false),
         widgetSizes: normalizeWidgetSizes(input.widgetSizes),
+        widgetColumns: normalizeWidgetColumns(input.widgetColumns),
         recentHistoryRows: typeof input.recentHistoryRows === 'number' ? input.recentHistoryRows : DEFAULT_DASHBOARD_LAYOUT.recentHistoryRows,
         topWatchedRows: typeof input.topWatchedRows === 'number' ? input.topWatchedRows : DEFAULT_DASHBOARD_LAYOUT.topWatchedRows,
     };
@@ -180,7 +194,7 @@ export const resolveRecentlyAddedWidgets = (layout: DashboardLayoutConfig): Rece
     layout.recentlyAddedOrder.filter((id) => !layout.hiddenWidgets.includes(id));
 
 export const isDashboardSectionAvailable = (id: DashboardSectionId, ctx: DashboardLayoutContext): boolean => {
-    if (id === 'pendingRequests') return !!ctx.isAdmin && !!ctx.requestsQueueEnabled;
+    if (id === 'pendingRequests') return !!ctx.isAdmin;
     if (id === 'bazarrTools') return !!ctx.isAdmin;
     return true;
 };

@@ -1692,6 +1692,18 @@ export const DownloadStatusPage: React.FC = () => {
     };
 
     const sourceLabel = (source: string) => ({ sonarr: 'Sonarr', radarr: 'Radarr', lidarr: 'Lidarr', unknown: 'Other' }[source] || 'Other');
+    const downloadClientLabel = (type: string) => ({
+        qbittorrent: 'qBittorrent',
+        transmission: 'Transmission',
+        bittorrent: 'BitTorrent',
+        deluge: 'Deluge',
+    }[String(type || '').toLowerCase()] || 'Download Client');
+    const downloadClientIcon = (type: string) => {
+        const normalized = String(type || '').toLowerCase();
+        if (normalized === 'bittorrent') return 'https://cdn.simpleicons.org/bittorrent';
+        if (['qbittorrent', 'transmission', 'deluge'].includes(normalized)) return `${STATUS_ICON_BASE}/${normalized}.svg`;
+        return `${STATUS_ICON_BASE}/qbittorrent.svg`;
+    };
 
     if (loading) return <Loader isLoading={true} />;
 
@@ -1763,9 +1775,14 @@ export const DownloadStatusPage: React.FC = () => {
                         ) : data.clients.map((client: any) => (
                             <div key={client.client.id} className="rounded-xl border border-white/5 bg-background/40 p-3">
                                 <div className="flex items-center justify-between gap-3">
-                                    <div>
-                                        <p className="font-bold text-text">{client.client.name}</p>
-                                        <p className="text-[11px] text-muted">{client.client.type} · {client.count} downloads</p>
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <span className="inline-flex w-8 h-8 rounded-lg bg-white/5 border border-white/10 items-center justify-center overflow-hidden shrink-0">
+                                            <img src={downloadClientIcon(client.client.type)} alt="" className="w-5 h-5 object-contain" />
+                                        </span>
+                                        <div className="min-w-0">
+                                            <p className="font-bold text-text truncate">{client.client.name || downloadClientLabel(client.client.type)}</p>
+                                            <p className="text-[11px] text-muted">{downloadClientLabel(client.client.type)} · {client.count} downloads</p>
+                                        </div>
                                     </div>
                                     <span className={`w-2.5 h-2.5 rounded-full ${client.online ? 'bg-green-500' : 'bg-red-500'}`} />
                                 </div>
@@ -4983,27 +5000,42 @@ const PortalLayoutRow: React.FC<{
     first: boolean;
     last: boolean;
     draggable?: boolean;
+    selected?: boolean;
     size?: DashboardWidgetSize;
     onMoveUp: () => void;
     onMoveDown: () => void;
     onToggle: () => void;
+    onSelect?: () => void;
     onDragStart?: () => void;
     onDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
     onDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
     onSizeChange?: (size: DashboardWidgetSize) => void;
-}> = ({ label, description, hidden, first, last, draggable, size, onMoveUp, onMoveDown, onToggle, onDragStart, onDragOver, onDrop, onSizeChange }) => (
+}> = ({ label, description, hidden, first, last, draggable, selected, size, onMoveUp, onMoveDown, onToggle, onSelect, onDragStart, onDragOver, onDrop, onSizeChange }) => (
     <div
         draggable={draggable}
         onDragStart={onDragStart}
         onDragOver={onDragOver}
         onDrop={onDrop}
-        className={`flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border px-3 py-3 transition-colors ${draggable ? 'cursor-grab active:cursor-grabbing' : ''} ${hidden ? 'border-border/30 bg-background/20 opacity-70' : 'border-border/50 bg-background/40'}`}
+        onClick={onSelect}
+        onKeyDown={(event) => {
+            if (!onSelect) return;
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onSelect();
+            }
+        }}
+        role={onSelect ? 'button' : undefined}
+        tabIndex={onSelect ? 0 : undefined}
+        className={`flex flex-col sm:flex-row sm:items-center gap-2 rounded-xl border px-3 py-2.5 transition-colors outline-none ${draggable ? 'cursor-pointer active:cursor-grabbing' : ''} ${selected ? 'border-plex/70 bg-plex/10 ring-1 ring-plex/40' : hidden ? 'border-border/30 bg-background/20 opacity-70' : 'border-border/50 bg-background/40 hover:border-plex/35 hover:bg-background/55'}`}
     >
         <div className="flex items-center gap-2 min-w-0 flex-1">
         <div className="flex flex-col gap-1 shrink-0">
             <button
                 type="button"
-                onClick={onMoveUp}
+                onClick={(event) => {
+                    event.stopPropagation();
+                    onMoveUp();
+                }}
                 disabled={first}
                 className="p-1 rounded-md text-muted hover:text-text hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed"
                 aria-label={`Move ${label} up`}
@@ -5012,7 +5044,10 @@ const PortalLayoutRow: React.FC<{
             </button>
             <button
                 type="button"
-                onClick={onMoveDown}
+                onClick={(event) => {
+                    event.stopPropagation();
+                    onMoveDown();
+                }}
                 disabled={last}
                 className="p-1 rounded-md text-muted hover:text-text hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed"
                 aria-label={`Move ${label} down`}
@@ -5022,7 +5057,7 @@ const PortalLayoutRow: React.FC<{
         </div>
         <div className="min-w-0 flex-1">
             <p className={`font-semibold truncate ${hidden ? 'text-muted line-through' : 'text-text'}`}>{label}</p>
-            {description && <p className="text-xs text-muted truncate mt-0.5">{description}</p>}
+            <p className="text-xs text-muted truncate mt-0.5">{selected ? 'Selected - click another row to move it there.' : (description || 'Click to pick up, then click another row to move.')}</p>
         </div>
         </div>
         {onSizeChange && !hidden && (
@@ -5031,7 +5066,10 @@ const PortalLayoutRow: React.FC<{
                     <button
                         key={option}
                         type="button"
-                        onClick={() => onSizeChange(option)}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onSizeChange(option);
+                        }}
                         className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase transition-colors ${
                             (size || 'normal') === option ? 'bg-plex text-black' : 'text-muted hover:text-text hover:bg-white/10'
                         }`}
@@ -5043,7 +5081,10 @@ const PortalLayoutRow: React.FC<{
         )}
         <button
             type="button"
-            onClick={onToggle}
+            onClick={(event) => {
+                event.stopPropagation();
+                onToggle();
+            }}
             className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-bold transition-colors shrink-0 ${
                 hidden
                     ? 'border-plex/40 bg-plex/10 text-plex hover:bg-plex/20'
@@ -5063,17 +5104,34 @@ const PortalWidgetEditorModal: React.FC<{
     onClose: () => void;
     saving: boolean;
 }> = ({ layout, onChange, onSave, onClose, saving }) => {
-    const [dragItem, setDragItem] = useState<{ list: 'sections' | 'main' | 'recent'; index: number } | null>(null);
+    const [movingItem, setMovingItem] = useState<{ list: 'sections' | 'main' | 'recent'; index: number } | null>(null);
 
-    const reorderList = (list: 'sections' | 'main' | 'recent', targetIndex: number) => {
-        if (!dragItem || dragItem.list !== list || dragItem.index === targetIndex) return;
+    const reorderList = (list: 'sections' | 'main' | 'recent', targetIndex: number, source = movingItem) => {
+        if (!source || source.list !== list || source.index === targetIndex) return;
         if (list === 'sections') {
-            onChange(normalizeSectionLayout({ ...layout, sections: moveDashboardItemTo(layout.sections, dragItem.index, targetIndex) }));
+            onChange(normalizeSectionLayout({ ...layout, sections: moveDashboardItemTo(layout.sections, source.index, targetIndex) }));
             return;
         }
-        const source = list === 'main' ? layout.mainGridOrder : layout.recentlyAddedOrder;
-        const next = moveDashboardItemTo(source, dragItem.index, targetIndex);
+        const items = list === 'main' ? layout.mainGridOrder : layout.recentlyAddedOrder;
+        const next = moveDashboardItemTo(items, source.index, targetIndex);
         onChange(normalizeSectionLayout(list === 'main' ? { ...layout, mainGridOrder: next } : { ...layout, recentlyAddedOrder: next }));
+    };
+
+    const selectOrMove = (list: 'sections' | 'main' | 'recent', index: number) => {
+        if (!movingItem) {
+            setMovingItem({ list, index });
+            return;
+        }
+        if (movingItem.list !== list) {
+            setMovingItem({ list, index });
+            return;
+        }
+        if (movingItem.index === index) {
+            setMovingItem(null);
+            return;
+        }
+        reorderList(list, index, movingItem);
+        setMovingItem(null);
     };
 
     const toggleSection = (id: DashboardSectionId) => {
@@ -5144,12 +5202,14 @@ const PortalWidgetEditorModal: React.FC<{
                                     first={index === 0}
                                     last={index === layout.sections.length - 1}
                                     draggable
-                                    onDragStart={() => setDragItem({ list: 'sections', index })}
+                                    selected={movingItem?.list === 'sections' && movingItem.index === index}
+                                    onSelect={() => selectOrMove('sections', index)}
+                                    onDragStart={() => setMovingItem({ list: 'sections', index })}
                                     onDragOver={(event) => event.preventDefault()}
                                     onDrop={(event) => {
                                         event.preventDefault();
                                         reorderList('sections', index);
-                                        setDragItem(null);
+                                        setMovingItem(null);
                                     }}
                                     onMoveUp={() => moveSection(index, -1)}
                                     onMoveDown={() => moveSection(index, 1)}
@@ -5172,12 +5232,14 @@ const PortalWidgetEditorModal: React.FC<{
                                     last={index === layout.mainGridOrder.length - 1}
                                     draggable
                                     size={layout.widgetSizes?.[id] || 'normal'}
-                                    onDragStart={() => setDragItem({ list: 'main', index })}
+                                    selected={movingItem?.list === 'main' && movingItem.index === index}
+                                    onSelect={() => selectOrMove('main', index)}
+                                    onDragStart={() => setMovingItem({ list: 'main', index })}
                                     onDragOver={(event) => event.preventDefault()}
                                     onDrop={(event) => {
                                         event.preventDefault();
                                         reorderList('main', index);
-                                        setDragItem(null);
+                                        setMovingItem(null);
                                     }}
                                     onMoveUp={() => moveMainWidget(index, -1)}
                                     onMoveDown={() => moveMainWidget(index, 1)}
@@ -5200,12 +5262,14 @@ const PortalWidgetEditorModal: React.FC<{
                                     last={index === layout.recentlyAddedOrder.length - 1}
                                     draggable
                                     size={layout.widgetSizes?.[id] || 'full'}
-                                    onDragStart={() => setDragItem({ list: 'recent', index })}
+                                    selected={movingItem?.list === 'recent' && movingItem.index === index}
+                                    onSelect={() => selectOrMove('recent', index)}
+                                    onDragStart={() => setMovingItem({ list: 'recent', index })}
                                     onDragOver={(event) => event.preventDefault()}
                                     onDrop={(event) => {
                                         event.preventDefault();
                                         reorderList('recent', index);
-                                        setDragItem(null);
+                                        setMovingItem(null);
                                     }}
                                     onMoveUp={() => moveRecentWidget(index, -1)}
                                     onMoveDown={() => moveRecentWidget(index, 1)}
@@ -5249,13 +5313,14 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     const [dashboardLayoutDraft, setDashboardLayoutDraft] = useState<DashboardLayoutConfig>(() => normalizeSectionLayout(publicConfig?.dashboardLayout));
     const [layoutEditorOpen, setLayoutEditorOpen] = useState(false);
     const [layoutSaving, setLayoutSaving] = useState(false);
+    const [inlineWidgetEditing, setInlineWidgetEditing] = useState(false);
     const [isDesktopMostWatched, setIsDesktopMostWatched] = useState(
         () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
     );
-    const topWatchedPageSize = (dashboardLayoutDraft.topWatchedRows || 2) * 6;
+    const topWatchedPageSize = (dashboardLayoutDraft.topWatchedRows || DEFAULT_DASHBOARD_LAYOUT.topWatchedRows || 1) * 6;
     const [recentHistoryPage, setRecentHistoryPage] = useState(0);
-    const recentHistoryPageSize = (dashboardLayoutDraft.recentHistoryRows || 7) * 2;
-    const [analyticsDays, setAnalyticsDays] = useState<number | 'all'>(30);
+    const recentHistoryPageSize = (dashboardLayoutDraft.recentHistoryRows || DEFAULT_DASHBOARD_LAYOUT.recentHistoryRows || 4) * 2;
+    const [analyticsDays, setAnalyticsDays] = useState<number | 'all'>(365);
     const [analyticsDaysOpen, setAnalyticsDaysOpen] = useState(false);
     const [wrapUpDaysOpen, setWrapUpDaysOpen] = useState(false);
     const [analyticsError, setAnalyticsError] = useState<string | null>(null);
@@ -5330,6 +5395,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
             weekdayPlays: data?.totalPlaybacks || 0,
             weekendPlays: 0,
             libraryHealth: data?.libraryHealth || null,
+            heatmapData: data?.heatmapData || null,
         };
     };
     const handleToggleNewsletter = async () => {
@@ -5516,11 +5582,85 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
             setDashboardLayoutDraft(nextLayout);
             setToast({ id: Date.now(), message: 'Portal widgets saved.', type: 'success' });
             setLayoutEditorOpen(false);
+            setInlineWidgetEditing(false);
         } catch (e: any) {
             setToast({ id: Date.now(), message: e.message || 'Failed to save portal widgets', type: 'error' });
         } finally {
             setLayoutSaving(false);
         }
+    };
+
+    const updateDashboardLayoutDraft = (next: DashboardLayoutConfig | ((layout: DashboardLayoutConfig) => DashboardLayoutConfig)) => {
+        setDashboardLayoutDraft((current) => normalizeSectionLayout(typeof next === 'function' ? next(current) : next));
+    };
+
+    const toggleDashboardSection = (id: DashboardSectionId) => {
+        updateDashboardLayoutDraft((layout) => ({
+            ...layout,
+            hiddenSections: layout.hiddenSections.includes(id)
+                ? layout.hiddenSections.filter((sectionId) => sectionId !== id)
+                : [...layout.hiddenSections, id],
+        }));
+    };
+
+    const toggleDashboardWidget = (id: DashboardWidgetId) => {
+        updateDashboardLayoutDraft((layout) => ({
+            ...layout,
+            hiddenWidgets: layout.hiddenWidgets.includes(id)
+                ? layout.hiddenWidgets.filter((widgetId) => widgetId !== id)
+                : [...layout.hiddenWidgets, id],
+        }));
+    };
+
+    const moveDashboardSection = (id: DashboardSectionId, direction: -1 | 1) => {
+        updateDashboardLayoutDraft((layout) => ({
+            ...layout,
+            sections: moveDashboardItem(layout.sections, layout.sections.indexOf(id), direction),
+        }));
+    };
+
+    const reorderDashboardSection = (sourceId: DashboardSectionId, targetId: DashboardSectionId) => {
+        updateDashboardLayoutDraft((layout) => ({
+            ...layout,
+            sections: moveDashboardItemTo(layout.sections, layout.sections.indexOf(sourceId), layout.sections.indexOf(targetId)),
+        }));
+    };
+
+    const moveDashboardMainWidget = (id: MainGridWidgetId, direction: -1 | 1) => {
+        updateDashboardLayoutDraft((layout) => ({
+            ...layout,
+            mainGridOrder: moveDashboardItem(layout.mainGridOrder, layout.mainGridOrder.indexOf(id), direction),
+        }));
+    };
+
+    const reorderDashboardMainWidget = (sourceId: MainGridWidgetId, targetId: MainGridWidgetId) => {
+        updateDashboardLayoutDraft((layout) => ({
+            ...layout,
+            mainGridOrder: moveDashboardItemTo(layout.mainGridOrder, layout.mainGridOrder.indexOf(sourceId), layout.mainGridOrder.indexOf(targetId)),
+        }));
+    };
+
+    const moveDashboardRecentWidget = (id: RecentlyAddedWidgetId, direction: -1 | 1) => {
+        updateDashboardLayoutDraft((layout) => ({
+            ...layout,
+            recentlyAddedOrder: moveDashboardItem(layout.recentlyAddedOrder, layout.recentlyAddedOrder.indexOf(id), direction),
+        }));
+    };
+
+    const reorderDashboardRecentWidget = (sourceId: RecentlyAddedWidgetId, targetId: RecentlyAddedWidgetId) => {
+        updateDashboardLayoutDraft((layout) => ({
+            ...layout,
+            recentlyAddedOrder: moveDashboardItemTo(layout.recentlyAddedOrder, layout.recentlyAddedOrder.indexOf(sourceId), layout.recentlyAddedOrder.indexOf(targetId)),
+        }));
+    };
+
+    const setDashboardWidgetSize = (id: DashboardWidgetId, size: DashboardWidgetSize) => {
+        updateDashboardLayoutDraft((layout) => {
+            const widgetSizes = { ...(layout.widgetSizes || {}) };
+            if (size === 'normal') delete widgetSizes[id];
+            else widgetSizes[id] = size;
+            return { ...layout, widgetSizes };
+        });
     };
 
     const daysLeft = user?.expiryDate ? getDaysUntilExpiry(user.expiryDate) : null;
@@ -5581,7 +5721,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     const renderRecentlyAddedWidget = useMemo(() => createRecentlyAddedWidgetRenderer(widgetDeps), [widgetDeps]);
 
     return (
-        <div className="w-full flex flex-col gap-3 md:gap-4">
+        <div className="w-full flex flex-col gap-1.5 md:gap-2">
             <Loader isLoading={isLoading} isCinematic={!!publicConfig?.useCinematicLoading} />
             {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
             {layoutEditorOpen && (
@@ -5638,15 +5778,35 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                     )}
                 </div>
 
-                {sessionInfo.session.isAdmin && (
-                    <button
-                        type="button"
-                        onClick={() => setLayoutEditorOpen(true)}
-                        className="absolute top-4 right-4 z-20 inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-white/15 bg-black/45 text-text text-sm font-bold backdrop-blur-md hover:border-plex/50 hover:text-plex transition-colors shadow-lg"
-                    >
-                        <Settings className="w-4 h-4" />
-                        Widgets
-                    </button>
+                {false && sessionInfo.session.isAdmin && (
+                    <div className="absolute top-4 right-4 z-20 flex flex-wrap justify-end gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setInlineWidgetEditing((value) => !value)}
+                            className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-bold backdrop-blur-md transition-colors shadow-lg ${inlineWidgetEditing ? 'border-plex/70 bg-plex text-black' : 'border-white/15 bg-black/45 text-text hover:border-plex/50 hover:text-plex'}`}
+                        >
+                            <Settings className="w-4 h-4" />
+                            {inlineWidgetEditing ? 'Editing Widgets' : 'Edit Widgets'}
+                        </button>
+                        {inlineWidgetEditing && (
+                            <button
+                                type="button"
+                                onClick={handleSaveDashboardLayout}
+                                disabled={layoutSaving}
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-400/40 bg-emerald-500/20 text-emerald-100 text-sm font-bold backdrop-blur-md hover:bg-emerald-500/30 disabled:opacity-60 transition-colors shadow-lg"
+                            >
+                                {layoutSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                                Save
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => setLayoutEditorOpen(true)}
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-white/15 bg-black/45 text-text text-sm font-bold backdrop-blur-md hover:border-plex/50 hover:text-plex transition-colors shadow-lg"
+                        >
+                            List
+                        </button>
+                    </div>
                 )}
 
                 <div className="relative pt-14 pb-7 px-4 md:pt-32 md:pb-12 md:px-12 flex flex-col items-center md:items-start text-center md:text-left z-10">
@@ -5725,6 +5885,16 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
             <UserDashboardLayout
                 layoutConfig={dashboardLayoutDraft}
                 layoutCtx={layoutCtx}
+                editing={inlineWidgetEditing}
+                onMoveSection={(id, direction) => moveDashboardSection(id as DashboardSectionId, direction)}
+                onReorderSection={(sourceId, targetId) => reorderDashboardSection(sourceId as DashboardSectionId, targetId as DashboardSectionId)}
+                onToggleSection={(id) => toggleDashboardSection(id as DashboardSectionId)}
+                onMoveMainWidget={moveDashboardMainWidget}
+                onReorderMainWidget={reorderDashboardMainWidget}
+                onMoveRecentlyAddedWidget={moveDashboardRecentWidget}
+                onReorderRecentlyAddedWidget={reorderDashboardRecentWidget}
+                onToggleWidget={toggleDashboardWidget}
+                onWidgetSizeChange={setDashboardWidgetSize}
                 renderMainGridWidget={renderMainGridWidget}
                 renderPendingRequests={renderPendingRequests}
                 renderBazarrTools={renderBazarrTools}
@@ -8608,6 +8778,17 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                     { label: 'Aurora', value: 'aurora' },
                                 ]}
                             />
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setProfileOpen(false);
+                                    onLogout();
+                                }}
+                                className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200 hover:bg-red-500/20 hover:border-red-400/50 transition-colors"
+                            >
+                                <LogOut className="w-4 h-4" />
+                                Logout
+                            </button>
                         </div>
                     </div>
                 </div>

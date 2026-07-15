@@ -4,5 +4,6 @@ export const ANALYTICS_PERIOD_OPTIONS = [
     { value: 60, label: 'Last 60 Days' },
     { value: 90, label: 'Last 90 Days' },
     { value: 180, label: 'Last 180 Days' },
+    { value: 365, label: 'Last 365 Days' },
     { value: 'all' as const, label: 'All Time' },
 ];

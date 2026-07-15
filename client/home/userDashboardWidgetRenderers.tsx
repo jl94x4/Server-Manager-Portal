@@ -484,10 +484,28 @@ export const createPendingRequestsSectionRenderer = (deps: UserDashboardWidgetDe
     const { sessionInfo, onViewRequests, onPendingRequestsChange, setToast } = deps;
 
     return (): React.ReactNode => {
-        if (!sessionInfo?.session?.isAdmin || !sessionInfo?.navFeatures?.requestsQueue) return null;
+        if (!sessionInfo?.session?.isAdmin) return null;
+        if (!sessionInfo?.navFeatures?.requestsQueue) {
+            return (
+                <div className="glass-card p-4 md:p-5 shadow-xl border-white/10">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <p className="text-sm font-semibold text-text">Jellyfin Requests</p>
+                            <p className="text-xs text-muted mt-1">Connect Jellyseerr, Overseerr, or Ombi in Settings to show request approvals here.</p>
+                        </div>
+                        {onViewRequests && (
+                            <button type="button" onClick={() => onViewRequests()} className="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-white/10 text-sm font-semibold text-text hover:bg-white/5 transition-colors">
+                                Open Requests
+                            </button>
+                        )}
+                    </div>
+                </div>
+            );
+        }
         return (
             <PendingRequestsHomeWidget
                 layout="wide"
+                showEmpty
                 onViewAll={() => onViewRequests?.()}
                 onReviewRequest={(requestId) => onViewRequests?.(requestId)}
                 onActionComplete={onPendingRequestsChange}
