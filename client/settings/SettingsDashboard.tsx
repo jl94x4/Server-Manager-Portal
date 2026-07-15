@@ -2042,20 +2042,20 @@ export const SettingsDashboard: React.FC = () => {
                                 onChange={setShowDashboardWatchingBadge}
                                 className="mb-4"
                             >
-                                <div className={`transition-all overflow-hidden ${showDashboardWatchingBadge ? 'max-h-[100px] opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
+                                <div className={`transition-all overflow-hidden ${showDashboardWatchingBadge ? 'max-h-[120px] opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
                                     <label className="text-sm font-medium text-muted">Poll Interval</label>
-                                    <select
-                                        className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all mt-1"
-                                        value={dashboardWatchingBadgePollSeconds}
-                                        onChange={(e) => setDashboardWatchingBadgePollSeconds(parseInt(e.target.value, 10))}
-                                        disabled={!showDashboardWatchingBadge}
-                                    >
-                                        {Array.from({ length: 15 }, (_, i) => i + 1).map((seconds) => (
-                                            <option key={seconds} value={seconds}>
-                                                {seconds} {seconds === 1 ? 'Second' : 'Seconds'}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <CustomSelect
+                                        className="w-full mt-1"
+                                        value={String(dashboardWatchingBadgePollSeconds)}
+                                        onChange={(value) => setDashboardWatchingBadgePollSeconds(Math.min(15, Math.max(1, parseInt(value, 10) || 15)))}
+                                        options={Array.from({ length: 15 }, (_, i) => {
+                                            const seconds = i + 1;
+                                            return {
+                                                value: String(seconds),
+                                                label: `${seconds} ${seconds === 1 ? 'Second' : 'Seconds'}`,
+                                            };
+                                        })}
+                                    />
                                 </div>
                             </SettingsToggleRow>
                             </div>
