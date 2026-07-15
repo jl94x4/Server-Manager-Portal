@@ -7592,9 +7592,11 @@ interface NavigationProps {
     activeTheme: string;
     setActiveTheme: (theme: string) => void;
     pendingRequestCount?: number;
+    watchingCount?: number;
+    showDashboardWatchingBadge?: boolean;
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, customLogoUrl, requestUrl, navOrder, navFeatures, appVersion, activeTheme, setActiveTheme, pendingRequestCount = 0 }) => {
+export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, customLogoUrl, requestUrl, navOrder, navFeatures, appVersion, activeTheme, setActiveTheme, pendingRequestCount = 0, watchingCount = 0, showDashboardWatchingBadge = false }) => {
     const serverIcon = customLogoUrl ? resolvePortalAssetUrl(customLogoUrl) : (adminThumb ? (adminThumb.startsWith('http') ? adminThumb : portalUrl(`/api/plex/image?path=${encodeURIComponent(adminThumb)}&width=256&height=256`)) : logoUrl());
     useEffect(() => {
         updateFavicon(serverIcon);
@@ -7667,6 +7669,12 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         ['admin', 'user'].includes(currentRoute) && key === 'home' ? true : currentRoute === route
     );
 
+    const getNavBadgeCount = (key: string) => {
+        if (key === 'requests') return pendingRequestCount;
+        if (key === 'discover' && showDashboardWatchingBadge) return watchingCount;
+        return 0;
+    };
+
     const renderNavAction = (
         key: string,
         item: { label: string; icon: React.FC<any>; route: string; href?: string; onClick?: (e: any) => void },
@@ -7674,7 +7682,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
     ) => {
         const Icon = item.icon;
         const label = options.compactLabel || item.label;
-        const badgeCount = key === 'requests' ? (options.badgeCount || 0) : 0;
+        const badgeCount = options.badgeCount || 0;
         const baseClass = options.mobile
             ? `relative flex flex-col items-center justify-center gap-0.5 h-full flex-1 min-w-0 px-0.5 text-center text-[0.6rem] sm:text-[0.65rem] transition-colors ${options.isCurrent ? 'text-plex font-bold' : 'text-muted hover:text-text'}`
             : `flex items-center gap-4 p-3 no-underline rounded-xl transition-all font-medium ${options.isCurrent ? 'nav-item-active' : 'text-muted hover:bg-white/5 hover:text-text'}`;
@@ -7799,7 +7807,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                         if (key === 'logs') return null;
                         const isCurrent = item.route ? isNavCurrent(key, item.route) : false;
                         const labelOverride = key === 'mediastack' ? 'Calendar' : item.label;
-                        return renderNavAction(key, { ...item, label: labelOverride }, { isCurrent, badgeCount: key === 'requests' ? pendingRequestCount : 0 });
+                        return renderNavAction(key, { ...item, label: labelOverride }, { isCurrent, badgeCount: getNavBadgeCount(key) });
                     })}
                 </div>
 
@@ -7892,7 +7900,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                     if (!item) return null;
                                     const isCurrent = item.route ? isNavCurrent(key, item.route) : false;
                                     const labelOverride = key === 'mediastack' ? 'Media' : key === 'request' ? 'Request' : item.label;
-                                    return renderNavAction(key, { ...item, label: labelOverride }, { mobile: true, isCurrent, compactLabel: labelOverride, badgeCount: key === 'requests' ? pendingRequestCount : 0 });
+                                    return renderNavAction(key, { ...item, label: labelOverride }, { mobile: true, isCurrent, compactLabel: labelOverride, badgeCount: getNavBadgeCount(key) });
                                 })}
                                 {showMore && (
                                     <button 
@@ -7935,7 +7943,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                         else if (item.onClick) item.onClick({ preventDefault: () => {} });
                                         else if (item.route) onNavigate(item.route as any);
                                     };
-                                    const badgeCount = key === 'requests' ? pendingRequestCount : 0;
+                                    const badgeCount = getNavBadgeCount(key);
                                     return (
                                         <button key={key} onClick={handleActivate} className="flex flex-col items-center gap-2 relative bg-transparent border-0">
                                             <div className={`w-[3.25rem] h-[3.25rem] rounded-full flex items-center justify-center transition-colors ${isCurrent ? 'bg-plex text-background shadow-[0_0_15px_rgba(229,160,13,0.35)]' : 'bg-background/50 text-text hover:bg-white/10 border border-white/5'}`}>

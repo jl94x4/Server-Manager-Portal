@@ -355,6 +355,7 @@ export const SettingsDashboard: React.FC = () => {
     const [isPushingAnnouncement, setIsPushingAnnouncement] = useState(false);
     const [use24HourClock, setUse24HourClock] = useState(initialSettings?.use24HourClock || false);
     const [showPosterQualityBadges, setShowPosterQualityBadges] = useState(initialSettings?.showPosterQualityBadges !== false);
+    const [showDashboardWatchingBadge, setShowDashboardWatchingBadge] = useState(!!initialSettings?.showDashboardWatchingBadge);
     const [showPublicStatusMonitor, setShowPublicStatusMonitor] = useState(initialSettings?.showPublicStatusMonitor !== false);
     const [showPublicLibraryStats, setShowPublicLibraryStats] = useState(initialSettings?.showPublicLibraryStats !== false);
     const [allowTemporaryAccess, setAllowTemporaryAccess] = useState(initialSettings?.allowTemporaryAccess || false);
@@ -822,6 +823,7 @@ export const SettingsDashboard: React.FC = () => {
             if (initialSettings.defaultLibraryIds) setDefaultLibraryIds(initialSettings.defaultLibraryIds);
             if (initialSettings.use24HourClock !== undefined) setUse24HourClock(!!initialSettings.use24HourClock);
             if (initialSettings.showPosterQualityBadges !== undefined) setShowPosterQualityBadges(initialSettings.showPosterQualityBadges !== false);
+            if (initialSettings.showDashboardWatchingBadge !== undefined) setShowDashboardWatchingBadge(!!initialSettings.showDashboardWatchingBadge);
             if (initialSettings.showPublicStatusMonitor !== undefined) setShowPublicStatusMonitor(initialSettings.showPublicStatusMonitor !== false);
             if (initialSettings.showPublicLibraryStats !== undefined) setShowPublicLibraryStats(initialSettings.showPublicLibraryStats !== false);
             if (initialSettings.allowTemporaryAccess !== undefined) setAllowTemporaryAccess(!!initialSettings.allowTemporaryAccess);
@@ -990,6 +992,7 @@ export const SettingsDashboard: React.FC = () => {
             use24HourClock,
             allowTemporaryAccess,
             showPosterQualityBadges,
+            showDashboardWatchingBadge,
             showPublicStatusMonitor,
             showPublicLibraryStats,
             autoBackupEnabled,
@@ -2011,6 +2014,17 @@ export const SettingsDashboard: React.FC = () => {
                                 hint={<SettingHint>Applies to Home and Discover poster cards for all users.</SettingHint>}
                                 checked={showPosterQualityBadges}
                                 onChange={setShowPosterQualityBadges}
+                                className="mb-4"
+                            />
+                            </div>
+
+                            <div id={getSettingsSectionElementId('dashboard-watching-badge')} className="scroll-mt-24">
+                            <SettingsToggleRow
+                                title="Dashboard Watching Badge"
+                                description="Show a live count of people currently watching next to Dashboard in the sidebar"
+                                hint={<SettingHint>Polls your Plex or Jellyfin server every 15 seconds. Counts unique viewers with an active stream.</SettingHint>}
+                                checked={showDashboardWatchingBadge}
+                                onChange={setShowDashboardWatchingBadge}
                                 className="mb-4"
                             />
                             </div>

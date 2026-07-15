@@ -2434,6 +2434,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 use24HourClock: !!config.use24HourClock,
                 allowTemporaryAccess: !!config.allowTemporaryAccess,
                 showPosterQualityBadges: config.showPosterQualityBadges !== false,
+                showDashboardWatchingBadge: !!config.showDashboardWatchingBadge,
                 showPublicStatusMonitor: isPublicStatusVisible(config),
                 showPublicLibraryStats: arePublicLibraryStatsVisible(config),
                 autoBackupEnabled: !!config.autoBackupEnabled,
@@ -2513,6 +2514,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 use24HourClock: false,
                 allowTemporaryAccess: false,
                 showPosterQualityBadges: true,
+                showDashboardWatchingBadge: false,
                 showPublicStatusMonitor: true,
                 showPublicLibraryStats: true,
                 autoBackupEnabled: false,
@@ -2543,7 +2545,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         requestAppType, requestAppUrl, requestAppFetchUrl, requestAppApiKey,
         requestDiscoverRegion, requestDiscoverLanguage, requestHideAvailableMedia,
         inactiveCleanupEnabled, inactiveCleanupDays,
-        primaryColor, customLogoUrl, brandingTheme, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges,
+        primaryColor, customLogoUrl, brandingTheme, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges, showDashboardWatchingBadge,
         showPublicStatusMonitor, showPublicLibraryStats,
         autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, upgraderEnabled, upgraderDefaultPreset, upgraderMinSizeGB, upgraderAutomationEnabled, upgraderProfileMap, upgraderMaxActionsPerHour, upgraderDefaultSort, upgraderDrawerPosition, dashboardLayout,
         showUsernamesInAnalytics, useTrendingSlideshowOnLogin
@@ -2707,6 +2709,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         use24HourClock: !!use24HourClock,
         allowTemporaryAccess: !!allowTemporaryAccess,
         showPosterQualityBadges: showPosterQualityBadges !== false,
+        showDashboardWatchingBadge: !!showDashboardWatchingBadge,
         showPublicStatusMonitor: showPublicStatusMonitor !== undefined ? !!showPublicStatusMonitor : isPublicStatusVisible(existingConfig),
         showPublicLibraryStats: showPublicLibraryStats !== undefined ? !!showPublicLibraryStats : arePublicLibraryStatsVisible(existingConfig),
         autoBackupEnabled: !!autoBackupEnabled,
@@ -2835,6 +2838,7 @@ app.get('/api/config/public', async (req, res) => {
             use24HourClock: !!config.use24HourClock,
             allowTemporaryAccess: !!config.allowTemporaryAccess,
             showPosterQualityBadges: config.showPosterQualityBadges !== false,
+            showDashboardWatchingBadge: !!config.showDashboardWatchingBadge,
             showPublicStatusMonitor: isPublicStatusVisible(config),
             showPublicLibraryStats: arePublicLibraryStatsVisible(config),
             dashboardLayout: normalizeSectionLayout(config.dashboardLayout),
@@ -2859,6 +2863,7 @@ app.get('/api/config/public', async (req, res) => {
             use24HourClock: false,
             allowTemporaryAccess: false,
             showPosterQualityBadges: true,
+            showDashboardWatchingBadge: false,
             showPublicStatusMonitor: true,
             showPublicLibraryStats: true,
             dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
@@ -6988,6 +6993,73 @@ app.get('/api/jellyfin/dashboard', requireAuth, requireMember, async (req, res) 
     } catch (e) {
         log(`Error fetching Jellyfin dashboard: ${e.message}`);
         res.status(500).json({ error: 'Failed to fetch Jellyfin dashboard data' });
+    }
+});
+
+const countUniqueActiveViewers = (sessions = []) => {
+    const viewers = new Set();
+    for (const session of sessions) {
+        if (!session) continue;
+        if (session.user) {
+            viewers.add(String(session.user).toLowerCase());
+            continue;
+        }
+        if (session.sessionId) {
+            viewers.add(`session:${session.sessionId}`);
+        }
+    }
+    return viewers.size;
+};
+
+app.get('/api/streams/watching-count', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const mediaServerType = config.mediaServerType || 'plex';
+
+        if (mediaServerType === 'jellyfin') {
+            if (!isJellyfinConfigured(config)) {
+                return res.json({ count: 0, available: false });
+            }
+            const count = await withCache('jellyfin_watching_count', 8000, async () => {
+                const baseUrl = resolveIntegrationUrlForFetch(config.jellyfinUrl);
+                const sessions = await fetchWithTimeout(`${baseUrl}/Sessions`, { headers: jellyfinHeaders(config.jellyfinApiKey) }, 15000)
+                    .then((r) => (r.ok ? r.json() : []))
+                    .catch(() => []);
+                const activeSessions = (Array.isArray(sessions) ? sessions : [])
+                    .filter((session) => session?.NowPlayingItem)
+                    .map((session) => ({
+                        user: session.UserName || null,
+                        sessionId: session.Id,
+                    }));
+                return countUniqueActiveViewers(activeSessions);
+            });
+            return res.json({ count, available: true });
+        }
+
+        if (!config.plexToken || !config.serverIdentifier) {
+            return res.json({ count: 0, available: false });
+        }
+
+        const uri = await getPlexConnectionUri(config);
+        if (!uri) return res.json({ count: 0, available: false });
+
+        const count = await withCache('plex_watching_count', 8000, async () => {
+            const sessionsData = await fetch(`${uri}/status/sessions?X-Plex-Token=${config.plexToken}`, { headers: { Accept: 'application/json' } })
+                .then((r) => r.json())
+                .catch(() => null);
+            const activeSessions = Array.isArray(sessionsData?.MediaContainer?.Metadata)
+                ? sessionsData.MediaContainer.Metadata.map((m) => ({
+                    user: m.User?.title || null,
+                    sessionId: m.Session?.id || m.sessionKey,
+                }))
+                : [];
+            return countUniqueActiveViewers(activeSessions);
+        });
+
+        res.json({ count, available: true });
+    } catch (e) {
+        log(`Watching count error: ${e.message}`);
+        res.json({ count: 0, available: false, error: e.message });
     }
 });
 
