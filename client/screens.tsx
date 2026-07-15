@@ -12,7 +12,6 @@ import { formatDate, getDaysUntilExpiry, getAccessProgressPct, addMonths, addYea
 import { CustomSelect, ConfirmModal, StyledCheckbox, ScrollReveal } from './shared/ui';
 import { PeriodDropdown } from './shared/PeriodDropdown';
 import { ActivityHeatmap } from './shared/ActivityHeatmap';
-import { useDynamicTheme } from './shared/useDynamicTheme';
 import { Loader, Toast, ToastContainer, pushToast } from './shared/toast';
 import { NoPosterPlaceholder } from './shared/NoPosterPlaceholder';
 import {
@@ -4962,12 +4961,6 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     const isExpiringSoon = daysLeft !== null && daysLeft <= 7;
     const isRevoked = user?.plexAccessStatus === 'revoked';
     const isPending = user?.plexAccessStatus?.toLowerCase() === 'pending';
-
-    const heroBgRaw = analytics?.recentHistory?.[0]?.thumbUrl || publicConfig?.customLogoUrl || '';
-    const heroBg = heroBgRaw
-        ? (heroBgRaw.startsWith('http') ? heroBgRaw : resolvePortalAssetUrl(heroBgRaw))
-        : '';
-    useDynamicTheme(heroBg);
 
     const wrapUpDaysOptions = ANALYTICS_PERIOD_OPTIONS;
 

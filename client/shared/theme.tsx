@@ -10,7 +10,12 @@ const backgroundImageStyle = (url?: string): React.CSSProperties | undefined => 
     };
 };
 
-export const SlideshowBackground: React.FC<{ backgrounds: string[], intervalSeconds?: number, opacity?: number }> = ({ backgrounds, intervalSeconds = 30, opacity = 1 }) => {
+export const SlideshowBackground: React.FC<{
+    backgrounds: string[];
+    intervalSeconds?: number;
+    opacity?: number;
+    onActiveImage?: (url: string) => void;
+}> = ({ backgrounds, intervalSeconds = 30, opacity = 1, onActiveImage }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
 
     const shuffledBackgrounds = useMemo(() => {
@@ -25,6 +30,11 @@ export const SlideshowBackground: React.FC<{ backgrounds: string[], intervalSeco
         }, Math.max(10, intervalSeconds) * 1000);
         return () => clearInterval(timer);
     }, [shuffledBackgrounds, intervalSeconds]);
+
+    useEffect(() => {
+        if (!onActiveImage || shuffledBackgrounds.length === 0) return;
+        onActiveImage(shuffledBackgrounds[currentIndex]);
+    }, [currentIndex, onActiveImage, shuffledBackgrounds]);
 
     if (shuffledBackgrounds.length === 0) return null;
 

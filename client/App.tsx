@@ -18,6 +18,7 @@ import {
 const RequestQueueDashboard = lazy(() => import('./requests/RequestQueueDashboard').then(m => ({ default: m.RequestQueueDashboard })));
 import { usePendingRequestCount } from './requests/usePendingRequestCount';
 import { useWatchingCount } from './shared/useWatchingCount';
+import { useAppDynamicTheme } from './shared/useAppDynamicTheme';
 import { useOpenIssueCount } from './requests/useOpenIssueCount';
 const UpgraderDashboard = lazy(() => import('./upgrader/UpgraderDashboard').then(m => ({ default: m.UpgraderDashboard })));
 import {
@@ -102,9 +103,13 @@ export const MainApp: React.FC = () => {
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', activeTheme);
         localStorage.setItem('portal-theme', activeTheme);
-        document.documentElement.style.removeProperty('--color-plex');
-        document.documentElement.style.removeProperty('--color-plex-hover');
+        if (activeTheme !== 'dynamic') {
+            document.documentElement.style.removeProperty('--color-plex');
+            document.documentElement.style.removeProperty('--color-plex-hover');
+        }
     }, [activeTheme]);
+
+    useAppDynamicTheme(activeTheme, currentRoute, publicConfig);
 
     useEffect(() => {
         if (publicConfig?.useBrandedSkeleton !== false) {
