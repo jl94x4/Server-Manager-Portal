@@ -1,10 +1,20 @@
 import { apiFetch } from '../shared/api';
 import type { FilterState } from './FilterDrawer';
 import { appendDiscoverQuery } from './discoverUrlUtils';
-import { filterHiddenAvailableItems } from './useDiscoveryPreferences';
+import { filterDiscoverBrowseItems } from './discoverAvailability';
+import { dedupeDiscoverResults } from './discoverItemUtils';
 import type { DiscoverPagePayload } from './useDiscoverInfiniteScroll';
 
 const MAX_BACKFILL_PAGES = 15;
+
+type DiscoverBrowseFilterOptions = {
+    hideAvailable?: boolean;
+    hideRequested?: boolean;
+};
+
+const needsDiscoverBackfill = (options: DiscoverBrowseFilterOptions) => (
+    !!options.hideAvailable || !!options.hideRequested
+);
 
 export const buildDiscoverStudioApiUrl = (page: number, studioId: number | string, sort = 'popularity.desc') =>
     `/api/discovery/proxy/discover/movies/studio/${studioId}?page=${page}&sortBy=${encodeURIComponent(sort)}`;
@@ -50,11 +60,11 @@ export const buildDiscoverSeriesApiUrl = (page: number, filters: FilterState): s
 
 export async function fetchDiscoverPage(
     url: string,
-    hideAvailable: boolean,
+    options: DiscoverBrowseFilterOptions = {},
 ): Promise<DiscoverPagePayload> {
     const res = await apiFetch(url);
     return {
-        results: filterHiddenAvailableItems(res?.results || [], hideAvailable),
+        results: dedupeDiscoverResults(filterDiscoverBrowseItems(res?.results || [], options)),
         totalPages: Math.max(1, Number(res?.totalPages) || 1),
     };
 }
@@ -67,6 +77,7 @@ export async function fetchDiscoverHomeRowResults(
 ): Promise<any[]> {
     const minItems = options.minItems ?? 10;
     const maxPages = options.maxPages ?? 8;
+    const filterOptions = { hideAvailable };
 
     if (!hideAvailable) {
         const res = await apiFetch(buildUrl(1));
@@ -77,22 +88,22 @@ export async function fetchDiscoverHomeRowResults(
     for (let page = 1; page <= maxPages; page += 1) {
         const res = await apiFetch(buildUrl(page));
         const totalPages = Math.max(1, Number(res?.totalPages) || 1);
-        const batch = filterHiddenAvailableItems(res?.results || [], true);
-        merged = [...merged, ...batch];
+        const batch = filterDiscoverBrowseItems(res?.results || [], filterOptions);
+        merged = dedupeDiscoverResults([...merged, ...batch]);
         if (merged.length >= minItems || page >= totalPages) break;
     }
 
     return merged.slice(0, 20);
 }
 
-/** Keep fetching pages when hide-available filtering empties early pages. */
+/** Keep fetching pages when browse filtering empties early pages. */
 export async function fetchDiscoverPageWithBackfill(
     buildUrl: (page: number) => string,
     page: number,
-    hideAvailable: boolean,
+    options: DiscoverBrowseFilterOptions = {},
 ): Promise<DiscoverPagePayload & { lastFetchedPage: number }> {
-    if (!hideAvailable) {
-        const payload = await fetchDiscoverPage(buildUrl(page), hideAvailable);
+    if (!needsDiscoverBackfill(options)) {
+        const payload = await fetchDiscoverPage(buildUrl(page), options);
         return { ...payload, lastFetchedPage: page };
     }
 
@@ -102,9 +113,9 @@ export async function fetchDiscoverPageWithBackfill(
     const maxPage = page + MAX_BACKFILL_PAGES - 1;
 
     while (currentPage <= maxPage) {
-        const payload = await fetchDiscoverPage(buildUrl(currentPage), hideAvailable);
+        const payload = await fetchDiscoverPage(buildUrl(currentPage), options);
         totalPages = payload.totalPages;
-        merged = [...merged, ...payload.results];
+        merged = dedupeDiscoverResults([...merged, ...payload.results]);
 
         if (merged.length > 0 || currentPage >= totalPages) {
             return {
@@ -120,7 +131,6 @@ export async function fetchDiscoverPageWithBackfill(
     const lastFetchedPage = Math.max(page, currentPage - 1);
     return {
         results: merged,
-        // Stop infinite scroll when hide-available backfill finds nothing.
         totalPages: merged.length > 0 ? totalPages : lastFetchedPage,
         lastFetchedPage,
     };

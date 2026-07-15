@@ -9,6 +9,7 @@ import {
     memberRequestDisplayStatus,
     memberRequestStatusClass,
 } from './myRequestUtils';
+import { discoveryTheme } from './discoveryThemeClasses';
 
 type RequestFilter = 'pending' | 'approved' | 'available' | 'declined' | 'failed';
 
@@ -20,7 +21,7 @@ type Props = {
 
 const RequestTypeBadge: React.FC<{ type: string; is4k: boolean }> = ({ type, is4k }) => (
     <span className="inline-flex items-center gap-1.5">
-        <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/60">
+        <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-white/5 border border-border text-muted">
             {type === 'tv' ? 'TV' : 'Movie'}
         </span>
         {is4k && (
@@ -143,13 +144,13 @@ export const MyRequestsPage: React.FC<Props> = ({ navigate, pushToast, onCountsC
         <div className="flex flex-col gap-6 w-full pb-12">
             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 px-2">
                 <div>
-                    <h2 className="text-2xl font-black text-white tracking-tight">My Requests</h2>
-                    <p className="text-sm text-white/50 mt-1">
+                    <h2 className={discoveryTheme.heading}>My Requests</h2>
+                    <p className={discoveryTheme.subheading}>
                         Track, cancel, and retry your media requests.
                     </p>
                 </div>
                 {refreshing && (
-                    <div className="inline-flex items-center gap-2 text-xs text-white/40">
+                    <div className="inline-flex items-center gap-2 text-xs text-muted/70">
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         Refreshing…
                     </div>
@@ -162,15 +163,13 @@ export const MyRequestsPage: React.FC<Props> = ({ navigate, pushToast, onCountsC
                         key={tab.id}
                         type="button"
                         onClick={() => setFilter(tab.id)}
-                        className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${
-                            filter === tab.id
-                                ? 'bg-plex/15 border-plex/40 text-white'
-                                : 'bg-white/[0.03] border-white/10 text-white/55 hover:text-white hover:border-white/20'
+                        className={`${discoveryTheme.filterChip} ${
+                            filter === tab.id ? discoveryTheme.filterChipActive : ''
                         }`}
                     >
                         {tab.label}
-                        <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${
-                            filter === tab.id ? 'bg-plex/20 text-plex' : 'bg-white/5 text-white/45'
+                        <span className={`${discoveryTheme.filterChipCount} ${
+                            filter === tab.id ? discoveryTheme.filterChipCountActive : ''
                         }`}
                         >
                             {tab.count}
@@ -188,9 +187,9 @@ export const MyRequestsPage: React.FC<Props> = ({ navigate, pushToast, onCountsC
                     {error}
                 </div>
             ) : requests.length === 0 ? (
-                <div className="mx-2 rounded-xl border border-white/10 bg-white/[0.03] px-6 py-12 text-center">
-                    <p className="text-white/70 font-semibold">No {filter} requests</p>
-                    <p className="text-sm text-white/45 mt-2">
+                <div className={`mx-2 ${discoveryTheme.emptyState}`}>
+                    <p className={discoveryTheme.emptyTitle}>No {filter} requests</p>
+                    <p className={discoveryTheme.emptyBody}>
                         Browse discover and submit a request when you find something to watch.
                     </p>
                     <button
@@ -221,7 +220,7 @@ export const MyRequestsPage: React.FC<Props> = ({ navigate, pushToast, onCountsC
                                         onClick={() => openMedia(item)}
                                         className="flex gap-4 min-w-0 flex-1 text-left border-0 bg-transparent p-0 cursor-pointer group"
                                     >
-                                        <div className="w-16 h-24 rounded-lg overflow-hidden flex-shrink-0 bg-black/40 border border-white/10 group-hover:border-plex/30 transition-colors">
+                                        <div className="w-16 h-24 rounded-lg overflow-hidden flex-shrink-0 bg-background/40 border border-border group-hover:border-plex/30 transition-colors">
                                             {item.posterUrl ? (
                                                 <img src={item.posterUrl} alt="" className="w-full h-full object-cover" />
                                             ) : (
@@ -235,11 +234,11 @@ export const MyRequestsPage: React.FC<Props> = ({ navigate, pushToast, onCountsC
                                                     {statusLabel}
                                                 </span>
                                             </div>
-                                            <h3 className="text-lg font-black text-white leading-tight group-hover:text-plex transition-colors">
+                                            <h3 className="text-lg font-black text-text leading-tight group-hover:text-plex transition-colors">
                                                 {item.title}
-                                                {item.year ? <span className="text-white/45 font-bold ml-2">{item.year}</span> : null}
+                                                {item.year ? <span className="text-muted font-bold ml-2">{item.year}</span> : null}
                                             </h3>
-                                            <p className="text-xs text-white/45 mt-1">
+                                            <p className="text-xs text-muted mt-1">
                                                 Requested {formatRequestRelativeTime(item.createdAt || item.updatedAt)}
                                             </p>
                                             {statusLabel === 'Declined' && item.declineReason && (
@@ -248,12 +247,12 @@ export const MyRequestsPage: React.FC<Props> = ({ navigate, pushToast, onCountsC
                                                 </p>
                                             )}
                                             {item.type === 'tv' && item.seasons && item.seasons.length > 0 && (
-                                                <p className="text-xs text-white/55 mt-2">
+                                                <p className="text-xs text-muted mt-2">
                                                     Seasons: {item.seasons.map((s) => s.seasonNumber).join(', ')}
                                                 </p>
                                             )}
                                             {item.overview && (
-                                                <p className="text-sm text-white/60 mt-2 line-clamp-2">{item.overview}</p>
+                                                <p className="text-sm text-muted mt-2 line-clamp-2">{item.overview}</p>
                                             )}
                                         </div>
                                     </button>
@@ -284,7 +283,7 @@ export const MyRequestsPage: React.FC<Props> = ({ navigate, pushToast, onCountsC
                                         <button
                                             type="button"
                                             onClick={() => openMedia(item)}
-                                            className={`${requestCardActionBtnClass} border border-white/10 text-white/70 hover:bg-white/5`}
+                                            className={`${requestCardActionBtnClass} border border-border text-text/70 hover:bg-white/5`}
                                         >
                                             {item.type === 'tv' ? <Tv className="w-3.5 h-3.5" /> : <Film className="w-3.5 h-3.5" />}
                                             View
@@ -302,20 +301,20 @@ export const MyRequestsPage: React.FC<Props> = ({ navigate, pushToast, onCountsC
                     <button
                         type="button"
                         aria-label="Close"
-                        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+                        className="absolute inset-0 bg-background/80 backdrop-blur-sm"
                         onClick={() => { if (actionId == null) setCancelTarget(null); }}
                     />
-                    <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-card p-6 shadow-2xl">
-                        <h3 className="text-lg font-black text-white mb-2">Cancel request?</h3>
-                        <p className="text-sm text-white/60 mb-5">
-                            Cancel your pending request for <span className="text-white font-semibold">{cancelTarget.title}</span>?
+                    <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
+                        <h3 className="text-lg font-black text-text mb-2">Cancel request?</h3>
+                        <p className="text-sm text-muted mb-5">
+                            Cancel your pending request for <span className="text-text font-semibold">{cancelTarget.title}</span>?
                         </p>
                         <div className="flex gap-3">
                             <button
                                 type="button"
                                 disabled={actionId != null}
                                 onClick={() => setCancelTarget(null)}
-                                className="flex-1 py-2.5 rounded-xl border border-white/10 text-white/70 font-bold hover:bg-white/5 transition-colors disabled:opacity-50"
+                                className="flex-1 py-2.5 rounded-xl border border-border text-text/70 font-bold hover:bg-white/5 transition-colors disabled:opacity-50"
                             >
                                 Keep Request
                             </button>

@@ -59,14 +59,14 @@ export const DiscoverCategoryPage: React.FC<Props> = ({ kind, id, onBack, onSele
             return await fetchDiscoverPageWithBackfill(
                 buildUrl,
                 page,
-                preferences.hideAvailableMedia,
+                { hideAvailable: preferences.hideAvailableMedia },
             );
         } catch (primaryError) {
             console.error(primaryError);
             return fetchDiscoverPageWithBackfill(
                 buildFallbackUrl,
                 page,
-                preferences.hideAvailableMedia,
+                { hideAvailable: preferences.hideAvailableMedia },
             );
         }
     }, [buildFallbackUrl, buildUrl, preferences.hideAvailableMedia]);

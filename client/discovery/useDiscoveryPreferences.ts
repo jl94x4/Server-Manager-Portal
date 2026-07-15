@@ -15,7 +15,7 @@ const DEFAULT_PREFERENCES: DiscoveryPreferences = {
     tmdbLanguage: 'en',
 };
 
-export { filterHiddenAvailableItems } from './discoverAvailability';
+export { filterHiddenAvailableItems, filterHiddenRequestedItems, filterDiscoverBrowseItems } from './discoverAvailability';
 
 export function useDiscoveryPreferences() {
     const [preferences, setPreferences] = useState<DiscoveryPreferences>(DEFAULT_PREFERENCES);

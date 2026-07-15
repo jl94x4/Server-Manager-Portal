@@ -15,6 +15,7 @@ import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscov
 import { fetchDiscoverHomeRowResults } from './discoverFetchUtils';
 import { WatchlistPanel } from './WatchlistPanel';
 import { DiscoverHomeSkeleton } from '../shared/skeletons';
+import { discoveryTheme } from './discoveryThemeClasses';
 
 type GenreSliderItem = { id: number; name: string; image?: string };
 
@@ -125,7 +126,7 @@ export const DiscoverHome: React.FC<{
         return (
             <div className="flex flex-col gap-2 relative">
                 <div className="flex items-center justify-between px-2">
-                    <h2 className="text-xl font-bold text-white">{title}</h2>
+                    <h2 className={`${discoveryTheme.sectionTitle} px-2`}>{title}</h2>
                     {onViewAll && (
                         <button type="button" onClick={onViewAll} className="text-xs font-bold text-plex hover:underline">
                             View All
@@ -164,7 +165,7 @@ export const DiscoverHome: React.FC<{
 
         return (
             <div className="flex flex-col gap-2 relative">
-                <h2 className="text-xl font-bold text-white px-2">{title}</h2>
+                <h2 className={`${discoveryTheme.sectionTitle} px-2`}>{title}</h2>
                 <Carousel>
                     {items.map((g) => {
                         const fallback = fallbackGenres.find((fg) => fg.id === g.id);
@@ -206,7 +207,7 @@ export const DiscoverHome: React.FC<{
             <DiscoveryRow title="Upcoming Movies" items={rows.upcomingMovies} />
 
             <div className="flex flex-col gap-2 relative">
-                <h2 className="text-xl font-bold text-white px-2">Studios</h2>
+                <h2 className={`${discoveryTheme.sectionTitle} px-2`}>Studios</h2>
                 <Carousel>
                     {DISCOVER_STUDIOS.map((studio) => (
                         <CompanyCard
@@ -224,7 +225,7 @@ export const DiscoverHome: React.FC<{
             <DiscoveryRow title="Upcoming Series" items={rows.upcomingSeries} />
 
             <div className="flex flex-col gap-2 relative">
-                <h2 className="text-xl font-bold text-white px-2">Networks</h2>
+                <h2 className={`${discoveryTheme.sectionTitle} px-2`}>Networks</h2>
                 <Carousel>
                     {DISCOVER_NETWORKS.map((network) => (
                         <CompanyCard

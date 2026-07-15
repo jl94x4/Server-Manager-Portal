@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UpgraderGridSize } from '../shared/portalLayout';
+import { mergeDiscoverResults } from './discoverItemUtils';
 import { initialDiscoverPagesForGrid, DISCOVER_API_PAGE_SIZE } from './discoverPaginationUtils';
 
 export type DiscoverPagePayload = {
@@ -57,7 +58,7 @@ export function useDiscoverInfiniteScroll({
                     const payload = await fetchPage(pageNumber);
                     maxTotalPages = Math.max(1, Number(payload.totalPages) || 1);
                     const batch = Array.isArray(payload.results) ? payload.results : [];
-                    merged = [...merged, ...batch];
+                    merged = mergeDiscoverResults(merged, batch);
                     lastPage = payload.lastFetchedPage ?? pageNumber;
                     if (lastPage >= maxTotalPages) break;
                     pageNumber = lastPage + 1;
@@ -92,7 +93,7 @@ export function useDiscoverInfiniteScroll({
         try {
             const payload = await fetchPage(nextPage);
             const batch = Array.isArray(payload.results) ? payload.results : [];
-            setResults((prev) => [...prev, ...batch]);
+            setResults((prev) => mergeDiscoverResults(prev, batch));
             setLoadedPage(payload.lastFetchedPage ?? nextPage);
             setTotalPages(Math.max(1, Number(payload.totalPages) || totalPages));
         } catch (e) {

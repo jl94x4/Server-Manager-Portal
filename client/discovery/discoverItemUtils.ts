@@ -29,6 +29,41 @@ export const normalizeRawDiscoveryItem = (item: any) => {
     return item;
 };
 
+export const getDiscoverItemKey = (item: any): string | null => {
+    const normalized = normalizeRawDiscoveryItem(item);
+    const rawType = normalized.mediaType ?? normalized.type;
+    const mediaType = rawType === 1 || rawType === '1'
+        ? 'movie'
+        : rawType === 2 || rawType === '2'
+            ? 'tv'
+            : rawType;
+    const tmdbId = Number(normalized.tmdbId ?? normalized.id);
+    if (!mediaType || !Number.isFinite(tmdbId) || tmdbId <= 0) return null;
+    return `${mediaType}:${tmdbId}`;
+};
+
+/** Keep first occurrence of each movie/show when browse pages overlap or repeat. */
+export const dedupeDiscoverResults = <T,>(items: T[]): T[] => {
+    if (!Array.isArray(items) || items.length < 2) return items;
+    const seen = new Set<string>();
+    const deduped: T[] = [];
+    for (const item of items) {
+        const key = getDiscoverItemKey(item);
+        if (!key) {
+            deduped.push(item);
+            continue;
+        }
+        if (seen.has(key)) continue;
+        seen.add(key);
+        deduped.push(item);
+    }
+    return deduped;
+};
+
+export const mergeDiscoverResults = <T,>(existing: T[], incoming: T[]): T[] => (
+    dedupeDiscoverResults([...existing, ...incoming])
+);
+
 const needsEnrichment = (item: any) => {
     const normalized = normalizeRawDiscoveryItem(item);
     if (normalized.posterPath || normalized.profilePath) return false;

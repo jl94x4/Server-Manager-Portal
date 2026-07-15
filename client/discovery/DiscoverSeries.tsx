@@ -16,6 +16,9 @@ import { useDiscoverInfiniteScroll } from './useDiscoverInfiniteScroll';
 import { DiscoverInfiniteScrollFooter } from './DiscoverInfiniteScrollFooter';
 import { discoverSkeletonCountForGrid } from './discoverPaginationUtils';
 import { buildDiscoverSeriesApiUrl, fetchDiscoverPageWithBackfill } from './discoverFetchUtils';
+import { DiscoverHideRequestedToggle } from './DiscoverHideRequestedToggle';
+import { useHideRequestedToggle } from './useHideRequestedToggle';
+import { discoveryTheme } from './discoveryThemeClasses';
 
 export const DiscoverSeries: React.FC<{
     onSelect: (item: any) => void;
@@ -23,6 +26,7 @@ export const DiscoverSeries: React.FC<{
     navigate: (path: string) => void;
 }> = ({ onSelect, formatItem, navigate }) => {
     const { preferences } = useDiscoveryPreferences();
+    const { hideRequested, setHideRequested } = useHideRequestedToggle();
     const [gridSize, setGridSize] = useDiscoverGridSize();
     const containerRef = useRef<HTMLDivElement>(null);
     const [showFilters, setShowFilters] = React.useState(false);
@@ -46,15 +50,20 @@ export const DiscoverSeries: React.FC<{
     }, [readFiltersFromUrl]);
 
     const resetKey = useMemo(
-        () => `${JSON.stringify(filters)}:${preferences.hideAvailableMedia}:${gridSize}`,
-        [filters, preferences.hideAvailableMedia, gridSize],
+        () => `${JSON.stringify(filters)}:${preferences.hideAvailableMedia}:${hideRequested}:${gridSize}`,
+        [filters, preferences.hideAvailableMedia, hideRequested, gridSize],
     );
+
+    const browseFilterOptions = useMemo(() => ({
+        hideAvailable: preferences.hideAvailableMedia,
+        hideRequested,
+    }), [preferences.hideAvailableMedia, hideRequested]);
 
     const fetchPage = useCallback(async (page: number) => fetchDiscoverPageWithBackfill(
         (nextPage) => buildDiscoverSeriesApiUrl(nextPage, filters),
         page,
-        preferences.hideAvailableMedia,
-    ), [filters, preferences.hideAvailableMedia]);
+        browseFilterOptions,
+    ), [filters, browseFilterOptions]);
 
     const {
         results,
@@ -90,7 +99,7 @@ export const DiscoverSeries: React.FC<{
             <div className="flex-1 flex flex-col gap-6" ref={containerRef}>
                 <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div>
-                        <h2 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                        <h2 className={`${discoveryTheme.heading} flex items-center gap-2`}>
                             <Tv className="w-6 h-6 text-plex" /> Series
                         </h2>
                         {networkLabel && (
@@ -105,10 +114,11 @@ export const DiscoverSeries: React.FC<{
                     </div>
                     <div className="flex items-center gap-3 flex-wrap justify-end">
                         <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
+                        <DiscoverHideRequestedToggle checked={hideRequested} onChange={setHideRequested} />
                         <button
                             type="button"
                             onClick={() => setShowFilters(true)}
-                            className="relative flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-lg text-white/80 hover:text-white font-bold transition-colors"
+                            className={`relative ${discoveryTheme.toolbarBtn}`}
                         >
                             <Filter className="w-4 h-4" /> Filters
                             {activeFilterCount > 0 && (
@@ -127,7 +137,11 @@ export const DiscoverSeries: React.FC<{
                     onSelect={onSelect}
                     loading={loading}
                     skeletonCount={skeletonCount}
-                    emptyMessage={activeFilterCount > 0 ? 'No series match your filters.' : 'No series found.'}
+                    emptyMessage={
+                        activeFilterCount > 0 || hideRequested
+                            ? 'No series match your filters.'
+                            : 'No series found.'
+                    }
                 />
 
                 <DiscoverInfiniteScrollFooter

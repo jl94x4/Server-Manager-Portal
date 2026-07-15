@@ -386,3 +386,26 @@ export const filterHiddenAvailableItems = <T extends { mediaInfo?: { status?: nu
     if (!hideAvailable || !Array.isArray(items)) return items;
     return items.filter((item) => !shouldHideAvailableItem(item));
 };
+
+/** Whether an item should be hidden when "hide requested" is enabled on browse pages. */
+export const shouldHideRequestedItem = (item: any): boolean => {
+    const { kind } = resolveMediaAvailabilityState(item);
+    return kind === 'requested' || kind === 'pending' || kind === 'processing';
+};
+
+export const filterHiddenRequestedItems = <T extends { mediaInfo?: { status?: number }; media?: { status?: number } }>(
+    items: T[],
+    hideRequested: boolean,
+): T[] => {
+    if (!hideRequested || !Array.isArray(items)) return items;
+    return items.filter((item) => !shouldHideRequestedItem(item));
+};
+
+export const filterDiscoverBrowseItems = (
+    items: any[],
+    options: { hideAvailable?: boolean; hideRequested?: boolean },
+) => {
+    let filtered = filterHiddenAvailableItems(items, !!options.hideAvailable);
+    filtered = filterHiddenRequestedItems(filtered, !!options.hideRequested);
+    return filtered;
+};

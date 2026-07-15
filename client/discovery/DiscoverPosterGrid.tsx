@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { DiscoverPosterCard } from '../screens';
 import { upgraderPosterGridClass, upgraderPosterGridStyle, type UpgraderGridSize } from '../shared/portalLayout';
+import { dedupeDiscoverResults, getDiscoverItemKey } from './discoverItemUtils';
 
 type Props = {
     items: any[];
@@ -21,6 +22,8 @@ export const DiscoverPosterGrid: React.FC<Props> = ({
     skeletonCount = 15,
     emptyMessage = 'No results found.',
 }) => {
+    const visibleItems = useMemo(() => dedupeDiscoverResults(items), [items]);
+
     if (loading) {
         return (
             <div className={`${upgraderPosterGridClass(gridSize)} animate-pulse`} style={upgraderPosterGridStyle(gridSize)}>
@@ -31,7 +34,7 @@ export const DiscoverPosterGrid: React.FC<Props> = ({
         );
     }
 
-    if (items.length === 0) {
+    if (visibleItems.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-16 px-6 rounded-2xl border border-dashed border-white/10 bg-white/[0.02] text-center">
                 <p className="text-white/70 font-semibold">{emptyMessage}</p>
@@ -42,11 +45,12 @@ export const DiscoverPosterGrid: React.FC<Props> = ({
 
     return (
         <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
-            {items.map((rawItem, idx) => {
+            {visibleItems.map((rawItem) => {
                 const formatted = formatItem(rawItem);
+                const itemKey = getDiscoverItemKey(rawItem) || `${formatted.mediaType || formatted.type}-${formatted.id}`;
                 return (
                     <DiscoverPosterCard
-                        key={`${formatted.id}-${idx}`}
+                        key={itemKey}
                         item={formatted}
                         overlay={formatted.overlay}
                         showQualityBadges={false}

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Search, Loader2, Sparkles, X } from 'lucide-react';
 import { SlideshowBackground } from '../shared/theme';
 import { apiFetch } from '../shared/api';
+import { discoveryTheme } from './discoveryThemeClasses';
 
 type SearchResultProps = {
     query: string;
@@ -31,7 +32,7 @@ const SearchDropdown: React.FC<SearchResultProps & { anchorRect: DOMRect | null 
     return createPortal(
         <div
             data-discovery-search-dropdown
-            className="max-h-[min(420px,50vh)] overflow-y-auto custom-scrollbar rounded-xl border border-white/10 bg-zinc-950/98 backdrop-blur-xl shadow-2xl"
+            className={discoveryTheme.searchDropdown}
             style={{
                 position: 'fixed',
                 top: anchorRect.bottom + 8,
@@ -56,7 +57,7 @@ const SearchDropdown: React.FC<SearchResultProps & { anchorRect: DOMRect | null 
                             key={`${formatted.id}-${idx}`}
                             type="button"
                             onClick={() => onSelect(formatted)}
-                            className="w-full flex items-center gap-4 p-3 hover:bg-white/5 border-b border-white/5 last:border-0 text-left transition-colors"
+                            className={discoveryTheme.searchResultBtn}
                         >
                             <div className={`${isPerson ? 'w-12 h-12 rounded-full' : 'w-12 h-[72px] rounded-md'} overflow-hidden bg-white/5 flex-shrink-0`}>
                                 {formatted.thumbUrl ? (
@@ -64,7 +65,7 @@ const SearchDropdown: React.FC<SearchResultProps & { anchorRect: DOMRect | null 
                                 ) : null}
                             </div>
                             <div className="min-w-0">
-                                <div className="font-bold text-white truncate">{formatted.title}</div>
+                                <div className="font-bold text-text truncate">{formatted.title}</div>
                                 <div className="text-xs text-muted">
                                     {isPerson ? formatted.tags?.[0] : `${formatted.year}${formatted.year ? ' · ' : ''}${formatted.tags?.[0]}`}
                                 </div>
@@ -129,18 +130,18 @@ export const DiscoverHeroHeader: React.FC<SearchResultProps> = (props) => {
 
     return (
         <>
-            <div className="relative w-full rounded-2xl border border-white/10 shadow-2xl min-h-[220px] sm:min-h-[280px] overflow-visible">
-                <div className="absolute inset-0 rounded-2xl overflow-hidden bg-gradient-to-br from-plex/20 to-black/60">
+            <div className={discoveryTheme.heroShell}>
+                <div className={discoveryTheme.heroBackdrop}>
                     {backgrounds.length > 0 ? (
                         <SlideshowBackground backgrounds={backgrounds} intervalSeconds={intervalSeconds} opacity={0.55} />
                     ) : null}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent pointer-events-none" />
-                    <div className="absolute inset-0 bg-black/20 pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-background/85 via-background/40 to-transparent pointer-events-none" />
+                    <div className="absolute inset-0 bg-background/20 pointer-events-none" />
                 </div>
 
                 <div className="relative z-10 p-6 sm:p-10 flex flex-col items-center justify-center text-center gap-5">
                     <Sparkles className="w-10 h-10 sm:w-12 sm:h-12 text-plex opacity-90 drop-shadow-lg" />
-                    <h1 className="text-2xl sm:text-4xl font-bold text-white tracking-tight drop-shadow-md">
+                    <h1 className={discoveryTheme.heroTitle}>
                         Discover & Request
                     </h1>
 
@@ -152,13 +153,13 @@ export const DiscoverHeroHeader: React.FC<SearchResultProps> = (props) => {
                             value={query}
                             onChange={(e) => onQueryChange(e.target.value)}
                             onFocus={onFocus}
-                            className="w-full bg-black/60 border-2 border-white/10 focus:border-plex rounded-xl py-3.5 sm:py-4 pl-12 sm:pl-14 pr-12 text-base sm:text-lg text-white font-medium outline-none transition-all placeholder:text-muted/50 shadow-inner backdrop-blur-sm"
+                            className={discoveryTheme.searchInput}
                         />
                         {query && (
                             <button
                                 type="button"
                                 onClick={onClear}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-white z-10"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-text z-10"
                             >
                                 <X className="w-5 h-5" />
                             </button>

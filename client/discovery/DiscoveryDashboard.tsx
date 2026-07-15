@@ -18,6 +18,7 @@ import { useMyRequestCount } from './useMyRequestCount';
 import { useMyIssueCount } from './useMyIssueCount';
 import { WatchlistPage } from './WatchlistPage';
 import { scrollPortalToTop } from './discoverNavigationUtils';
+import { discoveryTheme } from './discoveryThemeClasses';
 
 export const DiscoveryDashboard: React.FC<{
     onItemClick: (item: any) => void;
@@ -251,7 +252,7 @@ export const DiscoveryDashboard: React.FC<{
                             <button 
                                 type="button"
                                 onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
-                                className="w-full flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10 text-white font-bold"
+                                className={discoveryTheme.mobileNavBtn}
                             >
                                 <span className="flex items-center gap-2">
                                     <ActiveIcon className="w-5 h-5" /> {activeTab.label}
@@ -264,13 +265,13 @@ export const DiscoveryDashboard: React.FC<{
                                 <ChevronDown className={`w-5 h-5 transition-transform ${isMobileNavOpen ? 'rotate-180' : ''}`} />
                             </button>
                             {isMobileNavOpen && (
-                                <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1b1e] border border-white/10 rounded-lg shadow-xl overflow-hidden z-50">
+                                <div className={discoveryTheme.mobileNavMenu}>
                                     {tabs.map(tab => (
                                         <button
                                             key={tab.id}
                                             type="button"
                                             onClick={() => { navigate(tab.path); setIsMobileNavOpen(false); }}
-                                            className={`w-full flex items-center gap-2 p-3 text-left hover:bg-white/5 ${tab.id === subRoute ? 'text-white bg-white/5' : 'text-white/60'}`}
+                                            className={`${discoveryTheme.mobileNavItem} ${tab.id === subRoute ? discoveryTheme.mobileNavItemActive : ''}`}
                                         >
                                             <tab.icon className="w-5 h-5" /> {tab.label}
                                             {tab.count > 0 && (
@@ -285,14 +286,14 @@ export const DiscoveryDashboard: React.FC<{
                         </div>
 
                         {/* Desktop Tabs */}
-                        <div className="hidden sm:flex border-b border-white/10">
+                        <div className={`hidden sm:flex ${discoveryTheme.tabBar}`}>
                             <div className="flex gap-8">
                                 {tabs.map(tab => (
                                     <button
                                         key={tab.id}
                                         type="button"
                                         onClick={() => navigate(tab.path)}
-                                        className={`flex items-center gap-2 pb-4 border-b-2 font-bold transition-all whitespace-nowrap ${tab.id === subRoute ? 'border-plex text-white' : 'border-transparent text-white/50 hover:text-white/80'}`}
+                                        className={`${discoveryTheme.tab} ${tab.id === subRoute ? discoveryTheme.tabActive : ''}`}
                                     >
                                         <tab.icon className="w-5 h-5" /> {tab.label}
                                         {tab.count > 0 && (
