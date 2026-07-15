@@ -298,13 +298,23 @@ export type RequestOptionsPayload = {
     title: string;
     mediaStatus: number | null;
     isBlacklisted: boolean;
+    isAnime?: boolean;
     canRequest: boolean;
     canRequest4k: boolean;
+    canRequestAdvanced?: boolean;
     has4kServer: boolean;
     hasHdServer: boolean;
+    seerrUserId?: number | null;
+    servers?: {
+        id: number;
+        name: string;
+        is4k: boolean;
+        isDefault: boolean;
+    }[];
     permissions: {
         request: boolean;
         request4k: boolean;
+        requestAdvanced?: boolean;
     };
     quota: {
         standard?: QuotaSlot;

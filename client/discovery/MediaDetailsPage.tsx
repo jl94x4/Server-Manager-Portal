@@ -505,14 +505,14 @@ export const MediaDetailsPage: React.FC<{
                     )}
 
                     {releaseDateRows.length > 0 && (
-                        <div className="w-fit max-w-xl rounded-xl border border-white/10 bg-black/45 backdrop-blur-xl shadow-[0_8px_28px_rgba(0,0,0,0.28)] overflow-hidden ring-1 ring-white/[0.04]">
+                        <div className="mx-auto w-fit max-w-full rounded-xl border border-white/10 bg-black/45 backdrop-blur-xl shadow-[0_8px_28px_rgba(0,0,0,0.28)] overflow-hidden ring-1 ring-white/[0.04]">
                             <div
                                 className={`grid divide-white/[0.06] ${
                                     releaseDateRows.length === 1
                                         ? 'grid-cols-1'
                                         : releaseDateRows.length === 2
-                                            ? 'grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x'
-                                            : 'grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x'
+                                            ? 'grid-cols-2 divide-x'
+                                            : 'grid-cols-3 divide-x'
                                 }`}
                             >
                                 {releaseDateRows.map((row) => {

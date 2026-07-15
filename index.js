@@ -4442,6 +4442,54 @@ app.get('/api/discovery/request-options', requireAuth, requireMember, async (req
     }
 });
 
+app.get('/api/discovery/request-services/:type/:serverId', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const type = String(req.params.type || '').toLowerCase();
+        const serverId = Number(req.params.serverId);
+        if ((type !== 'radarr' && type !== 'sonarr') || !Number.isFinite(serverId)) {
+            return res.status(400).json({ error: 'Invalid service type or server id' });
+        }
+
+        const data = await requestAppService.getServiceOptions(config, type, serverId);
+        res.json(data);
+    } catch (e) {
+        log(`Discovery request services error: ${e.message}`);
+        res.status(502).json({ error: e.message });
+    }
+});
+
+app.post('/api/discovery/request-override-defaults', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const { mediaType, tmdbId, userId, is4k } = req.body || {};
+        if (!mediaType || !tmdbId) return res.status(400).json({ error: 'Missing mediaType or tmdbId' });
+
+        let resolvedUserId = userId != null ? Number(userId) : null;
+        if (!Number.isFinite(resolvedUserId)) {
+            const users = await requestAppService.listRequestUsers(config);
+            resolvedUserId = requestAppService.resolveSeerrRequestUserId(req.user, users);
+        }
+
+        const defaults = await requestAppService.getAdvancedRequestDefaults(config, {
+            mediaType,
+            tmdbId: Number(tmdbId),
+            userId: resolvedUserId,
+            is4k: !!is4k,
+        });
+        res.json(defaults || {});
+    } catch (e) {
+        log(`Discovery request override defaults error: ${e.message}`);
+        res.status(502).json({ error: e.message });
+    }
+});
+
 app.get('/api/discovery/my-requests/count', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
@@ -4792,7 +4840,17 @@ app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) 
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
 
-        const { mediaType, mediaId, is4k, seasons } = req.body || {};
+        const {
+            mediaType,
+            mediaId,
+            is4k,
+            seasons,
+            serverId,
+            profileId,
+            rootFolder,
+            languageProfileId,
+            tags,
+        } = req.body || {};
         if (!mediaType || !mediaId) return res.status(400).json({ error: 'Missing media details' });
 
         const body = { mediaType, mediaId: Number(mediaId) };
@@ -4805,6 +4863,14 @@ app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) 
             } else {
                 body.seasons = 'all';
             }
+        }
+
+        if (serverId != null) body.serverId = Number(serverId);
+        if (profileId != null) body.profileId = Number(profileId);
+        if (rootFolder) body.rootFolder = String(rootFolder);
+        if (languageProfileId != null) body.languageProfileId = Number(languageProfileId);
+        if (Array.isArray(tags)) {
+            body.tags = tags.map((tag) => Number(tag)).filter((tag) => Number.isFinite(tag));
         }
 
         if (req.user) {
