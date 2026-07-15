@@ -182,7 +182,7 @@ export const DiscoveryDashboard: React.FC<{
 
     if (subRoute === 'watchlist') {
         return (
-            <div className="w-full flex flex-col gap-8 pb-12">
+            <div className="w-full flex flex-col gap-4 pb-8">
                 <DiscoverHeroHeader
                     query={query}
                     searchOpen={searchOpen}
@@ -223,7 +223,7 @@ export const DiscoveryDashboard: React.FC<{
     const ActiveIcon = activeTab.icon;
 
     return (
-        <div className="w-full flex flex-col gap-8 pb-12">
+        <div className="w-full flex flex-col gap-4 pb-8">
             <DiscoverHeroHeader
                 query={query}
                 searchOpen={searchOpen}
@@ -245,7 +245,7 @@ export const DiscoveryDashboard: React.FC<{
 
             {showTabs && (
                 <>
-                    <div className="w-full px-4 mb-4 mt-[-16px]">
+                    <div className="w-full px-4 mb-2 mt-[-8px]">
                         {/* Mobile Dropdown */}
                         <div className="sm:hidden relative">
                             <button 
@@ -306,7 +306,7 @@ export const DiscoveryDashboard: React.FC<{
                         </div>
                     </div>
 
-                    <div className="w-full mt-4">
+                    <div className="w-full mt-2">
                         {subRoute === 'home' && (
                             <DiscoverHome
                                 onSelect={(item) => navigate(`/discovery/${item.type}/${item.id}`)}

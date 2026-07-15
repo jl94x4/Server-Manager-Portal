@@ -51,7 +51,7 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
             <div 
                 ref={scrollContainerRef}
                 onScroll={handleScroll}
-                className="flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide py-4 px-2"
+                className="flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide py-2 px-2"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
                 {children}

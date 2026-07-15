@@ -168,7 +168,7 @@ export const WatchlistPanel: React.FC<Props> = ({
 
     return (
         <>
-            <div className={`flex flex-col gap-3 relative ${variant === 'page' ? 'pb-8' : ''}`}>
+            <div className={`flex flex-col gap-2 relative ${variant === 'page' ? 'pb-6' : ''}`}>
                 {header}
                 {variant === 'row' ? (
                     <Carousel>{items.map(renderCard)}</Carousel>

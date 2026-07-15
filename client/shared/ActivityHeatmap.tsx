@@ -46,7 +46,7 @@ export const ActivityHeatmap: React.FC<{ data: Record<string, number> }> = ({ da
     return (
         <div className="w-full flex flex-col gap-2 overflow-visible">
             <div className="w-full overflow-x-auto overflow-y-visible md:overflow-x-visible custom-scrollbar">
-                <div className="w-full min-w-[320px]">
+                <div className="w-full min-w-[720px]">
                     <div className="flex gap-2 w-full items-stretch overflow-visible">
                         <div className="grid grid-rows-7 gap-[3px] shrink-0 w-7 text-[10px] text-muted font-semibold pt-5">
                             {DAY_LABELS.map((label, i) => (

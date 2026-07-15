@@ -27,11 +27,67 @@ export const PosterGridSkeleton: React.FC<{ count?: number; aspect?: '2/3' | 'sq
     </div>
 );
 
-export const PosterRowSkeleton: React.FC<{ count?: number; aspect?: '2/3' | 'square' }> = ({ count = 6, aspect = '2/3' }) => (
-    <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar" aria-hidden="true">
+export const PosterRowSkeleton: React.FC<{ count?: number; aspect?: '2/3' | 'square'; cardWidth?: string }> = ({
+    count = 6,
+    aspect = '2/3',
+    cardWidth = 'w-[140px] sm:w-[160px]',
+}) => (
+    <div className="flex overflow-x-auto gap-4 py-2 px-2 snap-x hide-scrollbar" aria-hidden="true">
         {Array.from({ length: count }, (_, i) => (
-            <PosterCardSkeleton key={i} aspect={aspect} variant="home" className="snap-start shrink-0 w-32 md:w-40" />
+            <PosterCardSkeleton key={i} aspect={aspect} variant="home" className={`snap-start shrink-0 ${cardWidth}`} />
         ))}
+    </div>
+);
+
+export const DiscoverHomeRowSkeleton: React.FC<{
+    showViewAll?: boolean;
+    showSubtitle?: boolean;
+    showAction?: boolean;
+    count?: number;
+    aspect?: '2/3' | 'square';
+}> = ({ showViewAll = false, showSubtitle = false, showAction = false, count = 6, aspect = '2/3' }) => (
+    <div className="flex flex-col gap-2 relative" aria-hidden="true">
+        <div className="flex items-start justify-between gap-3 px-2">
+            <div className="flex flex-col gap-1.5 min-w-0">
+                <SkeletonBlock className="h-6 w-40 max-w-[70%] rounded" />
+                {showSubtitle && <SkeletonBlock className="h-3 w-56 max-w-full rounded" />}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+                {showViewAll && <SkeletonBlock className="h-4 w-14 rounded" />}
+                {showAction && <SkeletonBlock className="h-8 w-28 rounded-xl" />}
+            </div>
+        </div>
+        <PosterRowSkeleton count={count} aspect={aspect} />
+    </div>
+);
+
+export const DiscoverHomeSkeleton: React.FC = () => (
+    <div className="flex flex-col gap-4 w-full max-w-full overflow-hidden pb-8" aria-busy="true" aria-label="Loading discover">
+        <DiscoverHomeRowSkeleton />
+        <DiscoverHomeRowSkeleton showViewAll />
+        <DiscoverHomeRowSkeleton showViewAll showSubtitle showAction />
+        <DiscoverHomeRowSkeleton showViewAll />
+        <DiscoverHomeRowSkeleton showViewAll />
+        <DiscoverHomeRowSkeleton />
+        <div className="flex flex-col gap-2 relative" aria-hidden="true">
+            <SkeletonBlock className="h-6 w-36 rounded ml-2" />
+            <div className="flex gap-4 overflow-x-auto py-2 px-2 hide-scrollbar">
+                {Array.from({ length: 6 }, (_, i) => (
+                    <SkeletonBlock key={i} className="w-[150px] sm:w-[180px] h-[88px] sm:h-[100px] rounded-xl shrink-0" />
+                ))}
+            </div>
+        </div>
+        <DiscoverHomeRowSkeleton showViewAll />
+        <DiscoverHomeRowSkeleton />
+        <DiscoverHomeRowSkeleton showViewAll />
+        <div className="flex flex-col gap-2 relative" aria-hidden="true">
+            <SkeletonBlock className="h-6 w-28 rounded ml-2" />
+            <div className="flex gap-4 overflow-x-auto py-2 px-2 hide-scrollbar">
+                {Array.from({ length: 5 }, (_, i) => (
+                    <SkeletonBlock key={i} className="w-[170px] sm:w-[200px] h-[100px] sm:h-[112px] rounded-xl shrink-0" />
+                ))}
+            </div>
+        </div>
     </div>
 );
 

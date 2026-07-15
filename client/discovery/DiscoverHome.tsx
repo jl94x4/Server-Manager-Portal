@@ -14,6 +14,7 @@ import { portalRequestToDiscoveryRowItem } from './myRequestUtils';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
 import { fetchDiscoverHomeRowResults } from './discoverFetchUtils';
 import { WatchlistPanel } from './WatchlistPanel';
+import { DiscoverHomeSkeleton } from '../shared/skeletons';
 
 type GenreSliderItem = { id: number; name: string; image?: string };
 
@@ -122,7 +123,7 @@ export const DiscoverHome: React.FC<{
     const DiscoveryRow = ({ title, items, onViewAll }: { title: string; items: any[]; onViewAll?: () => void }) => {
         if (!items?.length) return null;
         return (
-            <div className="flex flex-col gap-3 relative">
+            <div className="flex flex-col gap-2 relative">
                 <div className="flex items-center justify-between px-2">
                     <h2 className="text-xl font-bold text-white">{title}</h2>
                     {onViewAll && (
@@ -162,7 +163,7 @@ export const DiscoverHome: React.FC<{
             : fallbackGenres.map((g) => ({ id: g.id, name: g.name, image: undefined as string | undefined }));
 
         return (
-            <div className="flex flex-col gap-3 relative">
+            <div className="flex flex-col gap-2 relative">
                 <h2 className="text-xl font-bold text-white px-2">{title}</h2>
                 <Carousel>
                     {items.map((g) => {
@@ -183,24 +184,11 @@ export const DiscoverHome: React.FC<{
     };
 
     if (loading) {
-        return (
-            <div className="flex flex-col gap-6 mt-4 px-2 w-full animate-pulse">
-                {[...Array(5)].map((_, r) => (
-                    <div key={r} className="flex flex-col gap-3">
-                        <div className="w-48 h-6 bg-white/5 rounded ml-2" />
-                        <div className="flex gap-4 overflow-hidden px-2">
-                            {[...Array(6)].map((_, i) => (
-                                <div key={i} className="w-[140px] sm:w-[160px] aspect-[2/3] rounded-xl bg-white/5 border border-white/5 flex-shrink-0" />
-                            ))}
-                        </div>
-                    </div>
-                ))}
-            </div>
-        );
+        return <DiscoverHomeSkeleton />;
     }
 
     return (
-        <div className="flex flex-col gap-6 w-full max-w-full overflow-hidden pb-12">
+        <div className="flex flex-col gap-4 w-full max-w-full overflow-hidden pb-8">
             <DiscoveryRow title="Recently Added" items={rows.recentlyAdded} />
             <DiscoveryRow title="Your Requests" items={rows.recentRequests} onViewAll={() => navigate('/discovery/requests')} />
             <WatchlistPanel
@@ -217,7 +205,7 @@ export const DiscoverHome: React.FC<{
             {renderGenreSlider('Movie Genres', movieGenres, MOVIE_GENRES, '/discovery/movies')}
             <DiscoveryRow title="Upcoming Movies" items={rows.upcomingMovies} />
 
-            <div className="flex flex-col gap-3 relative">
+            <div className="flex flex-col gap-2 relative">
                 <h2 className="text-xl font-bold text-white px-2">Studios</h2>
                 <Carousel>
                     {DISCOVER_STUDIOS.map((studio) => (
@@ -235,7 +223,7 @@ export const DiscoverHome: React.FC<{
             {renderGenreSlider('Series Genres', tvGenres, TV_GENRES, '/discovery/series')}
             <DiscoveryRow title="Upcoming Series" items={rows.upcomingSeries} />
 
-            <div className="flex flex-col gap-3 relative">
+            <div className="flex flex-col gap-2 relative">
                 <h2 className="text-xl font-bold text-white px-2">Networks</h2>
                 <Carousel>
                     {DISCOVER_NETWORKS.map((network) => (
