@@ -138,38 +138,42 @@ export const MediaOverviewExtras: React.FC<{
             )}
 
             {(visibleFactRows.length > 0 || studioRow) && (
-                <div className="rounded-xl border border-white/10 bg-black/35 backdrop-blur-xl overflow-hidden ring-1 ring-white/[0.04]">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-white/[0.06]">
+                <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                        <h3 className="text-xs font-black text-white/50 uppercase tracking-[0.2em]">Details</h3>
+                        <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
                         {visibleFactRows.map((row) => (
-                            <div key={row.key} className="px-4 py-3 min-w-0">
-                                <div className="text-[9px] font-bold uppercase tracking-wider text-white/35">
+                            <div key={row.key} className="flex flex-col gap-0.5 min-w-0">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">
                                     {row.label}
-                                </div>
-                                <div className="text-sm text-white/85 mt-1 leading-snug">
+                                </span>
+                                <span className="text-sm text-white/80 leading-snug">
                                     {row.value}
-                                </div>
+                                </span>
                             </div>
                         ))}
+                        {studioRow && (
+                            <div className="flex flex-col gap-0.5 min-w-0 sm:col-span-2">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">
+                                    {studioRow.label}
+                                </span>
+                                <span className="text-sm text-white/80 leading-snug">
+                                    {(showAllStudios ? studioNames : studioNames.slice(0, 3)).join(', ')}
+                                </span>
+                                {studioNames.length > 3 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAllStudios((prev) => !prev)}
+                                        className="mt-1 self-start text-xs font-semibold text-plex hover:text-plex-hover transition-colors"
+                                    >
+                                        {showAllStudios ? 'Show less' : `Show ${studioNames.length - 3} more`}
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
-                    {studioRow && (
-                        <div className="px-4 py-3 border-t border-white/[0.06]">
-                            <div className="text-[9px] font-bold uppercase tracking-wider text-white/35">
-                                {studioRow.label}
-                            </div>
-                            <div className="text-sm text-white/85 mt-1 leading-snug">
-                                {(showAllStudios ? studioNames : studioNames.slice(0, 3)).join(', ')}
-                            </div>
-                            {studioNames.length > 3 && (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAllStudios((prev) => !prev)}
-                                    className="mt-2 text-xs font-semibold text-plex hover:text-plex-hover transition-colors"
-                                >
-                                    {showAllStudios ? 'Show less' : `Show ${studioNames.length - 3} more`}
-                                </button>
-                            )}
-                        </div>
-                    )}
                 </div>
             )}
 
@@ -177,15 +181,13 @@ export const MediaOverviewExtras: React.FC<{
                 <button
                     type="button"
                     onClick={() => onOpenCollection?.(Number(details.collection.id))}
-                    className="group text-left rounded-xl border border-white/10 bg-black/35 backdrop-blur-xl overflow-hidden ring-1 ring-white/[0.04] hover:border-plex/30 transition-colors"
+                    className="group inline-flex items-center gap-2 text-left border-0 bg-transparent p-0 cursor-pointer max-w-full"
                 >
-                    <div className="px-4 py-3 flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                            <div className="text-[9px] font-bold uppercase tracking-wider text-white/35">Collection</div>
-                            <div className="text-sm font-semibold text-white/90 mt-1 truncate">{details.collection.name}</div>
-                        </div>
-                        <ArrowRight className="w-4 h-4 text-white/40 group-hover:text-plex transition-colors shrink-0" />
-                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-white/35 shrink-0">Collection</span>
+                    <span className="text-sm font-semibold text-white/80 group-hover:text-plex transition-colors truncate">
+                        {details.collection.name}
+                    </span>
+                    <ArrowRight className="w-3.5 h-3.5 text-white/35 group-hover:text-plex transition-colors shrink-0" />
                 </button>
             )}
 
