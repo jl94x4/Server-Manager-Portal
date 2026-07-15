@@ -27,7 +27,13 @@ export const MediaOverviewExtras: React.FC<{
         () => sortKeyCrew(details?.credits?.crew || []).slice(0, 6),
         [details?.credits?.crew],
     );
-    const keywords = Array.isArray(details?.keywords) ? details.keywords : [];
+    const keywords = useMemo(() => {
+        const raw = details?.keywords;
+        if (Array.isArray(raw)) return raw;
+        if (Array.isArray(raw?.keywords)) return raw.keywords;
+        if (Array.isArray(raw?.results)) return raw.results;
+        return [];
+    }, [details?.keywords]);
     const externalLinks = useMemo(
         () => buildExternalLinks(mediaType, details, ratings),
         [mediaType, details, ratings],

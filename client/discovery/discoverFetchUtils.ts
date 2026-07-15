@@ -12,16 +12,9 @@ export const buildDiscoverStudioApiUrl = (page: number, studioId: number | strin
 export const buildDiscoverNetworkApiUrl = (page: number, networkId: number | string, sort = 'popularity.desc') =>
     `/api/discovery/proxy/discover/tv/network/${networkId}?page=${page}&sortBy=${encodeURIComponent(sort)}`;
 
-export const buildDiscoverMovieKeywordApiUrl = (page: number, keywordId: number | string, sort = 'popularity.desc') =>
-    `/api/discovery/proxy/discover/keyword/${keywordId}/movies?page=${page}&sortBy=${encodeURIComponent(sort)}`;
-
 export const buildDiscoverMoviesApiUrl = (page: number, filters: FilterState): string => {
     const sort = filters.sort || 'popularity.desc';
     const hasSecondaryFilters = Boolean(filters.year || filters.minRating);
-
-    if (filters.keywords && !filters.genre && !filters.studio && !hasSecondaryFilters) {
-        return buildDiscoverMovieKeywordApiUrl(page, filters.keywords, sort);
-    }
 
     if (filters.studio && !filters.genre && !filters.keywords && !hasSecondaryFilters) {
         return buildDiscoverStudioApiUrl(page, filters.studio, sort);
@@ -124,9 +117,11 @@ export async function fetchDiscoverPageWithBackfill(
         currentPage += 1;
     }
 
+    const lastFetchedPage = Math.max(page, currentPage - 1);
     return {
         results: merged,
-        totalPages,
-        lastFetchedPage: currentPage - 1,
+        // Stop infinite scroll when hide-available backfill finds nothing.
+        totalPages: merged.length > 0 ? totalPages : lastFetchedPage,
+        lastFetchedPage,
     };
 }
