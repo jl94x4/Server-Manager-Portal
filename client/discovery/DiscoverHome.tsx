@@ -184,13 +184,13 @@ export const DiscoverHome: React.FC<{
 
     if (loading) {
         return (
-            <div className="flex flex-col gap-8 mt-4 px-2 w-full animate-pulse">
+            <div className="flex flex-col gap-6 mt-4 px-2 w-full animate-pulse">
                 {[...Array(5)].map((_, r) => (
                     <div key={r} className="flex flex-col gap-3">
-                        <div className="w-48 h-6 bg-white/5 rounded px-2 ml-2" />
+                        <div className="w-48 h-6 bg-white/5 rounded ml-2" />
                         <div className="flex gap-4 overflow-hidden px-2">
                             {[...Array(6)].map((_, i) => (
-                                <div key={i} className="w-[170px] h-[100px] rounded-xl bg-white/5 border border-white/5 flex-shrink-0" />
+                                <div key={i} className="w-[140px] sm:w-[160px] aspect-[2/3] rounded-xl bg-white/5 border border-white/5 flex-shrink-0" />
                             ))}
                         </div>
                     </div>
@@ -200,7 +200,7 @@ export const DiscoverHome: React.FC<{
     }
 
     return (
-        <div className="flex flex-col gap-10 w-full max-w-full overflow-hidden pb-12">
+        <div className="flex flex-col gap-6 w-full max-w-full overflow-hidden pb-12">
             <DiscoveryRow title="Recently Added" items={rows.recentlyAdded} />
             <DiscoveryRow title="Your Requests" items={rows.recentRequests} onViewAll={() => navigate('/discovery/requests')} />
             <WatchlistPanel
