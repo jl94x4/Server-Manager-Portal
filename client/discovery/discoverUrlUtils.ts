@@ -8,6 +8,8 @@ export const defaultMovieFilters = (): FilterState => ({
     network: '',
     studio: '',
     minRating: '',
+    keywords: '',
+    keywordName: '',
 });
 
 export const defaultSeriesFilters = (): FilterState => ({
@@ -17,6 +19,8 @@ export const defaultSeriesFilters = (): FilterState => ({
     network: '',
     studio: '',
     minRating: '',
+    keywords: '',
+    keywordName: '',
 });
 
 export const parseFiltersFromSearch = (search: string, defaults: FilterState): FilterState => {
@@ -29,15 +33,27 @@ export const parseFiltersFromSearch = (search: string, defaults: FilterState): F
         studio: params.get('studio') || '',
         network: params.get('network') || '',
         minRating: params.get('minRating') || '',
+        keywords: params.get('keywords') || '',
+        keywordName: params.get('keywordName') || '',
     };
 };
 
 const hasSecondaryMovieFilters = (filters: FilterState) => (
-    Boolean(filters.genre || filters.year || filters.minRating || (filters.sort && filters.sort !== 'popularity.desc'))
+    Boolean(
+        filters.genre
+        || filters.year
+        || filters.minRating
+        || (filters.sort && filters.sort !== 'popularity.desc'),
+    )
 );
 
 const hasSecondarySeriesFilters = (filters: FilterState) => (
-    Boolean(filters.genre || filters.year || filters.minRating || (filters.sort && filters.sort !== 'popularity.desc'))
+    Boolean(
+        filters.genre
+        || filters.year
+        || filters.minRating
+        || (filters.sort && filters.sort !== 'popularity.desc'),
+    )
 );
 
 export const buildMovieFilterPath = (filters: FilterState) => {
@@ -51,6 +67,8 @@ export const buildMovieFilterPath = (filters: FilterState) => {
     if (filters.year) params.set('year', filters.year);
     if (filters.studio) params.set('studio', filters.studio);
     if (filters.minRating) params.set('minRating', filters.minRating);
+    if (filters.keywords) params.set('keywords', filters.keywords);
+    if (filters.keywordName) params.set('keywordName', filters.keywordName);
     const qs = params.toString();
     return qs ? `/discovery/movies?${qs}` : '/discovery/movies';
 };
@@ -66,6 +84,8 @@ export const buildSeriesFilterPath = (filters: FilterState) => {
     if (filters.year) params.set('year', filters.year);
     if (filters.network) params.set('network', filters.network);
     if (filters.minRating) params.set('minRating', filters.minRating);
+    if (filters.keywords) params.set('keywords', filters.keywords);
+    if (filters.keywordName) params.set('keywordName', filters.keywordName);
     const qs = params.toString();
     return qs ? `/discovery/series?${qs}` : '/discovery/series';
 };
@@ -73,6 +93,7 @@ export const buildSeriesFilterPath = (filters: FilterState) => {
 export const appendDiscoverQuery = (baseUrl: string, filters: FilterState, type: 'movie' | 'tv') => {
     let url = baseUrl;
     if (filters.genre) url += `&genre=${encodeURIComponent(filters.genre)}`;
+    if (filters.keywords) url += `&keywords=${encodeURIComponent(filters.keywords)}`;
     if (filters.minRating) url += `&voteAverageGte=${encodeURIComponent(filters.minRating)}`;
     if (type === 'movie') {
         if (filters.year) {
@@ -103,6 +124,7 @@ export const countActiveFilters = (filters: FilterState, type: 'movie' | 'tv'): 
     if (filters.genre) count += 1;
     if (filters.year) count += 1;
     if (filters.minRating) count += 1;
+    if (filters.keywords) count += 1;
     if (type === 'movie' && filters.studio) count += 1;
     if (type === 'tv' && filters.network) count += 1;
     return count;

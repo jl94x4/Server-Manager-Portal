@@ -95,7 +95,26 @@ export const isEndedShow = (details: any): boolean => {
 
 export const isMainSeasonNumber = (seasonNumber: number) => Number(seasonNumber) > 0;
 
+/** True when at least one episode has aired on this show. */
+export const hasAnyEpisodeAired = (details: any): boolean => {
+    const last = details?.lastEpisodeToAir;
+    const season = Number(last?.seasonNumber);
+    const episode = Number(last?.episodeNumber);
+    return Number.isFinite(season) && season > 0 && Number.isFinite(episode) && episode > 0;
+};
+
+/** True when this season has at least one aired episode. */
+export const hasSeasonAired = (details: any, seasonNumber: number): boolean => {
+    if (!hasAnyEpisodeAired(details)) return false;
+    const lastSeason = Number(details.lastEpisodeToAir.seasonNumber);
+    if (seasonNumber < lastSeason) return true;
+    if (seasonNumber > lastSeason) return false;
+    return Number(details.lastEpisodeToAir.episodeNumber) > 0;
+};
+
 export const isSeasonStillAiring = (details: any, seasonNumber: number): boolean => {
+    if (!hasSeasonAired(details, seasonNumber)) return false;
+
     const next = details?.nextEpisodeToAir;
     if (next && Number(next.seasonNumber) === seasonNumber) return true;
 
@@ -124,7 +143,11 @@ export const resolveMonitoredSeasonLabel = (
     seasonNumber: number,
     fallback: string,
 ): string => (
-    isReturningSeries(details) && isSeasonStillAiring(details, seasonNumber) ? 'Up to date' : fallback
+    isReturningSeries(details)
+        && hasSeasonAired(details, seasonNumber)
+        && isSeasonStillAiring(details, seasonNumber)
+        ? 'Up to date'
+        : fallback
 );
 
 const fulfilledSeasonLabel = (label: string) => (
@@ -204,12 +227,14 @@ export const inferMissingLibrarySeasonStatus = (
         || showStatus === MEDIA_STATUS.PARTIAL
         || showStatus === MEDIA_STATUS.AVAILABLE
         || hasTrackedSeason;
-    if (!showInLibrary && !isReturningSeries(details)) return null;
+    if (!showInLibrary) return null;
 
     const seasonNumber = Number(seasonRow.seasonNumber);
     const lastAiredSeason = Number(details?.lastEpisodeToAir?.seasonNumber);
-    if (!Number.isFinite(seasonNumber) || !Number.isFinite(lastAiredSeason)) return null;
+    if (!Number.isFinite(seasonNumber)) return null;
+    if (!Number.isFinite(lastAiredSeason)) return null;
     if (seasonNumber > lastAiredSeason) return null;
+    if (!hasSeasonAired(details, seasonNumber)) return null;
 
     const knownSeasonNumbers = librarySeasons
         .map((s: any) => Number(s?.seasonNumber))
@@ -225,9 +250,6 @@ export const inferMissingLibrarySeasonStatus = (
     }
 
     if (!knownSeasonNumbers.length) {
-        if (showStatus === MEDIA_STATUS.PARTIAL && isReturningSeries(details)) {
-            return { requestable: false, statusLabel: 'Up to date' };
-        }
         return null;
     }
     const maxKnownSeason = Math.max(...knownSeasonNumbers);
@@ -503,7 +525,7 @@ export const getRequestButtonState = (
     const libraryComplete = isTvShowLibraryComplete(details, seasonRows, mediaInfo);
     if (libraryComplete) {
         return {
-            label: details && isReturningSeries(details) ? 'Up to date' : 'Available',
+            label: details && isReturningSeries(details) && hasAnyEpisodeAired(details) ? 'Up to date' : 'Available',
             disabled: true,
             variant: 'available' as const,
         };
@@ -513,11 +535,12 @@ export const getRequestButtonState = (
             s.statusLabel === 'Pending'
             || s.statusLabel === 'Processing'
             || s.statusLabel === 'Requested'
+            || s.statusLabel === 'Approved'
         ));
         if (waiting) {
             return { label: 'Requested', disabled: true, variant: 'pending' as const };
         }
-        if (details && isReturningSeries(details)) {
+        if (details && isReturningSeries(details) && hasAnyEpisodeAired(details)) {
             return { label: 'Up to date', disabled: true, variant: 'available' as const };
         }
         return { label: 'All Seasons Requested', disabled: true, variant: 'pending' as const };

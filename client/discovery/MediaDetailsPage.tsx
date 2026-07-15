@@ -16,6 +16,7 @@ import { DiscoveryLogo } from './DiscoveryLogo';
 import { scrollPortalToTop } from './discoverNavigationUtils';
 import { MediaOverviewExtras } from './MediaOverviewExtras';
 import type { CombinedRatings } from './mediaDetailUtils';
+import { fetchCombinedRatings } from './mediaDetailUtils';
 import {
     buildSeasonStatusFromDetails,
     getRequestButtonState,
@@ -136,12 +137,9 @@ export const MediaDetailsPage: React.FC<{
             return undefined;
         }
         let cancelled = false;
-        const ratingsPath = mediaType === 'movie'
-            ? `/api/discovery/proxy/movie/${mediaId}/ratingscombined`
-            : `/api/discovery/proxy/tv/${mediaId}/ratingscombined`;
-        apiFetch(ratingsPath)
+        fetchCombinedRatings(mediaType, mediaId)
             .then((res) => {
-                if (!cancelled && res && !res.error) setRatings(res);
+                if (!cancelled) setRatings(res);
             })
             .catch(() => {
                 if (!cancelled) setRatings(null);
@@ -224,6 +222,21 @@ export const MediaDetailsPage: React.FC<{
             ? `/discovery/movies?genre=${genreId}`
             : `/discovery/series?genre=${genreId}`;
         discoveryNavigate(path);
+    };
+
+    const openKeyword = (keyword: { id: number; name: string }) => {
+        const params = new URLSearchParams({
+            keywords: String(keyword.id),
+            keywordName: keyword.name,
+        });
+        const path = mediaType === 'movie'
+            ? `/discovery/movies?${params.toString()}`
+            : `/discovery/series?${params.toString()}`;
+        discoveryNavigate(path);
+    };
+
+    const openStudio = (studioId: number) => {
+        discoveryNavigate(`/discovery/movies/studio/${studioId}`);
     };
 
     const openNetwork = (networkId: number) => {
@@ -572,6 +585,8 @@ export const MediaDetailsPage: React.FC<{
                         details={details}
                         ratings={ratings}
                         onOpenPerson={openPerson}
+                        onOpenKeyword={openKeyword}
+                        onOpenStudio={openStudio}
                         onOpenCollection={(collectionId) => {
                             window.open(`https://www.themoviedb.org/collection/${collectionId}`, '_blank', 'noopener,noreferrer');
                         }}

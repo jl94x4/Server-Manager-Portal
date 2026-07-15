@@ -1,3 +1,5 @@
+import { portalUrl } from '../shared/basePath';
+
 const languageNames = typeof Intl !== 'undefined'
     ? new Intl.DisplayNames(['en'], { type: 'language' })
     : null;
@@ -144,6 +146,20 @@ export type MediaFactRow = {
     value: string;
 };
 
+export type ProductionStudio = {
+    id: number;
+    name: string;
+};
+
+export const getProductionStudios = (details: any): ProductionStudio[] => (
+    (Array.isArray(details?.productionCompanies) ? details.productionCompanies : [])
+        .map((company: any) => ({
+            id: Number(company?.id),
+            name: String(company?.name || '').trim(),
+        }))
+        .filter((company) => company.name && Number.isFinite(company.id) && company.id > 0)
+);
+
 export const buildMediaFactRows = (
     mediaType: 'movie' | 'tv',
     details: any,
@@ -191,17 +207,6 @@ export const buildMediaFactRows = (
         });
     }
 
-    const studios = (Array.isArray(details?.productionCompanies) ? details.productionCompanies : [])
-        .map((company: any) => company?.name)
-        .filter(Boolean);
-    if (studios.length) {
-        rows.push({
-            key: 'studios',
-            label: studios.length === 1 ? 'Studio' : 'Studios',
-            value: studios.join(', '),
-        });
-    }
-
     if (details?.originalTitle && details.originalTitle !== (details.title || details.name)) {
         rows.push({ key: 'original-title', label: 'Original title', value: details.originalTitle });
     }
@@ -214,4 +219,27 @@ export const buildMediaFactRows = (
     }
 
     return rows;
+};
+
+/** Fetch RT/IMDb combined ratings — Seerr returns 404 when none exist; treat as empty. */
+export const fetchCombinedRatings = async (
+    mediaType: 'movie' | 'tv',
+    mediaId: number,
+): Promise<CombinedRatings | null> => {
+    const path = mediaType === 'movie'
+        ? `/api/discovery/proxy/movie/${mediaId}/ratingscombined`
+        : `/api/discovery/proxy/tv/${mediaId}/ratingscombined`;
+    try {
+        const response = await fetch(portalUrl(path), {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+        });
+        if (response.status === 404) return {};
+        if (!response.ok) return null;
+        const data = await response.json();
+        if (data?.error) return null;
+        return data;
+    } catch {
+        return null;
+    }
 };

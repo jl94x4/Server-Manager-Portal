@@ -2,6 +2,7 @@ import { normalizeRawDiscoveryItem } from './discoverItemUtils';
 import {
     buildSeasonStatusFromDetails,
     hasActiveSeerrDownloads,
+    hasAnyEpisodeAired,
     isEndedShow,
     isMainSeasonNumber,
     isReturningSeries,
@@ -129,10 +130,11 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
         : false;
 
     if (tvLibraryComplete) {
+        const showUpToDate = isReturningSeries(item) && hasAnyEpisodeAired(item);
         return {
             ...base,
             kind: 'available',
-            label: isReturningSeries(item) ? 'Up to date' : 'Available in library',
+            label: showUpToDate ? 'Up to date' : 'Available in library',
             detail: item?.sonarrLibraryStatus?.showComplete
                 ? 'All aired episodes are on disk (verified via Sonarr).'
                 : formatTvLibraryDetail(seasonRows) || 'All aired episodes are in your library.',
@@ -142,7 +144,8 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
     const availableSeasons = seasonRows.filter((s) => s.statusLabel === 'Available');
     const upToDateSeasons = seasonRows.filter((s) => isSeasonUpToDateLabel(s.statusLabel));
     const incompleteSeasons = seasonRows.filter((s) => s.statusLabel === 'Partial');
-    const pendingSeasons = seasonRows.filter((s) => s.statusLabel === 'Pending' || s.statusLabel === 'Approved');
+    const pendingSeasons = seasonRows.filter((s) => s.statusLabel === 'Pending');
+    const approvedSeasons = seasonRows.filter((s) => s.statusLabel === 'Approved');
     const processingSeasons = seasonRows.filter((s) => s.statusLabel === 'Processing');
     const requestedSeasons = seasonRows.filter((s) => s.statusLabel === 'Requested');
     const inProgressDisplay = resolveInProgressDisplay(mediaInfo, mediaStatus);
@@ -171,7 +174,7 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
         }
 
         if (requestable.length === 0 && handledSeasons.length > 0) {
-            if (returningSeries) {
+            if (returningSeries && hasAnyEpisodeAired(item)) {
                 return {
                     ...base,
                     kind: 'available',
@@ -227,6 +230,24 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
                 kind: 'requested',
                 label: 'Requested',
                 detail: 'Your request was sent to the media server and is waiting to download.',
+            };
+        }
+        if (approvedSeasons.length > 0 || userRequestStatus === REQUEST_STATUS.APPROVED) {
+            if (hasActiveSeerrDownloads(mediaInfo)) {
+                return {
+                    ...base,
+                    kind: 'processing',
+                    label: 'Processing',
+                    detail: 'Your request is being downloaded or imported.',
+                };
+            }
+            return {
+                ...base,
+                kind: 'requested',
+                label: 'Requested',
+                detail: hasAnyEpisodeAired(item)
+                    ? 'Approved and sent to your media server.'
+                    : 'Your request is approved. New episodes will download as they air.',
             };
         }
         if (pendingSeasons.length > 0 || userRequestStatus === REQUEST_STATUS.PENDING || mediaStatus === MEDIA_STATUS.PENDING) {

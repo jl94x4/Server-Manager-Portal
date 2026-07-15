@@ -10,6 +10,8 @@ export interface FilterState {
     network: string; // Only for series
     studio: string;  // Only for movies
     minRating: string;
+    keywords: string;
+    keywordName: string;
 }
 
 interface FilterDrawerProps {

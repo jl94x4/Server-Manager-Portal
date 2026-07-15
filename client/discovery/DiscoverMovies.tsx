@@ -78,6 +78,7 @@ export const DiscoverMovies: React.FC<{
     const genreLabel = filters.genre
         ? MOVIE_GENRES.find((genre) => String(genre.id) === filters.genre)?.name
         : null;
+    const keywordLabel = filters.keywordName || null;
     const activeFilterCount = countActiveFilters(filters, 'movie');
     const skeletonCount = discoverSkeletonCountForGrid(
         gridSize,
@@ -97,6 +98,9 @@ export const DiscoverMovies: React.FC<{
                         )}
                         {genreLabel && !studioLabel && (
                             <p className="text-sm text-muted mt-1">Genre: {genreLabel}</p>
+                        )}
+                        {keywordLabel && (
+                            <p className="text-sm text-muted mt-1">Keyword: {keywordLabel}</p>
                         )}
                     </div>
                     <div className="flex items-center gap-3 flex-wrap justify-end">
