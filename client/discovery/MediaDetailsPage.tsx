@@ -311,14 +311,14 @@ export const MediaDetailsPage: React.FC<{
                         <img
                             src={backdropUrl}
                             alt=""
-                            className="absolute inset-0 w-full h-full object-cover object-[center_20%] md:object-[78%_22%] opacity-90 md:opacity-80"
+                            className="absolute inset-0 w-full h-full object-cover object-[center_20%] md:object-[78%_22%] opacity-25 md:opacity-80"
                             fetchPriority="high"
                             decoding="async"
                         />
                     ) : (
                         <div className="absolute inset-0 bg-black" />
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-card from-0% via-card/95 via-[42%] md:via-card/90 md:via-[38%] to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-card from-0% via-card via-[60%] md:via-card/90 md:via-[38%] to-card/40 md:to-transparent" />
                     <div className="absolute inset-0 hidden md:block bg-gradient-to-r from-card from-0% via-card/80 via-[32%] to-transparent to-[78%]" />
                 </div>
 
