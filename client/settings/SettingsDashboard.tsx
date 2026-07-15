@@ -2010,8 +2010,12 @@ export const SettingsDashboard: React.FC = () => {
                             <div id={getSettingsSectionElementId('poster-badges')} className="scroll-mt-24">
                             <SettingsToggleRow
                                 title="Poster Quality Badges"
-                                description="Show quality badges on recently added and discover posters (4K, HDR, codec, Atmos)"
-                                hint={<SettingHint>Applies to Home and Discover poster cards for all users.</SettingHint>}
+                                hint={(
+                                    <SettingHint>
+                                        Show quality badges on recently added and discover posters (4K, HDR, codec, Atmos).
+                                        Applies to Home and Discover poster cards for all users.
+                                    </SettingHint>
+                                )}
                                 checked={showPosterQualityBadges}
                                 onChange={setShowPosterQualityBadges}
                                 className="mb-4"
@@ -2021,8 +2025,12 @@ export const SettingsDashboard: React.FC = () => {
                             <div id={getSettingsSectionElementId('dashboard-watching-badge')} className="scroll-mt-24">
                             <SettingsToggleRow
                                 title="Dashboard Watching Badge"
-                                description="Show a live count of people currently watching next to Dashboard in the sidebar"
-                                hint={<SettingHint>Polls your Plex or Jellyfin server every 15 seconds. Counts unique viewers with an active stream.</SettingHint>}
+                                hint={(
+                                    <SettingHint>
+                                        Show a live count of people currently watching next to Dashboard in the sidebar.
+                                        Polls your Plex or Jellyfin server every 15 seconds and counts unique viewers with an active stream.
+                                    </SettingHint>
+                                )}
                                 checked={showDashboardWatchingBadge}
                                 onChange={setShowDashboardWatchingBadge}
                                 className="mb-4"

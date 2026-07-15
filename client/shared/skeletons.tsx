@@ -1,5 +1,6 @@
 import React from 'react';
 import { discoverPosterGridClass } from './portalLayout';
+import { useSkeletonLayoutCounts } from './useSkeletonLayoutCounts';
 
 const pulse = 'skeleton-base';
 
@@ -19,25 +20,42 @@ export const PosterCardSkeleton: React.FC<{
     </div>
 );
 
-export const PosterGridSkeleton: React.FC<{ count?: number; aspect?: '2/3' | 'square' }> = ({ count = 20, aspect = '2/3' }) => (
-    <div className={discoverPosterGridClass} aria-hidden="true">
-        {Array.from({ length: count }, (_, i) => (
-            <PosterCardSkeleton key={i} aspect={aspect} variant="discover" />
-        ))}
-    </div>
-);
+export const PosterGridSkeleton: React.FC<{ count?: number; aspect?: '2/3' | 'square'; rows?: number }> = ({
+    count,
+    aspect = '2/3',
+    rows = 2,
+}) => {
+    const { grid: defaultCount } = useSkeletonLayoutCounts({ gridRows: rows });
+    const itemCount = count ?? defaultCount;
+
+    return (
+        <div className={discoverPosterGridClass} aria-hidden="true">
+            {Array.from({ length: itemCount }, (_, i) => (
+                <PosterCardSkeleton key={i} aspect={aspect} variant="discover" />
+            ))}
+        </div>
+    );
+};
 
 export const PosterRowSkeleton: React.FC<{ count?: number; aspect?: '2/3' | 'square'; cardWidth?: string }> = ({
-    count = 6,
+    count,
     aspect = '2/3',
-    cardWidth = 'w-[140px] sm:w-[160px]',
-}) => (
-    <div className="flex overflow-x-auto gap-4 py-2 px-2 snap-x hide-scrollbar" aria-hidden="true">
-        {Array.from({ length: count }, (_, i) => (
-            <PosterCardSkeleton key={i} aspect={aspect} variant="home" className={`snap-start shrink-0 ${cardWidth}`} />
-        ))}
-    </div>
-);
+    cardWidth = 'w-full min-w-0',
+}) => {
+    const { carousel: defaultCount } = useSkeletonLayoutCounts();
+
+    return (
+        <div
+            className="grid w-full gap-4 py-2 px-2"
+            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' }}
+            aria-hidden="true"
+        >
+            {Array.from({ length: count ?? defaultCount }, (_, i) => (
+                <PosterCardSkeleton key={i} aspect={aspect} variant="home" className={cardWidth} />
+            ))}
+        </div>
+    );
+};
 
 export const DiscoverHomeRowSkeleton: React.FC<{
     showViewAll?: boolean;
@@ -45,7 +63,7 @@ export const DiscoverHomeRowSkeleton: React.FC<{
     showAction?: boolean;
     count?: number;
     aspect?: '2/3' | 'square';
-}> = ({ showViewAll = false, showSubtitle = false, showAction = false, count = 6, aspect = '2/3' }) => (
+}> = ({ showViewAll = false, showSubtitle = false, showAction = false, count, aspect = '2/3' }) => (
     <div className="flex flex-col gap-2 relative" aria-hidden="true">
         <div className="flex items-start justify-between gap-3 px-2">
             <div className="flex flex-col gap-1.5 min-w-0">
@@ -61,8 +79,11 @@ export const DiscoverHomeRowSkeleton: React.FC<{
     </div>
 );
 
-export const DiscoverHomeSkeleton: React.FC = () => (
-    <div className="flex flex-col gap-4 w-full max-w-full overflow-hidden pb-8" aria-busy="true" aria-label="Loading discover">
+export const DiscoverHomeSkeleton: React.FC = () => {
+    const { carousel } = useSkeletonLayoutCounts();
+
+    return (
+    <div className="discover-layout-container flex flex-col gap-4 w-full max-w-full overflow-hidden pb-8" aria-busy="true" aria-label="Loading discover">
         <DiscoverHomeRowSkeleton />
         <DiscoverHomeRowSkeleton showViewAll />
         <DiscoverHomeRowSkeleton showViewAll showSubtitle showAction />
@@ -71,9 +92,12 @@ export const DiscoverHomeSkeleton: React.FC = () => (
         <DiscoverHomeRowSkeleton />
         <div className="flex flex-col gap-2 relative" aria-hidden="true">
             <SkeletonBlock className="h-6 w-36 rounded ml-2" />
-            <div className="flex gap-4 overflow-x-auto py-2 px-2 hide-scrollbar">
-                {Array.from({ length: 6 }, (_, i) => (
-                    <SkeletonBlock key={i} className="w-[150px] sm:w-[180px] h-[88px] sm:h-[100px] rounded-xl shrink-0" />
+            <div
+                className="grid w-full gap-4 py-2 px-2"
+                style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}
+            >
+                {Array.from({ length: carousel }, (_, i) => (
+                    <SkeletonBlock key={i} className="w-full h-[88px] sm:h-[100px] rounded-xl" />
                 ))}
             </div>
         </div>
@@ -82,14 +106,18 @@ export const DiscoverHomeSkeleton: React.FC = () => (
         <DiscoverHomeRowSkeleton showViewAll />
         <div className="flex flex-col gap-2 relative" aria-hidden="true">
             <SkeletonBlock className="h-6 w-28 rounded ml-2" />
-            <div className="flex gap-4 overflow-x-auto py-2 px-2 hide-scrollbar">
-                {Array.from({ length: 5 }, (_, i) => (
-                    <SkeletonBlock key={i} className="w-[170px] sm:w-[200px] h-[100px] sm:h-[112px] rounded-xl shrink-0" />
+            <div
+                className="grid w-full gap-4 py-2 px-2"
+                style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))' }}
+            >
+                {Array.from({ length: Math.max(4, carousel - 1) }, (_, i) => (
+                    <SkeletonBlock key={i} className="w-full h-[100px] sm:h-[112px] rounded-xl" />
                 ))}
             </div>
         </div>
     </div>
-);
+    );
+};
 
 export const HomeRecentlyAddedSkeleton: React.FC = () => (
     <div className="flex flex-col gap-3 md:gap-4 w-full" aria-busy="true" aria-label="Loading recently added">
@@ -108,47 +136,49 @@ export const HomeRecentlyAddedSkeleton: React.FC = () => (
     </div>
 );
 
-export const DiscoverSectionSkeleton: React.FC<{ title: string; count?: number; aspect?: '2/3' | 'square' }> = ({ title, count = 12, aspect = '2/3' }) => (
+export const DiscoverSectionSkeleton: React.FC<{ title: string; count?: number; aspect?: '2/3' | 'square'; rows?: number }> = ({
+    title,
+    count,
+    aspect = '2/3',
+    rows = 2,
+}) => (
     <div className="flex flex-col" aria-hidden="true">
         <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">{title}</h2>
-        <PosterGridSkeleton count={count} aspect={aspect} />
+        <PosterGridSkeleton count={count} aspect={aspect} rows={rows} />
     </div>
 );
 
-export const DiscoverPageSkeleton: React.FC<{ recentLimit?: number }> = ({ recentLimit = 20 }) => {
-    const count = recentLimit;
-    return (
-        <div className="w-full flex flex-col min-h-screen" aria-busy="true" aria-label="Loading discover">
-            <main className="discover-layout-container w-full pb-8 mt-4 md:mt-0">
-                <section className="mb-12 w-full">
-                    <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">ACTIVITY</h2>
-                    <ActivityGridSkeleton count={3} />
-                </section>
+export const DiscoverPageSkeleton: React.FC<{ recentLimit?: number }> = () => (
+    <div className="w-full flex flex-col min-h-screen" aria-busy="true" aria-label="Loading discover">
+        <main className="discover-layout-container w-full pb-8 mt-4 md:mt-0">
+            <section className="mb-12 w-full">
+                <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">ACTIVITY</h2>
+                <ActivityGridSkeleton count={3} />
+            </section>
 
-                <div className="flex justify-end gap-4 items-center mb-8">
-                    <SkeletonBlock className="h-4 w-36 rounded" />
-                    <SkeletonBlock className="h-10 w-32 rounded-lg" />
-                </div>
+            <div className="flex justify-end gap-4 items-center mb-8">
+                <SkeletonBlock className="h-4 w-36 rounded" />
+                <SkeletonBlock className="h-10 w-32 rounded-lg" />
+            </div>
 
-                <div className="flex flex-col gap-12 w-full">
-                    <DiscoverSectionSkeleton title="RECENTLY ADDED MOVIES" count={count} />
-                    <DiscoverSectionSkeleton title="RECENTLY ADDED TV SHOWS" count={count} />
-                    <DiscoverSectionSkeleton title="RECENTLY ADDED MUSIC" count={count} aspect="square" />
-                </div>
+            <div className="flex flex-col gap-12 w-full">
+                <DiscoverSectionSkeleton title="RECENTLY ADDED MOVIES" />
+                <DiscoverSectionSkeleton title="RECENTLY ADDED TV SHOWS" />
+                <DiscoverSectionSkeleton title="RECENTLY ADDED MUSIC" aspect="square" />
+            </div>
 
-                <div className="mt-16 w-full flex flex-col gap-12">
-                    <div className="flex flex-col gap-2 items-center text-center mb-4">
-                        <SkeletonBlock className="h-10 w-72 max-w-full rounded" />
-                        <SkeletonBlock className="h-4 w-96 max-w-full rounded" />
-                    </div>
-                    <DiscoverSectionSkeleton title="🔥 TRENDING THIS WEEK" count={count} />
-                    <DiscoverSectionSkeleton title="🍿 MOST WATCHED MOVIES (THIS MONTH)" count={count} />
-                    <DiscoverSectionSkeleton title="📺 MOST WATCHED SHOWS (THIS MONTH)" count={count} />
+            <div className="mt-16 w-full flex flex-col gap-12">
+                <div className="flex flex-col gap-2 items-center text-center mb-4">
+                    <SkeletonBlock className="h-10 w-72 max-w-full rounded" />
+                    <SkeletonBlock className="h-4 w-96 max-w-full rounded" />
                 </div>
-            </main>
-        </div>
-    );
-};
+                <DiscoverSectionSkeleton title="🔥 TRENDING THIS WEEK" />
+                <DiscoverSectionSkeleton title="🍿 MOST WATCHED MOVIES (THIS MONTH)" />
+                <DiscoverSectionSkeleton title="📺 MOST WATCHED SHOWS (THIS MONTH)" />
+            </div>
+        </main>
+    </div>
+);
 
 export const LibraryStatsSkeleton: React.FC = () => (
     <div className="space-y-3" aria-hidden="true">
@@ -225,8 +255,12 @@ export const TopWatchedGridSkeleton: React.FC = () => (
     </div>
 );
 
-export const TrendingSectionsSkeleton: React.FC<{ count?: number; sections?: number }> = ({ count = 20, sections = 3 }) => (
-    <div className="mt-16 w-full flex flex-col gap-12" aria-busy="true" aria-label="Loading trending">
+export const TrendingSectionsSkeleton: React.FC<{ count?: number; sections?: number; rows?: number }> = ({
+    count,
+    sections = 3,
+    rows = 2,
+}) => (
+    <div className="discover-layout-container mt-16 w-full flex flex-col gap-12" aria-busy="true" aria-label="Loading trending">
         <div className="flex flex-col gap-2 items-center text-center mb-4">
             <SkeletonBlock className="h-10 w-72 max-w-full rounded" />
             <SkeletonBlock className="h-4 w-96 max-w-full rounded" />
@@ -234,7 +268,7 @@ export const TrendingSectionsSkeleton: React.FC<{ count?: number; sections?: num
         {Array.from({ length: sections }, (_, i) => (
             <div key={i} className="flex flex-col" aria-hidden="true">
                 <SkeletonBlock className="h-4 w-56 mb-6 rounded" />
-                <PosterGridSkeleton count={count} />
+                <PosterGridSkeleton count={count} rows={rows} />
             </div>
         ))}
     </div>

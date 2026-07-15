@@ -1,4 +1,5 @@
 import type { UpgraderGridSize } from '../shared/portalLayout';
+import { estimatePortalContentWidth } from '../shared/portalLayout';
 
 export const DISCOVER_INITIAL_ROW_COUNT = 5;
 export const DISCOVER_API_PAGE_SIZE = 20;
@@ -28,5 +29,6 @@ export const initialDiscoverPagesForGrid = (gridSize: UpgraderGridSize, containe
 
 export const discoverSkeletonCountForGrid = (gridSize: UpgraderGridSize, containerWidth: number): number => {
     if (gridSize === 'list') return DISCOVER_INITIAL_ROW_COUNT * 3;
-    return estimateDiscoverGridColumns(gridSize, containerWidth) * DISCOVER_INITIAL_ROW_COUNT;
+    const width = containerWidth > 0 ? containerWidth : estimatePortalContentWidth();
+    return estimateDiscoverGridColumns(gridSize, width) * DISCOVER_INITIAL_ROW_COUNT;
 };

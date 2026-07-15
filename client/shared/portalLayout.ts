@@ -28,6 +28,33 @@ export const UPGRADER_GRID_MIN_WIDTH: Record<UpgraderGridSize, string> = {
     list: '100%',
 };
 
+/** Match discover-poster-grid @container breakpoints (width in px). */
+export const discoverPosterGridColumnsAtWidth = (containerWidth: number): number => {
+    if (containerWidth >= 896) return 10;
+    if (containerWidth >= 768) return 8;
+    if (containerWidth >= 480) return 5;
+    if (containerWidth >= 384) return 4;
+    return 3;
+};
+
+/** Approximate main content width (sidebar-aware). */
+export const estimatePortalContentWidth = (): number => {
+    if (typeof window === 'undefined') return 1200;
+    const isDesktop = window.matchMedia('(min-width: 768px)').matches;
+    const sidebar = isDesktop ? 288 : 0;
+    const padding = isDesktop ? 64 : 32;
+    return Math.max(320, window.innerWidth - sidebar - padding);
+};
+
+export const posterGridSkeletonCount = (rows = 2, containerWidth = estimatePortalContentWidth()): number => (
+    discoverPosterGridColumnsAtWidth(containerWidth) * rows
+);
+
+export const carouselRowSkeletonCount = (containerWidth = estimatePortalContentWidth()): number => {
+    const cardWidth = containerWidth >= 640 ? 160 : 140;
+    return Math.max(4, Math.ceil(containerWidth / (cardWidth + 16)));
+};
+
 export const upgraderPosterGridStyle = (size: UpgraderGridSize): CSSProperties => size === 'list' ? {} : ({
     gridTemplateColumns: `repeat(auto-fill, minmax(${UPGRADER_GRID_MIN_WIDTH[size]}, 1fr))`,
 });

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { Check } from 'lucide-react';
+import { SettingHint } from '../settings/SettingHint';
 import type { CustomSelectProps } from './types';
 
 export type DropdownPosition = { top: number; left: number; width: number };
@@ -172,14 +173,8 @@ export const SettingsToggleRow: React.FC<{
             <div className="min-w-0">
                 <h4 className="font-bold text-text inline-flex items-center gap-1.5 flex-wrap">
                     <span>{title}</span>
-                    {!description && hint}
+                    {hint || (description ? <SettingHint>{description}</SettingHint> : null)}
                 </h4>
-                {description ? (
-                    <p className="text-sm text-muted mt-1 inline-flex items-center gap-1.5 flex-wrap">
-                        <span>{description}</span>
-                        {hint}
-                    </p>
-                ) : null}
             </div>
             <SettingsSwitch checked={checked} onChange={onChange} />
         </div>
