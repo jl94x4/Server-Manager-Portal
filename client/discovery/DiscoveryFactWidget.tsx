@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Lightbulb, RefreshCw } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 
@@ -15,6 +15,25 @@ export const DiscoveryFactWidget: React.FC<{
     const [facts, setFacts] = useState<string[]>([]);
     const [index, setIndex] = useState(0);
     const [loading, setLoading] = useState(true);
+    const cycleTimerRef = useRef<number | null>(null);
+
+    const clearCycleTimer = useCallback(() => {
+        if (cycleTimerRef.current != null) {
+            window.clearInterval(cycleTimerRef.current);
+            cycleTimerRef.current = null;
+        }
+    }, []);
+
+    const advanceFact = useCallback(() => {
+        if (facts.length <= 1) return;
+        setIndex((prev) => (prev + 1) % facts.length);
+    }, [facts.length]);
+
+    const startCycleTimer = useCallback(() => {
+        clearCycleTimer();
+        if (facts.length <= 1) return;
+        cycleTimerRef.current = window.setInterval(advanceFact, 10_000);
+    }, [advanceFact, clearCycleTimer, facts.length]);
 
     useEffect(() => {
         let cancelled = false;
@@ -38,20 +57,23 @@ export const DiscoveryFactWidget: React.FC<{
         return () => { cancelled = true; };
     }, [mediaType, mediaId]);
 
-    const advanceFact = useCallback(() => {
-        if (facts.length <= 1) return;
-        setIndex((prev) => (prev + 1) % facts.length);
-    }, [facts.length]);
-
     useEffect(() => {
-        if (facts.length <= 1) return undefined;
-        const timer = window.setInterval(advanceFact, 10_000);
-        return () => window.clearInterval(timer);
-    }, [facts.length, advanceFact]);
+        startCycleTimer();
+        return clearCycleTimer;
+    }, [startCycleTimer, clearCycleTimer]);
 
     const showAnother = useCallback(() => {
-        advanceFact();
-    }, [advanceFact]);
+        if (facts.length <= 1) return;
+        setIndex((prev) => {
+            if (facts.length === 2) return prev === 0 ? 1 : 0;
+            let next = prev;
+            while (next === prev) {
+                next = Math.floor(Math.random() * facts.length);
+            }
+            return next;
+        });
+        startCycleTimer();
+    }, [facts.length, startCycleTimer]);
 
     if (loading) {
         return (
