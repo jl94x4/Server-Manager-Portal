@@ -388,9 +388,10 @@ const createDefaultStatusConfig = (config = {}) => {
     if (publicDomain) addService('portal', 'Server Portal', `${publicDomain.replace(/\/+$/, '')}/api/health`, 'core', 'Portal API health');
 
     const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
-    if (mediaServerType === 'jellyfin') {
-        addService('jellyfin', 'Jellyfin', config.jellyfinUrl, 'media', 'Jellyfin media server');
-        addService('jellystat', 'Jellystat', config.jellystatUrl, 'media', 'Jellyfin analytics');
+    if (mediaServerType !== 'plex') {
+        const mediaLabel = mediaServerType === 'emby' ? 'Emby' : 'Jellyfin';
+        addService(mediaServerType, mediaLabel, config.jellyfinUrl, 'media', `${mediaLabel} media server`);
+        if (mediaServerType === 'jellyfin') addService('jellystat', 'Jellystat', config.jellystatUrl, 'media', 'Jellyfin analytics');
     } else {
         addService('plex', 'Plex', config.plexServerUrl || config.publicDomain, 'media', 'Plex Media Server');
         addService('tautulli', 'Tautulli', config.tautulliUrl, 'media', 'Plex analytics');
@@ -398,9 +399,27 @@ const createDefaultStatusConfig = (config = {}) => {
 
     getArrInstances(config, { enabledOnly: true }).forEach((instance) => {
         if (!instance?.url) return;
-        const label = instance.name || (instance.type === 'radarr' ? 'Radarr' : 'Sonarr');
-        const description = instance.type === 'radarr' ? 'Movie automation' : 'TV automation';
+        const label = instance.name || ({ radarr: 'Radarr', lidarr: 'Lidarr', bazarr: 'Bazarr', sonarr: 'Sonarr' }[instance.type] || 'Sonarr');
+        const description = ({
+            radarr: 'Movie automation',
+            sonarr: 'TV automation',
+            lidarr: 'Music automation',
+            bazarr: 'Subtitle automation',
+        }[instance.type] || 'Media automation');
         addService(`arr-${instance.id}`, label, instance.url, 'downloads', description);
+    });
+    (Array.isArray(config.downloadClients) ? config.downloadClients : []).forEach((client) => {
+        if (client?.enabled === false || !client?.url) return;
+        services.push({
+            id: `download-${client.id}`,
+            name: client.name || downloadClientLabel(client.type),
+            url: client.url,
+            type: 'download-client',
+            clientType: client.type,
+            clientId: client.id,
+            groupId: 'downloads',
+            description: `${downloadClientLabel(client.type)} download client`,
+        });
     });
     if (config.requestAppType && config.requestAppType !== 'none') {
         addService(config.requestAppType, config.requestAppType === 'jellyseerr' ? 'Jellyseerr' : 'Seerr', config.requestAppUrl, 'external', 'Requests portal');
@@ -409,25 +428,55 @@ const createDefaultStatusConfig = (config = {}) => {
     return { groups, services, announcement: null };
 };
 
-const syncArrServicesInStatusConfig = (config = {}) => {
+const syncIntegrationServicesInStatusConfig = (config = {}) => {
     const arrServices = getArrInstances(config, { enabledOnly: true })
         .filter((instance) => instance?.url)
         .map((instance) => ({
             id: `arr-${instance.id}`,
-            name: instance.name || (instance.type === 'radarr' ? 'Radarr' : 'Sonarr'),
+            name: instance.name || ({ radarr: 'Radarr', lidarr: 'Lidarr', bazarr: 'Bazarr', sonarr: 'Sonarr' }[instance.type] || 'Sonarr'),
             url: instance.url,
             type: 'web',
             groupId: 'downloads',
-            description: instance.type === 'radarr' ? 'Movie automation' : 'TV automation',
+            description: ({
+                radarr: 'Movie automation',
+                sonarr: 'TV automation',
+                lidarr: 'Music automation',
+                bazarr: 'Subtitle automation',
+            }[instance.type] || 'Media automation'),
         }));
+    const downloadServices = (Array.isArray(config.downloadClients) ? config.downloadClients : [])
+        .filter((client) => client?.enabled !== false && client?.url)
+        .map((client) => ({
+            id: `download-${client.id}`,
+            name: client.name || downloadClientLabel(client.type),
+            url: client.url,
+            type: 'download-client',
+            clientType: client.type,
+            clientId: client.id,
+            groupId: 'downloads',
+            description: `${downloadClientLabel(client.type)} download client`,
+        }));
+    const managedServices = [...arrServices, ...downloadServices];
     const existingById = new Map((statusConfig.services || []).map((service) => [service.id, service]));
-    const arrIds = new Set(arrServices.map((service) => service.id));
-    const nonArr = (statusConfig.services || []).filter((service) => !arrIds.has(service.id) && !String(service.id || '').startsWith('arr-'));
-    const mergedArr = arrServices.map((service) => {
-        const existing = existingById.get(service.id);
-        return existing ? { ...existing, name: service.name, url: service.url, description: service.description } : service;
+    const managedIds = new Set(managedServices.map((service) => service.id));
+    const unmanaged = (statusConfig.services || []).filter((service) => {
+        const id = String(service.id || '');
+        return !managedIds.has(id) && !id.startsWith('arr-') && !id.startsWith('download-');
     });
-    statusConfig.services = [...nonArr, ...mergedArr];
+    const mergedManaged = managedServices.map((service) => {
+        const existing = existingById.get(service.id);
+        return existing ? {
+            ...existing,
+            name: service.name,
+            url: service.url,
+            type: service.type,
+            clientType: service.clientType,
+            clientId: service.clientId,
+            groupId: service.groupId,
+            description: service.description,
+        } : service;
+    });
+    statusConfig.services = [...unmanaged, ...mergedManaged];
 };
 
 // --- Helper Functions ---
@@ -602,6 +651,21 @@ const logEmailSent = async (userId, type, uniqueKey) => {
 };
 
 // --- SMTP & Email Alerts ---
+const DEFAULT_ALERT_RULES = {
+    expiryWarning: true,
+    accessRevoked: true,
+    newUserSynced: true,
+    syncSuccess: false,
+    syncFailure: true,
+};
+
+const normalizeAlertRules = (rules = {}) => ({
+    ...DEFAULT_ALERT_RULES,
+    ...(rules && typeof rules === 'object' ? rules : {}),
+});
+
+const alertRuleEnabled = (config, rule) => normalizeAlertRules(config?.alertRules)[rule] !== false;
+
 const sendEmail = async (config, to, subject, html, customTransporter = null) => {
     if (!config.smtpHost || !config.smtpUser || !config.smtpPass) {
         log('SMTP is not fully configured. Skipping email send.');
@@ -653,8 +717,42 @@ const sendEmail = async (config, to, subject, html, customTransporter = null) =>
     }
 };
 
+const sendGotifyAlert = async (config, title, message, priority = undefined) => {
+    if (!config.gotifyEnabled || !config.gotifyUrl || !config.gotifyToken) {
+        return false;
+    }
+    const baseUrl = String(config.gotifyUrl || '').replace(/\/+$/, '');
+    const alertPriority = Math.max(0, Math.min(10, Number(priority ?? config.gotifyPriority ?? 5) || 0));
+    try {
+        const response = await fetch(`${baseUrl}/message`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Gotify-Key': config.gotifyToken,
+            },
+            body: JSON.stringify({
+                title: String(title || 'Server Manager Portal'),
+                message: String(message || ''),
+                priority: alertPriority,
+            }),
+        });
+        if (!response.ok) {
+            const detail = await response.text().catch(() => '');
+            throw new Error(`Gotify returned HTTP ${response.status}${detail ? `: ${detail.slice(0, 160)}` : ''}`);
+        }
+        log(`Gotify alert sent: ${title}`);
+        await appendAuditLog('system_gotify_alert_sent', { username: 'System', email: '' }, null, { title });
+        return true;
+    } catch (error) {
+        log(`Error sending Gotify alert: ${error.message}`);
+        throw error;
+    }
+};
+
 const checkAndSendNotifications = async (config) => {
-    if (!config.smtpHost || !config.smtpUser || !config.smtpPass) {
+    const hasSmtp = !!(config.smtpHost && config.smtpUser && config.smtpPass);
+    const hasGotify = !!(config.gotifyEnabled && config.gotifyUrl && config.gotifyToken);
+    if (!hasSmtp && !hasGotify) {
         return;
     }
 
@@ -672,7 +770,7 @@ const checkAndSendNotifications = async (config) => {
     } catch (e) { }
 
     for (const user of users) {
-        if (!user.expiryDate || user.plexAccessStatus === 'revoked' || !user.email) {
+        if (!user.expiryDate || user.plexAccessStatus === 'revoked') {
             continue;
         }
 
@@ -727,12 +825,18 @@ const checkAndSendNotifications = async (config) => {
             `;
 
             try {
-                const sent = await sendEmail(config, user.email, subject, html);
-                if (sent) {
+                const emailSent = user.email && hasSmtp ? await sendEmail(config, user.email, subject, html) : false;
+                const gotifySent = hasGotify && alertRuleEnabled(config, 'expiryWarning') ? await sendGotifyAlert(
+                    config,
+                    'Portal access expiring',
+                    `${user.username} expires in ${days} day${days === 1 ? '' : 's'} (${new Date(user.expiryDate).toLocaleDateString()}).`,
+                    5,
+                ) : false;
+                if (emailSent || gotifySent) {
                     await logEmailSent(user.id, 'expiry_warning', user.expiryDate);
                 }
             } catch (err) {
-                log(`Failed to send email to ${user.username}: ${err.message}`);
+                log(`Failed to send expiry alert to ${user.username}: ${err.message}`);
             }
         }
     }
@@ -981,8 +1085,9 @@ const resolveCurrentAdmin = async (sessionUser, config = null) => {
 };
 
 const isPlexConfigured = (config = {}) => !!(config && config.plexToken && config.serverIdentifier);
+const isEmbyLikeMediaServer = (config = {}) => ['jellyfin', 'emby'].includes(String(config?.mediaServerType || '').toLowerCase());
 const isJellyfinConfigured = (config = {}) => (
-    String(config?.mediaServerType || '').toLowerCase() === 'jellyfin'
+    isEmbyLikeMediaServer(config)
     && !!(config?.jellyfinUrl && config?.jellyfinApiKey)
 );
 const isPortalConfigured = (config = {}) => isPlexConfigured(config) || isJellyfinConfigured(config);
@@ -1092,6 +1197,7 @@ const syncUsers = async (config) => {
     const usernameUserMap = new Map(localUsers.filter(u => u.username).map(u => [u.username.toLowerCase(), u]));
     const matchedLocalUserIds = new Set();
 
+    let newUserCount = 0;
     const syncedUsers = plexUsers.map(pUser => {
         if (isDeletedUser(deletedUsers, pUser)) {
             log(`Skipping deleted user during sync: ${pUser.username}`);
@@ -1113,6 +1219,7 @@ const syncUsers = async (config) => {
             return { ...existingUser, id: pUser.id, username: pUser.username, email: pUser.email, thumb: pUser.thumb, plexAccessStatus: 'active' };
         }
         log(`New user found: ${pUser.username}. Setting default unlimited expiry.`);
+        newUserCount++;
         appendAuditLog('plex_sync_new_user_added', null, pUser).catch(() => { });
         return {
             id: pUser.id,
@@ -1140,7 +1247,7 @@ const syncUsers = async (config) => {
     await saveFile(USERS_PATH, syncedUsers);
     const message = `Sync complete. Synced ${plexUsers.length} users.`;
     log(message);
-    return { message, count: plexUsers.length };
+    return { message, count: plexUsers.length, newUserCount };
 };
 
 const syncJellyfinUsers = async (config) => {
@@ -1178,6 +1285,7 @@ const syncJellyfinUsers = async (config) => {
     const usernameUserMap = new Map(localUsers.filter((user) => user.username).map((user) => [user.username.toLowerCase(), user]));
     const matchedLocalUserIds = new Set();
 
+    let newUserCount = 0;
     const syncedUsers = jellyfinUsers.map((jUser) => {
         const deletedLookup = { id: jUser.id, jellyfinId: jUser.jellyfinId, username: jUser.username, email: jUser.email };
         if (isDeletedUser(deletedUsers, deletedLookup)) {
@@ -1206,6 +1314,7 @@ const syncJellyfinUsers = async (config) => {
         }
 
         log(`New Jellyfin user found: ${jUser.username}. Setting default 1-day expiry.`);
+        newUserCount++;
         appendAuditLog('jellyfin_sync_new_user_added', null, jUser).catch(() => { });
         return {
             id: jUser.id,
@@ -1238,7 +1347,7 @@ const syncJellyfinUsers = async (config) => {
     await saveFile(USERS_PATH, syncedUsers);
     const message = `Sync complete. Synced ${jellyfinUsers.length} Jellyfin users.`;
     log(message);
-    return { message, count: jellyfinUsers.length };
+    return { message, count: jellyfinUsers.length, newUserCount };
 };
 
 const revokePlexAccess = async (user, config) => {
@@ -1531,6 +1640,12 @@ const checkAndRevoke = async (config) => {
             if (userInList) {
                 userInList.plexAccessStatus = 'revoked';
                 usersModified = true;
+                if (alertRuleEnabled(config, 'accessRevoked')) await sendGotifyAlert(
+                    config,
+                    'Portal access revoked',
+                    `${userInList.username || user.username} was revoked after expiry.`,
+                    8,
+                ).catch((e) => log(`Failed to send Gotify revocation alert: ${e.message}`));
 
                 // Send expiry notification email if not already sent
                 if (!userInList.expiryEmailSent) {
@@ -2177,7 +2292,7 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
     if ((requestUrl === 'https://yourdomain.com' || !requestUrl) && config.requestAppUrl) {
         requestUrl = config.requestAppUrl;
     }
-    let navOrder = config.navOrder || ['home', 'discover', 'users', 'status', 'analytics', 'mediastack', 'maintenance', 'request', 'settings', 'logout'];
+    let navOrder = config.navOrder || ['home', 'discover', 'users', 'status', 'analytics', 'downloads', 'mediastack', 'maintenance', 'request', 'settings', 'logout'];
     try {
         if (isJellyfinPortal && config?.jellyfinUrl && config?.jellyfinApiKey) {
             const profile = await getAdminProfile(config);
@@ -2302,7 +2417,7 @@ app.post('/api/admin/stop-impersonation', requireAuth, async (req, res) => {
 
 const DEFAULT_DASHBOARD_LAYOUT = {
     version: 1,
-    sections: ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'recentlyAdded'],
+    sections: ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'recentlyAdded', 'bazarrTools'],
     mainGridOrder: [
         'adminBadge', 'quickActions', 'accessStatus', 'announcement', 'referral',
         'newsletterPrefs', 'support', 'libraryStats', 'analytics'
@@ -2310,24 +2425,74 @@ const DEFAULT_DASHBOARD_LAYOUT = {
     recentlyAddedOrder: ['recentMovies', 'recentShows', 'recentMusic'],
     hiddenSections: [],
     hiddenWidgets: [],
+    widgetSizes: {},
     recentHistoryRows: 7,
     topWatchedRows: 2
 };
 
+const DASHBOARD_SECTIONS = ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'recentlyAdded', 'bazarrTools'];
+const DASHBOARD_MAIN_GRID_WIDGETS = [
+    'adminBadge', 'accessStatus', 'tempAccessSetup', 'quickActions', 'announcement',
+    'referral', 'newsletterPrefs', 'support', 'libraryStats', 'analytics'
+];
+const DASHBOARD_RECENTLY_ADDED_WIDGETS = ['recentMovies', 'recentShows', 'recentMusic'];
+const DASHBOARD_WIDGETS = [...DASHBOARD_MAIN_GRID_WIDGETS, ...DASHBOARD_RECENTLY_ADDED_WIDGETS];
+const DASHBOARD_WIDGET_SIZES = ['compact', 'normal', 'wide', 'full'];
+
+const DOWNLOAD_CLIENT_TYPES = ['qbittorrent', 'transmission', 'bittorrent'];
+const downloadClientLabel = (type) => ({
+    qbittorrent: 'qBittorrent',
+    transmission: 'Transmission',
+    bittorrent: 'BitTorrent',
+}[type] || 'Download Client');
+
+const normalizeDownloadClients = (incoming, existing = [], { resolveSecret = (v) => v, resolveConfigIntegrationUrl = (v) => String(v || '').trim(), secretMask = SECRET_MASK } = {}) => {
+    if (!Array.isArray(incoming)) return Array.isArray(existing) ? existing : [];
+    const existingById = new Map((Array.isArray(existing) ? existing : []).map((entry) => [String(entry.id), entry]));
+    return incoming.slice(0, 20).map((raw, index) => {
+        const type = DOWNLOAD_CLIENT_TYPES.includes(String(raw?.type || '').toLowerCase()) ? String(raw.type).toLowerCase() : 'qbittorrent';
+        const id = String(raw?.id || `${type}-${Date.now()}-${index}`);
+        const previous = existingById.get(id) || {};
+        const safeUrl = resolveConfigIntegrationUrl(raw?.url, previous.url || '');
+        const password = resolveSecret(raw?.password, previous.password || '');
+        return {
+            id,
+            type,
+            name: String(raw?.name || previous.name || downloadClientLabel(type)).trim() || downloadClientLabel(type),
+            url: safeUrl,
+            username: String(raw?.username ?? previous.username ?? ''),
+            password: password === secretMask ? (previous.password || '') : String(password || ''),
+            enabled: raw?.enabled !== false,
+        };
+    }).filter((entry) => entry.url || entry.username || entry.password || entry.name);
+};
+
+const maskDownloadClientsForApi = (clients = [], secretMask = SECRET_MASK) => (
+    (Array.isArray(clients) ? clients : []).map((entry) => ({
+        id: entry.id,
+        type: entry.type,
+        name: entry.name || downloadClientLabel(entry.type),
+        url: entry.url || '',
+        username: entry.username || '',
+        password: entry.password ? secretMask : '',
+        enabled: entry.enabled !== false,
+    }))
+);
+
 const migrateDashboardSections = (sections) => {
     const next = sections.filter((id, index) => id !== 'pendingRequests' || sections.indexOf('pendingRequests') === index);
-    if (next.includes('pendingRequests')) return next;
     const mainGridIndex = next.indexOf('mainGrid');
-    if (mainGridIndex >= 0) {
+    if (!next.includes('pendingRequests') && mainGridIndex >= 0) {
         next.splice(mainGridIndex + 1, 0, 'pendingRequests');
-        return next;
+    } else if (!next.includes('pendingRequests')) {
+        next.push('pendingRequests');
     }
-    return [...next, 'pendingRequests'];
+    if (!next.includes('bazarrTools')) next.push('bazarrTools');
+    return next;
 };
 
 const normalizeDashboardLayout = (raw) => {
-    const ALL_SECTIONS = ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'recentlyAdded'];
-    const uniqueValid = (values, allowed, fallback) => {
+    const uniqueValid = (values, allowed, fallback, fillMissing = true) => {
         if (!Array.isArray(values)) return [...fallback];
         const seen = new Set();
         const result = [];
@@ -2336,17 +2501,29 @@ const normalizeDashboardLayout = (raw) => {
             seen.add(value);
             result.push(value);
         });
-        allowed.forEach((id) => { if (!seen.has(id)) result.push(id); });
+        if (fillMissing) {
+            allowed.forEach((id) => { if (!seen.has(id)) result.push(id); });
+        }
         return result;
+    };
+    const normalizeWidgetSizes = (values) => {
+        if (!values || typeof values !== 'object') return {};
+        return Object.entries(values).reduce((result, [key, value]) => {
+            if (DASHBOARD_WIDGETS.includes(key) && DASHBOARD_WIDGET_SIZES.includes(value) && value !== 'normal') {
+                result[key] = value;
+            }
+            return result;
+        }, {});
     };
     const input = raw && typeof raw === 'object' ? raw : {};
     return {
         version: 1,
-        sections: migrateDashboardSections(uniqueValid(input.sections, ALL_SECTIONS, DEFAULT_DASHBOARD_LAYOUT.sections)),
-        mainGridOrder: [...DEFAULT_DASHBOARD_LAYOUT.mainGridOrder],
-        recentlyAddedOrder: [...DEFAULT_DASHBOARD_LAYOUT.recentlyAddedOrder],
-        hiddenSections: uniqueValid(input.hiddenSections, ALL_SECTIONS, []),
-        hiddenWidgets: [],
+        sections: migrateDashboardSections(uniqueValid(input.sections, DASHBOARD_SECTIONS, DEFAULT_DASHBOARD_LAYOUT.sections)),
+        mainGridOrder: uniqueValid(input.mainGridOrder, DASHBOARD_MAIN_GRID_WIDGETS, DEFAULT_DASHBOARD_LAYOUT.mainGridOrder),
+        recentlyAddedOrder: uniqueValid(input.recentlyAddedOrder, DASHBOARD_RECENTLY_ADDED_WIDGETS, DEFAULT_DASHBOARD_LAYOUT.recentlyAddedOrder),
+        hiddenSections: uniqueValid(input.hiddenSections, DASHBOARD_SECTIONS, [], false),
+        hiddenWidgets: uniqueValid(input.hiddenWidgets, DASHBOARD_WIDGETS, [], false),
+        widgetSizes: normalizeWidgetSizes(input.widgetSizes),
         recentHistoryRows: typeof input.recentHistoryRows === 'number' ? input.recentHistoryRows : DEFAULT_DASHBOARD_LAYOUT.recentHistoryRows,
         topWatchedRows: typeof input.topWatchedRows === 'number' ? input.topWatchedRows : DEFAULT_DASHBOARD_LAYOUT.topWatchedRows
     };
@@ -2361,10 +2538,25 @@ const normalizeSectionLayout = (raw) => {
     if (normalized.hiddenSections.length >= DEFAULT_DASHBOARD_LAYOUT.sections.length) {
         return { ...normalized, hiddenSections: [] };
     }
+    if (normalized.hiddenWidgets.length >= DASHBOARD_WIDGETS.length) {
+        return { ...normalized, hiddenWidgets: [] };
+    }
     return normalized;
 };
 
 // Config endpoints
+app.post('/api/config/dashboard-layout', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const dashboardLayout = normalizeSectionLayout(req.body?.dashboardLayout || req.body || {});
+        const nextConfig = { ...config, dashboardLayout };
+        await saveFile(CONFIG_PATH, nextConfig);
+        res.json({ success: true, dashboardLayout });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to save dashboard layout.' });
+    }
+});
+
 app.get('/api/config', requireAdmin, async (req, res) => {
     const config = normalizeArrConfig(await loadFile(CONFIG_PATH, {}));
     const isConfigured = isPortalConfigured(config);
@@ -2389,6 +2581,11 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 smtpFrom: config.smtpFrom || '',
                 smtpSecure: !!config.smtpSecure,
                 emailDaysBefore: config.emailDaysBefore || 7,
+                gotifyEnabled: !!config.gotifyEnabled,
+                gotifyUrl: config.gotifyUrl || '',
+                gotifyToken: config.gotifyToken ? SECRET_MASK : '',
+                gotifyPriority: config.gotifyPriority ?? 5,
+                alertRules: normalizeAlertRules(config.alertRules),
                 newsletterFrequency: config.newsletterFrequency || 'disabled',
                 newsletterDay: config.newsletterDay || 0,
                 inactiveCleanupEnabled: !!config.inactiveCleanupEnabled,
@@ -2403,6 +2600,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 radarrUrl: config.radarrUrl || '',
                 radarrApiKey: config.radarrApiKey ? SECRET_MASK : '',
                 arrInstances: maskArrInstancesForApi(config.arrInstances, SECRET_MASK),
+                downloadClients: maskDownloadClientsForApi(config.downloadClients, SECRET_MASK),
                 tautulliUrl: config.tautulliUrl || '',
                 tautulliApiKey: config.tautulliApiKey ? SECRET_MASK : '',
                 jellystatUrl: config.jellystatUrl || '',
@@ -2417,6 +2615,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 primaryColor: config.primaryColor || '#F7C600',
                 customLogoUrl: config.customLogoUrl || '',
                 brandingTheme: config.brandingTheme || 'plex',
+                sidebarIdentityPosition: ['top', 'bottom'].includes(String(config.sidebarIdentityPosition || '').toLowerCase()) ? String(config.sidebarIdentityPosition).toLowerCase() : 'bottom',
                 backgroundImageUrl: config.backgroundImageUrl || '',
                 useScrollRevealAnimations: !!config.useScrollRevealAnimations,
                 useCinematicLoading: !!config.useCinematicLoading,
@@ -2429,7 +2628,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 referralRewardDays: config.referralRewardDays || 7,
                 announcement: config.announcement || '',
                 hideStreamUsers: config.hideStreamUsers === true ? 'anonymous' : (config.hideStreamUsers || 'false'),
-                navOrder: config.navOrder || ['home', 'discover', 'users', 'status', 'analytics', 'mediastack', 'maintenance', 'request', 'settings', 'logout'],
+                navOrder: config.navOrder || ['home', 'discover', 'users', 'status', 'analytics', 'downloads', 'mediastack', 'maintenance', 'request', 'settings', 'logout'],
                 defaultLibraryIds: config.defaultLibraryIds || null,
                 use24HourClock: !!config.use24HourClock,
                 allowTemporaryAccess: !!config.allowTemporaryAccess,
@@ -2473,6 +2672,11 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 smtpFrom: '',
                 smtpSecure: false,
                 emailDaysBefore: 7,
+                gotifyEnabled: false,
+                gotifyUrl: '',
+                gotifyToken: '',
+                gotifyPriority: 5,
+                alertRules: DEFAULT_ALERT_RULES,
                 newsletterFrequency: 'disabled',
                 newsletterDay: 0,
                 inactiveCleanupEnabled: false,
@@ -2485,6 +2689,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 radarrUrl: '',
                 radarrApiKey: '',
                 arrInstances: [],
+                downloadClients: [],
                 tautulliUrl: '',
                 tautulliApiKey: '',
                 jellystatUrl: '',
@@ -2498,6 +2703,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 primaryColor: '#F7C600',
                 customLogoUrl: '',
                 brandingTheme: 'plex',
+                sidebarIdentityPosition: 'bottom',
                 backgroundImageUrl: '',
                 useScrollRevealAnimations: false,
                 useCinematicLoading: false,
@@ -2510,7 +2716,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 referralRewardDays: 7,
                 announcement: '',
                 hideStreamUsers: 'false',
-                navOrder: ['home', 'discover', 'users', 'status', 'analytics', 'mediastack', 'maintenance', 'request', 'settings', 'logout'],
+                navOrder: ['home', 'discover', 'users', 'status', 'analytics', 'downloads', 'mediastack', 'maintenance', 'request', 'settings', 'logout'],
                 defaultLibraryIds: null,
                 use24HourClock: false,
                 allowTemporaryAccess: false,
@@ -2542,19 +2748,20 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         token, mediaServerType, serverIdentifier, checkIntervalMinutes,
         plexServerUrl: plexServerUrlFromBody, jellyfinUrl, jellyfinApiKey,
         smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, smtpSecure, emailDaysBefore,
+        gotifyEnabled, gotifyUrl, gotifyToken, gotifyPriority, alertRules,
         newsletterFrequency, newsletterDay, publicDomain, requestUrl, contactUrl, contactWhatsApp, contactEmail,
-        sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, arrInstances, tautulliUrl, tautulliApiKey, jellystatUrl, jellystatApiKey,
+        sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, arrInstances, downloadClients, tautulliUrl, tautulliApiKey, jellystatUrl, jellystatApiKey,
         requestAppType, requestAppUrl, requestAppFetchUrl, requestAppApiKey,
         requestDiscoverRegion, requestDiscoverLanguage, requestHideAvailableMedia,
         inactiveCleanupEnabled, inactiveCleanupDays,
-        primaryColor, customLogoUrl, brandingTheme, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges, showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds,
+        primaryColor, customLogoUrl, brandingTheme, sidebarIdentityPosition, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges, showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds,
         showPublicStatusMonitor, showPublicLibraryStats,
         autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, upgraderEnabled, upgraderDefaultPreset, upgraderMinSizeGB, upgraderAutomationEnabled, upgraderProfileMap, upgraderMaxActionsPerHour, upgraderDefaultSort, upgraderDrawerPosition, dashboardLayout,
         showUsernamesInAnalytics, useTrendingSlideshowOnLogin
     } = req.body;
 
     const existingConfig = await loadFile(CONFIG_PATH, {});
-    const normalizedMediaServerType = ['plex', 'jellyfin'].includes(String(mediaServerType || '').toLowerCase())
+    const normalizedMediaServerType = ['plex', 'jellyfin', 'emby'].includes(String(mediaServerType || '').toLowerCase())
         ? String(mediaServerType || '').toLowerCase()
         : (existingConfig.mediaServerType || 'plex');
     const normalizedToken = normalizePlexToken(token);
@@ -2566,7 +2773,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
     if (normalizedMediaServerType === 'plex' && (!normalizedToken || !normalizedServerIdentifier)) {
         return res.status(400).json({ error: 'Plex token and serverIdentifier are required.' });
     }
-    if (normalizedMediaServerType === 'jellyfin' && (!jellyfinUrl || !jellyfinApiKey)) {
+    if (normalizedMediaServerType !== 'plex' && (!jellyfinUrl || !jellyfinApiKey)) {
         return res.status(400).json({ error: 'Jellyfin URL and API key are required.' });
     }
 
@@ -2586,7 +2793,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
             return res.status(403).json({ error: 'Forbidden: Invalid or expired session. Please log in again.' });
         }
     } else if (!canRunInitialSetup(req)) {
-        if (normalizedMediaServerType === 'jellyfin') {
+        if (normalizedMediaServerType !== 'plex') {
             return res.status(403).json({ error: 'Initial setup is restricted. Configure SETUP_TOKEN or run setup from localhost.' });
         }
         const candidatePlexServerUrl = (plexServerUrlFromBody !== undefined
@@ -2608,6 +2815,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
     let safeRequestAppUrl = '';
     let safeRequestAppFetchUrl = '';
     let safeJellyfinUrl = '';
+    let safeGotifyUrl = '';
     const resolveConfigIntegrationUrl = (incoming, existing) => {
         const existingValue = typeof existing === 'string' ? existing : '';
         // Keep existing URL as-is when caller did not change the value.
@@ -2625,6 +2833,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         safeRequestAppUrl = resolveConfigIntegrationUrl(requestAppUrl, existingConfig.requestAppUrl || '');
         safeRequestAppFetchUrl = resolveConfigIntegrationUrl(requestAppFetchUrl, existingConfig.requestAppFetchUrl || '');
         safeJellyfinUrl = resolveConfigIntegrationUrl(jellyfinUrl, existingConfig.jellyfinUrl || '');
+        safeGotifyUrl = resolveConfigIntegrationUrl(gotifyUrl, existingConfig.gotifyUrl || '');
     } catch (e) {
         return res.status(400).json({ error: `Invalid integration URL: ${e.message}` });
     }
@@ -2651,8 +2860,8 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
     const configDraft = {
         ...existingConfig,
         mediaServerType: normalizedMediaServerType,
-        plexToken: normalizedMediaServerType === 'jellyfin' ? resolveSecret(token, existingConfig.plexToken) : resolveSecret(normalizedToken, existingConfig.plexToken),
-        serverIdentifier: normalizedMediaServerType === 'jellyfin' ? (normalizedServerIdentifier || existingConfig.serverIdentifier || '') : normalizedServerIdentifier,
+        plexToken: normalizedMediaServerType !== 'plex' ? resolveSecret(token, existingConfig.plexToken) : resolveSecret(normalizedToken, existingConfig.plexToken),
+        serverIdentifier: normalizedMediaServerType !== 'plex' ? (normalizedServerIdentifier || existingConfig.serverIdentifier || '') : normalizedServerIdentifier,
         plexServerUrl: (plexServerUrlFromBody !== undefined ? String(plexServerUrlFromBody || '').trim() : existingConfig.plexServerUrl) || '',
         jellyfinUrl: safeJellyfinUrl,
         jellyfinApiKey: resolveSecret(jellyfinApiKey, existingConfig.jellyfinApiKey),
@@ -2664,6 +2873,11 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         smtpFrom: smtpFrom || '',
         smtpSecure: !!smtpSecure,
         emailDaysBefore: parseInt(emailDaysBefore, 10) || 7,
+        gotifyEnabled: !!gotifyEnabled,
+        gotifyUrl: safeGotifyUrl,
+        gotifyToken: resolveSecret(gotifyToken, existingConfig.gotifyToken),
+        gotifyPriority: Math.max(0, Math.min(10, Number(gotifyPriority ?? existingConfig.gotifyPriority ?? 5) || 0)),
+        alertRules: normalizeAlertRules(alertRules ?? existingConfig.alertRules),
         newsletterFrequency: newsletterFrequency || 'disabled',
         newsletterDay: parseInt(newsletterDay, 10) || 0,
         inactiveCleanupEnabled: !!inactiveCleanupEnabled,
@@ -2674,6 +2888,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         contactWhatsApp: contactWhatsApp || '',
         contactEmail: contactEmail || '',
         arrInstances: nextArrInstances,
+        downloadClients: normalizeDownloadClients(downloadClients, existingConfig.downloadClients, { resolveSecret, resolveConfigIntegrationUrl, secretMask: SECRET_MASK }),
         tautulliUrl: safeTautulliUrl,
         tautulliApiKey: resolveSecret(tautulliApiKey, existingConfig.tautulliApiKey),
         jellystatUrl: safeJellystatUrl,
@@ -2693,7 +2908,8 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
             : !!existingConfig.requestHideAvailableMedia,
         primaryColor: primaryColor || '#F7C600',
         customLogoUrl: customLogoUrl || '',
-        brandingTheme: ['plex', 'slate', 'nordic'].includes(String(brandingTheme || '').toLowerCase()) ? String(brandingTheme).toLowerCase() : (existingConfig.brandingTheme || 'plex'),
+        brandingTheme: ['plex', 'slate', 'nordic', 'jellyfin', 'emerald', 'midnight', 'crimson', 'amethyst', 'sunset', 'ocean', 'rose', 'royal', 'graphite', 'cyberlime', 'aurora'].includes(String(brandingTheme || '').toLowerCase()) ? String(brandingTheme).toLowerCase() : (existingConfig.brandingTheme || 'plex'),
+        sidebarIdentityPosition: ['top', 'bottom'].includes(String(sidebarIdentityPosition || '').toLowerCase()) ? String(sidebarIdentityPosition).toLowerCase() : (existingConfig.sidebarIdentityPosition || 'bottom'),
         backgroundImageUrl: backgroundImageUrl || '',
         useScrollRevealAnimations: !!useScrollRevealAnimations,
         useCinematicLoading: !!useCinematicLoading,
@@ -2706,7 +2922,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         referralRewardDays: parseInt(referralRewardDays, 10) || 7,
         announcement: announcement || '',
         hideStreamUsers: hideStreamUsers === true ? 'anonymous' : (hideStreamUsers === false ? 'false' : (hideStreamUsers || 'false')),
-        navOrder: Array.isArray(navOrder) ? navOrder : existingConfig.navOrder || ['home', 'discover', 'users', 'status', 'analytics', 'mediastack', 'maintenance', 'request', 'settings', 'logout'],
+        navOrder: Array.isArray(navOrder) ? navOrder : existingConfig.navOrder || ['home', 'discover', 'users', 'status', 'analytics', 'downloads', 'mediastack', 'maintenance', 'request', 'settings', 'logout'],
         defaultLibraryIds: Array.isArray(defaultLibraryIds) ? defaultLibraryIds : null,
         use24HourClock: !!use24HourClock,
         allowTemporaryAccess: !!allowTemporaryAccess,
@@ -2741,11 +2957,11 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
     };
     const config = migrateArrConfig(configDraft);
     await saveFile(CONFIG_PATH, config);
-    syncArrServicesInStatusConfig(config);
+    syncIntegrationServicesInStatusConfig(config);
     try {
         await saveFile(STATUS_CONFIG_PATH, statusConfig);
     } catch (e) {
-        log(`Failed to sync ARR services into status config: ${e.message}`);
+        log(`Failed to sync integration services into status config: ${e.message}`);
     }
     await syncAdminPlexIdFromConfigToken(config, { persist: true });
     // Invalidate caches tied to the Plex token/server so changes take effect immediately.
@@ -2827,6 +3043,7 @@ app.get('/api/config/public', async (req, res) => {
             primaryColor: config.primaryColor || '#F7C600',
             customLogoUrl: config.customLogoUrl || '',
             brandingTheme: config.brandingTheme || 'plex',
+            sidebarIdentityPosition: ['top', 'bottom'].includes(String(config.sidebarIdentityPosition || '').toLowerCase()) ? String(config.sidebarIdentityPosition).toLowerCase() : 'bottom',
             backgroundImageUrl: config.backgroundImageUrl || '',
             useScrollRevealAnimations: !!config.useScrollRevealAnimations,
             useCinematicLoading: !!config.useCinematicLoading,
@@ -2854,6 +3071,7 @@ app.get('/api/config/public', async (req, res) => {
             primaryColor: '#F7C600',
             customLogoUrl: '',
             brandingTheme: 'plex',
+            sidebarIdentityPosition: 'bottom',
             backgroundImageUrl: '',
             useScrollRevealAnimations: false,
             useCinematicLoading: false,
@@ -2895,27 +3113,51 @@ app.get('/api/release-notes', async (req, res) => {
     }
 });
 
-app.post('/api/config/logo', requireAdmin, express.raw({ type: 'image/*', limit: '5mb' }), async (req, res) => {
+const requireLogoUploadAccess = async (req, res, next) => {
+    const config = await loadFile(CONFIG_PATH, {});
+    if (!isPortalConfigured(config) && canRunInitialSetup(req)) {
+        return next();
+    }
+    return requireAdmin(req, res, next);
+};
+
+const saveUploadedBrandingImage = async (req, res, assetName, responseKey) => {
     try {
         const buf = req.body;
         if (!Buffer.isBuffer(buf) || buf.length < 4) {
             return res.status(400).json({ error: 'Invalid image file.' });
         }
-        // Verify PNG (89 50 4E 47) or JPEG (FF D8 FF) magic bytes — Content-Type header alone is spoofable
-        const isPng  = buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47;
+        // Verify PNG, JPEG, or WebP magic bytes — Content-Type header and file extension are spoofable.
+        const isPng = buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47;
         const isJpeg = buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF;
-        if (!isPng && !isJpeg) {
-            return res.status(400).json({ error: 'Invalid image format. Only PNG and JPEG files are accepted.' });
+        const isWebp = buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46
+            && buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50;
+        if (!isPng && !isJpeg && !isWebp) {
+            const signature = buf.subarray(0, 12).toString('hex').match(/.{1,2}/g)?.join(' ') || 'unknown';
+            log(`Rejected ${assetName} upload: unsupported image signature ${signature}`);
+            return res.status(400).json({ error: 'Invalid image format. Only PNG, JPEG, and WebP files are accepted.' });
         }
-        const logoDir = path.join(process.cwd(), 'static');
-        await fs.mkdir(logoDir, { recursive: true });
-        const logoPath = path.join(logoDir, 'logo.png');
-        await fs.writeFile(logoPath, buf);
-        res.json({ message: 'Logo uploaded successfully.' });
+        const assetDir = path.join(process.cwd(), 'static');
+        await fs.mkdir(assetDir, { recursive: true });
+        const extension = isWebp ? 'webp' : (isJpeg ? 'jpg' : 'png');
+        await Promise.all(['png', 'jpg', 'jpeg', 'webp']
+            .filter((ext) => ext !== extension)
+            .map((ext) => fs.unlink(path.join(assetDir, `${assetName}.${ext}`)).catch(() => null)));
+        const assetPath = path.join(assetDir, `${assetName}.${extension}`);
+        await fs.writeFile(assetPath, buf);
+        res.json({ message: `${assetName === 'logo' ? 'Logo' : 'Background'} uploaded successfully.`, [responseKey]: `/static/${assetName}.${extension}` });
     } catch (e) {
-        log('Failed to upload logo: ' + e.message);
-        res.status(500).json({ error: 'Failed to upload logo.' });
+        log(`Failed to upload ${assetName}: ${e.message}`);
+        res.status(500).json({ error: `Failed to upload ${assetName}.` });
     }
+};
+
+app.post('/api/config/logo', requireLogoUploadAccess, express.raw({ type: ['image/*', 'application/octet-stream'], limit: '5mb' }), async (req, res) => {
+    await saveUploadedBrandingImage(req, res, 'logo', 'logoUrl');
+});
+
+app.post('/api/config/background', requireLogoUploadAccess, express.raw({ type: ['image/*', 'application/octet-stream'], limit: '10mb' }), async (req, res) => {
+    await saveUploadedBrandingImage(req, res, 'background', 'backgroundImageUrl');
 });
 
 app.post('/api/config/test-email', requireAdmin, async (req, res) => {
@@ -2979,6 +3221,44 @@ app.post('/api/config/test-email', requireAdmin, async (req, res) => {
     } catch (error) {
         log(`Failed to send test email: ${error.message}`);
         res.status(500).json({ error: `SMTP test failed: ${error.message}` });
+    }
+});
+
+app.post('/api/config/test-gotify', requireAdmin, async (req, res) => {
+    const { gotifyUrl, gotifyToken, gotifyPriority } = req.body || {};
+    if (!gotifyUrl || !gotifyToken) {
+        return res.status(400).json({ error: 'Gotify URL and application token are required.' });
+    }
+
+    const storedConfig = await loadFile(CONFIG_PATH, {});
+    let safeGotifyUrl = '';
+    try {
+        const incomingUrl = String(gotifyUrl || '').trim();
+        safeGotifyUrl = incomingUrl === String(storedConfig.gotifyUrl || '').trim()
+            ? resolveIntegrationUrlForFetch(storedConfig.gotifyUrl || incomingUrl)
+            : sanitizeIntegrationUrl(incomingUrl);
+    } catch (e) {
+        return res.status(400).json({ error: `Invalid Gotify URL: ${e.message}` });
+    }
+
+    const effectiveGotifyToken = gotifyToken === SECRET_MASK
+        ? storedConfig.gotifyToken || ''
+        : String(gotifyToken || '');
+
+    try {
+        await sendGotifyAlert(
+            {
+                gotifyEnabled: true,
+                gotifyUrl: safeGotifyUrl,
+                gotifyToken: effectiveGotifyToken,
+                gotifyPriority: Math.max(0, Math.min(10, Number(gotifyPriority ?? 5) || 0)),
+            },
+            'Server Manager Portal test',
+            'Gotify alerts are connected and ready.',
+        );
+        res.json({ message: 'Gotify test alert sent successfully!' });
+    } catch (error) {
+        res.status(502).json({ error: `Gotify test failed: ${error.message}` });
     }
 });
 
@@ -3087,6 +3367,9 @@ app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
         jellyfinUrl, jellyfinApiKey,
         sonarrUrl, sonarrApiKey,
         radarrUrl, radarrApiKey,
+        lidarrUrl, lidarrApiKey,
+        bazarrUrl, bazarrApiKey,
+        downloadClientId, downloadClientType, downloadClientUrl, downloadClientUsername, downloadClientPassword,
         tautulliUrl, tautulliApiKey,
         jellystatUrl, jellystatApiKey,
         requestAppType, requestAppUrl, requestAppFetchUrl, requestAppApiKey,
@@ -3117,27 +3400,30 @@ app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
             return res.json({ ok: true, message, details: { version: version || null, machineIdentifier: container.machineIdentifier || serverId, uri } });
         }
 
-        if (type === 'jellyfin') {
+        if (type === 'jellyfin' || type === 'emby') {
+            const label = type === 'emby' ? 'Emby' : 'Jellyfin';
             const url = resolveIntegrationUrlForFetch(resolveTestCredential(jellyfinUrl, stored.jellyfinUrl));
             const apiKey = resolveTestCredential(jellyfinApiKey, stored.jellyfinApiKey);
-            if (!url || !apiKey) return res.status(400).json({ error: 'Jellyfin URL and API key are required.' });
+            if (!url || !apiKey) return res.status(400).json({ error: `${label} URL and API key are required.` });
             const infoRes = await fetchWithTimeout(`${url}/System/Info`, {
                 headers: { Accept: 'application/json', 'X-Emby-Token': apiKey },
             }, 12000);
-            if (!infoRes.ok) throw new Error(`Jellyfin returned HTTP ${infoRes.status}`);
+            if (!infoRes.ok) throw new Error(`${label} returned HTTP ${infoRes.status}`);
             const data = await infoRes.json().catch(() => ({}));
             const version = data.Version || data.version || '?';
-            return res.json({ ok: true, message: `Jellyfin v${version} connected`, details: { version, serverName: data.ServerName || data.LocalAddress || null } });
+            return res.json({ ok: true, message: `${label} v${version} connected`, details: { version, serverName: data.ServerName || data.LocalAddress || null } });
         }
 
-        if (type === 'sonarr' || type === 'radarr') {
+        if (['sonarr', 'radarr', 'lidarr', 'bazarr'].includes(String(type || '').toLowerCase())) {
+            const arrType = String(type || '').toLowerCase();
             const normalized = normalizeArrConfig(stored);
             const instanceFromId = req.body?.instanceId ? getArrInstance(normalized, req.body.instanceId) : null;
-            const defaultInstance = getDefaultArrInstance(normalized, type);
-            const legacyUrl = type === 'sonarr' ? sonarrUrl : radarrUrl;
-            const legacyKey = type === 'sonarr' ? sonarrApiKey : radarrApiKey;
-            const storedUrl = type === 'sonarr' ? stored.sonarrUrl : stored.radarrUrl;
-            const storedKey = type === 'sonarr' ? stored.sonarrApiKey : stored.radarrApiKey;
+            const defaultInstance = getDefaultArrInstance(normalized, arrType);
+            const legacyUrl = ({ sonarr: sonarrUrl, radarr: radarrUrl, lidarr: lidarrUrl, bazarr: bazarrUrl })[arrType];
+            const legacyKey = ({ sonarr: sonarrApiKey, radarr: radarrApiKey, lidarr: lidarrApiKey, bazarr: bazarrApiKey })[arrType];
+            const storedUrl = arrType === 'sonarr' ? stored.sonarrUrl : arrType === 'radarr' ? stored.radarrUrl : '';
+            const storedKey = arrType === 'sonarr' ? stored.sonarrApiKey : arrType === 'radarr' ? stored.radarrApiKey : '';
+            const labelBase = ({ sonarr: 'Sonarr', radarr: 'Radarr', lidarr: 'Lidarr', bazarr: 'Bazarr' })[arrType] || 'ARR';
             const url = resolveIntegrationUrlForTest(
                 legacyUrl || instanceFromId?.url,
                 instanceFromId?.url || defaultInstance?.url || storedUrl
@@ -3146,14 +3432,51 @@ app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
                 legacyKey || instanceFromId?.apiKey,
                 instanceFromId?.apiKey || defaultInstance?.apiKey || storedKey
             );
-            if (!url || !apiKey) return res.status(400).json({ error: `${type === 'sonarr' ? 'Sonarr' : 'Radarr'} URL and API key are required.` });
-            const statusRes = await fetchWithTimeout(`${url}/api/v3/system/status`, {
-                headers: { 'X-Api-Key': apiKey, Accept: 'application/json' },
+            if (!url || !apiKey) return res.status(400).json({ error: `${labelBase} URL and API key are required.` });
+            const statusPath = arrType === 'bazarr'
+                ? `/api/system/status?apikey=${encodeURIComponent(apiKey)}`
+                : arrType === 'lidarr'
+                    ? '/api/v1/system/status'
+                    : '/api/v3/system/status';
+            const statusRes = await fetchWithTimeout(`${url}${statusPath}`, {
+                headers: { 'X-Api-Key': apiKey, 'X-API-KEY': apiKey, Accept: 'application/json' },
             }, 12000);
-            if (!statusRes.ok) throw new Error(`${type === 'sonarr' ? 'Sonarr' : 'Radarr'} returned HTTP ${statusRes.status}`);
-            const data = await statusRes.json();
-            const label = instanceFromId?.name || defaultInstance?.name || (type === 'sonarr' ? 'Sonarr' : 'Radarr');
-            return res.json({ ok: true, message: `${label} v${data.version || '?'} connected`, details: { version: data.version, appName: data.appName, instanceId: instanceFromId?.id || defaultInstance?.id || null } });
+            if (!statusRes.ok) throw new Error(`${labelBase} returned HTTP ${statusRes.status}`);
+            const data = await statusRes.json().catch(() => ({}));
+            const version = arrType === 'bazarr'
+                ? (data?.data?.bazarr_version || data?.data?.package_version || data?.bazarr_version || data?.package_version || data?.version)
+                : data.version;
+            const label = instanceFromId?.name || defaultInstance?.name || labelBase;
+            return res.json({ ok: true, message: `${label} v${version || '?'} connected`, details: { version: version || null, appName: data.appName || data?.data?.appName || null, instanceId: instanceFromId?.id || defaultInstance?.id || null } });
+        }
+
+        if (type === 'downloadClient') {
+            const existing = downloadClientId
+                ? (Array.isArray(stored.downloadClients) ? stored.downloadClients : []).find((entry) => String(entry.id) === String(downloadClientId))
+                : null;
+            const clientType = DOWNLOAD_CLIENT_TYPES.includes(String(downloadClientType || existing?.type || '').toLowerCase())
+                ? String(downloadClientType || existing?.type).toLowerCase()
+                : 'qbittorrent';
+            const client = {
+                id: String(downloadClientId || existing?.id || 'test'),
+                type: clientType,
+                name: existing?.name || downloadClientLabel(clientType),
+                url: resolveIntegrationUrlForTest(downloadClientUrl, existing?.url),
+                username: String(downloadClientUsername ?? existing?.username ?? ''),
+                password: resolveTestCredential(downloadClientPassword, existing?.password || ''),
+                enabled: true,
+            };
+            if (!client.url) return res.status(400).json({ error: `${downloadClientLabel(clientType)} URL is required.` });
+            const torrents = client.type === 'transmission'
+                ? await fetchTransmissionTorrents(client)
+                : client.type === 'bittorrent'
+                    ? await fetchBitTorrentTorrents(client)
+                    : await fetchQbitTorrents(client);
+            return res.json({
+                ok: true,
+                message: `${downloadClientLabel(client.type)} connected (${Array.isArray(torrents) ? torrents.length : 0} torrents)`,
+                details: { torrentCount: Array.isArray(torrents) ? torrents.length : 0, clientType: client.type },
+            });
         }
 
         if (type === 'tautulli') {
@@ -4238,9 +4561,33 @@ app.post('/api/sync', requireAdmin, async (req, res) => {
     try {
         const result = isJellyfinPortal ? await syncJellyfinUsers(config) : await syncUsers(config);
         await appendAuditLog(isJellyfinPortal ? 'jellyfin_sync_completed' : 'plex_sync_completed', req.user || null, null, { count: result.count });
+        if (result.newUserCount > 0 && alertRuleEnabled(config, 'newUserSynced')) {
+            await sendGotifyAlert(
+                config,
+                `${isJellyfinPortal ? 'Jellyfin' : 'Plex'} sync found new users`,
+                `${result.newUserCount} new user${result.newUserCount === 1 ? '' : 's'} added during sync.`,
+                5,
+            ).catch((e) => log(`Failed to send Gotify new-user sync alert: ${e.message}`));
+        }
+        if (alertRuleEnabled(config, 'syncSuccess')) {
+            await sendGotifyAlert(
+                config,
+                `${isJellyfinPortal ? 'Jellyfin' : 'Plex'} sync completed`,
+                result.message || `Synced ${result.count} users.`,
+                2,
+            ).catch((e) => log(`Failed to send Gotify sync success alert: ${e.message}`));
+        }
         res.json(result);
     } catch (error) {
         await appendAuditLog(isJellyfinPortal ? 'jellyfin_sync_failed' : 'plex_sync_failed', req.user || null, null, { error: error.message });
+        if (alertRuleEnabled(config, 'syncFailure')) {
+            await sendGotifyAlert(
+                config,
+                `${isJellyfinPortal ? 'Jellyfin' : 'Plex'} sync failed`,
+                error.message || 'Sync failed.',
+                8,
+            ).catch((e) => log(`Failed to send Gotify sync failure alert: ${e.message}`));
+        }
         res.status(500).json({ error: error.message });
     }
 });
@@ -5656,7 +6003,7 @@ const decorateTaskForConfig = (task, config = {}) => {
     const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
     const next = { ...task };
     if (next.id === 'syncPlexUsers') {
-        if (mediaServerType === 'jellyfin') {
+        if (mediaServerType !== 'plex') {
             next.name = 'Sync Jellyfin Users';
             next.description = 'Fetches latest user data and profile images from Jellyfin.';
         } else {
@@ -5665,12 +6012,12 @@ const decorateTaskForConfig = (task, config = {}) => {
         }
     }
     if (next.id === 'checkAndRevoke') {
-        next.description = mediaServerType === 'jellyfin'
+        next.description = mediaServerType !== 'plex'
             ? 'Revokes expired portal access for Jellyfin users.'
             : 'Removes Plex access for expired users.';
     }
     if (next.id === 'checkAndCleanupInactive') {
-        next.description = mediaServerType === 'jellyfin'
+        next.description = mediaServerType !== 'plex'
             ? 'Revokes portal access for Jellyfin users who have not watched anything recently.'
             : 'Revokes access for users who have not watched anything recently.';
     }
@@ -5680,7 +6027,7 @@ const decorateTaskForConfig = (task, config = {}) => {
 const getTasksSnapshot = (config = {}) => {
     const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
     const systemJobList = Object.values(systemJobs)
-        .filter(job => !(mediaServerType === 'jellyfin' && job.id === 'plexStats'));
+        .filter(job => !(mediaServerType !== 'plex' && job.id === 'plexStats'));
     return [
         ...tasksInfo.map(task => decorateTaskForConfig(task, config)),
         ...systemJobList.map(job => ({ ...job }))
@@ -5799,8 +6146,11 @@ app.get('/api/admin/diagnostics', requireAdmin, async (req, res) => {
                 plexConfigured: !!(config.plexToken && config.serverIdentifier),
                 jellyfinConfigured: !!(config.jellyfinUrl && config.jellyfinApiKey),
                 smtpConfigured: !!(config.smtpHost && config.smtpUser && config.smtpPass),
+                gotifyConfigured: !!(config.gotifyEnabled && config.gotifyUrl && config.gotifyToken),
                 sonarrConfigured: getArrInstanceCounts(config).sonarr.ready > 0,
                 radarrConfigured: getArrInstanceCounts(config).radarr.ready > 0,
+                lidarrConfigured: getArrInstanceCounts(config).lidarr.ready > 0,
+                bazarrConfigured: getArrInstanceCounts(config).bazarr.ready > 0,
                 arrInstanceCounts: getArrInstanceCounts(config),
                 tautulliConfigured: !!(config.tautulliUrl && config.tautulliApiKey),
                 jellystatConfigured: !!(config.jellystatUrl && config.jellystatApiKey),
@@ -6416,6 +6766,7 @@ app.get('/api/status', publicReadRateLimit, async (req, res) => {
         name: service.name,
         groupId: service.groupId,
         type: service.type || 'web',
+        clientType: service.clientType || null,
         description: service.description || ''
     }));
     const groups = (statusConfig.groups || []).map(group => ({ id: group.id, name: group.name, order: group.order }));
@@ -6453,6 +6804,8 @@ app.post('/api/status/config', requireAuth, requireAdmin, async (req, res) => {
                 url: normalizedUrl,
                 port: Number.isFinite(Number(service.port)) ? Number(service.port) : undefined,
                 type: String(service.type || 'web'),
+                clientType: service.clientType ? String(service.clientType) : undefined,
+                clientId: service.clientId ? String(service.clientId) : undefined,
                 groupId: String(service.groupId || 'core'),
                 description: String(service.description || '')
             });
@@ -6870,7 +7223,8 @@ const jellyfinItemUrl = (config, itemId) => {
 
 const mapJellyfinItemForDiscover = (config, item = {}, type = '') => {
     const id = item.Id || '';
-    const posterId = type === 'episode' && item.SeriesId ? item.SeriesId : id;
+    const isEpisode = String(type || item.Type || '').toLowerCase() === 'episode';
+    const posterId = isEpisode ? (item.SeriesId || item.ParentId || id) : id;
     const title = type === 'episode'
         ? (item.SeriesName ? `${item.SeriesName} - ${item.Name}` : item.Name)
         : (item.Name || 'Untitled');
@@ -6892,6 +7246,7 @@ const mapJellyfinItemForDiscover = (config, item = {}, type = '') => {
         year: item.ProductionYear,
         thumb: posterId,
         thumbUrl: posterId ? withBasePath(`/api/jellyfin/image?itemId=${encodeURIComponent(posterId)}&width=300&height=${type === 'music' ? 300 : 450}`) : '',
+        posterFallbackUrl: isEpisode && id && id !== posterId ? withBasePath(`/api/jellyfin/image?itemId=${encodeURIComponent(id)}&width=300&height=450`) : '',
         addedAt: item.DateCreated ? Date.parse(item.DateCreated) / 1000 : 0,
         tags: [...new Set(tags)].slice(0, 4),
         plexUrl: jellyfinItemUrl(config, id),
@@ -7041,8 +7396,11 @@ app.get('/api/jellyfin/dashboard', requireAuth, requireMember, async (req, res) 
                     type: item.Type,
                     grandparentTitle: item.SeriesName || item.Album || null,
                     year: item.ProductionYear,
-                    thumb: item.Id,
-                    thumbUrl: item.Id ? withBasePath(`/api/jellyfin/image?itemId=${encodeURIComponent(item.Id)}&width=300&height=450`) : '',
+                    thumb: item.Type === 'Episode' ? (item.SeriesId || item.ParentId || item.Id) : item.Id,
+                    thumbUrl: (item.Type === 'Episode' ? (item.SeriesId || item.ParentId || item.Id) : item.Id)
+                        ? withBasePath(`/api/jellyfin/image?itemId=${encodeURIComponent(item.Type === 'Episode' ? (item.SeriesId || item.ParentId || item.Id) : item.Id)}&width=300&height=450`)
+                        : '',
+                    posterFallbackUrl: item.Type === 'Episode' && item.Id ? withBasePath(`/api/jellyfin/image?itemId=${encodeURIComponent(item.Id)}&width=300&height=450`) : '',
                     user: (isHidden && hideConfig === 'hidden') ? null : (isHidden ? 'Anonymous' : (session.UserName || 'Unknown User')),
                     userThumb: (!isHidden && session.UserId) ? withBasePath(`/api/jellyfin/user-image?userId=${encodeURIComponent(session.UserId)}`) : null,
                     playerProduct: session.Client || 'Jellyfin',
@@ -8045,7 +8403,7 @@ app.get('/api/plex/analytics/day', requireAuth, requireMember, async (req, res) 
 
         const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
 
-        if (mediaServerType === 'jellyfin') {
+        if (mediaServerType !== 'plex') {
             return res.status(501).json({ error: 'Specific date views are currently only supported for Plex/Tautulli' });
         } else {
             if (!config.tautulliUrl || !config.tautulliApiKey) {
@@ -8704,9 +9062,17 @@ const buildMissingFrontendAssetsHtml = () => `<!DOCTYPE html>
 </body>
 </html>`;
 
-app.use('/static', express.static(staticDir));
+const staticAssetOptions = {
+    setHeaders: (res, filePath) => {
+        if (/\.(js|css|html)$/i.test(filePath)) {
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+        }
+    },
+};
+app.use('/static', express.static(staticDir, staticAssetOptions));
 if (BASE_PATH) {
-    app.use(`${BASE_PATH}/static`, express.static(staticDir));
+    app.use(`${BASE_PATH}/static`, express.static(staticDir, staticAssetOptions));
 }
 
 // Serve optional legacy stylesheet from the root directory
@@ -9134,19 +9500,28 @@ const startBackgroundService = async () => {
 
 // --- Status App Functions ---
 async function loadStatusState() {
+    let appConfig = null;
     try {
         const configData = await fs.readFile(STATUS_CONFIG_PATH, 'utf-8');
         statusConfig = JSON.parse(configData);
     } catch (e) {
-        const appConfig = await loadFile(CONFIG_PATH, {});
+        appConfig = await loadFile(CONFIG_PATH, {});
         statusConfig = createDefaultStatusConfig(appConfig);
         await saveFile(STATUS_CONFIG_PATH, statusConfig);
     }
 
     if (!Array.isArray(statusConfig.services) || statusConfig.services.length === 0) {
-        const appConfig = await loadFile(CONFIG_PATH, {});
+        appConfig = appConfig || await loadFile(CONFIG_PATH, {});
         statusConfig = createDefaultStatusConfig(appConfig);
         await saveFile(STATUS_CONFIG_PATH, statusConfig);
+    }
+
+    try {
+        appConfig = appConfig || await loadFile(CONFIG_PATH, {});
+        syncIntegrationServicesInStatusConfig(appConfig);
+        await saveFile(STATUS_CONFIG_PATH, statusConfig);
+    } catch (e) {
+        log(`Failed to sync integration services during status load: ${e.message}`);
     }
 
     try {
@@ -9163,7 +9538,36 @@ async function saveHealthData() {
     } catch (e) { }
 }
 
-function performSingleProbe(service) {
+async function performDownloadClientProbe(service) {
+    const config = await loadFile(CONFIG_PATH, {});
+    const clientId = String(service.clientId || '').trim();
+    const client = (Array.isArray(config.downloadClients) ? config.downloadClients : [])
+        .find((entry) => String(entry.id || '') === clientId);
+    if (!client || client.enabled === false || !client.url) {
+        return { status: 'offline', latency: 0, httpCode: 0 };
+    }
+    const start = Date.now();
+    try {
+        const torrents = client.type === 'transmission'
+            ? await fetchTransmissionTorrents(client)
+            : client.type === 'bittorrent'
+                ? await fetchBitTorrentTorrents(client)
+                : await fetchQbitTorrents(client);
+        return {
+            status: 'online',
+            latency: Math.round(Date.now() - start),
+            httpCode: 200,
+            details: { torrents: Array.isArray(torrents) ? torrents.length : 0 },
+        };
+    } catch (error) {
+        return { status: 'offline', latency: Math.round(Date.now() - start), httpCode: 0 };
+    }
+}
+
+async function performSingleProbe(service) {
+    if (service?.type === 'download-client') {
+        return performDownloadClientProbe(service);
+    }
     return new Promise((resolve) => {
         const rawUrl = service.url;
         if (!rawUrl) return resolve({ status: 'offline', latency: 0, httpCode: 0 });
@@ -9304,6 +9708,21 @@ const buildMediaStackMonthRange = (monthOffset = 0) => {
 };
 
 const buildMediaStackInstanceSummary = async (instance, monthOffset = 0) => {
+    if (!['sonarr', 'radarr'].includes(instance?.type)) {
+        return {
+            id: instance?.id || '',
+            type: instance?.type || 'sonarr',
+            name: instance?.name || 'ARR',
+            isDefault: !!instance?.isDefault,
+            configured: false,
+            instanceName: instance?.name || 'ARR',
+            status: null,
+            queue: null,
+            history: null,
+            disk: null,
+            calendar: [],
+        };
+    }
     const { start, end, inTargetMonthRange } = buildMediaStackMonthRange(monthOffset);
     const fetchArr = async (url, key, endpoint) => {
         if (!url || !key) return null;
@@ -9407,6 +9826,78 @@ const buildMediaStackInstanceSummary = async (instance, monthOffset = 0) => {
     };
 };
 
+const buildMediaStackToolSummary = async (instance) => {
+    const type = ['lidarr', 'bazarr'].includes(instance?.type) ? instance.type : 'lidarr';
+    const label = instance?.name || (type === 'bazarr' ? 'Bazarr' : 'Lidarr');
+    const ready = isArrInstanceReady(instance);
+    if (!ready) {
+        return {
+            id: instance?.id || '',
+            type,
+            name: label,
+            url: instance?.url || '',
+            externalUrl: instance?.externalUrl || instance?.url || '',
+            configured: false,
+            status: null,
+            version: null,
+        };
+    }
+
+    try {
+        const safeBaseUrl = normalizeExternalBaseUrl(instance.url, { allowPrivate: true, allowHttp: true }).replace(/\/+$/, '');
+        const statusPath = type === 'bazarr'
+            ? `/api/system/status?apikey=${encodeURIComponent(instance.apiKey)}`
+            : '/api/v1/system/status';
+        const response = await fetchWithTimeout(`${safeBaseUrl}${statusPath}`, {
+            headers: {
+                'X-Api-Key': instance.apiKey,
+                'X-API-KEY': instance.apiKey,
+                Accept: 'application/json',
+            },
+        }, 12000);
+        if (!response.ok) {
+            return {
+                id: instance.id,
+                type,
+                name: label,
+                url: instance.url,
+                externalUrl: instance.externalUrl || instance.url,
+                configured: true,
+                status: null,
+                version: null,
+                error: `HTTP ${response.status}`,
+            };
+        }
+        const data = await response.json().catch(() => ({}));
+        const version = type === 'bazarr'
+            ? (data?.data?.bazarr_version || data?.data?.package_version || data?.bazarr_version || data?.package_version || data?.version || null)
+            : (data?.version || data?.data?.version || null);
+        return {
+            id: instance.id,
+            type,
+            name: label,
+            url: instance.url,
+            externalUrl: instance.externalUrl || instance.url,
+            configured: true,
+            status: data,
+            version,
+            error: null,
+        };
+    } catch (error) {
+        return {
+            id: instance.id,
+            type,
+            name: label,
+            url: instance.url,
+            externalUrl: instance.externalUrl || instance.url,
+            configured: true,
+            status: null,
+            version: null,
+            error: error.message || 'Unavailable',
+        };
+    }
+};
+
 const buildMediaStackAggregates = (instances = []) => {
     const aggregateForType = (type) => {
         const typed = instances.filter((entry) => entry.type === type);
@@ -9434,11 +9925,15 @@ app.get('/api/media-stack/summary', requireAuth, requireMember, async (req, res)
             : `media-stack-summary-offset-${monthOffset}`;
         const data = await withCache(cacheKey, 60000, async () => {
             const config = normalizeArrConfig(await loadFile(CONFIG_PATH, {}));
-            const enabledInstances = getArrInstances(config, { enabledOnly: true });
+            const allEnabledInstances = getArrInstances(config, { enabledOnly: true });
+            const enabledInstances = allEnabledInstances
+                .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr');
+            const toolInstances = allEnabledInstances
+                .filter((entry) => entry.type === 'lidarr' || entry.type === 'bazarr');
 
             if (instanceId) {
                 const selected = getArrInstance(config, instanceId);
-                if (!selected) {
+                if (!selected || !['sonarr', 'radarr'].includes(selected.type)) {
                     return { error: 'ARR instance not found.' };
                 }
                 const summary = await buildMediaStackInstanceSummary(selected, monthOffset);
@@ -9447,12 +9942,14 @@ app.get('/api/media-stack/summary', requireAuth, requireMember, async (req, res)
                     radarr: summary.type === 'radarr' ? summary : { configured: false, calendar: [] },
                     instances: [summary],
                     aggregates: buildMediaStackAggregates([summary]),
+                    tools: await Promise.all(toolInstances.map(buildMediaStackToolSummary)),
                 };
             }
 
-            const instanceSummaries = await Promise.all(
-                enabledInstances.map((instance) => buildMediaStackInstanceSummary(instance, monthOffset))
-            );
+            const [instanceSummaries, toolSummaries] = await Promise.all([
+                Promise.all(enabledInstances.map((instance) => buildMediaStackInstanceSummary(instance, monthOffset))),
+                Promise.all(toolInstances.map(buildMediaStackToolSummary)),
+            ]);
             const defaultSonarr = instanceSummaries.find((entry) => entry.type === 'sonarr' && entry.isDefault)
                 || instanceSummaries.find((entry) => entry.type === 'sonarr')
                 || { configured: false, calendar: [], instanceName: 'Sonarr' };
@@ -9465,6 +9962,7 @@ app.get('/api/media-stack/summary', requireAuth, requireMember, async (req, res)
                 radarr: defaultRadarr,
                 instances: instanceSummaries,
                 aggregates: buildMediaStackAggregates(instanceSummaries),
+                tools: toolSummaries,
             };
         });
         if (data?.error) {
@@ -9479,6 +9977,324 @@ app.get('/api/media-stack/summary', requireAuth, requireMember, async (req, res)
 app.get('/api/media-stack/trending', requireAuth, requireMember, async (req, res) => {
     const stats = await loadFile(TRENDING_CACHE_PATH, { movies: 0, series: 0 });
     res.json(stats);
+});
+
+const fetchBazarrJson = async (instance, endpoint) => {
+    if (!isArrInstanceReady(instance)) return null;
+    const safeBaseUrl = normalizeExternalBaseUrl(instance.url, { allowPrivate: true, allowHttp: true }).replace(/\/+$/, '');
+    const joiner = endpoint.includes('?') ? '&' : '?';
+    const response = await fetchWithTimeout(`${safeBaseUrl}${endpoint}${joiner}apikey=${encodeURIComponent(instance.apiKey)}`, {
+        headers: {
+            'X-Api-Key': instance.apiKey,
+            'X-API-KEY': instance.apiKey,
+            Accept: 'application/json',
+        },
+    }, 12000);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json().catch(() => null);
+};
+
+app.get('/api/bazarr/widgets', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = normalizeArrConfig(await loadFile(CONFIG_PATH, {}));
+        const instances = getArrInstances(config, { type: 'bazarr', enabledOnly: true }).filter(isArrInstanceReady);
+        const summaries = await Promise.all(instances.map(async (instance) => {
+            const name = instance.name || 'Bazarr';
+            try {
+                const [statusPayload, badgesPayload] = await Promise.all([
+                    fetchBazarrJson(instance, '/api/system/status').catch((error) => ({ error: error.message })),
+                    fetchBazarrJson(instance, '/api/badges').catch((error) => ({ error: error.message })),
+                ]);
+                const version = statusPayload?.data?.bazarr_version
+                    || statusPayload?.data?.package_version
+                    || statusPayload?.bazarr_version
+                    || statusPayload?.package_version
+                    || statusPayload?.version
+                    || null;
+                return {
+                    id: instance.id,
+                    name,
+                    url: instance.externalUrl || instance.url,
+                    configured: true,
+                    online: !statusPayload?.error && !badgesPayload?.error,
+                    version,
+                    wantedEpisodes: Number(badgesPayload?.episodes) || 0,
+                    wantedMovies: Number(badgesPayload?.movies) || 0,
+                    providers: Number(badgesPayload?.providers) || 0,
+                    statusCount: Number(badgesPayload?.status) || 0,
+                    sonarrSignalr: badgesPayload?.sonarr_signalr || null,
+                    radarrSignalr: badgesPayload?.radarr_signalr || null,
+                    announcements: Number(badgesPayload?.announcements) || 0,
+                    error: statusPayload?.error || badgesPayload?.error || null,
+                };
+            } catch (error) {
+                return {
+                    id: instance.id,
+                    name,
+                    url: instance.externalUrl || instance.url,
+                    configured: true,
+                    online: false,
+                    version: null,
+                    wantedEpisodes: 0,
+                    wantedMovies: 0,
+                    providers: 0,
+                    statusCount: 0,
+                    sonarrSignalr: null,
+                    radarrSignalr: null,
+                    announcements: 0,
+                    error: error.message || 'Unavailable',
+                };
+            }
+        }));
+        const totals = summaries.reduce((acc, entry) => {
+            acc.wantedEpisodes += Number(entry.wantedEpisodes) || 0;
+            acc.wantedMovies += Number(entry.wantedMovies) || 0;
+            acc.providers += Number(entry.providers) || 0;
+            acc.announcements += Number(entry.announcements) || 0;
+            acc.online += entry.online ? 1 : 0;
+            return acc;
+        }, { wantedEpisodes: 0, wantedMovies: 0, providers: 0, announcements: 0, online: 0 });
+        res.json({ configured: summaries.length > 0, instances: summaries, totals });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to load Bazarr widgets: ${e.message}` });
+    }
+});
+
+const normalizeDownloadMatchKey = (value = '') => String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^urn:btih:/, '');
+
+const normalizeDownloadTitleKey = (value = '') => String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\[[^\]]+\]/g, ' ')
+    .replace(/\([^)]*\b(?:1080p|720p|2160p|480p|x264|x265|h\.?264|h\.?265|hevc|web[- .]?dl|bluray|webrip)\b[^)]*\)/gi, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\b(?:1080p|720p|2160p|480p|x264|x265|h264|h265|hevc|web|dl|webdl|bluray|webrip|proper|repack|extended)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const classifyDownloadSource = (torrent = {}) => {
+    const haystack = [
+        torrent.category,
+        torrent.label,
+        torrent.tags,
+        torrent.savePath,
+        torrent.downloadDir,
+        torrent.contentPath,
+        torrent.name,
+        torrent.tracker,
+    ].map((v) => String(v || '').toLowerCase()).join(' ');
+    if (/\b(lidarr|music|albums?)\b/.test(haystack) || /[\\/](music|albums?)([\\/]|$)/.test(haystack)) return 'lidarr';
+    if (/\b(radarr|movies?|films?)\b/.test(haystack) || /[\\/](movies?|films?)([\\/]|$)/.test(haystack)) return 'radarr';
+    if (/\b(sonarr|tv|shows?|series)\b/.test(haystack) || /[\\/](tv|shows?|series)([\\/]|$)/.test(haystack)) return 'sonarr';
+    return 'unknown';
+};
+
+const buildDownloadArrMatcher = async (config = {}) => {
+    const instances = getArrInstances(config, { enabledOnly: true })
+        .filter((instance) => ['sonarr', 'radarr', 'lidarr'].includes(instance.type))
+        .filter(isArrInstanceReady);
+    if (!instances.length) return null;
+
+    const byId = new Map();
+    const byTitle = new Map();
+    const queueResults = await Promise.all(instances.map(async (instance) => {
+        try {
+            const summary = await fetchArrQueueSummary(instance, { resolveUrl: resolveIntegrationUrlForFetch, fetchImpl: fetch });
+            return { instance, records: Array.isArray(summary.records) ? summary.records : [] };
+        } catch (error) {
+            log(`Download status ${instance.name || instance.type} queue match failed: ${error.message}`);
+            return { instance, records: [] };
+        }
+    }));
+
+    queueResults.forEach(({ instance, records }) => {
+        records.forEach((record) => {
+            const source = instance.type;
+            const metadata = {
+                source,
+                arrInstanceId: instance.id,
+                arrInstanceName: instance.name || downloadClientLabel(source),
+                arrTitle: record.title || record.sourceTitle || record.movie?.title || record.series?.title || record.artist?.artistName || null,
+                sourceReason: 'arr_queue',
+            };
+            [
+                record.downloadId,
+                record.downloadClientId,
+                record.downloadClientItemId,
+                record.hash,
+                record.infoHash,
+                record.trackedDownload?.downloadId,
+                record.trackedDownload?.downloadClientId,
+            ].forEach((value) => {
+                const key = normalizeDownloadMatchKey(value);
+                if (key) byId.set(key, metadata);
+            });
+            [
+                record.title,
+                record.sourceTitle,
+                record.trackedDownload?.title,
+            ].forEach((value) => {
+                const key = normalizeDownloadTitleKey(value);
+                if (key) byTitle.set(key, metadata);
+            });
+        });
+    });
+
+    return (torrent = {}) => {
+        const idKeys = [
+            torrent.id,
+            torrent.hash,
+            torrent.infoHash,
+            torrent.downloadId,
+        ].map(normalizeDownloadMatchKey).filter(Boolean);
+        for (const key of idKeys) {
+            if (byId.has(key)) return byId.get(key);
+        }
+
+        const titleKey = normalizeDownloadTitleKey(torrent.name);
+        if (titleKey && byTitle.has(titleKey)) return byTitle.get(titleKey);
+        return null;
+    };
+};
+
+const normalizeTorrentItem = (client, raw = {}) => {
+    const size = Number(raw.size ?? raw.totalSize ?? raw.total_size ?? raw.length ?? 0) || 0;
+    const downloaded = Number(raw.downloaded ?? raw.downloadedEver ?? raw.completed ?? 0) || 0;
+    const progressRaw = raw.progress ?? raw.percentDone ?? (size > 0 ? downloaded / size : 0);
+    const progress = Math.max(0, Math.min(100, Number(progressRaw) <= 1 ? Number(progressRaw || 0) * 100 : Number(progressRaw || 0)));
+    const item = {
+        id: String(raw.hash || raw.hashString || raw.id || raw.infoHash || raw.downloadId || raw.name || Math.random()),
+        hash: raw.hash || raw.hashString || raw.infoHash || '',
+        infoHash: raw.infoHash || raw.hashString || raw.hash || '',
+        downloadId: raw.downloadId || raw.downloadClientId || raw.downloadClientItemId || '',
+        clientId: client.id,
+        clientName: client.name || downloadClientLabel(client.type),
+        clientType: client.type,
+        name: raw.name || raw.title || 'Unknown download',
+        state: raw.state || raw.status || raw.statusText || '',
+        progress,
+        size,
+        downloaded,
+        downloadSpeed: Number(raw.dlspeed ?? raw.rateDownload ?? raw.downloadSpeed ?? 0) || 0,
+        uploadSpeed: Number(raw.upspeed ?? raw.rateUpload ?? raw.uploadSpeed ?? 0) || 0,
+        eta: Number(raw.eta ?? raw.etaTime ?? raw.secondsDownloading ?? -1) || -1,
+        category: raw.category || raw.label || '',
+        tags: raw.tags || '',
+        savePath: raw.save_path || raw.savePath || raw.downloadDir || '',
+        contentPath: raw.content_path || raw.contentPath || raw.path || '',
+        addedOn: raw.added_on || raw.addedDate || raw.dateAdded || null,
+    };
+    return { ...item, source: classifyDownloadSource(item), sourceReason: 'client_metadata' };
+};
+
+const fetchQbitTorrents = async (client) => {
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const loginRes = await fetchWithTimeout(`${base}/api/v2/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ username: client.username || '', password: client.password || '' }).toString(),
+    }, 12000);
+    if (!loginRes.ok) throw new Error(`login HTTP ${loginRes.status}`);
+    const cookie = loginRes.headers.get('set-cookie') || '';
+    const torrentsRes = await fetchWithTimeout(`${base}/api/v2/torrents/info`, {
+        headers: { Cookie: cookie, Accept: 'application/json' },
+    }, 12000);
+    if (!torrentsRes.ok) throw new Error(`torrents HTTP ${torrentsRes.status}`);
+    return (await torrentsRes.json()).map((entry) => normalizeTorrentItem(client, entry));
+};
+
+const transmissionRpc = async (client, body, sessionId = '') => {
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const auth = client.username || client.password ? `Basic ${Buffer.from(`${client.username || ''}:${client.password || ''}`).toString('base64')}` : '';
+    const response = await fetchWithTimeout(`${base}/transmission/rpc`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(auth ? { Authorization: auth } : {}),
+            ...(sessionId ? { 'X-Transmission-Session-Id': sessionId } : {}),
+        },
+        body: JSON.stringify(body),
+    }, 12000);
+    if (response.status === 409 && !sessionId) {
+        return transmissionRpc(client, body, response.headers.get('x-transmission-session-id') || '');
+    }
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+};
+
+const fetchTransmissionTorrents = async (client) => {
+    const payload = await transmissionRpc(client, {
+        method: 'torrent-get',
+        arguments: {
+            fields: ['id', 'hashString', 'name', 'totalSize', 'percentDone', 'status', 'rateDownload', 'rateUpload', 'eta', 'downloadDir', 'labels', 'trackers', 'addedDate'],
+        },
+    });
+    return (payload?.arguments?.torrents || []).map((entry) => normalizeTorrentItem(client, {
+        ...entry,
+        label: Array.isArray(entry.labels) ? entry.labels.join(',') : '',
+        tracker: Array.isArray(entry.trackers) ? entry.trackers.map((t) => t.announce).join(' ') : '',
+    }));
+};
+
+const fetchBitTorrentTorrents = async (client) => {
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const auth = client.username || client.password ? `Basic ${Buffer.from(`${client.username || ''}:${client.password || ''}`).toString('base64')}` : '';
+    const response = await fetchWithTimeout(`${base}/gui/?action=get`, {
+        headers: { ...(auth ? { Authorization: auth } : {}), Accept: 'application/json' },
+    }, 12000);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    return (data?.torrents || []).map((row) => normalizeTorrentItem(client, {
+        hash: row[0],
+        name: row[2],
+        size: row[3],
+        progress: Number(row[4] || 0) / 10,
+        downloaded: row[5],
+        uploadSpeed: row[8],
+        downloadSpeed: row[9],
+        eta: row[10],
+        label: row[11],
+    }));
+};
+
+app.get('/api/downloads/status', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const clients = (Array.isArray(config.downloadClients) ? config.downloadClients : []).filter((client) => client.enabled !== false && client.url);
+        const arrMatcher = await buildDownloadArrMatcher(config);
+        const results = await Promise.all(clients.map(async (client) => {
+            try {
+                const torrents = client.type === 'transmission'
+                    ? await fetchTransmissionTorrents(client)
+                    : client.type === 'bittorrent'
+                        ? await fetchBitTorrentTorrents(client)
+                        : await fetchQbitTorrents(client);
+                return { client: { id: client.id, name: client.name, type: client.type }, online: true, torrents, error: null };
+            } catch (error) {
+                return { client: { id: client.id, name: client.name, type: client.type }, online: false, torrents: [], error: error.message || 'Unavailable' };
+            }
+        }));
+        const downloads = results.flatMap((entry) => entry.torrents).map((torrent) => {
+            const arrMatch = arrMatcher ? arrMatcher(torrent) : null;
+            return arrMatch ? { ...torrent, ...arrMatch } : torrent;
+        });
+        res.json({
+            clients: results.map(({ torrents, ...entry }) => ({ ...entry, count: torrents.length })),
+            downloads,
+            counts: {
+                total: downloads.length,
+                sonarr: downloads.filter((entry) => entry.source === 'sonarr').length,
+                radarr: downloads.filter((entry) => entry.source === 'radarr').length,
+                lidarr: downloads.filter((entry) => entry.source === 'lidarr').length,
+                unknown: downloads.filter((entry) => entry.source === 'unknown').length,
+            },
+        });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to load download status: ${e.message}` });
+    }
 });
 
 // (Endpoints moved up before wildcard route)
@@ -10907,7 +11723,9 @@ const buildUpgraderArrIndex = async (config, { actor = null } = {}) => {
     markTaskStart(systemJobs.upgraderIndex);
     const buildStarted = Date.now();
     try {
-        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instances = getArrInstances(config, { enabledOnly: true })
+            .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+            .filter(isArrInstanceReady);
         if (!instances.length) {
             throw new Error('No ready Sonarr or Radarr instances configured.');
         }
@@ -11334,7 +12152,9 @@ const getProfileNameById = (profiles = [], profileId) => {
 };
 
 const buildUpgraderProfilesPayload = async (config) => {
-    const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+    const instances = getArrInstances(config, { enabledOnly: true })
+        .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+        .filter(isArrInstanceReady);
     const resolveUrl = resolveIntegrationUrlForFetch;
     const results = await Promise.all(instances.map(async (instance) => {
         const profiles = await fetchArrQualityProfiles(instance, { resolveUrl, fetchImpl: fetch });
@@ -12197,7 +13017,9 @@ const attachRequestsToMediaIndex = (mediaItems, requestIndex) => {
 
 const enrichMediaItemsWithArrResolution = async (config, items = []) => {
     const normalized = normalizeArrConfig(config);
-    const hasArr = getArrInstances(normalized, { enabledOnly: true }).some(isArrInstanceReady);
+    const hasArr = getArrInstances(normalized, { enabledOnly: true })
+        .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+        .some(isArrInstanceReady);
     if (!hasArr || !Array.isArray(items) || items.length === 0) return items;
 
     const catalog = await getArrCatalog(normalized, { force: true });
@@ -12238,7 +13060,7 @@ const buildMaintenanceMediaIndex = async ({ actor = null, force = false } = {}) 
         const requestIndex = await fetchRequestIndex(config);
         let enriched = [];
 
-        if (mediaServerType === 'jellyfin') {
+        if (mediaServerType !== 'plex') {
             if (!isJellyfinConfigured(config)) {
                 throw new Error('Jellyfin integration is not configured.');
             }
@@ -12297,7 +13119,8 @@ const getArrCatalog = async (config, { force = false } = {}) => {
         return cachedArrCatalog;
     }
     const normalized = normalizeArrConfig(config);
-    const instances = getArrInstances(normalized, { enabledOnly: true });
+    const instances = getArrInstances(normalized, { enabledOnly: true })
+        .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr');
     const catalogResults = await Promise.all(
         instances.map(async (instance) => ({
             instance,
@@ -13127,7 +13950,9 @@ app.get('/api/upgrader/arr-episode-image', requireAdmin, async (req, res) => {
 app.get('/api/upgrader/profiles', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instances = getArrInstances(config, { enabledOnly: true })
+            .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+            .filter(isArrInstanceReady);
         res.json({ instances: maskArrInstancesForApi(instances) });
     } catch (e) {
         res.status(500).json({ error: `Failed to load profiles instances: ${e.message}` });
@@ -13179,7 +14004,9 @@ app.get('/api/upgrader/arr/:instanceId/customformats/schema', requireAdmin, asyn
     try {
         const config = await loadFile(CONFIG_PATH, {});
         const instanceId = req.params.instanceId;
-        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instances = getArrInstances(config, { enabledOnly: true })
+            .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+            .filter(isArrInstanceReady);
         const instance = instances.find(i => i.id === instanceId);
         if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
 
@@ -13198,7 +14025,9 @@ app.get('/api/upgrader/arr/:instanceId/customformats', requireAdmin, async (req,
     try {
         const config = await loadFile(CONFIG_PATH, {});
         const instanceId = req.params.instanceId;
-        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instances = getArrInstances(config, { enabledOnly: true })
+            .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+            .filter(isArrInstanceReady);
         const instance = instances.find(i => i.id === instanceId);
         if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
         
@@ -13217,7 +14046,9 @@ app.post('/api/upgrader/arr/:instanceId/customformats', requireAdmin, async (req
     try {
         const config = await loadFile(CONFIG_PATH, {});
         const instanceId = req.params.instanceId;
-        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instances = getArrInstances(config, { enabledOnly: true })
+            .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+            .filter(isArrInstanceReady);
         const instance = instances.find(i => i.id === instanceId);
         if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
         
@@ -13239,7 +14070,9 @@ app.put('/api/upgrader/arr/:instanceId/customformats/:id', requireAdmin, async (
         const config = await loadFile(CONFIG_PATH, {});
         const instanceId = req.params.instanceId;
         const id = req.params.id;
-        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instances = getArrInstances(config, { enabledOnly: true })
+            .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+            .filter(isArrInstanceReady);
         const instance = instances.find(i => i.id === instanceId);
         if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
         
@@ -13269,7 +14102,9 @@ app.get('/api/upgrader/arr/:instanceId/qualityprofiles', requireAdmin, async (re
     try {
         const config = await loadFile(CONFIG_PATH, {});
         const instanceId = req.params.instanceId;
-        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instances = getArrInstances(config, { enabledOnly: true })
+            .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+            .filter(isArrInstanceReady);
         const instance = instances.find(i => i.id === instanceId);
         if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
         
@@ -13289,7 +14124,9 @@ app.put('/api/upgrader/arr/:instanceId/qualityprofiles/:id', requireAdmin, async
         const config = await loadFile(CONFIG_PATH, {});
         const instanceId = req.params.instanceId;
         const id = req.params.id;
-        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instances = getArrInstances(config, { enabledOnly: true })
+            .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+            .filter(isArrInstanceReady);
         const instance = instances.find(i => i.id === instanceId);
         if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
         
@@ -13337,7 +14174,9 @@ app.get('/api/upgrader/audit', requireAdmin, async (req, res) => {
 app.get('/api/upgrader/queue', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instances = getArrInstances(config, { enabledOnly: true })
+            .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+            .filter(isArrInstanceReady);
         const queues = await Promise.all(instances.map(async (instance) => {
             const summary = await fetchArrQueueSummary(instance, { resolveUrl: resolveIntegrationUrlForFetch, fetchImpl: fetch });
             return {

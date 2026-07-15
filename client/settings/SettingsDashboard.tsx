@@ -6,7 +6,7 @@ import { appConfirm } from '../shared/confirm';
 import { CustomSelect, SettingsSwitch, SettingsToggleRow } from '../shared/ui';
 import { Loader, ToastContainer, pushToast, type ToastMessage } from '../shared/toast';
 import { SettingHint, SettingFieldLabel } from './SettingHint';
-import type { User, AuditEntry, DeletedUser, PlexServer, ArrInstance } from '../shared/types';
+import type { User, AuditEntry, DeletedUser, PlexServer, ArrInstance, DownloadClientConfig } from '../shared/types';
 import { formatDateTime, formatEventName, hexToRgb, accentHoverRgb, getDaysUntilExpiry, addMonths, addYears, formatDate } from '../shared/format';
 
 import { StreamKillRulesPanel } from './StreamKillRulesPanel';
@@ -61,6 +61,24 @@ const normalizeArrInstancesFromSettings = (settings: Record<string, any> = {}): 
     return instances;
 };
 
+const createEmptyDownloadClient = (type: DownloadClientConfig['type'] = 'qbittorrent'): DownloadClientConfig => ({
+    id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${type}-${Date.now()}`,
+    type,
+    name: type === 'transmission' ? 'Transmission' : type === 'bittorrent' ? 'BitTorrent' : 'qBittorrent',
+    url: '',
+    username: '',
+    password: '',
+    enabled: true,
+});
+
+const DEFAULT_ALERT_RULES = {
+    expiryWarning: true,
+    accessRevoked: true,
+    newUserSynced: true,
+    syncSuccess: false,
+    syncFailure: true,
+};
+
 const hasIntegrationCredentials = (
     url: string | undefined,
     apiKey: string | undefined,
@@ -73,14 +91,21 @@ const hasIntegrationCredentials = (
 };
 
 const SELFHST_ICON_BASE = 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg';
+const SIMPLE_ICON_BASE = 'https://cdn.simpleicons.org';
 const APP_ICONS: Record<string, string> = {
     sonarr: `${SELFHST_ICON_BASE}/sonarr.svg`,
     radarr: `${SELFHST_ICON_BASE}/radarr.svg`,
+    lidarr: `${SELFHST_ICON_BASE}/lidarr.svg`,
+    bazarr: `${SELFHST_ICON_BASE}/bazarr.svg`,
     tautulli: `${SELFHST_ICON_BASE}/tautulli.svg`,
     seerr: `${SELFHST_ICON_BASE}/seerr.svg`,
     overseerr: `${SELFHST_ICON_BASE}/seerr.svg`,
     jellyseerr: `${SELFHST_ICON_BASE}/jellyseerr.svg`,
     ombi: `${SELFHST_ICON_BASE}/ombi.svg`,
+    download: `${SELFHST_ICON_BASE}/qbittorrent.svg`,
+    qbittorrent: `${SELFHST_ICON_BASE}/qbittorrent.svg`,
+    transmission: `${SELFHST_ICON_BASE}/transmission.svg`,
+    bittorrent: `${SIMPLE_ICON_BASE}/bittorrent`,
     jellystat: 'https://cdn.jsdelivr.net/gh/selfhst/icons@main/png/jellystat.png',
     tmdb: `${SELFHST_ICON_BASE}/tmdb.svg`,
 };
@@ -187,7 +212,7 @@ export const SettingsDashboard: React.FC = () => {
         }
     };
     const [token, setToken] = useState('');
-    const [mediaServerType, setMediaServerType] = useState<'plex' | 'jellyfin'>('plex');
+    const [mediaServerType, setMediaServerType] = useState<'plex' | 'jellyfin' | 'emby'>('plex');
     const [plexServerUrl, setPlexServerUrl] = useState('');
     const [jellyfinUrl, setJellyfinUrl] = useState('');
     const [jellyfinApiKey, setJellyfinApiKey] = useState('');
@@ -199,6 +224,7 @@ export const SettingsDashboard: React.FC = () => {
     const [useTrendingSlideshowOnLogin, setUseTrendingSlideshowOnLogin] = useState(false);
     const [defaultLibraryIds, setDefaultLibraryIds] = useState<string[]>([]);
     const [libraries, setLibraries] = useState<any[]>([]);
+    const mediaServerLabel = mediaServerType === 'emby' ? 'Emby' : mediaServerType === 'jellyfin' ? 'Jellyfin' : 'Plex';
     const [activeTab, setActiveTab] = useState<SettingsTabId>(() => {
         const { tabId } = parseSettingsHash(window.location.hash);
         return tabId || 'branding';
@@ -289,6 +315,12 @@ export const SettingsDashboard: React.FC = () => {
     const [emailDaysBefore, setEmailDaysBefore] = useState(7);
     const [testRecipient, setTestRecipient] = useState('');
     const [isTestingSmtp, setIsTestingSmtp] = useState(false);
+    const [gotifyEnabled, setGotifyEnabled] = useState(false);
+    const [gotifyUrl, setGotifyUrl] = useState('');
+    const [gotifyToken, setGotifyToken] = useState('');
+    const [gotifyPriority, setGotifyPriority] = useState(5);
+    const [alertRules, setAlertRules] = useState<Record<string, boolean>>(DEFAULT_ALERT_RULES);
+    const [isTestingGotify, setIsTestingGotify] = useState(false);
     const [isTestingNewsletter, setIsTestingNewsletter] = useState(false);
     const [isSendingNewsletter, setIsSendingNewsletter] = useState(false);
 
@@ -308,6 +340,7 @@ export const SettingsDashboard: React.FC = () => {
     // Media Stack States
     const [arrInstances, setArrInstances] = useState<ArrInstance[]>([]);
     const [savedArrInstances, setSavedArrInstances] = useState<ArrInstance[]>([]);
+    const [downloadClients, setDownloadClients] = useState<DownloadClientConfig[]>([]);
     const [tautulliUrl, setTautulliUrl] = useState('');
     const [tautulliApiKey, setTautulliApiKey] = useState('');
     const [jellystatUrl, setJellystatUrl] = useState('');
@@ -348,6 +381,7 @@ export const SettingsDashboard: React.FC = () => {
     const [trendingSlideshowInterval, setTrendingSlideshowInterval] = useState(30);
     const [tmdbApiKey, setTmdbApiKey] = useState('');
     const [brandingTheme, setBrandingTheme] = useState('plex');
+    const [sidebarIdentityPosition, setSidebarIdentityPosition] = useState<'top' | 'bottom'>('bottom');
     const [referralEnabled, setReferralEnabled] = useState(false);
     const [referralTrialDays, setReferralTrialDays] = useState(3);
     const [referralRewardDays, setReferralRewardDays] = useState(7);
@@ -373,6 +407,7 @@ export const SettingsDashboard: React.FC = () => {
     }, []);
     const [navOrder, setNavOrder] = useState<string[]>(() => ensureMaintenanceNavOrder(['home', 'discover', 'status', 'analytics', 'mediastack', 'request', 'settings', 'logout']));
     const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
     const [tasks, setTasks] = useState<any[]>([]);
     const [diagnostics, setDiagnostics] = useState<any>(null);
     const [isLoadingDiagnostics, setIsLoadingDiagnostics] = useState(false);
@@ -561,15 +596,17 @@ export const SettingsDashboard: React.FC = () => {
     };
 
     const trackedIntegrationKeys = useMemo(() => {
-        const mediaKey = mediaServerType === 'jellyfin' ? 'jellyfinConfigured' : 'plexConfigured';
-        const analyticsKey = mediaServerType === 'jellyfin' ? 'jellystatConfigured' : 'tautulliConfigured';
-        return [mediaKey, 'sonarrConfigured', 'radarrConfigured', analyticsKey, 'requestAppConfigured'];
+        const mediaKey = mediaServerType !== 'plex' ? 'jellyfinConfigured' : 'plexConfigured';
+        const analyticsKey = mediaServerType !== 'plex' ? 'jellystatConfigured' : 'tautulliConfigured';
+        return [mediaKey, 'sonarrConfigured', 'radarrConfigured', 'lidarrConfigured', 'bazarrConfigured', analyticsKey, 'requestAppConfigured'];
     }, [mediaServerType]);
     const integrationLabels: Record<string, string> = {
         jellyfinConfigured: 'Jellyfin',
         plexConfigured: 'Plex',
         sonarrConfigured: 'Sonarr',
         radarrConfigured: 'Radarr',
+        lidarrConfigured: 'Lidarr',
+        bazarrConfigured: 'Bazarr',
         tautulliConfigured: 'Tautulli',
         jellystatConfigured: 'Jellystat',
         requestAppConfigured: 'Request App',
@@ -695,7 +732,7 @@ export const SettingsDashboard: React.FC = () => {
             if (!maintenanceExperimentalEnabled) {
                 if (key.startsWith('maintenance')) return false;
             }
-            if (mediaServerType === 'jellyfin' && key === 'plexStats') return false;
+            if (mediaServerType !== 'plex' && key === 'plexStats') return false;
             return true;
         });
         const cacheValues = cacheEntries.map(([, entry]: any) => !!entry?.exists);
@@ -769,7 +806,7 @@ export const SettingsDashboard: React.FC = () => {
     useEffect(() => {
         if (isConfigLoaded) {
             setToken(initialSettings.token || '');
-            setMediaServerType(initialSettings.mediaServerType === 'jellyfin' ? 'jellyfin' : 'plex');
+            setMediaServerType(['jellyfin', 'emby'].includes(initialSettings.mediaServerType) ? initialSettings.mediaServerType : 'plex');
             setPlexServerUrl(initialSettings.plexServerUrl || '');
             setJellyfinUrl(initialSettings.jellyfinUrl || '');
             setJellyfinApiKey(initialSettings.jellyfinApiKey || '');
@@ -782,6 +819,11 @@ export const SettingsDashboard: React.FC = () => {
             setSmtpFrom(initialSettings.smtpFrom || '');
             setSmtpSecure(!!initialSettings.smtpSecure);
             setEmailDaysBefore(initialSettings.emailDaysBefore || 7);
+            setGotifyEnabled(!!initialSettings.gotifyEnabled);
+            setGotifyUrl(initialSettings.gotifyUrl || '');
+            setGotifyToken(initialSettings.gotifyToken || '');
+            setGotifyPriority(initialSettings.gotifyPriority || 5);
+            setAlertRules({ ...DEFAULT_ALERT_RULES, ...(initialSettings.alertRules || {}) });
             setNewsletterFrequency(initialSettings.newsletterFrequency || 'disabled');
             setNewsletterDay(initialSettings.newsletterDay || 0);
             setInactiveCleanupEnabled(!!initialSettings.inactiveCleanupEnabled);
@@ -794,6 +836,7 @@ export const SettingsDashboard: React.FC = () => {
             const loadedArrInstances = normalizeArrInstancesFromSettings(initialSettings);
             setArrInstances(loadedArrInstances);
             setSavedArrInstances(loadedArrInstances.map((entry) => ({ ...entry })));
+            setDownloadClients(Array.isArray(initialSettings.downloadClients) ? initialSettings.downloadClients : []);
             setTautulliUrl(initialSettings.tautulliUrl || '');
             setTautulliApiKey(initialSettings.tautulliApiKey || '');
             setJellystatUrl(initialSettings.jellystatUrl || '');
@@ -807,6 +850,7 @@ export const SettingsDashboard: React.FC = () => {
             setRequestHideAvailableMedia(!!initialSettings.requestHideAvailableMedia);
             const savedBrandingTheme = localStorage.getItem('portal-theme') || initialSettings.brandingTheme || 'plex';
             setBrandingTheme(savedBrandingTheme);
+            setSidebarIdentityPosition(initialSettings.sidebarIdentityPosition === 'top' ? 'top' : 'bottom');
             setCustomLogoUrl(initialSettings.customLogoUrl || '');
             setBackgroundImageUrl(initialSettings.backgroundImageUrl || '');
             setUseScrollRevealAnimations(!!initialSettings.useScrollRevealAnimations);
@@ -918,16 +962,51 @@ export const SettingsDashboard: React.FC = () => {
             addToast('Token and server must be selected.', 'error');
             return;
         }
-        if (mediaServerType === 'jellyfin' && (!jellyfinUrl || !hasIntegrationCredentials(jellyfinUrl, jellyfinApiKey, initialSettings.jellyfinUrl, initialSettings.jellyfinApiKey))) {
+        if (mediaServerType !== 'plex' && (!jellyfinUrl || !hasIntegrationCredentials(jellyfinUrl, jellyfinApiKey, initialSettings.jellyfinUrl, initialSettings.jellyfinApiKey))) {
             addToast('Jellyfin URL and API key must be set.', 'error');
             return;
         }
 
+        let savedCustomLogoUrl = logoFile ? '/static/logo.png' : customLogoUrl;
+        let savedBackgroundImageUrl = backgroundImageUrl;
+
         if (logoFile) {
             try {
-                await fetch(portalUrl('/api/config/logo'), { method: 'POST', body: logoFile });
+                const uploadResponse = await fetch(portalUrl('/api/config/logo'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': logoFile.type || (logoFile.name.toLowerCase().endsWith('.png') ? 'image/png' : (logoFile.name.toLowerCase().endsWith('.webp') ? 'image/webp' : 'image/jpeg')) },
+                    body: logoFile,
+                });
+                if (!uploadResponse.ok) {
+                    const errorData = await uploadResponse.json().catch(() => ({ error: 'Failed to upload logo' }));
+                    throw new Error(errorData.error || 'Failed to upload logo');
+                }
+                const uploadResult = await uploadResponse.json().catch(() => ({}));
+                savedCustomLogoUrl = uploadResult.logoUrl || savedCustomLogoUrl;
+                setCustomLogoUrl(savedCustomLogoUrl);
             } catch (e) {
-                addToast('Failed to upload logo', 'error');
+                addToast(e instanceof Error ? e.message : 'Failed to upload logo', 'error');
+                return;
+            }
+        }
+
+        if (backgroundFile) {
+            try {
+                const uploadResponse = await fetch(portalUrl('/api/config/background'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': backgroundFile.type || (backgroundFile.name.toLowerCase().endsWith('.png') ? 'image/png' : (backgroundFile.name.toLowerCase().endsWith('.webp') ? 'image/webp' : 'image/jpeg')) },
+                    body: backgroundFile,
+                });
+                if (!uploadResponse.ok) {
+                    const errorData = await uploadResponse.json().catch(() => ({ error: 'Failed to upload background' }));
+                    throw new Error(errorData.error || 'Failed to upload background');
+                }
+                const uploadResult = await uploadResponse.json().catch(() => ({}));
+                savedBackgroundImageUrl = uploadResult.backgroundImageUrl || savedBackgroundImageUrl;
+                setBackgroundImageUrl(savedBackgroundImageUrl);
+            } catch (e) {
+                addToast(e instanceof Error ? e.message : 'Failed to upload background', 'error');
+                return;
             }
         }
 
@@ -955,6 +1034,11 @@ export const SettingsDashboard: React.FC = () => {
             smtpFrom,
             smtpSecure,
             emailDaysBefore,
+            gotifyEnabled,
+            gotifyUrl,
+            gotifyToken,
+            gotifyPriority,
+            alertRules,
             newsletterFrequency,
             newsletterDay,
             inactiveCleanupEnabled,
@@ -965,6 +1049,7 @@ export const SettingsDashboard: React.FC = () => {
             contactWhatsApp,
             contactEmail,
             arrInstances,
+            downloadClients,
             tautulliUrl,
             tautulliApiKey,
             jellystatUrl,
@@ -977,9 +1062,10 @@ export const SettingsDashboard: React.FC = () => {
             requestDiscoverLanguage,
             requestHideAvailableMedia,
             primaryColor: '',
-            customLogoUrl,
+            customLogoUrl: savedCustomLogoUrl,
             brandingTheme,
-            backgroundImageUrl,
+            sidebarIdentityPosition,
+            backgroundImageUrl: savedBackgroundImageUrl,
             useScrollRevealAnimations,
             useCinematicLoading,
             useBrandedSkeleton,
@@ -1048,6 +1134,29 @@ export const SettingsDashboard: React.FC = () => {
             addToast(error instanceof Error ? error.message : 'SMTP test failed.', 'error');
         } finally {
             setIsTestingSmtp(false);
+        }
+    };
+
+    const handleTestGotify = async () => {
+        if (!gotifyUrl || !gotifyToken) {
+            addToast('Please fill out Gotify URL and app token.', 'error');
+            return;
+        }
+        setIsTestingGotify(true);
+        try {
+            const result = await apiFetch('/api/config/test-gotify', {
+                method: 'POST',
+                body: JSON.stringify({
+                    gotifyUrl,
+                    gotifyToken,
+                    gotifyPriority,
+                })
+            });
+            addToast(result.message || 'Gotify test alert sent successfully!', 'success');
+        } catch (error) {
+            addToast(error instanceof Error ? error.message : 'Gotify test failed.', 'error');
+        } finally {
+            setIsTestingGotify(false);
         }
     };
 
@@ -1166,25 +1275,26 @@ export const SettingsDashboard: React.FC = () => {
                                     <CustomSelect
                                         id="mediaServerType"
                                         value={mediaServerType}
-                                        onChange={(val) => setMediaServerType(val === 'jellyfin' ? 'jellyfin' : 'plex')}
+                                        onChange={(val) => setMediaServerType(val === 'emby' ? 'emby' : val === 'jellyfin' ? 'jellyfin' : 'plex')}
                                         options={[
                                             { label: 'Plex', value: 'plex' },
-                                            { label: 'Jellyfin', value: 'jellyfin' }
+                                            { label: 'Jellyfin', value: 'jellyfin' },
+                                            { label: 'Emby', value: 'emby' }
                                         ]}
                                     />
-                                {mediaServerType === 'jellyfin' && (
+                                {mediaServerType !== 'plex' && (
                                     <div className="mb-6 p-4 rounded-lg border border-border bg-background/40">
-                                        <h4 className="font-bold text-text mb-3">Jellyfin Connection</h4>
+                                        <h4 className="font-bold text-text mb-3">{mediaServerLabel} Connection</h4>
                                         <div className="mb-4">
-                                            <label htmlFor="jellyfinUrl">Jellyfin URL</label>
+                                            <label htmlFor="jellyfinUrl">{mediaServerLabel} URL</label>
                                             <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="jellyfinUrl" type="url" value={jellyfinUrl} onChange={(e) => setJellyfinUrl(e.target.value)} placeholder="http://192.168.1.6:8096" />
                                         </div>
                                         <div className="mb-4">
-                                            <label htmlFor="jellyfinApiKey">Jellyfin API Key</label>
-                                            <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="jellyfinApiKey" type="password" value={jellyfinApiKey} onChange={(e) => setJellyfinApiKey(e.target.value)} placeholder="API key from Jellyfin dashboard" />
+                                            <label htmlFor="jellyfinApiKey">{mediaServerLabel} API Key</label>
+                                            <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="jellyfinApiKey" type="password" value={jellyfinApiKey} onChange={(e) => setJellyfinApiKey(e.target.value)} placeholder="API key from media server dashboard" />
                                         </div>
                                         <IntegrationTestButton
-                                            type="jellyfin"
+                                            type={mediaServerType === 'emby' ? 'emby' : 'jellyfin'}
                                             payload={{ jellyfinUrl, jellyfinApiKey }}
                                             disabled={!hasIntegrationCredentials(jellyfinUrl, jellyfinApiKey, initialSettings.jellyfinUrl, initialSettings.jellyfinApiKey)}
                                             onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
@@ -1423,6 +1533,87 @@ export const SettingsDashboard: React.FC = () => {
                         </div>
                     )}
 
+                    {activeTab === 'gotify' && (
+                        <div className="mb-8">
+                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Gotify Push Alerts</h3>
+                            <SettingsToggleRow
+                                title="Enable Gotify Alerts"
+                                description="Send admin push alerts for important portal automation events."
+                                checked={gotifyEnabled}
+                                onChange={setGotifyEnabled}
+                                className="mb-4"
+                            />
+                            <div className="flex flex-col md:flex-row gap-4 mb-4">
+                                <div className="flex-[2]">
+                                    <label htmlFor="gotifyUrl">Gotify Server URL</label>
+                                    <input
+                                        className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all"
+                                        id="gotifyUrl"
+                                        type="url"
+                                        value={gotifyUrl}
+                                        onChange={e => setGotifyUrl(e.target.value)}
+                                        placeholder="https://gotify.example.com"
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <label htmlFor="gotifyPriority">Priority</label>
+                                    <input
+                                        className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all"
+                                        id="gotifyPriority"
+                                        type="number"
+                                        min={0}
+                                        max={10}
+                                        value={gotifyPriority}
+                                        onChange={e => setGotifyPriority(Number(e.target.value))}
+                                    />
+                                </div>
+                            </div>
+                            <div className="mb-4">
+                                <label htmlFor="gotifyToken">Application Token</label>
+                                <input
+                                    className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all"
+                                    id="gotifyToken"
+                                    type="password"
+                                    value={gotifyToken}
+                                    onChange={e => setGotifyToken(e.target.value)}
+                                    placeholder="Gotify app token"
+                                />
+                            </div>
+                            <div className="mt-6 rounded-lg border border-border bg-background/40 p-4">
+                                <h4 className="font-bold text-text mb-3">Alert Rules</h4>
+                                <div className="space-y-1">
+                                    {[
+                                        ['expiryWarning', 'Access Expiry Warnings', 'Alert when a user reaches the configured expiry-warning threshold.'],
+                                        ['accessRevoked', 'Access Revoked', 'Alert when expired access is revoked automatically.'],
+                                        ['newUserSynced', 'New Users During Sync', 'Alert when a Plex/Jellyfin sync discovers new users.'],
+                                        ['syncFailure', 'Sync Failures', 'Alert when a manual user sync fails.'],
+                                        ['syncSuccess', 'Sync Success', 'Alert after every successful manual user sync.'],
+                                    ].map(([key, title, description]) => (
+                                        <SettingsToggleRow
+                                            key={key}
+                                            title={title}
+                                            description={description}
+                                            checked={alertRules[key] !== false}
+                                            onChange={(checked) => setAlertRules(prev => ({ ...prev, [key]: checked }))}
+                                            border={false}
+                                            className="!py-3"
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="mt-6 space-y-3">
+                                <h4 className="font-bold text-text">Test Gotify Settings</h4>
+                                <button
+                                    className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                    onClick={handleTestGotify}
+                                    disabled={isTestingGotify || !gotifyUrl || !gotifyToken}
+                                >
+                                    {isTestingGotify ? 'Sending...' : 'Send Test'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {activeTab === 'newsletter' && (
                         <div className="mb-8">
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Automated Newsletter</h3>
@@ -1563,6 +1754,142 @@ export const SettingsDashboard: React.FC = () => {
                             />
                             </div>
 
+                            <div id={getSettingsSectionElementId('lidarr')} className="scroll-mt-24">
+                            <ArrInstancesPanel
+                                type="lidarr"
+                                title="Lidarr Instances"
+                                subtitle="Music automation"
+                                className="mt-10"
+                                instances={arrInstances.filter((entry) => entry.type === 'lidarr')}
+                                savedInstances={savedArrInstances.filter((entry) => entry.type === 'lidarr')}
+                                libraries={libraries}
+                                allInstances={arrInstances}
+                                onChange={(nextLidarr) => {
+                                    const other = arrInstances.filter((entry) => entry.type !== 'lidarr');
+                                    setArrInstances([...other, ...nextLidarr]);
+                                }}
+                                onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
+                            />
+                            </div>
+
+                            <div id={getSettingsSectionElementId('bazarr')} className="scroll-mt-24">
+                            <ArrInstancesPanel
+                                type="bazarr"
+                                title="Bazarr Instances"
+                                subtitle="Subtitle automation"
+                                className="mt-10"
+                                instances={arrInstances.filter((entry) => entry.type === 'bazarr')}
+                                savedInstances={savedArrInstances.filter((entry) => entry.type === 'bazarr')}
+                                libraries={libraries}
+                                allInstances={arrInstances}
+                                onChange={(nextBazarr) => {
+                                    const other = arrInstances.filter((entry) => entry.type !== 'bazarr');
+                                    setArrInstances([...other, ...nextBazarr]);
+                                }}
+                                onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
+                            />
+                            </div>
+
+                            <div id={getSettingsSectionElementId('download-clients')} className="scroll-mt-24">
+                            <IntegrationHeading app="download" title="Download Clients" subtitle="qBittorrent, Transmission, and BitTorrent status sources" className="mt-10" />
+                            <div className="flex items-center justify-between gap-3 mb-4">
+                                <p className="text-sm text-muted">These clients feed the Download Status page.</p>
+                                <button
+                                    type="button"
+                                    onClick={() => setDownloadClients([...downloadClients, createEmptyDownloadClient()])}
+                                    className="px-3 py-2 rounded-lg border border-border text-sm font-medium text-text hover:bg-white/5 transition-colors"
+                                >
+                                    Add Client
+                                </button>
+                            </div>
+                            {downloadClients.length === 0 ? (
+                                <div className="rounded-xl border border-dashed border-border p-6 text-sm text-muted text-center">No download clients configured.</div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {downloadClients.map((client) => {
+                                        const clientLabel = client.type === 'transmission' ? 'Transmission' : client.type === 'bittorrent' ? 'BitTorrent' : 'qBittorrent';
+                                        return (
+                                        <div key={client.id} className="rounded-xl border border-border bg-background/40 p-4">
+                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 pb-3 border-b border-border/50">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <ProgramIcon app={client.type} label={clientLabel} />
+                                                    <div className="min-w-0">
+                                                        <p className="font-bold text-text truncate">{client.name || clientLabel}</p>
+                                                        <p className="text-xs text-muted">{clientLabel} download client</p>
+                                                    </div>
+                                                </div>
+                                                <IntegrationTestButton
+                                                    type="downloadClient"
+                                                    payload={{
+                                                        downloadClientId: client.id,
+                                                        downloadClientType: client.type,
+                                                        downloadClientUrl: client.url,
+                                                        downloadClientUsername: client.username || '',
+                                                        downloadClientPassword: client.password || '',
+                                                    }}
+                                                    disabled={!client.url}
+                                                    className="sm:items-end"
+                                                />
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="text-xs text-muted uppercase tracking-wider font-bold mb-1 block">Type</label>
+                                                <CustomSelect
+                                                    value={client.type}
+                                                    onChange={(type) => setDownloadClients(downloadClients.map((entry) => entry.id === client.id ? { ...entry, type: type as DownloadClientConfig['type'], name: entry.name || createEmptyDownloadClient(type as DownloadClientConfig['type']).name } : entry))}
+                                                    options={[
+                                                        { label: 'qBittorrent', value: 'qbittorrent' },
+                                                        { label: 'Transmission', value: 'transmission' },
+                                                        { label: 'BitTorrent', value: 'bittorrent' },
+                                                    ]}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-muted uppercase tracking-wider font-bold mb-1 block">Display Name</label>
+                                                <input className="w-full p-2.5 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all text-sm" value={client.name} onChange={(e) => setDownloadClients(downloadClients.map((entry) => entry.id === client.id ? { ...entry, name: e.target.value } : entry))} />
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <label className="text-xs text-muted uppercase tracking-wider font-bold mb-1 block">URL</label>
+                                                <input className="w-full p-2.5 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all text-sm" value={client.url} onChange={(e) => setDownloadClients(downloadClients.map((entry) => entry.id === client.id ? { ...entry, url: e.target.value } : entry))} placeholder={client.type === 'transmission' ? 'http://localhost:9091' : 'http://localhost:8080'} />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-muted uppercase tracking-wider font-bold mb-1 block">Username</label>
+                                                <input className="w-full p-2.5 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all text-sm" value={client.username || ''} onChange={(e) => setDownloadClients(downloadClients.map((entry) => entry.id === client.id ? { ...entry, username: e.target.value } : entry))} />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-muted uppercase tracking-wider font-bold mb-1 block">Password</label>
+                                                <input className="w-full p-2.5 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all text-sm" type="password" value={client.password || ''} onChange={(e) => setDownloadClients(downloadClients.map((entry) => entry.id === client.id ? { ...entry, password: e.target.value } : entry))} />
+                                            </div>
+                                            <div className="md:col-span-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                                <label className="text-sm text-muted flex items-center gap-2">
+                                                    <input type="checkbox" checked={client.enabled !== false} onChange={(e) => setDownloadClients(downloadClients.map((entry) => entry.id === client.id ? { ...entry, enabled: e.target.checked } : entry))} />
+                                                    Enabled
+                                                </label>
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <IntegrationTestButton
+                                                        type="downloadClient"
+                                                        label="Test"
+                                                        payload={{
+                                                            downloadClientId: client.id,
+                                                            downloadClientType: client.type,
+                                                            downloadClientUrl: client.url,
+                                                            downloadClientUsername: client.username || '',
+                                                            downloadClientPassword: client.password || '',
+                                                        }}
+                                                        disabled={!client.url}
+                                                    />
+                                                    <button type="button" className="px-3 py-2 rounded-lg text-sm text-red-300 hover:bg-red-500/10" onClick={() => setDownloadClients(downloadClients.filter((entry) => entry.id !== client.id))}>
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            </div>
+                                        </div>
+                                    );})}
+                                </div>
+                            )}
+                            </div>
+
                             <div id={getSettingsSectionElementId('tmdb')} className="scroll-mt-24">
                             <IntegrationHeading app="tmdb" title="TMDB Integration" subtitle="Worldwide trending backgrounds" className="mt-8" />
                             <div className="mb-4">
@@ -1575,48 +1902,52 @@ export const SettingsDashboard: React.FC = () => {
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="tmdbApiKey" type="password" value={tmdbApiKey} onChange={(e) => setTmdbApiKey(e.target.value)} placeholder="Enter TMDB API Key" />
                             </div>
                             </div>
-                            <div id={getSettingsSectionElementId('tautulli')} className="scroll-mt-24">
-                            <IntegrationHeading app="tautulli" title="Tautulli Integration" subtitle="Plex activity and analytics" className="mt-8" />
-                            <div className="mb-4">
-                                <label htmlFor="tautulliUrl">Tautulli URL</label>
-                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="tautulliUrl" type="text" value={tautulliUrl} onChange={(e) => setTautulliUrl(e.target.value)} placeholder="http://localhost:8181" />
-                            </div>
-                            <div className="mb-8">
-                                <label htmlFor="tautulliApiKey">Tautulli API Key</label>
-                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="tautulliApiKey" type="password" value={tautulliApiKey} onChange={(e) => setTautulliApiKey(e.target.value)} placeholder="Enter Tautulli API Key" />
-                            </div>
-                            <IntegrationTestButton
-                                type="tautulli"
-                                payload={{ tautulliUrl, tautulliApiKey }}
-                                disabled={!hasIntegrationCredentials(tautulliUrl, tautulliApiKey, initialSettings.tautulliUrl, initialSettings.tautulliApiKey)}
-                                className="mb-6"
-                                onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
-                            />
-                            </div>
+                            {mediaServerType === 'plex' && (
+                                <div id={getSettingsSectionElementId('tautulli')} className="scroll-mt-24">
+                                <IntegrationHeading app="tautulli" title="Tautulli Integration" subtitle="Plex activity and analytics" className="mt-8" />
+                                <div className="mb-4">
+                                    <label htmlFor="tautulliUrl">Tautulli URL</label>
+                                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="tautulliUrl" type="text" value={tautulliUrl} onChange={(e) => setTautulliUrl(e.target.value)} placeholder="http://localhost:8181" />
+                                </div>
+                                <div className="mb-8">
+                                    <label htmlFor="tautulliApiKey">Tautulli API Key</label>
+                                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="tautulliApiKey" type="password" value={tautulliApiKey} onChange={(e) => setTautulliApiKey(e.target.value)} placeholder="Enter Tautulli API Key" />
+                                </div>
+                                <IntegrationTestButton
+                                    type="tautulli"
+                                    payload={{ tautulliUrl, tautulliApiKey }}
+                                    disabled={!hasIntegrationCredentials(tautulliUrl, tautulliApiKey, initialSettings.tautulliUrl, initialSettings.tautulliApiKey)}
+                                    className="mb-6"
+                                    onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
+                                />
+                                </div>
+                            )}
 
-                            <div id={getSettingsSectionElementId('jellystat')} className="scroll-mt-24">
-                            <IntegrationHeading app="jellystat" title="Jellystat Integration" subtitle="Jellyfin activity and analytics" className="mt-8" />
-                            <div className="mb-4">
-                                <SettingFieldLabel
-                                    htmlFor="jellystatUrl"
-                                    hint={<SettingHint>The URL to your Jellystat instance. Jellystat is the Jellyfin analytics companion, similar to Tautulli for Plex.</SettingHint>}
-                                >
-                                    Jellystat URL
-                                </SettingFieldLabel>
-                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="jellystatUrl" type="text" value={jellystatUrl} onChange={(e) => setJellystatUrl(e.target.value)} placeholder="http://localhost:3000" />
-                            </div>
-                            <div className="mb-8">
-                                <label htmlFor="jellystatApiKey">Jellystat API Key</label>
-                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="jellystatApiKey" type="password" value={jellystatApiKey} onChange={(e) => setJellystatApiKey(e.target.value)} placeholder="API key from Jellystat Settings" />
-                            </div>
-                            <IntegrationTestButton
-                                type="jellystat"
-                                payload={{ jellystatUrl, jellystatApiKey }}
-                                disabled={!hasIntegrationCredentials(jellystatUrl, jellystatApiKey, initialSettings.jellystatUrl, initialSettings.jellystatApiKey)}
-                                className="mb-6"
-                                onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
-                            />
-                            </div>
+                            {mediaServerType !== 'plex' && (
+                                <div id={getSettingsSectionElementId('jellystat')} className="scroll-mt-24">
+                                <IntegrationHeading app="jellystat" title="Jellystat Integration" subtitle="Jellyfin activity and analytics" className="mt-8" />
+                                <div className="mb-4">
+                                    <SettingFieldLabel
+                                        htmlFor="jellystatUrl"
+                                        hint={<SettingHint>The URL to your Jellystat instance. Jellystat is the Jellyfin analytics companion, similar to Tautulli for Plex.</SettingHint>}
+                                    >
+                                        Jellystat URL
+                                    </SettingFieldLabel>
+                                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="jellystatUrl" type="text" value={jellystatUrl} onChange={(e) => setJellystatUrl(e.target.value)} placeholder="http://localhost:3000" />
+                                </div>
+                                <div className="mb-8">
+                                    <label htmlFor="jellystatApiKey">Jellystat API Key</label>
+                                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="jellystatApiKey" type="password" value={jellystatApiKey} onChange={(e) => setJellystatApiKey(e.target.value)} placeholder="API key from Jellystat Settings" />
+                                </div>
+                                <IntegrationTestButton
+                                    type="jellystat"
+                                    payload={{ jellystatUrl, jellystatApiKey }}
+                                    disabled={!hasIntegrationCredentials(jellystatUrl, jellystatApiKey, initialSettings.jellystatUrl, initialSettings.jellystatApiKey)}
+                                    className="mb-6"
+                                    onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
+                                />
+                                </div>
+                            )}
 
                             <div id={getSettingsSectionElementId('seerr')} className="scroll-mt-24">
                             <IntegrationHeading
@@ -1881,275 +2212,342 @@ export const SettingsDashboard: React.FC = () => {
 
                     {activeTab === 'branding' && (
                         <div className="mb-8 animate-fade-in">
-                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Branding & UI</h3>
+                            <div className="mb-6 border-b border-border pb-4">
+                                <h3 className="text-xl font-bold text-plex">Branding & UI</h3>
+                                <p className="text-sm text-muted mt-1">Manage the portal logo, theme, splash background, and public-facing UI switches.</p>
+                            </div>
 
-                            {mediaServerType === 'jellyfin' && (
-                                <div className="mb-4 rounded-lg border border-plex/30 bg-plex/10 p-4">
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            <span className="w-11 h-11 rounded-lg bg-background border border-plex/30 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                                <img src={JELLYFIN_BRAND_LOGO_URL} alt="" className="w-8 h-8 object-contain" />
-                                            </span>
-                                            <div className="min-w-0">
-                                                <h4 className="font-bold text-text">Jellyfin branding</h4>
-                                                <p className="text-xs text-muted mt-1">Use the Jellyfin server icon and splash background across the portal.</p>
+                            <div className="space-y-6">
+                                    <section id={getSettingsSectionElementId('logo')} className="scroll-mt-24 rounded-xl border border-border/70 p-4">
+                                        <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                                            <div className="lg:w-52 shrink-0">
+                                                <h4 className="font-bold text-text">Identity</h4>
+                                                <p className="text-xs text-muted mt-1">Branding, theme, logo, and splash preview.</p>
+                                            </div>
+                                            <div className="flex-1 grid grid-cols-1 gap-4 min-w-0">
+                                                {mediaServerType !== 'plex' && (
+                                                    <div className="rounded-xl border border-plex/30 bg-plex/10 p-4">
+                                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                                            <div className="flex items-center gap-3 min-w-0">
+                                                                <span className="w-11 h-11 rounded-lg bg-background border border-plex/30 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                                    <img src={JELLYFIN_BRAND_LOGO_URL} alt="" className="w-8 h-8 object-contain" />
+                                                                </span>
+                                                                <div className="min-w-0">
+                                                                    <h4 className="font-bold text-text">Jellyfin branding</h4>
+                                                                    <p className="text-xs text-muted mt-1">Use the Jellyfin server icon and splash background across the portal.</p>
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={applyJellyfinBranding}
+                                                                className="px-4 py-2 bg-plex hover:bg-plex-hover text-background rounded-md font-bold transition-colors whitespace-nowrap"
+                                                            >
+                                                                Use Jellyfin icon & splash
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <SettingFieldLabel hint={<SettingHint>Provide a URL or upload a file. Max 5MB. Use this when Jellyfin branding is not applied.</SettingHint>}>
+                                                        Custom Logo
+                                                    </SettingFieldLabel>
+                                                    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_14rem] gap-3 mt-1">
+                                                        <input type="url" className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all" value={customLogoUrl} onChange={e => setCustomLogoUrl(e.target.value)} placeholder="https://example.com/logo.png" />
+                                                        <input
+                                                            type="file"
+                                                            accept="image/png,image/jpeg,image/webp"
+                                                            className="w-full p-2 rounded-lg border border-border bg-background text-muted text-sm outline-none focus:border-plex transition-all file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-text hover:file:bg-white/20 file:cursor-pointer cursor-pointer"
+                                                            onChange={e => {
+                                                                const file = e.target.files?.[0] || null;
+                                                                setLogoFile(file);
+                                                                if (file) setCustomLogoUrl(file.name.toLowerCase().endsWith('.webp') ? '/static/logo.webp' : '/static/logo.png');
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    {logoFile && <p className="text-xs text-muted mt-2">{logoFile.name}</p>}
+                                                </div>
+
+                                                <div id={getSettingsSectionElementId('theme')} className="scroll-mt-24 relative z-[50]">
+                                                    <SettingFieldLabel
+                                                        hint={<SettingHint>Users can still customize their local theme preference in the navigation menu.</SettingHint>}
+                                                    >
+                                                        Portal Theme
+                                                    </SettingFieldLabel>
+                                                    <CustomSelect
+                                                        value={brandingTheme}
+                                                        onChange={setBrandingTheme}
+                                                        options={[
+                                                            { label: 'Dynamic (Chameleon)', value: 'dynamic' },
+                                                            { label: 'Plex Dark', value: 'plex' },
+                                                            { label: 'Sleek Slate', value: 'slate' },
+                                                            { label: 'Nordic Frost', value: 'nordic' },
+                                                            { label: 'Jellyfin Purple', value: 'jellyfin' },
+                                                            { label: 'Emerald Green', value: 'emerald' },
+                                                            { label: 'Neon Midnight', value: 'midnight' },
+                                                            { label: 'Crimson Red', value: 'crimson' },
+                                                            { label: 'Deep Amethyst', value: 'amethyst' },
+                                                            { label: 'Sunset Orange', value: 'sunset' },
+                                                            { label: 'Ocean Teal', value: 'ocean' },
+                                                            { label: 'Rose Pink', value: 'rose' },
+                                                            { label: 'Royal Blue', value: 'royal' },
+                                                            { label: 'Graphite', value: 'graphite' },
+                                                            { label: 'Cyber Lime', value: 'cyberlime' },
+                                                            { label: 'Aurora', value: 'aurora' },
+                                                        ]}
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <SettingFieldLabel
+                                                        hint={<SettingHint>Choose where the server logo and server name appear in the desktop sidebar. Bottom keeps it near the profile area.</SettingHint>}
+                                                    >
+                                                        Server Logo Position
+                                                    </SettingFieldLabel>
+                                                    <CustomSelect
+                                                        value={sidebarIdentityPosition}
+                                                        onChange={(value) => setSidebarIdentityPosition(value === 'top' ? 'top' : 'bottom')}
+                                                        options={[
+                                                            { label: 'Bottom', value: 'bottom' },
+                                                            { label: 'Top', value: 'top' },
+                                                        ]}
+                                                    />
+                                                </div>
+
+                                                <div id={getSettingsSectionElementId('slideshow')} className="scroll-mt-24">
+                                                    <SettingFieldLabel hint={<SettingHint>Shown on login and portal backgrounds when the TMDB slideshow is disabled.</SettingHint>}>
+                                                        Static Splash Background Image
+                                                    </SettingFieldLabel>
+                                                    <div className={`grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_14rem] gap-3 mt-1 transition-opacity ${useTrendingSlideshow ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+                                                        <input
+                                                            type="url"
+                                                            className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all"
+                                                            value={backgroundImageUrl}
+                                                            onChange={e => setBackgroundImageUrl(e.target.value)}
+                                                            placeholder="https://example.com/background.png"
+                                                        />
+                                                        <input
+                                                            type="file"
+                                                            accept="image/png,image/jpeg,image/webp"
+                                                            className="w-full p-2 rounded-lg border border-border bg-background text-muted text-sm outline-none focus:border-plex transition-all file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-text hover:file:bg-white/20 file:cursor-pointer cursor-pointer"
+                                                            onChange={e => {
+                                                                const file = e.target.files?.[0] || null;
+                                                                setBackgroundFile(file);
+                                                                if (file) {
+                                                                    setBackgroundImageUrl(file.name.toLowerCase().endsWith('.webp') ? '/static/background.webp' : '/static/background.png');
+                                                                }
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <p className="text-xs text-muted mt-2">{backgroundFile ? backgroundFile.name : 'PNG, JPEG, or WebP, max 10MB'}</p>
+                                                </div>
+
+                                                <div className="rounded-xl border border-border overflow-hidden bg-background/70">
+                                                    <div className="px-4 py-3 border-b border-border/70 bg-black/20">
+                                                        <h4 className="font-bold text-text">Portal splash preview</h4>
+                                                    </div>
+                                                    <div
+                                                        className="relative min-h-[240px] flex items-center justify-center p-6 bg-card"
+                                                        style={backgroundImageUrl ? {
+                                                            backgroundImage: `linear-gradient(rgba(10,15,20,0.42), rgba(10,15,20,0.56)), url("${resolvePortalAssetUrl(backgroundImageUrl).replace(/"/g, '%22')}")`,
+                                                            backgroundRepeat: 'no-repeat',
+                                                            backgroundPosition: 'center',
+                                                            backgroundSize: 'cover',
+                                                        } : undefined}
+                                                    >
+                                                        <div className="text-center w-full">
+                                                            {customLogoUrl ? (
+                                                                <img
+                                                                    src={resolvePortalAssetUrl(customLogoUrl)}
+                                                                    alt="Server icon preview"
+                                                                    className="max-w-32 max-h-28 object-contain mx-auto mb-4 drop-shadow-[0_0_24px_rgba(0,0,0,0.75)]"
+                                                                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                                />
+                                                            ) : (
+                                                                <div className="w-24 h-24 rounded-full border-2 border-plex/50 bg-background/80 mx-auto mb-4 p-3 shadow-[0_0_36px_rgba(0,164,220,0.28)]">
+                                                                    <span className="w-full h-full flex items-center justify-center text-3xl font-black text-plex">S</span>
+                                                                </div>
+                                                            )}
+                                                            <p className="text-sm font-bold text-text">Portal splash preview</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={applyJellyfinBranding}
-                                            className="px-4 py-2 bg-plex hover:bg-plex-hover text-background rounded-md font-bold transition-colors whitespace-nowrap"
-                                        >
-                                            Use Jellyfin icon & splash
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
+                                    </section>
 
-                            <div id={getSettingsSectionElementId('logo')} className="mb-4 scroll-mt-24">
-                                <SettingFieldLabel hint={<SettingHint>Provide a URL or upload a file. (Max 5MB)</SettingHint>}>
-                                    Custom Logo
-                                </SettingFieldLabel>
-                                <div className="flex flex-col gap-2">
-                                    <input type="url" className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all" value={customLogoUrl} onChange={e => setCustomLogoUrl(e.target.value)} placeholder="https://example.com/logo.png" />
-                                    <span className="text-center text-muted font-bold text-sm">OR</span>
-                                    <input type="file" accept="image/*" className="w-full p-2 rounded-lg border border-border bg-background text-muted text-sm outline-none focus:border-plex transition-all file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-text hover:file:bg-white/20 file:cursor-pointer cursor-pointer" onChange={e => setLogoFile(e.target.files?.[0] || null)} />
-                                </div>
-                            </div>
-                            <div id={getSettingsSectionElementId('theme')} className="mb-8 relative z-[50] scroll-mt-24">
-                                <SettingFieldLabel
-                                    hint={<SettingHint>The default theme applied to new visitors and users. Users can still customize their local theme preference in the navigation menu.</SettingHint>}
-                                >
-                                    Portal Theme
-                                </SettingFieldLabel>
-                                <CustomSelect
-                                    value={brandingTheme}
-                                    onChange={setBrandingTheme}
-                                    options={[
-                                        { label: 'Dynamic (Chameleon)', value: 'dynamic' },
-                                        { label: 'Plex Dark', value: 'plex' },
-                                        { label: 'Sleek Slate', value: 'slate' },
-                                        { label: 'Nordic Frost', value: 'nordic' },
-                                        { label: 'Jellyfin Purple', value: 'jellyfin' },
-                                        { label: 'Emerald Green', value: 'emerald' },
-                                        { label: 'Neon Midnight', value: 'midnight' },
-                                        { label: 'Crimson Red', value: 'crimson' },
-                                        { label: 'Deep Amethyst', value: 'amethyst' },
-                                        { label: 'Sunset Orange', value: 'sunset' },
-                                    ]}
-                                />
-                            </div>
-
-                            <SettingsToggleRow
-                                title="Enable Scroll Reveal Animations"
-                                hint={<SettingHint>Smoothly slide elements into place as you scroll down the dashboard.</SettingHint>}
-                                checked={useScrollRevealAnimations}
-                                onChange={setUseScrollRevealAnimations}
-                                className="mb-4 mt-4"
-                            />
-
-                            <SettingsToggleRow
-                                title="Enable Cinematic Loading Sequences"
-                                hint={<SettingHint>Replaces the standard loading spinner with a beautiful SVG line-drawing animation.</SettingHint>}
-                                checked={useCinematicLoading}
-                                onChange={setUseCinematicLoading}
-                                className="mb-4"
-                            />
-
-                            <SettingsToggleRow
-                                title="Enable Branded Skeleton Loading"
-                                hint={<SettingHint>Use a branded, animated shimmer effect for skeleton loaders instead of the default pulse.</SettingHint>}
-                                checked={useBrandedSkeleton}
-                                onChange={setUseBrandedSkeleton}
-                                className="mb-4"
-                            />
-
-                            <div id={getSettingsSectionElementId('slideshow')} className="scroll-mt-24">
-                            <SettingsToggleRow
-                                title="Enable TMDB Trending Slideshow"
-                                hint={<SettingHint>Replaces the static splash background with a fading slideshow of currently trending movies and shows from TMDB. Requires a TMDB API key in Integrations.</SettingHint>}
-                                checked={useTrendingSlideshow}
-                                onChange={setUseTrendingSlideshow}
-                                className="mb-4"
-                            >
-                                <div className={`transition-all overflow-hidden ${useTrendingSlideshow ? 'max-h-[100px] opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
-                                    <label>Slideshow Interval (Seconds)</label>
-                                    <select
-                                        className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all mt-1"
-                                        value={trendingSlideshowInterval}
-                                        onChange={e => setTrendingSlideshowInterval(parseInt(e.target.value, 10))}
-                                    >
-                                        <option value={10}>10 Seconds</option>
-                                        <option value={20}>20 Seconds</option>
-                                        <option value={30}>30 Seconds</option>
-                                        <option value={40}>40 Seconds</option>
-                                        <option value={50}>50 Seconds</option>
-                                        <option value={60}>60 Seconds</option>
-                                    </select>
-                                </div>
-                            </SettingsToggleRow>
-                            </div>
-
-                            <SettingsToggleRow
-                                title="Enable Slideshow on Login Page"
-                                hint={<SettingHint>Display the TMDB trending slideshow background on the login and landing pages.</SettingHint>}
-                                checked={useTrendingSlideshowOnLogin}
-                                onChange={setUseTrendingSlideshowOnLogin}
-                                className="mb-4"
-                            />
-
-                            <div className={`mb-4 transition-opacity ${useTrendingSlideshow ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
-                                <SettingFieldLabel
-                                    hint={<SettingHint>Shown as a subtle splash image on the login screen and portal background.</SettingHint>}
-                                >
-                                    Static Splash Background Image
-                                </SettingFieldLabel>
-                                <input
-                                    type="url"
-                                    className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all"
-                                    value={backgroundImageUrl}
-                                    onChange={e => setBackgroundImageUrl(e.target.value)}
-                                    placeholder="https://example.com/background.png"
-                                />
-                            </div>
-
-                            <div className="mb-6 rounded-lg border border-border overflow-hidden bg-background/70">
-                                <div
-                                    className="relative min-h-[220px] flex items-center justify-center p-6 bg-card"
-                                    style={backgroundImageUrl ? {
-                                        backgroundImage: `linear-gradient(rgba(10,15,20,0.42), rgba(10,15,20,0.56)), url("${resolvePortalAssetUrl(backgroundImageUrl).replace(/"/g, '%22')}")`,
-                                        backgroundRepeat: 'no-repeat',
-                                        backgroundPosition: 'center',
-                                        backgroundSize: 'cover',
-                                    } : undefined}
-                                >
-                                    <div className="text-center">
-                                        {customLogoUrl ? (
-                                            <img
-                                                src={resolvePortalAssetUrl(customLogoUrl)}
-                                                alt="Server icon preview"
-                                                className="max-w-28 max-h-24 object-contain mx-auto mb-4 drop-shadow-[0_0_24px_rgba(0,0,0,0.75)]"
-                                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                                            />
-                                        ) : (
-                                            <div className="w-24 h-24 rounded-full border-2 border-plex/50 bg-background/80 mx-auto mb-4 p-3 shadow-[0_0_36px_rgba(0,164,220,0.28)]">
-                                                <span className="w-full h-full flex items-center justify-center text-3xl font-black text-plex">S</span>
+                                    <section className="rounded-xl border border-border/70 p-4">
+                                        <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                                            <div className="lg:w-52 shrink-0">
+                                                <h4 className="font-bold text-text">Motion & Loading</h4>
+                                                <p className="text-xs text-muted mt-1">Animation and loading states.</p>
                                             </div>
-                                        )}
-                                        <p className="text-sm font-bold text-text">Portal splash preview</p>
-                                        <p className="text-xs text-muted mt-1">This is the server icon and background users will see.</p>
-                                    </div>
-                                </div>
-                            </div>
+                                            <div className="flex-1 min-w-0 divide-y divide-border/40">
+                                                <SettingsToggleRow
+                                                    title="Scroll Reveal Animations"
+                                                    hint={<SettingHint>Smoothly slide elements into place as you scroll down the dashboard.</SettingHint>}
+                                                    checked={useScrollRevealAnimations}
+                                                    onChange={setUseScrollRevealAnimations}
+                                                    border={false}
+                                                />
+                                                <SettingsToggleRow
+                                                    title="Cinematic Loading Sequences"
+                                                    hint={<SettingHint>Replaces the standard loading spinner with an SVG line-drawing animation.</SettingHint>}
+                                                    checked={useCinematicLoading}
+                                                    onChange={setUseCinematicLoading}
+                                                    border={false}
+                                                />
+                                                <SettingsToggleRow
+                                                    title="Branded Skeleton Loading"
+                                                    hint={<SettingHint>Use a branded shimmer effect for skeleton loaders.</SettingHint>}
+                                                    checked={useBrandedSkeleton}
+                                                    onChange={setUseBrandedSkeleton}
+                                                    border={false}
+                                                />
+                                            </div>
+                                        </div>
+                                    </section>
 
+                                    <section className="rounded-xl border border-border/70 p-4">
+                                        <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                                            <div className="lg:w-52 shrink-0">
+                                                <h4 className="font-bold text-text">Slideshow</h4>
+                                                <p className="text-xs text-muted mt-1">TMDB trending background behavior.</p>
+                                            </div>
+                                            <div className="flex-1 min-w-0 divide-y divide-border/40">
+                                                <SettingsToggleRow
+                                                    title="TMDB Trending Slideshow"
+                                                    hint={<SettingHint>Requires a TMDB API key in Integrations.</SettingHint>}
+                                                    checked={useTrendingSlideshow}
+                                                    onChange={setUseTrendingSlideshow}
+                                                    border={false}
+                                                >
+                                                    <div className={`transition-all overflow-hidden ${useTrendingSlideshow ? 'max-h-[120px] opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
+                                                        <SettingFieldLabel>Slideshow Interval</SettingFieldLabel>
+                                                        <CustomSelect
+                                                            value={String(trendingSlideshowInterval)}
+                                                            onChange={(val) => setTrendingSlideshowInterval(parseInt(val, 10))}
+                                                            options={[
+                                                                { label: '10 Seconds', value: '10' },
+                                                                { label: '20 Seconds', value: '20' },
+                                                                { label: '30 Seconds', value: '30' },
+                                                                { label: '40 Seconds', value: '40' },
+                                                                { label: '50 Seconds', value: '50' },
+                                                                { label: '60 Seconds', value: '60' },
+                                                            ]}
+                                                        />
+                                                    </div>
+                                                </SettingsToggleRow>
+                                                <SettingsToggleRow
+                                                    title="Slideshow on Login Page"
+                                                    hint={<SettingHint>Display the TMDB trending slideshow background on the login and landing pages.</SettingHint>}
+                                                    checked={useTrendingSlideshowOnLogin}
+                                                    onChange={setUseTrendingSlideshowOnLogin}
+                                                    border={false}
+                                                />
+                                            </div>
+                                        </div>
+                                    </section>
 
-                            <SettingsToggleRow
-                                title="Use 24-Hour Clock across the Portal"
-                                checked={use24HourClock}
-                                onChange={setUse24HourClock}
-                                className="mb-4"
-                            />
+                                    <section className="rounded-xl border border-border/70 p-4">
+                                        <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                                            <div className="lg:w-52 shrink-0">
+                                                <h4 className="font-bold text-text">Display Preferences</h4>
+                                                <p className="text-xs text-muted mt-1">Shared display defaults.</p>
+                                            </div>
+                                            <div className="flex-1 min-w-0 divide-y divide-border/40">
+                                                <SettingsToggleRow title="Use 24-Hour Clock across the Portal" checked={use24HourClock} onChange={setUse24HourClock} border={false} />
+                                                <div id={getSettingsSectionElementId('poster-badges')} className="scroll-mt-24">
+                                                    <SettingsToggleRow
+                                                        title="Poster Quality Badges"
+                                                        description="Show quality badges on recently added and discover posters (4K, HDR, codec, Atmos)."
+                                                        hint={<SettingHint>Applies to Home and Discover poster cards for all users.</SettingHint>}
+                                                        checked={showPosterQualityBadges}
+                                                        onChange={setShowPosterQualityBadges}
+                                                        border={false}
+                                                    />
+                                                </div>
+                                                <div id={getSettingsSectionElementId('dashboard-watching-badge')} className="scroll-mt-24">
+                                                    <SettingsToggleRow
+                                                        title="Dashboard Watching Badge"
+                                                        hint={(
+                                                            <SettingHint>
+                                                                Show a live count of people currently watching next to Dashboard in the sidebar.
+                                                            </SettingHint>
+                                                        )}
+                                                        checked={showDashboardWatchingBadge}
+                                                        onChange={setShowDashboardWatchingBadge}
+                                                        border={false}
+                                                    >
+                                                        <div className={`transition-all overflow-hidden ${showDashboardWatchingBadge ? 'max-h-[120px] opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
+                                                            <label className="text-sm font-medium text-muted">Poll Interval</label>
+                                                            <CustomSelect
+                                                                className="w-full mt-1"
+                                                                value={String(dashboardWatchingBadgePollSeconds)}
+                                                                onChange={(value) => setDashboardWatchingBadgePollSeconds(Math.min(15, Math.max(1, parseInt(value, 10) || 15)))}
+                                                                options={Array.from({ length: 15 }, (_, i) => {
+                                                                    const seconds = i + 1;
+                                                                    return {
+                                                                        value: String(seconds),
+                                                                        label: `${seconds} ${seconds === 1 ? 'Second' : 'Seconds'}`,
+                                                                    };
+                                                                })}
+                                                            />
+                                                        </div>
+                                                    </SettingsToggleRow>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </section>
 
-                            <div id={getSettingsSectionElementId('poster-badges')} className="scroll-mt-24">
-                            <SettingsToggleRow
-                                title="Poster Quality Badges"
-                                hint={(
-                                    <SettingHint>
-                                        Show quality badges on recently added and discover posters (4K, HDR, codec, Atmos).
-                                        Applies to Home and Discover poster cards for all users.
-                                    </SettingHint>
-                                )}
-                                checked={showPosterQualityBadges}
-                                onChange={setShowPosterQualityBadges}
-                                className="mb-4"
-                            />
-                            </div>
+                                    <section className="rounded-xl border border-border/70 p-4">
+                                        <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                                            <div className="lg:w-52 shrink-0">
+                                                <h4 className="font-bold text-text">Access</h4>
+                                                <p className="text-xs text-muted mt-1">Public access and pre-login visibility.</p>
+                                            </div>
+                                            <div className="flex-1 min-w-0 divide-y divide-border/40">
+                                                <SettingsToggleRow title="Allow Temporary Access (Public Sign-ups)" checked={allowTemporaryAccess} onChange={setAllowTemporaryAccess} border={false} />
+                                                <SettingsToggleRow
+                                                    title="Show Status Monitor Before Login"
+                                                    hint={<SettingHint>Allow visitors without a session to open the status page and see monitored service health.</SettingHint>}
+                                                    checked={showPublicStatusMonitor}
+                                                    onChange={setShowPublicStatusMonitor}
+                                                    border={false}
+                                                />
+                                                <SettingsToggleRow
+                                                    title="Show Library Stats Before Login"
+                                                    hint={<SettingHint>Display public library counts on login and invite pages before users sign in.</SettingHint>}
+                                                    checked={showPublicLibraryStats}
+                                                    onChange={setShowPublicLibraryStats}
+                                                    border={false}
+                                                />
+                                            </div>
+                                        </div>
+                                    </section>
 
-                            <div id={getSettingsSectionElementId('dashboard-watching-badge')} className="scroll-mt-24">
-                            <SettingsToggleRow
-                                title="Dashboard Watching Badge"
-                                hint={(
-                                    <SettingHint>
-                                        Show a live count of people currently watching next to Dashboard in the sidebar.
-                                        Polls your Plex or Jellyfin server on the interval below and counts unique viewers with an active stream.
-                                    </SettingHint>
-                                )}
-                                checked={showDashboardWatchingBadge}
-                                onChange={setShowDashboardWatchingBadge}
-                                className="mb-4"
-                            >
-                                <div className={`transition-all overflow-hidden ${showDashboardWatchingBadge ? 'max-h-[120px] opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
-                                    <label className="text-sm font-medium text-muted">Poll Interval</label>
-                                    <CustomSelect
-                                        className="w-full mt-1"
-                                        value={String(dashboardWatchingBadgePollSeconds)}
-                                        onChange={(value) => setDashboardWatchingBadgePollSeconds(Math.min(15, Math.max(1, parseInt(value, 10) || 15)))}
-                                        options={Array.from({ length: 15 }, (_, i) => {
-                                            const seconds = i + 1;
-                                            return {
-                                                value: String(seconds),
-                                                label: `${seconds} ${seconds === 1 ? 'Second' : 'Seconds'}`,
-                                            };
-                                        })}
-                                    />
-                                </div>
-                            </SettingsToggleRow>
-                            </div>
-
-                            <SettingsToggleRow
-                                title="Allow Temporary Access (Public Sign-ups)"
-                                checked={allowTemporaryAccess}
-                                onChange={setAllowTemporaryAccess}
-                                className="mb-4"
-                            />
-
-                            <div className="mb-4 mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4 border-b border-border/40">
-                                <div>
-                                    <h4 className="font-bold text-text">Show Status Monitor Before Login</h4>
-                                    <SettingHint>Allow visitors without a session to open the status page and see monitored service health.</SettingHint>
-                                </div>
-                                <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
-                                    <input
-                                        type="checkbox"
-                                        className="sr-only peer"
-                                        checked={showPublicStatusMonitor}
-                                        onChange={e => setShowPublicStatusMonitor(e.target.checked)}
-                                    />
-                                    <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
-                                </label>
-                            </div>
-
-                            <div className="mb-4 mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4 border-b border-border/40">
-                                <div>
-                                    <h4 className="font-bold text-text">Show Library Stats Before Login</h4>
-                                    <SettingHint>Display public library counts on login and invite pages before users sign in.</SettingHint>
-                                </div>
-                                <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
-                                    <input
-                                        type="checkbox"
-                                        className="sr-only peer"
-                                        checked={showPublicLibraryStats}
-                                        onChange={e => setShowPublicLibraryStats(e.target.checked)}
-                                    />
-                                    <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex"></div>
-                                </label>
-                            </div>
-
-                            <h3 id={getSettingsSectionElementId('announcement')} className="text-xl font-bold text-plex mb-4 border-b border-border pb-2 mt-8 scroll-mt-24">Announcements</h3>
-                            <div className="mb-4">
-                                <SettingFieldLabel hint={<SettingHint>If provided, this announcement will be prominently displayed to all users.</SettingHint>}>
-                                    Portal Announcement Banner
-                                </SettingFieldLabel>
-                                <textarea className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all" value={announcement} onChange={e => setAnnouncement(e.target.value)} placeholder="E.g. Server maintenance scheduled for Friday..." rows={3}></textarea>
-                                <div className="flex justify-end mt-2">
-                                    <button
-                                        onClick={handlePushAnnouncement}
-                                        disabled={isPushingAnnouncement || !announcement}
-                                        className="bg-plex hover:bg-plex-hover disabled:opacity-50 text-background font-bold py-1.5 px-4 rounded-lg transition-colors text-sm whitespace-nowrap"
-                                    >
-                                        {isPushingAnnouncement ? 'Pushing...' : 'Save & Send Email Blast'}
-                                    </button>
-                                </div>
+                                    <section id={getSettingsSectionElementId('announcement')} className="scroll-mt-24 rounded-xl border border-border/70 p-4">
+                                        <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                                            <div className="lg:w-52 shrink-0">
+                                                <h4 className="font-bold text-text">Announcement</h4>
+                                                <p className="text-xs text-muted mt-1">Portal banner and email blast.</p>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <SettingFieldLabel hint={<SettingHint>If provided, this announcement will be prominently displayed to all users.</SettingHint>}>
+                                                    Portal Announcement Banner
+                                                </SettingFieldLabel>
+                                                <textarea className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all mt-1" value={announcement} onChange={e => setAnnouncement(e.target.value)} placeholder="E.g. Server maintenance scheduled for Friday..." rows={3}></textarea>
+                                                <div className="flex justify-end mt-3">
+                                                    <button
+                                                        onClick={handlePushAnnouncement}
+                                                        disabled={isPushingAnnouncement || !announcement}
+                                                        className="bg-plex hover:bg-plex-hover disabled:opacity-50 text-background font-bold py-2 px-4 rounded-lg transition-colors text-sm whitespace-nowrap"
+                                                    >
+                                                        {isPushingAnnouncement ? 'Pushing...' : 'Save & Send Email Blast'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </section>
                             </div>
 
                         </div>
@@ -2486,10 +2884,11 @@ export const SettingsDashboard: React.FC = () => {
                                         <div><strong>Node:</strong> {diagnostics?.app?.nodeVersion || 'n/a'}</div>
                                         <div><strong>Memory:</strong> {diagnostics?.app?.memoryRssMB || 0} MB</div>
                                         <div className="flex items-center justify-between gap-2">
-                                            <strong>Media Player ({mediaServerType === 'jellyfin' ? 'Jellyfin' : 'Plex'})</strong>
-                                            {renderConfigPill(mediaServerType === 'jellyfin' ? !!diagnostics?.integrations?.jellyfinConfigured : !!diagnostics?.integrations?.plexConfigured)}
+                                            <strong>Media Player ({mediaServerType !== 'plex' ? 'Jellyfin' : 'Plex'})</strong>
+                                            {renderConfigPill(mediaServerType !== 'plex' ? !!diagnostics?.integrations?.jellyfinConfigured : !!diagnostics?.integrations?.plexConfigured)}
                                         </div>
                                         <div className="flex items-center justify-between gap-2"><strong>SMTP</strong>{renderOptionalIntegrationPill(!!diagnostics?.integrations?.smtpConfigured)}</div>
+                                        <div className="flex items-center justify-between gap-2"><strong>Gotify</strong>{renderOptionalIntegrationPill(!!diagnostics?.integrations?.gotifyConfigured)}</div>
                                         <div className="flex items-center justify-between gap-2">
                                             <strong>Sonarr</strong>
                                             {renderConfigPill(!!diagnostics?.integrations?.sonarrConfigured)}
@@ -2504,7 +2903,21 @@ export const SettingsDashboard: React.FC = () => {
                                                 <span className="text-[10px] text-muted">{diagnostics.integrations.arrInstanceCounts.radarr.ready} instances</span>
                                             )}
                                         </div>
-                                        {mediaServerType === 'jellyfin' ? (
+                                        <div className="flex items-center justify-between gap-2">
+                                            <strong>Lidarr</strong>
+                                            {renderOptionalIntegrationPill(!!diagnostics?.integrations?.lidarrConfigured)}
+                                            {diagnostics?.integrations?.arrInstanceCounts?.lidarr?.ready > 1 && (
+                                                <span className="text-[10px] text-muted">{diagnostics.integrations.arrInstanceCounts.lidarr.ready} instances</span>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <strong>Bazarr</strong>
+                                            {renderOptionalIntegrationPill(!!diagnostics?.integrations?.bazarrConfigured)}
+                                            {diagnostics?.integrations?.arrInstanceCounts?.bazarr?.ready > 1 && (
+                                                <span className="text-[10px] text-muted">{diagnostics.integrations.arrInstanceCounts.bazarr.ready} instances</span>
+                                            )}
+                                        </div>
+                                        {mediaServerType !== 'plex' ? (
                                             <div className="flex items-center justify-between gap-2"><strong>Jellystat</strong>{renderConfigPill(!!diagnostics?.integrations?.jellystatConfigured)}</div>
                                         ) : (
                                             <div className="flex items-center justify-between gap-2"><strong>Tautulli</strong>{renderConfigPill(!!diagnostics?.integrations?.tautulliConfigured)}</div>
@@ -2512,7 +2925,7 @@ export const SettingsDashboard: React.FC = () => {
                                         <div className="flex items-center justify-between gap-2"><strong>Request App</strong>{renderOptionalPill(!!diagnostics?.integrations?.requestAppEnabled, !!diagnostics?.integrations?.requestAppConfigured)}</div>
                                         <div className="flex items-center justify-between gap-2"><strong>Analytics Cache</strong>{renderConfigPill(!!diagnostics?.caches?.analytics?.exists)}</div>
                                         <div className="flex items-center justify-between gap-2"><strong>Trending Cache</strong>{renderConfigPill(!!diagnostics?.caches?.trending?.exists)}</div>
-                                        {mediaServerType !== 'jellyfin' && (
+                                        {mediaServerType === 'plex' && (
                                             <div className="flex items-center justify-between gap-2"><strong>Plex Stats Cache</strong>{renderConfigPill(!!diagnostics?.caches?.plexStats?.exists)}</div>
                                         )}
                                         <div className="flex items-center justify-between gap-2"><strong>Users File</strong>{renderConfigPill(!!diagnostics?.files?.users?.exists)}</div>

@@ -1,5 +1,5 @@
 export const SETTINGS_TABS = [
-    'plex', 'smtp', 'newsletter', 'cleanup', 'mediastack', 'request', 'branding', 'navigation', 'home-layout',
+    'plex', 'smtp', 'gotify', 'newsletter', 'cleanup', 'mediastack', 'request', 'branding', 'navigation', 'home-layout',
     'status', 'invites', 'tasks', 'upgrader', 'system', 'contact', 'broadcast', 'stream-rules', 'logs',
 ] as const;
 
@@ -17,7 +17,7 @@ export type SettingsIndexEntry = {
 export const SETTINGS_INDEX: SettingsIndexEntry[] = [
     { id: 'branding', tabId: 'branding', label: 'Portal UI', group: 'Portal', keywords: ['theme', 'logo', 'color', 'branding', 'ui'] },
     { id: 'branding/logo', tabId: 'branding', sectionId: 'logo', label: 'Custom Logo', group: 'Portal', keywords: ['logo', 'icon', 'favicon', 'upload'] },
-    { id: 'branding/theme', tabId: 'branding', sectionId: 'theme', label: 'Portal Theme', group: 'Portal', keywords: ['theme', 'plex dark', 'slate', 'jellyfin purple'] },
+    { id: 'branding/theme', tabId: 'branding', sectionId: 'theme', label: 'Portal Theme', group: 'Portal', keywords: ['theme', 'plex dark', 'slate', 'jellyfin purple', 'ocean', 'rose', 'royal', 'graphite', 'cyber lime', 'aurora'] },
     { id: 'branding/announcement', tabId: 'branding', sectionId: 'announcement', label: 'Portal Announcement', group: 'Portal', keywords: ['announcement', 'banner', 'notice'] },
     { id: 'branding/poster-badges', tabId: 'branding', sectionId: 'poster-badges', label: 'Poster Quality Badges', group: 'Portal', keywords: ['poster', 'quality', 'badges', 'hdr', '4k', 'codec'] },
     { id: 'branding/dashboard-watching-badge', tabId: 'branding', sectionId: 'dashboard-watching-badge', label: 'Dashboard Watching Badge', group: 'Portal', keywords: ['dashboard', 'watching', 'streams', 'sidebar', 'badge', 'nav', 'poll', 'interval', 'seconds'] },
@@ -36,8 +36,11 @@ export const SETTINGS_INDEX: SettingsIndexEntry[] = [
     { id: 'plex/analytics-usernames', tabId: 'plex', sectionId: 'analytics-usernames', label: 'Show Usernames in Analytics', group: 'Media Stack', keywords: ['analytics', 'usernames', 'viewer', 'privacy'] },
     { id: 'plex/libraries', tabId: 'plex', sectionId: 'libraries', label: 'Default Libraries', group: 'Media Stack', keywords: ['libraries', 'share', 'temporary', 'access'] },
 
-    { id: 'mediastack', tabId: 'mediastack', label: 'Integrations', group: 'Media Stack', keywords: ['integrations', 'arr', 'sonarr', 'radarr'] },
+    { id: 'mediastack', tabId: 'mediastack', label: 'Integrations', group: 'Media Stack', keywords: ['integrations', 'arr', 'sonarr', 'radarr', 'lidarr', 'bazarr', 'downloads', 'qbittorrent', 'transmission'] },
     { id: 'mediastack/arr', tabId: 'mediastack', sectionId: 'arr', label: 'Sonarr & Radarr Instances', group: 'Media Stack', keywords: ['sonarr', 'radarr', 'arr', 'instances'] },
+    { id: 'mediastack/lidarr', tabId: 'mediastack', sectionId: 'lidarr', label: 'Lidarr Instances', group: 'Media Stack', keywords: ['lidarr', 'music', 'artists', 'albums', 'instances'] },
+    { id: 'mediastack/bazarr', tabId: 'mediastack', sectionId: 'bazarr', label: 'Bazarr Instances', group: 'Media Stack', keywords: ['bazarr', 'subtitles', 'subtitle', 'instances'] },
+    { id: 'mediastack/download-clients', tabId: 'mediastack', sectionId: 'download-clients', label: 'Download Clients', group: 'Media Stack', keywords: ['downloads', 'qbittorrent', 'transmission', 'bittorrent', 'torrents'] },
     { id: 'mediastack/tautulli', tabId: 'mediastack', sectionId: 'tautulli', label: 'Tautulli Integration', group: 'Media Stack', keywords: ['tautulli', 'analytics', 'plex'] },
     { id: 'mediastack/jellystat', tabId: 'mediastack', sectionId: 'jellystat', label: 'Jellystat Integration', group: 'Media Stack', keywords: ['jellystat', 'jellyfin', 'analytics'] },
     { id: 'mediastack/seerr', tabId: 'mediastack', sectionId: 'seerr', label: 'Request App (Seerr/Ombi)', group: 'Media Stack', keywords: ['seerr', 'overseerr', 'jellyseerr', 'ombi', 'request'] },
@@ -51,6 +54,7 @@ export const SETTINGS_INDEX: SettingsIndexEntry[] = [
     { id: 'status', tabId: 'status', label: 'Status Monitor', group: 'Media Stack', keywords: ['uptime', 'health', 'services', 'monitor'] },
 
     { id: 'smtp', tabId: 'smtp', label: 'SMTP Alerts', group: 'Comms', keywords: ['mail', 'smtp', 'email', 'alerts', 'test'] },
+    { id: 'gotify', tabId: 'gotify', label: 'Gotify Alerts', group: 'Comms', keywords: ['gotify', 'push', 'alerts', 'notifications', 'rules', 'self hosted'] },
     { id: 'newsletter', tabId: 'newsletter', label: 'Newsletter', group: 'Comms', keywords: ['digest', 'send', 'frequency', 'weekly', 'monthly'] },
     { id: 'broadcast', tabId: 'broadcast', label: 'Broadcast Email', group: 'Comms', keywords: ['announcement', 'bulk', 'users', 'broadcast'] },
     { id: 'invites', tabId: 'invites', label: 'Invites', group: 'Comms', keywords: ['invite', 'link', 'code'] },

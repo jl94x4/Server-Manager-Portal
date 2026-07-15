@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 import { apiFetch } from './api';
 
-export type IntegrationTestType = 'plex' | 'jellyfin' | 'sonarr' | 'radarr' | 'tautulli' | 'jellystat' | 'requestApp';
+export type IntegrationTestType = 'plex' | 'jellyfin' | 'emby' | 'sonarr' | 'radarr' | 'lidarr' | 'bazarr' | 'downloadClient' | 'tautulli' | 'jellystat' | 'requestApp';
 
 type Props = {
     type: IntegrationTestType;

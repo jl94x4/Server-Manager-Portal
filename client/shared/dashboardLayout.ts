@@ -1,4 +1,4 @@
-export type DashboardSectionId = 'wrapUp' | 'mainGrid' | 'pendingRequests' | 'watchRow' | 'recentlyAdded';
+export type DashboardSectionId = 'wrapUp' | 'mainGrid' | 'pendingRequests' | 'watchRow' | 'recentlyAdded' | 'bazarrTools';
 
 export type MainGridWidgetId =
     | 'adminBadge'
@@ -15,6 +15,7 @@ export type MainGridWidgetId =
 export type RecentlyAddedWidgetId = 'recentMovies' | 'recentShows' | 'recentMusic';
 
 export type DashboardWidgetId = MainGridWidgetId | RecentlyAddedWidgetId;
+export type DashboardWidgetSize = 'compact' | 'normal' | 'wide' | 'full';
 
 export interface DashboardLayoutConfig {
     version: 1;
@@ -23,6 +24,7 @@ export interface DashboardLayoutConfig {
     recentlyAddedOrder: RecentlyAddedWidgetId[];
     hiddenSections: DashboardSectionId[];
     hiddenWidgets: DashboardWidgetId[];
+    widgetSizes: Partial<Record<DashboardWidgetId, DashboardWidgetSize>>;
     recentHistoryRows?: number;
     topWatchedRows?: number;
 }
@@ -33,6 +35,7 @@ export const DASHBOARD_SECTION_LABELS: Record<DashboardSectionId, string> = {
     pendingRequests: 'Pending Requests',
     watchRow: 'Recently / Most Watched',
     recentlyAdded: 'Recently Added rows',
+    bazarrTools: 'Bazarr Subtitle Tools',
 };
 
 export const MAIN_GRID_WIDGET_META: Record<MainGridWidgetId, { label: string; column: 'left' | 'right'; adminOnly?: boolean; userOnly?: boolean }> = {
@@ -56,7 +59,7 @@ export const RECENTLY_ADDED_WIDGET_META: Record<RecentlyAddedWidgetId, string> =
 
 export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayoutConfig = {
     version: 1,
-    sections: ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'recentlyAdded'],
+    sections: ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'recentlyAdded', 'bazarrTools'],
     mainGridOrder: [
         'adminBadge',
         'quickActions',
@@ -71,15 +74,18 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayoutConfig = {
     recentlyAddedOrder: ['recentMovies', 'recentShows', 'recentMusic'],
     hiddenSections: [],
     hiddenWidgets: [],
+    widgetSizes: {},
     recentHistoryRows: 7,
     topWatchedRows: 2,
 };
 
-const ALL_SECTIONS: DashboardSectionId[] = ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'recentlyAdded'];
+const ALL_SECTIONS: DashboardSectionId[] = ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'recentlyAdded', 'bazarrTools'];
 const ALL_MAIN_GRID: MainGridWidgetId[] = Object.keys(MAIN_GRID_WIDGET_META) as MainGridWidgetId[];
 const ALL_RECENTLY_ADDED: RecentlyAddedWidgetId[] = ['recentMovies', 'recentShows', 'recentMusic'];
+const ALL_WIDGETS: DashboardWidgetId[] = [...ALL_MAIN_GRID, ...ALL_RECENTLY_ADDED];
+const ALL_WIDGET_SIZES: DashboardWidgetSize[] = ['compact', 'normal', 'wide', 'full'];
 
-const uniqueValid = <T extends string>(values: unknown, allowed: T[], fallback: T[]): T[] => {
+const uniqueValid = <T extends string>(values: unknown, allowed: T[], fallback: T[], fillMissing = true): T[] => {
     if (!Array.isArray(values)) return [...fallback];
     const seen = new Set<T>();
     const result: T[] = [];
@@ -88,23 +94,37 @@ const uniqueValid = <T extends string>(values: unknown, allowed: T[], fallback: 
         const id = value as T;
         if (!allowed.includes(id) || seen.has(id)) return;
         seen.add(id);
-        result.push(id);
+            result.push(id);
     });
-    allowed.forEach((id) => {
-        if (!seen.has(id)) result.push(id);
+    if (fillMissing) {
+        allowed.forEach((id) => {
+            if (!seen.has(id)) result.push(id);
+        });
+    }
+    return result;
+};
+
+const normalizeWidgetSizes = (values: unknown): Partial<Record<DashboardWidgetId, DashboardWidgetSize>> => {
+    if (!values || typeof values !== 'object') return {};
+    const result: Partial<Record<DashboardWidgetId, DashboardWidgetSize>> = {};
+    Object.entries(values as Record<string, unknown>).forEach(([key, value]) => {
+        if (!ALL_WIDGETS.includes(key as DashboardWidgetId)) return;
+        if (!ALL_WIDGET_SIZES.includes(value as DashboardWidgetSize)) return;
+        if (value !== 'normal') result[key as DashboardWidgetId] = value as DashboardWidgetSize;
     });
     return result;
 };
 
 const migrateDashboardSections = (sections: DashboardSectionId[]): DashboardSectionId[] => {
     const next = sections.filter((id, index) => id !== 'pendingRequests' || sections.indexOf('pendingRequests') === index);
-    if (next.includes('pendingRequests')) return next;
     const mainGridIndex = next.indexOf('mainGrid');
-    if (mainGridIndex >= 0) {
+    if (!next.includes('pendingRequests') && mainGridIndex >= 0) {
         next.splice(mainGridIndex + 1, 0, 'pendingRequests');
-        return next;
+    } else if (!next.includes('pendingRequests')) {
+        next.push('pendingRequests');
     }
-    return [...next, 'pendingRequests'];
+    if (!next.includes('bazarrTools')) next.push('bazarrTools');
+    return next;
 };
 
 export const normalizeDashboardLayout = (raw: unknown): DashboardLayoutConfig => {
@@ -114,12 +134,9 @@ export const normalizeDashboardLayout = (raw: unknown): DashboardLayoutConfig =>
         sections: migrateDashboardSections(uniqueValid(input.sections, ALL_SECTIONS, DEFAULT_DASHBOARD_LAYOUT.sections)),
         mainGridOrder: uniqueValid(input.mainGridOrder, ALL_MAIN_GRID, DEFAULT_DASHBOARD_LAYOUT.mainGridOrder),
         recentlyAddedOrder: uniqueValid(input.recentlyAddedOrder, ALL_RECENTLY_ADDED, DEFAULT_DASHBOARD_LAYOUT.recentlyAddedOrder),
-        hiddenSections: uniqueValid(input.hiddenSections, ALL_SECTIONS, []),
-        hiddenWidgets: uniqueValid(
-            input.hiddenWidgets,
-            [...ALL_MAIN_GRID, ...ALL_RECENTLY_ADDED] as DashboardWidgetId[],
-            []
-        ),
+        hiddenSections: uniqueValid(input.hiddenSections, ALL_SECTIONS, [], false),
+        hiddenWidgets: uniqueValid(input.hiddenWidgets, ALL_WIDGETS, [], false),
+        widgetSizes: normalizeWidgetSizes(input.widgetSizes),
         recentHistoryRows: typeof input.recentHistoryRows === 'number' ? input.recentHistoryRows : DEFAULT_DASHBOARD_LAYOUT.recentHistoryRows,
         topWatchedRows: typeof input.topWatchedRows === 'number' ? input.topWatchedRows : DEFAULT_DASHBOARD_LAYOUT.topWatchedRows,
     };
@@ -164,6 +181,7 @@ export const resolveRecentlyAddedWidgets = (layout: DashboardLayoutConfig): Rece
 
 export const isDashboardSectionAvailable = (id: DashboardSectionId, ctx: DashboardLayoutContext): boolean => {
     if (id === 'pendingRequests') return !!ctx.isAdmin && !!ctx.requestsQueueEnabled;
+    if (id === 'bazarrTools') return !!ctx.isAdmin;
     return true;
 };
 
@@ -172,22 +190,17 @@ export const resolveDashboardSections = (layout: DashboardLayoutConfig, ctx?: Da
         (id) => !layout.hiddenSections.includes(id) && (!ctx || isDashboardSectionAvailable(id, ctx))
     );
 
-/** Widget order/visibility is fixed; only section order + visibility is customizable. */
-export const lockWidgetLayout = (layout: DashboardLayoutConfig): DashboardLayoutConfig => ({
-    ...layout,
-    mainGridOrder: [...DEFAULT_DASHBOARD_LAYOUT.mainGridOrder],
-    recentlyAddedOrder: [...DEFAULT_DASHBOARD_LAYOUT.recentlyAddedOrder],
-    hiddenWidgets: [],
-});
-
 export const normalizeSectionLayout = (raw: unknown): DashboardLayoutConfig => {
-    const normalized = lockWidgetLayout(normalizeDashboardLayout(raw));
+    const normalized = normalizeDashboardLayout(raw);
     const input = raw && typeof raw === 'object' ? (raw as Partial<DashboardLayoutConfig>) : null;
     if (!input || !Array.isArray(input.hiddenSections)) {
         return { ...normalized, hiddenSections: [] };
     }
     if (normalized.hiddenSections.length >= ALL_SECTIONS.length) {
         return { ...normalized, hiddenSections: [] };
+    }
+    if (normalized.hiddenWidgets.length >= ALL_WIDGETS.length) {
+        return { ...normalized, hiddenWidgets: [] };
     }
     return normalized;
 };
@@ -219,6 +232,11 @@ export const SECTION_PREVIEW_META: Record<
     recentlyAdded: {
         shortLabel: 'Recently added',
         description: 'Movies, shows & music rows',
+        previewClass: 'h-12',
+    },
+    bazarrTools: {
+        shortLabel: 'Bazarr',
+        description: 'Subtitle automation widget',
         previewClass: 'h-12',
     },
 };

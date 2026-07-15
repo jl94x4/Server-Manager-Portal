@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Settings, Sparkles, ChevronRight, ChevronLeft, Check, Palette, Mail, Layers, Server, PartyPopper, BookOpen,
+    Settings, Sparkles, ChevronRight, ChevronLeft, Check, Palette, Mail, Layers, Server, PartyPopper, BookOpen, Upload,
 } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { getPublicOrigin, logoUrl, portalUrl, stripBasePath } from '../shared/basePath';
@@ -64,6 +64,8 @@ const SELFHST_ICON_BASE = 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg';
 const APP_ICONS: Record<string, string> = {
     sonarr: `${SELFHST_ICON_BASE}/sonarr.svg`,
     radarr: `${SELFHST_ICON_BASE}/radarr.svg`,
+    lidarr: `${SELFHST_ICON_BASE}/lidarr.svg`,
+    bazarr: `${SELFHST_ICON_BASE}/bazarr.svg`,
     tautulli: `${SELFHST_ICON_BASE}/tautulli.svg`,
     seerr: `${SELFHST_ICON_BASE}/seerr.svg`,
     overseerr: `${SELFHST_ICON_BASE}/seerr.svg`,
@@ -91,17 +93,36 @@ const ProgramIcon: React.FC<{ app: string; label: string }> = ({ app, label }) =
 const MEDIA_SERVER_OPTIONS = [
     { label: 'Plex', value: 'plex' },
     { label: 'Jellyfin', value: 'jellyfin' },
+    { label: 'Emby', value: 'emby' },
 ];
+const MEDIA_SERVER_LOGOS: Record<string, string> = {
+    plex: 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg/plex.svg',
+    jellyfin: 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg/jellyfin.svg',
+    emby: 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg/emby.svg',
+};
 
 const BRAND_THEME_OPTIONS = [
     { label: 'Plex', value: 'plex' },
     { label: 'Jellyfin', value: 'jellyfin' },
+    { label: 'Emby', value: 'emby' },
+    { label: 'Ocean Teal', value: 'ocean' },
+    { label: 'Rose Pink', value: 'rose' },
+    { label: 'Royal Blue', value: 'royal' },
+    { label: 'Graphite', value: 'graphite' },
+    { label: 'Cyber Lime', value: 'cyberlime' },
+    { label: 'Aurora', value: 'aurora' },
     { label: 'Custom', value: 'custom' },
 ];
 
 const BRAND_THEME_COLORS: Record<string, string> = {
     plex: '#F7C600',
     jellyfin: '#00A4DC',
+    ocean: '#14B8A6',
+    rose: '#F472B6',
+    royal: '#60A5FA',
+    graphite: '#D4D4D8',
+    cyberlime: '#A3E635',
+    aurora: '#2DD4BF',
 };
 
 const readStoredSetupPlex = () => {
@@ -173,6 +194,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
     const [brandTheme, setBrandTheme] = useState(storedPlex?.brandTheme ?? 'plex');
     const [primaryColor, setPrimaryColor] = useState(storedPlex?.primaryColor ?? BRAND_THEME_COLORS.plex);
     const [customLogoUrl, setCustomLogoUrl] = useState(storedPlex?.customLogoUrl ?? '');
+    const [logoFile, setLogoFile] = useState<File | null>(null);
 
     const [smtpHost, setSmtpHost] = useState(storedPlex?.smtpHost ?? '');
     const [smtpPort, setSmtpPort] = useState(storedPlex?.smtpPort ?? 587);
@@ -194,19 +216,19 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
 
     const stepIndex = STEPS.findIndex((s) => s.id === step);
     const canGoNext = step !== 'plex'
-        || (mediaServerType === 'jellyfin'
+        || (mediaServerType !== 'plex'
             ? Boolean(jellyfinUrl && jellyfinApiKey)
             : Boolean(token && serverIdentifier));
 
     const applyBrandTheme = (theme: string) => {
         setBrandTheme(theme);
-        if (theme === 'plex' || theme === 'jellyfin') {
+        if (BRAND_THEME_COLORS[theme]) {
             setPrimaryColor(BRAND_THEME_COLORS[theme]);
         }
     };
 
     const applyMediaServerType = (type: string) => {
-        const nextType = type === 'jellyfin' ? 'jellyfin' : 'plex';
+        const nextType = type === 'emby' ? 'emby' : type === 'jellyfin' ? 'jellyfin' : 'plex';
         setMediaServerType(nextType);
         if (brandTheme === 'plex' || brandTheme === 'jellyfin') {
             applyBrandTheme(nextType);
@@ -361,6 +383,21 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
         setIsLoading(true);
         setError('');
         try {
+            let savedCustomLogoUrl = customLogoUrl;
+            if (logoFile) {
+                const uploadResponse = await fetch(portalUrl('/api/config/logo'), {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': logoFile.type || (logoFile.name.toLowerCase().endsWith('.png') ? 'image/png' : (logoFile.name.toLowerCase().endsWith('.webp') ? 'image/webp' : 'image/jpeg')) },
+                    body: logoFile,
+                });
+                if (!uploadResponse.ok) {
+                    const errorData = await uploadResponse.json().catch(() => ({ error: 'Logo upload failed.' }));
+                    throw new Error(errorData.error || 'Logo upload failed.');
+                }
+                const uploadResult = await uploadResponse.json().catch(() => ({}));
+                savedCustomLogoUrl = uploadResult.logoUrl || (logoFile.name.toLowerCase().endsWith('.webp') ? '/static/logo.webp' : '/static/logo.png');
+            }
             await apiFetch('/api/config', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -372,7 +409,8 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                     jellyfinApiKey,
                     publicDomain,
                     primaryColor,
-                    customLogoUrl,
+                    customLogoUrl: savedCustomLogoUrl,
+                    brandingTheme: brandTheme === 'custom' ? 'plex' : brandTheme,
                     smtpHost,
                     smtpPort,
                     smtpUser,
@@ -529,11 +567,40 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                             </div>
 
                             <div className={`${sectionCardClass} flex flex-col gap-4`}>
-                                <div className="flex flex-col gap-2.5">
-                                    <label className={labelClass}>Media Server Type</label>
-                                    <CustomSelect value={mediaServerType} onChange={applyMediaServerType} options={MEDIA_SERVER_OPTIONS} />
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {MEDIA_SERVER_OPTIONS.map((option) => {
+                                        const selected = mediaServerType === option.value;
+                                        return (
+                                            <button
+                                                key={option.value}
+                                                type="button"
+                                                onClick={() => applyMediaServerType(option.value)}
+                                                className={`flex items-center gap-3 rounded-2xl border p-4 text-left transition-colors ${
+                                                    selected
+                                                        ? 'border-plex/50 bg-plex/10 text-text'
+                                                        : 'border-white/10 bg-white/[0.03] text-muted hover:border-white/20 hover:bg-white/[0.06]'
+                                                }`}
+                                            >
+                                                <span className="w-12 h-12 rounded-xl bg-background border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                                                    <img
+                                                        src={MEDIA_SERVER_LOGOS[option.value]}
+                                                        alt=""
+                                                        className="w-8 h-8 object-contain"
+                                                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                    />
+                                                </span>
+                                                <span className="min-w-0">
+                                                    <span className={`block text-sm font-black ${selected ? 'text-plex' : 'text-text'}`}>{option.label}</span>
+                                                    <span className="block text-xs text-muted mt-1">
+                                                        {option.value === 'plex' ? 'Connect through Plex OAuth' : 'Connect with Jellyfin API key'}
+                                                    </span>
+                                                </span>
+                                                {selected && <Check className="w-5 h-5 text-plex ml-auto shrink-0" />}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
-                                {mediaServerType === 'jellyfin' && (
+                                {mediaServerType !== 'plex' && (
                                     <>
                                         <div className="flex flex-col gap-2.5">
                                             <label className={labelClass}>Jellyfin URL</label>
@@ -696,6 +763,25 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                                 <div className="flex flex-col gap-2.5">
                                     <label className={labelClass}>Custom Logo URL (optional)</label>
                                     <input type="text" className={inputClass} value={customLogoUrl} onChange={(e) => setCustomLogoUrl(e.target.value)} placeholder="https://… or /static/logo.png" />
+                                    <div className="flex items-center gap-3">
+                                        <label className="inline-flex items-center gap-2 px-4 py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-text text-sm font-bold cursor-pointer transition-colors">
+                                            <Upload className="w-4 h-4" />
+                                            Upload Logo
+                                            <input
+                                                type="file"
+                                                accept="image/png,image/jpeg,image/webp"
+                                                className="sr-only"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0] || null;
+                                                    setLogoFile(file);
+                                                    if (file) setCustomLogoUrl(file.name.toLowerCase().endsWith('.webp') ? '/static/logo.webp' : '/static/logo.png');
+                                                }}
+                                            />
+                                        </label>
+                                        <span className="min-w-0 truncate text-xs text-muted">
+                                            {logoFile ? logoFile.name : 'PNG, JPEG, or WebP, max 5MB'}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -762,7 +848,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                                 {[
                                     { id: 'arr' as const, label: 'Arr Apps' },
                                     { id: 'requests' as const, label: 'Requests' },
-                                    { id: 'analytics' as const, label: mediaServerType === 'jellyfin' ? 'Jellystat' : 'Tautulli' },
+                                    { id: 'analytics' as const, label: mediaServerType !== 'plex' ? 'Jellystat' : 'Tautulli' },
                                 ].map((tab) => (
                                     <button
                                         key={tab.id}
@@ -803,13 +889,39 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                                         }}
                                         onMessage={(msg, ok) => setError(ok ? '' : msg)}
                                     />
+                                    <ArrInstancesPanel
+                                        type="lidarr"
+                                        title="Lidarr Instances"
+                                        subtitle="Music automation"
+                                        instances={arrInstances.filter((entry) => entry.type === 'lidarr')}
+                                        savedInstances={arrInstances.filter((entry) => entry.type === 'lidarr')}
+                                        allInstances={arrInstances}
+                                        onChange={(nextLidarr) => {
+                                            const other = arrInstances.filter((entry) => entry.type !== 'lidarr');
+                                            setArrInstances([...other, ...nextLidarr]);
+                                        }}
+                                        onMessage={(msg, ok) => setError(ok ? '' : msg)}
+                                    />
+                                    <ArrInstancesPanel
+                                        type="bazarr"
+                                        title="Bazarr Instances"
+                                        subtitle="Subtitle automation"
+                                        instances={arrInstances.filter((entry) => entry.type === 'bazarr')}
+                                        savedInstances={arrInstances.filter((entry) => entry.type === 'bazarr')}
+                                        allInstances={arrInstances}
+                                        onChange={(nextBazarr) => {
+                                            const other = arrInstances.filter((entry) => entry.type !== 'bazarr');
+                                            setArrInstances([...other, ...nextBazarr]);
+                                        }}
+                                        onMessage={(msg, ok) => setError(ok ? '' : msg)}
+                                    />
                                 </div>
                             )}
 
                             {integrationTab === 'requests' && (
                                 <div className={`${sectionCardClass} flex flex-col gap-3.5`}>
                                     <div className="flex items-center gap-3">
-                                        <ProgramIcon app={requestAppType === 'none' ? (mediaServerType === 'jellyfin' ? 'jellyseerr' : 'seerr') : requestAppType} label="Request App" />
+                                        <ProgramIcon app={requestAppType === 'none' ? (mediaServerType !== 'plex' ? 'jellyseerr' : 'seerr') : requestAppType} label="Request App" />
                                         <div>
                                             <h3 className="font-bold text-text text-base leading-tight">Request App</h3>
                                             <p className="text-xs text-muted mt-0.5">Seerr, Jellyseerr, or Ombi for user requests.</p>
@@ -828,7 +940,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
 
                             {integrationTab === 'analytics' && (
                                 <div className={`${sectionCardClass} flex flex-col gap-3.5`}>
-                                    {mediaServerType === 'jellyfin' ? (
+                                    {mediaServerType !== 'plex' ? (
                                         <>
                                             <div className="flex items-center gap-3">
                                                 <ProgramIcon app="jellystat" label="Jellystat" />
@@ -868,11 +980,11 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                             <p className={labelClass + ' mb-3'}>Step {stepIndex + 1}</p>
                             <h2 className="text-3xl sm:text-4xl font-black text-text tracking-tight mb-4">Ready to launch</h2>
                             <p className="text-muted text-base leading-relaxed mb-8">
-                                Your {mediaServerType === 'jellyfin' ? 'Jellyfin' : 'Plex'} server{arrInstances.some((entry) => entry.type === 'sonarr' && entry.url) ? ', Sonarr' : ''}{arrInstances.some((entry) => entry.type === 'radarr' && entry.url) ? ', Radarr' : ''}{tautulliUrl ? ', Tautulli' : ''}{jellystatUrl ? ', Jellystat' : ''} will be saved.
+                                Your {mediaServerType !== 'plex' ? 'Jellyfin' : 'Plex'} server{arrInstances.some((entry) => entry.type === 'sonarr' && entry.url) ? ', Sonarr' : ''}{arrInstances.some((entry) => entry.type === 'radarr' && entry.url) ? ', Radarr' : ''}{arrInstances.some((entry) => entry.type === 'lidarr' && entry.url) ? ', Lidarr' : ''}{arrInstances.some((entry) => entry.type === 'bazarr' && entry.url) ? ', Bazarr' : ''}{tautulliUrl ? ', Tautulli' : ''}{jellystatUrl ? ', Jellystat' : ''} will be saved.
                                 {smtpHost ? ' Email notifications enabled.' : ' You can add email later in Settings.'}
                             </p>
                             <div className={`${sectionCardClass} text-left text-sm space-y-3`}>
-                                <p className="flex justify-between gap-4 border-b border-white/5 pb-3"><span className="text-muted">Server</span> <strong className="text-text truncate">{mediaServerType === 'jellyfin' ? (jellyfinUrl || '—') : (serverIdentifier || '—')}</strong></p>
+                                <p className="flex justify-between gap-4 border-b border-white/5 pb-3"><span className="text-muted">Server</span> <strong className="text-text truncate">{mediaServerType !== 'plex' ? (jellyfinUrl || '—') : (serverIdentifier || '—')}</strong></p>
                                 <p className="flex justify-between gap-4 border-b border-white/5 pb-3"><span className="text-muted">Portal URL</span> <strong className="text-text truncate">{publicDomain || '—'}</strong></p>
                                 <p className="flex justify-between gap-4 items-center"><span className="text-muted">Accent</span> <span className="flex items-center gap-2"><span className="inline-block w-5 h-5 rounded-md border border-white/20 shadow-inner" style={{ backgroundColor: primaryColor }} /><strong className="text-text">{primaryColor}</strong></span></p>
                             </div>

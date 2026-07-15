@@ -4,6 +4,8 @@ import {
     Calendar,
     ChevronLeft,
     ChevronRight,
+    ExternalLink,
+    FileText,
     Film,
     Layers,
     Music,
@@ -49,6 +51,7 @@ export type UserDashboardWidgetDeps = {
     setAnalyticsDaysOpen: (open: boolean) => void;
     showQualityBadges: boolean;
     dashboardData: any;
+    bazarrWidgets: any;
     handleRelink: () => void;
     handleToggleNewsletter: () => void;
     onViewAdmin: () => void;
@@ -190,6 +193,7 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
         optOutNewsletter,
         serverStats,
         serverDataLoading,
+        bazarrWidgets,
         analytics,
         analyticsLoading,
         analyticsDays,
@@ -556,6 +560,84 @@ const RecentlyAddedScrollRow: React.FC<{ title: string; children: React.ReactNod
             </div>
         </div>
     );
+};
+
+export const createBazarrToolsSectionRenderer = (deps: UserDashboardWidgetDeps) => {
+    const { sessionInfo, bazarrWidgets } = deps;
+    return (): React.ReactNode => {
+        if (!sessionInfo.session.isAdmin) return null;
+        const instances = Array.isArray(bazarrWidgets?.instances) ? bazarrWidgets.instances : [];
+        if (!bazarrWidgets?.configured && instances.length === 0) return null;
+        const totals = bazarrWidgets?.totals || {};
+        const primary = instances[0] || {};
+        return (
+            <div className="glass-card p-4 md:p-5 shadow-xl w-full">
+                <div className="flex items-start justify-between gap-3 mb-4">
+                    <div>
+                        <p className="text-muted text-sm uppercase tracking-widest font-semibold">Bazarr Subtitles</p>
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className={`w-2 h-2 rounded-full ${totals.online > 0 ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500'}`} />
+                            <span className={`text-[10px] font-bold uppercase tracking-wider ${totals.online > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                {totals.online > 0 ? `${totals.online}/${instances.length} online` : 'Unavailable'}
+                            </span>
+                            {primary.version && <span className="text-[10px] font-bold text-muted">v{primary.version}</span>}
+                        </div>
+                    </div>
+                    {primary.url && (
+                        <a
+                            href={primary.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Open Bazarr"
+                            className="p-2 rounded-lg text-muted hover:text-text hover:bg-white/5 transition-colors shrink-0"
+                        >
+                            <ExternalLink className="w-4 h-4" />
+                        </a>
+                    )}
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                    <div className="bg-background/60 rounded-xl border border-white/5 p-3">
+                        <FileText className="w-4 h-4 text-plex mb-2 opacity-80" />
+                        <p className="text-2xl font-black text-text">{Number(totals.wantedEpisodes || 0).toLocaleString()}</p>
+                        <p className="text-[10px] uppercase tracking-wider font-bold text-muted mt-0.5">Wanted Episodes</p>
+                    </div>
+                    <div className="bg-background/60 rounded-xl border border-white/5 p-3">
+                        <Film className="w-4 h-4 text-plex mb-2 opacity-80" />
+                        <p className="text-2xl font-black text-text">{Number(totals.wantedMovies || 0).toLocaleString()}</p>
+                        <p className="text-[10px] uppercase tracking-wider font-bold text-muted mt-0.5">Wanted Movies</p>
+                    </div>
+                    <div className="bg-background/60 rounded-xl border border-white/5 p-3">
+                        <Layers className="w-4 h-4 text-plex mb-2 opacity-80" />
+                        <p className="text-xl font-black text-text">{Number(totals.providers || 0).toLocaleString()}</p>
+                        <p className="text-[10px] uppercase tracking-wider font-bold text-muted mt-0.5">Providers</p>
+                    </div>
+                    <div className="bg-background/60 rounded-xl border border-white/5 p-3">
+                        <Activity className="w-4 h-4 text-plex mb-2 opacity-80" />
+                        <p className="text-xl font-black text-text">{Number(totals.announcements || 0).toLocaleString()}</p>
+                        <p className="text-[10px] uppercase tracking-wider font-bold text-muted mt-0.5">Announcements</p>
+                    </div>
+                </div>
+
+                {instances.length > 1 && (
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-1.5">
+                        {instances.map((instance: any) => (
+                            <div key={instance.id} className="flex items-center justify-between gap-2 rounded-lg bg-background/40 border border-white/5 px-3 py-2">
+                                <span className="text-xs font-bold text-text truncate">{instance.name || 'Bazarr'}</span>
+                                <span className="text-[10px] font-bold text-muted">
+                                    {Number(instance.wantedEpisodes || 0).toLocaleString()} episodes · {Number(instance.wantedMovies || 0).toLocaleString()} movies
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {primary.error && (
+                    <p className="text-xs text-red-300 mt-3">Bazarr warning: {primary.error}</p>
+                )}
+            </div>
+        );
+    };
 };
 
 export const createRecentlyAddedWidgetRenderer = (deps: UserDashboardWidgetDeps) => {

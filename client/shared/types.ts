@@ -14,7 +14,7 @@ export interface User {
 
 export interface PlexConfig {
     token: string;
-    mediaServerType?: 'plex' | 'jellyfin';
+    mediaServerType?: 'plex' | 'jellyfin' | 'emby';
     serverIdentifier: string;
     jellyfinUrl?: string;
     jellyfinApiKey?: string;
@@ -26,6 +26,11 @@ export interface PlexConfig {
     smtpFrom: string;
     smtpSecure: boolean;
     emailDaysBefore: number;
+    gotifyEnabled?: boolean;
+    gotifyUrl?: string;
+    gotifyToken?: string;
+    gotifyPriority?: number;
+    alertRules?: Record<string, boolean>;
     newsletterFrequency: string;
     newsletterDay: number;
     publicDomain: string;
@@ -35,7 +40,7 @@ export interface PlexConfig {
 
 export interface ArrInstance {
     id: string;
-    type: 'sonarr' | 'radarr';
+    type: 'sonarr' | 'radarr' | 'lidarr' | 'bazarr';
     name: string;
     url: string;
     externalUrl?: string;
@@ -45,9 +50,19 @@ export interface ArrInstance {
     plexLibraryIds?: string[];
 }
 
+export interface DownloadClientConfig {
+    id: string;
+    type: 'qbittorrent' | 'transmission' | 'bittorrent';
+    name: string;
+    url: string;
+    username?: string;
+    password?: string;
+    enabled: boolean;
+}
+
 export interface AppSettings {
     token?: string;
-    mediaServerType?: 'plex' | 'jellyfin';
+    mediaServerType?: 'plex' | 'jellyfin' | 'emby';
     serverIdentifier?: string;
     jellyfinUrl?: string;
     jellyfinApiKey?: string;
@@ -59,6 +74,11 @@ export interface AppSettings {
     smtpFrom?: string;
     smtpSecure?: boolean;
     emailDaysBefore?: number;
+    gotifyEnabled?: boolean;
+    gotifyUrl?: string;
+    gotifyToken?: string;
+    gotifyPriority?: number;
+    alertRules?: Record<string, boolean>;
     newsletterFrequency?: string;
     newsletterDay?: number;
     publicDomain?: string;
@@ -71,12 +91,14 @@ export interface AppSettings {
     radarrUrl?: string;
     radarrApiKey?: string;
     arrInstances?: ArrInstance[];
+    downloadClients?: DownloadClientConfig[];
     tautulliUrl?: string;
     tautulliApiKey?: string;
     jellystatUrl?: string;
     jellystatApiKey?: string;
     primaryColor?: string;
     customLogoUrl?: string;
+    sidebarIdentityPosition?: 'top' | 'bottom';
     backgroundImageUrl?: string;
     navOrder?: string[];
 }

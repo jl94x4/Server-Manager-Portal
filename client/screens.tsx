@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2, Search, BookOpen, Loader2, Eye, ClipboardList, ArrowUpCircle, MoreHorizontal } from 'lucide-react';
+import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2, Search, BookOpen, Loader2, Eye, EyeOff, ClipboardList, ArrowUpCircle, MoreHorizontal, ExternalLink } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
 
 import { SettingsDashboard } from './settings/SettingsDashboard';
@@ -33,9 +33,66 @@ import { activityStreamColumnCount, activityStreamGridClass, discoverPosterGridC
 import { filterNavOrder, type NavFeatureFlags } from './shared/nav';
 import { ANALYTICS_PERIOD_OPTIONS } from './shared/analyticsPeriodOptions';
 import { UserDashboardLayout } from './home/UserDashboardLayout';
-import { createMainGridWidgetRenderer, createPendingRequestsSectionRenderer, createRecentlyAddedWidgetRenderer } from './home/userDashboardWidgetRenderers';
+import { createBazarrToolsSectionRenderer, createMainGridWidgetRenderer, createPendingRequestsSectionRenderer, createRecentlyAddedWidgetRenderer } from './home/userDashboardWidgetRenderers';
+import {
+    DEFAULT_DASHBOARD_LAYOUT,
+    DASHBOARD_SECTION_LABELS,
+    MAIN_GRID_WIDGET_META,
+    RECENTLY_ADDED_WIDGET_META,
+    normalizeSectionLayout,
+    type DashboardLayoutConfig,
+    type DashboardSectionId,
+    type DashboardWidgetId,
+    type DashboardWidgetSize,
+    type MainGridWidgetId,
+    type RecentlyAddedWidgetId,
+} from './shared/dashboardLayout';
 
 const JELLYFIN_ICON_URL = 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg/jellyfin.svg';
+const STATUS_ICON_BASE = 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg';
+const SIMPLE_STATUS_ICON_BASE = 'https://cdn.simpleicons.org';
+const STATUS_SERVICE_ICONS: Record<string, string> = {
+    plex: `${STATUS_ICON_BASE}/plex.svg`,
+    jellyfin: `${STATUS_ICON_BASE}/jellyfin.svg`,
+    emby: `${STATUS_ICON_BASE}/emby.svg`,
+    tautulli: `${STATUS_ICON_BASE}/tautulli.svg`,
+    jellystat: 'https://cdn.jsdelivr.net/gh/selfhst/icons@main/png/jellystat.png',
+    sonarr: `${STATUS_ICON_BASE}/sonarr.svg`,
+    radarr: `${STATUS_ICON_BASE}/radarr.svg`,
+    lidarr: `${STATUS_ICON_BASE}/lidarr.svg`,
+    bazarr: `${STATUS_ICON_BASE}/bazarr.svg`,
+    qbittorrent: `${STATUS_ICON_BASE}/qbittorrent.svg`,
+    transmission: `${STATUS_ICON_BASE}/transmission.svg`,
+    bittorrent: `${SIMPLE_STATUS_ICON_BASE}/bittorrent`,
+    seerr: `${STATUS_ICON_BASE}/seerr.svg`,
+    overseerr: `${STATUS_ICON_BASE}/seerr.svg`,
+    jellyseerr: `${STATUS_ICON_BASE}/jellyseerr.svg`,
+    ombi: `${STATUS_ICON_BASE}/ombi.svg`,
+};
+
+const getStatusServiceIconKey = (service: any) => {
+    if (service?.clientType) return String(service.clientType).toLowerCase();
+    const id = String(service?.id || '').toLowerCase();
+    const name = String(service?.name || '').toLowerCase();
+    for (const key of Object.keys(STATUS_SERVICE_ICONS)) {
+        if (id.includes(key) || name.includes(key)) return key;
+    }
+    return '';
+};
+
+const StatusServiceIcon: React.FC<{ service: any }> = ({ service }) => {
+    const key = getStatusServiceIconKey(service);
+    const iconUrl = key ? STATUS_SERVICE_ICONS[key] : '';
+    return (
+        <span className="inline-flex w-10 h-10 rounded-lg bg-white/5 border border-white/10 items-center justify-center overflow-hidden flex-shrink-0">
+            {iconUrl ? (
+                <img src={iconUrl} alt="" className="w-6 h-6 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            ) : (
+                <Activity className="w-5 h-5 text-plex" />
+            )}
+        </span>
+    );
+};
 
 const jellyfinQuickConnectUrl = (baseUrl: string) => {
     const base = String(baseUrl || '').replace(/\/+$/, '');
@@ -1075,6 +1132,11 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
     const activeStackConfigured = !!activeInstanceData?.configured;
 
     const activeStackLabel = activeInstanceData?.name || activeInstanceData?.instanceName || (isTvInstance ? 'Sonarr' : 'Radarr');
+    const stackTools = useMemo(() => (
+        Array.isArray(data?.tools)
+            ? data.tools.filter((tool: any) => tool?.type === 'lidarr' || tool?.type === 'bazarr')
+            : []
+    ), [data]);
 
     useEffect(() => {
         let cancelled = false;
@@ -1296,6 +1358,50 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
         );
     };
 
+    const renderToolCard = (tool: any) => {
+        const isBazarr = tool?.type === 'bazarr';
+        const label = tool?.name || (isBazarr ? 'Bazarr' : 'Lidarr');
+        const isOnline = !!tool?.status && !tool?.error;
+        const href = tool?.externalUrl || tool?.url || '';
+        return (
+            <div key={tool.id || `${tool.type}-${label}`} className="bg-card border border-white/5 shadow-2xl rounded-2xl p-4 md:p-5 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-5">
+                    {isBazarr ? <FileText className="w-20 h-20" /> : <Music className="w-20 h-20" />}
+                </div>
+                <div className="flex items-center justify-between gap-3 relative">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-plex/10 flex items-center justify-center border border-plex/20 shrink-0">
+                            {isBazarr ? <FileText className="w-5 h-5 text-plex" /> : <Music className="w-5 h-5 text-plex" />}
+                        </div>
+                        <div className="min-w-0">
+                            <h3 className="text-base font-bold text-text truncate">{label}</h3>
+                            <div className="flex items-center gap-2 mt-0.5">
+                                <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]'}`}></span>
+                                <span className={`text-[10px] font-bold tracking-wider uppercase ${isOnline ? 'text-green-500' : 'text-red-400'}`}>{isOnline ? 'Online' : 'Unavailable'}</span>
+                                {tool?.version && <span className="text-[10px] text-muted font-bold">v{tool.version}</span>}
+                            </div>
+                        </div>
+                    </div>
+                    {href && (
+                        <a
+                            href={href}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-2 rounded-lg text-muted hover:text-text hover:bg-white/5 transition-colors shrink-0"
+                            title={`Open ${label}`}
+                        >
+                            <ExternalLink className="w-4 h-4" />
+                        </a>
+                    )}
+                </div>
+                <p className="text-xs text-muted mt-4 relative">
+                    {isBazarr ? 'Subtitle management and automation' : 'Music library automation'}
+                    {tool?.error ? ` · ${tool.error}` : ''}
+                </p>
+            </div>
+        );
+    };
+
     return (
         <div className="w-full animate-fade-in flex flex-col gap-6">
             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-2">
@@ -1334,6 +1440,11 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
             <DetailsModal item={detailsItem} onClose={() => setDetailsItem(null)} />
 
             <div className="flex flex-col gap-8 w-full max-w-7xl mx-auto">
+                {stackTools.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {stackTools.map(renderToolCard)}
+                    </div>
+                )}
 
                 <div className="w-full">
 
@@ -1535,6 +1646,132 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
                                 ))
                             )}
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export const DownloadStatusPage: React.FC = () => {
+    const [data, setData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [filter, setFilter] = useState<'all' | 'sonarr' | 'radarr' | 'lidarr' | 'unknown'>('all');
+
+    const load = useCallback(async () => {
+        try {
+            const res = await apiFetch('/api/downloads/status');
+            setData(res);
+            setError('');
+        } catch (e: any) {
+            setError(e.message || 'Failed to load downloads');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        load();
+        const interval = setInterval(load, 15000);
+        return () => clearInterval(interval);
+    }, [load]);
+
+    const downloads = useMemo(() => {
+        const all = Array.isArray(data?.downloads) ? data.downloads : [];
+        return filter === 'all' ? all : all.filter((item: any) => item.source === filter);
+    }, [data, filter]);
+
+    const formatBytes = (bytes: number) => {
+        if (!bytes) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let value = Number(bytes) || 0;
+        let unit = 0;
+        while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit += 1; }
+        return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unit]}`;
+    };
+
+    const sourceLabel = (source: string) => ({ sonarr: 'Sonarr', radarr: 'Radarr', lidarr: 'Lidarr', unknown: 'Other' }[source] || 'Other');
+
+    if (loading) return <Loader isLoading={true} />;
+
+    return (
+        <div className="w-full animate-fade-in flex flex-col gap-6">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-text uppercase tracking-widest flex items-center gap-3">
+                        <DownloadCloud className="w-8 h-8 text-plex" />
+                        Download Status
+                    </h1>
+                    <p className="text-muted text-sm mt-1">All configured download clients, grouped by Sonarr, Radarr, and Lidarr.</p>
+                </div>
+                <button type="button" onClick={load} className="px-4 py-2 rounded-lg border border-border text-sm font-bold text-text hover:bg-white/5">
+                    Refresh
+                </button>
+            </div>
+
+            {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 text-red-200 px-4 py-3 text-sm">{error}</div>}
+
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {(['all', 'sonarr', 'radarr', 'lidarr', 'unknown'] as const).map((key) => (
+                    <button key={key} type="button" onClick={() => setFilter(key)} className={`rounded-xl border p-4 text-left transition-colors ${filter === key ? 'border-plex bg-plex/10 text-plex' : 'border-white/5 bg-card text-text hover:bg-white/5'}`}>
+                        <p className="text-[10px] uppercase tracking-widest font-bold text-muted">{key === 'all' ? 'All' : sourceLabel(key)}</p>
+                        <p className="text-2xl font-black mt-1">{key === 'all' ? data?.counts?.total || 0 : data?.counts?.[key] || 0}</p>
+                    </button>
+                ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="lg:col-span-2 bg-card border border-white/5 rounded-2xl p-4 shadow-xl">
+                    <h2 className="text-xl font-bold text-text mb-4">Active Downloads</h2>
+                    <div className="space-y-3">
+                        {downloads.length === 0 ? (
+                            <div className="text-center py-12 text-muted bg-background/30 rounded-xl border border-white/5">No downloads for this filter.</div>
+                        ) : downloads.map((item: any) => (
+                            <div key={`${item.clientId}-${item.id}`} className="rounded-xl border border-white/5 bg-background/40 p-4">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="min-w-0">
+                                        <p className="font-bold text-text truncate">{item.name}</p>
+                                        <p className="text-xs text-muted mt-1">
+                                            {item.clientName} · {sourceLabel(item.source)}
+                                            {item.arrInstanceName ? ` · ${item.arrInstanceName}` : ''}
+                                            {' · '}
+                                            {item.state || 'Unknown'}
+                                        </p>
+                                    </div>
+                                    <span className="text-sm font-black text-plex">{Math.round(item.progress || 0)}%</span>
+                                </div>
+                                <div className="h-2 bg-white/5 rounded-full overflow-hidden mt-3">
+                                    <div className="h-full bg-plex rounded-full" style={{ width: `${Math.max(0, Math.min(100, item.progress || 0))}%` }} />
+                                </div>
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted mt-2">
+                                    <span>{formatBytes(item.downloaded)} / {formatBytes(item.size)}</span>
+                                    <span>Down {formatBytes(item.downloadSpeed)}/s</span>
+                                    <span>Up {formatBytes(item.uploadSpeed)}/s</span>
+                                    {item.category && <span>{item.category}</span>}
+                                    {item.sourceReason === 'arr_queue' && <span>Matched from Arr queue</span>}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className="bg-card border border-white/5 rounded-2xl p-4 shadow-xl">
+                    <h2 className="text-xl font-bold text-text mb-4">Clients</h2>
+                    <div className="space-y-3">
+                        {(data?.clients || []).length === 0 ? (
+                            <p className="text-sm text-muted">No download clients configured in Settings.</p>
+                        ) : data.clients.map((client: any) => (
+                            <div key={client.client.id} className="rounded-xl border border-white/5 bg-background/40 p-3">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                        <p className="font-bold text-text">{client.client.name}</p>
+                                        <p className="text-[11px] text-muted">{client.client.type} · {client.count} downloads</p>
+                                    </div>
+                                    <span className={`w-2.5 h-2.5 rounded-full ${client.online ? 'bg-green-500' : 'bg-red-500'}`} />
+                                </div>
+                                {client.error && <p className="text-xs text-red-300 mt-2">{client.error}</p>}
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
@@ -3339,6 +3576,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: 
                             ) : (
                                 <button className="text-muted hover:text-text transition-colors underline" onClick={() => setSelectedUserIds(prev => Array.from(new Set([...prev, ...filteredUserIds])))}>Select Filtered ({filteredAndSortedUsers.length})</button>
                             )}
+                            {selectedUserIds.length < users.length && (
+                                <button className="text-muted hover:text-text transition-colors underline" onClick={() => setSelectedUserIds(users.map(user => user.id))}>Select All ({users.length})</button>
+                            )}
                             <button className="text-muted hover:text-text transition-colors underline" onClick={() => setSelectedUserIds([])}>Unselect All</button>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -3570,6 +3810,11 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
         }).finally(() => setPublicInfoLoading(false));
     };
 
+    const handleSetupComplete = () => {
+        window.dispatchEvent(new CustomEvent('portal-public-config-updated'));
+        fetchPublicInfo();
+    };
+
     useEffect(() => {
         if (initialError) {
             window.history.replaceState({}, '', portalUrl('/'));
@@ -3700,14 +3945,14 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
     };
 
     if (publicInfo.isConfigured === false || (typeof window !== 'undefined' && stripBasePath(window.location.pathname).startsWith('/auth/setup/'))) {
-        return <SetupWizard onComplete={fetchPublicInfo} />;
+        return <SetupWizard onComplete={handleSetupComplete} />;
     }
 
     if (publicInfoLoading || (publicInfo.isConfigured === null && !publicInfoLoadFailed)) {
         return <Loader isLoading={true} isCinematic={!!publicConfig?.useCinematicLoading} />;
     }
 
-    const mediaServerType = String(publicConfig?.mediaServerType || publicInfo.mediaServerType || 'plex').toLowerCase();
+    const mediaServerType = String(publicInfo.mediaServerType || publicConfig?.mediaServerType || 'plex').toLowerCase();
     const isJellyfinAuth = mediaServerType === 'jellyfin';
     const showTrialAccess = !isJellyfinAuth && publicConfig?.allowTemporaryAccess !== false;
     const logoSrc = publicConfig?.customLogoUrl
@@ -4714,6 +4959,283 @@ const TrendingDiscoverSection: React.FC<{ title: string; items: any[]; limit: nu
     );
 };
 
+const moveDashboardItem = <T extends string,>(items: T[], from: number, direction: -1 | 1): T[] => {
+    const to = from + direction;
+    if (from < 0 || to < 0 || from >= items.length || to >= items.length) return items;
+    const next = [...items];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    return next;
+};
+
+const moveDashboardItemTo = <T extends string,>(items: T[], from: number, to: number): T[] => {
+    if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return items;
+    const next = [...items];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    return next;
+};
+
+const PortalLayoutRow: React.FC<{
+    label: string;
+    description?: string;
+    hidden: boolean;
+    first: boolean;
+    last: boolean;
+    draggable?: boolean;
+    size?: DashboardWidgetSize;
+    onMoveUp: () => void;
+    onMoveDown: () => void;
+    onToggle: () => void;
+    onDragStart?: () => void;
+    onDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
+    onDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
+    onSizeChange?: (size: DashboardWidgetSize) => void;
+}> = ({ label, description, hidden, first, last, draggable, size, onMoveUp, onMoveDown, onToggle, onDragStart, onDragOver, onDrop, onSizeChange }) => (
+    <div
+        draggable={draggable}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        className={`flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border px-3 py-3 transition-colors ${draggable ? 'cursor-grab active:cursor-grabbing' : ''} ${hidden ? 'border-border/30 bg-background/20 opacity-70' : 'border-border/50 bg-background/40'}`}
+    >
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+        <div className="flex flex-col gap-1 shrink-0">
+            <button
+                type="button"
+                onClick={onMoveUp}
+                disabled={first}
+                className="p-1 rounded-md text-muted hover:text-text hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed"
+                aria-label={`Move ${label} up`}
+            >
+                <ChevronUp className="w-4 h-4" />
+            </button>
+            <button
+                type="button"
+                onClick={onMoveDown}
+                disabled={last}
+                className="p-1 rounded-md text-muted hover:text-text hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed"
+                aria-label={`Move ${label} down`}
+            >
+                <ChevronDown className="w-4 h-4" />
+            </button>
+        </div>
+        <div className="min-w-0 flex-1">
+            <p className={`font-semibold truncate ${hidden ? 'text-muted line-through' : 'text-text'}`}>{label}</p>
+            {description && <p className="text-xs text-muted truncate mt-0.5">{description}</p>}
+        </div>
+        </div>
+        {onSizeChange && !hidden && (
+            <div className="grid grid-cols-4 gap-1 rounded-lg border border-border/60 bg-background/30 p-1 shrink-0">
+                {(['compact', 'normal', 'wide', 'full'] as DashboardWidgetSize[]).map((option) => (
+                    <button
+                        key={option}
+                        type="button"
+                        onClick={() => onSizeChange(option)}
+                        className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase transition-colors ${
+                            (size || 'normal') === option ? 'bg-plex text-black' : 'text-muted hover:text-text hover:bg-white/10'
+                        }`}
+                    >
+                        {option === 'compact' ? 'S' : option === 'normal' ? 'M' : option === 'wide' ? 'L' : 'XL'}
+                    </button>
+                ))}
+            </div>
+        )}
+        <button
+            type="button"
+            onClick={onToggle}
+            className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-bold transition-colors shrink-0 ${
+                hidden
+                    ? 'border-plex/40 bg-plex/10 text-plex hover:bg-plex/20'
+                    : 'border-border/60 bg-white/5 text-muted hover:text-text hover:border-white/20'
+            }`}
+        >
+            {hidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+            {hidden ? 'Add' : 'Hide'}
+        </button>
+    </div>
+);
+
+const PortalWidgetEditorModal: React.FC<{
+    layout: DashboardLayoutConfig;
+    onChange: (layout: DashboardLayoutConfig) => void;
+    onSave: () => void;
+    onClose: () => void;
+    saving: boolean;
+}> = ({ layout, onChange, onSave, onClose, saving }) => {
+    const [dragItem, setDragItem] = useState<{ list: 'sections' | 'main' | 'recent'; index: number } | null>(null);
+
+    const reorderList = (list: 'sections' | 'main' | 'recent', targetIndex: number) => {
+        if (!dragItem || dragItem.list !== list || dragItem.index === targetIndex) return;
+        if (list === 'sections') {
+            onChange(normalizeSectionLayout({ ...layout, sections: moveDashboardItemTo(layout.sections, dragItem.index, targetIndex) }));
+            return;
+        }
+        const source = list === 'main' ? layout.mainGridOrder : layout.recentlyAddedOrder;
+        const next = moveDashboardItemTo(source, dragItem.index, targetIndex);
+        onChange(normalizeSectionLayout(list === 'main' ? { ...layout, mainGridOrder: next } : { ...layout, recentlyAddedOrder: next }));
+    };
+
+    const toggleSection = (id: DashboardSectionId) => {
+        const hiddenSections = layout.hiddenSections.includes(id)
+            ? layout.hiddenSections.filter((sectionId) => sectionId !== id)
+            : [...layout.hiddenSections, id];
+        onChange(normalizeSectionLayout({ ...layout, hiddenSections }));
+    };
+
+    const toggleWidget = (id: DashboardWidgetId) => {
+        const hiddenWidgets = layout.hiddenWidgets.includes(id)
+            ? layout.hiddenWidgets.filter((widgetId) => widgetId !== id)
+            : [...layout.hiddenWidgets, id];
+        onChange(normalizeSectionLayout({ ...layout, hiddenWidgets }));
+    };
+
+    const moveSection = (index: number, direction: -1 | 1) => {
+        onChange(normalizeSectionLayout({ ...layout, sections: moveDashboardItem(layout.sections, index, direction) }));
+    };
+
+    const moveMainWidget = (index: number, direction: -1 | 1) => {
+        onChange(normalizeSectionLayout({ ...layout, mainGridOrder: moveDashboardItem(layout.mainGridOrder, index, direction) }));
+    };
+
+    const moveRecentWidget = (index: number, direction: -1 | 1) => {
+        onChange(normalizeSectionLayout({ ...layout, recentlyAddedOrder: moveDashboardItem(layout.recentlyAddedOrder, index, direction) }));
+    };
+
+    const setWidgetSize = (id: DashboardWidgetId, size: DashboardWidgetSize) => {
+        const widgetSizes = { ...(layout.widgetSizes || {}) };
+        if (size === 'normal') delete widgetSizes[id];
+        else widgetSizes[id] = size;
+        onChange(normalizeSectionLayout({ ...layout, widgetSizes }));
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <div className="w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl border border-border bg-card shadow-2xl flex flex-col">
+                <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-border">
+                    <div>
+                        <h2 className="text-xl font-black text-text">Portal Widgets</h2>
+                        <p className="text-sm text-muted mt-1">Move, hide, and add portal widgets for everyone.</p>
+                    </div>
+                    <button type="button" onClick={onClose} className="p-2 rounded-lg text-muted hover:text-text hover:bg-white/10">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                <div className="overflow-y-auto p-5 space-y-6">
+                    <section>
+                        <div className="flex items-center justify-between gap-3 mb-3">
+                            <h3 className="text-sm font-bold uppercase tracking-wider text-muted">Page sections</h3>
+                            <button
+                                type="button"
+                                onClick={() => onChange({ ...DEFAULT_DASHBOARD_LAYOUT })}
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-xs font-bold text-muted hover:text-text hover:border-plex/40 transition-colors"
+                            >
+                                <RefreshCw className="w-4 h-4" />
+                                Reset
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                            {layout.sections.map((id, index) => (
+                                <PortalLayoutRow
+                                    key={id}
+                                    label={DASHBOARD_SECTION_LABELS[id]}
+                                    hidden={layout.hiddenSections.includes(id)}
+                                    first={index === 0}
+                                    last={index === layout.sections.length - 1}
+                                    draggable
+                                    onDragStart={() => setDragItem({ list: 'sections', index })}
+                                    onDragOver={(event) => event.preventDefault()}
+                                    onDrop={(event) => {
+                                        event.preventDefault();
+                                        reorderList('sections', index);
+                                        setDragItem(null);
+                                    }}
+                                    onMoveUp={() => moveSection(index, -1)}
+                                    onMoveDown={() => moveSection(index, 1)}
+                                    onToggle={() => toggleSection(id)}
+                                />
+                            ))}
+                        </div>
+                    </section>
+
+                    <section>
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-muted mb-3">Main widgets</h3>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                            {layout.mainGridOrder.map((id: MainGridWidgetId, index) => (
+                                <PortalLayoutRow
+                                    key={id}
+                                    label={MAIN_GRID_WIDGET_META[id].label}
+                                    description="Drag to move. Resize with S, M, L, XL."
+                                    hidden={layout.hiddenWidgets.includes(id)}
+                                    first={index === 0}
+                                    last={index === layout.mainGridOrder.length - 1}
+                                    draggable
+                                    size={layout.widgetSizes?.[id] || 'normal'}
+                                    onDragStart={() => setDragItem({ list: 'main', index })}
+                                    onDragOver={(event) => event.preventDefault()}
+                                    onDrop={(event) => {
+                                        event.preventDefault();
+                                        reorderList('main', index);
+                                        setDragItem(null);
+                                    }}
+                                    onMoveUp={() => moveMainWidget(index, -1)}
+                                    onMoveDown={() => moveMainWidget(index, 1)}
+                                    onToggle={() => toggleWidget(id)}
+                                    onSizeChange={(size) => setWidgetSize(id, size)}
+                                />
+                            ))}
+                        </div>
+                    </section>
+
+                    <section>
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-muted mb-3">Recently added widgets</h3>
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
+                            {layout.recentlyAddedOrder.map((id: RecentlyAddedWidgetId, index) => (
+                                <PortalLayoutRow
+                                    key={id}
+                                    label={RECENTLY_ADDED_WIDGET_META[id]}
+                                    hidden={layout.hiddenWidgets.includes(id)}
+                                    first={index === 0}
+                                    last={index === layout.recentlyAddedOrder.length - 1}
+                                    draggable
+                                    size={layout.widgetSizes?.[id] || 'full'}
+                                    onDragStart={() => setDragItem({ list: 'recent', index })}
+                                    onDragOver={(event) => event.preventDefault()}
+                                    onDrop={(event) => {
+                                        event.preventDefault();
+                                        reorderList('recent', index);
+                                        setDragItem(null);
+                                    }}
+                                    onMoveUp={() => moveRecentWidget(index, -1)}
+                                    onMoveDown={() => moveRecentWidget(index, 1)}
+                                    onToggle={() => toggleWidget(id)}
+                                    onSizeChange={(size) => setWidgetSize(id, size)}
+                                />
+                            ))}
+                        </div>
+                    </section>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 px-5 py-4 border-t border-border bg-background/40">
+                    <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border border-border text-muted hover:text-text hover:border-white/20 transition-colors">
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onSave}
+                        disabled={saving}
+                        className="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-lg bg-plex text-black font-bold hover:bg-plex/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                    >
+                        {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                        Save Widgets
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: () => void; refreshSession: () => void; onViewAdmin: () => void; onViewStatus: () => void; onViewDashboard: () => void; onViewSettings?: () => void; onViewLogs?: () => void; onViewRequests?: (reviewId?: number) => void; onPendingRequestsChange?: () => void }> = ({ sessionInfo, publicConfig, onLogout, refreshSession, onViewAdmin, onViewStatus, onViewDashboard, onViewSettings, onViewLogs, onViewRequests, onPendingRequestsChange }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [toast, setToast] = useState<ToastMessage | null>(null);
@@ -4721,14 +5243,18 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     const [analyticsLoading, setAnalyticsLoading] = useState(true);
     const [serverStats, setServerStats] = useState<any>(null);
     const [dashboardData, setDashboardData] = useState<any>(null);
+    const [bazarrWidgets, setBazarrWidgets] = useState<any>(null);
     const [serverDataLoading, setServerDataLoading] = useState(true);
     const [topContentPage, setTopContentPage] = useState(0);
+    const [dashboardLayoutDraft, setDashboardLayoutDraft] = useState<DashboardLayoutConfig>(() => normalizeSectionLayout(publicConfig?.dashboardLayout));
+    const [layoutEditorOpen, setLayoutEditorOpen] = useState(false);
+    const [layoutSaving, setLayoutSaving] = useState(false);
     const [isDesktopMostWatched, setIsDesktopMostWatched] = useState(
         () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
     );
-    const topWatchedPageSize = (publicConfig?.dashboardLayout?.topWatchedRows || 2) * 6;
+    const topWatchedPageSize = (dashboardLayoutDraft.topWatchedRows || 2) * 6;
     const [recentHistoryPage, setRecentHistoryPage] = useState(0);
-    const recentHistoryPageSize = (publicConfig?.dashboardLayout?.recentHistoryRows || 6);
+    const recentHistoryPageSize = (dashboardLayoutDraft.recentHistoryRows || 7) * 2;
     const [analyticsDays, setAnalyticsDays] = useState<number | 'all'>(30);
     const [analyticsDaysOpen, setAnalyticsDaysOpen] = useState(false);
     const [wrapUpDaysOpen, setWrapUpDaysOpen] = useState(false);
@@ -4744,6 +5270,10 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     const isJellyfinPortal = String(publicConfig?.mediaServerType || 'plex').toLowerCase() === 'jellyfin';
     const [optOutNewsletter, setOptOutNewsletter] = useState(user?.optOutNewsletter || false);
 
+    useEffect(() => {
+        setDashboardLayoutDraft(normalizeSectionLayout(publicConfig?.dashboardLayout));
+    }, [publicConfig?.dashboardLayout]);
+
     const resolveHomeImage = (thumbUrl: string | null | undefined, fallback = logoUrl()) => {
         if (!thumbUrl) return fallback;
         if (thumbUrl.startsWith('http://') || thumbUrl.startsWith('https://') || thumbUrl.startsWith('/api/')) {
@@ -4751,6 +5281,17 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
         }
         return portalUrl(`/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=256&height=256`);
     };
+    const heroBg = publicConfig?.backgroundImageUrl
+        ? resolvePortalAssetUrl(publicConfig.backgroundImageUrl)
+        : resolveHomeImage(
+            dashboardData?.recentShows?.[0]?.artUrl ||
+            dashboardData?.recentShows?.[0]?.thumbUrl ||
+            dashboardData?.recentMovies?.[0]?.artUrl ||
+            dashboardData?.recentMovies?.[0]?.thumbUrl ||
+            dashboardData?.recentMusic?.[0]?.artUrl ||
+            dashboardData?.recentMusic?.[0]?.thumbUrl,
+            ''
+        );
 
     const buildJellyfinHomeAnalytics = (data: any) => {
         const topMovies = Array.isArray(data?.topMovies) ? data.topMovies : [];
@@ -4898,8 +5439,16 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
         const fetchDashboard = async () => {
             if (!isMounted) return;
             try {
-                const res = await apiFetch(`${isJellyfinPortal ? '/api/jellyfin/dashboard' : '/api/plex/dashboard'}?limit=${RECENTLY_ADDED_ITEM_LIMIT}`);
-                if (isMounted) setDashboardData(res);
+                const [dashboardRes, bazarrRes] = await Promise.all([
+                    apiFetch(`${isJellyfinPortal ? '/api/jellyfin/dashboard' : '/api/plex/dashboard'}?limit=${RECENTLY_ADDED_ITEM_LIMIT}`),
+                    sessionInfo?.session?.isAdmin
+                        ? apiFetch('/api/bazarr/widgets').catch(() => null)
+                        : Promise.resolve(null),
+                ]);
+                if (isMounted) {
+                    setDashboardData(dashboardRes);
+                    if (bazarrRes) setBazarrWidgets(bazarrRes);
+                }
             } catch (e) {
                 console.error('Failed to refresh dashboard data', e);
             }
@@ -4956,6 +5505,24 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
         }
     };
 
+    const handleSaveDashboardLayout = async () => {
+        setLayoutSaving(true);
+        try {
+            const result = await apiFetch('/api/config/dashboard-layout', {
+                method: 'POST',
+                body: JSON.stringify({ dashboardLayout: dashboardLayoutDraft }),
+            });
+            const nextLayout = normalizeSectionLayout(result?.dashboardLayout || dashboardLayoutDraft);
+            setDashboardLayoutDraft(nextLayout);
+            setToast({ id: Date.now(), message: 'Portal widgets saved.', type: 'success' });
+            setLayoutEditorOpen(false);
+        } catch (e: any) {
+            setToast({ id: Date.now(), message: e.message || 'Failed to save portal widgets', type: 'error' });
+        } finally {
+            setLayoutSaving(false);
+        }
+    };
+
     const daysLeft = user?.expiryDate ? getDaysUntilExpiry(user.expiryDate) : null;
     const progressPct = getAccessProgressPct(user?.expiryDate || null, user?.joiningDate || null);
     const isExpiringSoon = daysLeft !== null && daysLeft <= 7;
@@ -4991,6 +5558,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
         setAnalyticsDaysOpen,
         showQualityBadges,
         dashboardData,
+        bazarrWidgets,
         handleRelink,
         handleToggleNewsletter,
         onViewAdmin,
@@ -5004,17 +5572,27 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     }), [
         sessionInfo, publicConfig, user, isRevoked, isExpiringSoon, daysLeft, progressPct, optOutNewsletter,
         serverStats, serverDataLoading, analytics, analyticsLoading, analyticsDays, analyticsDaysOpen,
-        showQualityBadges, dashboardData, onViewAdmin, onViewSettings, onViewLogs, onViewRequests, onPendingRequestsChange,
+        showQualityBadges, dashboardData, bazarrWidgets, onViewAdmin, onViewSettings, onViewLogs, onViewRequests, onPendingRequestsChange,
     ]);
 
     const renderMainGridWidget = useMemo(() => createMainGridWidgetRenderer(widgetDeps), [widgetDeps]);
     const renderPendingRequests = useMemo(() => createPendingRequestsSectionRenderer(widgetDeps), [widgetDeps]);
+    const renderBazarrTools = useMemo(() => createBazarrToolsSectionRenderer(widgetDeps), [widgetDeps]);
     const renderRecentlyAddedWidget = useMemo(() => createRecentlyAddedWidgetRenderer(widgetDeps), [widgetDeps]);
 
     return (
         <div className="w-full flex flex-col gap-3 md:gap-4">
             <Loader isLoading={isLoading} isCinematic={!!publicConfig?.useCinematicLoading} />
             {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
+            {layoutEditorOpen && (
+                <PortalWidgetEditorModal
+                    layout={dashboardLayoutDraft}
+                    onChange={setDashboardLayoutDraft}
+                    onSave={handleSaveDashboardLayout}
+                    onClose={() => setLayoutEditorOpen(false)}
+                    saving={layoutSaving}
+                />
+            )}
 
             {/* Massive Hero Banner */}
             <div className="relative w-full rounded-2xl overflow-hidden shadow-2xl bg-card border border-border">
@@ -5059,6 +5637,17 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                         </>
                     )}
                 </div>
+
+                {sessionInfo.session.isAdmin && (
+                    <button
+                        type="button"
+                        onClick={() => setLayoutEditorOpen(true)}
+                        className="absolute top-4 right-4 z-20 inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-white/15 bg-black/45 text-text text-sm font-bold backdrop-blur-md hover:border-plex/50 hover:text-plex transition-colors shadow-lg"
+                    >
+                        <Settings className="w-4 h-4" />
+                        Widgets
+                    </button>
+                )}
 
                 <div className="relative pt-14 pb-7 px-4 md:pt-32 md:pb-12 md:px-12 flex flex-col items-center md:items-start text-center md:text-left z-10">
                     <div className="flex flex-col md:flex-row items-center md:items-center gap-4 md:gap-6">
@@ -5134,10 +5723,11 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
             <DetailsModal item={detailsItem} onClose={() => setDetailsItem(null)} />
 
             <UserDashboardLayout
-                layoutConfig={publicConfig?.dashboardLayout}
+                layoutConfig={dashboardLayoutDraft}
                 layoutCtx={layoutCtx}
                 renderMainGridWidget={renderMainGridWidget}
                 renderPendingRequests={renderPendingRequests}
+                renderBazarrTools={renderBazarrTools}
                 renderRecentlyAddedWidget={renderRecentlyAddedWidget}
                 recentlyAddedLoading={serverDataLoading}
                 hasDashboardData={!!dashboardData}
@@ -5436,6 +6026,12 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
     const { config, healthData } = statusData;
     const services = config?.services || [];
     const groups = config?.groups || [];
+    const statusCounts = services.reduce((acc: any, service: any) => {
+        const status = healthData[service.id]?.currentStatus || 'unknown';
+        acc.total += 1;
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+    }, { total: 0, online: 0, degraded: 0, offline: 0, unknown: 0 });
 
     return (
         <div className="w-full flex flex-col">
@@ -5470,6 +6066,20 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
             <main className="user-content">
                 {activeTab === 'overview' && (
                     <>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+                            {[
+                                { label: 'Services', value: statusCounts.total, tone: 'text-text' },
+                                { label: 'Online', value: statusCounts.online, tone: 'text-status-active' },
+                                { label: 'Degraded', value: statusCounts.degraded, tone: 'text-status-expiring' },
+                                { label: 'Offline', value: statusCounts.offline, tone: 'text-status-expired' },
+                            ].map((item) => (
+                                <div key={item.label} className="rounded-xl border border-white/5 bg-card p-4 shadow-lg">
+                                    <p className="text-[10px] uppercase tracking-widest font-bold text-muted">{item.label}</p>
+                                    <p className={`text-2xl font-black mt-1 ${item.tone}`}>{item.value}</p>
+                                </div>
+                            ))}
+                        </div>
+
                         {config.announcement && config.announcement.enabled && (
                             <div className="status-announcement">
                                 {config.announcement.message}
@@ -5509,7 +6119,13 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
                                             return (
                                                 <div key={service.id} className="bg-card rounded-xl p-4 md:p-6 border border-white/5 shadow-lg flex flex-col gap-4 animate-fade-in hover:-translate-y-1 hover:shadow-plex/10 hover:shadow-2xl hover:border-plex/30 transition-all duration-300" style={{ animationFillMode: 'both', animationDelay: `${index * 75}ms` }}>
                                                     <div className="flex justify-between items-start mb-2 gap-4">
-                                                        <h4 className="font-bold text-text text-lg">{service.name}</h4>
+                                                        <div className="flex items-center gap-3 min-w-0">
+                                                            <StatusServiceIcon service={service} />
+                                                            <div className="min-w-0">
+                                                                <h4 className="font-bold text-text text-lg truncate">{service.name}</h4>
+                                                                {service.description && <p className="text-xs text-muted truncate">{service.description}</p>}
+                                                            </div>
+                                                        </div>
                                                         <span className={`px-3 py-1 rounded-full text-[0.65rem] uppercase tracking-wider font-bold border flex items-center gap-1.5 shadow-lg transition-all duration-300 ${health.currentStatus === 'online' ? 'bg-status-active/10 text-status-active border-status-active/30 shadow-[0_0_10px_rgba(35,134,54,0.3)]' : health.currentStatus === 'offline' ? 'bg-status-expired/10 text-[#D32F2F] border-[#D32F2F]/30 shadow-[0_0_10px_rgba(211,47,47,0.3)] animate-pulse' : 'bg-status-expiring/10 text-status-expiring border-status-expiring/30 shadow-[0_0_10px_rgba(210,153,34,0.3)]'}`}>
                                                             {health.currentStatus === 'online' && <span className="w-1.5 h-1.5 rounded-full bg-status-active animate-pulse shadow-[0_0_5px_rgba(35,134,54,0.8)]" />}
                                                             {health.currentStatus === 'offline' && <span className="w-1.5 h-1.5 rounded-full bg-[#D32F2F] animate-ping" />}
@@ -5678,6 +6294,7 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
     const sessionPosterSrc = session.thumbUrl
         ? resolvePortalAssetUrl(session.thumbUrl)
         : portalUrl(`/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=400&height=600`);
+    const sessionFallbackPosterSrc = session.posterFallbackUrl ? resolvePortalAssetUrl(session.posterFallbackUrl) : '';
     const sessionUserThumbSrc = session.userThumb ? resolvePortalAssetUrl(session.userThumb) : 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y';
 
     const handleKill = async () => {
@@ -5706,7 +6323,16 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
                 {/* Poster Side */}
                 <div className="w-full md:w-2/5 lg:w-1/3 relative bg-black flex-shrink-0">
                     <div className="w-full aspect-square md:aspect-auto md:h-full relative">
-                        <img src={sessionPosterSrc} alt={session.title} className="absolute inset-0 w-full h-full object-cover object-top md:object-center opacity-80" />
+                        <img
+                            src={sessionPosterSrc}
+                            alt={session.title}
+                            onError={(e) => {
+                                if (sessionFallbackPosterSrc && e.currentTarget.src !== sessionFallbackPosterSrc) {
+                                    e.currentTarget.src = sessionFallbackPosterSrc;
+                                }
+                            }}
+                            className="absolute inset-0 w-full h-full object-cover object-top md:object-center opacity-80"
+                        />
                         <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent md:bg-gradient-to-r"></div>
                     </div>
                     {/* User Avatar Badge */}
@@ -6130,6 +6756,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                     const sessionPosterSrc = session.thumbUrl
                                         ? resolvePortalAssetUrl(session.thumbUrl)
                                         : portalUrl(`/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=360&height=540`);
+                                    const sessionFallbackPosterSrc = session.posterFallbackUrl ? resolvePortalAssetUrl(session.posterFallbackUrl) : '';
                                     const sessionUserThumbSrc = session.userThumb ? resolvePortalAssetUrl(session.userThumb) : 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y';
                                     const posterColumnClass = 'grid-cols-[clamp(6rem,36%,8.5rem)_minmax(0,1fr)]';
                                     return (
@@ -6140,6 +6767,11 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                                         src={sessionPosterSrc}
                                                         alt={session.title}
                                                         loading="lazy"
+                                                        onError={(e) => {
+                                                            if (sessionFallbackPosterSrc && e.currentTarget.src !== sessionFallbackPosterSrc) {
+                                                                e.currentTarget.src = sessionFallbackPosterSrc;
+                                                            }
+                                                        }}
                                                         className="absolute inset-0 w-full h-full object-cover object-top drop-shadow-[4px_0_15px_rgba(0,0,0,0.5)]"
                                                     />
                                                 </div>
@@ -7572,7 +8204,7 @@ export const MaintenanceDashboard: React.FC = () => {
 
 interface NavigationProps {
     currentRoute: string;
-    onNavigate: (route: 'admin' | 'user' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'maintenance') => void;
+    onNavigate: (route: 'admin' | 'user' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'requests' | 'discovery') => void;
     onLogout: () => void;
     isAdmin: boolean;
     serverName: string;
@@ -7587,16 +8219,34 @@ interface NavigationProps {
     pendingRequestCount?: number;
     watchingCount?: number;
     showDashboardWatchingBadge?: boolean;
+    sessionInfo?: any;
+    mediaServerType?: string;
+    sidebarIdentityPosition?: 'top' | 'bottom';
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, customLogoUrl, requestUrl, navOrder, navFeatures, appVersion, activeTheme, setActiveTheme, pendingRequestCount = 0, watchingCount = 0, showDashboardWatchingBadge = false }) => {
+export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, customLogoUrl, requestUrl, navOrder, navFeatures, appVersion, activeTheme, setActiveTheme, pendingRequestCount = 0, watchingCount = 0, showDashboardWatchingBadge = false, sessionInfo, mediaServerType = 'plex', sidebarIdentityPosition = 'bottom' }) => {
     const serverIcon = customLogoUrl ? resolvePortalAssetUrl(customLogoUrl) : (adminThumb ? (adminThumb.startsWith('http') ? adminThumb : portalUrl(`/api/plex/image?path=${encodeURIComponent(adminThumb)}&width=256&height=256`)) : logoUrl());
+    const providerName = String(mediaServerType || 'plex').toLowerCase() === 'jellyfin'
+        ? 'Jellyfin'
+        : String(mediaServerType || 'plex').toLowerCase() === 'emby'
+            ? 'Emby'
+            : 'Plex';
+    const profile = sessionInfo?.account || sessionInfo?.session || {};
+    const profileName = profile?.username || sessionInfo?.session?.username || 'Profile';
+    const profileEmail = profile?.email || sessionInfo?.session?.email || '';
+    const profileThumb = profile?.thumb || sessionInfo?.session?.thumb || (isAdmin ? adminThumb : null);
+    const profileIcon = profileThumb
+        ? (String(profileThumb).startsWith('http://') || String(profileThumb).startsWith('https://') || String(profileThumb).startsWith('/api/')
+            ? resolvePortalAssetUrl(profileThumb)
+            : portalUrl(`/api/plex/image?path=${encodeURIComponent(profileThumb)}&width=256&height=256`))
+        : logoUrl();
     useEffect(() => {
         updateFavicon(serverIcon);
     }, [serverIcon]);
 
     const [mobileThemeOpen, setMobileThemeOpen] = useState(false);
     const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+    const [profileOpen, setProfileOpen] = useState(false);
     const mobileThemeRef = useRef<HTMLDivElement>(null);
     const [mobileThemePos, setMobileThemePos] = useState<{ top: number; right: number } | null>(null);
 
@@ -7626,6 +8276,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         'status': { label: 'Status', icon: Activity, route: 'status', adminOnly: false },
         'logs': { label: 'Logs', icon: FileText, route: 'logs', adminOnly: true },
         'analytics': { label: 'Analytics', icon: BarChart3, route: 'analytics', adminOnly: false },
+        'downloads': { label: 'Downloads', icon: DownloadCloud, route: 'downloads', adminOnly: false },
         'mediastack': { label: 'Calendar', icon: Layers, route: 'mediastack', adminOnly: false },
         'maintenance': { label: 'Cleaner', icon: Shield, route: 'maintenance', adminOnly: true },
         'upgrader': { label: 'Upgrader', icon: ArrowUpCircle, route: 'upgrader', adminOnly: true },
@@ -7636,6 +8287,13 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
     };
     const normalizedNavOrder = useMemo(() => {
         const order = Array.isArray(navOrder) ? [...navOrder] : [];
+        if (!order.includes('downloads')) {
+            const calendarIndex = order.indexOf('mediastack');
+            const analyticsIndex = order.indexOf('analytics');
+            if (calendarIndex >= 0) order.splice(calendarIndex, 0, 'downloads');
+            else if (analyticsIndex >= 0) order.splice(analyticsIndex + 1, 0, 'downloads');
+            else order.push('downloads');
+        }
         if (isAdmin && navFeatures?.maintenance !== false && !order.includes('maintenance')) {
             const requestIndex = order.indexOf('request');
             if (requestIndex >= 0) order.splice(requestIndex, 0, 'maintenance');
@@ -7725,6 +8383,53 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         );
     };
 
+    const renderServerIdentity = (placement: 'top' | 'bottom') => (
+        <div className={`flex flex-col items-center w-full ${placement === 'top' ? 'pb-5 mb-5 border-b' : 'pt-5 mt-5 border-t'} border-white/10 group cursor-default`}>
+            <div className={`relative mb-4 ${customLogoUrl ? 'w-28 flex items-center justify-center' : ''}`}>
+                {customLogoUrl ? (
+                    <img
+                        src={serverIcon}
+                        alt="Server Logo"
+                        className="max-w-28 max-h-24 object-contain drop-shadow-[0_0_24px_rgba(0,0,0,0.75)] group-hover:scale-105 transition-transform duration-700 ease-out"
+                        onError={(e) => {
+                            (e.target as HTMLImageElement).src = logoUrl();
+                        }}
+                    />
+                ) : (
+                    <>
+                        <div className="absolute inset-0 bg-plex blur-[25px] opacity-20 group-hover:opacity-40 transition-opacity duration-700 rounded-full"></div>
+                        <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-plex via-amber-300 to-orange-600 opacity-60 group-hover:opacity-100 group-hover:rotate-180 transition-all duration-1000 ease-out"></div>
+                        <div className="relative w-24 h-24 rounded-full p-[4px] shadow-2xl bg-card">
+                            <div className="w-full h-full rounded-full overflow-hidden bg-background">
+                                <img
+                                    src={serverIcon}
+                                    alt="Server Logo"
+                                    className="w-full h-full group-hover:scale-110 transition-transform duration-700 ease-out object-cover"
+                                    onError={(e) => {
+                                        (e.target as HTMLImageElement).src = logoUrl();
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
+
+            <div className="flex flex-col items-center text-center px-2">
+                <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-gray-100 to-gray-400 drop-shadow-md tracking-tight leading-tight line-clamp-2">
+                    {serverName}
+                </h2>
+                <div className="mt-2 flex items-center gap-2">
+                    <div className="h-px w-6 bg-gradient-to-r from-transparent to-plex/50"></div>
+                    <span className="text-[10px] uppercase tracking-[0.3em] text-plex font-bold drop-shadow-[0_0_8px_rgba(229,160,13,0.5)]">
+                        Portal
+                    </span>
+                    <div className="h-px w-6 bg-gradient-to-l from-transparent to-plex/50"></div>
+                </div>
+            </div>
+        </div>
+    );
+
     return (
         <>
 
@@ -7766,6 +8471,12 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                     { label: 'Crimson Red', value: 'crimson' },
                                     { label: 'Deep Amethyst', value: 'amethyst' },
                                     { label: 'Sunset Orange', value: 'sunset' },
+                                    { label: 'Ocean Teal', value: 'ocean' },
+                                    { label: 'Rose Pink', value: 'rose' },
+                                    { label: 'Royal Blue', value: 'royal' },
+                                    { label: 'Graphite', value: 'graphite' },
+                                    { label: 'Cyber Lime', value: 'cyberlime' },
+                                    { label: 'Aurora', value: 'aurora' },
                                 ].map(opt => (
                                     <div
                                         key={opt.value}
@@ -7793,7 +8504,9 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
 
             {/* Desktop Sidebar */}
             <div className="hidden md:flex flex-col w-72 nav-shell border-r p-6 sticky top-0 self-start h-dvh shadow-2xl">
-                <div className="flex flex-col gap-2 mt-4">
+                {sidebarIdentityPosition === 'top' && renderServerIdentity('top')}
+
+                <div className="flex flex-col gap-2 min-h-0 flex-1 overflow-y-auto custom-scrollbar pr-1">
                     {normalizedNavOrder.map((key) => {
                         const item = navItemsConfig[key];
                         if (!item) return null;
@@ -7804,58 +8517,78 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                     })}
                 </div>
 
-                <div className="flex flex-col items-center w-full mt-auto pt-10 pb-4 group cursor-default">
-                    <div className={`relative mb-6 ${customLogoUrl ? 'w-32 flex items-center justify-center' : ''}`}>
-                        {customLogoUrl ? (
-                            <img
-                                src={serverIcon}
-                                alt="Server Logo"
-                                className="max-w-32 max-h-32 object-contain drop-shadow-[0_0_24px_rgba(0,0,0,0.75)] group-hover:scale-105 transition-transform duration-700 ease-out"
-                                onError={(e) => {
-                                    (e.target as HTMLImageElement).src = logoUrl();
-                                }}
-                            />
-                        ) : (
-                            <>
-                        {/* Soft ambient background glow */}
-                        <div className="absolute inset-0 bg-plex blur-[25px] opacity-20 group-hover:opacity-40 transition-opacity duration-700 rounded-full"></div>
-                        {/* Spinning gradient border */}
-                        <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-plex via-amber-300 to-orange-600 opacity-60 group-hover:opacity-100 group-hover:rotate-180 transition-all duration-1000 ease-out"></div>
-                        {/* Inner cutout for the image */}
-                        <div className="relative w-28 h-28 rounded-full p-[4px] shadow-2xl bg-card">
-                            <div className="w-full h-full rounded-full overflow-hidden bg-background">
-                                <img
-                                    src={serverIcon}
-                                    alt="Server Logo"
-                                    className={`w-full h-full group-hover:scale-110 transition-transform duration-700 ease-out ${customLogoUrl ? 'object-contain p-3' : 'object-cover'}`}
-                                    onError={(e) => {
-                                        (e.target as HTMLImageElement).src = logoUrl();
-                                    }}
-                                />
+                {sidebarIdentityPosition !== 'top' && renderServerIdentity('bottom')}
+
+                <div className="mt-5 pt-5 border-t border-white/10">
+                    <button
+                        type="button"
+                        onClick={() => setProfileOpen(true)}
+                        className="w-full flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-plex/40 transition-all p-3 text-left"
+                    >
+                        <img
+                            src={profileIcon}
+                            alt=""
+                            className="w-10 h-10 flex-shrink-0 rounded-full object-cover bg-background/60 border border-white/10"
+                            onError={(e) => {
+                                (e.target as HTMLImageElement).src = logoUrl();
+                            }}
+                        />
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-bold text-text truncate">{profileName}</p>
+                            <p className="text-[10px] uppercase tracking-[0.2em] text-muted">{providerName} Profile</p>
+                        </div>
+                        <Palette className="w-4 h-4 text-plex flex-shrink-0" />
+                    </button>
+                </div>
+            </div>
+
+            {profileOpen && (
+                <div className="hidden md:block fixed inset-0 z-[80]" aria-modal="true" role="dialog">
+                    <button
+                        type="button"
+                        className="absolute inset-0 bg-black/35 cursor-default"
+                        aria-label="Close profile modal"
+                        onClick={() => setProfileOpen(false)}
+                    />
+                    <div className="absolute left-6 bottom-6 w-[21rem] max-w-[calc(100vw-3rem)] rounded-2xl border border-border bg-card shadow-2xl overflow-hidden animate-fade-in">
+                        <div className="p-5 border-b border-border/70">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <img
+                                        src={profileIcon}
+                                        alt={`${profileName} profile`}
+                                        className="w-14 h-14 flex-shrink-0 rounded-full object-cover bg-background/60 border border-white/10"
+                                        onError={(e) => {
+                                            (e.target as HTMLImageElement).src = logoUrl();
+                                        }}
+                                    />
+                                    <div className="min-w-0">
+                                        <p className="text-lg font-black text-text truncate">{profileName}</p>
+                                        <p className="text-[10px] uppercase tracking-[0.25em] text-plex font-bold mt-0.5">{providerName} Profile</p>
+                                        {profileEmail && <p className="text-xs text-muted truncate mt-1">{profileEmail}</p>}
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setProfileOpen(false)}
+                                    className="p-2 rounded-lg text-muted hover:text-text hover:bg-white/5 transition-colors"
+                                    aria-label="Close profile modal"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
                             </div>
                         </div>
-                            </>
-                        )}
-                    </div>
 
-                    <div className="flex flex-col items-center text-center px-2">
-                        <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-gray-100 to-gray-400 drop-shadow-md tracking-tight leading-tight line-clamp-2">
-                            {serverName}
-                        </h2>
-                        <div className="mt-2 flex items-center gap-2">
-                            <div className="h-px w-6 bg-gradient-to-r from-transparent to-plex/50"></div>
-                            <span className="text-[10px] uppercase tracking-[0.3em] text-plex font-bold drop-shadow-[0_0_8px_rgba(229,160,13,0.5)]">
-                                Portal
-                            </span>
-                            <div className="h-px w-6 bg-gradient-to-l from-transparent to-plex/50"></div>
-                        </div>
-                        <div className="mt-4 mb-2 relative w-full px-2">
-                            <Palette className="w-4 h-4 text-muted absolute left-5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+                        <div className="p-5">
+                            <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-muted font-bold">
+                                <Palette className="w-3.5 h-3.5 text-plex" />
+                                Theme
+                            </div>
                             <CustomSelect
                                 value={activeTheme}
                                 onChange={setActiveTheme}
                                 compact={true}
-                                className="w-full [&_div]:pl-9"
+                                className="w-full"
                                 options={[
                                     { label: 'Dynamic (Chameleon)', value: 'dynamic' },
                                     { label: 'Plex Dark', value: 'plex' },
@@ -7867,17 +8600,18 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                     { label: 'Crimson Red', value: 'crimson' },
                                     { label: 'Deep Amethyst', value: 'amethyst' },
                                     { label: 'Sunset Orange', value: 'sunset' },
+                                    { label: 'Ocean Teal', value: 'ocean' },
+                                    { label: 'Rose Pink', value: 'rose' },
+                                    { label: 'Royal Blue', value: 'royal' },
+                                    { label: 'Graphite', value: 'graphite' },
+                                    { label: 'Cyber Lime', value: 'cyberlime' },
+                                    { label: 'Aurora', value: 'aurora' },
                                 ]}
                             />
                         </div>
-                        {appVersion && (
-                            <div className="mt-2 text-[10px] text-white/50 font-mono tracking-wider opacity-80 hover:opacity-100 transition-opacity">
-                                {appVersion}
-                            </div>
-                        )}
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* Mobile Bottom Nav */}
             <div className="md:hidden fixed bottom-0 left-0 right-0 w-full nav-shell border-t z-50 pb-[env(safe-area-inset-bottom)]">
