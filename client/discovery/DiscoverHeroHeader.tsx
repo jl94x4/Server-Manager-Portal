@@ -96,6 +96,7 @@ export const DiscoverHeroHeader: React.FC<SearchResultProps> = (props) => {
             .then((res) => {
                 if (Array.isArray(res?.backgrounds) && res.backgrounds.length) {
                     setBackgrounds(res.backgrounds);
+                    notifyDynamicTheme(res.backgrounds[0]);
                 }
                 if (res?.interval) setIntervalSeconds(Number(res.interval) || 12);
             })

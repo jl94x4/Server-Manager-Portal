@@ -16,6 +16,20 @@ const pickThumbFromDashboard = (data: any): string | null => {
     return first?.thumbUrl || first?.thumb || null;
 };
 
+const pickPosterFromTrending = (data: any): string | null => {
+    const item = Array.isArray(data?.results) ? data.results[0] : null;
+    if (!item) return null;
+    const path = item.posterPath || item.poster_path;
+    if (!path) return null;
+    const normalized = String(path).startsWith('/') ? path : `/${path}`;
+    return `https://image.tmdb.org/t/p/w500${normalized}`;
+};
+
+const pickPosterFromRequests = (data: any): string | null => {
+    const item = Array.isArray(data?.results) ? data.results[0] : null;
+    return item?.posterUrl || item?.backdropUrl || null;
+};
+
 /** Keeps Dynamic (Chameleon) accent colors in sync across all portal routes. */
 export const useAppDynamicTheme = (
     activeTheme: string,
@@ -39,12 +53,35 @@ export const useAppDynamicTheme = (
             if (!cancelled) setImageUrl(url || fallback);
         };
 
+        const loadDiscoveryImage = async (): Promise<string | null> => {
+            try {
+                const res = await apiFetch('/api/discovery/hero-backdrops');
+                const bg = Array.isArray(res?.backgrounds) ? res.backgrounds[0] : null;
+                if (bg) return resolveImageUrl(bg);
+            } catch {
+                /* try fallbacks */
+            }
+
+            try {
+                const requests = await apiFetch('/api/discovery/my-requests?filter=all&take=1');
+                const fromRequests = pickPosterFromRequests(requests);
+                if (fromRequests) return resolveImageUrl(fromRequests);
+            } catch {
+                /* try trending */
+            }
+
+            try {
+                const trending = await apiFetch('/api/discovery/trending');
+                return pickPosterFromTrending(trending);
+            } catch {
+                return null;
+            }
+        };
+
         const loadForRoute = async () => {
             try {
                 if (currentRoute === 'discovery') {
-                    const res = await apiFetch('/api/discovery/hero-backdrops');
-                    const bg = Array.isArray(res?.backgrounds) ? res.backgrounds[0] : null;
-                    finish(resolveImageUrl(bg));
+                    finish(await loadDiscoveryImage());
                     return;
                 }
 

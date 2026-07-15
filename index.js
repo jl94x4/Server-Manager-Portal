@@ -4403,6 +4403,42 @@ app.get('/api/discovery/trending', requireAuth, requireMember, async (req, res) 
 
 let discoveryHeroCache = { data: null, lastFetch: 0 };
 
+const DYNAMIC_THEME_IMAGE_HOSTS = new Set([
+    'image.tmdb.org',
+    'metadata.provider.plex.tv',
+    'plex.tv',
+]);
+
+app.get('/api/dynamic-theme/sample-image', requireAuth, requireMember, async (req, res) => {
+    const rawUrl = String(req.query.url || '').trim();
+    if (!rawUrl) return res.status(400).send('url required');
+
+    let parsed;
+    try {
+        parsed = new URL(rawUrl);
+    } catch {
+        return res.status(400).send('invalid url');
+    }
+
+    if (parsed.protocol !== 'https:' || !DYNAMIC_THEME_IMAGE_HOSTS.has(parsed.hostname)) {
+        return res.status(400).send('host not allowed');
+    }
+
+    try {
+        const response = await fetchWithTimeout(rawUrl, {}, 15000);
+        if (!response.ok) throw new Error('fetch failed');
+        const contentType = response.headers.get('content-type') || 'image/jpeg';
+        if (!contentType.startsWith('image/')) return res.status(400).send('not an image');
+        const buffer = Buffer.from(await response.arrayBuffer());
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        res.send(buffer);
+    } catch (e) {
+        log(`Dynamic theme sample-image error: ${e.message}`);
+        res.status(502).send('');
+    }
+});
+
 app.get('/api/discovery/hero-backdrops', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
