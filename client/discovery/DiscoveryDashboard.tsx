@@ -183,7 +183,7 @@ export const DiscoveryDashboard: React.FC<{
 
     if (subRoute === 'watchlist') {
         return (
-            <div className="w-full flex flex-col gap-4 pb-8">
+            <div className="discovery-theme w-full flex flex-col gap-4 pb-8">
                 <DiscoverHeroHeader
                     query={query}
                     searchOpen={searchOpen}
@@ -224,7 +224,7 @@ export const DiscoveryDashboard: React.FC<{
     const ActiveIcon = activeTab.icon;
 
     return (
-        <div className="w-full flex flex-col gap-4 pb-8">
+        <div className="discovery-theme w-full flex flex-col gap-4 pb-8">
             <DiscoverHeroHeader
                 query={query}
                 searchOpen={searchOpen}

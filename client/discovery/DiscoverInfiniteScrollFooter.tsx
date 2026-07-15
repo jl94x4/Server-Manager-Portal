@@ -12,7 +12,7 @@ export const DiscoverInfiniteScrollFooter: React.FC<{
         <div ref={sentinelRef} className="flex justify-center items-center min-h-[72px] mt-4 mb-12">
             {loadingMore && (
                 <div className="flex items-center gap-3 text-sm font-semibold text-muted">
-                    <span className="inline-block w-5 h-5 rounded-full border-2 border-white/20 border-t-plex animate-spin" />
+                    <span className="inline-block w-5 h-5 rounded-full border-2 border-border border-t-plex animate-spin" />
                     Loading more…
                 </div>
             )}

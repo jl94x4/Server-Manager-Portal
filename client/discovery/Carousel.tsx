@@ -40,10 +40,10 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
             {showLeft && (
                 <button 
                     onClick={() => scroll('left')}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-10 h-10 rounded-full bg-black/60 backdrop-blur-md border border-white/10 opacity-0 group-hover/carousel:opacity-100 transition-all hover:scale-110 hover:bg-black/80 shadow-xl"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-10 h-10 rounded-full bg-card/90 backdrop-blur-md border border-border opacity-0 group-hover/carousel:opacity-100 transition-all hover:scale-110 hover:bg-card shadow-xl"
                     aria-label="Scroll left"
                 >
-                    <ChevronLeft className="w-6 h-6 text-white" />
+                    <ChevronLeft className="w-6 h-6 text-text" />
                 </button>
             )}
 
@@ -61,10 +61,10 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
             {showRight && (
                 <button 
                     onClick={() => scroll('right')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-10 h-10 rounded-full bg-black/60 backdrop-blur-md border border-white/10 opacity-0 group-hover/carousel:opacity-100 transition-all hover:scale-110 hover:bg-black/80 shadow-xl"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-10 h-10 rounded-full bg-card/90 backdrop-blur-md border border-border opacity-0 group-hover/carousel:opacity-100 transition-all hover:scale-110 hover:bg-card shadow-xl"
                     aria-label="Scroll right"
                 >
-                    <ChevronRight className="w-6 h-6 text-white" />
+                    <ChevronRight className="w-6 h-6 text-text" />
                 </button>
             )}
         </div>

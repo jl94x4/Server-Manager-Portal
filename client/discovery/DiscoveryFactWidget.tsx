@@ -103,20 +103,20 @@ export const DiscoveryFactWidget: React.FC<{
                         <button
                             type="button"
                             onClick={showAnother}
-                            className="inline-flex items-center gap-1 text-[10px] font-bold text-white/50 hover:text-plex transition-colors"
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-muted hover:text-plex transition-colors"
                         >
                             <RefreshCw className="w-3 h-3" />
                             Another
                         </button>
                     )}
                 </div>
-                <p className="text-sm text-white/80 leading-relaxed min-h-[4.75rem] sm:min-h-[3.75rem]">
+                <p className="text-sm text-text/80 leading-relaxed min-h-[4.75rem] sm:min-h-[3.75rem]">
                     {(() => {
                         const match = current.match(/^===\s*(.*?)\s*===\s*(.*)$/s);
                         if (match) {
                             return (
                                 <>
-                                    <strong className="text-white">{match[1]}:</strong> {match[2]}
+                                    <strong className="text-text">{match[1]}:</strong> {match[2]}
                                 </>
                             );
                         }

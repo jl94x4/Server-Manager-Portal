@@ -90,11 +90,11 @@ export const WatchlistPanel: React.FC<Props> = ({
         const cardWidth = variant === 'page' ? 'w-full' : 'w-[140px] sm:w-[160px] flex-shrink-0';
         const footer = (
             <div className="flex flex-col gap-1.5 mt-1.5 px-0.5">
-                <div className={`text-xs font-medium line-clamp-2 leading-tight text-white ${variant === 'page' ? 'text-left' : 'text-center'}`}>
+                <div className={`text-xs font-medium line-clamp-2 leading-tight text-text ${variant === 'page' ? 'text-left' : 'text-center'}`}>
                     {formatted.title}
                 </div>
                 {statusLabel && !requestable && (
-                    <span className={`text-[10px] font-bold uppercase tracking-wide text-center ${variant === 'page' ? 'text-left' : ''} text-white/45`}>
+                    <span className={`text-[10px] font-bold uppercase tracking-wide text-center ${variant === 'page' ? 'text-left' : ''} text-muted`}>
                         {statusLabel}
                     </span>
                 )}
@@ -132,8 +132,8 @@ export const WatchlistPanel: React.FC<Props> = ({
     const header = showHeader ? (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-2">
             <div>
-                <h2 className="text-xl font-bold text-white">Your Plex Watchlist</h2>
-                <p className="text-xs text-white/45 mt-1">
+                <h2 className="text-xl font-bold text-text">Your Plex Watchlist</h2>
+                <p className="text-xs text-muted mt-1">
                     Auto-sync from Plex is managed in Seerr settings.
                 </p>
             </div>
@@ -152,7 +152,7 @@ export const WatchlistPanel: React.FC<Props> = ({
                         type="button"
                         disabled={bulkLoading}
                         onClick={handleRequestAll}
-                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.06] border border-white/10 text-white text-xs font-bold hover:bg-white/10 hover:border-plex/30 transition-colors disabled:opacity-50"
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.06] border border-border text-text text-xs font-bold hover:bg-white/10 hover:border-plex/30 transition-colors disabled:opacity-50"
                     >
                         {bulkLoading ? (
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />

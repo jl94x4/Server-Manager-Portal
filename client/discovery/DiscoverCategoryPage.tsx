@@ -95,18 +95,18 @@ export const DiscoverCategoryPage: React.FC<Props> = ({ kind, id, onBack, onSele
             <button
                 type="button"
                 onClick={onBack}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-muted hover:text-white transition-colors w-fit"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-muted hover:text-text transition-colors w-fit"
             >
                 <ArrowLeft className="w-4 h-4" />
                 Back to Discover
             </button>
 
             <div className="px-2">
-                <div className="flex flex-col gap-4 p-6 rounded-2xl border border-white/10 bg-gradient-to-br from-zinc-900/90 to-black/60">
+                <div className="flex flex-col gap-4 p-6 rounded-2xl border border-border bg-gradient-to-br from-card/90 to-background/60">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-6 flex-1 min-w-0">
                             {meta?.logoPath ? (
-                                <div className="w-[200px] h-[112px] rounded-xl border border-white/10 bg-zinc-900/80 flex items-center justify-center flex-shrink-0">
+                                <div className="w-[200px] h-[112px] rounded-xl border border-border bg-card/80 flex items-center justify-center flex-shrink-0">
                                     <DiscoveryLogo
                                         logoPath={meta.logoPath}
                                         alt={title}
@@ -115,7 +115,7 @@ export const DiscoverCategoryPage: React.FC<Props> = ({ kind, id, onBack, onSele
                                     />
                                 </div>
                             ) : (
-                                <div className="w-[200px] h-[112px] rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white font-bold flex-shrink-0">
+                                <div className="w-[200px] h-[112px] rounded-xl bg-white/5 border border-border flex items-center justify-center text-text font-bold flex-shrink-0">
                                     {title}
                                 </div>
                             )}
@@ -124,7 +124,7 @@ export const DiscoverCategoryPage: React.FC<Props> = ({ kind, id, onBack, onSele
                                     {kind === 'studio' ? <Film className="w-4 h-4" /> : <Tv className="w-4 h-4" />}
                                     {kind === 'studio' ? 'Movie Studio' : 'TV Network'}
                                 </div>
-                                <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">{title}</h1>
+                                <h1 className="text-3xl sm:text-4xl font-black text-text tracking-tight">{title}</h1>
                                 <p className="text-sm text-muted mt-2">
                                     Browse {kind === 'studio' ? 'movies' : 'series'} from this {kind === 'studio' ? 'studio' : 'network'}.
                                 </p>
