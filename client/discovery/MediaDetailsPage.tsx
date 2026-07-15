@@ -6,6 +6,7 @@ import { DiscoverPosterCard } from '../screens';
 import { Carousel } from './Carousel';
 import { NoPosterPlaceholder } from '../shared/NoPosterPlaceholder';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
+import { useDiscoveryMe } from './useDiscoveryMe';
 import { tmdbBackdropUrl } from './discoverConstants';
 import { RequestModal } from './RequestModal';
 import { ReportIssueModal } from './ReportIssueModal';
@@ -62,6 +63,7 @@ export const MediaDetailsPage: React.FC<{
     pushToast?: (msg: string, type: 'success' | 'error') => void;
 }> = ({ mediaType, mediaId, onBack, formatItem, pushToast }) => {
     const { preferences } = useDiscoveryPreferences();
+    const { profile: discoveryMe } = useDiscoveryMe(true);
     const [details, setDetails] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [recommendations, setRecommendations] = useState<any[]>([]);
@@ -286,12 +288,14 @@ export const MediaDetailsPage: React.FC<{
     const mediaStatus = details.mediaInfo?.status ?? null;
     const requestButton = getRequestButtonState(mediaType, mediaStatus, seasonRows, details.mediaInfo, details);
     const seerrMediaId = Number(details.mediaInfo?.id);
-    const canReportIssue = Number.isFinite(seerrMediaId) && seerrMediaId > 0 && (
-        mediaStatus === 4
-        || mediaStatus === 5
-        || availability?.kind === 'available'
-        || availability?.kind === 'partial'
-    );
+    const canReportIssue = Number.isFinite(seerrMediaId) && seerrMediaId > 0
+        && discoveryMe.permissions?.createIssues !== false
+        && (
+            mediaStatus === 4
+            || mediaStatus === 5
+            || availability?.kind === 'available'
+            || availability?.kind === 'partial'
+        );
     const posterUrl = details.posterPath ? `https://image.tmdb.org/t/p/w500${details.posterPath}` : '';
     const posterHeroUrl = details.posterPath ? `https://image.tmdb.org/t/p/w780${details.posterPath}` : '';
     const backdropUrl = tmdbBackdropUrl(details.backdropPath || '');

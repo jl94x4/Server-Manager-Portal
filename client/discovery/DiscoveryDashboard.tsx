@@ -16,6 +16,7 @@ import { MyRequestsPage } from './MyRequestsPage';
 import { MyIssuesPage } from './MyIssuesPage';
 import { useMyRequestCount } from './useMyRequestCount';
 import { useMyIssueCount } from './useMyIssueCount';
+import { useDiscoveryMe } from './useDiscoveryMe';
 import { WatchlistPage } from './WatchlistPage';
 import { scrollPortalToTop } from './discoverNavigationUtils';
 import { discoveryTheme } from './discoveryThemeClasses';
@@ -35,6 +36,7 @@ export const DiscoveryDashboard: React.FC<{
     const [searchOpen, setSearchOpen] = useState(false);
     const { pendingCount: myPendingCount, refresh: refreshMyRequestCount } = useMyRequestCount(true);
     const { openCount: myOpenIssueCount, refresh: refreshMyIssueCount } = useMyIssueCount(true);
+    const { profile: discoveryMe } = useDiscoveryMe(true);
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
     const refreshPath = useCallback(() => {
@@ -212,12 +214,18 @@ export const DiscoveryDashboard: React.FC<{
         );
     }
 
+    const canSeeIssuesTab = Boolean(
+        discoveryMe?.permissions?.createIssues || discoveryMe?.permissions?.viewIssues
+    );
+
     const tabs = [
         { id: 'home', path: '/discovery', label: 'Discover', icon: Compass, count: 0, countColor: '' },
         { id: 'movies', path: '/discovery/movies', label: 'Movies', icon: Film, count: 0, countColor: '' },
         { id: 'series', path: '/discovery/series', label: 'Series', icon: Tv, count: 0, countColor: '' },
         { id: 'requests', path: '/discovery/requests', label: 'My Requests', icon: ClipboardList, count: myPendingCount, countColor: 'bg-plex text-black' },
-        { id: 'issues', path: '/discovery/issues', label: 'My Issues', icon: AlertTriangle, count: myOpenIssueCount, countColor: 'bg-amber-500 text-black' },
+        ...(canSeeIssuesTab
+            ? [{ id: 'issues', path: '/discovery/issues', label: 'My Issues', icon: AlertTriangle, count: myOpenIssueCount, countColor: 'bg-amber-500 text-black' }]
+            : []),
     ];
 
     const activeTab = tabs.find(t => t.id === subRoute) || tabs[0];

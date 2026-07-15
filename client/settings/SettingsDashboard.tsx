@@ -1738,6 +1738,42 @@ export const SettingsDashboard: React.FC = () => {
                                 </span>
                             </div>
 
+                            {requestAppType !== 'none' && requestAppUrl && (
+                                <div className="rounded-xl border border-border bg-card/60 p-4 space-y-3">
+                                    <h4 className="font-bold text-text">Seerr / Overseerr rules</h4>
+                                    <p className="text-sm text-muted">
+                                        Quotas, permissions, auto-approve, override rules, and watchlist sync are managed in your request app.
+                                        The portal reads those rules and hides request / 4K / issue actions when users are not allowed.
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        <a
+                                            href={`${String(requestAppUrl).replace(/\/$/, '')}/settings/users`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-background text-sm font-bold text-text hover:border-plex/40 hover:text-plex transition-colors"
+                                        >
+                                            Users &amp; permissions
+                                        </a>
+                                        <a
+                                            href={`${String(requestAppUrl).replace(/\/$/, '')}/settings/main`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-background text-sm font-bold text-text hover:border-plex/40 hover:text-plex transition-colors"
+                                        >
+                                            Main settings
+                                        </a>
+                                        <a
+                                            href={`${String(requestAppUrl).replace(/\/$/, '')}/settings/services`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-background text-sm font-bold text-text hover:border-plex/40 hover:text-plex transition-colors"
+                                        >
+                                            Services &amp; 4K
+                                        </a>
+                                    </div>
+                                </div>
+                            )}
+
                             {requestAppType === 'none' && (
                                 <p className="text-sm text-yellow-300/90 border border-yellow-500/20 bg-yellow-500/10 rounded-lg px-4 py-3">
                                     Connect a request app under Integrations to sync these settings automatically.

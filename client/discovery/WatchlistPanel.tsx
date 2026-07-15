@@ -10,6 +10,8 @@ import {
     resolveWatchlistMediaRef,
     watchlistItemStatusLabel,
 } from './watchlistUtils';
+import { useDiscoveryMe } from './useDiscoveryMe';
+import { formatQuotaHint } from './requestSeasonUtils';
 
 type Props = {
     items: any[];
@@ -34,8 +36,14 @@ export const WatchlistPanel: React.FC<Props> = ({
 }) => {
     const [requestTarget, setRequestTarget] = useState<{ mediaType: 'movie' | 'tv'; mediaId: number; title: string } | null>(null);
     const [bulkLoading, setBulkLoading] = useState(false);
+    const { profile: discoveryMe } = useDiscoveryMe(true);
 
     const requestableCount = useMemo(() => countRequestableWatchlistItems(items), [items]);
+    const canBulkRequest = discoveryMe.permissions?.request !== false && discoveryMe.userMapped !== false;
+
+    const movieQuotaHint = formatQuotaHint(discoveryMe.quota?.movie?.standard, 'movie');
+    const tvQuotaHint = formatQuotaHint(discoveryMe.quota?.tv?.standard, 'TV');
+    const quotaSummary = [movieQuotaHint, tvQuotaHint].filter(Boolean).join(' · ');
 
     const openRequest = useCallback((rawItem: any) => {
         const ref = resolveWatchlistMediaRef(rawItem);
@@ -98,7 +106,7 @@ export const WatchlistPanel: React.FC<Props> = ({
                         {statusLabel}
                     </span>
                 )}
-                {requestable && ref && (
+                {requestable && ref && canBulkRequest && (
                     <button
                         type="button"
                         onClick={(e) => {
@@ -135,6 +143,7 @@ export const WatchlistPanel: React.FC<Props> = ({
                 <h2 className="text-xl font-bold text-text">Your Plex Watchlist</h2>
                 <p className="text-xs text-muted mt-1">
                     Auto-sync from Plex is managed in Seerr settings.
+                    {quotaSummary ? ` ${quotaSummary}.` : ''}
                 </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -147,7 +156,7 @@ export const WatchlistPanel: React.FC<Props> = ({
                         View All
                     </button>
                 )}
-                {requestableCount > 0 && (
+                {requestableCount > 0 && canBulkRequest && (
                     <button
                         type="button"
                         disabled={bulkLoading}
@@ -161,6 +170,11 @@ export const WatchlistPanel: React.FC<Props> = ({
                         )}
                         Request All ({requestableCount})
                     </button>
+                )}
+                {requestableCount > 0 && !canBulkRequest && (
+                    <span className="text-[11px] font-semibold text-muted px-2 py-1">
+                        {!discoveryMe.userMapped ? 'Seerr account not linked' : 'No request permission'}
+                    </span>
                 )}
             </div>
         </div>

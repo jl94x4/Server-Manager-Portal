@@ -222,6 +222,17 @@ export const RequestModal: React.FC<Props> = ({
         return formatQuotaHint(activeQuota, is4k ? `4K ${label}` : label);
     }, [activeQuota, is4k, mediaType]);
 
+    const fourKQuotaBlocked = !!(
+        is4k
+        && options?.quota?.fourK
+        && options.quota.fourK.limit > 0
+        && options.quota.fourK.remaining === 0
+    );
+
+    const canSubmitRequest = !!options?.canRequest
+        && !(is4k && !options?.canRequest4k)
+        && !fourKQuotaBlocked;
+
     const toggleSeason = (seasonNumber: number) => {
         setSelectedSeasons((prev) => (
             prev.includes(seasonNumber)
@@ -245,12 +256,20 @@ export const RequestModal: React.FC<Props> = ({
     };
 
     const handleSubmit = async () => {
-        if (!options?.canRequest) return;
+        if (!canSubmitRequest) return;
+        if (is4k && !options?.canRequest4k) {
+            onError('You do not have permission to request 4K media.');
+            return;
+        }
+        if (fourKQuotaBlocked) {
+            onError('You have reached your 4K request quota for this period.');
+            return;
+        }
         if (mediaType === 'tv' && selectedSeasons.length === 0) {
             onError('Select at least one season to request.');
             return;
         }
-        if (options.canRequestAdvanced && !rootFolder) {
+        if (options?.canRequestAdvanced && !rootFolder) {
             onError('Select a root folder for this request.');
             return;
         }
@@ -365,6 +384,12 @@ export const RequestModal: React.FC<Props> = ({
                             {options.blockReason && !options.canRequest && (
                                 <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
                                     {options.blockReason}
+                                </div>
+                            )}
+
+                            {fourKQuotaBlocked && (
+                                <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                                    You have used all {options.quota?.fourK?.limit} 4K requests for this period.
                                 </div>
                             )}
 
@@ -611,7 +636,7 @@ export const RequestModal: React.FC<Props> = ({
                     <button
                         type="button"
                         onClick={handleSubmit}
-                        disabled={submitting || loading || optionsLoading || !options?.canRequest}
+                        disabled={submitting || loading || optionsLoading || !canSubmitRequest}
                         className="flex-1 py-3 rounded-xl bg-plex text-black font-black hover:bg-plex-hover transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                         {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}

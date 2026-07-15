@@ -390,9 +390,16 @@ export type RequestOptionsPayload = {
     }[];
     permissions: {
         request: boolean;
+        requestMovie?: boolean;
+        requestTv?: boolean;
         request4k: boolean;
+        request4kMovie?: boolean;
+        request4kTv?: boolean;
         requestAdvanced?: boolean;
+        createIssues?: boolean;
+        viewIssues?: boolean;
     };
+    canCreateIssues?: boolean;
     quota: {
         standard?: QuotaSlot;
         fourK?: QuotaSlot;

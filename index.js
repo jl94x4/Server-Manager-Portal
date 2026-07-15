@@ -339,7 +339,7 @@ import {
     fetchRadarrMovieReleaseDates,
 } from './lib/arr-service.js';
 import { getSonarrTrashCatalog, getSonarrTrashCustomFormat } from './lib/trash-guides-catalog.js';
-import { createRequestAppService, getRequestAppGate } from './lib/request-app-service.js';
+import { createRequestAppService, getRequestAppGate, mapSeerrClientError } from './lib/request-app-service.js';
 import {
     applyDiscoveryQueryParams,
     ensureSeerrDiscoverySettings,
@@ -4489,6 +4489,21 @@ app.get('/api/discovery/request-options', requireAuth, requireMember, async (req
     }
 });
 
+app.get('/api/discovery/me', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const profile = await requestAppService.getMemberDiscoveryProfile(config, req.user);
+        res.json({ configured: true, ...profile });
+    } catch (e) {
+        const mapped = mapSeerrClientError(e.message, e.status);
+        log(`Discovery me error: ${e.message}`);
+        res.status(mapped.status || 500).json({ error: mapped.error || e.message });
+    }
+});
+
 app.get('/api/discovery/request-services/:type/:serverId', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
@@ -4641,6 +4656,11 @@ app.post('/api/discovery/issues', requireAuth, requireMember, async (req, res) =
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
 
+        const profile = await requestAppService.getMemberDiscoveryProfile(config, req.user);
+        if (!profile.permissions?.createIssues) {
+            return res.status(403).json({ error: 'You do not have permission to report issues.' });
+        }
+
         const { mediaId, issueType, message, problemSeason, problemEpisode } = req.body || {};
         const issue = await requestAppService.createIssue(config, req.user, {
             mediaId,
@@ -4651,8 +4671,9 @@ app.post('/api/discovery/issues', requireAuth, requireMember, async (req, res) =
         });
         res.status(201).json({ success: true, issue });
     } catch (e) {
+        const mapped = mapSeerrClientError(e.message, e.status);
         log(`Discovery create issue error: ${e.message}`);
-        res.status(e.message?.includes('not linked') ? 403 : 502).json({ error: e.message });
+        res.status(mapped.status || (e.message?.includes('not linked') ? 403 : 502)).json({ error: mapped.error });
     }
 });
 
@@ -5007,9 +5028,29 @@ app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) 
         } = req.body || {};
         if (!mediaType || !mediaId) return res.status(400).json({ error: 'Missing media details' });
 
-        const body = { mediaType, mediaId: Number(mediaId) };
+        const type = mediaType === 'tv' ? 'tv' : 'movie';
+        const tmdbId = Number(mediaId);
+        const options = await requestAppService.getMemberRequestOptions(config, req.user, {
+            mediaType: type,
+            mediaId: tmdbId,
+        });
+
+        if (!options.canRequest) {
+            return res.status(403).json({ error: options.blockReason || 'You cannot request this title.' });
+        }
+        if (is4k && !options.canRequest4k) {
+            return res.status(403).json({ error: 'You do not have permission to request 4K media.' });
+        }
+        if (is4k) {
+            const fourKQuota = options.quota?.fourK;
+            if (fourKQuota?.limit > 0 && fourKQuota.remaining === 0) {
+                return res.status(429).json({ error: `You have used all ${fourKQuota.limit} 4K requests for this period.` });
+            }
+        }
+
+        const body = { mediaType: type, mediaId: tmdbId };
         if (is4k) body.is4k = true;
-        if (mediaType === 'tv') {
+        if (type === 'tv') {
             if (seasons === 'all') {
                 body.seasons = 'all';
             } else if (Array.isArray(seasons) && seasons.length > 0) {
@@ -5019,23 +5060,17 @@ app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) 
             }
         }
 
-        if (serverId != null) body.serverId = Number(serverId);
-        if (profileId != null) body.profileId = Number(profileId);
-        if (rootFolder) body.rootFolder = String(rootFolder);
-        if (languageProfileId != null) body.languageProfileId = Number(languageProfileId);
-        if (Array.isArray(tags)) {
-            body.tags = tags.map((tag) => Number(tag)).filter((tag) => Number.isFinite(tag));
-        }
-
-        if (req.user) {
-            try {
-                const users = await requestAppService.listRequestUsers(config);
-                const userId = requestAppService.resolveSeerrRequestUserId(req.user, users);
-                if (userId) body.userId = userId;
-            } catch (err) {
-                log(`Discovery request user mapping failed: ${err.message}`);
+        if (options.canRequestAdvanced) {
+            if (serverId != null) body.serverId = Number(serverId);
+            if (profileId != null) body.profileId = Number(profileId);
+            if (rootFolder) body.rootFolder = String(rootFolder);
+            if (languageProfileId != null) body.languageProfileId = Number(languageProfileId);
+            if (Array.isArray(tags)) {
+                body.tags = tags.map((tag) => Number(tag)).filter((tag) => Number.isFinite(tag));
             }
         }
+
+        if (options.seerrUserId) body.userId = options.seerrUserId;
 
         const data = await requestAppService.rawFetch(config, '/api/v1/request', {
             method: 'POST',
@@ -5043,8 +5078,9 @@ app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) 
         });
         res.status(201).json(data);
     } catch (e) {
+        const mapped = mapSeerrClientError(e.message, e.status);
         log(`Discovery request error: ${e.message}`);
-        res.status(500).json({ error: e.message });
+        res.status(mapped.status || 500).json({ error: mapped.error });
     }
 });
 
