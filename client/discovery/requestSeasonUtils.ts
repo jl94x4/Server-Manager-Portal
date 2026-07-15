@@ -127,6 +127,46 @@ export const resolveMonitoredSeasonLabel = (
     isReturningSeries(details) && isSeasonStillAiring(details, seasonNumber) ? 'Up to date' : fallback
 );
 
+const fulfilledSeasonLabel = (label: string) => (
+    label === 'Available' || label === 'Up to date'
+);
+
+/** True when every aired season is in the library (Sonarr-confirmed or inferred from stale Seerr state). */
+export const isTvShowLibraryComplete = (
+    details: any,
+    seasonRows: SeasonStatusInfo[],
+    mediaInfo?: any,
+): boolean => {
+    const info = mediaInfo || details?.mediaInfo;
+    if (details?.sonarrLibraryStatus?.showComplete) return true;
+
+    const status = Number(info?.status);
+    if (status === MEDIA_STATUS.AVAILABLE) return true;
+
+    if (seasonRows.length > 0) {
+        const requestable = seasonRows.filter((s) => s.requestable);
+        if (requestable.length > 0) return false;
+
+        const mainRows = seasonRows.filter((s) => isMainSeasonNumber(s.seasonNumber));
+        if (!mainRows.length) return false;
+
+        if (mainRows.every((s) => fulfilledSeasonLabel(s.statusLabel))) return true;
+
+        if (isEndedShow(details) && !hasActiveSeerrDownloads(info)) {
+            return mainRows.every((s) => (
+                fulfilledSeasonLabel(s.statusLabel) || s.statusLabel === 'Approved'
+            ));
+        }
+
+        return false;
+    }
+
+    if (!isEndedShow(details)) return false;
+    if (status === MEDIA_STATUS.PARTIAL) return true;
+    if (status === MEDIA_STATUS.PROCESSING && !hasActiveSeerrDownloads(info)) return true;
+    return false;
+};
+
 export const isSeasonUpToDateLabel = (label: string) => label === 'Up to date';
 
 export const isSeasonHandledInLibrary = (label: string) => (
@@ -231,7 +271,21 @@ export const applySonarrLibrarySeasonOverrides = (
     seasonRows: SeasonStatusInfo[],
 ): SeasonStatusInfo[] => {
     const sonarr = details?.sonarrLibraryStatus;
-    if (!sonarr?.matched || !Array.isArray(sonarr.seasons)) return seasonRows;
+    if (!sonarr?.matched) return seasonRows;
+
+    if (sonarr.showComplete) {
+        return seasonRows.map((row) => {
+            if (!isMainSeasonNumber(Number(row.seasonNumber))) return row;
+            return {
+                ...row,
+                requestable: false,
+                statusLabel: 'Available',
+                libraryStatus: MEDIA_STATUS.AVAILABLE,
+            };
+        });
+    }
+
+    if (!Array.isArray(sonarr.seasons)) return seasonRows;
 
     const bySeason = new Map<number, any>(
         sonarr.seasons.map((season: any) => [Number(season.seasonNumber), season]),
@@ -446,11 +500,27 @@ export const getRequestButtonState = (
         return { label: 'Blacklisted', disabled: true, variant: 'blocked' as const };
     }
     const requestableCount = seasonRows.filter((s) => s.requestable).length;
+    const libraryComplete = isTvShowLibraryComplete(details, seasonRows, mediaInfo);
+    if (libraryComplete) {
+        return {
+            label: details && isReturningSeries(details) ? 'Up to date' : 'Available',
+            disabled: true,
+            variant: 'available' as const,
+        };
+    }
     if (requestableCount === 0 && seasonRows.length > 0) {
+        const waiting = seasonRows.some((s) => (
+            s.statusLabel === 'Pending'
+            || s.statusLabel === 'Processing'
+            || s.statusLabel === 'Requested'
+        ));
+        if (waiting) {
+            return { label: 'Requested', disabled: true, variant: 'pending' as const };
+        }
         if (details && isReturningSeries(details)) {
             return { label: 'Up to date', disabled: true, variant: 'available' as const };
         }
-        return { label: 'All Seasons Requested', disabled: true, variant: 'available' as const };
+        return { label: 'All Seasons Requested', disabled: true, variant: 'pending' as const };
     }
     if (status === MEDIA_STATUS.AVAILABLE && requestableCount === 0) {
         return { label: 'Available', disabled: true, variant: 'available' as const };

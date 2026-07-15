@@ -34,7 +34,9 @@ export const memberRequestDisplayStatus = (item: PortalRequestItem) => {
     if (status === 1) return 'Pending Approval';
     if (status === 2 && (mediaStatus === 4 || mediaStatus === 5)) return 'Available';
     if (status === 2 && mediaStatus === 3) {
-        return item.isDownloading ? 'Processing' : 'Requested';
+        if (item.isDownloading) return 'Processing';
+        if (item.type === 'tv') return 'Available';
+        return 'Requested';
     }
     if (status === 2) return 'Approved';
     return item.statusLabel || 'Unknown';

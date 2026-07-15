@@ -1,10 +1,12 @@
 import { normalizeRawDiscoveryItem } from './discoverItemUtils';
 import {
     buildSeasonStatusFromDetails,
+    hasActiveSeerrDownloads,
     isEndedShow,
     isMainSeasonNumber,
     isReturningSeries,
     isSeasonUpToDateLabel,
+    isTvShowLibraryComplete,
     MEDIA_STATUS,
     REQUEST_STATUS,
     resolveInProgressDisplay,
@@ -122,6 +124,21 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
     }
 
     const seasonRows = mediaType === 'tv' ? buildSeasonStatusFromDetails(item) : [];
+    const tvLibraryComplete = mediaType === 'tv'
+        ? isTvShowLibraryComplete(item, seasonRows, mediaInfo)
+        : false;
+
+    if (tvLibraryComplete) {
+        return {
+            ...base,
+            kind: 'available',
+            label: isReturningSeries(item) ? 'Up to date' : 'Available in library',
+            detail: item?.sonarrLibraryStatus?.showComplete
+                ? 'All aired episodes are on disk (verified via Sonarr).'
+                : formatTvLibraryDetail(seasonRows) || 'All aired episodes are in your library.',
+        };
+    }
+
     const availableSeasons = seasonRows.filter((s) => s.statusLabel === 'Available');
     const upToDateSeasons = seasonRows.filter((s) => isSeasonUpToDateLabel(s.statusLabel));
     const incompleteSeasons = seasonRows.filter((s) => s.statusLabel === 'Partial');
@@ -131,15 +148,6 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
     const inProgressDisplay = resolveInProgressDisplay(mediaInfo, mediaStatus);
     const returningSeries = isReturningSeries(item);
     const endedShow = isEndedShow(item);
-
-    if (mediaType === 'tv' && item?.sonarrLibraryStatus?.showComplete) {
-        return {
-            ...base,
-            kind: 'available',
-            label: 'Available in library',
-            detail: 'All aired episodes are on disk (verified via Sonarr).',
-        };
-    }
 
     if (mediaType === 'tv' && seasonRows.length > 0) {
         const requestable = seasonRows.filter((s) => s.requestable);
@@ -309,6 +317,14 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
     }
 
     if (userRequestStatus === REQUEST_STATUS.APPROVED && mediaStatus !== MEDIA_STATUS.AVAILABLE) {
+        if (mediaType === 'tv' && !hasActiveSeerrDownloads(mediaInfo)) {
+            return {
+                ...base,
+                kind: 'available',
+                label: 'Available in library',
+                detail: 'Your request has been fulfilled.',
+            };
+        }
         return {
             ...base,
             kind: 'requested',

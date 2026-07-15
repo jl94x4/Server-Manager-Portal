@@ -33,11 +33,23 @@ type RadarrReleaseDates = {
     physicalRelease?: string | null;
 };
 
+const formatOrdinalDay = (day: number) => {
+    const mod100 = day % 100;
+    if (mod100 >= 11 && mod100 <= 13) return `${day}th`;
+    const mod10 = day % 10;
+    if (mod10 === 1) return `${day}st`;
+    if (mod10 === 2) return `${day}nd`;
+    if (mod10 === 3) return `${day}rd`;
+    return `${day}th`;
+};
+
 const formatRadarrReleaseDate = (value?: string | null) => {
     if (!value) return null;
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return null;
-    return parsed.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+    const day = parsed.getDate();
+    const monthYear = parsed.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    return `${formatOrdinalDay(day)} ${monthYear}`;
 };
 
 export const MediaDetailsPage: React.FC<{
@@ -520,20 +532,20 @@ export const MediaDetailsPage: React.FC<{
                                     return (
                                         <div
                                             key={row.key}
-                                            className="group relative px-3 py-2.5 flex flex-col gap-1.5 min-w-[7.5rem] sm:min-w-[8.5rem]"
+                                            className="group relative px-3 py-2.5 flex items-start gap-2 min-w-0 sm:min-w-[8.5rem]"
                                         >
                                             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                                            <div className="relative flex items-center gap-2">
-                                                <div className="w-7 h-7 rounded-lg bg-white/[0.06] border border-white/10 flex items-center justify-center group-hover:border-plex/30 group-hover:bg-plex/10 transition-colors">
-                                                    <Icon className="w-3.5 h-3.5 text-white/55 group-hover:text-plex transition-colors" aria-hidden />
-                                                </div>
-                                                <span className="text-[9px] font-bold uppercase tracking-wider text-white/40">
+                                            <div className="relative w-7 h-7 shrink-0 rounded-lg bg-white/[0.06] border border-white/10 flex items-center justify-center group-hover:border-plex/30 group-hover:bg-plex/10 transition-colors">
+                                                <Icon className="w-3.5 h-3.5 text-white/55 group-hover:text-plex transition-colors" aria-hidden />
+                                            </div>
+                                            <div className="relative flex flex-col gap-0.5 min-w-0 pt-0.5">
+                                                <span className="text-[9px] font-bold uppercase tracking-wider text-white/40 leading-none">
                                                     {row.label}
                                                 </span>
+                                                <span className="text-xs font-semibold text-white/90 leading-snug">
+                                                    {row.date}
+                                                </span>
                                             </div>
-                                            <p className="relative text-xs font-semibold text-white/90 leading-snug">
-                                                {row.date}
-                                            </p>
                                         </div>
                                     );
                                 })}
