@@ -5669,6 +5669,11 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     const isRevoked = user?.plexAccessStatus === 'revoked';
     const isPending = user?.plexAccessStatus?.toLowerCase() === 'pending';
 
+    const heroBgRaw = analytics?.recentHistory?.[0]?.thumbUrl || publicConfig?.customLogoUrl || '';
+    const heroBg = heroBgRaw
+        ? (heroBgRaw.startsWith('http') ? heroBgRaw : resolvePortalAssetUrl(heroBgRaw))
+        : '';
+
     const wrapUpDaysOptions = ANALYTICS_PERIOD_OPTIONS;
 
     const layoutCtx = useMemo(() => ({
