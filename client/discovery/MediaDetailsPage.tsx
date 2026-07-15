@@ -416,12 +416,12 @@ export const MediaDetailsPage: React.FC<{
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-2.5 w-full">
+                    <div className={`grid gap-2.5 w-full ${canReportIssue ? 'grid-cols-2 md:grid-cols-1' : 'grid-cols-1'}`}>
                     <button
                         type="button"
                         onClick={() => setRequestModalOpen(true)}
                         disabled={requestButton.disabled}
-                        className={`w-full py-3 px-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors shadow-lg ${
+                        className={`w-full py-3 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-colors shadow-lg ${
                             requestButton.variant === 'available'
                                 ? 'bg-green-500/20 text-green-500 border border-green-500/30 cursor-default'
                                 : requestButton.variant === 'pending'
@@ -444,15 +444,15 @@ export const MediaDetailsPage: React.FC<{
                         <button
                             type="button"
                             onClick={() => setIssueModalOpen(true)}
-                            className="w-full py-3 px-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors shadow-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-100 border border-amber-500/30"
+                            className="w-full py-3 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-colors shadow-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-100 border border-amber-500/30"
                         >
-                            <AlertTriangle className="w-4 h-4" />
-                            Report Issue
+                            <AlertTriangle className="w-4 h-4 shrink-0" />
+                            <span className="truncate">Report Issue</span>
                         </button>
                     )}
 
                     {availability && availability.kind !== 'none' && (
-                        <div className="sm:col-span-2 md:col-span-1">
+                        <div className="col-span-2 md:col-span-1">
                             <MediaStatusPanel
                                 state={availability}
                                 onViewRequests={availability.hasUserRequest ? openMyRequests : undefined}
@@ -466,7 +466,7 @@ export const MediaDetailsPage: React.FC<{
                             href={details.homepage}
                             target="_blank"
                             rel="noreferrer"
-                            className="w-full py-2.5 px-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors sm:col-span-2 md:col-span-1"
+                            className="col-span-2 md:col-span-1 w-full py-2.5 px-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors"
                         >
                             <Globe className="w-4 h-4" /> Visit Website
                         </a>
