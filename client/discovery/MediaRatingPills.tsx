@@ -45,6 +45,11 @@ export const MediaRatingPills: React.FC<MediaRatingPillsProps> = ({
     const rtCritics = Number(ratings?.rt?.criticsScore);
     const rtAudience = Number(ratings?.rt?.audienceScore);
     const imdbScore = ratings?.imdb?.criticsScore;
+    const imdbScoreLabel = imdbScore == null || imdbScore === ''
+        ? null
+        : typeof imdbScore === 'number'
+            ? (Number.isInteger(imdbScore) ? String(imdbScore) : imdbScore.toFixed(1))
+            : String(imdbScore);
     const rtCriticsFresh = ratings?.rt?.criticsRating !== 'Rotten';
     const rtAudienceFresh = ratings?.rt?.audienceRating !== 'Spilled';
 
@@ -114,14 +119,14 @@ export const MediaRatingPills: React.FC<MediaRatingPillsProps> = ({
         );
     }
 
-    if (imdbScore != null && imdbScore !== '') {
+    if (imdbScoreLabel) {
         const imdbClass = `${pillLinkClass} border-[#F5C518]/40 bg-[#F5C518]/15 text-white gap-2`;
         const content = (
             <>
                 <span className="px-1 py-0.5 rounded bg-[#F5C518] text-[10px] font-black text-black leading-none tracking-tight">
                     IMDb
                 </span>
-                <span>{imdbScore}</span>
+                <span>{imdbScoreLabel}</span>
             </>
         );
         pills.push(

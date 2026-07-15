@@ -351,6 +351,7 @@ import {
 } from './lib/discovery-settings.js';
 import { buildDiscoveryFacts } from './lib/discovery-facts.js';
 import { fetchDiscoveryHeroBackdrops } from './lib/discovery-hero.js';
+import { fetchDiscoveryCombinedRatings } from './lib/discovery-ratings.js';
 import { enrichTvDetailsWithSonarrLibraryStatus, fetchSonarrLibraryStatusForShow } from './lib/sonarr-library-status.js';
 const PLEX_API = 'https://plex.tv/api';
 
@@ -5052,6 +5053,42 @@ app.get('/api/discovery/radarr-releases', requireAuth, requireMember, async (req
     } catch (e) {
         log(`Discovery Radarr releases error: ${e.message}`);
         res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/discovery/ratings/:mediaType/:mediaId', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const mediaType = String(req.params.mediaType || '').toLowerCase();
+        const mediaId = Number(req.params.mediaId);
+        if (!['movie', 'tv'].includes(mediaType)) {
+            return res.status(400).json({ error: 'Invalid media type' });
+        }
+        if (!Number.isFinite(mediaId) || mediaId <= 0) {
+            return res.status(400).json({ error: 'Invalid media id' });
+        }
+
+        const ratings = await fetchDiscoveryCombinedRatings({
+            config,
+            rawFetchOptional: requestAppService.rawFetchOptional,
+            fetchImpl: fetchWithTimeout,
+            mediaType,
+            mediaId,
+        });
+
+        if (ratings == null) {
+            return res.status(502).json({ error: 'Unable to retrieve ratings.' });
+        }
+        if (!ratings.rt && !ratings.imdb) {
+            return res.status(404).json({ message: 'No ratings found.' });
+        }
+        return res.json(ratings);
+    } catch (e) {
+        log(`Discovery ratings error: ${e.message}`);
+        return res.status(500).json({ error: e.message });
     }
 });
 

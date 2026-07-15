@@ -221,14 +221,12 @@ export const buildMediaFactRows = (
     return rows;
 };
 
-/** Fetch RT/IMDb combined ratings — Seerr returns 404 when none exist; treat as empty. */
+/** Fetch RT/IMDb combined ratings via portal backend (Seerr ratingscombined + fallbacks). */
 export const fetchCombinedRatings = async (
     mediaType: 'movie' | 'tv',
     mediaId: number,
 ): Promise<CombinedRatings | null> => {
-    const path = mediaType === 'movie'
-        ? `/api/discovery/proxy/movie/${mediaId}/ratingscombined`
-        : `/api/discovery/proxy/tv/${mediaId}/ratingscombined`;
+    const path = `/api/discovery/ratings/${mediaType}/${mediaId}`;
     try {
         const response = await fetch(portalUrl(path), {
             credentials: 'same-origin',
