@@ -66,6 +66,7 @@ export const MediaDetailsPage: React.FC<{
     const [loading, setLoading] = useState(true);
     const [recommendations, setRecommendations] = useState<any[]>([]);
     const [posterFailed, setPosterFailed] = useState(false);
+    const [backdropFailed, setBackdropFailed] = useState(false);
     const [radarrReleases, setRadarrReleases] = useState<RadarrReleaseDates | null>(null);
     const [ratings, setRatings] = useState<CombinedRatings | null>(null);
     const [requestModalOpen, setRequestModalOpen] = useState(false);
@@ -77,6 +78,7 @@ export const MediaDetailsPage: React.FC<{
         const fetchDetails = async () => {
             setLoading(true);
             setPosterFailed(false);
+            setBackdropFailed(false);
             try {
                 const detailEndpoint = mediaType === 'movie'
                     ? `/api/discovery/proxy/movie/${mediaId}`
@@ -291,7 +293,11 @@ export const MediaDetailsPage: React.FC<{
         || availability?.kind === 'partial'
     );
     const posterUrl = details.posterPath ? `https://image.tmdb.org/t/p/w500${details.posterPath}` : '';
+    const posterHeroUrl = details.posterPath ? `https://image.tmdb.org/t/p/w780${details.posterPath}` : '';
     const backdropUrl = tmdbBackdropUrl(details.backdropPath || '');
+    const heroBackdropUrl = backdropUrl && !backdropFailed ? backdropUrl : '';
+    const heroImageUrl = heroBackdropUrl || posterHeroUrl;
+    const heroUsesPosterFallback = !heroBackdropUrl && !!posterHeroUrl;
     const voteCountLabel = details.voteCount > 0
         ? `${details.voteCount >= 1000 ? `${(details.voteCount / 1000).toFixed(1)}k` : details.voteCount} votes`
         : null;
@@ -344,19 +350,30 @@ export const MediaDetailsPage: React.FC<{
         <>
         <div className="w-[calc(100%+2rem)] -mx-4 md:mx-0 md:w-full flex flex-col min-h-screen bg-card animate-fade-in pb-24 md:pb-16 rounded-none md:rounded-2xl lg:rounded-3xl overflow-x-hidden border-0 md:border border-white/5 shadow-2xl">
             <div className="relative isolate">
-                <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
-                    {backdropUrl ? (
+                <div
+                    className="absolute inset-x-0 top-0 h-[34rem] max-h-[72vh] sm:h-[36rem] md:h-[min(72vh,52rem)] md:max-h-none overflow-hidden pointer-events-none"
+                    aria-hidden
+                >
+                    {heroImageUrl ? (
                         <img
-                            src={backdropUrl}
+                            src={heroImageUrl}
                             alt=""
-                            className="absolute inset-0 w-full h-full object-cover object-[center_20%] md:object-[78%_22%] opacity-25 md:opacity-80"
+                            className={`absolute inset-0 w-full h-full object-cover ${
+                                heroUsesPosterFallback
+                                    ? 'scale-[1.35] blur-2xl opacity-40 md:scale-125 md:blur-xl md:opacity-50'
+                                    : 'scale-110 object-[center_30%] opacity-55 md:scale-100 md:object-[78%_22%] md:opacity-80'
+                            }`}
                             fetchPriority="high"
                             decoding="async"
+                            onError={() => {
+                                if (heroBackdropUrl) setBackdropFailed(true);
+                            }}
                         />
                     ) : (
                         <div className="absolute inset-0 bg-black" />
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-card from-0% via-card via-[60%] md:via-card/90 md:via-[38%] to-card/40 md:to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-card/50 via-[58%] to-card md:hidden" />
+                    <div className="absolute inset-0 hidden md:block bg-gradient-to-t from-card from-0% via-card/90 via-[38%] to-transparent" />
                     <div className="absolute inset-0 hidden md:block bg-gradient-to-r from-card from-0% via-card/80 via-[32%] to-transparent to-[78%]" />
                 </div>
 
