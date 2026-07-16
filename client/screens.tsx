@@ -8882,6 +8882,11 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                     </span>
                     <div className="h-px w-6 bg-gradient-to-l from-transparent to-plex/50"></div>
                 </div>
+                {appVersion && (
+                    <div className="mt-2 text-[10px] text-white/50 font-mono tracking-wider opacity-80 hover:opacity-100 transition-opacity">
+                        {appVersion}
+                    </div>
+                )}
             </div>
         </div>
     );
