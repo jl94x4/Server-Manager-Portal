@@ -1,10 +1,9 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Loader2, Sparkles, X } from 'lucide-react';
 import { SlideshowBackground } from '../shared/theme';
 import { apiFetch } from '../shared/api';
 import { discoveryTheme } from './discoveryThemeClasses';
-import { DYNAMIC_THEME_IMAGE_EVENT } from '../shared/useDynamicTheme';
 
 type SearchResultProps = {
     query: string;
@@ -87,16 +86,11 @@ export const DiscoverHeroHeader: React.FC<SearchResultProps> = (props) => {
     const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
     const searchWrapRef = useRef<HTMLDivElement>(null);
 
-    const notifyDynamicTheme = useCallback((url: string) => {
-        window.dispatchEvent(new CustomEvent(DYNAMIC_THEME_IMAGE_EVENT, { detail: { url } }));
-    }, []);
-
     useEffect(() => {
         apiFetch('/api/discovery/hero-backdrops')
             .then((res) => {
                 if (Array.isArray(res?.backgrounds) && res.backgrounds.length) {
                     setBackgrounds(res.backgrounds);
-                    notifyDynamicTheme(res.backgrounds[0]);
                 }
                 if (res?.interval) setIntervalSeconds(Number(res.interval) || 12);
             })
@@ -143,7 +137,6 @@ export const DiscoverHeroHeader: React.FC<SearchResultProps> = (props) => {
                             backgrounds={backgrounds}
                             intervalSeconds={intervalSeconds}
                             opacity={0.55}
-                            onActiveImage={notifyDynamicTheme}
                         />
                     ) : null}
                     <div className="absolute inset-0 bg-gradient-to-t from-background/85 via-background/40 to-transparent pointer-events-none" />

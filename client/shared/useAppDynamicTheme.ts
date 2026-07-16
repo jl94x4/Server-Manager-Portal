@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiFetch } from './api';
 import { resolvePortalAssetUrl } from './basePath';
-import { DYNAMIC_THEME_IMAGE_EVENT, useDynamicTheme } from './useDynamicTheme';
+import { useDynamicTheme } from './useDynamicTheme';
 
 type PublicThemeConfig = {
     customLogoUrl?: string;
@@ -16,10 +16,19 @@ const resolveImageUrl = (raw: string | null | undefined): string | null => {
     return trimmed.startsWith('http') ? trimmed : resolvePortalAssetUrl(trimmed);
 };
 
-const firstThumb = (...candidates: Array<string | null | undefined>): string | null => {
-    for (const candidate of candidates) {
-        const resolved = resolveImageUrl(candidate);
-        if (resolved) return resolved;
+const isMovieOrShowHistoryItem = (item: any): boolean => {
+    const type = String(item?.type || '').toLowerCase();
+    // Episodes use the series poster (grandparentThumb → thumbUrl). Skip music tracks.
+    return type === 'movie' || type === 'episode' || type === 'show' || !type;
+};
+
+/** Poster only — prefer thumb over backdrop/art for last-watched sampling. */
+const pickLastWatchedPoster = (history: any[] | undefined | null): string | null => {
+    if (!Array.isArray(history)) return null;
+    for (const item of history) {
+        if (!isMovieOrShowHistoryItem(item)) continue;
+        const poster = resolveImageUrl(item?.thumbUrl || item?.thumb);
+        if (poster) return poster;
     }
     return null;
 };
@@ -27,47 +36,19 @@ const firstThumb = (...candidates: Array<string | null | undefined>): string | n
 const pickFromList = (items: any[] | undefined | null): string | null => {
     if (!Array.isArray(items)) return null;
     for (const item of items) {
-        const url = firstThumb(
-            item?.artUrl,
-            item?.thumbUrl,
-            item?.posterUrl,
-            item?.backdropUrl,
-            item?.thumb,
-            item?.art,
-        );
+        const url = resolveImageUrl(item?.thumbUrl || item?.thumb || item?.posterUrl);
         if (url) return url;
     }
     return null;
 };
 
-/** Dashboard returns recentMovies / recentShows / recentMusic — not recentlyAdded. */
-const pickThumbFromDashboard = (data: any): string | null => (
-    pickFromList(data?.recentMovies)
-    || pickFromList(data?.recentShows)
-    || pickFromList(data?.recentMusic)
-    || pickFromList(data?.recentlyAdded)
-    || pickFromList(data?.recentItems)
-);
-
-const pickPosterFromTrending = (data: any): string | null => {
-    const item = Array.isArray(data?.results) ? data.results[0] : null;
-    if (!item) return null;
-    const path = item.posterPath || item.poster_path || item.backdropPath || item.backdrop_path;
-    if (!path) return null;
-    if (String(path).startsWith('http')) return path;
-    const normalized = String(path).startsWith('/') ? path : `/${path}`;
-    return `https://image.tmdb.org/t/p/w500${normalized}`;
-};
-
-const pickPosterFromRequests = (data: any): string | null => {
-    const item = Array.isArray(data?.results) ? data.results[0] : null;
-    return firstThumb(item?.posterUrl, item?.backdropUrl, item?.artUrl, item?.thumbUrl);
-};
-
-/** Keeps Dynamic (Chameleon) accent colors in sync across all portal routes. */
+/**
+ * Dynamic (Chameleon) accent from the poster of the user's last-watched movie/show.
+ * Same source on every route so the portal colour stays tied to watch history.
+ */
 export const useAppDynamicTheme = (
     activeTheme: string,
-    currentRoute: string,
+    _currentRoute: string,
     publicConfig: PublicThemeConfig,
 ) => {
     const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -81,114 +62,60 @@ export const useAppDynamicTheme = (
         }
 
         let cancelled = false;
+        const logoFallback = resolveImageUrl(publicConfig?.customLogoUrl);
         const trendingFallback = resolveImageUrl(
             Array.isArray(publicConfig?.trendingBackgrounds) ? publicConfig.trendingBackgrounds[0] : null,
         );
-        const logoFallback = resolveImageUrl(publicConfig?.customLogoUrl);
 
         const finish = (url: string | null) => {
-            if (!cancelled) setImageUrl(url || trendingFallback || logoFallback);
+            if (!cancelled) setImageUrl(url || logoFallback || trendingFallback);
         };
 
-        /** Prefer a quick local seed so colors apply immediately when switching theme. */
-        if (trendingFallback || logoFallback) {
-            setImageUrl(trendingFallback || logoFallback);
-        }
-
-        const loadHomeImage = async (): Promise<string | null> => {
+        const loadLastWatchedPoster = async (): Promise<string | null> => {
             try {
+                // Broad window so "last watched" is available even if they haven't watched in 30 days.
                 const res = isJellyfin
-                    ? await apiFetch('/api/jellystat/analytics?days=30')
-                    : await apiFetch('/api/plex/analytics/me?days=30');
-                return firstThumb(
-                    res?.recentHistory?.[0]?.thumbUrl,
-                    res?.recentHistory?.[0]?.artUrl,
-                    res?.topMovie?.artUrl,
-                    res?.topMovie?.thumbUrl,
-                    res?.topBinge?.artUrl,
-                    res?.topBinge?.thumbUrl,
-                );
+                    ? await apiFetch('/api/jellystat/analytics?days=365')
+                    : await apiFetch('/api/plex/analytics/me?days=365');
+                return pickLastWatchedPoster(res?.recentHistory);
             } catch {
                 return null;
             }
         };
 
-        const loadDashboardImage = async (): Promise<string | null> => {
+        const loadDashboardPosterFallback = async (): Promise<string | null> => {
             try {
                 const dash = await apiFetch(
                     isJellyfin ? '/api/jellyfin/dashboard?limit=5' : '/api/plex/dashboard?limit=5',
                 );
-                return pickThumbFromDashboard(dash);
+                return (
+                    pickFromList(dash?.recentMovies)
+                    || pickFromList(dash?.recentShows)
+                );
             } catch {
                 return null;
             }
         };
 
-        const loadDiscoveryImage = async (): Promise<string | null> => {
-            try {
-                const res = await apiFetch('/api/discovery/hero-backdrops');
-                const bg = Array.isArray(res?.backgrounds) ? res.backgrounds[0] : null;
-                if (bg) return resolveImageUrl(bg);
-            } catch {
-                /* try next */
+        const load = async () => {
+            const lastWatched = await loadLastWatchedPoster();
+            if (cancelled) return;
+            if (lastWatched) {
+                finish(lastWatched);
+                return;
             }
-
-            try {
-                const requests = await apiFetch('/api/discovery/my-requests?filter=all&take=1');
-                const fromRequests = pickPosterFromRequests(requests);
-                if (fromRequests) return fromRequests;
-            } catch {
-                /* try trending */
-            }
-
-            try {
-                const trending = await apiFetch('/api/discovery/trending');
-                return pickPosterFromTrending(trending);
-            } catch {
-                return null;
-            }
+            // Only if they have no watch history: recently added poster, then logo/trending.
+            finish(await loadDashboardPosterFallback());
         };
 
-        const loadForRoute = async () => {
-            // Route-aware preference first, then shared fallbacks so any page can theme.
-            const preferred: Array<() => Promise<string | null>> = [];
-            if (currentRoute === 'user') preferred.push(loadHomeImage);
-            if (currentRoute === 'discovery') preferred.push(loadDiscoveryImage);
-            preferred.push(loadDashboardImage, loadHomeImage, loadDiscoveryImage);
-
-            for (const loader of preferred) {
-                const url = await loader();
-                if (cancelled) return;
-                if (url) {
-                    finish(url);
-                    return;
-                }
-            }
-            finish(null);
-        };
-
-        loadForRoute();
+        load();
         return () => { cancelled = true; };
     }, [
         isDynamic,
-        currentRoute,
         publicConfig?.customLogoUrl,
         publicConfig?.trendingBackgrounds,
         isJellyfin,
     ]);
-
-    useEffect(() => {
-        if (!isDynamic) return undefined;
-
-        const onImageOverride = (event: Event) => {
-            const detail = (event as CustomEvent<{ url?: string }>).detail;
-            const next = resolveImageUrl(detail?.url);
-            if (next) setImageUrl(next);
-        };
-
-        window.addEventListener(DYNAMIC_THEME_IMAGE_EVENT, onImageOverride);
-        return () => window.removeEventListener(DYNAMIC_THEME_IMAGE_EVENT, onImageOverride);
-    }, [isDynamic]);
 
     useDynamicTheme(imageUrl, isDynamic);
 };

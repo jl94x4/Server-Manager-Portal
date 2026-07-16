@@ -9135,7 +9135,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                     const item = navItemsConfig[key];
                                     if (!item) return null;
                                     const isCurrent = item.route ? isNavCurrent(key, item.route) : false;
-                                    const labelOverride = key === 'mediastack' ? 'Media' : key === 'request' ? 'Request' : item.label;
+                                    const labelOverride = key === 'mediastack' ? 'Calendar' : key === 'request' ? 'Request' : item.label;
                                     return renderNavAction(key, { ...item, label: labelOverride }, { mobile: true, isCurrent, compactLabel: labelOverride, badgeCount: getNavBadgeCount(key) });
                                 })}
                                 {showMore && (
@@ -9172,7 +9172,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                     const item = navItemsConfig[key];
                                     if (!item) return null;
                                     const isCurrent = item.route ? isNavCurrent(key, item.route) : false;
-                                    const labelOverride = key === 'mediastack' ? 'Media' : key === 'request' ? 'Request' : item.label;
+                                    const labelOverride = key === 'mediastack' ? 'Calendar' : key === 'request' ? 'Request' : item.label;
                                     const handleActivate = () => {
                                         setMobileMoreOpen(false);
                                         if (item.href) window.open(item.href, '_blank');

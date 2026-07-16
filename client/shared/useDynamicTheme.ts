@@ -99,5 +99,3 @@ export const useDynamicTheme = (imageUrl: string | null | undefined, enabled = t
         return () => observer.disconnect();
     }, [imageUrl, enabled]);
 };
-
-export const DYNAMIC_THEME_IMAGE_EVENT = 'portal-dynamic-theme-image';
