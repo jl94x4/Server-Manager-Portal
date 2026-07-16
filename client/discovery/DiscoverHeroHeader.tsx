@@ -39,6 +39,8 @@ const SearchDropdown: React.FC<SearchResultProps & { anchorRect: DOMRect | null 
                 left: anchorRect.left,
                 width: anchorRect.width,
                 zIndex: 9999,
+                // Solid fill — theme token alone can still read translucent over busy posters
+                backgroundColor: 'rgb(var(--color-card))',
             }}
         >
             {searchLoading ? (
@@ -67,7 +69,9 @@ const SearchDropdown: React.FC<SearchResultProps & { anchorRect: DOMRect | null 
                             <div className="min-w-0">
                                 <div className="font-bold text-text truncate">{formatted.title}</div>
                                 <div className="text-xs text-muted">
-                                    {isPerson ? formatted.tags?.[0] : `${formatted.year}${formatted.year ? ' · ' : ''}${formatted.tags?.[0]}`}
+                                    {isPerson
+                                        ? (formatted.tags?.[0] || 'Person')
+                                        : [formatted.year, formatted.tags?.[0]].filter(Boolean).join(' · ')}
                                 </div>
                             </div>
                         </button>
