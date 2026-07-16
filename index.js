@@ -10873,11 +10873,21 @@ const delugeLogin = async (client) => {
     return login.cookie;
 };
 
+const isDelugeMissingTorrentError = (error) => {
+    const message = String(error?.message || error || '').toLowerCase();
+    return message.includes('invalidtorrenterror') || message.includes('not in session');
+};
+
 const controlDelugeTorrent = async (client, action, id) => {
     const cookie = await delugeLogin(client);
     const method = action === 'pause' ? 'core.pause_torrent' : action === 'resume' ? 'core.resume_torrent' : 'core.remove_torrent';
     const params = action === 'remove' ? [[id], false] : [[id]];
-    await delugeRpc(client, method, params, cookie);
+    try {
+        await delugeRpc(client, method, params, cookie);
+    } catch (error) {
+        if (isDelugeMissingTorrentError(error)) return;
+        throw error;
+    }
 };
 
 const addDelugeDownload = async (client, { url = '', fileBuffer = null, filename = 'upload.torrent' } = {}) => {

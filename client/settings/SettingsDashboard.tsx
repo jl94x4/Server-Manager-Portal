@@ -1,5 +1,30 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Copy, ChevronUp, ChevronDown, Check, BookOpen, RefreshCw } from 'lucide-react';
+import {
+    Copy,
+    ChevronUp,
+    ChevronDown,
+    Check,
+    BookOpen,
+    RefreshCw,
+    Server,
+    Mail,
+    Bell,
+    Newspaper,
+    Trash2,
+    Layers,
+    Palette,
+    Navigation as NavigationIcon,
+    Home,
+    Activity,
+    UserPlus,
+    ListTodo,
+    Wand2,
+    Settings,
+    Phone,
+    Radio,
+    Shield,
+    ScrollText,
+} from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { portalUrl, resolvePortalAssetUrl } from '../shared/basePath';
 import { appConfirm } from '../shared/confirm';
@@ -95,6 +120,9 @@ const hasIntegrationCredentials = (
 const SELFHST_ICON_BASE = 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg';
 const SIMPLE_ICON_BASE = 'https://cdn.simpleicons.org';
 const APP_ICONS: Record<string, string> = {
+    plex: `${SELFHST_ICON_BASE}/plex.svg`,
+    jellyfin: `${SELFHST_ICON_BASE}/jellyfin.svg`,
+    emby: `${SELFHST_ICON_BASE}/emby.svg`,
     sonarr: `${SELFHST_ICON_BASE}/sonarr.svg`,
     radarr: `${SELFHST_ICON_BASE}/radarr.svg`,
     lidarr: `${SELFHST_ICON_BASE}/lidarr.svg`,
@@ -112,6 +140,33 @@ const APP_ICONS: Record<string, string> = {
     sabnzbd: `${SELFHST_ICON_BASE}/sabnzbd.svg`,
     jellystat: 'https://cdn.jsdelivr.net/gh/selfhst/icons@main/png/jellystat.png',
     tmdb: `${SELFHST_ICON_BASE}/tmdb.svg`,
+};
+
+const SETTINGS_TAB_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+    plex: Server,
+    smtp: Mail,
+    gotify: Bell,
+    newsletter: Newspaper,
+    cleanup: Trash2,
+    mediastack: Layers,
+    request: BookOpen,
+    branding: Palette,
+    navigation: NavigationIcon,
+    'home-layout': Home,
+    status: Activity,
+    invites: UserPlus,
+    tasks: ListTodo,
+    upgrader: Wand2,
+    system: Settings,
+    contact: Phone,
+    broadcast: Radio,
+    'stream-rules': Shield,
+    logs: ScrollText,
+};
+
+const SettingsTabIcon: React.FC<{ id: string }> = ({ id }) => {
+    const Icon = SETTINGS_TAB_ICONS[id] || Settings;
+    return <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />;
 };
 
 const ProgramIcon: React.FC<{ app: string; label: string }> = ({ app, label }) => (
@@ -1340,11 +1395,12 @@ export const SettingsDashboard: React.FC = () => {
                                                 <button
                                                     key={tab.id}
                                                     onClick={() => navigateToSetting({ id: tab.id, tabId: tab.id as SettingsTabId, label: tab.label, group: group.title, keywords: tab.keywords || [] })}
-                                                    className={`w-full text-left px-2 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === tab.id
+                                                    className={`w-full text-left px-2 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === tab.id
                                                         ? 'nav-item-active'
                                                         : 'text-muted hover:text-text hover:bg-white/5'
                                                         }`}
                                                 >
+                                                    <SettingsTabIcon id={tab.id} />
                                                     {tab.label}
                                                 </button>
                                             ))}
@@ -1362,7 +1418,11 @@ export const SettingsDashboard: React.FC = () => {
     
                         {activeTab === 'plex' && (
                             <div className="mb-8">
-                                <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Media Server Integration</h3>
+                                <IntegrationHeading
+                                    app={mediaServerType === 'emby' ? 'emby' : mediaServerType === 'jellyfin' ? 'jellyfin' : 'plex'}
+                                    title="Media Player"
+                                    subtitle={`${mediaServerLabel} connection, access, privacy, and library defaults`}
+                                />
                                 <div id={getSettingsSectionElementId('connection')} className="scroll-mt-24 mb-4">
                                     <SettingFieldLabel
                                         htmlFor="mediaServerType"

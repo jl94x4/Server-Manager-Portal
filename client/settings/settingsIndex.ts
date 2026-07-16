@@ -95,13 +95,14 @@ export const parseSettingsHash = (hash: string): { tabId: SettingsTabId | null; 
     if (!raw) return { tabId: null, sectionId: null };
     if (raw === 'system/upgrader') return { tabId: 'upgrader', sectionId: null };
     const [tabPart, ...sectionParts] = raw.split('/');
-    const tabId = SETTINGS_TABS.includes(tabPart as SettingsTabId) ? tabPart as SettingsTabId : null;
+    const normalizedTabPart = tabPart === 'media-player' ? 'plex' : tabPart;
+    const tabId = SETTINGS_TABS.includes(normalizedTabPart as SettingsTabId) ? normalizedTabPart as SettingsTabId : null;
     const sectionId = sectionParts.length > 0 ? sectionParts.join('/') : null;
     return { tabId, sectionId };
 };
 
 export const buildSettingsHash = (tabId: SettingsTabId, sectionId?: string | null) => (
-    sectionId ? `#${tabId}/${sectionId}` : `#${tabId}`
+    sectionId ? `#${tabId === 'plex' ? 'media-player' : tabId}/${sectionId}` : `#${tabId === 'plex' ? 'media-player' : tabId}`
 );
 
 export const getSettingsSectionElementId = (sectionId: string) => `settings-section-${sectionId}`;
