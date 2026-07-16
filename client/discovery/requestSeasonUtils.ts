@@ -42,11 +42,18 @@ export const hasActiveSeerrDownloads = (
     else if (opts?.is4k === false) queues = hd;
     else queues = [...hd, ...fourK];
 
+    // Some Seerr payloads keep "downloadStatus" entries around even after the item
+    // is effectively available. Treat `status:5` as completed/available, not active.
+    const activeQueues = queues.filter((item) => {
+        const s = Number(item?.status);
+        return !(Number.isFinite(s) && s === 5);
+    });
+
     if (typeof opts?.seasonNumber === 'number' && Number.isFinite(opts.seasonNumber)) {
-        return queues.some((item) => Number(item?.episode?.seasonNumber) === opts.seasonNumber);
+        return activeQueues.some((item) => Number(item?.episode?.seasonNumber) === opts.seasonNumber);
     }
 
-    return queues.length > 0;
+    return activeQueues.length > 0;
 };
 
 export const isMediaActivelyProcessing = (
