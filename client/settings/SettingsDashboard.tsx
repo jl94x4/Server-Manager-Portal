@@ -407,11 +407,15 @@ export const SettingsDashboard: React.FC = () => {
     const [showPublicLibraryStats, setShowPublicLibraryStats] = useState(initialSettings?.showPublicLibraryStats !== false);
     const [allowTemporaryAccess, setAllowTemporaryAccess] = useState(initialSettings?.allowTemporaryAccess || false);
     const ensureMaintenanceNavOrder = useCallback((order: string[]) => {
-        const base = Array.isArray(order) ? order.filter(Boolean) : ['home', 'discover', 'status', 'analytics', 'mediastack', 'request', 'about', 'settings', 'logout'];
+        const base = Array.isArray(order) ? order.filter(Boolean) : ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'];
         if (!base.includes('maintenance')) {
-            const requestIndex = base.indexOf('request');
-            if (requestIndex >= 0) base.splice(requestIndex, 0, 'maintenance');
-            else base.push('maintenance');
+            const statusIndex = base.indexOf('status');
+            if (statusIndex >= 0) base.splice(statusIndex + 1, 0, 'maintenance');
+            else {
+                const aboutIndex = base.indexOf('about');
+                if (aboutIndex >= 0) base.splice(aboutIndex, 0, 'maintenance');
+                else base.push('maintenance');
+            }
         }
         if (!base.includes('about')) {
             const settingsIndex = base.indexOf('settings');
@@ -422,7 +426,7 @@ export const SettingsDashboard: React.FC = () => {
         }
         return base;
     }, []);
-    const [navOrder, setNavOrder] = useState<string[]>(() => ensureMaintenanceNavOrder(['home', 'discover', 'status', 'analytics', 'request', 'users', 'downloads', 'mediastack', 'about', 'settings', 'logout']));
+    const [navOrder, setNavOrder] = useState<string[]>(() => ensureMaintenanceNavOrder(['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout']));
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
     const [logoPreviewUrl, setLogoPreviewUrl] = useState('');

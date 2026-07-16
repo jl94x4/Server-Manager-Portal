@@ -5,16 +5,18 @@ export type NavFeatureFlags = {
     requestsQueue?: boolean;
 };
 
-/** Default sidebar order: Analytics → Discover & Request → Users. */
+/** Default sidebar order matching Settings → Navigation stock layout. */
 export const DEFAULT_NAV_ORDER = [
     'home',
     'discover',
-    'status',
-    'analytics',
     'request',
+    'analytics',
     'users',
     'downloads',
+    'upgrader',
     'mediastack',
+    'requests',
+    'status',
     'maintenance',
     'about',
     'settings',
@@ -25,6 +27,7 @@ const LEGACY_DEFAULT_NAV_ORDERS = [
     ['home', 'discover', 'users', 'status', 'analytics', 'downloads', 'mediastack', 'maintenance', 'request', 'about', 'settings', 'logout'],
     ['home', 'discover', 'users', 'analytics', 'downloads', 'mediastack', 'upgrader', 'requests', 'status', 'maintenance', 'request', 'about', 'logs', 'settings', 'logout'],
     ['home', 'discover', 'status', 'analytics', 'mediastack', 'request', 'about', 'settings', 'logout'],
+    ['home', 'discover', 'status', 'analytics', 'request', 'users', 'downloads', 'mediastack', 'maintenance', 'about', 'settings', 'logout'],
 ];
 
 const sameOrder = (a: string[], b: string[]) => (
