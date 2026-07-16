@@ -8728,7 +8728,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         'logs': { label: 'Logs', icon: FileText, route: 'logs', adminOnly: true },
         'analytics': { label: 'Analytics', icon: BarChart3, route: 'analytics', adminOnly: false },
         'downloads': { label: 'Downloads', icon: DownloadCloud, route: 'downloads', adminOnly: false },
-        'mediastack': { label: 'Calendar', icon: Layers, route: 'mediastack', adminOnly: false },
+        'mediastack': { label: 'Calendar', icon: Calendar, route: 'mediastack', adminOnly: false },
         'maintenance': { label: 'Cleaner', icon: Shield, route: 'maintenance', adminOnly: true },
         'upgrader': { label: 'Upgrader', icon: ArrowUpCircle, route: 'upgrader', adminOnly: true },
         'requests': { label: 'Requests', icon: ClipboardList, route: 'requests', adminOnly: true },
