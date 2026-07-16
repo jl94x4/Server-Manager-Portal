@@ -43,12 +43,15 @@ export const ActivityHeatmap: React.FC<{ data: Record<string, number> }> = ({ da
     }
     const weekCount = weeks.length;
 
+    const cellGapPx = 3;
+    const cellSize = `minmax(0, calc((100% - ${(weekCount - 1) * cellGapPx}px) / ${weekCount}))`;
+
     return (
-        <div className="w-full flex flex-col gap-2 overflow-visible">
-            <div className="w-full overflow-x-auto overflow-y-visible md:overflow-x-visible custom-scrollbar">
-                <div className="w-full min-w-[720px]">
-                    <div className="flex gap-2 w-full items-stretch overflow-visible">
-                        <div className="grid grid-rows-7 gap-[3px] shrink-0 w-7 text-[10px] text-muted font-semibold pt-5">
+        <div className="w-full min-w-0 flex flex-col gap-2 overflow-hidden">
+            <div className="w-full min-w-0 overflow-hidden">
+                <div className="w-full min-w-0">
+                    <div className="flex gap-1.5 sm:gap-2 w-full min-w-0 items-stretch overflow-hidden">
+                        <div className="grid grid-rows-7 gap-[3px] shrink-0 w-6 sm:w-7 text-[9px] sm:text-[10px] text-muted font-semibold pt-5">
                             {DAY_LABELS.map((label, i) => (
                                 <div key={i} className="flex items-center justify-end pr-0.5 min-h-0 leading-none">
                                     {label}
@@ -56,10 +59,10 @@ export const ActivityHeatmap: React.FC<{ data: Record<string, number> }> = ({ da
                             ))}
                         </div>
 
-                        <div className="flex-1 min-w-0 flex flex-col gap-1 overflow-visible">
+                        <div className="flex-1 min-w-0 flex flex-col gap-1 overflow-hidden">
                             <div
-                                className="grid gap-[3px] h-4 text-[10px] sm:text-[11px] text-muted font-semibold tracking-wider"
-                                style={{ gridTemplateColumns: `repeat(${weekCount}, minmax(0, 1fr))` }}
+                                className="grid gap-[3px] h-4 text-[9px] sm:text-[11px] text-muted font-semibold tracking-wider"
+                                style={{ gridTemplateColumns: `repeat(${weekCount}, ${cellSize})` }}
                             >
                                 {weeks.map((week, i) => {
                                     const firstDay = week[0];
@@ -75,12 +78,12 @@ export const ActivityHeatmap: React.FC<{ data: Record<string, number> }> = ({ da
 
                             <div
                                 className="grid grid-rows-7 grid-flow-col gap-[3px] w-full overflow-visible"
-                                style={{ gridAutoColumns: 'minmax(0, 1fr)' }}
+                                style={{ gridAutoColumns: cellSize }}
                             >
                                 {days.map((day) => (
                                     <div
                                         key={day.dateStr}
-                                        className={`aspect-square w-full rounded-[3px] transition-colors duration-300 group relative ${getIntensityClass(day.count)}`}
+                                        className={`aspect-square w-full min-w-0 rounded-[2px] sm:rounded-[3px] transition-colors duration-300 group relative ${getIntensityClass(day.count)}`}
                                     >
                                         <div className="pointer-events-none absolute top-full left-1/2 z-[100] mt-1.5 -translate-x-1/2 whitespace-nowrap rounded border border-white/10 bg-black/95 px-2 py-1 text-[10px] font-mono text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                                             <span className="font-bold text-plex">{day.count} plays</span>

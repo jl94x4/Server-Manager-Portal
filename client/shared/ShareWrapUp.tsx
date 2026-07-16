@@ -20,12 +20,15 @@ const waitForExportImages = (root: HTMLElement) => Promise.all(
 
 export const buildWrapUpShareText = (analytics: any, days: number | string, serverName: string, username?: string) => {
     const period = periodLabel(days);
-    const rank = analytics.leaderboardRank
-        ? `#${analytics.leaderboardRank} of ${analytics.totalActiveUsers || '?'}`
-        : 'Unranked';
-    const topDayStreams = analytics.dayOfWeekCounts
-        ? Math.max(...Object.values(analytics.dayOfWeekCounts) as number[])
-        : 0;
+    const leaderboardRank = Number(analytics?.leaderboardRank);
+    const hasRank = Number.isFinite(leaderboardRank) && leaderboardRank > 0;
+    const rank = hasRank
+        ? `#${leaderboardRank} of ${analytics.totalActiveUsers || '?'}`
+        : 'Not ranked yet';
+    const dayCounts = Object.values(analytics?.dayOfWeekCounts || {})
+        .map((value) => Number(value) || 0)
+        .filter((value) => Number.isFinite(value));
+    const topDayStreams = dayCounts.length > 0 ? Math.max(...dayCounts) : 0;
 
     const lines = [
         `📊 ${serverName} — Personal Wrap-Up (${period})`,
@@ -67,8 +70,10 @@ export const ShareWrapUpModal: React.FC<ShareWrapUpModalProps> = ({
     const exportRef = useRef<HTMLDivElement>(null);
     const [busy, setBusy] = useState<'copy' | 'download' | 'share' | null>(null);
 
-    const rankPct = analytics.leaderboardRank && analytics.totalActiveUsers > 0
-        ? Math.max(1, Math.round((analytics.leaderboardRank / analytics.totalActiveUsers) * 100))
+    const leaderboardRank = Number(analytics?.leaderboardRank);
+    const hasRank = Number.isFinite(leaderboardRank) && leaderboardRank > 0;
+    const rankPct = hasRank && analytics.totalActiveUsers > 0
+        ? Math.max(1, Math.round((leaderboardRank / analytics.totalActiveUsers) * 100))
         : null;
 
     const renderExportBlob = useCallback(async (): Promise<Blob | null> => {
@@ -239,7 +244,7 @@ export const ShareWrapUpModal: React.FC<ShareWrapUpModalProps> = ({
                     <div className="mt-4 rounded-xl border border-border/50 bg-background/40 p-4 text-sm space-y-2">
                         <p className="font-bold text-text">Full stats summary</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-muted">
-                            <p><span className="text-text font-semibold">Rank:</span> {analytics.leaderboardRank ? `#${analytics.leaderboardRank}` : 'Unranked'}{rankPct ? ` (top ${rankPct}%)` : ''}</p>
+                            <p><span className="text-text font-semibold">Rank:</span> {hasRank ? `#${leaderboardRank}` : 'Not ranked yet'}{rankPct ? ` (top ${rankPct}%)` : ''}</p>
                             <p><span className="text-text font-semibold">Streams:</span> {analytics.totalPlays || 0} total</p>
                             <p><span className="text-text font-semibold">Movies / TV:</span> {analytics.moviesCount || 0} / {analytics.showsCount || 0}</p>
                             <p><span className="text-text font-semibold">Top binge:</span> {analytics.topBinge?.title || '—'}</p>

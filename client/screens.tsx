@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2, Search, BookOpen, Loader2, Eye, EyeOff, ClipboardList, ArrowUpCircle, MoreHorizontal, ExternalLink } from 'lucide-react';
+import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2, Search, BookOpen, Loader2, Eye, EyeOff, ClipboardList, ArrowUpCircle, MoreHorizontal, ExternalLink, Info, GitFork } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
 
 import { SettingsDashboard } from './settings/SettingsDashboard';
@@ -3472,6 +3472,170 @@ export const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
     );
 };
 
+const ABOUT_CONTRIBUTORS = [
+    {
+        name: 'jl94x4',
+        role: 'Plex side',
+        href: 'https://github.com/jl94x4',
+        avatarUrl: 'https://github.com/jl94x4.png?size=128',
+        note: 'Original project maintainer and Plex workflow lead.',
+    },
+    {
+        name: 'Nerdy-Technician',
+        role: 'Jellyfin / Emby side',
+        href: 'https://github.com/Nerdy-Technician',
+        avatarUrl: 'https://github.com/Nerdy-Technician.png?size=128',
+        note: 'Jellyfin and Emby focused contributor and integration work.',
+    },
+];
+
+const ABOUT_LINKS = [
+    { label: 'Documentation', href: 'https://jl94x4.github.io/Server-Manager-Portal/' },
+    { label: 'GitHub Repository', href: 'https://github.com/jl94x4/Server-Manager-Portal' },
+    { label: 'Feature Overview', href: 'https://jl94x4.github.io/Server-Manager-Portal/features/overview.html' },
+    { label: 'Getting Started', href: 'https://jl94x4.github.io/Server-Manager-Portal/guide/getting-started.html' },
+];
+
+export const AboutDashboard: React.FC<{ appVersion?: string; mediaServerType?: string }> = ({ appVersion, mediaServerType = 'plex' }) => {
+    const providerLabel = String(mediaServerType || 'plex').toLowerCase() === 'jellyfin'
+        ? 'Jellyfin'
+        : String(mediaServerType || 'plex').toLowerCase() === 'emby'
+            ? 'Emby'
+            : 'Plex';
+    const featurePillClass = 'rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-muted';
+    return (
+        <div className="w-full max-w-7xl mx-auto space-y-6 animate-fade-in">
+            <div className="rounded-xl border border-border/70 bg-card/80 overflow-hidden shadow-2xl">
+                <div className="p-6 sm:p-8 border-b border-border/70 bg-gradient-to-br from-white/10 via-transparent to-plex/10">
+                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-3 mb-4">
+                                <span className="w-12 h-12 rounded-xl bg-plex/15 border border-plex/30 flex items-center justify-center">
+                                    <Info className="w-6 h-6 text-plex" />
+                                </span>
+                                <div>
+                                    <p className="text-xs uppercase tracking-[0.22em] text-muted font-bold">About the project</p>
+                                    <h1 className="text-3xl sm:text-4xl font-black text-text tracking-tight">Server Portal Manager</h1>
+                                </div>
+                            </div>
+                            <p className="text-base sm:text-lg text-muted max-w-3xl leading-relaxed">
+                                Server Portal Manager is the Media Control Station for a self-hosted media server: one central pane of glass for user access, request workflows, live activity, analytics, dashboards, and maintenance across Plex, Emby, and Jellyfin.
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 lg:w-72 flex-shrink-0">
+                            <div className="rounded-lg border border-border bg-background/70 p-3">
+                                <p className="text-[10px] uppercase tracking-[0.18em] text-muted">Current mode</p>
+                                <p className="mt-1 text-lg font-black text-text">{providerLabel}</p>
+                            </div>
+                            <div className="rounded-lg border border-border bg-background/70 p-3">
+                                <p className="text-[10px] uppercase tracking-[0.18em] text-muted">Version</p>
+                                <p className="mt-1 text-sm font-mono font-bold text-plex truncate">{appVersion || 'Development'}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-6 sm:p-8 grid grid-cols-1 xl:grid-cols-[1.35fr_0.65fr] gap-6">
+                    <section className="space-y-5">
+                        <div>
+                            <h2 className="text-xl font-black text-text mb-3">One Central Place</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {[
+                                    { icon: Users, title: 'Access & users', body: 'Manage invites, expiry, revokes, profiles, and admin impersonation without jumping between server tools.' },
+                                    { icon: BarChart3, title: 'Stats & analytics', body: 'Bring server-wide rankings, personal wrap-ups, watch history, peak hours, libraries, and play trends into one dashboard.' },
+                                    { icon: Activity, title: 'Live monitoring', body: 'See active streams, direct play/transcode status, player details, bandwidth, and current media activity at a glance.' },
+                                    { icon: ClipboardList, title: 'Requests & review', body: 'Review Seerr, Jellyseerr, and Ombi requests from the same place as dashboards, user stats, and media operations.' },
+                                    { icon: Calendar, title: 'Media stack', body: 'Surface Sonarr and Radarr calendars, queues, history, and connected service health inside the portal.' },
+                                    { icon: Shield, title: 'Maintenance', body: 'Run library cleanup, status monitoring, upgrader workflows, logs, audits, and operational checks from a single console.' },
+                                ].map(({ icon: Icon, title, body }) => (
+                                    <div key={title} className="rounded-lg border border-border bg-background/70 p-4">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <span className="w-9 h-9 rounded-lg bg-plex/10 border border-plex/20 flex items-center justify-center">
+                                                <Icon className="w-4 h-4 text-plex" />
+                                            </span>
+                                            <h3 className="font-bold text-text">{title}</h3>
+                                        </div>
+                                        <p className="text-sm text-muted leading-relaxed">{body}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="rounded-lg border border-border bg-background/70 p-4">
+                            <h2 className="text-lg font-black text-text mb-3">Supported Ecosystem</h2>
+                            <div className="flex flex-wrap gap-2">
+                                {['Plex', 'Jellyfin', 'Emby', 'Seerr', 'Jellyseerr', 'Ombi', 'Sonarr', 'Radarr', 'Tautulli', 'Jellystat', 'Download clients'].map((item) => (
+                                    <span key={item} className={featurePillClass}>{item}</span>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+
+                    <aside className="space-y-5">
+                        <section className="rounded-lg border border-border bg-background/70 p-4">
+                            <div className="flex items-center gap-2 mb-4">
+                                <GitFork className="w-5 h-5 text-plex" />
+                                <h2 className="text-lg font-black text-text">Contributors</h2>
+                            </div>
+                            <div className="space-y-3">
+                                {ABOUT_CONTRIBUTORS.map((contributor) => (
+                                    <a
+                                        key={contributor.name}
+                                        href={contributor.href}
+	                                        target="_blank"
+	                                        rel="noopener noreferrer"
+	                                        className="block rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 hover:border-plex/40 transition-colors p-3"
+	                                    >
+	                                        <div className="flex items-start gap-3">
+	                                            <img
+	                                                src={contributor.avatarUrl}
+	                                                alt=""
+	                                                className="w-12 h-12 rounded-full object-cover bg-background border border-white/10 flex-shrink-0"
+	                                                loading="lazy"
+	                                            />
+	                                            <div className="min-w-0 flex-1">
+	                                                <div className="flex items-center justify-between gap-3">
+	                                                    <div className="min-w-0">
+	                                                        <p className="font-bold text-text truncate">{contributor.name}</p>
+	                                                        <p className="text-xs text-plex font-bold">{contributor.role}</p>
+	                                                    </div>
+	                                                    <ExternalLink className="w-4 h-4 text-muted flex-shrink-0" />
+	                                                </div>
+	                                                <p className="mt-2 text-xs text-muted leading-relaxed">{contributor.note}</p>
+	                                            </div>
+	                                        </div>
+	                                    </a>
+                                ))}
+                            </div>
+                        </section>
+
+                        <section className="rounded-lg border border-border bg-background/70 p-4">
+                            <div className="flex items-center gap-2 mb-4">
+                                <BookOpen className="w-5 h-5 text-plex" />
+                                <h2 className="text-lg font-black text-text">Project Links</h2>
+                            </div>
+                            <div className="space-y-2">
+                                {ABOUT_LINKS.map((link) => (
+                                    <a
+                                        key={link.href}
+                                        href={link.href}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 hover:border-plex/40 transition-colors px-3 py-2 text-sm font-semibold text-text"
+                                    >
+                                        <span>{link.label}</span>
+                                        <ExternalLink className="w-4 h-4 text-muted flex-shrink-0" />
+                                    </a>
+                                ))}
+                            </div>
+                        </section>
+                    </aside>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // --- Admin Dashboard Component ---
 
 export const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: () => void, onViewStatus: () => void, onViewDashboard: () => void, onViewAsUser: (userId: string) => Promise<void> }> = ({ onLogout, onViewUserPortal, onViewStatus, onViewDashboard, onViewAsUser }) => {
@@ -4491,27 +4655,30 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | str
     const renderContent = () => {
         switch (metric) {
             case 'Server Rank': {
-                const percentile = analytics.totalActiveUsers > 0 ? Math.max(1, Math.round((analytics.leaderboardRank / analytics.totalActiveUsers) * 100)) : 100;
-                const progressPct = analytics.totalActiveUsers > 0 ? Math.max(2, 100 - Math.round(((analytics.leaderboardRank - 1) / analytics.totalActiveUsers) * 100)) : 100;
+                const leaderboardRank = Number(analytics.leaderboardRank);
+                const totalActiveUsers = Number(analytics.totalActiveUsers) || 0;
+                const hasRank = Number.isFinite(leaderboardRank) && leaderboardRank > 0;
+                const percentile = hasRank && totalActiveUsers > 0 ? Math.max(1, Math.round((leaderboardRank / totalActiveUsers) * 100)) : null;
+                const progressPct = hasRank && totalActiveUsers > 0 ? Math.max(2, 100 - Math.round(((leaderboardRank - 1) / totalActiveUsers) * 100)) : 0;
                 const neighbourhood: any[] = analytics.leaderboardNeighbourhood || [];
                 const myPlays = analytics.myPlaysOnLeaderboard || analytics.totalPlays || 0;
-                const userAbove = neighbourhood.find((u: any) => !u.isMe && u.rank < (analytics.leaderboardRank || 999));
+                const userAbove = hasRank ? neighbourhood.find((u: any) => !u.isMe && u.rank < leaderboardRank) : null;
                 const playsToClimb = userAbove ? (userAbove.plays - myPlays + 1) : null;
 
-                const rankEmoji = (analytics.leaderboardRank === 1) ? '🥇' : (analytics.leaderboardRank === 2) ? '🥈' : (analytics.leaderboardRank === 3) ? '🥉' : '🏆';
+                const rankEmoji = (leaderboardRank === 1) ? '🥇' : (leaderboardRank === 2) ? '🥈' : (leaderboardRank === 3) ? '🥉' : '🏆';
 
                 return (
                     <div className="flex flex-col items-center justify-center text-center p-6">
                         <span className="text-5xl mb-3">{rankEmoji}</span>
-                        <h2 className="text-3xl font-black text-white mb-1">Rank #{analytics.leaderboardRank || 'Unranked'}</h2>
-                        <p className="text-muted mb-5 text-sm">Out of {analytics.totalActiveUsers || 0} active users</p>
+                        <h2 className="text-3xl font-black text-white mb-1">{hasRank ? `Rank #${leaderboardRank}` : 'Not ranked yet'}</h2>
+                        <p className="text-muted mb-5 text-sm">Out of {totalActiveUsers} active users</p>
 
                         {/* Progress bar */}
                         <div className="w-full mb-1">
                             <div className="flex justify-between text-[10px] font-black uppercase tracking-widest mb-1.5">
                                 <span className="text-gray-500">#1 Top</span>
-                                <span className="text-plex">Top {percentile}%</span>
-                                <span className="text-gray-500">#{analytics.totalActiveUsers} Last</span>
+                                <span className="text-plex">{percentile ? `Top ${percentile}%` : 'No rank yet'}</span>
+                                <span className="text-gray-500">{totalActiveUsers > 0 ? `#${totalActiveUsers} Last` : 'No users'}</span>
                             </div>
                             <div className="w-full h-3 bg-black/50 rounded-full overflow-hidden border border-white/10">
                                 <div
@@ -4529,7 +4696,7 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | str
                             </div>
                             <div className="bg-gradient-to-b from-plex/20 to-plex/5 border border-plex/30 rounded-xl p-4 flex flex-col items-center shadow-lg relative overflow-hidden">
                                 <div className="absolute top-0 right-0 w-16 h-16 bg-plex/20 blur-xl -mr-5 -mt-5 rounded-full" />
-                                <span className="text-2xl font-black text-plex mb-1">{percentile}%</span>
+                                <span className="text-2xl font-black text-plex mb-1">{percentile ? `${percentile}%` : '-'}</span>
                                 <span className="text-[9px] text-plex/80 uppercase tracking-widest font-black">Top Percentile</span>
                             </div>
                         </div>
@@ -4540,9 +4707,14 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | str
                                 🎯 <strong>{playsToClimb} more stream{playsToClimb !== 1 ? 's' : ''}</strong> to overtake <strong>{userAbove?.username}</strong> (Rank #{userAbove?.rank})
                             </div>
                         )}
-                        {playsToClimb === null && analytics.leaderboardRank === 1 && (
+                        {playsToClimb === null && leaderboardRank === 1 && (
                             <div className="w-full bg-plex/10 border border-plex/30 rounded-xl px-4 py-3 mb-4 text-sm text-plex font-medium">
                                 👑 You're at the top of the leaderboard!
+                            </div>
+                        )}
+                        {!hasRank && (
+                            <div className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 mb-4 text-sm text-muted font-medium">
+                                Stream activity has not been matched to your account for this period yet.
                             </div>
                         )}
 
@@ -5584,7 +5756,8 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
 
     const user = sessionInfo.account;
     const showQualityBadges = publicConfig?.showPosterQualityBadges !== false;
-    const isJellyfinPortal = String(publicConfig?.mediaServerType || 'plex').toLowerCase() === 'jellyfin';
+    const mediaServerType = String(publicConfig?.mediaServerType || 'plex').toLowerCase();
+    const isJellyfinPortal = mediaServerType === 'jellyfin' || mediaServerType === 'emby';
     const [optOutNewsletter, setOptOutNewsletter] = useState(user?.optOutNewsletter || false);
 
     useEffect(() => {
@@ -5617,6 +5790,20 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
         const topWatched = [...topShows, ...topMovies, ...topMusic].sort((a: any, b: any) => (b.plays || 0) - (a.plays || 0));
         const peakHours = Array.isArray(data?.peakHours) ? data.peakHours : [];
         const peakHour = peakHours.reduce((best: number, value: number, hour: number) => value > (peakHours[best] || 0) ? hour : best, 0);
+        const dayOfWeekCounts = data?.dayOfWeekCounts && Object.keys(data.dayOfWeekCounts).length > 0
+            ? data.dayOfWeekCounts
+            : Object.entries(data?.heatmapData || {}).reduce((counts: Record<number, number>, [dateKey, count]) => {
+                const date = new Date(`${dateKey}T00:00:00`);
+                if (!Number.isNaN(date.getTime())) {
+                    const day = date.getDay();
+                    counts[day] = (counts[day] || 0) + (Number(count) || 0);
+                }
+                return counts;
+            }, { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 });
+        const topDayEntry = Object.entries(dayOfWeekCounts)
+            .map(([day, count]) => ({ day: Number(day), count: Number(count) || 0 }))
+            .sort((a, b) => b.count - a.count)[0];
+        const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const moviesCount = data?.jellystatInsights?.moviePlays || topMovies.reduce((sum: number, item: any) => sum + (item.plays || 0), 0);
         const showsCount = data?.jellystatInsights?.tvPlays || topShows.reduce((sum: number, item: any) => sum + (item.plays || 0), 0);
         const musicCount = data?.jellystatInsights?.musicPlays || topMusic.reduce((sum: number, item: any) => sum + (item.plays || 0), 0);
@@ -5636,8 +5823,8 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
             peakHour,
             avgHour: peakHour,
             timeOfDay: peakHour >= 5 && peakHour < 12 ? 'Early Bird' : peakHour >= 12 && peakHour < 18 ? 'Afternoon Watcher' : peakHour >= 18 ? 'Evening Streamer' : 'Night Owl',
-            popularDay: 'Recent Activity',
-            dayOfWeekCounts: {},
+            popularDay: topDayEntry && topDayEntry.count > 0 ? daysOfWeek[topDayEntry.day] : 'Recent Activity',
+            dayOfWeekCounts,
             favoriteLibrary: topLibraries[0]?.title || 'None',
             topLibraries,
             mediaPreference: moviesCount > showsCount ? 'Movie Fan' : 'TV Binger',
@@ -5646,6 +5833,10 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
             streamingHabit: 'Jellyfin Viewer',
             weekdayPlays: data?.totalPlaybacks || 0,
             weekendPlays: 0,
+            leaderboardRank: data?.leaderboardRank || null,
+            totalActiveUsers: data?.totalActiveUsers || 0,
+            myPlaysOnLeaderboard: data?.myPlaysOnLeaderboard ?? null,
+            leaderboardNeighbourhood: data?.leaderboardNeighbourhood || [],
             libraryHealth: data?.libraryHealth || null,
             heatmapData: data?.heatmapData || null,
         };
@@ -6186,7 +6377,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                 </div>
                                 <WrapUpCardGrid analytics={analytics} interactive onCardClick={setSelectedMetric} minCardHeight={112} />
                                 {analytics.heatmapData && (
-                                    <div className="mt-6 pt-6 border-t border-white/10 overflow-visible">
+                                    <div className="mt-6 pt-6 border-t border-white/10 min-w-0 overflow-hidden">
                                         <h4 className="text-xs uppercase tracking-widest text-muted font-bold mb-4 flex items-center gap-2">
                                             <Calendar className="w-4 h-4 text-plex" /> Activity ({analyticsDays === 'all' ? 'All Time' : `Last ${analyticsDays} Days`})
                                         </h4>
@@ -8621,7 +8812,7 @@ export const MaintenanceDashboard: React.FC = () => {
 
 interface NavigationProps {
     currentRoute: string;
-    onNavigate: (route: 'admin' | 'user' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'requests' | 'discovery') => void;
+    onNavigate: (route: 'admin' | 'user' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'requests' | 'discovery' | 'about') => void;
     onLogout: () => void;
     isAdmin: boolean;
     serverName: string;
@@ -8738,6 +8929,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         'upgrader': { label: 'Upgrader', icon: ArrowUpCircle, route: 'upgrader', adminOnly: true },
         'requests': { label: 'Requests', icon: ClipboardList, route: 'requests', adminOnly: true },
         'request': { label: 'Discover & Request', icon: Sparkles, route: 'discovery', adminOnly: false },
+        'about': { label: 'About', icon: Info, route: 'about', adminOnly: false },
         'settings': { label: 'Settings', icon: Settings, route: 'settings', adminOnly: true },
         'logout': { label: 'Logout', icon: LogOut, route: '', adminOnly: false, onClick: onLogout }
     };
@@ -8768,6 +8960,13 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
             const requestIndex = order.indexOf('request');
             if (requestIndex >= 0) order.splice(requestIndex, 0, 'requests');
             else order.push('requests');
+        }
+        if (!order.includes('about')) {
+            const settingsIndex = order.indexOf('settings');
+            const logoutIndex = order.indexOf('logout');
+            if (settingsIndex >= 0) order.splice(settingsIndex, 0, 'about');
+            else if (logoutIndex >= 0) order.splice(logoutIndex, 0, 'about');
+            else order.push('about');
         }
         return filterNavOrder(order, { isAdmin, features: navFeatures });
     }, [navOrder, isAdmin, navFeatures]);

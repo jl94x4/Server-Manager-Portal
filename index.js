@@ -127,7 +127,7 @@ app.use((req, res, next) => {
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'");
     if (req.secure || FORCE_SECURE_COOKIES) {
         res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     }
@@ -2328,7 +2328,7 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
     if ((requestUrl === 'https://yourdomain.com' || !requestUrl) && config.requestAppUrl) {
         requestUrl = config.requestAppUrl;
     }
-    let navOrder = config.navOrder || ['home', 'discover', 'users', 'status', 'analytics', 'downloads', 'mediastack', 'maintenance', 'request', 'settings', 'logout'];
+    let navOrder = config.navOrder || ['home', 'discover', 'users', 'status', 'analytics', 'downloads', 'mediastack', 'maintenance', 'request', 'about', 'settings', 'logout'];
     try {
         if (isJellyfinPortal && config?.jellyfinUrl && config?.jellyfinApiKey) {
             const profile = await getAdminProfile(config);
@@ -2676,7 +2676,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 referralRewardDays: config.referralRewardDays || 7,
                 announcement: config.announcement || '',
                 hideStreamUsers: config.hideStreamUsers === true ? 'anonymous' : (config.hideStreamUsers || 'false'),
-                navOrder: config.navOrder || ['home', 'discover', 'users', 'status', 'analytics', 'downloads', 'mediastack', 'maintenance', 'request', 'settings', 'logout'],
+                navOrder: config.navOrder || ['home', 'discover', 'users', 'status', 'analytics', 'downloads', 'mediastack', 'maintenance', 'request', 'about', 'settings', 'logout'],
                 defaultLibraryIds: config.defaultLibraryIds || null,
                 use24HourClock: !!config.use24HourClock,
                 allowTemporaryAccess: !!config.allowTemporaryAccess,
@@ -2764,7 +2764,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 referralRewardDays: 7,
                 announcement: '',
                 hideStreamUsers: 'false',
-                navOrder: ['home', 'discover', 'users', 'status', 'analytics', 'downloads', 'mediastack', 'maintenance', 'request', 'settings', 'logout'],
+                navOrder: ['home', 'discover', 'users', 'status', 'analytics', 'downloads', 'mediastack', 'maintenance', 'request', 'about', 'settings', 'logout'],
                 defaultLibraryIds: null,
                 use24HourClock: false,
                 allowTemporaryAccess: false,
@@ -2970,7 +2970,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         referralRewardDays: parseInt(referralRewardDays, 10) || 7,
         announcement: announcement || '',
         hideStreamUsers: hideStreamUsers === true ? 'anonymous' : (hideStreamUsers === false ? 'false' : (hideStreamUsers || 'false')),
-        navOrder: Array.isArray(navOrder) ? navOrder : existingConfig.navOrder || ['home', 'discover', 'users', 'status', 'analytics', 'downloads', 'mediastack', 'maintenance', 'request', 'settings', 'logout'],
+        navOrder: Array.isArray(navOrder) ? navOrder : existingConfig.navOrder || ['home', 'discover', 'users', 'status', 'analytics', 'downloads', 'mediastack', 'maintenance', 'request', 'about', 'settings', 'logout'],
         defaultLibraryIds: Array.isArray(defaultLibraryIds) ? defaultLibraryIds : null,
         use24HourClock: !!use24HourClock,
         allowTemporaryAccess: !!allowTemporaryAccess,
@@ -8299,6 +8299,56 @@ const summarizeLibraryHealth = (topLibraries = [], stats = {}, cachedData = {}) 
 
 const getUniqueActiveViewers = (users = []) => (users || []).filter(u => toNumber(u.plays, 0) > 0).length;
 
+const buildDayOfWeekCountsFromHeatmap = (heatmapData = {}) => {
+    const counts = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+    Object.entries(heatmapData || {}).forEach(([dateKey, count]) => {
+        const date = new Date(`${dateKey}T00:00:00`);
+        if (Number.isNaN(date.getTime())) return;
+        counts[date.getDay()] += toNumber(count, 0);
+    });
+    return counts;
+};
+
+const buildJellyfinLeaderboardContext = (topUsers = [], sessionUser = {}, shouldObfuscate = false) => {
+    const normalizedJellyfinId = normalized(sessionUser?.jellyfinId);
+    const normalizedSessionId = normalized(String(sessionUser?.id || '').replace(/^jellyfin:/i, ''));
+    const normalizedUsername = normalized(sessionUser?.username);
+    const sortedUsers = (Array.isArray(topUsers) ? topUsers : [])
+        .filter((user) => toNumber(user?.plays, 0) > 0)
+        .sort((a, b) => toNumber(b.plays, 0) - toNumber(a.plays, 0));
+    const userIndex = sortedUsers.findIndex((user) => {
+        const candidateId = normalized(String(user?.id || '').replace(/^jellyfin:/i, ''));
+        const candidateName = normalized(user?.username);
+        return (normalizedJellyfinId && candidateId === normalizedJellyfinId)
+            || (normalizedSessionId && candidateId === normalizedSessionId)
+            || (normalizedUsername && candidateName === normalizedUsername);
+    });
+
+    const leaderboardRank = userIndex >= 0 ? userIndex + 1 : null;
+    const userEntry = leaderboardRank ? sortedUsers[userIndex] : null;
+    const start = leaderboardRank ? Math.max(0, userIndex - 2) : 0;
+    const end = leaderboardRank ? Math.min(sortedUsers.length - 1, userIndex + 2) : -1;
+    const leaderboardNeighbourhood = leaderboardRank
+        ? sortedUsers.slice(start, end + 1).map((user, index) => {
+            const rank = start + index + 1;
+            const isMe = rank === leaderboardRank;
+            return {
+                rank,
+                plays: toNumber(user.plays, 0),
+                isMe,
+                username: shouldObfuscate && !isMe ? `Viewer ${rank}` : (isMe ? 'You' : (user.username || `User ${rank}`)),
+            };
+        })
+        : [];
+
+    return {
+        leaderboardRank,
+        totalActiveUsers: sortedUsers.length,
+        myPlaysOnLeaderboard: userEntry ? toNumber(userEntry.plays, 0) : null,
+        leaderboardNeighbourhood,
+    };
+};
+
 app.get('/api/jellystat/analytics', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
@@ -8349,12 +8399,14 @@ app.get('/api/jellystat/analytics', requireAuth, requireMember, async (req, res)
         }
 
         const shouldObfuscateUsernames = shouldObfuscateAnalyticsViewers(req.user, config);
-        const topUsers = (Array.isArray(mostActiveUsers) ? mostActiveUsers : []).map((user, index) => obfuscateAnalyticsTopUser({
+        const rawTopUsers = (Array.isArray(mostActiveUsers) ? mostActiveUsers : []).map((user, index) => ({
             id: user.UserId || user.Id || user.Name || `user-${index}`,
             username: user.Name || user.UserName || `User ${index + 1}`,
             thumb: user.UserId ? withBasePath(`/api/jellyfin/user-image?userId=${encodeURIComponent(user.UserId)}`) : null,
             plays: toNumber(user.Plays ?? user.TotalPlays, 0),
-        }, index, shouldObfuscateUsernames));
+        })).sort((a, b) => b.plays - a.plays);
+        const topUsers = rawTopUsers.map((user, index) => obfuscateAnalyticsTopUser(user, index, shouldObfuscateUsernames));
+        const leaderboardContext = buildJellyfinLeaderboardContext(rawTopUsers, req.user, shouldObfuscateUsernames);
 
         const topLibraries = (Array.isArray(mostViewedLibraries) ? mostViewedLibraries : []).map((library, index) => ({
             id: library.Id || library.Name || `library-${index}`,
@@ -8374,6 +8426,7 @@ app.get('/api/jellystat/analytics', requireAuth, requireMember, async (req, res)
 
         const totalPlaybacks = sumLibraryPlays(topLibraries) || Object.values(libraryTypeTotals || {}).reduce((sum, value) => sum + toNumber(value, 0), 0);
         const libraryHealth = buildJellystatLibraryHealth(topLibraries, libraryOverview, libraryMetadata, libraryTypeTotals);
+        const heatmapData = buildJellystatHeatmap(dailyViews);
 
         res.json({
             topUsers,
@@ -8389,7 +8442,9 @@ app.get('/api/jellystat/analytics', requireAuth, requireMember, async (req, res)
             maxTranscodes: toNumber(playbackCounts.transcode, 0),
             compare: null,
             libraryHealth,
-            heatmapData: buildJellystatHeatmap(dailyViews),
+            heatmapData,
+            dayOfWeekCounts: buildDayOfWeekCountsFromHeatmap(heatmapData),
+            ...leaderboardContext,
             requestedPeriodDays: requestedDays,
             cachePeriodDays: requestedDays,
             cacheFallback: false,
@@ -9184,6 +9239,15 @@ const buildPwaManifest = async (req) => {
     const profile = await getAdminProfile(config);
     const serverName = profile.serverName || 'Server Portal';
     const basePath = BASE_PATH || '';
+    const configuredLogoUrl = String(config.customLogoUrl || '').trim();
+    const iconSrc = configuredLogoUrl
+        ? (configuredLogoUrl.startsWith('http://') || configuredLogoUrl.startsWith('https://')
+            ? configuredLogoUrl
+            : withBasePath(stripBasePathFromUrl(configuredLogoUrl.startsWith('/') ? configuredLogoUrl : `/${configuredLogoUrl}`)))
+        : `${basePath}/static/logo.png`;
+    const iconType = iconSrc.toLowerCase().split('?')[0].endsWith('.webp')
+        ? 'image/webp'
+        : (iconSrc.toLowerCase().split('?')[0].endsWith('.jpg') || iconSrc.toLowerCase().split('?')[0].endsWith('.jpeg') ? 'image/jpeg' : 'image/png');
     return {
         name: `${serverName} Portal`,
         short_name: serverName.length > 12 ? 'Portal' : serverName,
@@ -9195,9 +9259,9 @@ const buildPwaManifest = async (req) => {
         theme_color: '#0b0f19',
         icons: [
             {
-                src: `${basePath}/static/logo.png`,
+                src: iconSrc,
                 sizes: 'any',
-                type: 'image/png',
+                type: iconType,
                 purpose: 'any maskable'
             }
         ]
@@ -9221,8 +9285,6 @@ const serviceWorkerScript = `self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
-
-self.addEventListener('fetch', () => {});
 `;
 
 app.get('/service-worker.js', (req, res) => {
@@ -9270,14 +9332,30 @@ const getRequestBaseUrl = (req) => {
     return `${proto}://${normalizedHost}${BASE_PATH}`;
 };
 
+const resolvePublicAssetHref = (url = '/static/logo.png') => {
+    const trimmed = String(url || '').trim() || '/static/logo.png';
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+    const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    return withBasePath(stripBasePathFromUrl(path));
+};
+
+const injectAppIconLinks = (html, iconHref) => {
+    const safeHref = escapeHtmlAttr(iconHref || resolvePublicAssetHref('/static/logo.png'));
+    const iconLinks = [
+        `<link rel="icon" href="${safeHref}" />`,
+        `<link rel="apple-touch-icon" href="${safeHref}" />`
+    ].join('\n    ');
+    return html
+        .replace(/<link\b(?=[^>]*\brel=["'][^"']*(?:apple-touch-icon|icon)[^"']*["'])[^>]*>\s*/gi, '')
+        .replace('</head>', `    ${iconLinks}\n</head>`);
+};
+
 const injectBasePathHtml = (html) => {
     const baseHref = BASE_PATH ? `${BASE_PATH}/` : '/';
     const baseTag = `<base href="${escapeHtmlAttr(baseHref)}">`;
-    const baseScript = `<script>window.__BASE_PATH__=${JSON.stringify(BASE_PATH)};</script>`;
     let updated = html.includes('<base ')
         ? html
         : html.replace(/<head([^>]*)>/i, `<head$1>\n    ${baseTag}`);
-    updated = updated.replace('</head>', `    ${baseScript}\n</head>`);
     if (BASE_PATH) {
         updated = updated
             .replace(/href="\/static\//g, `href="${BASE_PATH}/static/`)
@@ -9318,7 +9396,7 @@ const buildSocialMetaTags = async (req) => {
         `<meta name="description" content="${escapeHtmlAttr(description)}" />`
     ].join('\n    ');
 
-    return { title, tags };
+    return { title, tags, iconHref: resolvePublicAssetHref(config.customLogoUrl || '/static/logo.png') };
 };
 
 // Serve the main index.html for SPA routes (after base-path strip, paths are root-relative)
@@ -9333,9 +9411,9 @@ app.get(/^\/(?!api\/|static\/).*$/, async (req, res) => {
         const indexPath = path.join(process.cwd(), 'index.html');
         const html = await fs.readFile(indexPath, 'utf8');
         const socialMeta = await buildSocialMetaTags(req);
-        const updatedHtml = injectBasePathHtml(html
+        const updatedHtml = injectBasePathHtml(injectAppIconLinks(html
             .replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtmlAttr(socialMeta.title)}</title>`)
-            .replace('</head>', `    ${socialMeta.tags}\n</head>`));
+            .replace('</head>', `    ${socialMeta.tags}\n</head>`), socialMeta.iconHref));
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Content-Type', 'text/html; charset=utf-8');

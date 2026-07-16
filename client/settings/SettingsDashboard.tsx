@@ -142,6 +142,15 @@ const IntegrationHeading: React.FC<{ app: string; title: string; subtitle?: stri
 const JELLYFIN_BRAND_LOGO_URL = '/api/jellyfin/branding/icon';
 const JELLYFIN_BRAND_BACKGROUND_URL = '/api/jellyfin/branding/splash';
 
+const getUploadedBrandingImagePath = (file: File, assetName: 'logo' | 'background') => {
+    const name = file.name.toLowerCase();
+    const type = file.type.toLowerCase();
+    const extension = type.includes('webp') || name.endsWith('.webp')
+        ? 'webp'
+        : (type.includes('jpeg') || type.includes('jpg') || name.endsWith('.jpg') || name.endsWith('.jpeg') ? 'jpg' : 'png');
+    return `/static/${assetName}.${extension}`;
+};
+
 export const SettingsDashboard: React.FC = () => {
     const [statusDraft, setStatusDraft] = useState<any>(null);
     const [isLoading, setLoading] = useState(true);
@@ -398,17 +407,28 @@ export const SettingsDashboard: React.FC = () => {
     const [showPublicLibraryStats, setShowPublicLibraryStats] = useState(initialSettings?.showPublicLibraryStats !== false);
     const [allowTemporaryAccess, setAllowTemporaryAccess] = useState(initialSettings?.allowTemporaryAccess || false);
     const ensureMaintenanceNavOrder = useCallback((order: string[]) => {
-        const base = Array.isArray(order) ? order.filter(Boolean) : ['home', 'discover', 'status', 'analytics', 'mediastack', 'request', 'settings', 'logout'];
+        const base = Array.isArray(order) ? order.filter(Boolean) : ['home', 'discover', 'status', 'analytics', 'mediastack', 'request', 'about', 'settings', 'logout'];
         if (!base.includes('maintenance')) {
             const requestIndex = base.indexOf('request');
             if (requestIndex >= 0) base.splice(requestIndex, 0, 'maintenance');
             else base.push('maintenance');
         }
+        if (!base.includes('about')) {
+            const settingsIndex = base.indexOf('settings');
+            const logoutIndex = base.indexOf('logout');
+            if (settingsIndex >= 0) base.splice(settingsIndex, 0, 'about');
+            else if (logoutIndex >= 0) base.splice(logoutIndex, 0, 'about');
+            else base.push('about');
+        }
         return base;
     }, []);
-    const [navOrder, setNavOrder] = useState<string[]>(() => ensureMaintenanceNavOrder(['home', 'discover', 'status', 'analytics', 'mediastack', 'request', 'settings', 'logout']));
+    const [navOrder, setNavOrder] = useState<string[]>(() => ensureMaintenanceNavOrder(['home', 'discover', 'status', 'analytics', 'mediastack', 'request', 'about', 'settings', 'logout']));
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
+    const [logoPreviewUrl, setLogoPreviewUrl] = useState('');
+    const [backgroundPreviewUrl, setBackgroundPreviewUrl] = useState('');
+    const logoPreviewObjectUrlRef = useRef('');
+    const backgroundPreviewObjectUrlRef = useRef('');
     const [tasks, setTasks] = useState<any[]>([]);
     const [diagnostics, setDiagnostics] = useState<any>(null);
     const [isLoadingDiagnostics, setIsLoadingDiagnostics] = useState(false);
@@ -423,6 +443,47 @@ export const SettingsDashboard: React.FC = () => {
     const [auditLogPage, setAuditLogPage] = useState(1);
     const [deletedUsersLog, setDeletedUsersLog] = useState<any[]>([]);
     const [emailLogPage, setEmailLogPage] = useState(1);
+
+    const clearLogoPreview = useCallback(() => {
+        if (logoPreviewObjectUrlRef.current) {
+            URL.revokeObjectURL(logoPreviewObjectUrlRef.current);
+            logoPreviewObjectUrlRef.current = '';
+        }
+        setLogoPreviewUrl('');
+    }, []);
+
+    const clearBackgroundPreview = useCallback(() => {
+        if (backgroundPreviewObjectUrlRef.current) {
+            URL.revokeObjectURL(backgroundPreviewObjectUrlRef.current);
+            backgroundPreviewObjectUrlRef.current = '';
+        }
+        setBackgroundPreviewUrl('');
+    }, []);
+
+    const handleLogoFileChange = useCallback((file: File | null) => {
+        clearLogoPreview();
+        setLogoFile(file);
+        if (!file) return;
+        const objectUrl = URL.createObjectURL(file);
+        logoPreviewObjectUrlRef.current = objectUrl;
+        setLogoPreviewUrl(objectUrl);
+        setCustomLogoUrl(getUploadedBrandingImagePath(file, 'logo'));
+    }, [clearLogoPreview]);
+
+    const handleBackgroundFileChange = useCallback((file: File | null) => {
+        clearBackgroundPreview();
+        setBackgroundFile(file);
+        if (!file) return;
+        const objectUrl = URL.createObjectURL(file);
+        backgroundPreviewObjectUrlRef.current = objectUrl;
+        setBackgroundPreviewUrl(objectUrl);
+        setBackgroundImageUrl(getUploadedBrandingImagePath(file, 'background'));
+    }, [clearBackgroundPreview]);
+
+    useEffect(() => () => {
+        if (logoPreviewObjectUrlRef.current) URL.revokeObjectURL(logoPreviewObjectUrlRef.current);
+        if (backgroundPreviewObjectUrlRef.current) URL.revokeObjectURL(backgroundPreviewObjectUrlRef.current);
+    }, []);
 
     const handlePushAnnouncement = async () => {
         setIsPushingAnnouncement(true);
@@ -968,7 +1029,7 @@ export const SettingsDashboard: React.FC = () => {
             return;
         }
 
-        let savedCustomLogoUrl = logoFile ? '/static/logo.png' : customLogoUrl;
+        let savedCustomLogoUrl = logoFile ? getUploadedBrandingImagePath(logoFile, 'logo') : customLogoUrl;
         let savedBackgroundImageUrl = backgroundImageUrl;
 
         if (logoFile) {
@@ -985,6 +1046,8 @@ export const SettingsDashboard: React.FC = () => {
                 const uploadResult = await uploadResponse.json().catch(() => ({}));
                 savedCustomLogoUrl = uploadResult.logoUrl || savedCustomLogoUrl;
                 setCustomLogoUrl(savedCustomLogoUrl);
+                setLogoFile(null);
+                clearLogoPreview();
             } catch (e) {
                 addToast(e instanceof Error ? e.message : 'Failed to upload logo', 'error');
                 return;
@@ -1005,6 +1068,8 @@ export const SettingsDashboard: React.FC = () => {
                 const uploadResult = await uploadResponse.json().catch(() => ({}));
                 savedBackgroundImageUrl = uploadResult.backgroundImageUrl || savedBackgroundImageUrl;
                 setBackgroundImageUrl(savedBackgroundImageUrl);
+                setBackgroundFile(null);
+                clearBackgroundPreview();
             } catch (e) {
                 addToast(e instanceof Error ? e.message : 'Failed to upload background', 'error');
                 return;
@@ -1105,9 +1170,12 @@ export const SettingsDashboard: React.FC = () => {
         });
     };
     const applyJellyfinBranding = () => {
+        clearLogoPreview();
+        clearBackgroundPreview();
         setCustomLogoUrl(JELLYFIN_BRAND_LOGO_URL);
         setBackgroundImageUrl(JELLYFIN_BRAND_BACKGROUND_URL);
         setLogoFile(null);
+        setBackgroundFile(null);
         addToast('Jellyfin server icon and splash background applied. Save settings to publish.');
     };
 
@@ -1190,6 +1258,10 @@ export const SettingsDashboard: React.FC = () => {
             }
         });
     };
+
+    const splashPreviewLogoSrc = logoPreviewUrl || resolvePortalAssetUrl(customLogoUrl);
+    const splashPreviewBackgroundSrc = backgroundPreviewUrl || resolvePortalAssetUrl(backgroundImageUrl);
+    const splashPreviewKey = `${splashPreviewLogoSrc || 'no-logo'}|${splashPreviewBackgroundSrc || 'no-background'}`;
 
     return (
         <div className="w-full flex flex-col box-border">
@@ -2126,7 +2198,7 @@ export const SettingsDashboard: React.FC = () => {
                             <div className="flex flex-col gap-2 max-w-md">
                                 {navOrder.map((key, index) => {
                                     const labels: Record<string, string> = {
-                                        'home': 'Home', 'discover': 'Discover', 'status': 'Status', 'logs': 'Logs (Admin Only)', 'analytics': 'Analytics', 'mediastack': 'Integrations', 'maintenance': 'Cleaner (Admin Only)', 'upgrader': 'Upgrader (Admin Only)', 'requests': 'Requests (Admin Only)', 'request': 'Request Content', 'settings': 'Settings (Admin Only)', 'logout': 'Logout'
+                                        'home': 'Home', 'discover': 'Discover', 'status': 'Status', 'logs': 'Logs (Admin Only)', 'analytics': 'Analytics', 'mediastack': 'Integrations', 'maintenance': 'Cleaner (Admin Only)', 'upgrader': 'Upgrader (Admin Only)', 'requests': 'Requests (Admin Only)', 'request': 'Request Content', 'about': 'About', 'settings': 'Settings (Admin Only)', 'logout': 'Logout'
                                     };
                                     return (
                                         <div key={key} className="flex items-center justify-between py-3 border-b border-border/40">
@@ -2254,15 +2326,24 @@ export const SettingsDashboard: React.FC = () => {
                                                         Custom Logo
                                                     </SettingFieldLabel>
                                                     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_14rem] gap-3 mt-1">
-                                                        <input type="url" className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all" value={customLogoUrl} onChange={e => setCustomLogoUrl(e.target.value)} placeholder="https://example.com/logo.png" />
+                                                        <input
+                                                            type="url"
+                                                            className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all"
+                                                            value={customLogoUrl}
+                                                            onChange={e => {
+                                                                clearLogoPreview();
+                                                                setLogoFile(null);
+                                                                setCustomLogoUrl(e.target.value);
+                                                            }}
+                                                            placeholder="https://example.com/logo.png"
+                                                        />
                                                         <input
                                                             type="file"
                                                             accept="image/png,image/jpeg,image/webp"
                                                             className="w-full p-2 rounded-lg border border-border bg-background text-muted text-sm outline-none focus:border-plex transition-all file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-text hover:file:bg-white/20 file:cursor-pointer cursor-pointer"
                                                             onChange={e => {
                                                                 const file = e.target.files?.[0] || null;
-                                                                setLogoFile(file);
-                                                                if (file) setCustomLogoUrl(file.name.toLowerCase().endsWith('.webp') ? '/static/logo.webp' : '/static/logo.png');
+                                                                handleLogoFileChange(file);
                                                             }}
                                                         />
                                                     </div>
@@ -2324,7 +2405,11 @@ export const SettingsDashboard: React.FC = () => {
                                                             type="url"
                                                             className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex transition-all"
                                                             value={backgroundImageUrl}
-                                                            onChange={e => setBackgroundImageUrl(e.target.value)}
+                                                            onChange={e => {
+                                                                clearBackgroundPreview();
+                                                                setBackgroundFile(null);
+                                                                setBackgroundImageUrl(e.target.value);
+                                                            }}
                                                             placeholder="https://example.com/background.png"
                                                         />
                                                         <input
@@ -2333,10 +2418,7 @@ export const SettingsDashboard: React.FC = () => {
                                                             className="w-full p-2 rounded-lg border border-border bg-background text-muted text-sm outline-none focus:border-plex transition-all file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-text hover:file:bg-white/20 file:cursor-pointer cursor-pointer"
                                                             onChange={e => {
                                                                 const file = e.target.files?.[0] || null;
-                                                                setBackgroundFile(file);
-                                                                if (file) {
-                                                                    setBackgroundImageUrl(file.name.toLowerCase().endsWith('.webp') ? '/static/background.webp' : '/static/background.png');
-                                                                }
+                                                                handleBackgroundFileChange(file);
                                                             }}
                                                         />
                                                     </div>
@@ -2348,20 +2430,23 @@ export const SettingsDashboard: React.FC = () => {
                                                         <h4 className="font-bold text-text">Portal splash preview</h4>
                                                     </div>
                                                     <div
+                                                        key={splashPreviewKey}
                                                         className="relative min-h-[240px] flex items-center justify-center p-6 bg-card"
-                                                        style={backgroundImageUrl ? {
-                                                            backgroundImage: `linear-gradient(rgba(10,15,20,0.42), rgba(10,15,20,0.56)), url("${resolvePortalAssetUrl(backgroundImageUrl).replace(/"/g, '%22')}")`,
+                                                        style={splashPreviewBackgroundSrc ? {
+                                                            backgroundImage: `linear-gradient(rgba(10,15,20,0.42), rgba(10,15,20,0.56)), url("${splashPreviewBackgroundSrc.replace(/"/g, '%22')}")`,
                                                             backgroundRepeat: 'no-repeat',
                                                             backgroundPosition: 'center',
                                                             backgroundSize: 'cover',
                                                         } : undefined}
                                                     >
                                                         <div className="text-center w-full">
-                                                            {customLogoUrl ? (
+                                                            {splashPreviewLogoSrc ? (
                                                                 <img
-                                                                    src={resolvePortalAssetUrl(customLogoUrl)}
+                                                                    key={splashPreviewLogoSrc}
+                                                                    src={splashPreviewLogoSrc}
                                                                     alt="Server icon preview"
                                                                     className="max-w-32 max-h-28 object-contain mx-auto mb-4 drop-shadow-[0_0_24px_rgba(0,0,0,0.75)]"
+                                                                    onLoad={(e) => { e.currentTarget.style.display = ''; }}
                                                                     onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                                                 />
                                                             ) : (

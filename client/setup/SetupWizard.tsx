@@ -74,6 +74,14 @@ const APP_ICONS: Record<string, string> = {
     jellystat: 'https://cdn.jsdelivr.net/gh/selfhst/icons@main/png/jellystat.png',
 };
 
+const getUploadedLogoPath = (file: File) => {
+    const name = file.name.toLowerCase();
+    const type = file.type.toLowerCase();
+    if (type.includes('webp') || name.endsWith('.webp')) return '/static/logo.webp';
+    if (type.includes('jpeg') || type.includes('jpg') || name.endsWith('.jpg') || name.endsWith('.jpeg')) return '/static/logo.jpg';
+    return '/static/logo.png';
+};
+
 const ProgramIcon: React.FC<{ app: string; label: string }> = ({ app, label }) => (
     <span className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
         {APP_ICONS[app] ? (
@@ -396,7 +404,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                     throw new Error(errorData.error || 'Logo upload failed.');
                 }
                 const uploadResult = await uploadResponse.json().catch(() => ({}));
-                savedCustomLogoUrl = uploadResult.logoUrl || (logoFile.name.toLowerCase().endsWith('.webp') ? '/static/logo.webp' : '/static/logo.png');
+                savedCustomLogoUrl = uploadResult.logoUrl || getUploadedLogoPath(logoFile);
             }
             await apiFetch('/api/config', {
                 method: 'POST',
@@ -774,7 +782,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                                                 onChange={(e) => {
                                                     const file = e.target.files?.[0] || null;
                                                     setLogoFile(file);
-                                                    if (file) setCustomLogoUrl(file.name.toLowerCase().endsWith('.webp') ? '/static/logo.webp' : '/static/logo.png');
+                                                    if (file) setCustomLogoUrl(getUploadedLogoPath(file));
                                                 }}
                                             />
                                         </label>

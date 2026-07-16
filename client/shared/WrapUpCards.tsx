@@ -42,11 +42,15 @@ export type WrapUpCardDef = {
 const resolveCardImage = (url: string) => portalUrl(url);
 
 export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
-    const topDayStreams = analytics.dayOfWeekCounts
-        ? Math.max(...Object.values(analytics.dayOfWeekCounts) as number[])
-        : 0;
-    const rankPct = analytics.leaderboardRank && analytics.totalActiveUsers > 0
-        ? Math.max(1, Math.round((analytics.leaderboardRank / analytics.totalActiveUsers) * 100))
+    const dayCounts = Object.values(analytics?.dayOfWeekCounts || {})
+        .map((value) => Number(value) || 0)
+        .filter((value) => Number.isFinite(value));
+    const topDayStreams = dayCounts.length > 0 ? Math.max(...dayCounts) : 0;
+    const leaderboardRank = Number(analytics?.leaderboardRank);
+    const totalActiveUsers = Number(analytics?.totalActiveUsers) || 0;
+    const hasRank = Number.isFinite(leaderboardRank) && leaderboardRank > 0;
+    const rankPct = hasRank && totalActiveUsers > 0
+        ? Math.max(1, Math.round((leaderboardRank / totalActiveUsers) * 100))
         : null;
 
     return [
@@ -56,9 +60,9 @@ export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
             bgImage: FALLBACK_IMAGES.rank,
             icon: Trophy,
             valueClassName: 'text-2xl font-black leading-none',
-            value: analytics.leaderboardRank ? (
-                <><span className="text-plex text-xl mr-0.5">#</span>{analytics.leaderboardRank}</>
-            ) : 'Unranked',
+            value: hasRank ? (
+                <><span className="text-plex text-xl mr-0.5">#</span>{leaderboardRank}</>
+            ) : 'Not ranked yet',
             subValue: rankPct ? `Top ${rankPct}% of users` : undefined,
         },
         {
