@@ -8976,19 +8976,6 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                 {sidebarIdentityPosition !== 'top' && renderServerIdentity('bottom')}
 
                 <div className="mt-5 pt-5 border-t border-white/10">
-                    {!isInstalledApp && (
-                        <button
-                            type="button"
-                            onClick={handleInstallApp}
-                            className="mb-3 w-full flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-plex/40 transition-all p-3 text-left text-text"
-                        >
-                            <MonitorSmartphone className="w-5 h-5 text-plex flex-shrink-0" />
-                            <span className="min-w-0 flex-1">
-                                <span className="block text-sm font-bold truncate">Install App</span>
-                                <span className="block text-[10px] uppercase tracking-[0.2em] text-muted">Quick access</span>
-                            </span>
-                        </button>
-                    )}
                     <button
                         type="button"
                         onClick={() => setProfileOpen(true)}
