@@ -25,7 +25,7 @@ export const discoveryTheme = {
     heroBackdrop: 'absolute inset-0 rounded-2xl overflow-hidden bg-gradient-to-br from-plex/20 to-background/80',
     heroTitle: 'text-2xl sm:text-4xl font-bold text-text tracking-tight drop-shadow-md',
     drawerOverlay: 'fixed inset-0 bg-background/80 backdrop-blur-sm z-[100] transition-opacity duration-300',
-    drawerPanel: 'fixed top-0 right-0 h-full w-full max-w-[400px] bg-card border-l border-border z-[101] shadow-2xl flex flex-col transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]',
+    drawerPanel: 'fixed top-0 right-0 h-full w-full max-w-[440px] bg-card border-l border-border z-[101] shadow-2xl flex flex-col transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]',
     drawerHeader: 'flex items-center justify-between p-6 border-b border-border bg-background/20',
     drawerTitle: 'text-2xl font-black text-text tracking-tight flex items-center gap-3',
     posterEmpty: 'flex flex-col items-center justify-center py-16 px-6 rounded-2xl border border-dashed border-border bg-white/[0.02] text-center',

@@ -1,6 +1,6 @@
 import { apiFetch } from '../shared/api';
 import type { FilterState } from './FilterDrawer';
-import { appendDiscoverQuery } from './discoverUrlUtils';
+import { appendDiscoverQuery, hasAdvancedDiscoverFilters } from './discoverUrlUtils';
 import { filterDiscoverBrowseItems } from './discoverAvailability';
 import { dedupeDiscoverResults } from './discoverItemUtils';
 import type { DiscoverPagePayload } from './useDiscoverInfiniteScroll';
@@ -25,29 +25,29 @@ export const buildDiscoverNetworkApiUrl = (page: number, networkId: number | str
 
 export const buildDiscoverMoviesApiUrl = (page: number, filters: FilterState): string => {
     const sort = filters.sort || 'popularity.desc';
-    const hasSecondaryFilters = Boolean(filters.year || filters.minRating);
+    const studioOnly = Boolean(filters.studio)
+        && !hasAdvancedDiscoverFilters({ ...filters, studio: '', sort: 'popularity.desc' }, 'movie');
 
-    // Studio-only path (category page uses the same + query fallback).
-    if (filters.studio && !filters.genre && !filters.keywords && !hasSecondaryFilters) {
+    if (studioOnly) {
         return buildDiscoverStudioApiUrl(page, filters.studio, sort);
     }
 
-    // Always use the general discover endpoint with genre as a query param.
-    // The dedicated /movies/genre/:id route is less reliable with sortBy / language
-    // prefs and previously left genre chips returning empty grids.
     let url = `/api/discovery/proxy/discover/movies?page=${page}&sortBy=${encodeURIComponent(sort)}`;
     return appendDiscoverQuery(url, filters, 'movie');
 };
 
 export const buildDiscoverSeriesApiUrl = (page: number, filters: FilterState): string => {
     const sort = filters.sort || 'popularity.desc';
-    const hasSecondaryFilters = Boolean(filters.year || filters.minRating);
+    const networkOnly = Boolean(filters.network)
+        && !hasAdvancedDiscoverFilters({ ...filters, network: '', sort: 'popularity.desc' }, 'tv');
+    const keywordsOnly = Boolean(filters.keywords)
+        && !hasAdvancedDiscoverFilters({ ...filters, keywords: '', keywordName: '', sort: 'popularity.desc' }, 'tv');
 
-    if (filters.keywords && !filters.genre && !filters.network && !hasSecondaryFilters) {
+    if (keywordsOnly) {
         return `/api/discovery/proxy/discover/tv?keywords=${encodeURIComponent(filters.keywords)}&page=${page}&sortBy=${encodeURIComponent(sort)}`;
     }
 
-    if (filters.network && !filters.genre && !filters.keywords && !hasSecondaryFilters) {
+    if (networkOnly) {
         return buildDiscoverNetworkApiUrl(page, filters.network, sort);
     }
 

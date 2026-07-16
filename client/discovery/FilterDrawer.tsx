@@ -1,18 +1,55 @@
 import React, { useMemo, useState } from 'react';
-import { X, Filter, Calendar, Star } from 'lucide-react';
+import { X, Filter, Sparkles } from 'lucide-react';
 import { CustomSelect } from '../shared/ui';
 import { DISCOVER_NETWORKS, DISCOVER_STUDIOS, MOVIE_GENRES, TV_GENRES } from './discoverConstants';
+import { DISCOVER_LANGUAGE_OPTIONS, TV_STATUS_OPTIONS, US_CONTENT_RATINGS } from './discoverLanguages';
 import { discoveryTheme } from './discoveryThemeClasses';
+import { countActiveFilters } from './discoverUrlUtils';
+import {
+    AsyncTagSelect,
+    CertificationToggles,
+    ChipMultiSelect,
+    DateRangeInputs,
+    DualRangeSlider,
+    FilterField,
+    WatchProviderPicker,
+    joinCsv,
+    joinPipe,
+    optionsFromParallel,
+    splitCsv,
+    splitPipe,
+    type FilterOption,
+} from './filterControls';
+import { useDiscoveryPreferences } from './useDiscoveryPreferences';
 
 export interface FilterState {
     sort: string;
     genre: string;
+    /** @deprecated Prefer dateGte/dateLte; still parsed from old URLs. */
     year: string;
-    network: string; // Only for series
-    studio: string;  // Only for movies
+    dateGte: string;
+    dateLte: string;
+    network: string;
+    networkName: string;
+    studio: string;
+    studioName: string;
+    /** @deprecated Prefer voteAverageGte; still parsed from old URLs. */
     minRating: string;
+    voteAverageGte: string;
+    voteAverageLte: string;
+    voteCountGte: string;
+    voteCountLte: string;
     keywords: string;
     keywordName: string;
+    excludeKeywords: string;
+    excludeKeywordName: string;
+    language: string;
+    certification: string;
+    withRuntimeGte: string;
+    withRuntimeLte: string;
+    watchProviders: string;
+    watchRegion: string;
+    status: string;
 }
 
 interface FilterDrawerProps {
@@ -27,6 +64,7 @@ interface FilterDrawerProps {
 const MOVIE_SORT_OPTIONS = [
     { value: 'popularity.desc', label: 'Most Popular' },
     { value: 'vote_average.desc', label: 'Top Rated' },
+    { value: 'vote_count.desc', label: 'Most Voted' },
     { value: 'revenue.desc', label: 'Highest Revenue' },
     { value: 'primary_release_date.desc', label: 'Release Date (Newest)' },
     { value: 'primary_release_date.asc', label: 'Release Date (Oldest)' },
@@ -35,55 +73,177 @@ const MOVIE_SORT_OPTIONS = [
 const TV_SORT_OPTIONS = [
     { value: 'popularity.desc', label: 'Most Popular' },
     { value: 'vote_average.desc', label: 'Top Rated' },
+    { value: 'vote_count.desc', label: 'Most Voted' },
     { value: 'first_air_date.desc', label: 'Premiere Date (Newest)' },
     { value: 'first_air_date.asc', label: 'Premiere Date (Oldest)' },
 ];
 
-const RATING_OPTIONS = [
-    { value: '', label: 'Any Score' },
-    { value: '9', label: 'Masterpiece (9+)' },
-    { value: '8', label: 'Great (8+)' },
-    { value: '7', label: 'Good (7+)' },
-    { value: '6', label: 'Okay (6+)' },
-    { value: '5', label: 'Mediocre (5+)' },
+type FilterPreset = {
+    id: string;
+    label: string;
+    apply: (type: 'movie' | 'tv') => Partial<FilterState>;
+};
+
+const FILTER_PRESETS: FilterPreset[] = [
+    {
+        id: 'hidden-gems',
+        label: 'Hidden Gems',
+        apply: () => ({
+            sort: 'vote_average.desc',
+            voteAverageGte: '7.5',
+            voteAverageLte: '10',
+            voteCountGte: '50',
+            voteCountLte: '1500',
+            minRating: '',
+        }),
+    },
+    {
+        id: 'critically-acclaimed',
+        label: 'Critically Acclaimed',
+        apply: () => ({
+            sort: 'vote_average.desc',
+            voteAverageGte: '8',
+            voteAverageLte: '10',
+            voteCountGte: '500',
+            voteCountLte: '',
+            minRating: '',
+        }),
+    },
+    {
+        id: 'fresh',
+        label: 'Fresh Releases',
+        apply: (mediaType) => {
+            const from = new Date();
+            from.setFullYear(from.getFullYear() - 1);
+            return {
+                sort: mediaType === 'movie' ? 'primary_release_date.desc' : 'first_air_date.desc',
+                dateGte: from.toISOString().slice(0, 10),
+                dateLte: '',
+                year: '',
+            };
+        },
+    },
+    {
+        id: 'family',
+        label: 'Family Night',
+        apply: () => ({
+            certification: 'G,PG',
+            genre: '10751',
+            voteAverageGte: '6',
+            minRating: '',
+        }),
+    },
+    {
+        id: 'short',
+        label: 'Short Watch',
+        apply: () => ({
+            withRuntimeGte: '0',
+            withRuntimeLte: '100',
+        }),
+    },
+    {
+        id: 'binge',
+        label: 'Binge Ready',
+        apply: (mediaType) => (mediaType === 'tv'
+            ? { status: '0', sort: 'popularity.desc' }
+            : { sort: 'popularity.desc', voteCountGte: '200' }),
+    },
 ];
 
-const filterLabelClass = 'text-xs font-black text-muted uppercase tracking-[0.2em]';
+const toNumber = (value: string, fallback: number) => {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : fallback;
+};
 
 export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, type, filters, onApply, onClear }) => {
+    const { preferences } = useDiscoveryPreferences();
     const [localFilters, setLocalFilters] = useState<FilterState>(filters);
 
     React.useEffect(() => {
         setLocalFilters(filters);
-    }, [filters]);
+    }, [filters, isOpen]);
 
     const sortOptions = type === 'movie' ? MOVIE_SORT_OPTIONS : TV_SORT_OPTIONS;
-    const genreOptions = useMemo(() => [
-        { value: '', label: 'All Genres' },
-        ...(type === 'movie' ? MOVIE_GENRES : TV_GENRES).map((genre) => ({
+    const genreOptions = useMemo(
+        () => (type === 'movie' ? MOVIE_GENRES : TV_GENRES).map((genre) => ({
             value: String(genre.id),
             label: genre.name,
         })),
-    ], [type]);
+        [type],
+    );
 
-    const studioOptions = useMemo(() => [
-        { value: '', label: 'All Studios' },
-        ...DISCOVER_STUDIOS.map((studio) => ({ value: String(studio.id), label: studio.name })),
-    ], []);
+    const studioStatic = useMemo(
+        () => DISCOVER_STUDIOS.map((studio) => ({ id: String(studio.id), label: studio.name })),
+        [],
+    );
+    const networkStatic = useMemo(
+        () => DISCOVER_NETWORKS.map((network) => ({ id: String(network.id), label: network.name })),
+        [],
+    );
 
-    const networkOptions = useMemo(() => [
-        { value: '', label: 'All Networks' },
-        ...DISCOVER_NETWORKS.map((network) => ({ value: String(network.id), label: network.name })),
-    ], []);
+    const activeCount = countActiveFilters(localFilters, type);
+
+    const patch = (partial: Partial<FilterState>) => {
+        setLocalFilters((prev) => ({ ...prev, ...partial }));
+    };
+
+    const selectedGenres = splitCsv(localFilters.genre);
+    const keywordOptions = optionsFromParallel(localFilters.keywords, localFilters.keywordName);
+    const excludeKeywordOptions = optionsFromParallel(localFilters.excludeKeywords, localFilters.excludeKeywordName);
+    const studioOptions = localFilters.studio
+        ? [{ id: localFilters.studio, label: localFilters.studioName || localFilters.studio }]
+        : [];
+    const networkOptions = localFilters.network
+        ? [{ id: localFilters.network, label: localFilters.networkName || localFilters.network }]
+        : [];
+    const certificationSelected = splitCsv(localFilters.certification);
+    const statusSelected = splitPipe(localFilters.status);
+    const watchProviderIds = splitPipe(localFilters.watchProviders);
+
+    const runtimeMin = toNumber(localFilters.withRuntimeGte, 0);
+    const runtimeMax = toNumber(localFilters.withRuntimeLte, 400);
+    const scoreMin = toNumber(localFilters.voteAverageGte || localFilters.minRating, 1);
+    const scoreMax = toNumber(localFilters.voteAverageLte, 10);
+    const voteMin = toNumber(localFilters.voteCountGte, 0);
+    const voteMax = toNumber(localFilters.voteCountLte, 5000);
+
+    const setKeywordOptions = (options: FilterOption[], exclude = false) => {
+        if (exclude) {
+            patch({
+                excludeKeywords: joinCsv(options.map((option) => option.id)),
+                excludeKeywordName: joinCsv(options.map((option) => option.label)),
+            });
+            return;
+        }
+        patch({
+            keywords: joinCsv(options.map((option) => option.id)),
+            keywordName: joinCsv(options.map((option) => option.label)),
+        });
+    };
 
     const handleApply = () => {
-        onApply(localFilters);
+        onApply({
+            ...localFilters,
+            year: '',
+            minRating: '',
+            withRuntimeGte: runtimeMin <= 0 ? '' : String(runtimeMin),
+            withRuntimeLte: runtimeMax >= 400 ? '' : String(runtimeMax),
+            voteAverageGte: scoreMin <= 1 ? '' : String(scoreMin),
+            voteAverageLte: scoreMax >= 10 ? '' : String(scoreMax),
+            voteCountGte: voteMin <= 0 ? '' : String(voteMin),
+            voteCountLte: voteMax >= 5000 ? '' : String(voteMax),
+        });
         onClose();
     };
 
     const handleClear = () => {
         onClear();
         onClose();
+    };
+
+    const applyPreset = (preset: FilterPreset) => {
+        const next = preset.apply(type);
+        setLocalFilters((prev) => ({ ...prev, ...next }));
     };
 
     return (
@@ -93,13 +253,16 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                 onClick={onClose}
             />
 
-            <div
-                className={`${discoveryTheme.drawerPanel} ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
-            >
+            <div className={`${discoveryTheme.drawerPanel} ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
                 <div className={discoveryTheme.drawerHeader}>
-                    <h2 className={discoveryTheme.drawerTitle}>
-                        <Filter className="w-6 h-6 text-plex" /> Filters
-                    </h2>
+                    <div>
+                        <h2 className={discoveryTheme.drawerTitle}>
+                            <Filter className="w-6 h-6 text-plex" /> Filters
+                        </h2>
+                        <p className="text-xs text-muted mt-1 font-medium">
+                            {activeCount} Active Filter{activeCount === 1 ? '' : 's'}
+                        </p>
+                    </div>
                     <button
                         type="button"
                         onClick={onClose}
@@ -109,74 +272,184 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-8">
-                    <div className="flex flex-col gap-3">
-                        <label className={filterLabelClass}>Sort By</label>
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-7">
+                    <FilterField label="Quick Presets" hint="One tap setups">
+                        <div className="flex flex-wrap gap-2">
+                            {FILTER_PRESETS.map((preset) => (
+                                <button
+                                    key={preset.id}
+                                    type="button"
+                                    onClick={() => applyPreset(preset)}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border border-border bg-white/5 text-muted hover:text-text hover:border-plex/50 transition-colors"
+                                >
+                                    <Sparkles className="w-3 h-3 text-plex" />
+                                    {preset.label}
+                                </button>
+                            ))}
+                        </div>
+                    </FilterField>
+
+                    <FilterField label="Sort By">
                         <CustomSelect
                             value={localFilters.sort}
-                            onChange={(sort) => setLocalFilters({ ...localFilters, sort })}
+                            onChange={(sort) => patch({ sort })}
                             options={sortOptions}
                             className="w-full"
                         />
-                    </div>
+                    </FilterField>
 
-                    <div className="flex flex-col gap-3">
-                        <label className={`${filterLabelClass} flex items-center gap-2`}>
-                            <Star className="w-4 h-4 text-plex" /> Minimum User Score
-                        </label>
-                        <CustomSelect
-                            value={localFilters.minRating}
-                            onChange={(minRating) => setLocalFilters({ ...localFilters, minRating })}
-                            options={RATING_OPTIONS}
-                            className="w-full"
+                    <FilterField label={type === 'movie' ? 'Release Date' : 'First Air Date'}>
+                        <DateRangeInputs
+                            from={localFilters.dateGte}
+                            to={localFilters.dateLte}
+                            onFromChange={(dateGte) => patch({ dateGte, year: '' })}
+                            onToChange={(dateLte) => patch({ dateLte, year: '' })}
                         />
-                    </div>
+                    </FilterField>
 
-                    <div className="flex flex-col gap-3">
-                        <label className={filterLabelClass}>Genre</label>
-                        <CustomSelect
-                            value={localFilters.genre}
-                            onChange={(genre) => setLocalFilters({ ...localFilters, genre })}
-                            options={genreOptions}
-                            className="w-full"
-                        />
-                    </div>
-
-                    {type === 'tv' ? (
-                        <div className="flex flex-col gap-3">
-                            <label className={filterLabelClass}>Network</label>
-                            <CustomSelect
-                                value={localFilters.network}
-                                onChange={(network) => setLocalFilters({ ...localFilters, network })}
-                                options={networkOptions}
-                                className="w-full"
+                    {type === 'movie' ? (
+                        <FilterField label="Studio">
+                            <AsyncTagSelect
+                                mode="company"
+                                values={studioOptions}
+                                staticOptions={studioStatic}
+                                placeholder="Search studios..."
+                                onChange={(options) => {
+                                    const next = options.slice(-1);
+                                    patch({
+                                        studio: next[0]?.id || '',
+                                        studioName: next[0]?.label || '',
+                                    });
+                                }}
                             />
-                        </div>
+                        </FilterField>
                     ) : (
-                        <div className="flex flex-col gap-3">
-                            <label className={filterLabelClass}>Studio</label>
-                            <CustomSelect
-                                value={localFilters.studio}
-                                onChange={(studio) => setLocalFilters({ ...localFilters, studio })}
-                                options={studioOptions}
-                                className="w-full"
+                        <FilterField label="Network">
+                            <AsyncTagSelect
+                                mode="company"
+                                values={networkOptions}
+                                staticOptions={networkStatic}
+                                placeholder="Search networks..."
+                                onChange={(options) => {
+                                    const next = options.slice(-1);
+                                    patch({
+                                        network: next[0]?.id || '',
+                                        networkName: next[0]?.label || '',
+                                    });
+                                }}
                             />
-                        </div>
+                        </FilterField>
                     )}
 
-                    <div className="flex flex-col gap-3">
-                        <label className={filterLabelClass}>Release Year</label>
-                        <div className="relative">
-                            <Calendar className="w-5 h-5 text-muted/60 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                            <input
-                                type="number"
-                                placeholder="e.g. 2024"
-                                value={localFilters.year}
-                                onChange={(e) => setLocalFilters({ ...localFilters, year: e.target.value })}
-                                className="w-full bg-background/60 border border-border focus:border-plex rounded-xl p-4 pl-12 text-text font-medium outline-none transition-colors shadow-inner"
+                    <FilterField label="Genres">
+                        <ChipMultiSelect
+                            options={genreOptions}
+                            selected={selectedGenres}
+                            onChange={(values) => patch({ genre: joinCsv(values) })}
+                        />
+                    </FilterField>
+
+                    {type === 'tv' && (
+                        <FilterField label="Status">
+                            <ChipMultiSelect
+                                options={TV_STATUS_OPTIONS}
+                                selected={statusSelected}
+                                onChange={(values) => patch({ status: joinPipe(values) })}
                             />
-                        </div>
-                    </div>
+                        </FilterField>
+                    )}
+
+                    <FilterField label="Keywords">
+                        <AsyncTagSelect
+                            mode="keyword"
+                            values={keywordOptions}
+                            placeholder="Search keywords..."
+                            onChange={(options) => setKeywordOptions(options)}
+                        />
+                    </FilterField>
+
+                    <FilterField label="Exclude Keywords">
+                        <AsyncTagSelect
+                            mode="keyword"
+                            values={excludeKeywordOptions}
+                            placeholder="Search keywords to exclude..."
+                            onChange={(options) => setKeywordOptions(options, true)}
+                        />
+                    </FilterField>
+
+                    <FilterField label="Original Language">
+                        <CustomSelect
+                            value={localFilters.language}
+                            onChange={(language) => patch({ language })}
+                            options={DISCOVER_LANGUAGE_OPTIONS}
+                            className="w-full"
+                        />
+                    </FilterField>
+
+                    <FilterField label="Content Rating" hint="US">
+                        <CertificationToggles
+                            ratings={US_CONTENT_RATINGS}
+                            selected={certificationSelected}
+                            onChange={(values) => patch({ certification: joinCsv(values) })}
+                        />
+                    </FilterField>
+
+                    <FilterField label="Runtime">
+                        <DualRangeSlider
+                            min={0}
+                            max={400}
+                            step={5}
+                            valueMin={runtimeMin}
+                            valueMax={runtimeMax}
+                            onChange={(minValue, maxValue) => patch({
+                                withRuntimeGte: String(minValue),
+                                withRuntimeLte: String(maxValue),
+                            })}
+                            formatValue={(value) => `${value} min`}
+                        />
+                    </FilterField>
+
+                    <FilterField label="TMDB User Score">
+                        <DualRangeSlider
+                            min={1}
+                            max={10}
+                            step={0.5}
+                            valueMin={scoreMin}
+                            valueMax={scoreMax}
+                            onChange={(minValue, maxValue) => patch({
+                                voteAverageGte: String(minValue),
+                                voteAverageLte: String(maxValue),
+                                minRating: '',
+                            })}
+                        />
+                    </FilterField>
+
+                    <FilterField label="TMDB Vote Count">
+                        <DualRangeSlider
+                            min={0}
+                            max={5000}
+                            step={50}
+                            valueMin={voteMin}
+                            valueMax={voteMax}
+                            onChange={(minValue, maxValue) => patch({
+                                voteCountGte: String(minValue),
+                                voteCountLte: String(maxValue),
+                            })}
+                            formatValue={(value) => `${value} votes`}
+                        />
+                    </FilterField>
+
+                    <FilterField label="Streaming Services">
+                        <WatchProviderPicker
+                            type={type}
+                            region={localFilters.watchRegion || preferences.discoverRegion || 'US'}
+                            selectedIds={watchProviderIds}
+                            onChange={(watchRegion, providerIds) => patch({
+                                watchRegion,
+                                watchProviders: joinPipe(providerIds),
+                            })}
+                        />
+                    </FilterField>
                 </div>
 
                 <div className="p-6 border-t border-border bg-background/20 flex gap-4">

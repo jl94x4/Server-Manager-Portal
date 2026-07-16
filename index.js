@@ -984,6 +984,37 @@ const findLocalUserForSession = (users, sessionUser) => {
     }) || null;
 };
 
+/** Record portal last-login using the same identity matching as membership checks. */
+const touchUserLastLogin = (users, sessionUser, at = new Date().toISOString()) => {
+    const existingUser = findLocalUserForSession(users, sessionUser);
+    if (!existingUser) return null;
+    existingUser.lastLogin = at;
+    if (!existingUser.plexId && sessionUser.plexId) existingUser.plexId = sessionUser.plexId;
+    if (!existingUser.jellyfinId && sessionUser.jellyfinId) existingUser.jellyfinId = sessionUser.jellyfinId;
+    return existingUser;
+};
+
+/** Recover missing lastLogin values from successful portal login audit events. */
+const backfillLastLoginFromAudit = async (users) => {
+    if (!Array.isArray(users) || !users.length) return { users, changed: false };
+    const missing = users.filter((user) => !user.lastLogin);
+    if (!missing.length) return { users, changed: false };
+
+    const auditLog = await loadFile(AUDIT_LOG_PATH, []);
+    const loginEvents = auditLog.filter((entry) => entry?.event === 'user_login' && entry.actor);
+    if (!loginEvents.length) return { users, changed: false };
+
+    let changed = false;
+    for (const user of missing) {
+        const match = loginEvents.find((entry) => findLocalUserForSession([user], entry.actor));
+        if (!match?.timestamp) continue;
+        user.lastLogin = match.timestamp;
+        if (!user.plexId && match.actor?.plexId) user.plexId = match.actor.plexId;
+        changed = true;
+    }
+    return { users, changed };
+};
+
 const getSessionActor = (sessionUser) => (
     sessionUser?.actor && sessionUser?.impersonatingUserId ? sessionUser.actor : sessionUser
 );
@@ -1216,13 +1247,22 @@ const syncUsers = async (config) => {
                 appendAuditLog('invite_accepted_synced', null, { ...existingUser, id: pUser.id, username: pUser.username, email: pUser.email }).catch(() => { });
             }
             // Update existing user with latest info from Plex, but keep local expiry/trial data.
-            return { ...existingUser, id: pUser.id, username: pUser.username, email: pUser.email, thumb: pUser.thumb, plexAccessStatus: 'active' };
+            return {
+                ...existingUser,
+                id: pUser.id,
+                plexId: existingUser.plexId || pUser.id,
+                username: pUser.username,
+                email: pUser.email,
+                thumb: pUser.thumb,
+                plexAccessStatus: 'active',
+            };
         }
         log(`New user found: ${pUser.username}. Setting default unlimited expiry.`);
         newUserCount++;
         appendAuditLog('plex_sync_new_user_added', null, pUser).catch(() => { });
         return {
             id: pUser.id,
+            plexId: pUser.id,
             username: pUser.username,
             email: pUser.email,
             thumb: pUser.thumb,
@@ -1848,9 +1888,7 @@ const completeJellyfinPortalLogin = async (req, res, config, authData, source = 
         return res.status(403).json({ error: 'Your account is not registered for this portal.' });
     }
 
-    if (!isAdmin && knownUser) {
-        knownUser.lastLogin = new Date().toISOString();
-        if (!knownUser.jellyfinId && sessionUser.jellyfinId) knownUser.jellyfinId = sessionUser.jellyfinId;
+    if (!isAdmin && touchUserLastLogin(users, sessionUser)) {
         await saveFile(USERS_PATH, users);
     }
 
@@ -2107,9 +2145,7 @@ const handlePlexPinLogin = async (req, res, pinId, ref, { redirectOnSuccess = fa
 
     if (!isAdmin) {
         const users = await loadFile(USERS_PATH, []);
-        const existingUser = users.find(u => u.id === sessionUser.id || u.plexId === sessionUser.plexId);
-        if (existingUser) {
-            existingUser.lastLogin = new Date().toISOString();
+        if (touchUserLastLogin(users, sessionUser)) {
             await saveFile(USERS_PATH, users);
         }
     }
@@ -6028,7 +6064,11 @@ app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
 // User data endpoints
 app.get('/api/users', requireAdmin, async (req, res) => {
     const users = await loadFile(USERS_PATH, []);
-    res.json(users);
+    const { users: withLastLogin, changed } = await backfillLastLoginFromAudit(users);
+    if (changed) {
+        await saveFile(USERS_PATH, withLastLogin);
+    }
+    res.json(withLastLogin);
 });
 
 app.get('/api/deleted-users', requireAdmin, async (req, res) => {

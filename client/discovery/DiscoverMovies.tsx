@@ -83,12 +83,27 @@ export const DiscoverMovies: React.FC<{
         navigate(buildMovieFilterPath(newFilters));
     };
 
-    const studioLabel = filters.studio ? findStudio(Number(filters.studio))?.name : null;
+    const studioLabel = filters.studio
+        ? (filters.studioName || findStudio(Number(filters.studio))?.name || null)
+        : null;
     const genreLabel = filters.genre
-        ? MOVIE_GENRES.find((genre) => String(genre.id) === filters.genre)?.name
+        ? filters.genre
+            .split(',')
+            .map((id) => MOVIE_GENRES.find((genre) => String(genre.id) === id.trim())?.name)
+            .filter(Boolean)
+            .join(', ')
         : null;
     const keywordLabel = filters.keywordName || null;
     const activeFilterCount = countActiveFilters(filters, 'movie');
+    const filterSummary = [
+        studioLabel ? `Studio: ${studioLabel}` : null,
+        genreLabel ? `Genre: ${genreLabel}` : null,
+        keywordLabel ? `Keyword: ${keywordLabel}` : null,
+        filters.excludeKeywordName ? `Excluding: ${filters.excludeKeywordName}` : null,
+        filters.language ? `Language: ${filters.language.toUpperCase()}` : null,
+        filters.certification ? `Rated: ${filters.certification}` : null,
+        filters.watchProviders ? 'Streaming filtered' : null,
+    ].filter(Boolean).join(' · ');
     const skeletonCount = discoverSkeletonCountForGrid(
         gridSize,
         containerRef.current?.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 1200),
@@ -102,14 +117,8 @@ export const DiscoverMovies: React.FC<{
                         <h2 className={`${discoveryTheme.heading} flex items-center gap-2`}>
                             <Film className="w-6 h-6 text-plex" /> Movies
                         </h2>
-                        {studioLabel && (
-                            <p className="text-sm text-muted mt-1">Studio: {studioLabel}</p>
-                        )}
-                        {genreLabel && !studioLabel && (
-                            <p className="text-sm text-muted mt-1">Genre: {genreLabel}</p>
-                        )}
-                        {keywordLabel && (
-                            <p className="text-sm text-muted mt-1">Keyword: {keywordLabel}</p>
+                        {filterSummary && (
+                            <p className="text-sm text-muted mt-1 line-clamp-2">{filterSummary}</p>
                         )}
                     </div>
                     <div className="flex items-center gap-3 flex-wrap justify-end">
