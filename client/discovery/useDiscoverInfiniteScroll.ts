@@ -16,6 +16,9 @@ type Options = {
     fetchPage: (page: number) => Promise<DiscoverPagePayload>;
 };
 
+/** Cap how far the first paint scans when hide filters empty early pages. */
+const MAX_INITIAL_SCAN_PAGES = 80;
+
 export function useDiscoverInfiniteScroll({
     resetKey,
     gridSize,
@@ -53,7 +56,11 @@ export function useDiscoverInfiniteScroll({
 
             try {
                 let pageNumber = 1;
-                while (merged.length < targetItemCount && pageNumber <= maxTotalPages) {
+                while (
+                    merged.length < targetItemCount
+                    && pageNumber <= maxTotalPages
+                    && lastPage < MAX_INITIAL_SCAN_PAGES
+                ) {
                     if (cancelled) return;
                     const payload = await fetchPage(pageNumber);
                     maxTotalPages = Math.max(1, Number(payload.totalPages) || 1);
@@ -71,6 +78,12 @@ export function useDiscoverInfiniteScroll({
                 }
             } catch (e) {
                 console.error(e);
+                if (!cancelled) {
+                    setResults([]);
+                    // Prevent stuck "Loading more…" when the first fetch fails
+                    setLoadedPage(1);
+                    setTotalPages(1);
+                }
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -98,6 +111,8 @@ export function useDiscoverInfiniteScroll({
             setTotalPages(Math.max(1, Number(payload.totalPages) || totalPages));
         } catch (e) {
             console.error(e);
+            // Stop the sentinel loop on repeated failures
+            setLoadedPage(totalPages);
         } finally {
             fetchingRef.current = false;
             setLoadingMore(false);

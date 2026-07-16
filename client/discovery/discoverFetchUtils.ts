@@ -5,7 +5,8 @@ import { filterDiscoverBrowseItems } from './discoverAvailability';
 import { dedupeDiscoverResults } from './discoverItemUtils';
 import type { DiscoverPagePayload } from './useDiscoverInfiniteScroll';
 
-const MAX_BACKFILL_PAGES = 15;
+/** Pages to scan per backfill window when hide-available / hide-requested empties results. */
+const MAX_BACKFILL_PAGES = 25;
 
 type DiscoverBrowseFilterOptions = {
     hideAvailable?: boolean;
@@ -26,14 +27,14 @@ export const buildDiscoverMoviesApiUrl = (page: number, filters: FilterState): s
     const sort = filters.sort || 'popularity.desc';
     const hasSecondaryFilters = Boolean(filters.year || filters.minRating);
 
+    // Studio-only path (category page uses the same + query fallback).
     if (filters.studio && !filters.genre && !filters.keywords && !hasSecondaryFilters) {
         return buildDiscoverStudioApiUrl(page, filters.studio, sort);
     }
 
-    if (filters.genre && !filters.studio && !filters.keywords && !hasSecondaryFilters) {
-        return `/api/discovery/proxy/discover/movies/genre/${filters.genre}?page=${page}&sortBy=${encodeURIComponent(sort)}`;
-    }
-
+    // Always use the general discover endpoint with genre as a query param.
+    // The dedicated /movies/genre/:id route is less reliable with sortBy / language
+    // prefs and previously left genre chips returning empty grids.
     let url = `/api/discovery/proxy/discover/movies?page=${page}&sortBy=${encodeURIComponent(sort)}`;
     return appendDiscoverQuery(url, filters, 'movie');
 };
@@ -48,10 +49,6 @@ export const buildDiscoverSeriesApiUrl = (page: number, filters: FilterState): s
 
     if (filters.network && !filters.genre && !filters.keywords && !hasSecondaryFilters) {
         return buildDiscoverNetworkApiUrl(page, filters.network, sort);
-    }
-
-    if (filters.genre && !filters.network && !filters.keywords && !hasSecondaryFilters) {
-        return `/api/discovery/proxy/discover/tv/genre/${filters.genre}?page=${page}&sortBy=${encodeURIComponent(sort)}`;
     }
 
     let url = `/api/discovery/proxy/discover/tv?page=${page}&sortBy=${encodeURIComponent(sort)}`;
@@ -128,10 +125,12 @@ export async function fetchDiscoverPageWithBackfill(
         currentPage += 1;
     }
 
+    // Keep the real totalPages when this window is empty so infinite scroll can
+    // continue past popular titles that are already available/requested.
     const lastFetchedPage = Math.max(page, currentPage - 1);
     return {
         results: merged,
-        totalPages: merged.length > 0 ? totalPages : lastFetchedPage,
+        totalPages,
         lastFetchedPage,
     };
 }
