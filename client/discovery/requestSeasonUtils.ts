@@ -28,6 +28,37 @@ export type SeasonStatusInfo = {
     requestable: boolean;
 };
 
+/** True when a Seerr downloadStatus row is an active Radarr/Sonarr queue transfer. */
+export const isActiveSeerrDownloadItem = (item: any): boolean => {
+    if (!item || typeof item !== 'object') return false;
+
+    const sizeLeft = Number(item.sizeLeft ?? item.sizeleft);
+    if (Number.isFinite(sizeLeft) && sizeLeft > 0) return true;
+
+    const statusRaw = item.status;
+    // Ignore mistaken numeric media-status values on download rows (e.g. 5 = available).
+    if (
+        typeof statusRaw === 'number'
+        || (typeof statusRaw === 'string' && /^\d+$/.test(String(statusRaw).trim()))
+    ) {
+        return false;
+    }
+
+    const status = String(statusRaw || '').toLowerCase().trim();
+    if (!status) return false;
+    if (status === 'completed' || status === 'failed') return false;
+    return (
+        status === 'downloading'
+        || status === 'queued'
+        || status === 'paused'
+        || status === 'delay'
+        || status === 'warning'
+        || status === 'downloadclientunavailable'
+        || status === 'fallback'
+        || status === 'unknown'
+    );
+};
+
 /** True when Seerr's download tracker reports active Radarr/Sonarr queue items. */
 export const hasActiveSeerrDownloads = (
     mediaInfo: any,
@@ -42,12 +73,7 @@ export const hasActiveSeerrDownloads = (
     else if (opts?.is4k === false) queues = hd;
     else queues = [...hd, ...fourK];
 
-    // Some Seerr payloads keep "downloadStatus" entries around even after the item
-    // is effectively available. Treat `status:5` as completed/available, not active.
-    const activeQueues = queues.filter((item) => {
-        const s = Number(item?.status);
-        return !(Number.isFinite(s) && s === 5);
-    });
+    const activeQueues = queues.filter((item) => isActiveSeerrDownloadItem(item));
 
     if (typeof opts?.seasonNumber === 'number' && Number.isFinite(opts.seasonNumber)) {
         return activeQueues.some((item) => Number(item?.episode?.seasonNumber) === opts.seasonNumber);
