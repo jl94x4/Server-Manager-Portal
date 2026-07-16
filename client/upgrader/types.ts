@@ -58,6 +58,12 @@ export type UpgraderItem = {
     totalEpisodeCount?: number;
     nonHevcEpisodeCount?: number;
     nonHevcEpisodeSizeGB?: number;
+    onDiskFileCount?: number;
+    knownCodecFileCount?: number;
+    unknownCodecCount?: number;
+    codecCounts?: Record<string, number>;
+    codecSizesGB?: Record<string, number>;
+    resCounts?: Record<string, number>;
     zeroSizeCount?: number;
     plexUrl: string | null;
     arrMapped: boolean;

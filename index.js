@@ -11021,6 +11021,29 @@ const isMediaQualityIndexEnabled = (config) => isMaintenanceExperimentalEnabled(
 
 const isHevcVideoCodec = (codec = '') => /hevc|h265|x265/.test(String(codec || '').toLowerCase());
 
+/** Collapse Sonarr/Radarr codec aliases (x264≡h264, x265≡hevc, etc.) into stable family keys. */
+const normalizeArrVideoCodecKey = (codec = '') => {
+    const c = String(codec || '').toLowerCase().trim();
+    if (!c) return '';
+    if (/\bav1\b|av01/.test(c)) return 'av1';
+    if (/hevc|h\.?265|x265|hev1/.test(c)) return 'hevc';
+    if (/h\.?264|x264|\bavc\b|avc1/.test(c)) return 'h264';
+    if (/vp9|vp09/.test(c)) return 'vp9';
+    if (/mpeg-?2|mp2v/.test(c)) return 'mpeg2';
+    if (/mpeg-?4|xvid|divx/.test(c)) return 'mpeg4';
+    return c;
+};
+
+const mergeUpgraderCodecMaps = (codecMap = {}) => {
+    const merged = {};
+    Object.entries(codecMap || {}).forEach(([raw, value]) => {
+        const key = normalizeArrVideoCodecKey(raw);
+        if (!key) return;
+        merged[key] = (merged[key] || 0) + Number(value || 0);
+    });
+    return merged;
+};
+
 const buildPlexWebDetailUrl = (config, ratingKey) => {
     if (!config?.serverIdentifier || !ratingKey) return null;
     return `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent(`/library/metadata/${ratingKey}`)}`;
@@ -11332,10 +11355,10 @@ const fetchJellyfinShowEpisodes = async (config, showItem = {}) => {
 const getUpgraderCodecFamily = (item = {}) => {
     const tags = item.displayTags || [];
     const codec = String(item.videoCodec || '').toLowerCase();
-    if (tags.includes('AV1') || /\bav1\b|av01/.test(codec)) return 'av1';
-    if (item.isHevc || tags.includes('HEVC') || /hevc|h265|x265/.test(codec)) return 'hevc';
-    if (tags.includes('H.264') || /h264|x264|avc/.test(codec)) return 'h264';
-    if (/vp9|vp09/.test(codec)) return 'vp9';
+    if (tags.includes('AV1') || normalizeArrVideoCodecKey(codec) === 'av1') return 'av1';
+    if (item.isHevc || tags.includes('HEVC') || normalizeArrVideoCodecKey(codec) === 'hevc') return 'hevc';
+    if (tags.includes('H.264') || normalizeArrVideoCodecKey(codec) === 'h264') return 'h264';
+    if (normalizeArrVideoCodecKey(codec) === 'vp9') return 'vp9';
     return 'other';
 };
 
@@ -11446,6 +11469,90 @@ const parseUpgraderItemKey = (rawKey = '') => {
 
 const analyzeSonarrEpisodeFile = (file = null) => mapSonarrFileToEpisodeQuality(file);
 
+const sonarrEpisodeFileHasVideoCodec = (file = null) => {
+    const mediaInfo = file?.mediaInfo || {};
+    return !!(mediaInfo.videoCodec || mediaInfo.videoFormat);
+};
+
+const parseSeasonEpisodeFromSonarrFile = (file = null) => {
+    if (!file) return null;
+    if (file.seasonNumber != null && (file.episodeNumber != null || file.episodeNumbers?.[0] != null)) {
+        return {
+            season: Number(file.seasonNumber),
+            episode: Number(file.episodeNumber ?? file.episodeNumbers[0]),
+        };
+    }
+    const path = String(file.relativePath || file.path || '');
+    const match = path.match(/[Ss](\d+)[Ee](\d+)/);
+    if (!match) return null;
+    return { season: Number(match[1]), episode: Number(match[2]) };
+};
+
+const buildPlexEpisodeCodecLookup = (plexEpisodes = []) => {
+    const map = new Map();
+    (Array.isArray(plexEpisodes) ? plexEpisodes : []).forEach((ep) => {
+        if (ep?.seasonNumber == null || ep?.episodeNumber == null) return;
+        const codec = normalizeArrVideoCodecKey(ep.videoCodec);
+        if (!codec) return;
+        map.set(`${ep.seasonNumber}-${ep.episodeNumber}`, {
+            videoCodec: codec,
+            videoResolution: String(ep.videoResolution || '').toLowerCase(),
+            displayTags: Array.isArray(ep.displayTags) ? ep.displayTags : [],
+            isHevc: !!ep.isHevc,
+            hasHdr: !!ep.hasHdr,
+            hasDolbyVision: !!ep.hasDolbyVision,
+        });
+    });
+    return map;
+};
+
+/** When Sonarr mediaInfo is empty, fill codec fields from a matched Plex episode (same SxxExx). */
+const applyPlexCodecFallbackToSonarrFile = (file, plexCodecLookup) => {
+    if (!file || sonarrEpisodeFileHasVideoCodec(file) || !plexCodecLookup?.size) return file;
+    const se = parseSeasonEpisodeFromSonarrFile(file);
+    if (!se) return file;
+    const plex = plexCodecLookup.get(`${se.season}-${se.episode}`);
+    if (!plex?.videoCodec) return file;
+    const heightHint = plex.videoResolution === '4k' || plex.videoResolution === '2160'
+        ? 2160
+        : plex.videoResolution.includes('1080')
+            ? 1080
+            : plex.videoResolution.includes('720')
+                ? 720
+                : 0;
+    return {
+        ...file,
+        mediaInfo: {
+            ...(file.mediaInfo || {}),
+            videoCodec: plex.videoCodec,
+            ...(heightHint ? { height: heightHint } : {}),
+        },
+        _codecSource: 'plex',
+    };
+};
+
+const enrichSonarrFilesWithPlexCodecFallback = async (config, seriesFiles = [], posterMeta = {}, plexLookup = null) => {
+    const files = Array.isArray(seriesFiles) ? seriesFiles : [];
+    if (!files.length || !files.some((file) => !sonarrEpisodeFileHasVideoCodec(file))) return files;
+    if (!isPlexConfigured(config) || !plexLookup) return files;
+
+    const plexItem = findPlexPosterItem(plexLookup, posterMeta);
+    if (!plexItem?.ratingKey) return files;
+
+    const uri = await getPlexConnectionUri(config).catch(() => config.plexUrl || null);
+    if (!uri) return files;
+
+    const plexEpisodes = await fetchPlexShowEpisodes(config, uri, {
+        ratingKey: plexItem.ratingKey,
+        title: posterMeta.title || plexItem.title,
+    }).catch(() => []);
+    if (!plexEpisodes.length) return files;
+
+    const codecLookup = buildPlexEpisodeCodecLookup(plexEpisodes);
+    if (!codecLookup.size) return files;
+    return files.map((file) => applyPlexCodecFallbackToSonarrFile(file, codecLookup));
+};
+
 const aggregateSonarrSeriesFileStats = (files = []) => {
     if (!files.length) {
         return {
@@ -11466,23 +11573,28 @@ const aggregateSonarrSeriesFileStats = (files = []) => {
     let nonHevcSizeGB = 0;
     let totalSizeGB = 0;
     let displayFileStats = null;
+    let unknownCodecCount = 0;
     const codecCounts = {};
     const codecSizesGB = {};
     const resCounts = {};
     files.forEach((file) => {
         const stats = analyzeSonarrEpisodeFile(file);
         totalSizeGB += stats.sizeGB;
-        if (!stats.isHevc) {
-            nonHevcCount += 1;
-            nonHevcSizeGB += stats.sizeGB;
-        }
         if (!displayFileStats || stats.sizeGB > displayFileStats.sizeGB) {
             displayFileStats = stats;
         }
-        // Tally codec and resolution occurrences
-        if (stats.videoCodec) {
-            codecCounts[stats.videoCodec] = (codecCounts[stats.videoCodec] || 0) + 1;
-            codecSizesGB[stats.videoCodec] = (codecSizesGB[stats.videoCodec] || 0) + stats.sizeGB;
+        // Tally codec and resolution occurrences (family-normalized: x264≡h264, x265≡hevc)
+        const codecKey = normalizeArrVideoCodecKey(stats.videoCodec);
+        if (codecKey) {
+            codecCounts[codecKey] = (codecCounts[codecKey] || 0) + 1;
+            codecSizesGB[codecKey] = (codecSizesGB[codecKey] || 0) + stats.sizeGB;
+            // Only score HEVC/non-HEVC when Sonarr actually provided mediaInfo
+            if (!stats.isHevc) {
+                nonHevcCount += 1;
+                nonHevcSizeGB += stats.sizeGB;
+            }
+        } else {
+            unknownCodecCount += 1;
         }
         if (stats.videoResolution) resCounts[stats.videoResolution] = (resCounts[stats.videoResolution] || 0) + 1;
     });
@@ -11499,15 +11611,19 @@ const aggregateSonarrSeriesFileStats = (files = []) => {
             hasHdr: false,
             hasDolbyVision: false,
             is4k: false,
+            unknownCodecCount: 0,
         };
     }
     // Use the most common codec and resolution, not just the largest file's
-    const dominantCodec = Object.entries(codecCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || displayFileStats.videoCodec || '';
+    const dominantCodec = Object.entries(codecCounts).sort((a, b) => b[1] - a[1])[0]?.[0]
+        || normalizeArrVideoCodecKey(displayFileStats.videoCodec)
+        || '';
     const dominantRes = Object.entries(resCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || displayFileStats.videoResolution || '';
     // Round codecSizesGB
     Object.keys(codecSizesGB).forEach(k => {
         codecSizesGB[k] = Math.round(codecSizesGB[k] * 100) / 100;
     });
+    const knownCodecFiles = Object.values(codecCounts).reduce((sum, n) => sum + Number(n || 0), 0);
 
     return {
         totalFiles: files.length,
@@ -11520,11 +11636,13 @@ const aggregateSonarrSeriesFileStats = (files = []) => {
         codecSizesGB,
         resCounts,
         displayTags: displayFileStats.displayTags || [],
-        isHevc: nonHevcCount === 0,
+        // All *known* codecs are HEVC (ignore files missing mediaInfo)
+        isHevc: knownCodecFiles > 0 && nonHevcCount === 0,
         hasHdr: !!displayFileStats.hasHdr,
         hasDolbyVision: !!displayFileStats.hasDolbyVision,
         is4k: (displayFileStats.displayTags || []).includes('4K'),
         zeroSizeCount: Object.values(codecSizesGB).reduce((a, b) => a + b, 0) === 0 ? files.length : files.filter(f => !f.size || f.size === 0).length,
+        unknownCodecCount,
     };
 };
 
@@ -11544,7 +11662,7 @@ const analyzeRadarrMovieFile = (movie = null) => {
         };
     }
     const mediaInfo = file.mediaInfo || {};
-    const codec = String(mediaInfo.videoCodec || mediaInfo.videoFormat || '').toLowerCase();
+    const codec = normalizeArrVideoCodecKey(mediaInfo.videoCodec || mediaInfo.videoFormat || '');
     const width = Number(mediaInfo.width || 0);
     const height = Number(mediaInfo.height || 0);
     const qualityLabel = file?.quality?.quality?.name || null;
@@ -11673,6 +11791,7 @@ const mapSonarrSeriesToUpgraderItem = (series, instance, fileStats = {}, episode
         nonHevcEpisodeSizeGB: Number(fileStats.nonHevcSizeGB || 0),
         zeroSizeCount: Number(fileStats.zeroSizeCount || 0),
         onDiskFileCount: Number(fileStats.totalFiles || 0),
+        unknownCodecCount: Number(fileStats.unknownCodecCount || 0),
         tvdbId: series.tvdbId,
         tmdbId: series.tmdbId,
         imdbId: series.imdbId,
@@ -11740,14 +11859,15 @@ const buildSonarrSeriesFingerprint = (series, files = []) => {
     const filePart = files.length
         ? files.map((file) => `${file.id}:${file.size || 0}:${file.mediaInfo?.videoCodec || ''}:${file.mediaInfo?.height || 0}`).sort().join(',')
         : 'none';
-    return `${series?.qualityProfileId || 0}:${stats.episodeFileCount || 0}:${stats.sizeOnDisk || 0}:${filePart}`;
+    // v4: Plex codec fallback when Sonarr mediaInfo is empty.
+    return `v4:${series?.qualityProfileId || 0}:${stats.episodeFileCount || 0}:${stats.sizeOnDisk || 0}:${filePart}`;
 };
 
 const buildRadarrMovieFingerprint = (movie) => {
     const file = movie?.movieFile;
-    if (!file) return `empty:${movie?.qualityProfileId || 0}`;
+    if (!file) return `v4:empty:${movie?.qualityProfileId || 0}`;
     const mediaInfo = file.mediaInfo || {};
-    return `${movie?.qualityProfileId || 0}:${file.id}:${file.size || 0}:${mediaInfo.videoCodec || ''}:${mediaInfo.height || 0}`;
+    return `v4:${movie?.qualityProfileId || 0}:${file.id}:${file.size || 0}:${mediaInfo.videoCodec || ''}:${mediaInfo.height || 0}`;
 };
 
 const loadUpgraderPlexPosterLookup = async (config) => {
@@ -11761,7 +11881,7 @@ const loadUpgraderPlexPosterLookup = async (config) => {
     return buildPlexPosterLookup(maintenanceItems);
 };
 
-const buildUpgraderItemsForArrInstance = async (instance, { plexLookup, resolveUrl, prevByKey } = {}) => {
+const buildUpgraderItemsForArrInstance = async (instance, { config, plexLookup, resolveUrl, prevByKey } = {}) => {
     const items = [];
     let reused = 0;
     const instanceLabel = instance.name || instance.id;
@@ -11794,10 +11914,10 @@ const buildUpgraderItemsForArrInstance = async (instance, { plexLookup, resolveU
             return acc;
         }, {});
 
-        seriesList.forEach((series) => {
+        for (const series of seriesList) {
             const seriesId = Number(series.id || 0);
-            if (!seriesId) return;
-            const seriesFiles = filesBySeries[seriesId] || [];
+            if (!seriesId) continue;
+            let seriesFiles = filesBySeries[seriesId] || [];
             const fingerprint = buildSonarrSeriesFingerprint(series, seriesFiles);
             const ratingKey = buildUpgraderItemKey('sonarr', instance.id, seriesId);
             const posterMeta = {
@@ -11812,11 +11932,16 @@ const buildUpgraderItemsForArrInstance = async (instance, { plexLookup, resolveU
                 imdbId: series.imdbId,
             };
             const prev = prevByKey.get(ratingKey);
-            if (prev?.arrFileFingerprint === fingerprint && prev.zeroSizeCount != null) {
+            const missingSonarrCodec = seriesFiles.some((file) => !sonarrEpisodeFileHasVideoCodec(file));
+            // Skip reuse when codecs are missing — we may fill them from Plex.
+            if (prev?.arrFileFingerprint === fingerprint && prev.zeroSizeCount != null && !missingSonarrCodec && !(Number(prev.unknownCodecCount || 0) > 0)) {
                 prev.overview = series.overview || '';
                 items.push(applyUpgraderPosterFields(prev, posterMeta, plexLookup));
                 reused += 1;
-                return;
+                continue;
+            }
+            if (missingSonarrCodec) {
+                seriesFiles = await enrichSonarrFilesWithPlexCodecFallback(config, seriesFiles, posterMeta, plexLookup);
             }
             const fileStats = aggregateSonarrSeriesFileStats(seriesFiles);
             const plexItem = findPlexPosterItem(plexLookup, posterMeta);
@@ -11829,7 +11954,7 @@ const buildUpgraderItemsForArrInstance = async (instance, { plexLookup, resolveU
             );
             item.arrFileFingerprint = fingerprint;
             items.push(item);
-        });
+        }
     } else if (instance.type === 'radarr') {
         const fetchStarted = Date.now();
         const movies = await fetchArrInstanceCatalogItems(instance, { resolveUrl, fetchImpl: fetch });
@@ -11886,7 +12011,7 @@ const buildUpgraderArrIndex = async (config, { actor = null } = {}) => {
         const prevByKey = new Map((Array.isArray(prevPayload.items) ? prevPayload.items : []).map((item) => [item.ratingKey, item]));
 
         const instanceResults = await Promise.all(
-            instances.map((instance) => buildUpgraderItemsForArrInstance(instance, { plexLookup, resolveUrl, prevByKey })),
+            instances.map((instance) => buildUpgraderItemsForArrInstance(instance, { config, plexLookup, resolveUrl, prevByKey })),
         );
         const items = instanceResults.flatMap((result) => result.items);
         const reusedCount = instanceResults.reduce((sum, result) => sum + result.reused, 0);
@@ -11919,7 +12044,7 @@ const loadUpgraderIndex = async () => loadFile(UPGRADER_INDEX_PATH, { generatedA
 const mapSonarrFileToEpisodeQuality = (file = null) => {
     const qualityLabel = getSonarrEpisodeQualityLabel(file);
     const mediaInfo = file?.mediaInfo || {};
-    const codec = String(mediaInfo.videoCodec || mediaInfo.videoFormat || '').toLowerCase();
+    const codec = normalizeArrVideoCodecKey(mediaInfo.videoCodec || mediaInfo.videoFormat || '');
     const width = Number(mediaInfo.width || 0);
     const height = Number(mediaInfo.height || 0);
     const tags = [];
@@ -11956,9 +12081,38 @@ const buildUpgraderEpisodesFromSonarr = (sonarrEpisodes, sonarrFiles, showTitle,
         const seasonNumber = sonarrEpisode.seasonNumber != null ? Number(sonarrEpisode.seasonNumber) : null;
         const episodeNumber = sonarrEpisode.episodeNumber != null ? Number(sonarrEpisode.episodeNumber) : null;
         const sonarrFile = sonarrEpisode?.episodeFileId ? fileById.get(Number(sonarrEpisode.episodeFileId)) : null;
-        const sonarrQuality = mapSonarrFileToEpisodeQuality(sonarrFile);
+        let sonarrQuality = mapSonarrFileToEpisodeQuality(sonarrFile);
         
         const plexEp = plexEpMap.get(`${seasonNumber}-${episodeNumber}`);
+        // Prefer Sonarr mediaInfo; if empty, use Plex codec for the same episode.
+        if ((!sonarrQuality.videoCodec || !sonarrQuality.videoResolution) && plexEp) {
+            const plexCodec = normalizeArrVideoCodecKey(plexEp.videoCodec);
+            if (plexCodec && !sonarrQuality.videoCodec) {
+                sonarrQuality = {
+                    ...sonarrQuality,
+                    videoCodec: plexCodec,
+                    isHevc: !!plexEp.isHevc || isHevcVideoCodec(plexCodec),
+                    hasHdr: sonarrQuality.hasHdr || !!plexEp.hasHdr,
+                    hasDolbyVision: sonarrQuality.hasDolbyVision || !!plexEp.hasDolbyVision,
+                    displayTags: (sonarrQuality.displayTags || []).length
+                        ? sonarrQuality.displayTags
+                        : (plexEp.displayTags || []),
+                };
+            }
+            if (!sonarrQuality.videoResolution && plexEp.videoResolution) {
+                const res = String(plexEp.videoResolution).toLowerCase();
+                sonarrQuality = {
+                    ...sonarrQuality,
+                    videoResolution: res.includes('4k') || res.includes('2160')
+                        ? '4k'
+                        : res.includes('1080')
+                            ? '1080'
+                            : res.includes('720')
+                                ? '720'
+                                : res,
+                };
+            }
+        }
         
         let thumbUrl = plexEp?.thumb ? `/api/plex/image?path=${encodeURIComponent(plexEp.thumb)}&width=400&height=225` : null;
         // Always provide an episode image URL when we have instance+episode data — the endpoint handles fallbacks
@@ -12204,13 +12358,27 @@ const mapUpgraderApiItem = (item, exclusions = { ratingKeys: new Set(), titles: 
         || exclusions.libraries.has(normalized(item.libraryTitle))
         || exclusions.snoozedRatingKeys.has(String(item.ratingKey || ''));
     const snoozed = exclusions.snoozedRatingKeys.has(String(item.ratingKey || ''));
+    const codecCounts = mergeUpgraderCodecMaps(item.codecCounts);
+    const codecSizesGBRaw = mergeUpgraderCodecMaps(item.codecSizesGB);
+    const codecSizesGB = {};
+    Object.entries(codecSizesGBRaw).forEach(([key, size]) => {
+        codecSizesGB[key] = Math.round(Number(size || 0) * 100) / 100;
+    });
+    const dominantCodec = Object.entries(codecCounts).sort((a, b) => b[1] - a[1])[0]?.[0]
+        || normalizeArrVideoCodecKey(item.videoCodec)
+        || '';
+    const onDiskFileCount = Number(item.onDiskFileCount || 0)
+        || Object.values(codecCounts).reduce((sum, count) => sum + Number(count || 0), 0);
+    const knownCodecFileCount = Object.values(codecCounts).reduce((sum, count) => sum + Number(count || 0), 0);
+    const unknownCodecCount = Number(item.unknownCodecCount || 0)
+        || Math.max(0, onDiskFileCount - knownCodecFileCount);
     return {
         ratingKey: String(item.ratingKey || ''),
         title: item.title || 'Unknown',
         overview: item.overview || '',
         year: item.year || null,
-        codecCounts: item.codecCounts || undefined,
-        codecSizesGB: item.codecSizesGB || undefined,
+        codecCounts: Object.keys(codecCounts).length ? codecCounts : undefined,
+        codecSizesGB: Object.keys(codecSizesGB).length ? codecSizesGB : undefined,
         resCounts: item.resCounts || undefined,
         thumb: item.thumb || '',
         thumbUrl: item.thumbUrl || null,
@@ -12218,7 +12386,7 @@ const mapUpgraderApiItem = (item, exclusions = { ratingKeys: new Set(), titles: 
         mediaType: item.mediaType || 'movie',
         libraryTitle: item.libraryTitle || 'Library',
         libraryId: String(item.libraryId || ''),
-        videoCodec: item.videoCodec || '',
+        videoCodec: dominantCodec || normalizeArrVideoCodecKey(item.videoCodec) || item.videoCodec || '',
         videoResolution: item.videoResolution || '',
         displayTags: Array.isArray(item.displayTags) ? item.displayTags : [],
         sizeGB: Number(item.sizeGB || 0),
@@ -12231,6 +12399,9 @@ const mapUpgraderApiItem = (item, exclusions = { ratingKeys: new Set(), titles: 
         totalEpisodeCount: Number(item.totalEpisodeCount || 0),
         nonHevcEpisodeCount: Number(item.nonHevcEpisodeCount || 0),
         nonHevcEpisodeSizeGB: Number(item.nonHevcEpisodeSizeGB || 0),
+        onDiskFileCount,
+        knownCodecFileCount,
+        unknownCodecCount,
         plexUrl: item.plexUrl || null,
         arrMapped: !!item.arrMapped,
         arrType: item.arrType || 'none',

@@ -28,6 +28,7 @@ import {
     type UpgraderProfilesUrlState,
     type UpgraderTab,
 } from './upgraderUrlState';
+import { formatUpgraderCodecLabel, getDominantCodecShare, mergeUpgraderCodecCounts } from './codecUtils';
 
 import { UPGRADER_CODEC_OPTIONS, UPGRADER_RESOLUTION_OPTIONS, UPGRADER_FEATURE_OPTIONS, UPGRADER_QUALITY_OPTIONS } from './presets';
 
@@ -715,19 +716,18 @@ export const UpgraderDashboard: React.FC = () => {
                                         const epCount = (item as any).matchedEpisodeCount ?? item.nonHevcEpisodeCount ?? 0;
                                         const isCodecFiltered = codecs.size > 0 || features.has('non_hevc');
                                         const codecLabel = item.videoCodec
-                                            ? (item.videoCodec.match(/^(h|x)26[45]$/i) ? item.videoCodec.toLowerCase() : item.videoCodec.toUpperCase())
+                                            ? formatUpgraderCodecLabel(item.videoCodec)
                                             : '';
                                         const showCodecLabel = isShow ? (isCodecFiltered ? codecLabel : '') : codecLabel;
                                         let gridBadgeText = '';
                                         let listBadgeText = '';
                                         if (isShow) {
-                                            const codecc = (item as any).codecCounts || {};
+                                            const codecc = mergeUpgraderCodecCounts((item as any).codecCounts || {});
                                             const ressc = (item as any).resCounts || {};
                                             const parts: string[] = [];
                                             
                                             Object.entries(codecc).sort((a: any, b: any) => b[1] - a[1]).forEach(([c, count]) => {
-                                                const label = c.match(/^(h|x)26[45]$/i) ? c.toLowerCase() : c.toUpperCase();
-                                                parts.push(`${count} ${label} eps`);
+                                                parts.push(`${count} ${formatUpgraderCodecLabel(c)} eps`);
                                             });
                                             Object.entries(ressc).sort((a: any, b: any) => b[1] - a[1]).forEach(([r, count]) => {
                                                 let label = 'SD';
@@ -736,6 +736,10 @@ export const UpgraderDashboard: React.FC = () => {
                                                 else if (r === '4k') label = '4K';
                                                 parts.push(`${count} ${label} eps`);
                                             });
+                                            const unknownCodecs = Number((item as any).unknownCodecCount || 0);
+                                            if (unknownCodecs > 0) {
+                                                parts.push(`${unknownCodecs} no mediaInfo`);
+                                            }
                                             const snapshot = parts.join(' | ');
 
                                             if (epCount > 0 && showCodecLabel) gridBadgeText = `${epCount} ${showCodecLabel} eps`;
@@ -753,25 +757,21 @@ export const UpgraderDashboard: React.FC = () => {
                                         let dominantCodecPercentageLabel = '';
                                         let dominantCodecColorClass = 'bg-white/10 border-white/20 text-gray-300';
                                         
-                                        if (isShow && (item as any).totalEpisodeCount > 0) {
-                                            const totalEps = (item as any).totalEpisodeCount;
-                                            const codecc = (item as any).codecCounts || {};
-                                            const sortedCodecs = Object.entries(codecc).sort((a: any, b: any) => b[1] - a[1]);
-                                            
-                                            if (sortedCodecs.length > 0) {
-                                                const [dominantCodec, count] = sortedCodecs[0];
-                                                const percent = Math.round(((count as number) / totalEps) * 100);
-                                                const label = dominantCodec.match(/^(h|x)26[45]$/i) ? dominantCodec.toLowerCase() : dominantCodec.toUpperCase();
-                                                dominantCodecPercentageLabel = `${percent}% ${label}`;
-                                                
-                                                if (label.includes('265') || label.includes('hevc') || label.includes('HEVC') || label.includes('AV1')) {
+                                        if (isShow) {
+                                            const onDisk = Number((item as any).onDiskFileCount || 0);
+                                            const share = getDominantCodecShare((item as any).codecCounts, onDisk);
+                                            if (share) {
+                                                dominantCodecPercentageLabel = `${share.percentLabel}% ${share.label}`;
+                                                const label = share.label;
+                                                if (label.includes('HEVC') || label.includes('AV1') || share.key === 'hevc' || share.key === 'av1') {
                                                     dominantCodecColorClass = 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
-                                                } else if (label.includes('264') || label.includes('AVC')) {
+                                                } else if (share.key === 'h264' || label.includes('H.264') || label.includes('AVC')) {
                                                     dominantCodecColorClass = 'bg-amber-500/10 border-amber-500/20 text-amber-400';
                                                 } else {
                                                     dominantCodecColorClass = 'bg-blue-500/10 border-blue-500/20 text-blue-400';
                                                 }
-                                            } else {
+                                            } else if ((item as any).totalEpisodeCount > 0) {
+                                                const totalEps = (item as any).totalEpisodeCount;
                                                 const nonHevcEps = item.nonHevcEpisodeCount || 0;
                                                 const hevcEps = Math.max(0, totalEps - nonHevcEps);
                                                 if (hevcEps >= nonHevcEps) {
@@ -780,11 +780,11 @@ export const UpgraderDashboard: React.FC = () => {
                                                     dominantCodecColorClass = 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
                                                 } else {
                                                     const percent = Math.round((nonHevcEps / totalEps) * 100);
-                                                    const fallbackCodec = item.videoCodec && !item.videoCodec.toLowerCase().includes('hevc') && !item.videoCodec.toLowerCase().includes('265') 
-                                                        ? (item.videoCodec.match(/^(h|x)26[45]$/i) ? item.videoCodec.toLowerCase() : item.videoCodec.toUpperCase())
-                                                        : 'H264';
+                                                    const fallbackCodec = item.videoCodec
+                                                        ? formatUpgraderCodecLabel(item.videoCodec)
+                                                        : 'H.264';
                                                     dominantCodecPercentageLabel = `${percent}% ${fallbackCodec}`;
-                                                    if (fallbackCodec.includes('AV1') || fallbackCodec.includes('AV01')) {
+                                                    if (fallbackCodec.includes('AV1')) {
                                                         dominantCodecColorClass = 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
                                                     } else {
                                                         dominantCodecColorClass = 'bg-amber-500/10 border-amber-500/20 text-amber-400';
@@ -810,8 +810,7 @@ export const UpgraderDashboard: React.FC = () => {
                                                     }
                                                 }
                                                 if (sizeForCodec > 0) {
-                                                    const displayCodec = reqCodec.match(/^(h|x)26[45]$/i) ? reqCodec.toLowerCase() : reqCodec.toUpperCase();
-                                                    sizesToShow.push({ label: `${displayCodec} eps`, sizeGB: sizeForCodec });
+                                                    sizesToShow.push({ label: `${formatUpgraderCodecLabel(reqCodec)} eps`, sizeGB: sizeForCodec });
                                                 }
                                             }
                                         }
@@ -823,7 +822,7 @@ export const UpgraderDashboard: React.FC = () => {
                                             
                                             // If multiple are selected, we can show fallback sizes for H264 and HEVC
                                             if (codecs.has('h264') && nonHevcSize > 0) {
-                                                sizesToShow.push({ label: 'h264 eps', sizeGB: nonHevcSize });
+                                                sizesToShow.push({ label: 'H.264 eps', sizeGB: nonHevcSize });
                                             }
                                             if (codecs.has('hevc') && hevcSize > 0) {
                                                 sizesToShow.push({ label: 'HEVC eps', sizeGB: hevcSize });
@@ -831,7 +830,7 @@ export const UpgraderDashboard: React.FC = () => {
                                         }
                                         
                                         if (sizesToShow.length === 0 && (((item.mediaType === 'show' && (item.nonHevcEpisodeSizeGB ?? 0) > 0) || item.sizeGB > 0))) {
-                                            const label = item.mediaType === 'show' ? (showCodecLabel ? `${showCodecLabel.toUpperCase()} eps` : '') : '';
+                                            const label = item.mediaType === 'show' ? (showCodecLabel ? `${showCodecLabel} eps` : '') : '';
                                             sizesToShow.push({
                                                 label,
                                                 sizeGB: item.mediaType === 'show' ? (item.nonHevcEpisodeSizeGB ?? 0) : item.sizeGB
