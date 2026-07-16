@@ -1439,9 +1439,9 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
 
             <DetailsModal item={detailsItem} onClose={() => setDetailsItem(null)} />
 
-            <div className="flex flex-col gap-8 w-full max-w-7xl mx-auto">
+            <div className="flex flex-col gap-8 w-full">
                 {stackTools.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-7xl">
                         {stackTools.map(renderToolCard)}
                     </div>
                 )}
@@ -1484,9 +1484,9 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
                                 )}
                             </div>
                         ) : (
-                            <div className="flex items-start gap-3 md:gap-8 w-full">
+                            <div className="flex items-start gap-3 md:gap-5 xl:gap-6 w-full">
                                 {/* Left Sticky Poster */}
-                                <div className="sticky top-[64px] md:top-0 w-[120px] sm:w-[160px] md:w-[320px] flex-shrink-0">
+                                <div className="sticky top-[64px] md:top-0 w-[100px] sm:w-[140px] md:w-[200px] xl:w-[240px] flex-shrink-0 hidden sm:block">
                                     <div className="flex flex-col gap-4 mt-8 md:mt-0">
                                         <div className="relative aspect-[2/3] rounded-lg md:rounded-2xl overflow-hidden shadow-2xl border border-white/10 group bg-card">
                                             {activeCalendarItem?.imageUrl ? (
@@ -1503,53 +1503,61 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
                                                 )}
                                             </div>
                                         </div>
+                                        {activeCalendarItem?.title && (
+                                            <div className="hidden md:block px-0.5">
+                                                <p className="text-sm font-bold text-text leading-snug break-words">{activeCalendarItem.title}</p>
+                                                {activeCalendarItem.subtitle && (
+                                                    <p className="text-xs text-muted mt-1 break-words">{activeCalendarItem.subtitle}</p>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
-                                {/* Right Side: Vertical List */}
-                                <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 md:gap-8 pb-4">
+                                {/* Right Side: day columns */}
+                                <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5 pb-4">
                                     {Object.entries(groupedCalendar).map(([dateStr, items]: [string, typeof filteredCalendar]) => (
-                                        <div key={dateStr} className="flex flex-col gap-2 md:gap-3">
+                                        <div key={dateStr} className="flex flex-col gap-2 md:gap-3 min-w-0">
                                             <div className="sticky top-[64px] md:top-0 bg-card z-20 py-1 md:py-3 border-b border-white/10 md:mb-2 -mx-4 px-4 md:mx-0 md:px-0 shadow-[0_10px_20px_-10px_rgba(0,0,0,0.5)]">
-                                                <h3 className="text-sm md:text-xl font-black text-plex md:text-text tracking-tight uppercase">{dateStr}</h3>
+                                                <h3 className="text-sm md:text-base xl:text-lg font-black text-plex md:text-text tracking-tight uppercase truncate" title={dateStr}>{dateStr}</h3>
                                             </div>
                                             {items.map(item => (
                                                 <div
                                                     key={item.id}
                                                     onMouseEnter={() => setActiveCalendarItem(item)}
                                                     onClick={() => setActiveCalendarItem(item)}
-                                                    className={`bg-background/40 hover:bg-background/80 transition-all duration-300 rounded-lg md:rounded-xl p-2.5 md:p-4 flex flex-col gap-2 md:gap-3 shadow-md border-l-4 cursor-pointer group ${item.hasFile ? 'border-l-green-500/80' : item.monitored ? 'border-l-red-500/80' : 'border-l-blue-500/80'} ${activeCalendarItem?.id === item.id ? 'bg-white/10 border border-white/30 scale-[1.01] md:scale-[1.02]' : 'border border-white/5 hover:border-white/20'}`}
+                                                    className={`bg-background/40 hover:bg-background/80 transition-all duration-300 rounded-lg md:rounded-xl p-2.5 md:p-3 flex flex-col gap-1.5 shadow-md border-l-4 cursor-pointer group min-w-0 ${item.hasFile ? 'border-l-green-500/80' : item.monitored ? 'border-l-red-500/80' : 'border-l-blue-500/80'} ${activeCalendarItem?.id === item.id ? 'bg-white/10 border border-white/30 scale-[1.01]' : 'border border-white/5 hover:border-white/20'}`}
                                                 >
-                                                    <div className="flex justify-between items-start gap-2 md:gap-3">
-                                                        <div className="min-w-0 flex-grow">
-                                                            <div className="flex items-center gap-1.5 md:gap-2 mb-1 md:mb-2">
-                                                                <span className="text-[9px] md:text-[11px] text-plex flex items-center gap-1 md:gap-1.5 font-bold tracking-wide">
-                                                                    <Clock className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                                                                    {formatTime(item.date).replace(/^0:/, '12:')}
+                                                    <div className="flex items-center justify-between gap-2 min-w-0">
+                                                        <span className="text-[9px] md:text-[11px] text-plex flex items-center gap-1 md:gap-1.5 font-bold tracking-wide shrink-0">
+                                                            <Clock className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                                                            {formatTime(item.date).replace(/^0:/, '12:')}
+                                                        </span>
+                                                        {item.hasFile ? (
+                                                            <span className="text-[8px] md:text-[10px] font-bold text-green-500 bg-green-500/10 border border-green-500/20 rounded md:rounded-md px-1.5 py-0.5 whitespace-nowrap shrink-0">
+                                                                ✓ Ready
+                                                            </span>
+                                                        ) : (
+                                                            item.monitored && (
+                                                                <span className="text-[8px] md:text-[10px] font-bold text-plex bg-plex/10 border border-plex/20 rounded md:rounded-md px-1.5 py-0.5 flex items-center gap-1 whitespace-nowrap shrink-0">
+                                                                    <span className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-plex animate-pulse"></span>
+                                                                    Monitored
                                                                 </span>
-                                                            </div>
-                                                            <h4 className="font-bold text-xs sm:text-sm text-text line-clamp-2 md:line-clamp-3 leading-tight group-hover:text-plex transition-colors">
-                                                                {item.title}
-                                                            </h4>
-                                                            <p className="text-[10px] md:text-[12px] text-muted/80 line-clamp-2 mt-0.5 md:mt-1 font-medium">
-                                                                {item.subtitle}
-                                                            </p>
-                                                        </div>
-                                                        <div className="flex flex-col items-end gap-1.5 md:gap-2 flex-shrink-0">
-                                                            {item.hasFile ? (
-                                                                <span className="text-[8px] md:text-[10px] font-bold text-green-500 bg-green-500/10 border border-green-500/20 rounded md:rounded-md px-1.5 py-0.5 md:px-2 md:py-1 whitespace-nowrap">
-                                                                    ✓ Ready
-                                                                </span>
-                                                            ) : (
-                                                                item.monitored && (
-                                                                    <span className="text-[8px] md:text-[10px] font-bold text-plex bg-plex/10 border border-plex/20 rounded md:rounded-md px-1.5 py-0.5 md:px-2 md:py-1 flex items-center gap-1 md:gap-1.5 whitespace-nowrap">
-                                                                        <span className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-plex animate-pulse"></span>
-                                                                        Monitored
-                                                                    </span>
-                                                                )
-                                                            )}
-                                                        </div>
+                                                            )
+                                                        )}
                                                     </div>
+                                                    <h4
+                                                        className="font-bold text-xs sm:text-sm text-text leading-snug break-words group-hover:text-plex transition-colors"
+                                                        title={item.title}
+                                                    >
+                                                        {item.title}
+                                                    </h4>
+                                                    <p
+                                                        className="text-[10px] md:text-[12px] text-muted/80 leading-snug break-words font-medium"
+                                                        title={item.subtitle}
+                                                    >
+                                                        {item.subtitle}
+                                                    </p>
                                                 </div>
                                             ))}
                                         </div>
