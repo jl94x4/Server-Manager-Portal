@@ -215,13 +215,14 @@ export const inferMissingLibrarySeasonStatus = (
 
     const showStatus = Number(mediaInfo?.status);
     const librarySeasons = Array.isArray(mediaInfo?.seasons) ? mediaInfo.seasons : [];
+    const trackedStatuses: number[] = [
+        MEDIA_STATUS.PROCESSING,
+        MEDIA_STATUS.PARTIAL,
+        MEDIA_STATUS.AVAILABLE,
+        MEDIA_STATUS.PENDING,
+    ];
     const hasTrackedSeason = librarySeasons.some(
-        (s: any) => [
-            MEDIA_STATUS.PROCESSING,
-            MEDIA_STATUS.PARTIAL,
-            MEDIA_STATUS.AVAILABLE,
-            MEDIA_STATUS.PENDING,
-        ].includes(Number(s?.status)),
+        (s: any) => trackedStatuses.includes(Number(s?.status)),
     );
     const showInLibrary = showStatus === MEDIA_STATUS.PROCESSING
         || showStatus === MEDIA_STATUS.PARTIAL
