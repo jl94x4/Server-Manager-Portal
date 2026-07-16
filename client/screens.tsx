@@ -8792,12 +8792,12 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         const badgeCount = options.badgeCount || 0;
         const baseClass = options.mobile
             ? `relative flex flex-col items-center justify-center gap-0.5 h-full flex-1 min-w-0 px-0.5 text-center text-[0.6rem] sm:text-[0.65rem] transition-colors ${options.isCurrent ? 'text-plex font-bold' : 'text-muted hover:text-text'}`
-            : `flex items-center gap-3 px-3 py-1.5 no-underline rounded-xl transition-all font-medium ${options.isCurrent ? 'nav-item-active' : 'text-muted hover:bg-white/5 hover:text-text'}`;
+            : `flex items-center gap-3.5 px-3.5 py-2.5 no-underline rounded-xl transition-all text-[15px] font-medium ${options.isCurrent ? 'nav-item-active' : 'text-muted hover:bg-white/5 hover:text-text'}`;
 
         if (item.href) {
             return (
-                <a key={key} href={item.href} target="_blank" rel="noreferrer" className={options.mobile ? baseClass.replace('hover:text-text', 'hover:text-text') : 'flex items-center gap-3 px-3 py-1.5 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text'}>
-                    <Icon className="w-5 h-5 flex-shrink-0" /> {label}
+                <a key={key} href={item.href} target="_blank" rel="noreferrer" className={options.mobile ? baseClass.replace('hover:text-text', 'hover:text-text') : 'flex items-center gap-3.5 px-3.5 py-2.5 text-muted no-underline rounded-lg transition-all text-[15px] font-medium hover:bg-white/5 hover:text-text'}>
+                    <Icon className="w-[1.35rem] h-[1.35rem] flex-shrink-0" /> {label}
                 </a>
             );
         }
@@ -8815,7 +8815,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                 onClick={handleActivate}
             >
                 <span className="relative shrink-0">
-                    <Icon className="w-5 h-5" />
+                    <Icon className={options.mobile ? 'w-5 h-5' : 'w-[1.35rem] h-[1.35rem]'} />
                     {badgeCount > 0 && options.mobile && (
                         <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 px-0.5 rounded-full bg-plex text-background text-[8px] font-bold flex items-center justify-center leading-none">
                             {badgeCount > 9 ? '9+' : badgeCount}
@@ -8972,7 +8972,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
             <div className="hidden md:flex flex-col w-72 nav-shell border-r p-6 sticky top-0 self-start h-dvh shadow-2xl">
                 {sidebarIdentityPosition === 'top' && renderServerIdentity('top')}
 
-                <div className="flex flex-col gap-0.5 min-h-0 flex-1 overflow-y-auto">
+                <div className="flex flex-col justify-evenly min-h-0 flex-1 overflow-hidden py-1">
                     {normalizedNavOrder.map((key) => {
                         const item = navItemsConfig[key];
                         if (!item) return null;

@@ -1,5 +1,6 @@
 import { portalUrl } from '../shared/basePath';
 import type { FilterState } from './FilterDrawer';
+import { normalizeWatchRegion } from './filterControls';
 
 export const defaultMovieFilters = (): FilterState => ({
     sort: 'popularity.desc',
@@ -211,7 +212,8 @@ export const appendDiscoverQuery = (baseUrl: string, filters: FilterState, type:
     }
     if (filters.watchProviders) {
         url += `&watchProviders=${encodeURIComponent(filters.watchProviders)}`;
-        if (filters.watchRegion) url += `&watchRegion=${encodeURIComponent(filters.watchRegion)}`;
+        const region = normalizeWatchRegion(filters.watchRegion || 'US');
+        url += `&watchRegion=${encodeURIComponent(region)}`;
     }
 
     const dateGte = filters.dateGte || (filters.year ? `${filters.year}-01-01` : '');

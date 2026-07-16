@@ -15,6 +15,7 @@ import {
     WatchProviderPicker,
     joinCsv,
     joinPipe,
+    normalizeWatchRegion,
     optionsFromParallel,
     splitCsv,
     splitPipe,
@@ -151,6 +152,7 @@ const FILTER_PRESETS: FilterPreset[] = [
 ];
 
 const toNumber = (value: string, fallback: number) => {
+    if (value === '' || value == null) return fallback;
     const num = Number(value);
     return Number.isFinite(num) ? num : fallback;
 };
@@ -442,28 +444,31 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                     <FilterField label="Streaming Services">
                         <WatchProviderPicker
                             type={type}
-                            region={localFilters.watchRegion || preferences.discoverRegion || 'US'}
+                            region={normalizeWatchRegion(
+                                localFilters.watchRegion || preferences.discoverRegion || 'US',
+                                preferences.discoverRegion || 'US',
+                            )}
                             selectedIds={watchProviderIds}
                             onChange={(watchRegion, providerIds) => patch({
-                                watchRegion,
+                                watchRegion: normalizeWatchRegion(watchRegion, 'US'),
                                 watchProviders: joinPipe(providerIds),
                             })}
                         />
                     </FilterField>
                 </div>
 
-                <div className="p-6 border-t border-border bg-background/20 flex gap-4">
+                <div className="px-5 py-4 border-t border-border bg-background/20 flex gap-3">
                     <button
                         type="button"
                         onClick={handleClear}
-                        className="flex-1 py-4 bg-white/5 hover:bg-white/10 border border-border rounded-xl text-text font-bold transition-colors"
+                        className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 border border-border rounded-lg text-sm text-text font-bold transition-colors"
                     >
                         Clear All
                     </button>
                     <button
                         type="button"
                         onClick={handleApply}
-                        className="flex-1 py-4 bg-plex hover:bg-plex-hover rounded-xl text-black font-black transition-colors shadow-[0_0_15px_rgba(229,160,13,0.3)]"
+                        className="flex-1 py-2.5 bg-plex hover:bg-plex-hover rounded-lg text-sm text-black font-black transition-colors shadow-[0_0_12px_rgba(229,160,13,0.25)]"
                     >
                         Apply Filters
                     </button>

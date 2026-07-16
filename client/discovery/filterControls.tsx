@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Search, X } from 'lucide-react';
 import { apiFetch } from '../shared/api';
+import { CustomSelect } from '../shared/ui';
+import { DISCOVER_REGION_OPTIONS } from '../settings/discoverySettingsOptions';
 
 export type FilterOption = { id: string; label: string };
 
@@ -9,6 +11,19 @@ const inputClass =
 
 const chipClass =
     'inline-flex items-center gap-1.5 max-w-full rounded-lg border border-plex/30 bg-plex/10 text-plex text-xs font-bold px-2.5 py-1';
+
+/** TMDB/Seerr expect ISO 3166-1 alpha-2 (United Kingdom = GB, not UK). */
+export const normalizeWatchRegion = (region: string, fallback = 'US'): string => {
+    const raw = String(region || '').trim().toUpperCase();
+    if (!raw) return fallback;
+    if (raw === 'UK') return 'GB';
+    if (raw === 'EN') return 'US';
+    return raw.slice(0, 2);
+};
+
+const WATCH_REGION_OPTIONS = DISCOVER_REGION_OPTIONS
+    .filter((option) => option.value)
+    .map((option) => ({ value: option.value, label: `${option.label} (${option.value})` }));
 
 export const FilterField: React.FC<{ label: string; children: React.ReactNode; hint?: string }> = ({
     label,
@@ -307,29 +322,39 @@ export const WatchProviderPicker: React.FC<{
 }> = ({ type, region, selectedIds, onChange }) => {
     const [providers, setProviders] = useState<{ id: string; name: string; logoPath?: string }[]>([]);
     const [loading, setLoading] = useState(false);
-    const effectiveRegion = region || 'US';
+    const [error, setError] = useState('');
+    const effectiveRegion = normalizeWatchRegion(region, 'US');
 
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
+        setError('');
         const path = type === 'movie'
             ? `/api/discovery/proxy/watchproviders/movies?watchRegion=${encodeURIComponent(effectiveRegion)}`
             : `/api/discovery/proxy/watchproviders/tv?watchRegion=${encodeURIComponent(effectiveRegion)}`;
         apiFetch(path)
             .then((data) => {
                 if (cancelled) return;
-                const rows = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
-                setProviders(rows
+                const rows = Array.isArray(data?.results)
+                    ? data.results
+                    : (Array.isArray(data) ? data : []);
+                const mapped = rows
                     .map((row: any) => ({
                         id: String(row?.id ?? row?.provider_id ?? ''),
                         name: String(row?.name || row?.provider_name || '').trim(),
                         logoPath: row?.logoPath || row?.logo_path || '',
+                        priority: Number(row?.displayPriority ?? row?.display_priority ?? 9999),
                     }))
                     .filter((row: { id: string; name: string }) => row.id && row.name)
-                    .slice(0, 36));
+                    .sort((a: { priority: number; name: string }, b: { priority: number; name: string }) => (
+                        a.priority - b.priority || a.name.localeCompare(b.name)
+                    ));
+                setProviders(mapped.slice(0, 48));
             })
-            .catch(() => {
-                if (!cancelled) setProviders([]);
+            .catch((err) => {
+                if (cancelled) return;
+                setProviders([]);
+                setError(err?.message || 'Failed to load streaming providers.');
             })
             .finally(() => {
                 if (!cancelled) setLoading(false);
@@ -341,21 +366,20 @@ export const WatchProviderPicker: React.FC<{
 
     return (
         <div className="flex flex-col gap-3">
-            <input
-                type="text"
-                maxLength={2}
+            <CustomSelect
                 value={effectiveRegion}
-                onChange={(e) => onChange(e.target.value.toUpperCase(), selectedIds)}
-                placeholder="Region (US)"
-                className={`${inputClass} max-w-[7rem] uppercase tracking-widest`}
-                title="ISO country code for streaming availability"
+                onChange={(nextRegion) => onChange(normalizeWatchRegion(nextRegion, 'US'), selectedIds)}
+                options={WATCH_REGION_OPTIONS}
+                className="w-full"
             />
             {loading ? (
                 <p className="text-xs text-muted flex items-center gap-2">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading services…
                 </p>
+            ) : error ? (
+                <p className="text-xs text-red-300">{error}</p>
             ) : (
-                <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                <div className="flex flex-wrap gap-2 max-h-44 overflow-y-auto custom-scrollbar pr-1">
                     {providers.map((provider) => {
                         const active = selectedSet.has(provider.id);
                         return (
@@ -380,7 +404,9 @@ export const WatchProviderPicker: React.FC<{
                         );
                     })}
                     {!providers.length && (
-                        <p className="text-xs text-muted">No streaming providers for this region.</p>
+                        <p className="text-xs text-muted">
+                            No streaming providers for {effectiveRegion}. Try another region.
+                        </p>
                     )}
                 </div>
             )}
