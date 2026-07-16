@@ -4879,6 +4879,28 @@ app.get('/api/discovery/request-services/:type/:serverId', requireAuth, requireM
     }
 });
 
+app.post('/api/discovery/request-tags', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const { mediaType, label, serverName } = req.body || {};
+        const type = mediaType === 'tv' ? 'tv' : (mediaType === 'movie' ? 'movie' : '');
+        if (!type || !label) return res.status(400).json({ error: 'Missing mediaType or label' });
+
+        const tag = await requestAppService.createMemberRequestTag(config, req.user, {
+            mediaType: type,
+            label,
+            serverName: serverName || '',
+        });
+        res.status(201).json(tag);
+    } catch (e) {
+        log(`Discovery request-tags error: ${e.message}`);
+        res.status(e.status || 500).json({ error: e.message });
+    }
+});
+
 app.post('/api/discovery/request-override-defaults', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
@@ -5401,6 +5423,13 @@ app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) 
             if (fourKQuota?.limit > 0 && fourKQuota.remaining === 0) {
                 return res.status(429).json({ error: `You have used all ${fourKQuota.limit} 4K requests for this period.` });
             }
+        } else if (options.standardQuotaBlocked) {
+            const limit = options.quota?.standard?.limit;
+            return res.status(429).json({
+                error: limit
+                    ? `You have used all ${limit} requests for this period.`
+                    : 'You have reached your request quota for this period.',
+            });
         }
 
         const body = { mediaType: type, mediaId: tmdbId };

@@ -381,6 +381,7 @@ export type RequestOptionsPayload = {
     mediaType: 'movie' | 'tv';
     tmdbId: number;
     title: string;
+    overview?: string;
     mediaStatus: number | null;
     isBlacklisted: boolean;
     isAnime?: boolean;
@@ -389,6 +390,8 @@ export type RequestOptionsPayload = {
     canRequestAdvanced?: boolean;
     has4kServer: boolean;
     hasHdServer: boolean;
+    standardQuotaBlocked?: boolean;
+    fourKQuotaBlocked?: boolean;
     seerrUserId?: number | null;
     servers?: {
         id: number;

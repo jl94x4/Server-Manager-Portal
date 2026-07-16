@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle, ChevronDown, ChevronUp, Film, Loader2, Tv, X } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { ModalPortal } from '../shared/ModalPortal';
 import { NoPosterPlaceholder } from '../shared/NoPosterPlaceholder';
-import { CustomSelect, StyledCheckbox } from '../shared/ui';
+import { CustomSelect } from '../shared/ui';
 import type { PortalServiceOptions } from '../requests/types';
 import type { RequestOptionsPayload } from './requestSeasonUtils';
 import {
@@ -21,12 +21,42 @@ type Props = {
     onError: (message: string) => void;
 };
 
+type QualityKey = 'hd' | '4k';
+
+type QualityFormState = {
+    serverId: number | null;
+    profileId: number | null;
+    rootFolder: string;
+    languageProfileId: number | null;
+    selectedTags: number[];
+    serviceOptions: PortalServiceOptions | null;
+    loaded: boolean;
+    loading: boolean;
+};
+
+const emptyQualityForm = (): QualityFormState => ({
+    serverId: null,
+    profileId: null,
+    rootFolder: '',
+    languageProfileId: null,
+    selectedTags: [],
+    serviceOptions: null,
+    loaded: false,
+    loading: false,
+});
+
 const formatBytes = (bytes?: number | null) => {
-    if (!bytes) return '';
+    const n = Number(bytes);
+    if (!Number.isFinite(n) || n <= 0) return '';
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]} free`;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    const i = Math.min(sizes.length - 1, Math.max(0, Math.floor(Math.log(n) / Math.log(k))));
+    return `${parseFloat((n / Math.pow(k, i)).toFixed(1))} ${sizes[i]} free`;
+};
+
+const rootFolderLabel = (folder: { path: string; freeSpace?: number | null }) => {
+    const free = formatBytes(folder.freeSpace);
+    return free ? `${folder.path} (${free})` : folder.path;
 };
 
 export const RequestModal: React.FC<Props> = ({
@@ -41,99 +71,146 @@ export const RequestModal: React.FC<Props> = ({
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [options, setOptions] = useState<RequestOptionsPayload | null>(null);
-    const [is4k, setIs4k] = useState(false);
+    const [selectedQualities, setSelectedQualities] = useState<Set<QualityKey>>(() => new Set(['hd']));
+    const [advancedQuality, setAdvancedQuality] = useState<QualityKey>('hd');
     const [selectedSeasons, setSelectedSeasons] = useState<number[]>([]);
     const [showAdvanced, setShowAdvanced] = useState(true);
-    const [serviceOptions, setServiceOptions] = useState<PortalServiceOptions | null>(null);
-    const [optionsLoading, setOptionsLoading] = useState(false);
-    const [serverId, setServerId] = useState<number | null>(null);
-    const [profileId, setProfileId] = useState<number | null>(null);
-    const [rootFolder, setRootFolder] = useState('');
-    const [languageProfileId, setLanguageProfileId] = useState<number | null>(null);
-    const [selectedTags, setSelectedTags] = useState<number[]>([]);
+    const [qualityForms, setQualityForms] = useState<Record<QualityKey, QualityFormState>>({
+        hd: emptyQualityForm(),
+        '4k': emptyQualityForm(),
+    });
+    const [tagInput, setTagInput] = useState('');
+    const [tagCreating, setTagCreating] = useState(false);
+    const [tagSuggestionsOpen, setTagSuggestionsOpen] = useState(false);
+    const loadGenRef = useRef(0);
 
-    const filteredServers = useMemo(() => {
-        const list = options?.servers || [];
-        return list.filter((server) => server.is4k === is4k);
-    }, [options?.servers, is4k]);
+    const updateQualityForm = useCallback((quality: QualityKey, patch: Partial<QualityFormState>) => {
+        setQualityForms((prev) => ({
+            ...prev,
+            [quality]: { ...prev[quality], ...patch },
+        }));
+    }, []);
+
+    const applyServiceDefaults = useCallback((
+        opts: RequestOptionsPayload,
+        data: PortalServiceOptions,
+        defaults?: Record<string, unknown> | null,
+    ): Omit<QualityFormState, 'serviceOptions' | 'loaded' | 'loading'> => {
+        const server = data?.server || {};
+        const profiles = Array.isArray(data?.profiles) ? data.profiles : [];
+        const folders = Array.isArray(data?.rootFolders) ? data.rootFolders : [];
+        const languageProfiles = Array.isArray(data?.languageProfiles) ? data.languageProfiles : [];
+        const isAnime = !!opts.isAnime;
+
+        let nextProfileId = defaults?.profileId != null ? Number(defaults.profileId) : null;
+        if (!Number.isFinite(nextProfileId)) {
+            const activeProfile = isAnime && server.activeAnimeProfileId
+                ? server.activeAnimeProfileId
+                : server.activeProfileId;
+            nextProfileId = activeProfile ?? profiles[0]?.id ?? null;
+        }
+
+        let nextRootFolder = defaults?.rootFolder ? String(defaults.rootFolder) : '';
+        if (!nextRootFolder) {
+            const activeFolder = isAnime && server.activeAnimeDirectory
+                ? server.activeAnimeDirectory
+                : server.activeDirectory;
+            nextRootFolder = activeFolder || folders[0]?.path || '';
+        }
+
+        let nextLanguageProfileId = defaults?.languageProfileId != null
+            ? Number(defaults.languageProfileId)
+            : null;
+        if (opts.mediaType === 'tv' && !Number.isFinite(nextLanguageProfileId)) {
+            const activeLang = isAnime && server.activeAnimeLanguageProfileId
+                ? server.activeAnimeLanguageProfileId
+                : server.activeLanguageProfileId;
+            nextLanguageProfileId = activeLang ?? languageProfiles[0]?.id ?? null;
+        }
+
+        const nextTags = Array.isArray(defaults?.tags)
+            ? defaults.tags.map((tag) => Number(tag)).filter((tag) => Number.isFinite(tag))
+            : [];
+
+        const nextServerId = defaults?.serverId != null
+            ? Number(defaults.serverId)
+            : (server.id != null ? Number(server.id) : null);
+
+        return {
+            serverId: Number.isFinite(nextServerId as number) ? (nextServerId as number) : null,
+            profileId: Number.isFinite(nextProfileId) ? nextProfileId : null,
+            rootFolder: nextRootFolder,
+            languageProfileId: Number.isFinite(nextLanguageProfileId) ? nextLanguageProfileId : null,
+            selectedTags: nextTags,
+        };
+    }, []);
 
     const loadServiceOptions = useCallback(async (
         opts: RequestOptionsPayload,
+        quality: QualityKey,
         nextServerId: number,
-        nextIs4k: boolean,
         defaults?: Record<string, unknown> | null,
+        { preserveSelections = false }: { preserveSelections?: boolean } = {},
     ) => {
-        setOptionsLoading(true);
+        updateQualityForm(quality, { loading: true });
         try {
             const segment = opts.mediaType === 'tv' ? 'sonarr' : 'radarr';
-            const data = await apiFetch(`/api/discovery/request-services/${segment}/${nextServerId}`);
-            setServiceOptions(data as PortalServiceOptions);
-
-            const server = data?.server || {};
-            const profiles = Array.isArray(data?.profiles) ? data.profiles : [];
-            const folders = Array.isArray(data?.rootFolders) ? data.rootFolders : [];
-            const languageProfiles = Array.isArray(data?.languageProfiles) ? data.languageProfiles : [];
-            const isAnime = !!opts.isAnime;
-
-            let nextProfileId = defaults?.profileId != null ? Number(defaults.profileId) : null;
-            if (!Number.isFinite(nextProfileId)) {
-                const activeProfile = isAnime && server.activeAnimeProfileId
-                    ? server.activeAnimeProfileId
-                    : server.activeProfileId;
-                nextProfileId = activeProfile ?? profiles[0]?.id ?? null;
-            }
-
-            let nextRootFolder = defaults?.rootFolder ? String(defaults.rootFolder) : '';
-            if (!nextRootFolder) {
-                const activeFolder = isAnime && server.activeAnimeDirectory
-                    ? server.activeAnimeDirectory
-                    : server.activeDirectory;
-                nextRootFolder = activeFolder || folders[0]?.path || '';
-            }
-
-            let nextLanguageProfileId = defaults?.languageProfileId != null
-                ? Number(defaults.languageProfileId)
-                : null;
-            if (opts.mediaType === 'tv' && !Number.isFinite(nextLanguageProfileId)) {
-                const activeLang = isAnime && server.activeAnimeLanguageProfileId
-                    ? server.activeAnimeLanguageProfileId
-                    : server.activeLanguageProfileId;
-                nextLanguageProfileId = activeLang ?? languageProfiles[0]?.id ?? null;
-            }
-
-            const nextTags = Array.isArray(defaults?.tags)
-                ? defaults.tags.map((tag) => Number(tag)).filter((tag) => Number.isFinite(tag))
-                : [];
-
-            setServerId(nextServerId);
-            setProfileId(Number.isFinite(nextProfileId) ? nextProfileId : null);
-            setRootFolder(nextRootFolder);
-            setLanguageProfileId(Number.isFinite(nextLanguageProfileId) ? nextLanguageProfileId : null);
-            setSelectedTags(nextTags);
+            const data = await apiFetch(`/api/discovery/request-services/${segment}/${nextServerId}`) as PortalServiceOptions;
+            const applied = applyServiceDefaults(opts, data, defaults);
+            setQualityForms((prev) => {
+                const current = prev[quality];
+                return {
+                    ...prev,
+                    [quality]: {
+                        serviceOptions: data,
+                        loaded: true,
+                        loading: false,
+                        serverId: nextServerId,
+                        profileId: preserveSelections && current.profileId != null
+                            ? current.profileId
+                            : applied.profileId,
+                        rootFolder: preserveSelections && current.rootFolder
+                            ? current.rootFolder
+                            : applied.rootFolder,
+                        languageProfileId: preserveSelections && current.languageProfileId != null
+                            ? current.languageProfileId
+                            : applied.languageProfileId,
+                        selectedTags: preserveSelections
+                            ? current.selectedTags
+                            : applied.selectedTags,
+                    },
+                };
+            });
         } catch (e: any) {
             onError(e?.message || 'Failed to load request options');
-            setServiceOptions(null);
-        } finally {
-            setOptionsLoading(false);
+            updateQualityForm(quality, { serviceOptions: null, loading: false, loaded: false });
         }
-    }, [onError]);
+    }, [applyServiceDefaults, onError, updateQualityForm]);
 
-    const loadAdvancedOptions = useCallback(async (opts: RequestOptionsPayload, nextIs4k: boolean) => {
+    const qualityFormsRef = useRef(qualityForms);
+    qualityFormsRef.current = qualityForms;
+
+    const loadAdvancedForQuality = useCallback(async (
+        opts: RequestOptionsPayload,
+        quality: QualityKey,
+        { force = false }: { force?: boolean } = {},
+    ) => {
         if (!opts.canRequestAdvanced) {
-            setServiceOptions(null);
-            setServerId(null);
-            setProfileId(null);
-            setRootFolder('');
-            setLanguageProfileId(null);
-            setSelectedTags([]);
+            updateQualityForm(quality, emptyQualityForm());
             return;
         }
 
-        const servers = (opts.servers || []).filter((server) => server.is4k === nextIs4k);
+        const is4k = quality === '4k';
+        const servers = (opts.servers || []).filter((server) => server.is4k === is4k);
         if (!servers.length) {
-            setServiceOptions(null);
+            updateQualityForm(quality, { ...emptyQualityForm(), loaded: true });
             return;
         }
+
+        const existing = qualityFormsRef.current[quality];
+        if (!force && (existing.loaded || existing.loading)) return;
+
+        updateQualityForm(quality, { loading: true });
 
         let nextServerId = servers.find((server) => server.isDefault)?.id ?? servers[0]?.id ?? null;
         let defaults: Record<string, unknown> | null = null;
@@ -145,7 +222,7 @@ export const RequestModal: React.FC<Props> = ({
                     mediaType: opts.mediaType,
                     tmdbId: opts.tmdbId,
                     userId: opts.seerrUserId,
-                    is4k: nextIs4k,
+                    is4k,
                 }),
             });
             if (defaults?.serverId != null) {
@@ -156,21 +233,40 @@ export const RequestModal: React.FC<Props> = ({
         }
 
         if (nextServerId != null) {
-            await loadServiceOptions(opts, nextServerId, nextIs4k, defaults);
+            await loadServiceOptions(opts, quality, nextServerId, defaults);
+        } else {
+            updateQualityForm(quality, { loading: false, loaded: true });
         }
-    }, [loadServiceOptions]);
+    }, [loadServiceOptions, updateQualityForm]);
 
     const loadOptions = useCallback(async () => {
+        const gen = ++loadGenRef.current;
         setLoading(true);
+        setQualityForms({ hd: emptyQualityForm(), '4k': emptyQualityForm() });
+        setTagInput('');
         try {
             const data = await apiFetch(
                 `/api/discovery/request-options?mediaType=${encodeURIComponent(mediaType)}&mediaId=${mediaId}`,
             );
+            if (gen !== loadGenRef.current) return;
             if (data?.error) throw new Error(data.error);
             const payload = data as RequestOptionsPayload;
             setOptions(payload);
-            setIs4k(false);
+
+            const initial = new Set<QualityKey>();
+            const hdOk = payload.hasHdServer !== false
+                && !(payload.standardQuotaBlocked
+                    || (payload.quota?.standard && payload.quota.standard.limit > 0 && payload.quota.standard.remaining === 0));
+            const fourKOk = !!payload.canRequest4k
+                && !(payload.fourKQuotaBlocked
+                    || (payload.quota?.fourK && payload.quota.fourK.limit > 0 && payload.quota.fourK.remaining === 0));
+            if (hdOk) initial.add('hd');
+            else if (fourKOk) initial.add('4k');
+            else initial.add('hd');
+            setSelectedQualities(initial);
+            setAdvancedQuality(initial.has('hd') ? 'hd' : '4k');
             setShowAdvanced(!!payload.canRequestAdvanced);
+
             if (payload.mediaType === 'tv' && Array.isArray(payload.seasons)) {
                 setSelectedSeasons(
                     payload.seasons.filter((s) => s.requestable).map((s) => s.seasonNumber),
@@ -178,25 +274,27 @@ export const RequestModal: React.FC<Props> = ({
             } else {
                 setSelectedSeasons([]);
             }
+
+            if (payload.canRequestAdvanced) {
+                const toLoad: QualityKey[] = [];
+                if (payload.hasHdServer !== false) toLoad.push('hd');
+                if (payload.canRequest4k) toLoad.push('4k');
+                await Promise.all(toLoad.map((q) => loadAdvancedForQuality(payload, q, { force: true })));
+            }
         } catch (e: any) {
+            if (gen !== loadGenRef.current) return;
             onError(e?.message || 'Failed to load request options');
             setOptions(null);
         } finally {
-            setLoading(false);
+            if (gen === loadGenRef.current) setLoading(false);
         }
-    }, [mediaId, mediaType, onError, loadAdvancedOptions]);
+    }, [mediaId, mediaType, onError, loadAdvancedForQuality]);
 
     useEffect(() => {
         if (!open) return undefined;
         loadOptions();
         return undefined;
     }, [open, loadOptions]);
-
-    useEffect(() => {
-        if (!open || !options?.canRequestAdvanced) return undefined;
-        loadAdvancedOptions(options, is4k);
-        return undefined;
-    }, [open, options, is4k, loadAdvancedOptions]);
 
     useEffect(() => {
         if (!open) return undefined;
@@ -207,31 +305,73 @@ export const RequestModal: React.FC<Props> = ({
         return () => window.removeEventListener('keydown', onKey);
     }, [open, onClose, submitting]);
 
+    // Keep advancedQuality pointing at a selected quality
+    useEffect(() => {
+        if (!selectedQualities.has(advancedQuality)) {
+            const next = selectedQualities.has('hd') ? 'hd' : (selectedQualities.has('4k') ? '4k' : 'hd');
+            setAdvancedQuality(next);
+        }
+    }, [selectedQualities, advancedQuality]);
+
     const requestableSeasons = useMemo(
         () => (options?.seasons || []).filter((s) => s.requestable),
         [options?.seasons],
     );
 
-    const activeQuota = useMemo(() => {
-        if (!options) return null;
-        return is4k ? options.quota?.fourK : options.quota?.standard;
-    }, [options, is4k]);
-
-    const quotaHint = useMemo(() => {
-        const label = mediaType === 'tv' ? 'TV' : 'movie';
-        return formatQuotaHint(activeQuota, is4k ? `4K ${label}` : label);
-    }, [activeQuota, is4k, mediaType]);
-
+    const hdQuotaBlocked = !!(
+        options?.standardQuotaBlocked
+        || (options?.quota?.standard && options.quota.standard.limit > 0 && options.quota.standard.remaining === 0)
+    );
     const fourKQuotaBlocked = !!(
-        is4k
-        && options?.quota?.fourK
-        && options.quota.fourK.limit > 0
-        && options.quota.fourK.remaining === 0
+        options?.fourKQuotaBlocked
+        || (options?.quota?.fourK && options.quota.fourK.limit > 0 && options.quota.fourK.remaining === 0)
     );
 
+    const hdAllowed = !!options?.canRequest && !hdQuotaBlocked && options?.hasHdServer !== false;
+    const fourKAllowed = !!options?.canRequest && !!options?.canRequest4k && !fourKQuotaBlocked;
+
+    const activeForm = qualityForms[advancedQuality];
+    const filteredServers = useMemo(() => {
+        const list = options?.servers || [];
+        const want4k = advancedQuality === '4k';
+        return list.filter((server) => server.is4k === want4k);
+    }, [options?.servers, advancedQuality]);
+
+    const quotaHints = useMemo(() => {
+        if (!options) return [] as string[];
+        const label = mediaType === 'tv' ? 'TV' : 'movie';
+        const hints: string[] = [];
+        if (selectedQualities.has('hd')) {
+            const hint = formatQuotaHint(options.quota?.standard, label);
+            if (hint) hints.push(hint);
+        }
+        if (selectedQualities.has('4k')) {
+            const hint = formatQuotaHint(options.quota?.fourK, `4K ${label}`);
+            if (hint) hints.push(hint);
+        }
+        return hints;
+    }, [options, selectedQualities, mediaType]);
+
     const canSubmitRequest = !!options?.canRequest
-        && !(is4k && !options?.canRequest4k)
-        && !fourKQuotaBlocked;
+        && selectedQualities.size > 0
+        && [...selectedQualities].some((q) => (q === 'hd' ? hdAllowed : fourKAllowed));
+
+    const toggleQuality = (quality: QualityKey) => {
+        const allowed = quality === 'hd' ? hdAllowed : fourKAllowed;
+        if (!allowed && !selectedQualities.has(quality)) return;
+
+        setSelectedQualities((prev) => {
+            const next = new Set(prev);
+            if (next.has(quality)) {
+                if (next.size === 1) return prev;
+                next.delete(quality);
+            } else {
+                next.add(quality);
+            }
+            return next;
+        });
+        setAdvancedQuality(quality);
+    };
 
     const toggleSeason = (seasonNumber: number) => {
         setSelectedSeasons((prev) => (
@@ -249,65 +389,185 @@ export const RequestModal: React.FC<Props> = ({
         setSelectedSeasons(requestableSeasons.map((s) => s.seasonNumber));
     };
 
-    const toggleTag = (tagId: number) => {
-        setSelectedTags((prev) => (
-            prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+    const tagCatalog = activeForm.serviceOptions?.tags || [];
+    const selectedTagLabels = useMemo(() => {
+        const byId = new Map(tagCatalog.map((tag) => [tag.id, tag.label]));
+        return activeForm.selectedTags
+            .map((id) => ({ id, label: byId.get(id) || `#${id}` }));
+    }, [activeForm.selectedTags, tagCatalog]);
+
+    const tagSuggestions = useMemo(() => {
+        const q = tagInput.trim().toLowerCase();
+        if (!q) return tagCatalog.filter((tag) => !activeForm.selectedTags.includes(tag.id)).slice(0, 8);
+        return tagCatalog
+            .filter((tag) => (
+                !activeForm.selectedTags.includes(tag.id)
+                && String(tag.label || '').toLowerCase().includes(q)
+            ))
+            .slice(0, 8);
+    }, [tagInput, tagCatalog, activeForm.selectedTags]);
+
+    const removeTag = (tagId: number) => {
+        updateQualityForm(advancedQuality, {
+            selectedTags: activeForm.selectedTags.filter((id) => id !== tagId),
+        });
+    };
+
+    const addTagById = (tagId: number) => {
+        if (!Number.isFinite(tagId) || activeForm.selectedTags.includes(tagId)) return;
+        updateQualityForm(advancedQuality, {
+            selectedTags: [...activeForm.selectedTags, tagId],
+        });
+        setTagInput('');
+        setTagSuggestionsOpen(false);
+    };
+
+    const resolveOrCreateTag = async (rawLabel: string) => {
+        const label = rawLabel.trim();
+        if (!label || !options) return;
+
+        const existing = tagCatalog.find((tag) => (
+            String(tag.label || '').toLowerCase() === label.toLowerCase()
         ));
+        if (existing) {
+            addTagById(existing.id);
+            return;
+        }
+
+        setTagCreating(true);
+        try {
+            const serverName = filteredServers.find((s) => s.id === activeForm.serverId)?.name
+                || activeForm.serviceOptions?.server?.name
+                || '';
+            const created = await apiFetch('/api/discovery/request-tags', {
+                method: 'POST',
+                body: JSON.stringify({
+                    mediaType: options.mediaType,
+                    label,
+                    serverName,
+                }),
+            });
+            if (created?.error) throw new Error(created.error);
+            const tagId = Number(created?.id);
+            const tagLabel = String(created?.label || label);
+            if (!Number.isFinite(tagId)) throw new Error('Invalid tag created');
+
+            setQualityForms((prev) => {
+                const form = prev[advancedQuality];
+                const tags = [...(form.serviceOptions?.tags || [])];
+                if (!tags.some((t) => t.id === tagId)) {
+                    tags.push({ id: tagId, label: tagLabel });
+                }
+                return {
+                    ...prev,
+                    [advancedQuality]: {
+                        ...form,
+                        selectedTags: form.selectedTags.includes(tagId)
+                            ? form.selectedTags
+                            : [...form.selectedTags, tagId],
+                        serviceOptions: form.serviceOptions
+                            ? { ...form.serviceOptions, tags }
+                            : form.serviceOptions,
+                    },
+                };
+            });
+            setTagInput('');
+            setTagSuggestionsOpen(false);
+        } catch (e: any) {
+            onError(e?.message || 'Tag must already exist in Radarr/Sonarr');
+        } finally {
+            setTagCreating(false);
+        }
+    };
+
+    const buildRequestBody = (quality: QualityKey) => {
+        if (!options) return null;
+        const is4k = quality === '4k';
+        const form = qualityForms[quality];
+        const allRequestableSelected = mediaType === 'tv'
+            && requestableSeasons.length > 0
+            && selectedSeasons.length === requestableSeasons.length
+            && requestableSeasons.every((s) => selectedSeasons.includes(s.seasonNumber));
+
+        const body: Record<string, unknown> = {
+            mediaType,
+            mediaId,
+            is4k: is4k || undefined,
+        };
+        if (mediaType === 'tv') {
+            body.seasons = allRequestableSelected && requestableSeasons.length === (options.seasons?.length || 0)
+                ? 'all'
+                : [...selectedSeasons].sort((a, b) => a - b);
+        }
+        if (options.canRequestAdvanced) {
+            if (form.serverId != null) body.serverId = form.serverId;
+            if (form.profileId != null) body.profileId = form.profileId;
+            if (form.rootFolder) body.rootFolder = form.rootFolder;
+            if (mediaType === 'tv' && form.languageProfileId != null) {
+                body.languageProfileId = form.languageProfileId;
+            }
+            if (form.selectedTags.length) body.tags = form.selectedTags;
+        }
+        return body;
     };
 
     const handleSubmit = async () => {
-        if (!canSubmitRequest) return;
-        if (is4k && !options?.canRequest4k) {
-            onError('You do not have permission to request 4K media.');
-            return;
-        }
-        if (fourKQuotaBlocked) {
-            onError('You have reached your 4K request quota for this period.');
+        if (!canSubmitRequest || !options) return;
+
+        const qualities = [...selectedQualities].filter((q) => (q === 'hd' ? hdAllowed : fourKAllowed));
+        if (!qualities.length) {
+            onError('Select at least one available quality.');
             return;
         }
         if (mediaType === 'tv' && selectedSeasons.length === 0) {
             onError('Select at least one season to request.');
             return;
         }
-        if (options?.canRequestAdvanced && !rootFolder) {
-            onError('Select a root folder for this request.');
-            return;
+        if (options.canRequestAdvanced) {
+            for (const quality of qualities) {
+                const form = qualityForms[quality];
+                if (!form.rootFolder) {
+                    onError(`Select a root folder for the ${quality === '4k' ? '4K' : 'HD'} request.`);
+                    setAdvancedQuality(quality);
+                    return;
+                }
+            }
         }
 
         setSubmitting(true);
+        const successes: string[] = [];
+        const failures: string[] = [];
+
         try {
-            const allRequestableSelected = mediaType === 'tv'
-                && requestableSeasons.length > 0
-                && selectedSeasons.length === requestableSeasons.length
-                && requestableSeasons.every((s) => selectedSeasons.includes(s.seasonNumber));
-
-            const body: Record<string, unknown> = {
-                mediaType,
-                mediaId,
-                is4k: is4k || undefined,
-            };
-            if (mediaType === 'tv') {
-                body.seasons = allRequestableSelected && requestableSeasons.length === (options.seasons?.length || 0)
-                    ? 'all'
-                    : [...selectedSeasons].sort((a, b) => a - b);
-            }
-            if (options.canRequestAdvanced) {
-                if (serverId != null) body.serverId = serverId;
-                if (profileId != null) body.profileId = profileId;
-                if (rootFolder) body.rootFolder = rootFolder;
-                if (mediaType === 'tv' && languageProfileId != null) body.languageProfileId = languageProfileId;
-                if (selectedTags.length) body.tags = selectedTags;
+            for (const quality of qualities) {
+                const label = quality === '4k' ? '4K' : 'HD';
+                try {
+                    const body = buildRequestBody(quality);
+                    if (!body) throw new Error('Invalid request');
+                    const res = await apiFetch('/api/discovery/request', {
+                        method: 'POST',
+                        body: JSON.stringify(body),
+                    });
+                    if (res?.error) throw new Error(res.error);
+                    successes.push(label);
+                } catch (e: any) {
+                    failures.push(`${label}: ${e?.message || 'Failed'}`);
+                }
             }
 
-            const res = await apiFetch('/api/discovery/request', {
-                method: 'POST',
-                body: JSON.stringify(body),
-            });
-            if (res?.error) throw new Error(res.error);
-            onSuccess(mediaType === 'tv' ? 'Series request submitted!' : 'Movie request submitted!');
-            onClose();
-        } catch (e: any) {
-            onError(e?.message || 'Failed to submit request');
+            if (successes.length && !failures.length) {
+                onSuccess(
+                    mediaType === 'tv'
+                        ? `Series request submitted (${successes.join(' + ')})!`
+                        : `Movie request submitted (${successes.join(' + ')})!`,
+                );
+                onClose();
+            } else if (successes.length && failures.length) {
+                onSuccess(`Submitted ${successes.join(' + ')}. Failed: ${failures.join('; ')}`);
+                onClose();
+            } else {
+                onError(failures.join('; ') || 'Failed to submit request');
+            }
         } finally {
             setSubmitting(false);
         }
@@ -316,8 +576,12 @@ export const RequestModal: React.FC<Props> = ({
     if (!open) return null;
 
     const displayTitle = options?.title || fallbackTitle || 'Request media';
+    const overview = (options?.overview || '').trim();
     const posterUrl = options?.posterPath ? `https://image.tmdb.org/t/p/w342${options.posterPath}` : '';
     const showAdvancedSection = !!options?.canRequestAdvanced;
+    const showQualityPicker = !!(options?.canRequest4k || options?.has4kServer);
+    const advancedLoading = showAdvancedSection && activeForm.loading && !activeForm.loaded;
+    const bothQualitiesSelected = selectedQualities.has('hd') && selectedQualities.has('4k');
 
     return (
         <ModalPortal open={open}>
@@ -332,18 +596,18 @@ export const RequestModal: React.FC<Props> = ({
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="request-modal-title"
-                className="relative w-full sm:max-w-2xl max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-0.5rem))] sm:max-h-[85vh] bg-card border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-fade-in"
+                className="relative w-full sm:max-w-3xl lg:max-w-4xl max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-0.5rem))] sm:max-h-[85vh] bg-card border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-fade-in"
             >
                 <div className="flex items-start justify-between gap-4 p-5 border-b border-white/10 bg-black/20 shrink-0">
                     <div className="flex items-start gap-4 min-w-0">
-                        <div className="w-14 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-black/40 border border-white/10">
+                        <div className="w-20 h-[7.5rem] sm:w-24 sm:h-36 rounded-xl overflow-hidden flex-shrink-0 bg-black/40 border border-white/10 shadow-lg">
                             {posterUrl ? (
                                 <img src={posterUrl} alt="" className="w-full h-full object-cover" />
                             ) : (
                                 <NoPosterPlaceholder compact />
                             )}
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 mb-1">
                                 {mediaType === 'movie' ? (
                                     <Film className="w-4 h-4 text-plex" />
@@ -354,11 +618,20 @@ export const RequestModal: React.FC<Props> = ({
                                     Request {mediaType === 'movie' ? 'Movie' : 'Series'}
                                 </span>
                             </div>
-                            <h2 id="request-modal-title" className="text-lg font-black text-white leading-tight truncate">
+                            <h2 id="request-modal-title" className="text-xl sm:text-2xl font-black text-white leading-tight">
                                 {displayTitle}
                             </h2>
-                            {quotaHint && (
-                                <p className="text-xs text-white/50 mt-1">{quotaHint}</p>
+                            {overview ? (
+                                <p className="text-sm text-white/55 mt-2 line-clamp-3 leading-relaxed">
+                                    {overview}
+                                </p>
+                            ) : null}
+                            {quotaHints.length > 0 && (
+                                <div className="mt-2 flex flex-col gap-0.5">
+                                    {quotaHints.map((hint) => (
+                                        <p key={hint} className="text-xs text-white/45">{hint}</p>
+                                    ))}
+                                </div>
                             )}
                         </div>
                     </div>
@@ -366,7 +639,7 @@ export const RequestModal: React.FC<Props> = ({
                         type="button"
                         onClick={onClose}
                         disabled={submitting}
-                        className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors disabled:opacity-50"
+                        className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors disabled:opacity-50 shrink-0"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -387,37 +660,74 @@ export const RequestModal: React.FC<Props> = ({
                                 </div>
                             )}
 
-                            {fourKQuotaBlocked && (
+                            {hdQuotaBlocked && selectedQualities.has('hd') && (
+                                <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                                    You have used all {options.quota?.standard?.limit} HD requests for this period.
+                                </div>
+                            )}
+
+                            {fourKQuotaBlocked && selectedQualities.has('4k') && (
                                 <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
                                     You have used all {options.quota?.fourK?.limit} 4K requests for this period.
                                 </div>
                             )}
 
-                            {options.canRequest4k && (
+                            {showQualityPicker && (
                                 <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                                    <p className="text-xs font-bold uppercase tracking-wider text-white/40 mb-3">Quality</p>
-                                    <div className="flex gap-2">
+                                    <p className="text-xs font-bold uppercase tracking-wider text-white/40 mb-3">
+                                        Quality
+                                        <span className="ml-2 font-medium normal-case tracking-normal text-white/30">
+                                            Select one or both
+                                        </span>
+                                    </p>
+                                    <div className="grid grid-cols-2 gap-2">
                                         <button
                                             type="button"
-                                            onClick={() => setIs4k(false)}
-                                            className={`flex-1 py-2.5 px-3 rounded-lg text-sm font-bold transition-colors border ${
-                                                !is4k
-                                                    ? 'bg-plex/15 border-plex/40 text-white'
-                                                    : 'bg-white/5 border-white/10 text-white/60 hover:text-white'
-                                            }`}
+                                            onClick={() => toggleQuality('hd')}
+                                            disabled={!hdAllowed && !selectedQualities.has('hd')}
+                                            className={`relative flex flex-col items-start gap-1 py-3 px-3.5 rounded-xl text-left transition-all border ${
+                                                selectedQualities.has('hd')
+                                                    ? 'bg-plex/15 border-plex/45 text-white shadow-[inset_0_0_0_1px_rgba(229,160,13,0.15)]'
+                                                    : 'bg-white/5 border-white/10 text-white/55 hover:text-white hover:bg-white/[0.07]'
+                                            } disabled:opacity-40 disabled:cursor-not-allowed`}
                                         >
-                                            HD
+                                            <span className="flex items-center gap-2">
+                                                <span className={`flex h-6 w-6 items-center justify-center rounded-md text-[10px] font-black tracking-tight ${
+                                                    selectedQualities.has('hd')
+                                                        ? 'bg-plex text-black'
+                                                        : 'bg-white/10 text-white/70'
+                                                }`}>
+                                                    HD
+                                                </span>
+                                                <span className="text-sm font-bold">1080p / HD</span>
+                                            </span>
+                                            <span className="text-[11px] text-white/40 pl-8">
+                                                {mediaType === 'tv' ? 'Sonarr' : 'Radarr'} · standard
+                                            </span>
                                         </button>
                                         <button
                                             type="button"
-                                            onClick={() => setIs4k(true)}
-                                            className={`flex-1 py-2.5 px-3 rounded-lg text-sm font-bold transition-colors border ${
-                                                is4k
-                                                    ? 'bg-plex/15 border-plex/40 text-white'
-                                                    : 'bg-white/5 border-white/10 text-white/60 hover:text-white'
-                                            }`}
+                                            onClick={() => toggleQuality('4k')}
+                                            disabled={!fourKAllowed && !selectedQualities.has('4k')}
+                                            className={`relative flex flex-col items-start gap-1 py-3 px-3.5 rounded-xl text-left transition-all border ${
+                                                selectedQualities.has('4k')
+                                                    ? 'bg-plex/15 border-plex/45 text-white shadow-[inset_0_0_0_1px_rgba(229,160,13,0.15)]'
+                                                    : 'bg-white/5 border-white/10 text-white/55 hover:text-white hover:bg-white/[0.07]'
+                                            } disabled:opacity-40 disabled:cursor-not-allowed`}
                                         >
-                                            4K
+                                            <span className="flex items-center gap-2">
+                                                <span className={`flex h-6 w-6 items-center justify-center rounded-md text-[10px] font-black tracking-tight ${
+                                                    selectedQualities.has('4k')
+                                                        ? 'bg-plex text-black'
+                                                        : 'bg-white/10 text-white/70'
+                                                }`}>
+                                                    4K
+                                                </span>
+                                                <span className="text-sm font-bold">Ultra HD</span>
+                                            </span>
+                                            <span className="text-[11px] text-white/40 pl-8">
+                                                {mediaType === 'tv' ? 'Sonarr' : 'Radarr'} · 4K server
+                                            </span>
                                         </button>
                                     </div>
                                 </div>
@@ -519,7 +829,26 @@ export const RequestModal: React.FC<Props> = ({
 
                                     {showAdvanced && (
                                         <div className="px-4 pb-4 flex flex-col gap-3 border-t border-white/10">
-                                            {optionsLoading ? (
+                                            {bothQualitiesSelected && (
+                                                <div className="flex gap-1 pt-3">
+                                                    {(['hd', '4k'] as QualityKey[]).map((q) => (
+                                                        <button
+                                                            key={q}
+                                                            type="button"
+                                                            onClick={() => setAdvancedQuality(q)}
+                                                            className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide border transition-colors ${
+                                                                advancedQuality === q
+                                                                    ? 'bg-white/10 border-white/20 text-white'
+                                                                    : 'bg-transparent border-transparent text-white/40 hover:text-white/70'
+                                                            }`}
+                                                        >
+                                                            {q === '4k' ? '4K options' : 'HD options'}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {advancedLoading ? (
                                                 <div className="flex items-center gap-2 py-6 justify-center text-white/50 text-sm">
                                                     <Loader2 className="w-4 h-4 animate-spin text-plex" />
                                                     Loading server options…
@@ -527,16 +856,20 @@ export const RequestModal: React.FC<Props> = ({
                                             ) : (
                                                 <>
                                                     {filteredServers.length > 1 && (
-                                                        <div>
+                                                        <div className={bothQualitiesSelected ? '' : 'pt-3'}>
                                                             <label className="block text-xs font-bold uppercase tracking-wider text-white/40 mb-2">
                                                                 Destination Server
                                                             </label>
                                                             <CustomSelect
-                                                                value={String(serverId ?? '')}
+                                                                value={String(activeForm.serverId ?? '')}
                                                                 onChange={(val) => {
                                                                     const nextId = Number(val);
-                                                                    setServerId(nextId);
-                                                                    if (options) loadServiceOptions(options, nextId, is4k);
+                                                                    updateQualityForm(advancedQuality, { serverId: nextId });
+                                                                    if (options) {
+                                                                        loadServiceOptions(options, advancedQuality, nextId, null, {
+                                                                            preserveSelections: false,
+                                                                        });
+                                                                    }
                                                                 }}
                                                                 options={filteredServers.map((server) => ({
                                                                     value: String(server.id),
@@ -546,14 +879,16 @@ export const RequestModal: React.FC<Props> = ({
                                                         </div>
                                                     )}
 
-                                                    <div>
+                                                    <div className={!bothQualitiesSelected && filteredServers.length <= 1 ? 'pt-3' : ''}>
                                                         <label className="block text-xs font-bold uppercase tracking-wider text-white/40 mb-2">
                                                             Quality Profile
                                                         </label>
                                                         <CustomSelect
-                                                            value={String(profileId ?? '')}
-                                                            onChange={(val) => setProfileId(Number(val))}
-                                                            options={(serviceOptions?.profiles || []).map((profile) => ({
+                                                            value={String(activeForm.profileId ?? '')}
+                                                            onChange={(val) => updateQualityForm(advancedQuality, {
+                                                                profileId: Number(val),
+                                                            })}
+                                                            options={(activeForm.serviceOptions?.profiles || []).map((profile) => ({
                                                                 value: String(profile.id),
                                                                 label: profile.name,
                                                             }))}
@@ -565,26 +900,28 @@ export const RequestModal: React.FC<Props> = ({
                                                             Root Folder
                                                         </label>
                                                         <CustomSelect
-                                                            value={rootFolder}
-                                                            onChange={setRootFolder}
-                                                            options={(serviceOptions?.rootFolders || []).map((folder) => ({
+                                                            value={activeForm.rootFolder}
+                                                            onChange={(val) => updateQualityForm(advancedQuality, {
+                                                                rootFolder: val,
+                                                            })}
+                                                            options={(activeForm.serviceOptions?.rootFolders || []).map((folder) => ({
                                                                 value: folder.path,
-                                                                label: folder.freeSpace
-                                                                    ? `${folder.path} (${formatBytes(folder.freeSpace)})`
-                                                                    : folder.path,
+                                                                label: rootFolderLabel(folder),
                                                             }))}
                                                         />
                                                     </div>
 
-                                                    {mediaType === 'tv' && (serviceOptions?.languageProfiles?.length ?? 0) > 0 && (
+                                                    {mediaType === 'tv' && (activeForm.serviceOptions?.languageProfiles?.length ?? 0) > 0 && (
                                                         <div>
                                                             <label className="block text-xs font-bold uppercase tracking-wider text-white/40 mb-2">
                                                                 Language Profile
                                                             </label>
                                                             <CustomSelect
-                                                                value={String(languageProfileId ?? '')}
-                                                                onChange={(val) => setLanguageProfileId(Number(val))}
-                                                                options={(serviceOptions?.languageProfiles || []).map((profile) => ({
+                                                                value={String(activeForm.languageProfileId ?? '')}
+                                                                onChange={(val) => updateQualityForm(advancedQuality, {
+                                                                    languageProfileId: Number(val),
+                                                                })}
+                                                                options={(activeForm.serviceOptions?.languageProfiles || []).map((profile) => ({
                                                                     value: String(profile.id),
                                                                     label: profile.name,
                                                                 }))}
@@ -592,28 +929,71 @@ export const RequestModal: React.FC<Props> = ({
                                                         </div>
                                                     )}
 
-                                                    {(serviceOptions?.tags?.length ?? 0) > 0 && (
-                                                        <div>
-                                                            <label className="block text-xs font-bold uppercase tracking-wider text-white/40 mb-2">
-                                                                Tags
-                                                            </label>
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {(serviceOptions?.tags || []).map((tag) => (
-                                                                    <label
-                                                                        key={tag.id}
-                                                                        className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-xs text-white/80 cursor-pointer"
-                                                                    >
-                                                                        <StyledCheckbox
-                                                                            checked={selectedTags.includes(tag.id)}
-                                                                            onChange={() => toggleTag(tag.id)}
-                                                                            label=""
-                                                                        />
-                                                                        {tag.label}
-                                                                    </label>
-                                                                ))}
-                                                            </div>
+                                                    <div>
+                                                        <label className="block text-xs font-bold uppercase tracking-wider text-white/40 mb-2">
+                                                            Tags
+                                                        </label>
+                                                        <div className="flex flex-wrap gap-1.5 mb-2 min-h-[1.5rem]">
+                                                            {selectedTagLabels.map((tag) => (
+                                                                <button
+                                                                    key={tag.id}
+                                                                    type="button"
+                                                                    onClick={() => removeTag(tag.id)}
+                                                                    className="inline-flex items-center gap-1 rounded-lg border border-plex/30 bg-plex/10 px-2 py-1 text-xs text-white hover:bg-plex/20 transition-colors"
+                                                                >
+                                                                    {tag.label}
+                                                                    <X className="w-3 h-3 text-white/50" />
+                                                                </button>
+                                                            ))}
                                                         </div>
-                                                    )}
+                                                        <div className="relative">
+                                                            <input
+                                                                type="text"
+                                                                value={tagInput}
+                                                                disabled={tagCreating || submitting}
+                                                                onChange={(e) => {
+                                                                    setTagInput(e.target.value);
+                                                                    setTagSuggestionsOpen(true);
+                                                                }}
+                                                                onFocus={() => setTagSuggestionsOpen(true)}
+                                                                onBlur={() => {
+                                                                    window.setTimeout(() => setTagSuggestionsOpen(false), 150);
+                                                                }}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter' || e.key === ',') {
+                                                                        e.preventDefault();
+                                                                        const value = tagInput.replace(/,/g, '').trim();
+                                                                        if (value) void resolveOrCreateTag(value);
+                                                                    } else if (e.key === 'Backspace' && !tagInput && activeForm.selectedTags.length) {
+                                                                        removeTag(activeForm.selectedTags[activeForm.selectedTags.length - 1]);
+                                                                    }
+                                                                }}
+                                                                placeholder="Type a tag and press Enter"
+                                                                className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-plex/40"
+                                                            />
+                                                            {tagCreating && (
+                                                                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-plex" />
+                                                            )}
+                                                            {tagSuggestionsOpen && tagSuggestions.length > 0 && (
+                                                                <div className="absolute z-20 left-0 right-0 mt-1 rounded-lg border border-white/10 bg-[#1a1a1a] shadow-xl overflow-hidden">
+                                                                    {tagSuggestions.map((tag) => (
+                                                                        <button
+                                                                            key={tag.id}
+                                                                            type="button"
+                                                                            onMouseDown={(e) => e.preventDefault()}
+                                                                            onClick={() => addTagById(tag.id)}
+                                                                            className="w-full text-left px-3 py-2 text-sm text-white/80 hover:bg-white/10 transition-colors"
+                                                                        >
+                                                                            {tag.label}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-[11px] text-white/35 mt-1.5">
+                                                            Match an existing tag or create one in Radarr/Sonarr when portal Arr credentials allow it.
+                                                        </p>
+                                                    </div>
                                                 </>
                                             )}
                                         </div>
@@ -636,11 +1016,15 @@ export const RequestModal: React.FC<Props> = ({
                     <button
                         type="button"
                         onClick={handleSubmit}
-                        disabled={submitting || loading || optionsLoading || !canSubmitRequest}
+                        disabled={submitting || loading || advancedLoading || !canSubmitRequest}
                         className="flex-1 py-3 rounded-xl bg-plex text-black font-black hover:bg-plex-hover transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                         {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                        {submitting ? 'Submitting…' : 'Submit Request'}
+                        {submitting
+                            ? 'Submitting…'
+                            : selectedQualities.size > 1
+                                ? 'Submit HD + 4K'
+                                : 'Submit Request'}
                     </button>
                 </div>
             </div>

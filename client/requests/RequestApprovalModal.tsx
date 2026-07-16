@@ -21,11 +21,12 @@ type Props = {
 };
 
 const formatBytes = (bytes?: number | null) => {
-    if (!bytes) return '';
+    const n = Number(bytes);
+    if (!Number.isFinite(n) || n <= 0) return '';
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]} free`;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    const i = Math.min(sizes.length - 1, Math.max(0, Math.floor(Math.log(n) / Math.log(k))));
+    return `${parseFloat((n / Math.pow(k, i)).toFixed(1))} ${sizes[i]} free`;
 };
 
 const seasonStatusLabel = (status: number | null | undefined, selected: boolean) => {
@@ -401,7 +402,10 @@ export const RequestApprovalModal: React.FC<Props> = ({
                                         onChange={setRootFolder}
                                         options={(serviceOptions?.rootFolders || []).map((f) => ({
                                             value: f.path,
-                                            label: f.freeSpace ? `${f.path} (${formatBytes(f.freeSpace)})` : f.path,
+                                            label: (() => {
+                                                const free = formatBytes(f.freeSpace);
+                                                return free ? `${f.path} (${free})` : f.path;
+                                            })(),
                                         }))}
                                     />
                                 </div>
