@@ -10,9 +10,10 @@ type Props = {
     onSelect: (item: any) => void;
     navigate: (path: string) => void;
     pushToast?: (msg: string, type: 'success' | 'error') => void;
+    providerLabel?: string;
 };
 
-export const WatchlistPage: React.FC<Props> = ({ formatItem, onSelect, navigate, pushToast }) => {
+export const WatchlistPage: React.FC<Props> = ({ formatItem, onSelect, navigate, pushToast, providerLabel = 'Plex' }) => {
     const { loaded } = useDiscoveryPreferences();
     const [items, setItems] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -59,9 +60,9 @@ export const WatchlistPage: React.FC<Props> = ({ formatItem, onSelect, navigate,
     if (!items.length) {
         return (
             <div className="mx-2 rounded-xl border border-white/10 bg-white/[0.03] px-6 py-12 text-center">
-                <p className="text-white/70 font-semibold">Your Plex watchlist is empty</p>
+                <p className="text-white/70 font-semibold">Your {providerLabel} watchlist is empty</p>
                 <p className="text-sm text-white/45 mt-2">
-                    Add movies and shows to your Plex watchlist — they will appear here once Seerr syncs.
+                    Add movies and shows to your {providerLabel} watchlist — they will appear here once Seerr syncs.
                 </p>
                 <button
                     type="button"
@@ -84,6 +85,7 @@ export const WatchlistPage: React.FC<Props> = ({ formatItem, onSelect, navigate,
             onRefresh={loadWatchlist}
             variant="page"
             showHeader
+            providerLabel={providerLabel}
         />
     );
 };

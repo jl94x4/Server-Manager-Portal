@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Check, BookOpen } from 'lucide-react';
+import { Copy, ChevronUp, ChevronDown, Check, BookOpen, RefreshCw } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { portalUrl, resolvePortalAssetUrl } from '../shared/basePath';
 import { appConfirm } from '../shared/confirm';
@@ -66,7 +66,7 @@ const normalizeArrInstancesFromSettings = (settings: Record<string, any> = {}): 
 const createEmptyDownloadClient = (type: DownloadClientConfig['type'] = 'qbittorrent'): DownloadClientConfig => ({
     id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${type}-${Date.now()}`,
     type,
-    name: type === 'transmission' ? 'Transmission' : type === 'bittorrent' ? 'BitTorrent' : type === 'deluge' ? 'Deluge' : 'qBittorrent',
+    name: type === 'transmission' ? 'Transmission' : type === 'bittorrent' ? 'BitTorrent' : type === 'deluge' ? 'Deluge' : type === 'sabnzbd' ? 'SABnzbd' : 'qBittorrent',
     url: '',
     username: '',
     password: '',
@@ -109,6 +109,7 @@ const APP_ICONS: Record<string, string> = {
     transmission: `${SELFHST_ICON_BASE}/transmission.svg`,
     bittorrent: `${SIMPLE_ICON_BASE}/bittorrent`,
     deluge: `${SELFHST_ICON_BASE}/deluge.svg`,
+    sabnzbd: `${SELFHST_ICON_BASE}/sabnzbd.svg`,
     jellystat: 'https://cdn.jsdelivr.net/gh/selfhst/icons@main/png/jellystat.png',
     tmdb: `${SELFHST_ICON_BASE}/tmdb.svg`,
 };
@@ -335,6 +336,7 @@ export const SettingsDashboard: React.FC = () => {
     const [isTestingGotify, setIsTestingGotify] = useState(false);
     const [isTestingNewsletter, setIsTestingNewsletter] = useState(false);
     const [isSendingNewsletter, setIsSendingNewsletter] = useState(false);
+    const [isGeneratingNewsletter, setIsGeneratingNewsletter] = useState(false);
 
     // Newsletter States
     const [newsletterFrequency, setNewsletterFrequency] = useState('disabled');
@@ -1245,6 +1247,47 @@ export const SettingsDashboard: React.FC = () => {
         });
     };
 
+    const handlePreviewNewsletter = async () => {
+        setIsGeneratingNewsletter(true);
+        try {
+            window.open(portalUrl(`/api/newsletter/preview?ts=${Date.now()}`), '_blank', 'noopener,noreferrer');
+            addToast('Newsletter preview opened.', 'success');
+        } catch (error) {
+            addToast(error instanceof Error ? error.message : 'Newsletter preview failed.', 'error');
+        } finally {
+            setIsGeneratingNewsletter(false);
+        }
+    };
+
+    const handleRegenerateNewsletter = async () => {
+        setIsGeneratingNewsletter(true);
+        try {
+            window.open(portalUrl(`/api/newsletter/preview?regenerate=${Date.now()}`), '_blank', 'noopener,noreferrer');
+            addToast('Newsletter regenerated.', 'success');
+        } catch (error) {
+            addToast(error instanceof Error ? error.message : 'Newsletter regeneration failed.', 'error');
+        } finally {
+            setIsGeneratingNewsletter(false);
+        }
+    };
+
+    const handleDownloadNewsletter = async () => {
+        setIsGeneratingNewsletter(true);
+        try {
+            const link = document.createElement('a');
+            link.href = portalUrl(`/api/newsletter/download?ts=${Date.now()}`);
+            link.download = '';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            addToast('Newsletter download started.', 'success');
+        } catch (error) {
+            addToast(error instanceof Error ? error.message : 'Newsletter download failed.', 'error');
+        } finally {
+            setIsGeneratingNewsletter(false);
+        }
+    };
+
     const splashPreviewLogoSrc = logoPreviewUrl || resolvePortalAssetUrl(customLogoUrl);
     const splashPreviewBackgroundSrc = backgroundPreviewUrl || resolvePortalAssetUrl(backgroundImageUrl);
     const splashPreviewKey = `${splashPreviewLogoSrc || 'no-logo'}|${splashPreviewBackgroundSrc || 'no-background'}`;
@@ -1729,12 +1772,22 @@ export const SettingsDashboard: React.FC = () => {
                                 </>
                             )}
                             <div className="mt-6 space-y-3">
-                                <h4 className="font-bold text-text">Test Newsletter</h4>
+                                <h4 className="font-bold text-text">Generate Newsletter</h4>
                                 <div className="flex flex-col md:flex-row gap-4 mb-4">
-                                    <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={handleTestNewsletter} disabled={isTestingNewsletter || isSendingNewsletter}>
+                                    <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={handleRegenerateNewsletter} disabled={isTestingNewsletter || isSendingNewsletter || isGeneratingNewsletter}>
+                                        <RefreshCw size={16} className={isGeneratingNewsletter ? 'animate-spin' : ''} aria-hidden="true" />
+                                        {isGeneratingNewsletter ? 'Regenerating...' : 'Regenerate Newsletter'}
+                                    </button>
+                                    <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={handlePreviewNewsletter} disabled={isTestingNewsletter || isSendingNewsletter || isGeneratingNewsletter}>
+                                        {isGeneratingNewsletter ? 'Generating...' : 'Preview Newsletter'}
+                                    </button>
+                                    <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={handleDownloadNewsletter} disabled={isTestingNewsletter || isSendingNewsletter || isGeneratingNewsletter}>
+                                        Download HTML
+                                    </button>
+                                    <button className="px-4 py-2 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2" onClick={handleTestNewsletter} disabled={isTestingNewsletter || isSendingNewsletter || isGeneratingNewsletter}>
                                         {isTestingNewsletter ? 'Generating & Sending...' : 'Send Test Newsletter To Admin'}
                                     </button>
-                                    <button className="px-4 py-2 bg-plex text-background rounded-md font-medium hover:bg-plex-hover transition-colors flex items-center justify-center gap-2" onClick={handleSendNewsletterNow} disabled={isTestingNewsletter || isSendingNewsletter}>
+                                    <button className="px-4 py-2 bg-plex text-background rounded-md font-medium hover:bg-plex-hover transition-colors flex items-center justify-center gap-2" onClick={handleSendNewsletterNow} disabled={isTestingNewsletter || isSendingNewsletter || isGeneratingNewsletter}>
                                         {isSendingNewsletter ? 'Sending To All...' : 'Send Newsletter To ALL NOW'}
                                     </button>
                                 </div>
@@ -1850,7 +1903,7 @@ export const SettingsDashboard: React.FC = () => {
                             </div>
 
                             <div id={getSettingsSectionElementId('download-clients')} className="scroll-mt-24">
-                            <IntegrationHeading app="download" title="Download Clients" subtitle="qBittorrent, Transmission, BitTorrent, and Deluge status sources" className="mt-10" />
+                            <IntegrationHeading app="download" title="Download Clients" subtitle="qBittorrent, Transmission, BitTorrent, Deluge, and SABnzbd status sources" className="mt-10" />
                             <div className="flex items-center justify-between gap-3 mb-4">
                                 <p className="text-sm text-muted">These clients feed the Download Status page.</p>
                                 <button
@@ -1866,7 +1919,7 @@ export const SettingsDashboard: React.FC = () => {
                             ) : (
                                 <div className="space-y-4">
                                     {downloadClients.map((client) => {
-                                        const clientLabel = client.type === 'transmission' ? 'Transmission' : client.type === 'bittorrent' ? 'BitTorrent' : client.type === 'deluge' ? 'Deluge' : 'qBittorrent';
+                                        const clientLabel = client.type === 'transmission' ? 'Transmission' : client.type === 'bittorrent' ? 'BitTorrent' : client.type === 'deluge' ? 'Deluge' : client.type === 'sabnzbd' ? 'SABnzbd' : 'qBittorrent';
                                         return (
                                         <div key={client.id} className="rounded-xl border border-border bg-background/40 p-4">
                                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 pb-3 border-b border-border/50">
@@ -1901,6 +1954,7 @@ export const SettingsDashboard: React.FC = () => {
                                                         { label: 'Transmission', value: 'transmission' },
                                                         { label: 'BitTorrent', value: 'bittorrent' },
                                                         { label: 'Deluge', value: 'deluge' },
+                                                        { label: 'SABnzbd', value: 'sabnzbd' },
                                                     ]}
                                                 />
                                             </div>
@@ -1913,11 +1967,11 @@ export const SettingsDashboard: React.FC = () => {
                                                 <input className="w-full p-2.5 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all text-sm" value={client.url} onChange={(e) => setDownloadClients(downloadClients.map((entry) => entry.id === client.id ? { ...entry, url: e.target.value } : entry))} placeholder={client.type === 'transmission' ? 'http://localhost:9091' : client.type === 'deluge' ? 'http://localhost:8112' : 'http://localhost:8080'} />
                                             </div>
                                             <div>
-                                                <label className="text-xs text-muted uppercase tracking-wider font-bold mb-1 block">Username</label>
+                                                <label className="text-xs text-muted uppercase tracking-wider font-bold mb-1 block">{client.type === 'sabnzbd' ? 'Username (Optional)' : 'Username'}</label>
                                                 <input className="w-full p-2.5 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all text-sm" value={client.username || ''} onChange={(e) => setDownloadClients(downloadClients.map((entry) => entry.id === client.id ? { ...entry, username: e.target.value } : entry))} />
                                             </div>
                                             <div>
-                                                <label className="text-xs text-muted uppercase tracking-wider font-bold mb-1 block">Password</label>
+                                                <label className="text-xs text-muted uppercase tracking-wider font-bold mb-1 block">{client.type === 'sabnzbd' ? 'API Key' : 'Password'}</label>
                                                 <input className="w-full p-2.5 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all text-sm" type="password" value={client.password || ''} onChange={(e) => setDownloadClients(downloadClients.map((entry) => entry.id === client.id ? { ...entry, password: e.target.value } : entry))} />
                                             </div>
                                             <div className="md:col-span-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

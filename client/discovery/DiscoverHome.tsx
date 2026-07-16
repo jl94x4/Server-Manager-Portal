@@ -51,7 +51,8 @@ export const DiscoverHome: React.FC<{
     formatItem: (item: any) => any;
     navigate: (path: string) => void;
     pushToast?: (msg: string, type: 'success' | 'error') => void;
-}> = ({ onSelect, formatItem, navigate, pushToast }) => {
+    providerLabel?: string;
+}> = ({ onSelect, formatItem, navigate, pushToast, providerLabel = 'Plex' }) => {
     const { preferences, loaded } = useDiscoveryPreferences();
     const { showLibraryQueue, toggleLibraryQueue } = useLibraryQueueToggle();
     const [rows, setRows] = useState({
@@ -294,13 +295,14 @@ export const DiscoverHome: React.FC<{
                                 pushToast={pushToast}
                                 onRefresh={loadData}
                                 variant="row"
+                                providerLabel={providerLabel}
                             />
                         ) : (
                             <div className="flex flex-col gap-2">
-                                <h2 className={`${discoveryTheme.sectionTitle} px-2`}>Your Plex Watchlist</h2>
+                                <h2 className={`${discoveryTheme.sectionTitle} px-2`}>Your {providerLabel} Watchlist</h2>
                                 <EmptyRail
                                     title="Watchlist is empty"
-                                    body="Sync from Plex in Seerr, or start from trending titles."
+                                    body={`Sync from ${providerLabel} in Seerr, or start from trending titles.`}
                                     actionLabel="See trending"
                                     onAction={() => {
                                         document.getElementById('discover-trending')?.scrollIntoView({ behavior: 'smooth', block: 'start' });

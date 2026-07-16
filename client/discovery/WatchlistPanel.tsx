@@ -22,6 +22,7 @@ type Props = {
     onRefresh?: () => void;
     variant?: 'row' | 'page';
     showHeader?: boolean;
+    providerLabel?: string;
 };
 
 export const WatchlistPanel: React.FC<Props> = ({
@@ -33,6 +34,7 @@ export const WatchlistPanel: React.FC<Props> = ({
     onRefresh,
     variant = 'row',
     showHeader = true,
+    providerLabel = 'Plex',
 }) => {
     const [requestTarget, setRequestTarget] = useState<{ mediaType: 'movie' | 'tv'; mediaId: number; title: string } | null>(null);
     const [bulkLoading, setBulkLoading] = useState(false);
@@ -140,9 +142,9 @@ export const WatchlistPanel: React.FC<Props> = ({
     const header = showHeader ? (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-2">
             <div>
-                <h2 className="text-xl font-bold text-text">Your Plex Watchlist</h2>
+                <h2 className="text-xl font-bold text-text">Your {providerLabel} Watchlist</h2>
                 <p className="text-xs text-muted mt-1">
-                    Auto-sync from Plex is managed in Seerr settings.
+                    Auto-sync from {providerLabel} is managed in Seerr settings.
                     {quotaSummary ? ` ${quotaSummary}.` : ''}
                 </p>
             </div>

@@ -3,7 +3,7 @@
 import express from 'express';
 import fs from 'fs/promises';
 import path from 'path';
-import fetch from 'node-fetch';
+import fetch, { Blob, FormData } from 'node-fetch';
 import { randomUUID, randomBytes } from 'crypto';
 import nodemailer from 'nodemailer';
 import cookieParser from 'cookie-parser';
@@ -2487,12 +2487,13 @@ const DASHBOARD_RECENTLY_ADDED_WIDGETS = ['recentMovies', 'recentShows', 'recent
 const DASHBOARD_WIDGETS = [...DASHBOARD_MAIN_GRID_WIDGETS, ...DASHBOARD_RECENTLY_ADDED_WIDGETS];
 const DASHBOARD_WIDGET_SIZES = ['compact', 'normal', 'wide', 'full'];
 
-const DOWNLOAD_CLIENT_TYPES = ['qbittorrent', 'transmission', 'bittorrent', 'deluge'];
+const DOWNLOAD_CLIENT_TYPES = ['qbittorrent', 'transmission', 'bittorrent', 'deluge', 'sabnzbd'];
 const downloadClientLabel = (type) => ({
     qbittorrent: 'qBittorrent',
     transmission: 'Transmission',
     bittorrent: 'BitTorrent',
     deluge: 'Deluge',
+    sabnzbd: 'SABnzbd',
 }[type] || 'Download Client');
 
 const normalizeDownloadClients = (incoming, existing = [], { resolveSecret = (v) => v, resolveConfigIntegrationUrl = (v) => String(v || '').trim(), secretMask = SECRET_MASK } = {}) => {
@@ -3526,11 +3527,11 @@ app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
                 enabled: true,
             };
             if (!client.url) return res.status(400).json({ error: `${downloadClientLabel(clientType)} URL is required.` });
-            const torrents = await fetchDownloadClientTorrents(client);
+            const downloads = await fetchDownloadClientTorrents(client);
             return res.json({
                 ok: true,
-                message: `${downloadClientLabel(client.type)} connected (${Array.isArray(torrents) ? torrents.length : 0} torrents)`,
-                details: { torrentCount: Array.isArray(torrents) ? torrents.length : 0, clientType: client.type },
+                message: `${downloadClientLabel(client.type)} connected (${Array.isArray(downloads) ? downloads.length : 0} downloads)`,
+                details: { downloadCount: Array.isArray(downloads) ? downloads.length : 0, clientType: client.type },
             });
         }
 
@@ -4230,10 +4231,128 @@ const fetchImageBuffer = async (config, thumbPath) => {
     return null;
 };
 
-const generateNewsletterHtml = async (config) => {
-    const stats = cachedPlexStats || await loadPlexStatsFromDisk() || { movies: 0, shows: 0, music: 0 };
+const uniqueTruthy = (values = []) => [...new Set(values.flat().filter(Boolean).map((value) => String(value)))];
+
+const fetchJellyfinImageBufferForNewsletter = async (config, itemIds, { width = 150, height = 225 } = {}) => {
+    const candidates = uniqueTruthy(Array.isArray(itemIds) ? itemIds : [itemIds]);
+    if (candidates.length === 0) return null;
+    const imageTypes = ['Primary', 'Thumb', 'Backdrop'];
+
+    try {
+        const baseUrl = resolveIntegrationUrlForFetch(config.jellyfinUrl);
+        for (const candidate of candidates) {
+            const [itemId, imageTag = ''] = candidate.split('|');
+            if (!itemId) continue;
+            for (const imageType of imageTypes) {
+                try {
+                    const params = new URLSearchParams({
+                        fillWidth: String(width),
+                        fillHeight: String(height),
+                        quality: '90',
+                    });
+                    if (imageTag) params.set('tag', imageTag);
+                    const imageUrl = `${baseUrl}/Items/${encodeURIComponent(itemId)}/Images/${imageType}?${params.toString()}`;
+                    const response = await fetchWithTimeout(imageUrl, {
+                        headers: jellyfinHeaders(config.jellyfinApiKey, { Accept: 'image/*,*/*;q=0.8' }),
+                    }, 10000);
+                    const contentType = response.headers.get('content-type') || '';
+                    if (response.ok && contentType.startsWith('image/')) {
+                        return Buffer.from(await response.arrayBuffer());
+                    }
+                } catch (e) { }
+            }
+        }
+    } catch (e) { }
+    return null;
+};
+
+const jellyfinImageCandidate = (itemId, tag) => itemId ? `${itemId}${tag ? `|${tag}` : ''}` : '';
+
+const newsletterPlaceholderDataUrl = (width, height, label = 'No Image') => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#111827"/><rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="6" fill="none" stroke="#374151"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#eab308" font-family="Arial, sans-serif" font-size="13" font-weight="700">${escapeHtmlAttr(label)}</text></svg>`;
+    return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+};
+
+const fetchJellyfinLibraryStatsForNewsletter = async (config) => {
+    const fallback = { movies: 0, shows: 0, music: 0 };
+    try {
+        const baseUrl = resolveIntegrationUrlForFetch(config.jellyfinUrl);
+        const fetchCount = async (types) => {
+            const params = new URLSearchParams({
+                Recursive: 'true',
+                IncludeItemTypes: types,
+                Limit: '0',
+            });
+            const response = await fetchWithTimeout(`${baseUrl}/Items?${params.toString()}`, {
+                headers: jellyfinHeaders(config.jellyfinApiKey),
+            }, 15000);
+            if (!response.ok) return 0;
+            const data = await response.json().catch(() => ({}));
+            return Number(data.TotalRecordCount || 0) || 0;
+        };
+        const [movies, shows, music] = await Promise.all([
+            fetchCount('Movie'),
+            fetchCount('Series'),
+            fetchCount('MusicAlbum,Audio'),
+        ]);
+        return {
+            movies,
+            shows,
+            music,
+        };
+    } catch (e) {
+        log(`Jellyfin newsletter library stats failed: ${e.message}`);
+        return fallback;
+    }
+};
+
+const fetchJellyfinServerNameForNewsletter = async (config, providerLabel) => {
+    try {
+        const baseUrl = resolveIntegrationUrlForFetch(config.jellyfinUrl);
+        const response = await fetchWithTimeout(`${baseUrl}/System/Info/Public`, {
+            headers: jellyfinHeaders(config.jellyfinApiKey),
+        }, 10000);
+        const data = response.ok ? await response.json().catch(() => ({})) : {};
+        return data.ServerName || data.LocalAddress || `${providerLabel} Server`;
+    } catch {
+        return `${providerLabel} Server`;
+    }
+};
+
+const getNewsletterProviderLabel = (config = {}) => {
+    const type = String(config?.mediaServerType || 'plex').toLowerCase();
+    if (type === 'emby') return 'Emby';
+    if (type === 'jellyfin') return 'Jellyfin';
+    return 'Plex';
+};
+
+const resolveNewsletterTestRecipient = async (config, actor = {}) => {
+    if (actor?.email) return actor.email;
+    if (String(config?.mediaServerType || 'plex').toLowerCase() !== 'plex') return '';
+    try {
+        const userRes = await fetch('https://plex.tv/api/v2/user', {
+            headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' }
+        });
+        if (userRes.ok) {
+            const userData = await userRes.json();
+            return userData.email || '';
+        }
+    } catch (e) {
+        log('Error fetching admin email: ' + e.message);
+    }
+    return '';
+};
+
+const generateNewsletterHtml = async (config, options = {}) => {
+    const embedImages = Boolean(options.embedImages);
+    const mediaServerType = String(config?.mediaServerType || 'plex').toLowerCase();
+    const isJellyfinLike = isEmbyLikeMediaServer(config);
+    const providerLabel = getNewsletterProviderLabel(config);
+    const stats = isJellyfinLike
+        ? await fetchJellyfinLibraryStatsForNewsletter(config)
+        : (cachedPlexStats || await loadPlexStatsFromDisk() || { movies: 0, shows: 0, music: 0 });
     let recentHtml = '';
-    let serverName = 'our Plex Server';
+    let serverName = isJellyfinLike ? `${providerLabel} Server` : 'our Plex Server';
     const attachments = [];
     let cidCounter = 1;
 
@@ -4246,10 +4365,13 @@ const generateNewsletterHtml = async (config) => {
     } catch (e) { }
 
     try {
-        const uri = await getPlexConnectionUri(config);
+        const uri = isJellyfinLike ? '' : await getPlexConnectionUri(config);
 
         // serverName is declared at function scope above
-        try {
+        if (isJellyfinLike) {
+            serverName = await fetchJellyfinServerNameForNewsletter(config, providerLabel);
+        } else {
+            try {
             const serverRes = await fetch(`${uri}/?X-Plex-Token=${config.plexToken}`, {
                 headers: { 'Accept': 'application/json' }
             });
@@ -4257,35 +4379,82 @@ const generateNewsletterHtml = async (config) => {
             if (serverData?.MediaContainer?.friendlyName) {
                 serverName = serverData.MediaContainer.friendlyName;
             }
-        } catch (e) { }
-
-        const recentRes = await fetch(`${uri}/library/recentlyAdded?X-Plex-Container-Start=0&X-Plex-Container-Size=100`, {
-            headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' }
-        });
-        const recentData = await recentRes.json();
-        const items = recentData.MediaContainer.Metadata || [];
+            } catch (e) { }
+        }
 
         const movies = [];
         const tvShowsMap = new Map();
         const music = [];
 
-        items.forEach(item => {
-            if (item.type === 'movie') {
-                movies.push(item);
-            } else if (item.type === 'season' || item.type === 'episode') {
-                const showKey = item.grandparentRatingKey || item.parentRatingKey || item.ratingKey;
+        if (isJellyfinLike) {
+            const [recentMovies, recentEpisodes, recentMusic] = await Promise.all([
+                fetchJellyfinItems(config, 'Movie', 100).catch((e) => { log(`Jellyfin newsletter movies failed: ${e.message}`); return []; }),
+                fetchJellyfinItems(config, 'Episode', 100).catch((e) => { log(`Jellyfin newsletter episodes failed: ${e.message}`); return []; }),
+                fetchJellyfinItems(config, 'MusicAlbum,Audio', 100).catch((e) => { log(`Jellyfin newsletter music failed: ${e.message}`); return []; }),
+            ]);
+            recentMovies.forEach((item) => movies.push({
+                ratingKey: item.Id,
+                title: item.Name,
+                thumb: item.Id,
+                imageCandidates: [
+                    jellyfinImageCandidate(item.PrimaryImageItemId, item.ImageTags?.Primary),
+                    jellyfinImageCandidate(item.Id, item.ImageTags?.Primary),
+                ],
+                itemUrl: jellyfinItemUrl(config, item.Id),
+            }));
+            recentEpisodes.forEach((item) => {
+                const showKey = item.SeriesId || item.ParentId || item.Id;
                 if (!tvShowsMap.has(showKey)) {
                     tvShowsMap.set(showKey, {
                         ratingKey: showKey,
-                        title: item.grandparentTitle || item.parentTitle || item.title,
-                        type: 'TV Show',
-                        thumb: item.grandparentThumb || item.parentThumb || item.thumb
+                        title: item.SeriesName || item.Name,
+                        thumb: item.SeriesId || item.ParentId || item.Id,
+                        imageCandidates: [
+                            jellyfinImageCandidate(item.SeriesId),
+                            jellyfinImageCandidate(item.ParentThumbItemId),
+                            jellyfinImageCandidate(item.PrimaryImageItemId, item.ImageTags?.Primary),
+                            jellyfinImageCandidate(item.ParentId),
+                            jellyfinImageCandidate(item.Id, item.ImageTags?.Primary),
+                        ],
+                        itemUrl: jellyfinItemUrl(config, item.Id),
                     });
                 }
-            } else if (item.type === 'album' || item.type === 'track') {
-                music.push(item);
-            }
-        });
+            });
+            recentMusic.forEach((item) => music.push({
+                ratingKey: item.Id,
+                title: item.Album || item.Name,
+                thumb: item.Id,
+                imageCandidates: [
+                    jellyfinImageCandidate(item.PrimaryImageItemId, item.ImageTags?.Primary),
+                    jellyfinImageCandidate(item.AlbumId),
+                    jellyfinImageCandidate(item.Id, item.ImageTags?.Primary),
+                ],
+                itemUrl: jellyfinItemUrl(config, item.Id),
+            }));
+        } else {
+            const recentRes = await fetch(`${uri}/library/recentlyAdded?X-Plex-Container-Start=0&X-Plex-Container-Size=100`, {
+                headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' }
+            });
+            const recentData = await recentRes.json();
+            const items = recentData.MediaContainer.Metadata || [];
+            items.forEach(item => {
+                if (item.type === 'movie') {
+                    movies.push(item);
+                } else if (item.type === 'season' || item.type === 'episode') {
+                    const showKey = item.grandparentRatingKey || item.parentRatingKey || item.ratingKey;
+                    if (!tvShowsMap.has(showKey)) {
+                        tvShowsMap.set(showKey, {
+                            ratingKey: showKey,
+                            title: item.grandparentTitle || item.parentTitle || item.title,
+                            type: 'TV Show',
+                            thumb: item.grandparentThumb || item.parentThumb || item.thumb
+                        });
+                    }
+                } else if (item.type === 'album' || item.type === 'track') {
+                    music.push(item);
+                }
+            });
+        }
 
         const tvShows = Array.from(tvShowsMap.values());
 
@@ -4302,20 +4471,29 @@ const generateNewsletterHtml = async (config) => {
                 const item = itemsToRender[i];
                 let thumbPath = item.thumb;
                 let imageUrl = '';
+                const imageCandidates = isJellyfinLike
+                    ? uniqueTruthy([item.imageCandidates, thumbPath])
+                    : [thumbPath];
 
-                if (thumbPath) {
-                    const buf = await fetchImageBuffer(config, thumbPath);
+                if (imageCandidates.length > 0) {
+                    const buf = isJellyfinLike
+                        ? await fetchJellyfinImageBufferForNewsletter(config, imageCandidates, { width: imgWidth, height: imgHeight })
+                        : await fetchImageBuffer(config, thumbPath);
                     if (buf) {
-                        const cid = `poster-${cidCounter++}`;
-                        attachments.push({ filename: `${cid}.jpg`, content: buf, cid: cid });
-                        imageUrl = `cid:${cid}`;
+                        if (embedImages) {
+                            imageUrl = `data:image/jpeg;base64,${Buffer.from(buf).toString('base64')}`;
+                        } else {
+                            const cid = `poster-${cidCounter++}`;
+                            attachments.push({ filename: `${cid}.jpg`, content: buf, cid: cid });
+                            imageUrl = `cid:${cid}`;
+                        }
                     }
                 }
                 if (!imageUrl) {
-                    imageUrl = `https://via.placeholder.com/${imgWidth}x${imgHeight}/1f2937/eab308?text=No+Image`;
+                    imageUrl = newsletterPlaceholderDataUrl(imgWidth, imgHeight);
                 }
 
-                const itemUrl = `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=%2Flibrary%2Fmetadata%2F${item.ratingKey}`;
+                const itemUrl = item.itemUrl || `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=%2Flibrary%2Fmetadata%2F${item.ratingKey}`;
                 cols += `
                     <td width="25%" align="center" valign="top" style="padding: 10px 5px;">
                         <a href="${itemUrl}" style="text-decoration: none; display: block;" target="_blank">
@@ -4362,7 +4540,7 @@ const generateNewsletterHtml = async (config) => {
                         <!-- Header -->
                         <tr>
                             <td align="center" style="padding: 40px 30px; background-color: #0b0f19; border-bottom: 1px solid #1f2937;">
-                                <img src="cid:logo" alt="Plex Portal" style="max-width: 280px; height: auto; display: block; margin: 0 auto 10px auto;" />
+                                <img src="cid:logo" alt="Server Portal" style="max-width: 280px; height: auto; display: block; margin: 0 auto 10px auto;" />
                                 <p style="color: #9ca3af; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; margin: 0;">Here is what's happening on the server</p>
                             </td>
                         </tr>
@@ -4408,7 +4586,7 @@ const generateNewsletterHtml = async (config) => {
                         <!-- Footer -->
                         <tr>
                             <td align="center" style="padding: 30px; background-color: #0b0f19; border-top: 1px solid #1f2937;">
-                                <p style="margin: 0 0 10px 0; color: #6b7280; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 12px;">This is an automated message from Plex Server Manager.</p>
+                                <p style="margin: 0 0 10px 0; color: #6b7280; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 12px;">This is an automated message from Server Portal Manager.</p>
                                 <p style="margin: 0; color: #6b7280; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 12px;">To opt out of these newsletters, please visit your <a href="${config.publicDomain}" style="color: #eab308; text-decoration: none;">User Portal</a>.</p>
                             </td>
                         </tr>
@@ -4420,7 +4598,7 @@ const generateNewsletterHtml = async (config) => {
             <head>
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Plex Server Automated Newsletter</title>
+                <title>${providerLabel} Server Automated Newsletter</title>
             </head>
             <body style="margin: 0; padding: 0; background-color: #000000; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
                 <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #000000;">
@@ -4439,27 +4617,63 @@ const generateNewsletterHtml = async (config) => {
     return { html: finalHtml, attachments };
 };
 
+const renderNewsletterHtmlForBrowser = (html, attachments = [], username = 'Preview User') => {
+    let output = String(html || '').replace(/{{USERNAME}}/g, escapeHtmlAttr(username));
+    for (const attachment of attachments || []) {
+        if (!attachment?.cid || !attachment?.content) continue;
+        const ext = String(attachment.filename || '').split('.').pop()?.toLowerCase();
+        const mime = ext === 'png'
+            ? 'image/png'
+            : ext === 'webp'
+                ? 'image/webp'
+                : 'image/jpeg';
+        const dataUrl = `data:${mime};base64,${Buffer.from(attachment.content).toString('base64')}`;
+        output = output.replace(new RegExp(`cid:${attachment.cid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'g'), dataUrl);
+    }
+    return output;
+};
+
+app.get('/api/newsletter/preview', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const { html, attachments } = await generateNewsletterHtml(config, { embedImages: true });
+        const previewHtml = renderNewsletterHtmlForBrowser(html, attachments, req.user?.username || 'Preview User');
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store');
+        return res.send(previewHtml);
+    } catch (e) {
+        log(`Newsletter preview error: ${e.message}`);
+        return res.status(500).send(`<p>Failed to generate newsletter preview: ${escapeHtmlAttr(e.message)}</p>`);
+    }
+});
+
+app.get('/api/newsletter/download', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const { html, attachments } = await generateNewsletterHtml(config, { embedImages: true });
+        const downloadHtml = renderNewsletterHtmlForBrowser(html, attachments, req.user?.username || 'Preview User');
+        const stamp = new Date().toISOString().slice(0, 10);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="server-portal-newsletter-${stamp}.html"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.send(downloadHtml);
+    } catch (e) {
+        log(`Newsletter download error: ${e.message}`);
+        return res.status(500).json({ error: 'Failed to generate newsletter download' });
+    }
+});
+
 app.post('/api/newsletter/test', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
         if (!config.smtpHost || !config.smtpUser) return res.status(400).json({ error: 'SMTP not configured' });
 
-        let adminEmail = null;
-        try {
-            const userRes = await fetch('https://plex.tv/api/v2/user', {
-                headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' }
-            });
-            if (userRes.ok) {
-                const userData = await userRes.json();
-                adminEmail = userData.email;
-            }
-        } catch (e) {
-            log('Error fetching admin email: ' + e.message);
-        }
+        const adminEmail = await resolveNewsletterTestRecipient(config, req.user);
 
-        if (!adminEmail) return res.status(400).json({ error: 'Could not fetch admin email from Plex account.' });
+        if (!adminEmail) return res.status(400).json({ error: 'Could not determine an admin email address for the test newsletter.' });
 
         const { html, attachments } = await generateNewsletterHtml(config);
+        const providerLabel = getNewsletterProviderLabel(config);
         const transporter = nodemailer.createTransport({
             host: config.smtpHost,
             port: config.smtpPort,
@@ -4472,7 +4686,7 @@ app.post('/api/newsletter/test', requireAdmin, async (req, res) => {
         await transporter.sendMail({
             from: config.smtpFrom || config.smtpUser,
             to: adminEmail,
-            subject: 'Plex Server Automated Newsletter (Test)',
+            subject: `${providerLabel} Server Automated Newsletter (Test)`,
             html: personalizedHtml,
             attachments: attachments
         });
@@ -4493,6 +4707,7 @@ app.post('/api/newsletter/send-now', requireAdmin, async (req, res) => {
         if (validUsers.length === 0) return res.status(400).json({ error: 'No users with email addresses found.' });
 
         const { html, attachments } = await generateNewsletterHtml(config);
+        const providerLabel = getNewsletterProviderLabel(config);
         const transporter = nodemailer.createTransport({
             host: config.smtpHost,
             port: config.smtpPort,
@@ -4506,11 +4721,12 @@ app.post('/api/newsletter/send-now', requireAdmin, async (req, res) => {
         log(`Manual newsletter trigger initiated for ${validUsers.length} users.`);
         for (const user of validUsers) {
             try {
+                const personalizedHtml = html.replace(/{{USERNAME}}/g, escapeHtmlAttr(user.username || user.name || 'User'));
                 await transporter.sendMail({
                     from: config.smtpFrom || config.smtpUser,
                     to: user.email,
-                    subject: 'Plex Server Automated Newsletter',
-                    html: html,
+                    subject: `${providerLabel} Server Automated Newsletter`,
+                    html: personalizedHtml,
                     attachments: attachments
                 });
                 await new Promise(resolve => setTimeout(resolve, 15000)); // 15s delay to avoid Gmail rate limits
@@ -7349,7 +7565,7 @@ const fetchJellyfinItems = async (config, includeItemTypes, limit) => {
         SortBy: 'DateCreated',
         SortOrder: 'Descending',
         Limit: String(limit),
-        Fields: 'DateCreated,PrimaryImageAspectRatio,ProductionYear,SeriesName,Album,MediaSources,MediaStreams',
+        Fields: 'DateCreated,PrimaryImageAspectRatio,ProductionYear,SeriesName,Album,ParentId,SeriesId,AlbumId,ImageTags,BackdropImageTags,ParentThumbItemId,PrimaryImageItemId,MediaSources,MediaStreams',
         ImageTypeLimit: '1',
         EnableImageTypes: 'Primary,Thumb,Backdrop',
     });
@@ -7519,42 +7735,23 @@ app.get('/api/jellyfin/dashboard', requireAuth, requireMember, async (req, res) 
     }
 });
 
-const countUniqueActiveViewers = (sessions = []) => {
-    const viewers = new Set();
-    for (const session of sessions) {
-        if (!session) continue;
-        if (session.user) {
-            viewers.add(String(session.user).toLowerCase());
-            continue;
-        }
-        if (session.sessionId) {
-            viewers.add(`session:${session.sessionId}`);
-        }
-    }
-    return viewers.size;
-};
-
 app.get('/api/streams/watching-count', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
         const mediaServerType = config.mediaServerType || 'plex';
 
-        if (mediaServerType === 'jellyfin') {
+        if (isEmbyLikeMediaServer(config)) {
             if (!isJellyfinConfigured(config)) {
                 return res.json({ count: 0, available: false });
             }
-            const count = await withCache('jellyfin_watching_count', 8000, async () => {
+            const count = await withCache(`${mediaServerType}_watching_count`, 8000, async () => {
                 const baseUrl = resolveIntegrationUrlForFetch(config.jellyfinUrl);
                 const sessions = await fetchWithTimeout(`${baseUrl}/Sessions`, { headers: jellyfinHeaders(config.jellyfinApiKey) }, 15000)
                     .then((r) => (r.ok ? r.json() : []))
                     .catch(() => []);
                 const activeSessions = (Array.isArray(sessions) ? sessions : [])
-                    .filter((session) => session?.NowPlayingItem)
-                    .map((session) => ({
-                        user: session.UserName || null,
-                        sessionId: session.Id,
-                    }));
-                return countUniqueActiveViewers(activeSessions);
+                    .filter((session) => session?.NowPlayingItem);
+                return activeSessions.length;
             });
             return res.json({ count, available: true });
         }
@@ -7571,12 +7768,9 @@ app.get('/api/streams/watching-count', requireAuth, requireMember, async (req, r
                 .then((r) => r.json())
                 .catch(() => null);
             const activeSessions = Array.isArray(sessionsData?.MediaContainer?.Metadata)
-                ? sessionsData.MediaContainer.Metadata.map((m) => ({
-                    user: m.User?.title || null,
-                    sessionId: m.Session?.id || m.sessionKey,
-                }))
+                ? sessionsData.MediaContainer.Metadata
                 : [];
-            return countUniqueActiveViewers(activeSessions);
+            return activeSessions.length;
         });
 
         res.json({ count, available: true });
@@ -8434,8 +8628,21 @@ app.get('/api/jellystat/analytics', requireAuth, requireMember, async (req, res)
         (Array.isArray(playbackMethods) ? playbackMethods : []).forEach((method) => {
             playbackCounts[String(method.Name || '').toLowerCase()] = Math.max(playbackCounts[String(method.Name || '').toLowerCase()] || 0, toNumber(method.Count, 0));
         });
+        const activeStreams = await (async () => {
+            try {
+                const baseUrl = resolveIntegrationUrlForFetch(config.jellyfinUrl);
+                const sessions = await fetchWithTimeout(`${baseUrl}/Sessions`, { headers: jellyfinHeaders(config.jellyfinApiKey) }, 10000)
+                    .then((r) => (r.ok ? r.json() : []))
+                    .catch(() => []);
+                return (Array.isArray(sessions) ? sessions : []).filter((session) => session?.NowPlayingItem).length;
+            } catch {
+                return 0;
+            }
+        })();
 
-        const totalPlaybacks = sumLibraryPlays(topLibraries) || Object.values(libraryTypeTotals || {}).reduce((sum, value) => sum + toNumber(value, 0), 0);
+        const libraryTypePlayTotal = Object.values(libraryTypeTotals || {}).reduce((sum, value) => sum + toNumber(value, 0), 0);
+        const contentTypePlayTotal = ['Series', 'Movie', 'Audio'].reduce((sum, key) => sum + toNumber(libraryTypeTotals?.[key], 0), 0);
+        const totalPlaybacks = libraryTypePlayTotal || contentTypePlayTotal || sumLibraryPlays(topLibraries);
         const libraryHealth = buildJellystatLibraryHealth(topLibraries, libraryOverview, libraryMetadata, libraryTypeTotals);
         const heatmapData = buildJellystatHeatmap(dailyViews);
 
@@ -8461,10 +8668,12 @@ app.get('/api/jellystat/analytics', requireAuth, requireMember, async (req, res)
             cacheFallback: false,
             source: 'jellystat',
             jellystatInsights: {
-                streamsRecord: 0,
+                activeStreams,
+                streamsRecord: null,
                 transcodeRecord: toNumber(playbackCounts.transcode, 0),
                 directPlayRecord: toNumber(playbackCounts.directplay, 0),
                 directStreamRecord: toNumber(playbackCounts.directstream, 0),
+                playbackMethodStatsAreTotals: true,
                 totalPlays: totalPlaybacks,
                 tvPlays: toNumber(libraryTypeTotals.Series, 0),
                 moviePlays: toNumber(libraryTypeTotals.Movie, 0),
@@ -9470,6 +9679,7 @@ const checkAndSendNewsletter = async (config, force = false) => {
     try {
         log('Generating and sending automated newsletters...');
         const { html, attachments } = await generateNewsletterHtml(config);
+        const providerLabel = getNewsletterProviderLabel(config);
         const transporter = nodemailer.createTransport({
             host: config.smtpHost,
             port: config.smtpPort,
@@ -9498,7 +9708,7 @@ const checkAndSendNewsletter = async (config, force = false) => {
                 await transporter.sendMail({
                     from: config.smtpFrom || config.smtpUser,
                     to: user.email,
-                    subject: 'Plex Server Automated Newsletter',
+                    subject: `${providerLabel} Server Automated Newsletter`,
                     html: personalizedHtml,
                     attachments: attachments
                 });
@@ -10454,6 +10664,61 @@ const fetchQbitTorrents = async (client) => {
     return (await torrentsRes.json()).map((entry) => normalizeTorrentItem(client, entry));
 };
 
+const qbitCookie = async (client) => {
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const loginRes = await fetchWithTimeout(`${base}/api/v2/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ username: client.username || '', password: client.password || '' }).toString(),
+    }, 12000);
+    if (!loginRes.ok) throw new Error(`login HTTP ${loginRes.status}`);
+    return loginRes.headers.get('set-cookie') || '';
+};
+
+const controlQbitTorrent = async (client, action, id) => {
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const cookie = await qbitCookie(client);
+    const endpoints = action === 'pause'
+        ? ['pause', 'stop']
+        : action === 'resume'
+            ? ['resume', 'start']
+            : ['delete'];
+    const body = action === 'remove'
+        ? new URLSearchParams({ hashes: id, deleteFiles: 'false' })
+        : new URLSearchParams({ hashes: id });
+    let lastStatus = 0;
+    for (const endpoint of endpoints) {
+        const response = await fetchWithTimeout(`${base}/api/v2/torrents/${endpoint}`, {
+            method: 'POST',
+            headers: { Cookie: cookie, 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString(),
+        }, 12000);
+        if (response.ok) return;
+        lastStatus = response.status;
+        if (response.status !== 404) break;
+    }
+    throw new Error(`qBittorrent ${action} HTTP ${lastStatus}`);
+};
+
+const addQbitTorrentDownload = async (client, { url = '', fileBuffer = null, filename = 'upload.torrent' } = {}) => {
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const cookie = await qbitCookie(client);
+    const form = new FormData();
+    if (url) {
+        form.append('urls', url);
+    } else if (fileBuffer?.length) {
+        form.append('torrents', new Blob([fileBuffer], { type: 'application/x-bittorrent' }), filename || 'upload.torrent');
+    } else {
+        throw new Error('Torrent URL or file is required');
+    }
+    const response = await fetchWithTimeout(`${base}/api/v2/torrents/add`, {
+        method: 'POST',
+        headers: { Cookie: cookie },
+        body: form,
+    }, 12000);
+    if (!response.ok) throw new Error(`qBittorrent add HTTP ${response.status}`);
+};
+
 const transmissionRpc = async (client, body, sessionId = '') => {
     const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
     const auth = client.username || client.password ? `Basic ${Buffer.from(`${client.username || ''}:${client.password || ''}`).toString('base64')}` : '';
@@ -10487,6 +10752,23 @@ const fetchTransmissionTorrents = async (client) => {
     }));
 };
 
+const controlTransmissionTorrent = async (client, action, id) => {
+    const method = action === 'pause' ? 'torrent-stop' : action === 'resume' ? 'torrent-start' : 'torrent-remove';
+    const args = { ids: [Number.isFinite(Number(id)) ? Number(id) : String(id)] };
+    if (action === 'remove') args['delete-local-data'] = false;
+    const payload = await transmissionRpc(client, { method, arguments: args });
+    if (payload?.result && payload.result !== 'success') throw new Error(payload.result);
+};
+
+const addTransmissionDownload = async (client, { url = '', fileBuffer = null } = {}) => {
+    const argumentsPayload = url
+        ? { filename: url }
+        : { metainfo: Buffer.from(fileBuffer || Buffer.alloc(0)).toString('base64') };
+    if (!url && !fileBuffer?.length) throw new Error('Torrent URL or file is required');
+    const payload = await transmissionRpc(client, { method: 'torrent-add', arguments: argumentsPayload });
+    if (payload?.result && payload.result !== 'success') throw new Error(payload.result);
+};
+
 const fetchBitTorrentTorrents = async (client) => {
     const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
     const auth = client.username || client.password ? `Basic ${Buffer.from(`${client.username || ''}:${client.password || ''}`).toString('base64')}` : '';
@@ -10506,6 +10788,27 @@ const fetchBitTorrentTorrents = async (client) => {
         eta: row[10],
         label: row[11],
     }));
+};
+
+const controlBitTorrent = async (client, action, id) => {
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const auth = client.username || client.password ? `Basic ${Buffer.from(`${client.username || ''}:${client.password || ''}`).toString('base64')}` : '';
+    const command = action === 'pause' ? 'pause' : action === 'resume' ? 'start' : 'remove';
+    const response = await fetchWithTimeout(`${base}/gui/?action=${command}&hash=${encodeURIComponent(id)}`, {
+        headers: { ...(auth ? { Authorization: auth } : {}), Accept: 'application/json' },
+    }, 12000);
+    if (!response.ok) throw new Error(`BitTorrent ${action} HTTP ${response.status}`);
+};
+
+const addBitTorrentDownload = async (client, { url = '', fileBuffer = null } = {}) => {
+    if (fileBuffer?.length) throw new Error('BitTorrent file upload is not supported by this API. Use a torrent URL or magnet link.');
+    if (!url) throw new Error('Torrent URL is required');
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const auth = client.username || client.password ? `Basic ${Buffer.from(`${client.username || ''}:${client.password || ''}`).toString('base64')}` : '';
+    const response = await fetchWithTimeout(`${base}/gui/?action=add-url&s=${encodeURIComponent(url)}`, {
+        headers: { ...(auth ? { Authorization: auth } : {}), Accept: 'application/json' },
+    }, 12000);
+    if (!response.ok) throw new Error(`BitTorrent add HTTP ${response.status}`);
 };
 
 const delugeRpc = async (client, method, params = [], cookie = '') => {
@@ -10563,12 +10866,189 @@ const fetchDelugeTorrents = async (client) => {
     }));
 };
 
+const delugeLogin = async (client) => {
+    const password = client.password || client.username || '';
+    const login = await delugeRpc(client, 'auth.login', [password]);
+    if (login.data?.result !== true) throw new Error('login failed');
+    return login.cookie;
+};
+
+const controlDelugeTorrent = async (client, action, id) => {
+    const cookie = await delugeLogin(client);
+    const method = action === 'pause' ? 'core.pause_torrent' : action === 'resume' ? 'core.resume_torrent' : 'core.remove_torrent';
+    const params = action === 'remove' ? [[id], false] : [[id]];
+    await delugeRpc(client, method, params, cookie);
+};
+
+const addDelugeDownload = async (client, { url = '', fileBuffer = null, filename = 'upload.torrent' } = {}) => {
+    const cookie = await delugeLogin(client);
+    if (url) {
+        await delugeRpc(client, 'core.add_torrent_url', [url, {}], cookie);
+        return;
+    }
+    if (!fileBuffer?.length) throw new Error('Torrent URL or file is required');
+    await delugeRpc(client, 'core.add_torrent_file', [filename || 'upload.torrent', Buffer.from(fileBuffer).toString('base64'), {}], cookie);
+};
+
+const parseSabSize = (value) => {
+    if (typeof value === 'number') return value;
+    const match = String(value || '').trim().match(/^([\d.]+)\s*([kmgtp]?b)?$/i);
+    if (!match) return 0;
+    const amount = Number(match[1]) || 0;
+    const unit = String(match[2] || 'b').toLowerCase();
+    const multiplier = {
+        b: 1,
+        kb: 1024,
+        mb: 1024 ** 2,
+        gb: 1024 ** 3,
+        tb: 1024 ** 4,
+        pb: 1024 ** 5,
+    }[unit] || 1;
+    return amount * multiplier;
+};
+
+const parseSabSpeed = (value) => {
+    const text = String(value || '').trim().replace(/\/s$/i, '');
+    return parseSabSize(text);
+};
+
+const parseSabMegabytes = (value) => {
+    if (value == null || value === '') return 0;
+    const text = String(value).trim();
+    if (/[kmgtp]?b/i.test(text)) return parseSabSize(text);
+    return (Number(text) || 0) * 1024 * 1024;
+};
+
+const fetchSabnzbdDownloads = async (client) => {
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const apiKey = String(client.password || '').trim();
+    const params = new URLSearchParams({ mode: 'queue', output: 'json' });
+    if (apiKey) params.set('apikey', apiKey);
+    const auth = client.username ? `Basic ${Buffer.from(`${client.username}:${client.password || ''}`).toString('base64')}` : '';
+    const response = await fetchWithTimeout(`${base}/api?${params.toString()}`, {
+        headers: { Accept: 'application/json', ...(auth ? { Authorization: auth } : {}) },
+    }, 12000);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json().catch(() => ({}));
+    const queue = data?.queue || {};
+    return (Array.isArray(queue.slots) ? queue.slots : []).map((entry) => {
+        const size = entry.mb != null ? parseSabMegabytes(entry.mb) : parseSabSize(entry.size || entry.sizeleft);
+        const remaining = entry.mbleft != null ? parseSabMegabytes(entry.mbleft) : parseSabSize(entry.sizeleft);
+        const downloaded = Math.max(0, size - remaining);
+        const progress = Number(entry.percentage ?? entry.progress ?? (size > 0 ? (downloaded / size) * 100 : 0)) || 0;
+        return normalizeTorrentItem(client, {
+            id: entry.nzo_id || entry.nzbid || entry.id || entry.filename,
+            downloadId: entry.nzo_id || entry.nzbid || entry.id || '',
+            name: entry.filename || entry.name || 'Unknown NZB',
+            size,
+            downloaded,
+            progress,
+            downloadSpeed: parseSabSpeed(queue.speed || entry.speed),
+            eta: Number(entry.timeleft || entry.eta || -1) || -1,
+            status: entry.status || queue.status || '',
+            category: entry.cat || entry.category || '',
+            savePath: entry.storage || '',
+            addedDate: entry.avg_age || null,
+        });
+    });
+};
+
+const sabnzbdApiUrl = (client, params) => {
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const apiKey = String(client.password || '').trim();
+    const query = new URLSearchParams({ output: 'json', ...params });
+    if (apiKey) query.set('apikey', apiKey);
+    return `${base}/api?${query.toString()}`;
+};
+
+const sabnzbdAuthHeaders = (client) => {
+    const auth = client.username ? `Basic ${Buffer.from(`${client.username}:${client.password || ''}`).toString('base64')}` : '';
+    return { Accept: 'application/json', ...(auth ? { Authorization: auth } : {}) };
+};
+
+const controlSabnzbdDownload = async (client, action, id) => {
+    const name = action === 'pause' ? 'pause' : action === 'resume' ? 'resume' : 'delete';
+    const response = await fetchWithTimeout(sabnzbdApiUrl(client, { mode: 'queue', name, value: id }), {
+        headers: sabnzbdAuthHeaders(client),
+    }, 12000);
+    if (!response.ok) throw new Error(`SABnzbd ${action} HTTP ${response.status}`);
+    const data = await response.json().catch(() => ({}));
+    if (data?.status === false) throw new Error(`SABnzbd ${action} failed`);
+};
+
 const fetchDownloadClientTorrents = async (client) => {
+    if (client.type === 'sabnzbd') return fetchSabnzbdDownloads(client);
     if (client.type === 'transmission') return fetchTransmissionTorrents(client);
     if (client.type === 'bittorrent') return fetchBitTorrentTorrents(client);
     if (client.type === 'deluge') return fetchDelugeTorrents(client);
     return fetchQbitTorrents(client);
 };
+
+const controlDownloadClientItem = async (client, action, id) => {
+    if (!['pause', 'resume', 'remove'].includes(action)) throw new Error('Unsupported download action');
+    const downloadId = String(id || '').trim();
+    if (!downloadId) throw new Error('Download id is required');
+    if (client.type === 'sabnzbd') return controlSabnzbdDownload(client, action, downloadId);
+    if (client.type === 'transmission') return controlTransmissionTorrent(client, action, downloadId);
+    if (client.type === 'bittorrent') return controlBitTorrent(client, action, downloadId);
+    if (client.type === 'deluge') return controlDelugeTorrent(client, action, downloadId);
+    return controlQbitTorrent(client, action, downloadId);
+};
+
+const addDownloadClientItem = async (client, payload = {}) => {
+    if (client.type === 'sabnzbd') throw new Error('SABnzbd accepts NZB files, not torrent uploads.');
+    if (client.type === 'transmission') return addTransmissionDownload(client, payload);
+    if (client.type === 'bittorrent') return addBitTorrentDownload(client, payload);
+    if (client.type === 'deluge') return addDelugeDownload(client, payload);
+    return addQbitTorrentDownload(client, payload);
+};
+
+const getConfiguredDownloadClient = async (clientId) => {
+    const config = await loadFile(CONFIG_PATH, {});
+    return (Array.isArray(config.downloadClients) ? config.downloadClients : [])
+        .find((entry) => String(entry.id || '') === String(clientId || '') && entry.enabled !== false && entry.url);
+};
+
+app.post('/api/downloads/add-url', requireAdmin, async (req, res) => {
+    try {
+        const { clientId, url } = req.body || {};
+        const torrentUrl = String(url || '').trim();
+        if (!torrentUrl) return res.status(400).json({ error: 'Torrent URL or magnet link is required.' });
+        const client = await getConfiguredDownloadClient(clientId);
+        if (!client) return res.status(404).json({ error: 'Download client not found.' });
+        await addDownloadClientItem(client, { url: torrentUrl });
+        return res.json({ ok: true, message: `Sent torrent URL to ${client.name || downloadClientLabel(client.type)}.` });
+    } catch (e) {
+        res.status(500).json({ error: e.message || 'Failed to add torrent URL.' });
+    }
+});
+
+app.post('/api/downloads/add-file', requireAdmin, express.raw({ type: ['application/x-bittorrent', 'application/octet-stream'], limit: '5mb' }), async (req, res) => {
+    try {
+        const clientId = req.query.clientId || req.headers['x-download-client-id'];
+        const filename = String(req.query.filename || req.headers['x-filename'] || 'upload.torrent').replace(/[^\w.\- ()]/g, '').slice(0, 180) || 'upload.torrent';
+        const fileBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body || []);
+        if (!fileBuffer.length) return res.status(400).json({ error: 'Torrent file is required.' });
+        const client = await getConfiguredDownloadClient(clientId);
+        if (!client) return res.status(404).json({ error: 'Download client not found.' });
+        await addDownloadClientItem(client, { fileBuffer, filename });
+        return res.json({ ok: true, message: `Sent torrent file to ${client.name || downloadClientLabel(client.type)}.` });
+    } catch (e) {
+        res.status(500).json({ error: e.message || 'Failed to add torrent file.' });
+    }
+});
+
+app.post('/api/downloads/control', requireAdmin, async (req, res) => {
+    try {
+        const { clientId, downloadId, action } = req.body || {};
+        const client = await getConfiguredDownloadClient(clientId);
+        if (!client) return res.status(404).json({ error: 'Download client not found.' });
+        await controlDownloadClientItem(client, String(action || '').toLowerCase(), downloadId);
+        return res.json({ ok: true, message: `${downloadClientLabel(client.type)} ${action} command sent.` });
+    } catch (e) {
+        res.status(500).json({ error: e.message || 'Failed to control download.' });
+    }
+});
 
 app.get('/api/downloads/status', requireAuth, requireMember, async (req, res) => {
     try {

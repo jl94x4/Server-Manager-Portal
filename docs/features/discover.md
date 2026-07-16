@@ -31,6 +31,6 @@ The Media Stack page integrates ARR apps, subtitle tools, request apps, and down
 | Month Navigation | Browse releases across months |
 | ID Matching | Map content through IMDb, TMDB, and TVDB IDs |
 | Bazarr Tools | Subtitle widgets and multi-instance subtitle actions |
-| Download Status | qBittorrent, Transmission, BitTorrent, and Deluge status with source filters |
+| Download Status | qBittorrent, Transmission, BitTorrent, Deluge, and SABnzbd status with source filters |
 
 Configure Sonarr, Radarr, Lidarr, Bazarr, request apps, and download clients in Settings.

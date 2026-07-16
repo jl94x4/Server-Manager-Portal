@@ -24,7 +24,8 @@ import { discoveryTheme } from './discoveryThemeClasses';
 export const DiscoveryDashboard: React.FC<{
     onItemClick: (item: any) => void;
     pushToast?: (msg: string, type: 'success' | 'error') => void;
-}> = ({ pushToast }) => {
+    mediaServerType?: string;
+}> = ({ pushToast, mediaServerType = 'plex' }) => {
     const [path, setPath] = useState(() => {
         if (typeof window !== 'undefined') return window.location.pathname;
         return '/discovery';
@@ -39,6 +40,11 @@ export const DiscoveryDashboard: React.FC<{
     const { openCount: myOpenIssueCount, refresh: refreshMyIssueCount } = useMyIssueCount(true);
     const { profile: discoveryMe } = useDiscoveryMe(true);
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+    const providerLabel = String(mediaServerType || 'plex').toLowerCase() === 'jellyfin'
+        ? 'Jellyfin'
+        : String(mediaServerType || 'plex').toLowerCase() === 'emby'
+            ? 'Emby'
+            : 'Plex';
 
     const refreshPath = useCallback(() => {
         setPath(window.location.pathname);
@@ -228,6 +234,7 @@ export const DiscoveryDashboard: React.FC<{
                     onSelect={(item) => navigate(`/discovery/${item.type}/${item.id}`)}
                     navigate={navigate}
                     pushToast={pushToast}
+                    providerLabel={providerLabel}
                 />
             </div>
         );
@@ -322,12 +329,13 @@ export const DiscoveryDashboard: React.FC<{
 
                     <div className="w-full mt-1">
                         {subRoute === 'home' && (
-                            <DiscoverHome
-                                onSelect={(item) => navigate(`/discovery/${item.type}/${item.id}`)}
-                                formatItem={formatItem}
-                                navigate={navigate}
-                                pushToast={pushToast}
-                            />
+                    <DiscoverHome
+                        onSelect={(item) => navigate(`/discovery/${item.type}/${item.id}`)}
+                        formatItem={formatItem}
+                        navigate={navigate}
+                        pushToast={pushToast}
+                        providerLabel={providerLabel}
+                    />
                         )}
                         {subRoute === 'movies' && (
                             <DiscoverMovies

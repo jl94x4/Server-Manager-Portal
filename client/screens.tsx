@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2, Search, BookOpen, Loader2, Eye, EyeOff, ClipboardList, ArrowUpCircle, MoreHorizontal, ExternalLink, Info, GitFork } from 'lucide-react';
+import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Pause, Upload, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2, Search, BookOpen, Loader2, Eye, EyeOff, ClipboardList, ArrowUpCircle, MoreHorizontal, ExternalLink, Info, GitFork } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
 
 import { SettingsDashboard } from './settings/SettingsDashboard';
@@ -64,6 +64,8 @@ const STATUS_SERVICE_ICONS: Record<string, string> = {
     qbittorrent: `${STATUS_ICON_BASE}/qbittorrent.svg`,
     transmission: `${STATUS_ICON_BASE}/transmission.svg`,
     bittorrent: `${SIMPLE_STATUS_ICON_BASE}/bittorrent`,
+    deluge: `${STATUS_ICON_BASE}/deluge.svg`,
+    sabnzbd: `${STATUS_ICON_BASE}/sabnzbd.svg`,
     seerr: `${STATUS_ICON_BASE}/seerr.svg`,
     overseerr: `${STATUS_ICON_BASE}/seerr.svg`,
     jellyseerr: `${STATUS_ICON_BASE}/jellyseerr.svg`,
@@ -1666,11 +1668,17 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
     );
 };
 
-export const DownloadStatusPage: React.FC = () => {
+export const DownloadStatusPage: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false }) => {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [filter, setFilter] = useState<'all' | 'sonarr' | 'radarr' | 'lidarr' | 'unknown'>('all');
+    const [clientFilter, setClientFilter] = useState<string>('all');
+    const [busyAction, setBusyAction] = useState('');
+    const [uploadClientId, setUploadClientId] = useState('');
+    const [torrentUrl, setTorrentUrl] = useState('');
+    const [torrentFile, setTorrentFile] = useState<File | null>(null);
+    const [uploadBusy, setUploadBusy] = useState(false);
 
     const load = useCallback(async () => {
         try {
@@ -1692,8 +1700,22 @@ export const DownloadStatusPage: React.FC = () => {
 
     const downloads = useMemo(() => {
         const all = Array.isArray(data?.downloads) ? data.downloads : [];
-        return filter === 'all' ? all : all.filter((item: any) => item.source === filter);
-    }, [data, filter]);
+        const bySource = filter === 'all' ? all : all.filter((item: any) => item.source === filter);
+        return clientFilter === 'all' ? bySource : bySource.filter((item: any) => String(item.clientId) === clientFilter);
+    }, [data, filter, clientFilter]);
+
+    const torrentClients = useMemo(() => (
+        (Array.isArray(data?.clients) ? data.clients : [])
+            .filter((entry: any) => entry?.client?.type !== 'sabnzbd')
+            .map((entry: any) => entry.client)
+    ), [data]);
+
+    useEffect(() => {
+        if (!uploadClientId && torrentClients.length > 0) setUploadClientId(String(torrentClients[0].id));
+        if (uploadClientId && !torrentClients.some((client: any) => String(client.id) === uploadClientId)) {
+            setUploadClientId(torrentClients[0]?.id ? String(torrentClients[0].id) : '');
+        }
+    }, [torrentClients, uploadClientId]);
 
     const formatBytes = (bytes: number) => {
         if (!bytes) return '0 B';
@@ -1710,12 +1732,81 @@ export const DownloadStatusPage: React.FC = () => {
         transmission: 'Transmission',
         bittorrent: 'BitTorrent',
         deluge: 'Deluge',
+        sabnzbd: 'SABnzbd',
     }[String(type || '').toLowerCase()] || 'Download Client');
     const downloadClientIcon = (type: string) => {
         const normalized = String(type || '').toLowerCase();
         if (normalized === 'bittorrent') return 'https://cdn.simpleicons.org/bittorrent';
-        if (['qbittorrent', 'transmission', 'deluge'].includes(normalized)) return `${STATUS_ICON_BASE}/${normalized}.svg`;
+        if (['qbittorrent', 'transmission', 'deluge', 'sabnzbd'].includes(normalized)) return `${STATUS_ICON_BASE}/${normalized}.svg`;
         return `${STATUS_ICON_BASE}/qbittorrent.svg`;
+    };
+    const isPausedDownload = (item: any) => {
+        const state = String(item?.state || '').toLowerCase();
+        return state.includes('pause') || state.includes('stop') || state === 'queued';
+    };
+    const sendDownloadControl = async (item: any, action: 'pause' | 'resume' | 'remove') => {
+        const key = `${item.clientId}-${item.id}-${action}`;
+        setBusyAction(key);
+        try {
+            await apiFetch('/api/downloads/control', {
+                method: 'POST',
+                body: JSON.stringify({
+                    clientId: item.clientId,
+                    downloadId: item.downloadId || item.hash || item.infoHash || item.id,
+                    action,
+                }),
+            });
+            await load();
+        } catch (e: any) {
+            setError(e.message || `Failed to ${action} download`);
+        } finally {
+            setBusyAction('');
+        }
+    };
+    const controlDownload = (item: any, action: 'pause' | 'resume' | 'remove') => {
+        if (action === 'remove') {
+            appConfirm(
+                `Remove "${item.name}" from ${item.clientName}? Downloaded files will be left in place where the client supports it.`,
+                () => { sendDownloadControl(item, action); },
+            );
+            return;
+        }
+        sendDownloadControl(item, action);
+    };
+    const uploadTorrent = async () => {
+        const targetClientId = String(uploadClientId || '').trim();
+        if (!targetClientId) {
+            setError('Choose a download client first.');
+            return;
+        }
+        if (!torrentFile && !torrentUrl.trim()) {
+            setError('Add a torrent URL, magnet link, or torrent file.');
+            return;
+        }
+        setUploadBusy(true);
+        try {
+            if (torrentFile) {
+                const bytes = await torrentFile.arrayBuffer();
+                await apiFetch(`/api/downloads/add-file?clientId=${encodeURIComponent(targetClientId)}&filename=${encodeURIComponent(torrentFile.name || 'upload.torrent')}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': torrentFile.type || 'application/x-bittorrent' },
+                    body: bytes,
+                });
+            } else {
+                await apiFetch('/api/downloads/add-url', {
+                    method: 'POST',
+                    body: JSON.stringify({ clientId: targetClientId, url: torrentUrl.trim() }),
+                });
+            }
+            setTorrentUrl('');
+            setTorrentFile(null);
+            setError('');
+            await load();
+        } catch (e: any) {
+            setError(e.message || 'Failed to add torrent');
+        } finally {
+            setUploadBusy(false);
+        }
     };
 
     if (loading) return <Loader isLoading={true} />;
@@ -1737,6 +1828,56 @@ export const DownloadStatusPage: React.FC = () => {
 
             {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 text-red-200 px-4 py-3 text-sm">{error}</div>}
 
+            {isAdmin && (
+                <div className="bg-card border border-white/5 rounded-2xl p-4 shadow-xl">
+                    <div className="flex flex-col lg:flex-row lg:items-end gap-3">
+                        <div className="lg:w-56">
+                            <label className="text-[10px] uppercase tracking-widest font-bold text-muted mb-1.5 block">Client</label>
+                            <CustomSelect
+                                value={uploadClientId}
+                                onChange={setUploadClientId}
+                                compact={true}
+                                options={torrentClients.map((client: any) => ({
+                                    label: client.name || downloadClientLabel(client.type),
+                                    value: String(client.id),
+                                }))}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <label className="text-[10px] uppercase tracking-widest font-bold text-muted mb-1.5 block">Torrent URL or Magnet</label>
+                            <input
+                                value={torrentUrl}
+                                onChange={(e) => { setTorrentUrl(e.target.value); if (e.target.value.trim()) setTorrentFile(null); }}
+                                placeholder="magnet:?xt=... or https://example/torrent.torrent"
+                                className="w-full p-2.5 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all text-sm"
+                            />
+                        </div>
+                        <label className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-white/[0.04] text-sm font-bold text-text hover:bg-white/10 cursor-pointer transition-colors">
+                            <Upload className="w-4 h-4 text-plex" />
+                            {torrentFile ? torrentFile.name : 'Torrent File'}
+                            <input
+                                type="file"
+                                accept=".torrent,application/x-bittorrent"
+                                className="hidden"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0] || null;
+                                    setTorrentFile(file);
+                                    if (file) setTorrentUrl('');
+                                }}
+                            />
+                        </label>
+                        <button
+                            type="button"
+                            onClick={uploadTorrent}
+                            disabled={uploadBusy || !uploadClientId || (!torrentFile && !torrentUrl.trim())}
+                            className="px-5 py-2.5 rounded-lg bg-plex text-background text-sm font-black hover:bg-plex-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            {uploadBusy ? 'Sending...' : 'Add Torrent'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 {(['all', 'sonarr', 'radarr', 'lidarr', 'unknown'] as const).map((key) => (
                     <button key={key} type="button" onClick={() => setFilter(key)} className={`rounded-xl border p-4 text-left transition-colors ${filter === key ? 'border-plex bg-plex/10 text-plex' : 'border-white/5 bg-card text-text hover:bg-white/5'}`}>
@@ -1752,11 +1893,17 @@ export const DownloadStatusPage: React.FC = () => {
                     <div className="space-y-3">
                         {downloads.length === 0 ? (
                             <div className="text-center py-12 text-muted bg-background/30 rounded-xl border border-white/5">No downloads for this filter.</div>
-                        ) : downloads.map((item: any) => (
+                        ) : downloads.map((item: any) => {
+                            const paused = isPausedDownload(item);
+                            const actionKey = `${item.clientId}-${item.id}`;
+                            return (
                             <div key={`${item.clientId}-${item.id}`} className="rounded-xl border border-white/5 bg-background/40 p-4">
                                 <div className="flex items-start justify-between gap-4">
-                                    <div className="min-w-0">
-                                        <p className="font-bold text-text truncate">{item.name}</p>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 min-w-0 w-full">
+                                            <p className="font-bold text-text truncate min-w-0">{item.name}</p>
+                                            <img src={downloadClientIcon(item.clientType)} alt="" className="w-4 h-4 object-contain shrink-0 opacity-80 ml-auto" />
+                                        </div>
                                         <p className="text-xs text-muted mt-1">
                                             {item.clientName} · {sourceLabel(item.source)}
                                             {item.arrInstanceName ? ` · ${item.arrInstanceName}` : ''}
@@ -1764,7 +1911,31 @@ export const DownloadStatusPage: React.FC = () => {
                                             {item.state || 'Unknown'}
                                         </p>
                                     </div>
-                                    <span className="text-sm font-black text-plex">{Math.round(item.progress || 0)}%</span>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <span className="text-sm font-black text-plex">{Math.round(item.progress || 0)}%</span>
+                                        {isAdmin && (
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => controlDownload(item, paused ? 'resume' : 'pause')}
+                                                    disabled={busyAction.startsWith(actionKey)}
+                                                    title={paused ? 'Resume download' : 'Pause download'}
+                                                    className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-text hover:border-plex/40 hover:text-plex disabled:opacity-50 transition-colors"
+                                                >
+                                                    {paused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => controlDownload(item, 'remove')}
+                                                    disabled={busyAction.startsWith(actionKey)}
+                                                    title="Remove download"
+                                                    className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-red-500/20 bg-red-500/10 text-red-200 hover:bg-red-500/20 disabled:opacity-50 transition-colors"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="h-2 bg-white/5 rounded-full overflow-hidden mt-3">
                                     <div className="h-full bg-plex rounded-full" style={{ width: `${Math.max(0, Math.min(100, item.progress || 0))}%` }} />
@@ -1777,7 +1948,7 @@ export const DownloadStatusPage: React.FC = () => {
                                     {item.sourceReason === 'arr_queue' && <span>Matched from Arr queue</span>}
                                 </div>
                             </div>
-                        ))}
+                        );})}
                     </div>
                 </div>
                 <div className="bg-card border border-white/5 rounded-2xl p-4 shadow-xl">
@@ -1785,8 +1956,15 @@ export const DownloadStatusPage: React.FC = () => {
                     <div className="space-y-3">
                         {(data?.clients || []).length === 0 ? (
                             <p className="text-sm text-muted">No download clients configured in Settings.</p>
-                        ) : data.clients.map((client: any) => (
-                            <div key={client.client.id} className="rounded-xl border border-white/5 bg-background/40 p-3">
+                        ) : data.clients.map((client: any) => {
+                            const activeClientFilter = clientFilter === String(client.client.id);
+                            return (
+                            <button
+                                key={client.client.id}
+                                type="button"
+                                onClick={() => setClientFilter(activeClientFilter ? 'all' : String(client.client.id))}
+                                className={`w-full rounded-xl border p-3 text-left transition-colors ${activeClientFilter ? 'border-plex bg-plex/10' : 'border-white/5 bg-background/40 hover:bg-white/[0.06]'}`}
+                            >
                                 <div className="flex items-center justify-between gap-3">
                                     <div className="flex items-center gap-3 min-w-0">
                                         <span className="inline-flex w-8 h-8 rounded-lg bg-white/5 border border-white/10 items-center justify-center overflow-hidden shrink-0">
@@ -1800,9 +1978,14 @@ export const DownloadStatusPage: React.FC = () => {
                                     <span className={`w-2.5 h-2.5 rounded-full ${client.online ? 'bg-green-500' : 'bg-red-500'}`} />
                                 </div>
                                 {client.error && <p className="text-xs text-red-300 mt-2">{client.error}</p>}
-                            </div>
-                        ))}
+                            </button>
+                        );})}
                     </div>
+                    {clientFilter !== 'all' && (
+                        <button type="button" onClick={() => setClientFilter('all')} className="mt-3 text-xs font-bold text-plex hover:underline">
+                            Clear client filter
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
@@ -2179,8 +2362,11 @@ const ServerInsightsWidget: React.FC<{
     peakDate?: string,
     setPeakDate: (date: string) => void,
     peakDateData?: number[] | null,
-    peakDateLoading?: boolean
-}> = ({ peakHours, tautulliData, compare, analyticsSourceLabel, peakDate, setPeakDate, peakDateData, peakDateLoading }) => {
+    peakDateLoading?: boolean,
+    isJellyfinPortal?: boolean,
+    periodPlays?: number,
+    uniqueViewers?: number,
+}> = ({ peakHours, tautulliData, compare, analyticsSourceLabel, peakDate, setPeakDate, peakDateData, peakDateLoading, isJellyfinPortal = false, periodPlays = 0, uniqueViewers = 0 }) => {
     
     // Format chart data
     const activePeakHours = peakDateData || peakHours;
@@ -2192,6 +2378,10 @@ const ServerInsightsWidget: React.FC<{
             plays: count
         };
     }) : [];
+    const statsAreJellystatTotals = isJellyfinPortal && tautulliData?.playbackMethodStatsAreTotals;
+    const displayPeriodPlays = compare?.totalPlaybacks?.current ?? periodPlays ?? tautulliData?.totalPlays ?? 0;
+    const displayUniqueViewers = compare?.uniqueViewers?.current ?? uniqueViewers ?? 0;
+    const displayWatchTime = tautulliData?.totalTimeStr || (isJellyfinPortal ? 'Unavailable' : '0 mins');
 
     const formatChange = (data: any) => {
         if (!data || data.percent === null) return null;
@@ -2266,32 +2456,39 @@ const ServerInsightsWidget: React.FC<{
                         <Activity className="w-4 h-4 text-[#3b82f6]" /> {analyticsSourceLabel} Records & Period Stats
                     </h3>
                     <div className="grid grid-cols-2 gap-3 relative z-10">
-                        <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
-                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Users className="w-3 h-3 text-[#3b82f6]"/> Peak Streams</span>
-                            <p className="text-xl font-black text-[#3b82f6]">{tautulliData?.streamsRecord || 0} <span className="text-[9px] font-normal text-muted">concurrent</span></p>
-                        </div>
+                        {!isJellyfinPortal ? (
+                            <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
+                                <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Users className="w-3 h-3 text-[#3b82f6]"/> Peak Streams</span>
+                                <p className="text-xl font-black text-[#3b82f6]">{tautulliData?.streamsRecord || 0} <span className="text-[9px] font-normal text-muted">concurrent</span></p>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
+                                <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Users className="w-3 h-3 text-[#3b82f6]"/> Active Streams</span>
+                                <p className="text-xl font-black text-[#3b82f6]">{tautulliData?.activeStreams || 0} <span className="text-[9px] font-normal text-muted">now</span></p>
+                            </div>
+                        )}
                         <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
                             <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Clock className="w-3 h-3 text-green-400"/> Watch Time</span>
-                            <p className="text-base font-black text-green-400 leading-tight">{tautulliData?.totalTimeStr || '0 mins'}</p>
+                            <p className="text-base font-black text-green-400 leading-tight">{displayWatchTime}</p>
                         </div>
                         <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
                             <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><TrendingUp className="w-3 h-3 text-yellow-400"/> Period Plays</span>
-                            <p className="text-xl font-black text-yellow-400 flex items-center">{compare?.totalPlaybacks?.current || 0} {formatChange(compare?.totalPlaybacks)}</p>
+                            <p className="text-xl font-black text-yellow-400 flex items-center">{displayPeriodPlays.toLocaleString()} {formatChange(compare?.totalPlaybacks)}</p>
                         </div>
                         <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
                             <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Users className="w-3 h-3 text-pink-400"/> Unique Viewers</span>
-                            <p className="text-xl font-black text-pink-400 flex items-center">{compare?.uniqueViewers?.current || 0} {formatChange(compare?.uniqueViewers)}</p>
+                            <p className="text-xl font-black text-pink-400 flex items-center">{displayUniqueViewers.toLocaleString()} {formatChange(compare?.uniqueViewers)}</p>
                         </div>
                         <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
-                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Monitor className="w-3 h-3 text-cyan-400" /> Peak Direct Plays</span>
+                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Monitor className="w-3 h-3 text-cyan-400" /> {statsAreJellystatTotals ? 'Direct Plays' : 'Peak Direct Plays'}</span>
                             <p className="font-mono font-black text-cyan-400 text-xl">{tautulliData?.directPlayRecord || 0}</p>
                         </div>
                         <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
-                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Activity className="w-3 h-3 text-orange-400" /> Peak Direct Streams</span>
+                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Activity className="w-3 h-3 text-orange-400" /> {statsAreJellystatTotals ? 'Direct Streams' : 'Peak Direct Streams'}</span>
                             <p className="font-mono font-black text-orange-400 text-xl">{tautulliData?.directStreamRecord || 0}</p>
                         </div>
                         <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
-                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Settings className="w-3 h-3 text-rose-400" /> Peak Transcodes</span>
+                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Settings className="w-3 h-3 text-rose-400" /> {statsAreJellystatTotals ? 'Transcodes' : 'Peak Transcodes'}</span>
                             <p className="font-mono font-black text-rose-400 text-xl">{tautulliData?.transcodeRecord || 0}</p>
                         </div>
                         <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
@@ -3134,6 +3331,9 @@ return (
                             setPeakDate={setPeakDate}
                             peakDateData={peakDateData}
                             peakDateLoading={peakDateLoading}
+                            isJellyfinPortal={isJellyfinPortal}
+                            periodPlays={analyticsData?.totalPlaybacks || tautulliData?.totalPlays || 0}
+                            uniqueViewers={analyticsData?.totalActiveUsers || topUsers?.length || 0}
                         />
 
                         {/* Top Devices & Libraries Container */}
@@ -8826,13 +9026,14 @@ interface NavigationProps {
     setActiveTheme: (theme: string) => void;
     pendingRequestCount?: number;
     watchingCount?: number;
+    downloadCount?: number;
     showDashboardWatchingBadge?: boolean;
     sessionInfo?: any;
     mediaServerType?: string;
     sidebarIdentityPosition?: 'top' | 'bottom';
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, customLogoUrl, requestUrl, navOrder, navFeatures, appVersion, activeTheme, setActiveTheme, pendingRequestCount = 0, watchingCount = 0, showDashboardWatchingBadge = false, sessionInfo, mediaServerType = 'plex', sidebarIdentityPosition = 'bottom' }) => {
+export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, customLogoUrl, requestUrl, navOrder, navFeatures, appVersion, activeTheme, setActiveTheme, pendingRequestCount = 0, watchingCount = 0, downloadCount = 0, showDashboardWatchingBadge = false, sessionInfo, mediaServerType = 'plex', sidebarIdentityPosition = 'bottom' }) => {
     const serverIcon = customLogoUrl ? resolvePortalAssetUrl(customLogoUrl) : (adminThumb ? (adminThumb.startsWith('http') ? adminThumb : portalUrl(`/api/plex/image?path=${encodeURIComponent(adminThumb)}&width=256&height=256`)) : logoUrl());
     const providerName = String(mediaServerType || 'plex').toLowerCase() === 'jellyfin'
         ? 'Jellyfin'
@@ -8945,6 +9146,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
     const getNavBadgeCount = (key: string) => {
         if (key === 'requests') return pendingRequestCount;
         if (key === 'discover' && showDashboardWatchingBadge) return watchingCount;
+        if (key === 'downloads') return downloadCount;
         return 0;
     };
 

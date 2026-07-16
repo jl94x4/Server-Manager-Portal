@@ -61,7 +61,7 @@ Most integrations are configured in **Settings → Media Stack**. Branding, aler
   </div>
   <div class="integration-card">
     <img src="https://cdn.jsdelivr.net/gh/selfhst/icons/svg/qbittorrent.svg" alt="" />
-    <div><strong>Download Clients</strong><span>qBittorrent, Transmission, BitTorrent, and Deluge merged into one Download Status page.</span></div>
+    <div><strong>Download Clients</strong><span>qBittorrent, Transmission, BitTorrent, Deluge, and SABnzbd merged into one Download Status page.</span></div>
   </div>
 </div>
 
@@ -157,6 +157,11 @@ Most integrations are configured in **Settings → Media Stack**. Branding, aler
       <td>Download Status page, status checks, source matching, speed/progress display through Deluge Web</td>
     </tr>
     <tr>
+      <td><img src="https://cdn.jsdelivr.net/gh/selfhst/icons/svg/sabnzbd.svg" alt="" /> SABnzbd</td>
+      <td>Download client</td>
+      <td>Download Status page, status checks, NZB queue progress, speed display, and ARR source matching</td>
+    </tr>
+    <tr>
       <td><img src="https://cdn.jsdelivr.net/gh/selfhst/icons/svg/gotify.svg" alt="" /> Gotify</td>
       <td>Notifications</td>
       <td>Portal alerts for selected alert rules</td>
@@ -196,7 +201,7 @@ The Download Status page combines every enabled download client and matches acti
 - Lidarr
 - Other/unknown
 
-Each client card shows online/offline state, torrent count, and client type. Each download row shows progress, state, speeds, size, category/label, and ARR match details when available.
+Each client card shows online/offline state, download count, and client type. Each download row shows progress, state, speeds, size, category/label, and ARR match details when available.
 
 ## Jellyfin Activity Notes
 
