@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ClipboardList, Film, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronUp, ClipboardList, Film, Sparkles } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { DiscoverPosterCard } from '../screens';
 import { Carousel } from './Carousel';
@@ -17,6 +17,7 @@ import { fetchDiscoverHomeRowResults } from './discoverFetchUtils';
 import { WatchlistPanel } from './WatchlistPanel';
 import { DiscoverHomeSkeleton } from '../shared/skeletons';
 import { discoveryTheme } from './discoveryThemeClasses';
+import { useLibraryQueueToggle } from './useLibraryQueueToggle';
 
 type GenreSliderItem = { id: number; name: string; image?: string };
 
@@ -52,6 +53,7 @@ export const DiscoverHome: React.FC<{
     pushToast?: (msg: string, type: 'success' | 'error') => void;
 }> = ({ onSelect, formatItem, navigate, pushToast }) => {
     const { preferences, loaded } = useDiscoveryPreferences();
+    const { showLibraryQueue, toggleLibraryQueue } = useLibraryQueueToggle();
     const [rows, setRows] = useState({
         recentlyAdded: [] as any[],
         recentRequests: [] as any[],
@@ -242,49 +244,68 @@ export const DiscoverHome: React.FC<{
     return (
         <div className="flex flex-col gap-6 w-full max-w-full overflow-hidden pb-8 px-1">
             <section className={discoveryTheme.personalPanel}>
-                <div className="px-1">
-                    <p className={discoveryTheme.personalEyebrow}>For you</p>
-                    <h2 className="text-lg sm:text-xl font-black text-text mt-1">Your library queue</h2>
-                    <p className="text-sm text-muted mt-1">Requests and watchlist first — then browse what’s new.</p>
+                <div className="px-1 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <p className={discoveryTheme.personalEyebrow}>For you</p>
+                        <h2 className="text-lg sm:text-xl font-black text-text mt-1">Your library queue</h2>
+                        {showLibraryQueue && (
+                            <p className="text-sm text-muted mt-1">Requests and watchlist first — then browse what’s new.</p>
+                        )}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={toggleLibraryQueue}
+                        className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-white/5 hover:bg-white/10 text-xs font-bold text-muted hover:text-text transition-colors"
+                        aria-expanded={showLibraryQueue}
+                        aria-controls="discover-library-queue"
+                        title={showLibraryQueue ? 'Hide library queue' : 'Show library queue'}
+                    >
+                        {showLibraryQueue ? 'Hide' : 'Show'}
+                        {showLibraryQueue ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
                 </div>
 
-                <DiscoveryRow
-                    title="Your Requests"
-                    items={rows.recentRequests}
-                    onViewAll={() => navigate('/discovery/requests')}
-                    empty={(
-                        <EmptyRail
-                            title="No requests yet"
-                            body="Find something good and send it to the queue."
-                            actionLabel="Browse movies"
-                            onAction={() => navigate('/discovery/movies')}
-                            icon={<ClipboardList className="w-5 h-5" />}
+                {showLibraryQueue && (
+                    <div id="discover-library-queue" className="flex flex-col gap-5">
+                        <DiscoveryRow
+                            title="Your Requests"
+                            items={rows.recentRequests}
+                            onViewAll={() => navigate('/discovery/requests')}
+                            empty={(
+                                <EmptyRail
+                                    title="No requests yet"
+                                    body="Find something good and send it to the queue."
+                                    actionLabel="Browse movies"
+                                    onAction={() => navigate('/discovery/movies')}
+                                    icon={<ClipboardList className="w-5 h-5" />}
+                                />
+                            )}
                         />
-                    )}
-                />
 
-                {rows.plexWatchlist.length > 0 ? (
-                    <WatchlistPanel
-                        items={rows.plexWatchlist}
-                        formatItem={formatItem}
-                        onSelect={onSelect}
-                        navigate={navigate}
-                        pushToast={pushToast}
-                        onRefresh={loadData}
-                        variant="row"
-                    />
-                ) : (
-                    <div className="flex flex-col gap-2">
-                        <h2 className={`${discoveryTheme.sectionTitle} px-2`}>Your Plex Watchlist</h2>
-                        <EmptyRail
-                            title="Watchlist is empty"
-                            body="Sync from Plex in Seerr, or start from trending titles."
-                            actionLabel="See trending"
-                            onAction={() => {
-                                document.getElementById('discover-trending')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            }}
-                            icon={<Sparkles className="w-5 h-5" />}
-                        />
+                        {rows.plexWatchlist.length > 0 ? (
+                            <WatchlistPanel
+                                items={rows.plexWatchlist}
+                                formatItem={formatItem}
+                                onSelect={onSelect}
+                                navigate={navigate}
+                                pushToast={pushToast}
+                                onRefresh={loadData}
+                                variant="row"
+                            />
+                        ) : (
+                            <div className="flex flex-col gap-2">
+                                <h2 className={`${discoveryTheme.sectionTitle} px-2`}>Your Plex Watchlist</h2>
+                                <EmptyRail
+                                    title="Watchlist is empty"
+                                    body="Sync from Plex in Seerr, or start from trending titles."
+                                    actionLabel="See trending"
+                                    onAction={() => {
+                                        document.getElementById('discover-trending')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                    }}
+                                    icon={<Sparkles className="w-5 h-5" />}
+                                />
+                            </div>
+                        )}
                     </div>
                 )}
             </section>

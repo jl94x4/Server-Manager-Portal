@@ -198,7 +198,7 @@ export const DiscoverHeroHeader: React.FC<SearchResultProps> = (props) => {
                     </div>
 
                     <div ref={searchWrapRef} className="w-full max-w-3xl relative mt-1">
-                        <Search className="w-5 h-5 sm:w-6 sm:h-6 text-muted absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 z-10" />
+                        <Search className="w-4 h-4 sm:w-5 sm:h-5 text-muted absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 z-10" />
                         <input
                             ref={setInputRef}
                             type="text"
@@ -213,9 +213,9 @@ export const DiscoverHeroHeader: React.FC<SearchResultProps> = (props) => {
                             <button
                                 type="button"
                                 onClick={onClear}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-text z-10"
+                                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted hover:text-text z-10"
                             >
-                                <X className="w-5 h-5" />
+                                <X className="w-4 h-4" />
                             </button>
                         )}
                     </div>

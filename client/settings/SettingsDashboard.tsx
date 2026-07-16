@@ -422,7 +422,7 @@ export const SettingsDashboard: React.FC = () => {
         }
         return base;
     }, []);
-    const [navOrder, setNavOrder] = useState<string[]>(() => ensureMaintenanceNavOrder(['home', 'discover', 'status', 'analytics', 'mediastack', 'request', 'about', 'settings', 'logout']));
+    const [navOrder, setNavOrder] = useState<string[]>(() => ensureMaintenanceNavOrder(['home', 'discover', 'status', 'analytics', 'request', 'users', 'downloads', 'mediastack', 'about', 'settings', 'logout']));
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
     const [logoPreviewUrl, setLogoPreviewUrl] = useState('');

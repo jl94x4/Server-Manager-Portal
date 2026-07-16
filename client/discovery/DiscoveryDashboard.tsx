@@ -241,9 +241,9 @@ export const DiscoveryDashboard: React.FC<{
         { id: 'home', path: '/discovery', label: 'Discover', icon: Compass, count: 0, countColor: '' },
         { id: 'movies', path: '/discovery/movies', label: 'Movies', icon: Film, count: 0, countColor: '' },
         { id: 'series', path: '/discovery/series', label: 'Series', icon: Tv, count: 0, countColor: '' },
-        { id: 'requests', path: '/discovery/requests', label: 'My Requests', icon: ClipboardList, count: myPendingCount, countColor: 'bg-black/25 text-black' },
+        { id: 'requests', path: '/discovery/requests', label: 'My Requests', icon: ClipboardList, count: myPendingCount, countColor: 'bg-plex/25 text-plex' },
         ...(canSeeIssuesTab
-            ? [{ id: 'issues', path: '/discovery/issues', label: 'My Issues', icon: AlertTriangle, count: myOpenIssueCount, countColor: 'bg-black/25 text-black' }]
+            ? [{ id: 'issues', path: '/discovery/issues', label: 'My Issues', icon: AlertTriangle, count: myOpenIssueCount, countColor: 'bg-amber-500/25 text-amber-300' }]
             : []),
     ];
 
@@ -254,7 +254,7 @@ export const DiscoveryDashboard: React.FC<{
         if (!tab.count) return null;
         return (
             <span className={`min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-black inline-flex items-center justify-center ${
-                active ? tab.countColor : 'bg-plex text-black'
+                active ? (tab.countColor || 'bg-plex/25 text-plex') : 'bg-plex text-background'
             }`}>
                 {tab.count > 99 ? '99+' : tab.count}
             </span>

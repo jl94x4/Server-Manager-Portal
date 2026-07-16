@@ -5,6 +5,41 @@ export type NavFeatureFlags = {
     requestsQueue?: boolean;
 };
 
+/** Default sidebar order: Analytics → Discover & Request → Users. */
+export const DEFAULT_NAV_ORDER = [
+    'home',
+    'discover',
+    'status',
+    'analytics',
+    'request',
+    'users',
+    'downloads',
+    'mediastack',
+    'maintenance',
+    'about',
+    'settings',
+    'logout',
+] as const;
+
+const LEGACY_DEFAULT_NAV_ORDERS = [
+    ['home', 'discover', 'users', 'status', 'analytics', 'downloads', 'mediastack', 'maintenance', 'request', 'about', 'settings', 'logout'],
+    ['home', 'discover', 'users', 'analytics', 'downloads', 'mediastack', 'upgrader', 'requests', 'status', 'maintenance', 'request', 'about', 'logs', 'settings', 'logout'],
+    ['home', 'discover', 'status', 'analytics', 'mediastack', 'request', 'about', 'settings', 'logout'],
+];
+
+const sameOrder = (a: string[], b: string[]) => (
+    a.length === b.length && a.every((key, index) => key === b[index])
+);
+
+/** Upgrade known legacy defaults to the current default without clobbering custom orders. */
+export const resolveNavOrder = (order?: string[] | null): string[] => {
+    if (!Array.isArray(order) || !order.length) return [...DEFAULT_NAV_ORDER];
+    if (LEGACY_DEFAULT_NAV_ORDERS.some((legacy) => sameOrder(order, legacy))) {
+        return [...DEFAULT_NAV_ORDER];
+    }
+    return [...order];
+};
+
 const PLACEHOLDER_REQUEST_URLS = new Set([
     'https://yourdomain.com',
     'http://yourdomain.com',
