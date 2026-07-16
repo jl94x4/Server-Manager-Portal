@@ -364,10 +364,10 @@ export const MediaDetailsPage: React.FC<{
                             alt=""
                             className={`absolute inset-0 w-full h-full object-cover ${
                                 heroUsesPosterFallback
-                                    ? 'scale-[1.35] blur-2xl opacity-48 md:scale-125 md:blur-xl md:opacity-58'
+                                    ? 'scale-[1.35] blur-2xl opacity-40 md:scale-125 md:blur-xl md:opacity-58'
                                     // Bias left in the source so centered subjects land in the open right panel
                                     // (poster + copy sit on the left). Slight scale avoids empty edges.
-                                    : 'scale-110 object-[32%_30%] opacity-68 md:scale-[1.15] md:object-[22%_28%] md:opacity-90'
+                                    : 'scale-110 object-[32%_30%] opacity-45 md:scale-[1.15] md:object-[22%_28%] md:opacity-90'
                             }`}
                             fetchPriority="high"
                             decoding="async"
@@ -378,7 +378,7 @@ export const MediaDetailsPage: React.FC<{
                     ) : (
                         <div className="absolute inset-0 bg-black" />
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-card/40 via-[58%] to-card md:hidden" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-card/65 via-[55%] to-card md:hidden" />
                     <div className="absolute inset-0 hidden md:block bg-gradient-to-t from-card from-0% via-card/80 via-[38%] to-transparent" />
                     <div className="absolute inset-0 hidden md:block bg-gradient-to-r from-card from-0% via-card/70 via-[32%] to-transparent to-[78%]" />
                 </div>
