@@ -8,6 +8,54 @@ type FactResponse = {
     sources?: { wikipedia?: number; tmdb?: number };
 };
 
+/**
+ * Strip MediaWiki markup so raw API text renders as clean readable prose.
+ * Handles: == headings ==, [[links|labels]], {{templates}}, '''bold''',
+ * ''italic'', <ref>...</ref>, HTML tags, and excess whitespace.
+ */
+function cleanWikiText(raw: string): string {
+    let text = raw;
+
+    // Remove <ref> blocks (citations)
+    text = text.replace(/<ref[^>]*>[\s\S]*?<\/ref>/gi, '');
+    text = text.replace(/<ref[^/]*\/>/gi, '');
+
+    // Remove HTML tags
+    text = text.replace(/<[^>]+>/g, '');
+
+    // Strip == Section headings == (any level: ==, ===, ====)
+    text = text.replace(/={2,}\s*[^=\n]+?\s*={2,}/g, '');
+
+    // Unwrap [[File:...]] and [[Image:...]] / [[Category:...]] (no useful text)
+    text = text.replace(/\[\[(?:File|Image|Category):[^\]]*\]\]/gi, '');
+
+    // Unwrap [[link|label]] → label, [[link]] → link
+    text = text.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2');
+    text = text.replace(/\[\[([^\]]+)\]\]/g, '$1');
+
+    // Strip {{template}} blocks (iterate to handle nesting)
+    for (let i = 0; i < 4; i++) {
+        text = text.replace(/\{\{[^{}]*\}\}/g, '');
+    }
+
+    // Strip remaining stray { } [ ] brackets
+    text = text.replace(/[{}[\]]/g, '');
+
+    // Strip bold/italic wiki markers (''' and '')
+    text = text.replace(/'{2,3}/g, '');
+
+    // Collapse bullet/list markers at line starts
+    text = text.replace(/^\s*[*#:;]+\s*/gm, '');
+
+    // Collapse multiple spaces / newlines into a single space
+    text = text.replace(/\s+/g, ' ').trim();
+
+    // Fall back to raw if cleaning left nothing useful
+    if (text.length < 10) return raw;
+
+    return text;
+}
+
 export const DiscoveryFactWidget: React.FC<{
     mediaType: 'movie' | 'tv';
     mediaId: number;
@@ -44,7 +92,9 @@ export const DiscoveryFactWidget: React.FC<{
                     `/api/discovery/fact?mediaType=${encodeURIComponent(mediaType)}&mediaId=${mediaId}`,
                 );
                 if (cancelled) return;
-                const pool = Array.isArray(res?.facts) && res.facts.length ? res.facts : (res?.fact ? [res.fact] : []);
+                const pool = Array.isArray(res?.facts) && res.facts.length
+                    ? res.facts
+                    : (res?.fact ? [res.fact] : []);
                 setFacts(pool);
                 setIndex(pool.length ? Math.floor(Math.random() * pool.length) : 0);
             } catch {
@@ -111,17 +161,7 @@ export const DiscoveryFactWidget: React.FC<{
                     )}
                 </div>
                 <p className="text-sm text-text/80 leading-relaxed min-h-[4.75rem] sm:min-h-[3.75rem]">
-                    {(() => {
-                        const match = current.match(/^===\s*(.*?)\s*===\s*(.*)$/s);
-                        if (match) {
-                            return (
-                                <>
-                                    <strong className="text-text">{match[1]}:</strong> {match[2]}
-                                </>
-                            );
-                        }
-                        return current;
-                    })()}
+                    {cleanWikiText(current)}
                 </p>
             </div>
         </div>
