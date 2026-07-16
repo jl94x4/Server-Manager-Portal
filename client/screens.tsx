@@ -3504,7 +3504,7 @@ export const AboutDashboard: React.FC<{ appVersion?: string; mediaServerType?: s
             : 'Plex';
     const featurePillClass = 'rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-muted';
     return (
-        <div className="w-full max-w-7xl mx-auto space-y-6 animate-fade-in">
+        <div className="w-full space-y-6 animate-fade-in">
             <div className="rounded-xl border border-border/70 bg-card/80 overflow-hidden shadow-2xl">
                 <div className="p-6 sm:p-8 border-b border-border/70 bg-gradient-to-br from-white/10 via-transparent to-plex/10">
                     <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
