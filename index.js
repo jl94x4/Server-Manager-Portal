@@ -9110,6 +9110,65 @@ if (BASE_PATH) {
     app.use(`${BASE_PATH}/static`, express.static(staticDir, staticAssetOptions));
 }
 
+const buildPwaManifest = async (req) => {
+    const config = await loadFile(CONFIG_PATH, {});
+    const profile = await getAdminProfile(config);
+    const serverName = profile.serverName || 'Server Portal';
+    const basePath = BASE_PATH || '';
+    return {
+        name: `${serverName} Portal`,
+        short_name: serverName.length > 12 ? 'Portal' : serverName,
+        description: `Install ${serverName} Portal for quick access.`,
+        start_url: `${basePath}/`,
+        scope: `${basePath || '/'}`,
+        display: 'standalone',
+        background_color: '#0b0f19',
+        theme_color: '#0b0f19',
+        icons: [
+            {
+                src: `${basePath}/static/logo.png`,
+                sizes: 'any',
+                type: 'image/png',
+                purpose: 'any maskable'
+            }
+        ]
+    };
+};
+
+app.get(['/manifest.webmanifest', '/manifest.json'], async (req, res) => {
+    try {
+        res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.json(await buildPwaManifest(req));
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to build web app manifest.' });
+    }
+});
+
+const serviceWorkerScript = `self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('fetch', () => {});
+`;
+
+app.get('/service-worker.js', (req, res) => {
+    res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.send(serviceWorkerScript);
+});
+if (BASE_PATH) {
+    app.get(`${BASE_PATH}/service-worker.js`, (req, res) => {
+        res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.send(serviceWorkerScript);
+    });
+}
+
 // Serve optional legacy stylesheet from the root directory
 app.get('/style.css', (req, res) => {
     const cssPath = path.join(process.cwd(), 'style.css');

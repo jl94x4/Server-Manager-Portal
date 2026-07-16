@@ -131,6 +131,12 @@ export const MainApp: React.FC = () => {
     }, [fetchPublicConfig]);
 
     useEffect(() => {
+        if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+        if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') return;
+        navigator.serviceWorker.register(portalUrl('/service-worker.js')).catch(() => {});
+    }, []);
+
+    useEffect(() => {
         if (currentRoute === 'status' && !sessionInfo && publicConfig?.showPublicStatusMonitor === false) {
             setCurrentRoute('login');
             window.history.replaceState({}, '', portalUrl('/'));

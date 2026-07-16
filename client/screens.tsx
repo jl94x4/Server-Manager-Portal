@@ -121,6 +121,11 @@ declare global {
     }
 }
 
+type BeforeInstallPromptEvent = Event & {
+    prompt: () => Promise<void>;
+    userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+};
+
 
 export const updateFavicon = (thumbUrl: string | null | undefined) => {
     let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
@@ -8654,8 +8659,47 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
     const [mobileThemeOpen, setMobileThemeOpen] = useState(false);
     const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
+    const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+    const [installHelpOpen, setInstallHelpOpen] = useState(false);
+    const [isInstalledApp, setIsInstalledApp] = useState(() => (
+        typeof window !== 'undefined'
+        && (window.matchMedia?.('(display-mode: standalone)').matches || (navigator as any).standalone === true)
+    ));
     const mobileThemeRef = useRef<HTMLDivElement>(null);
     const [mobileThemePos, setMobileThemePos] = useState<{ top: number; right: number } | null>(null);
+
+    useEffect(() => {
+        const handleBeforeInstallPrompt = (event: Event) => {
+            event.preventDefault();
+            setInstallPrompt(event as BeforeInstallPromptEvent);
+        };
+        const handleInstalled = () => {
+            setIsInstalledApp(true);
+            setInstallPrompt(null);
+            setInstallHelpOpen(false);
+        };
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        window.addEventListener('appinstalled', handleInstalled);
+        return () => {
+            window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+            window.removeEventListener('appinstalled', handleInstalled);
+        };
+    }, []);
+
+    const handleInstallApp = async () => {
+        if (isInstalledApp) return;
+        if (!installPrompt) {
+            setInstallHelpOpen(true);
+            return;
+        }
+        const promptEvent = installPrompt;
+        setInstallPrompt(null);
+        await promptEvent.prompt();
+        const choice = await promptEvent.userChoice;
+        if (choice.outcome === 'accepted') {
+            setIsInstalledApp(true);
+        }
+    };
 
     useEffect(() => {
         if (!mobileThemeOpen) { setMobileThemePos(null); return; }
@@ -8902,6 +8946,11 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                             <FileText className="w-5 h-5" />
                         </button>
                     )}
+                    {!isInstalledApp && (
+                        <button onClick={(e) => { e.preventDefault(); handleInstallApp(); }} className="text-muted hover:text-text transition-colors" title="Install app" aria-label="Install app">
+                            <MonitorSmartphone className="w-5 h-5" />
+                        </button>
+                    )}
                     <button onClick={(e) => { e.preventDefault(); onLogout(); }} className="text-muted hover:text-red-500 transition-colors ml-1">
                         <LogOut className="w-5 h-5" />
                     </button>
@@ -8927,6 +8976,19 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                 {sidebarIdentityPosition !== 'top' && renderServerIdentity('bottom')}
 
                 <div className="mt-5 pt-5 border-t border-white/10">
+                    {!isInstalledApp && (
+                        <button
+                            type="button"
+                            onClick={handleInstallApp}
+                            className="mb-3 w-full flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-plex/40 transition-all p-3 text-left text-text"
+                        >
+                            <MonitorSmartphone className="w-5 h-5 text-plex flex-shrink-0" />
+                            <span className="min-w-0 flex-1">
+                                <span className="block text-sm font-bold truncate">Install App</span>
+                                <span className="block text-[10px] uppercase tracking-[0.2em] text-muted">Quick access</span>
+                            </span>
+                        </button>
+                    )}
                     <button
                         type="button"
                         onClick={() => setProfileOpen(true)}
@@ -9027,6 +9089,48 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                 Logout
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {installHelpOpen && (
+                <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm animate-fade-in flex items-center justify-center p-4" aria-modal="true" role="dialog">
+                    <button
+                        type="button"
+                        className="absolute inset-0 cursor-default"
+                        aria-label="Close install help"
+                        onClick={() => setInstallHelpOpen(false)}
+                    />
+                    <div className="relative w-full max-w-sm rounded-2xl border border-border bg-card shadow-2xl p-5">
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-11 h-11 rounded-xl bg-plex/10 border border-plex/25 flex items-center justify-center text-plex">
+                                    <MonitorSmartphone className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-black text-text">Install App</h3>
+                                    <p className="text-xs text-muted">{serverName} Portal</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setInstallHelpOpen(false)}
+                                className="p-2 rounded-lg text-muted hover:text-text hover:bg-white/5 transition-colors"
+                                aria-label="Close install help"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <p className="text-sm text-muted leading-relaxed">
+                            Use your browser menu and choose <span className="text-text font-semibold">Install app</span> or <span className="text-text font-semibold">Add to Home Screen</span>.
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => setInstallHelpOpen(false)}
+                            className="mt-5 w-full inline-flex items-center justify-center rounded-xl bg-plex px-4 py-3 text-sm font-bold text-background hover:bg-plex-hover transition-colors"
+                        >
+                            Done
+                        </button>
                     </div>
                 </div>
             )}
