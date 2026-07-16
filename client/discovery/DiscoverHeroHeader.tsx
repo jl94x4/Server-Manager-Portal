@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Loader2, Sparkles, X } from 'lucide-react';
+import { Search, Loader2, Sparkles, X, Film, Tv, TrendingUp, Clapperboard } from 'lucide-react';
 import { SlideshowBackground } from '../shared/theme';
 import { apiFetch } from '../shared/api';
 import { discoveryTheme } from './discoveryThemeClasses';
@@ -16,6 +16,8 @@ type SearchResultProps = {
     onFocus: () => void;
     onSelect: (formatted: any) => void;
     formatItem: (item: any) => any;
+    navigate?: (path: string) => void;
+    searchInputRef?: React.RefObject<HTMLInputElement | null>;
 };
 
 const SearchDropdown: React.FC<SearchResultProps & { anchorRect: DOMRect | null }> = ({
@@ -39,7 +41,6 @@ const SearchDropdown: React.FC<SearchResultProps & { anchorRect: DOMRect | null 
                 left: anchorRect.left,
                 width: anchorRect.width,
                 zIndex: 9999,
-                // Solid fill — theme token alone can still read translucent over busy posters
                 backgroundColor: 'rgb(var(--color-card))',
             }}
         >
@@ -83,12 +84,30 @@ const SearchDropdown: React.FC<SearchResultProps & { anchorRect: DOMRect | null 
     );
 };
 
+const QUICK_CHIPS = [
+    { id: 'trending', label: 'Trending', icon: TrendingUp, path: '/discovery' },
+    { id: 'movies', label: 'Movies', icon: Film, path: '/discovery/movies' },
+    { id: 'series', label: 'Series', icon: Tv, path: '/discovery/series' },
+    { id: 'action', label: 'Action', icon: Clapperboard, path: '/discovery/movies?genre=28' },
+    { id: 'comedy', label: 'Comedy', icon: Clapperboard, path: '/discovery/movies?genre=35' },
+    { id: 'scifi', label: 'Sci-Fi', icon: Clapperboard, path: '/discovery/movies?genre=878' },
+    { id: 'fresh', label: 'Fresh', icon: Sparkles, path: '/discovery/movies?sort=primary_release_date.desc&dateGte=' },
+] as const;
+
 export const DiscoverHeroHeader: React.FC<SearchResultProps> = (props) => {
-    const { query, onClear, onQueryChange, onFocus } = props;
+    const { query, onClear, onQueryChange, onFocus, navigate, searchInputRef } = props;
     const [backgrounds, setBackgrounds] = useState<string[]>([]);
     const [intervalSeconds, setIntervalSeconds] = useState(12);
     const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
     const searchWrapRef = useRef<HTMLDivElement>(null);
+    const localInputRef = useRef<HTMLInputElement>(null);
+
+    const setInputRef = (node: HTMLInputElement | null) => {
+        localInputRef.current = node;
+        if (searchInputRef) {
+            (searchInputRef as React.MutableRefObject<HTMLInputElement | null>).current = node;
+        }
+    };
 
     useEffect(() => {
         apiFetch('/api/discovery/hero-backdrops')
@@ -132,6 +151,26 @@ export const DiscoverHeroHeader: React.FC<SearchResultProps> = (props) => {
         return () => document.removeEventListener('mousedown', handlePointerDown);
     }, [props.searchOpen, props.onClose]);
 
+    const freshFrom = () => {
+        const from = new Date();
+        from.setFullYear(from.getFullYear() - 1);
+        return from.toISOString().slice(0, 10);
+    };
+
+    const handleChip = (chip: (typeof QUICK_CHIPS)[number]) => {
+        if (!navigate) return;
+        if (chip.id === 'fresh') {
+            navigate(`/discovery/movies?sort=primary_release_date.desc&dateGte=${freshFrom()}`);
+            return;
+        }
+        if (chip.id === 'trending') {
+            navigate('/discovery');
+            // Scroll toward trending is handled by home layout order; personal is first.
+            return;
+        }
+        navigate(chip.path);
+    };
+
     return (
         <>
             <div className={discoveryTheme.heroShell}>
@@ -147,21 +186,28 @@ export const DiscoverHeroHeader: React.FC<SearchResultProps> = (props) => {
                     <div className="absolute inset-0 bg-background/20 pointer-events-none" />
                 </div>
 
-                <div className="relative z-10 p-6 sm:p-10 flex flex-col items-center justify-center text-center gap-5">
+                <div className="relative z-10 p-6 sm:p-10 flex flex-col items-center justify-center text-center gap-4 sm:gap-5">
                     <Sparkles className="w-10 h-10 sm:w-12 sm:h-12 text-plex opacity-90 drop-shadow-lg" />
-                    <h1 className={discoveryTheme.heroTitle}>
-                        Discover & Request
-                    </h1>
+                    <div className="flex flex-col gap-1.5">
+                        <h1 className={discoveryTheme.heroTitle}>
+                            Discover & Request
+                        </h1>
+                        <p className="text-sm text-white/65 max-w-xl mx-auto">
+                            Search the catalog, or jump in with a quick pick below.
+                        </p>
+                    </div>
 
-                    <div ref={searchWrapRef} className="w-full max-w-2xl relative mt-1">
-                        <Search className="w-5 h-5 sm:w-6 sm:h-6 text-muted absolute left-4 top-1/2 -translate-y-1/2 z-10" />
+                    <div ref={searchWrapRef} className="w-full max-w-3xl relative mt-1">
+                        <Search className="w-5 h-5 sm:w-6 sm:h-6 text-muted absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 z-10" />
                         <input
+                            ref={setInputRef}
                             type="text"
-                            placeholder="Search for a movie, TV show, or person..."
+                            placeholder="Search movies, TV, people…  (press / )"
                             value={query}
                             onChange={(e) => onQueryChange(e.target.value)}
                             onFocus={onFocus}
                             className={discoveryTheme.searchInput}
+                            aria-label="Search Discover"
                         />
                         {query && (
                             <button
@@ -173,6 +219,25 @@ export const DiscoverHeroHeader: React.FC<SearchResultProps> = (props) => {
                             </button>
                         )}
                     </div>
+
+                    {navigate && (
+                        <div className="flex flex-wrap items-center justify-center gap-2 max-w-3xl">
+                            {QUICK_CHIPS.map((chip) => {
+                                const Icon = chip.icon;
+                                return (
+                                    <button
+                                        key={chip.id}
+                                        type="button"
+                                        onClick={() => handleChip(chip)}
+                                        className={discoveryTheme.heroChip}
+                                    >
+                                        <Icon className="w-3.5 h-3.5" />
+                                        {chip.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
             </div>
 

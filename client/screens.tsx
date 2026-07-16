@@ -9101,14 +9101,14 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                     />
                     <span className="font-bold text-text uppercase tracking-widest text-sm">{serverName}</span>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2.5">
                     <div className="relative" ref={mobileThemeRef}>
                         <button
                             onClick={() => setMobileThemeOpen(v => !v)}
-                            className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all ${mobileThemeOpen ? 'border-plex text-plex ring-1 ring-plex' : 'border-border text-muted hover:border-plex/50 hover:text-text'}`}
+                            className={`w-7 h-7 flex items-center justify-center rounded-md border transition-all ${mobileThemeOpen ? 'border-plex text-plex ring-1 ring-plex' : 'border-border text-muted hover:border-plex/50 hover:text-text'}`}
                             title="Change theme"
                         >
-                            <Palette className="w-4 h-4" />
+                            <Palette className="w-3.5 h-3.5" />
                         </button>
                         {mobileThemeOpen && mobileThemePos && ReactDOM.createPortal(
                             <div
@@ -9147,16 +9147,16 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                     </div>
                     {isAdmin && (
                         <button onClick={(e) => { e.preventDefault(); onNavigate('logs'); }} className={`text-muted hover:text-text transition-colors ${currentRoute === 'logs' ? 'text-plex' : ''}`}>
-                            <FileText className="w-5 h-5" />
+                            <FileText className="w-4 h-4" />
                         </button>
                     )}
                     {!isInstalledApp && (
                         <button onClick={(e) => { e.preventDefault(); handleInstallApp(); }} className="text-muted hover:text-text transition-colors" title="Install app" aria-label="Install app">
-                            <MonitorSmartphone className="w-5 h-5" />
+                            <MonitorSmartphone className="w-4 h-4" />
                         </button>
                     )}
-                    <button onClick={(e) => { e.preventDefault(); onLogout(); }} className="text-muted hover:text-red-500 transition-colors ml-1">
-                        <LogOut className="w-5 h-5" />
+                    <button onClick={(e) => { e.preventDefault(); onLogout(); }} className="text-muted hover:text-red-500 transition-colors">
+                        <LogOut className="w-4 h-4" />
                     </button>
                 </div>
             </div>

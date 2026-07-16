@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { ClipboardList, Film, Sparkles } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { DiscoverPosterCard } from '../screens';
 import { Carousel } from './Carousel';
@@ -18,6 +19,31 @@ import { DiscoverHomeSkeleton } from '../shared/skeletons';
 import { discoveryTheme } from './discoveryThemeClasses';
 
 type GenreSliderItem = { id: number; name: string; image?: string };
+
+const EmptyRail: React.FC<{
+    title: string;
+    body: string;
+    actionLabel: string;
+    onAction: () => void;
+    icon: React.ReactNode;
+}> = ({ title, body, actionLabel, onAction, icon }) => (
+    <div className={`${discoveryTheme.emptyState} !py-8 px-4 flex flex-col items-center gap-3`}>
+        <div className="w-10 h-10 rounded-full bg-plex/15 text-plex flex items-center justify-center">
+            {icon}
+        </div>
+        <div>
+            <p className={discoveryTheme.emptyTitle}>{title}</p>
+            <p className={discoveryTheme.emptyBody}>{body}</p>
+        </div>
+        <button
+            type="button"
+            onClick={onAction}
+            className="mt-1 px-4 py-2 rounded-lg bg-plex text-black text-xs font-black hover:bg-plex-hover transition-colors"
+        >
+            {actionLabel}
+        </button>
+    </div>
+);
 
 export const DiscoverHome: React.FC<{
     onSelect: (item: any) => void;
@@ -121,8 +147,33 @@ export const DiscoverHome: React.FC<{
         return undefined;
     }, [loadData]);
 
-    const DiscoveryRow = ({ title, items, onViewAll }: { title: string; items: any[]; onViewAll?: () => void }) => {
-        if (!items?.length) return null;
+    const DiscoveryRow = ({
+        title,
+        items,
+        onViewAll,
+        empty,
+    }: {
+        title: string;
+        items: any[];
+        onViewAll?: () => void;
+        empty?: React.ReactNode;
+    }) => {
+        if (!items?.length) {
+            if (!empty) return null;
+            return (
+                <div className="flex flex-col gap-2 relative">
+                    <div className="flex items-center justify-between px-2">
+                        <h2 className={`${discoveryTheme.sectionTitle} px-2`}>{title}</h2>
+                        {onViewAll && (
+                            <button type="button" onClick={onViewAll} className="text-xs font-bold text-plex hover:underline">
+                                View All
+                            </button>
+                        )}
+                    </div>
+                    {empty}
+                </div>
+            );
+        }
         return (
             <div className="flex flex-col gap-2 relative">
                 <div className="flex items-center justify-between px-2">
@@ -189,54 +240,110 @@ export const DiscoverHome: React.FC<{
     }
 
     return (
-        <div className="flex flex-col gap-4 w-full max-w-full overflow-hidden pb-8">
-            <DiscoveryRow title="Recently Added" items={rows.recentlyAdded} />
-            <DiscoveryRow title="Your Requests" items={rows.recentRequests} onViewAll={() => navigate('/discovery/requests')} />
-            <WatchlistPanel
-                items={rows.plexWatchlist}
-                formatItem={formatItem}
-                onSelect={onSelect}
-                navigate={navigate}
-                pushToast={pushToast}
-                onRefresh={loadData}
-                variant="row"
-            />
-            <DiscoveryRow title="Trending" items={rows.trending} />
-            <DiscoveryRow title="Popular Movies" items={rows.popularMovies} onViewAll={() => navigate('/discovery/movies')} />
-            {renderGenreSlider('Movie Genres', movieGenres, MOVIE_GENRES, '/discovery/movies')}
-            <DiscoveryRow title="Upcoming Movies" items={rows.upcomingMovies} />
+        <div className="flex flex-col gap-6 w-full max-w-full overflow-hidden pb-8 px-1">
+            <section className={discoveryTheme.personalPanel}>
+                <div className="px-1">
+                    <p className={discoveryTheme.personalEyebrow}>For you</p>
+                    <h2 className="text-lg sm:text-xl font-black text-text mt-1">Your library queue</h2>
+                    <p className="text-sm text-muted mt-1">Requests and watchlist first — then browse what’s new.</p>
+                </div>
 
-            <div className="flex flex-col gap-2 relative">
-                <h2 className={`${discoveryTheme.sectionTitle} px-2`}>Studios</h2>
-                <Carousel>
-                    {DISCOVER_STUDIOS.map((studio) => (
-                        <CompanyCard
-                            key={studio.id}
-                            name={studio.name}
-                            logoPath={studio.logoPath}
-                            onClick={() => navigate(`/discovery/movies/studio/${studio.id}`)}
+                <DiscoveryRow
+                    title="Your Requests"
+                    items={rows.recentRequests}
+                    onViewAll={() => navigate('/discovery/requests')}
+                    empty={(
+                        <EmptyRail
+                            title="No requests yet"
+                            body="Find something good and send it to the queue."
+                            actionLabel="Browse movies"
+                            onAction={() => navigate('/discovery/movies')}
+                            icon={<ClipboardList className="w-5 h-5" />}
                         />
-                    ))}
-                </Carousel>
-            </div>
+                    )}
+                />
 
-            <DiscoveryRow title="Popular Series" items={rows.popularSeries} onViewAll={() => navigate('/discovery/series')} />
-            {renderGenreSlider('Series Genres', tvGenres, TV_GENRES, '/discovery/series')}
-            <DiscoveryRow title="Upcoming Series" items={rows.upcomingSeries} />
-
-            <div className="flex flex-col gap-2 relative">
-                <h2 className={`${discoveryTheme.sectionTitle} px-2`}>Networks</h2>
-                <Carousel>
-                    {DISCOVER_NETWORKS.map((network) => (
-                        <CompanyCard
-                            key={`${network.id}-${network.name}`}
-                            name={network.name}
-                            logoPath={network.logoPath}
-                            onClick={() => navigate(`/discovery/series/network/${network.id}`)}
+                {rows.plexWatchlist.length > 0 ? (
+                    <WatchlistPanel
+                        items={rows.plexWatchlist}
+                        formatItem={formatItem}
+                        onSelect={onSelect}
+                        navigate={navigate}
+                        pushToast={pushToast}
+                        onRefresh={loadData}
+                        variant="row"
+                    />
+                ) : (
+                    <div className="flex flex-col gap-2">
+                        <h2 className={`${discoveryTheme.sectionTitle} px-2`}>Your Plex Watchlist</h2>
+                        <EmptyRail
+                            title="Watchlist is empty"
+                            body="Sync from Plex in Seerr, or start from trending titles."
+                            actionLabel="See trending"
+                            onAction={() => {
+                                document.getElementById('discover-trending')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }}
+                            icon={<Sparkles className="w-5 h-5" />}
                         />
-                    ))}
-                </Carousel>
-            </div>
+                    </div>
+                )}
+            </section>
+
+            <section className={discoveryTheme.browseSection}>
+                <div className="px-3 flex items-end justify-between gap-3">
+                    <div>
+                        <p className={discoveryTheme.personalEyebrow}>Browse</p>
+                        <h2 className="text-lg sm:text-xl font-black text-text mt-1">What’s popular</h2>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/discovery/movies')}
+                        className="text-xs font-bold text-plex hover:underline inline-flex items-center gap-1"
+                    >
+                        <Film className="w-3.5 h-3.5" /> All movies
+                    </button>
+                </div>
+
+                <DiscoveryRow title="Recently Added" items={rows.recentlyAdded} />
+                <div id="discover-trending">
+                    <DiscoveryRow title="Trending" items={rows.trending} />
+                </div>
+                <DiscoveryRow title="Popular Movies" items={rows.popularMovies} onViewAll={() => navigate('/discovery/movies')} />
+                {renderGenreSlider('Movie Genres', movieGenres, MOVIE_GENRES, '/discovery/movies')}
+                <DiscoveryRow title="Upcoming Movies" items={rows.upcomingMovies} />
+
+                <div className="flex flex-col gap-2 relative rounded-2xl border border-border/60 bg-white/[0.02] p-3 sm:p-4">
+                    <h2 className={`${discoveryTheme.sectionTitle} px-1`}>Studios</h2>
+                    <Carousel>
+                        {DISCOVER_STUDIOS.map((studio) => (
+                            <CompanyCard
+                                key={studio.id}
+                                name={studio.name}
+                                logoPath={studio.logoPath}
+                                onClick={() => navigate(`/discovery/movies/studio/${studio.id}`)}
+                            />
+                        ))}
+                    </Carousel>
+                </div>
+
+                <DiscoveryRow title="Popular Series" items={rows.popularSeries} onViewAll={() => navigate('/discovery/series')} />
+                {renderGenreSlider('Series Genres', tvGenres, TV_GENRES, '/discovery/series')}
+                <DiscoveryRow title="Upcoming Series" items={rows.upcomingSeries} />
+
+                <div className="flex flex-col gap-2 relative rounded-2xl border border-border/60 bg-white/[0.02] p-3 sm:p-4">
+                    <h2 className={`${discoveryTheme.sectionTitle} px-1`}>Networks</h2>
+                    <Carousel>
+                        {DISCOVER_NETWORKS.map((network) => (
+                            <CompanyCard
+                                key={`${network.id}-${network.name}`}
+                                name={network.name}
+                                logoPath={network.logoPath}
+                                onClick={() => navigate(`/discovery/series/network/${network.id}`)}
+                            />
+                        ))}
+                    </Carousel>
+                </div>
+            </section>
         </div>
     );
 };

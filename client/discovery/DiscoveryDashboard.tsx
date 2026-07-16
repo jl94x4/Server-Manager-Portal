@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { DiscoverHeroHeader } from './DiscoverHeroHeader';
 import { DiscoverHome } from './DiscoverHome';
 import { DiscoverMovies } from './DiscoverMovies';
@@ -34,6 +34,7 @@ export const DiscoveryDashboard: React.FC<{
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [searchLoading, setSearchLoading] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
+    const searchInputRef = useRef<HTMLInputElement | null>(null);
     const { pendingCount: myPendingCount, refresh: refreshMyRequestCount } = useMyRequestCount(true);
     const { openCount: myOpenIssueCount, refresh: refreshMyIssueCount } = useMyIssueCount(true);
     const { profile: discoveryMe } = useDiscoveryMe(true);
@@ -62,6 +63,20 @@ export const DiscoveryDashboard: React.FC<{
         setSearchOpen(false);
         scrollPortalToTop();
         window.dispatchEvent(new Event('portal-discovery-navigate'));
+    }, []);
+
+    useEffect(() => {
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey) return;
+            const target = event.target as HTMLElement | null;
+            const tag = target?.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return;
+            event.preventDefault();
+            searchInputRef.current?.focus();
+            searchInputRef.current?.select();
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
     }, []);
 
     useEffect(() => {
@@ -120,6 +135,27 @@ export const DiscoveryDashboard: React.FC<{
             isPending: availability.kind === 'pending' || availability.kind === 'processing',
             overlay,
         };
+    };
+
+    const heroProps = {
+        query,
+        searchOpen,
+        searchLoading,
+        searchResults,
+        onClose: () => setSearchOpen(false),
+        onClear: () => { setQuery(''); setSearchOpen(false); setSearchResults([]); },
+        onQueryChange: setQuery,
+        onFocus: () => query.trim().length >= 2 && setSearchOpen(true),
+        formatItem,
+        navigate,
+        searchInputRef,
+        onSelect: (formatted: any) => {
+            if (formatted.type === 'person') {
+                navigate(`/discovery/person/${formatted.id}`);
+            } else {
+                navigate(`/discovery/${formatted.type}/${formatted.id}`);
+            }
+        },
     };
 
     const routeParts = stripBasePath(path).split('/').filter(Boolean);
@@ -186,24 +222,7 @@ export const DiscoveryDashboard: React.FC<{
     if (subRoute === 'watchlist') {
         return (
             <div className="discovery-theme w-full flex flex-col gap-4 pb-8">
-                <DiscoverHeroHeader
-                    query={query}
-                    searchOpen={searchOpen}
-                    searchLoading={searchLoading}
-                    searchResults={searchResults}
-                    onClose={() => setSearchOpen(false)}
-                    onClear={() => { setQuery(''); setSearchOpen(false); setSearchResults([]); }}
-                    onQueryChange={setQuery}
-                    onFocus={() => query.trim().length >= 2 && setSearchOpen(true)}
-                    formatItem={formatItem}
-                    onSelect={(formatted) => {
-                        if (formatted.type === 'person') {
-                            navigate(`/discovery/person/${formatted.id}`);
-                        } else {
-                            navigate(`/discovery/${formatted.type}/${formatted.id}`);
-                        }
-                    }}
-                />
+                <DiscoverHeroHeader {...heroProps} />
                 <WatchlistPage
                     formatItem={formatItem}
                     onSelect={(item) => navigate(`/discovery/${item.type}/${item.id}`)}
@@ -222,53 +241,42 @@ export const DiscoveryDashboard: React.FC<{
         { id: 'home', path: '/discovery', label: 'Discover', icon: Compass, count: 0, countColor: '' },
         { id: 'movies', path: '/discovery/movies', label: 'Movies', icon: Film, count: 0, countColor: '' },
         { id: 'series', path: '/discovery/series', label: 'Series', icon: Tv, count: 0, countColor: '' },
-        { id: 'requests', path: '/discovery/requests', label: 'My Requests', icon: ClipboardList, count: myPendingCount, countColor: 'bg-plex text-black' },
+        { id: 'requests', path: '/discovery/requests', label: 'My Requests', icon: ClipboardList, count: myPendingCount, countColor: 'bg-black/25 text-black' },
         ...(canSeeIssuesTab
-            ? [{ id: 'issues', path: '/discovery/issues', label: 'My Issues', icon: AlertTriangle, count: myOpenIssueCount, countColor: 'bg-amber-500 text-black' }]
+            ? [{ id: 'issues', path: '/discovery/issues', label: 'My Issues', icon: AlertTriangle, count: myOpenIssueCount, countColor: 'bg-black/25 text-black' }]
             : []),
     ];
 
     const activeTab = tabs.find(t => t.id === subRoute) || tabs[0];
     const ActiveIcon = activeTab.icon;
 
+    const renderTabBadge = (tab: typeof tabs[number], active: boolean) => {
+        if (!tab.count) return null;
+        return (
+            <span className={`min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-black inline-flex items-center justify-center ${
+                active ? tab.countColor : 'bg-plex text-black'
+            }`}>
+                {tab.count > 99 ? '99+' : tab.count}
+            </span>
+        );
+    };
+
     return (
         <div className="discovery-theme w-full flex flex-col gap-4 pb-8">
-            <DiscoverHeroHeader
-                query={query}
-                searchOpen={searchOpen}
-                searchLoading={searchLoading}
-                searchResults={searchResults}
-                onClose={() => setSearchOpen(false)}
-                onClear={() => { setQuery(''); setSearchOpen(false); setSearchResults([]); }}
-                onQueryChange={setQuery}
-                onFocus={() => query.trim().length >= 2 && setSearchOpen(true)}
-                formatItem={formatItem}
-                onSelect={(formatted) => {
-                    if (formatted.type === 'person') {
-                        navigate(`/discovery/person/${formatted.id}`);
-                    } else {
-                        navigate(`/discovery/${formatted.type}/${formatted.id}`);
-                    }
-                }}
-            />
+            <DiscoverHeroHeader {...heroProps} />
 
             {showTabs && (
                 <>
-                    <div className="w-full px-4 mb-2 mt-[-8px]">
-                        {/* Mobile Dropdown */}
+                    <div className={`w-full px-4 ${discoveryTheme.tabSticky}`}>
                         <div className="sm:hidden relative">
-                            <button 
+                            <button
                                 type="button"
                                 onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
                                 className={discoveryTheme.mobileNavBtn}
                             >
                                 <span className="flex items-center gap-2">
                                     <ActiveIcon className="w-5 h-5" /> {activeTab.label}
-                                    {activeTab.count > 0 && (
-                                        <span className={`ml-1 min-w-[1.25rem] h-5 px-1.5 rounded-full ${activeTab.countColor} text-[10px] font-black inline-flex items-center justify-center`}>
-                                            {activeTab.count > 99 ? '99+' : activeTab.count}
-                                        </span>
-                                    )}
+                                    {renderTabBadge(activeTab, true)}
                                 </span>
                                 <ChevronDown className={`w-5 h-5 transition-transform ${isMobileNavOpen ? 'rotate-180' : ''}`} />
                             </button>
@@ -283,7 +291,7 @@ export const DiscoveryDashboard: React.FC<{
                                         >
                                             <tab.icon className="w-5 h-5" /> {tab.label}
                                             {tab.count > 0 && (
-                                                <span className={`ml-auto min-w-[1.25rem] h-5 px-1.5 rounded-full ${tab.countColor} text-[10px] font-black inline-flex items-center justify-center`}>
+                                                <span className="ml-auto min-w-[1.25rem] h-5 px-1.5 rounded-full bg-plex text-black text-[10px] font-black inline-flex items-center justify-center">
                                                     {tab.count > 99 ? '99+' : tab.count}
                                                 </span>
                                             )}
@@ -293,29 +301,26 @@ export const DiscoveryDashboard: React.FC<{
                             )}
                         </div>
 
-                        {/* Desktop Tabs */}
                         <div className={`hidden sm:flex ${discoveryTheme.tabBar}`}>
-                            <div className="flex gap-8">
-                                {tabs.map(tab => (
+                            {tabs.map(tab => {
+                                const active = tab.id === subRoute;
+                                return (
                                     <button
                                         key={tab.id}
                                         type="button"
                                         onClick={() => navigate(tab.path)}
-                                        className={`${discoveryTheme.tab} ${tab.id === subRoute ? discoveryTheme.tabActive : ''}`}
+                                        className={`${discoveryTheme.tab} ${active ? discoveryTheme.tabActive : ''}`}
                                     >
-                                        <tab.icon className="w-5 h-5" /> {tab.label}
-                                        {tab.count > 0 && (
-                                            <span className={`ml-1 min-w-[1.25rem] h-5 px-1.5 rounded-full ${tab.countColor} text-[10px] font-black inline-flex items-center justify-center`}>
-                                                {tab.count > 99 ? '99+' : tab.count}
-                                            </span>
-                                        )}
+                                        <tab.icon className="w-4 h-4" />
+                                        {tab.label}
+                                        {renderTabBadge(tab, active)}
                                     </button>
-                                ))}
-                            </div>
+                                );
+                            })}
                         </div>
                     </div>
 
-                    <div className="w-full mt-2">
+                    <div className="w-full mt-1">
                         {subRoute === 'home' && (
                             <DiscoverHome
                                 onSelect={(item) => navigate(`/discovery/${item.type}/${item.id}`)}
