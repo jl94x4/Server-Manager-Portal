@@ -3,7 +3,7 @@ export const discoveryTheme = {
     heading: 'text-2xl font-black text-text tracking-tight',
     subheading: 'text-sm text-muted mt-1',
     sectionTitle: 'text-xl font-bold text-text',
-    tabBar: 'flex flex-wrap items-center gap-1 p-1 rounded-xl bg-white/[0.04] border border-border/80 backdrop-blur-md',
+    tabBar: 'w-full flex flex-wrap items-center gap-1 p-1 rounded-xl bg-white/[0.04] border border-border/80 backdrop-blur-md',
     tab: 'flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap text-muted hover:text-text hover:bg-white/5',
     tabActive: 'bg-plex/20 text-plex ring-1 ring-inset ring-plex/50 shadow-none hover:bg-plex/25 hover:text-plex',
     tabSticky: 'sticky top-0 z-30 -mx-1 px-1 py-2 bg-background/85 backdrop-blur-md',

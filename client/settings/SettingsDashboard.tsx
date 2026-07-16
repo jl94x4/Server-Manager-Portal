@@ -18,6 +18,7 @@ import { HomeLayoutSettings } from './HomeLayoutSettings';
 import { ArrInstancesPanel } from './ArrInstancesPanel';
 import { DISCOVER_LANGUAGE_OPTIONS, DISCOVER_REGION_OPTIONS } from './discoverySettingsOptions';
 import { DEFAULT_DASHBOARD_LAYOUT, normalizeSectionLayout, type DashboardLayoutConfig } from '../shared/dashboardLayout';
+import { DEFAULT_NAV_ORDER, ensureCompleteNavOrder, getNavItemLabel } from '../shared/nav';
 import {
     SETTINGS_TAB_GROUPS,
     buildSettingsHash,
@@ -406,27 +407,7 @@ export const SettingsDashboard: React.FC = () => {
     const [showPublicStatusMonitor, setShowPublicStatusMonitor] = useState(initialSettings?.showPublicStatusMonitor !== false);
     const [showPublicLibraryStats, setShowPublicLibraryStats] = useState(initialSettings?.showPublicLibraryStats !== false);
     const [allowTemporaryAccess, setAllowTemporaryAccess] = useState(initialSettings?.allowTemporaryAccess || false);
-    const ensureMaintenanceNavOrder = useCallback((order: string[]) => {
-        const base = Array.isArray(order) ? order.filter(Boolean) : ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'];
-        if (!base.includes('maintenance')) {
-            const statusIndex = base.indexOf('status');
-            if (statusIndex >= 0) base.splice(statusIndex + 1, 0, 'maintenance');
-            else {
-                const aboutIndex = base.indexOf('about');
-                if (aboutIndex >= 0) base.splice(aboutIndex, 0, 'maintenance');
-                else base.push('maintenance');
-            }
-        }
-        if (!base.includes('about')) {
-            const settingsIndex = base.indexOf('settings');
-            const logoutIndex = base.indexOf('logout');
-            if (settingsIndex >= 0) base.splice(settingsIndex, 0, 'about');
-            else if (logoutIndex >= 0) base.splice(logoutIndex, 0, 'about');
-            else base.push('about');
-        }
-        return base;
-    }, []);
-    const [navOrder, setNavOrder] = useState<string[]>(() => ensureMaintenanceNavOrder(['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout']));
+    const [navOrder, setNavOrder] = useState<string[]>(() => ensureCompleteNavOrder([...DEFAULT_NAV_ORDER]));
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
     const [logoPreviewUrl, setLogoPreviewUrl] = useState('');
@@ -929,7 +910,7 @@ export const SettingsDashboard: React.FC = () => {
             setReferralTrialDays(initialSettings.referralTrialDays || 3);
             setReferralRewardDays(initialSettings.referralRewardDays || 7);
             setAnnouncement(initialSettings.announcement || '');
-            if (initialSettings.navOrder) setNavOrder(ensureMaintenanceNavOrder(initialSettings.navOrder));
+            if (initialSettings.navOrder) setNavOrder(ensureCompleteNavOrder(initialSettings.navOrder));
             setHideStreamUsers(initialSettings.hideStreamUsers === true ? 'anonymous' : (initialSettings.hideStreamUsers || 'false'));
             setShowUsernamesInAnalytics(!!initialSettings.showUsernamesInAnalytics);
             setUseTrendingSlideshowOnLogin(initialSettings.useTrendingSlideshowOnLogin !== false);
@@ -1146,7 +1127,7 @@ export const SettingsDashboard: React.FC = () => {
             referralTrialDays,
             referralRewardDays,
             announcement,
-            navOrder: ensureMaintenanceNavOrder(navOrder),
+            navOrder: ensureCompleteNavOrder(navOrder),
             hideStreamUsers,
             showUsernamesInAnalytics,
             useTrendingSlideshowOnLogin,
@@ -2198,16 +2179,13 @@ export const SettingsDashboard: React.FC = () => {
                     {activeTab === 'navigation' && (
                         <div className="mb-8 animate-fade-in">
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Navigation Order</h3>
-                            <p className="text-muted text-sm mb-4">Drag and drop or use the arrows to reorder the navigation items on the sidebar.</p>
+                            <p className="text-muted text-sm mb-4">Use the arrows to reorder sidebar items. Labels match the live sidebar.</p>
                             <div className="flex flex-col gap-2 max-w-md">
                                 {navOrder.map((key, index) => {
-                                    const labels: Record<string, string> = {
-                                        'home': 'Home', 'discover': 'Discover', 'status': 'Status', 'logs': 'Logs (Admin Only)', 'analytics': 'Analytics', 'mediastack': 'Integrations', 'maintenance': 'Cleaner (Admin Only)', 'upgrader': 'Upgrader (Admin Only)', 'requests': 'Requests (Admin Only)', 'request': 'Request Content', 'about': 'About', 'settings': 'Settings (Admin Only)', 'logout': 'Logout'
-                                    };
                                     return (
                                         <div key={key} className="flex items-center justify-between py-3 border-b border-border/40">
                                             <div className="flex items-center gap-3">
-                                                <div className="text-text font-medium">{labels[key] || key}</div>
+                                                <div className="text-text font-medium">{getNavItemLabel(key, { adminSuffix: true })}</div>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <button

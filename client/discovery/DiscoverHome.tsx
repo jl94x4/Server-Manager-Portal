@@ -83,10 +83,13 @@ export const DiscoverHome: React.FC<{
             ] = await Promise.all([
                 hideAvailable
                     ? Promise.resolve(null)
-                    : apiFetch('/api/discovery/proxy/media?filter=allavailable&take=20&sort=mediaAdded').catch(() => null),
-                apiFetch('/api/discovery/my-requests?filter=all&take=20').catch(() => null),
+                    : apiFetch('/api/discovery/proxy/media?filter=allavailable&take=40&sort=mediaAdded').catch(() => null),
+                apiFetch('/api/discovery/my-requests?filter=all&take=40').catch(() => null),
                 apiFetch('/api/discovery/watchlist').catch(() => null),
-                apiFetch('/api/discovery/trending').catch(() => null),
+                fetchDiscoverHomeRowResults(
+                    (page) => `/api/discovery/proxy/discover/trending?page=${page}`,
+                    hideAvailable,
+                ).catch(() => []),
                 fetchDiscoverHomeRowResults(
                     (page) => `/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`,
                     hideAvailable,
@@ -125,7 +128,7 @@ export const DiscoverHome: React.FC<{
                 recentlyAdded,
                 recentRequests: filterHiddenAvailableItems(recentRequests, hideAvailable),
                 plexWatchlist,
-                trending: filterHiddenAvailableItems(trendingRes?.results || [], hideAvailable),
+                trending: Array.isArray(trendingRes) ? trendingRes : filterHiddenAvailableItems(trendingRes?.results || [], hideAvailable),
                 popularMovies,
                 upcomingMovies,
                 popularSeries,

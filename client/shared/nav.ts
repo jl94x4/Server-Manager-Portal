@@ -23,6 +23,42 @@ export const DEFAULT_NAV_ORDER = [
     'logout',
 ] as const;
 
+/** Labels must match the sidebar (`Navigation` in screens.tsx). */
+export const NAV_ITEM_LABELS: Record<string, string> = {
+    home: 'Home',
+    discover: 'Dashboard',
+    request: 'Discover & Request',
+    analytics: 'Analytics',
+    users: 'Users',
+    downloads: 'Downloads',
+    upgrader: 'Upgrader',
+    mediastack: 'Calendar',
+    requests: 'Requests',
+    status: 'Status',
+    maintenance: 'Cleaner',
+    about: 'About',
+    settings: 'Settings',
+    logs: 'Logs',
+    logout: 'Logout',
+};
+
+const ADMIN_ONLY_NAV_KEYS = new Set([
+    'users',
+    'upgrader',
+    'requests',
+    'maintenance',
+    'settings',
+    'logs',
+]);
+
+export const getNavItemLabel = (key: string, options?: { adminSuffix?: boolean }) => {
+    const base = NAV_ITEM_LABELS[key] || key;
+    if (options?.adminSuffix && ADMIN_ONLY_NAV_KEYS.has(key)) {
+        return `${base} (Admin Only)`;
+    }
+    return base;
+};
+
 const LEGACY_DEFAULT_NAV_ORDERS = [
     ['home', 'discover', 'users', 'status', 'analytics', 'downloads', 'mediastack', 'maintenance', 'request', 'about', 'settings', 'logout'],
     ['home', 'discover', 'users', 'analytics', 'downloads', 'mediastack', 'upgrader', 'requests', 'status', 'maintenance', 'request', 'about', 'logs', 'settings', 'logout'],
@@ -41,6 +77,59 @@ export const resolveNavOrder = (order?: string[] | null): string[] => {
         return [...DEFAULT_NAV_ORDER];
     }
     return [...order];
+};
+
+/**
+ * Merge any missing known nav keys into a saved order using DEFAULT_NAV_ORDER
+ * relative positions, so Settings and the sidebar stay in sync.
+ */
+export const ensureCompleteNavOrder = (order?: string[] | null): string[] => {
+    const incoming = Array.isArray(order) ? order.filter(Boolean) : [];
+    const result: string[] = [];
+    const seen = new Set<string>();
+
+    for (const key of incoming) {
+        if (seen.has(key)) continue;
+        seen.add(key);
+        result.push(key);
+    }
+
+    const insertMissing = (key: string) => {
+        if (result.includes(key)) return;
+        const defaultIndex = DEFAULT_NAV_ORDER.indexOf(key as typeof DEFAULT_NAV_ORDER[number]);
+        if (defaultIndex < 0) {
+            result.push(key);
+            return;
+        }
+        for (let i = defaultIndex - 1; i >= 0; i -= 1) {
+            const prevIdx = result.indexOf(DEFAULT_NAV_ORDER[i]);
+            if (prevIdx >= 0) {
+                result.splice(prevIdx + 1, 0, key);
+                return;
+            }
+        }
+        for (let i = defaultIndex + 1; i < DEFAULT_NAV_ORDER.length; i += 1) {
+            const nextIdx = result.indexOf(DEFAULT_NAV_ORDER[i]);
+            if (nextIdx >= 0) {
+                result.splice(nextIdx, 0, key);
+                return;
+            }
+        }
+        result.push(key);
+    };
+
+    for (const key of DEFAULT_NAV_ORDER) {
+        insertMissing(key);
+    }
+
+    // Keep Logs in the settings editor when it was already saved.
+    if (incoming.includes('logs') && !result.includes('logs')) {
+        const settingsIdx = result.indexOf('settings');
+        if (settingsIdx >= 0) result.splice(settingsIdx, 0, 'logs');
+        else result.push('logs');
+    }
+
+    return result;
 };
 
 const PLACEHOLDER_REQUEST_URLS = new Set([

@@ -267,7 +267,7 @@ export const DiscoveryDashboard: React.FC<{
 
             {showTabs && (
                 <>
-                    <div className={`w-full px-4 ${discoveryTheme.tabSticky}`}>
+                    <div className={`w-full ${discoveryTheme.tabSticky}`}>
                         <div className="sm:hidden relative">
                             <button
                                 type="button"

@@ -30,7 +30,7 @@ import { SetupWizard } from './setup/SetupWizard';
 import { DiscoveryDashboard } from './discovery/DiscoveryDashboard';
 import { AuthPageBackground, themeClasses, SlideshowBackground } from './shared/theme';
 import { activityStreamColumnCount, activityStreamGridClass, discoverPosterGridClass } from './shared/portalLayout';
-import { filterNavOrder, type NavFeatureFlags } from './shared/nav';
+import { filterNavOrder, ensureCompleteNavOrder, type NavFeatureFlags } from './shared/nav';
 import { ANALYTICS_PERIOD_OPTIONS } from './shared/analyticsPeriodOptions';
 import { UserDashboardLayout } from './home/UserDashboardLayout';
 import { createBazarrToolsSectionRenderer, createMainGridWidgetRenderer, createPendingRequestsSectionRenderer, createRecentlyAddedWidgetRenderer } from './home/userDashboardWidgetRenderers';
@@ -8934,40 +8934,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         'logout': { label: 'Logout', icon: LogOut, route: '', adminOnly: false, onClick: onLogout }
     };
     const normalizedNavOrder = useMemo(() => {
-        const order = Array.isArray(navOrder) ? [...navOrder] : [];
-        if (!order.includes('downloads')) {
-            const calendarIndex = order.indexOf('mediastack');
-            const analyticsIndex = order.indexOf('analytics');
-            if (calendarIndex >= 0) order.splice(calendarIndex, 0, 'downloads');
-            else if (analyticsIndex >= 0) order.splice(analyticsIndex + 1, 0, 'downloads');
-            else order.push('downloads');
-        }
-        if (isAdmin && navFeatures?.maintenance !== false && !order.includes('maintenance')) {
-            const requestIndex = order.indexOf('request');
-            if (requestIndex >= 0) order.splice(requestIndex, 0, 'maintenance');
-            else order.push('maintenance');
-        }
-        if (isAdmin && navFeatures?.upgrader && !order.includes('upgrader')) {
-            const maintenanceIndex = order.indexOf('maintenance');
-            if (maintenanceIndex >= 0) order.splice(maintenanceIndex + 1, 0, 'upgrader');
-            else {
-                const requestIndex = order.indexOf('request');
-                if (requestIndex >= 0) order.splice(requestIndex, 0, 'upgrader');
-                else order.push('upgrader');
-            }
-        }
-        if (isAdmin && navFeatures?.requestsQueue && !order.includes('requests')) {
-            const requestIndex = order.indexOf('request');
-            if (requestIndex >= 0) order.splice(requestIndex, 0, 'requests');
-            else order.push('requests');
-        }
-        if (!order.includes('about')) {
-            const settingsIndex = order.indexOf('settings');
-            const logoutIndex = order.indexOf('logout');
-            if (settingsIndex >= 0) order.splice(settingsIndex, 0, 'about');
-            else if (logoutIndex >= 0) order.splice(logoutIndex, 0, 'about');
-            else order.push('about');
-        }
+        const order = ensureCompleteNavOrder(navOrder);
         return filterNavOrder(order, { isAdmin, features: navFeatures });
     }, [navOrder, isAdmin, navFeatures]);
 

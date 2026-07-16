@@ -70,15 +70,24 @@ export async function fetchDiscoverPage(
 export async function fetchDiscoverHomeRowResults(
     buildUrl: (page: number) => string,
     hideAvailable: boolean,
-    options: { minItems?: number; maxPages?: number } = {},
+    options: { minItems?: number; maxPages?: number; maxItems?: number } = {},
 ): Promise<any[]> {
-    const minItems = options.minItems ?? 10;
+    // Ultrawide layouts need ~30–40 posters before a row fills; fetch enough to scroll.
+    const minItems = options.minItems ?? 36;
     const maxPages = options.maxPages ?? 8;
+    const maxItems = options.maxItems ?? 40;
     const filterOptions = { hideAvailable };
 
     if (!hideAvailable) {
-        const res = await apiFetch(buildUrl(1));
-        return Array.isArray(res?.results) ? res.results : [];
+        let merged: any[] = [];
+        for (let page = 1; page <= Math.min(3, maxPages); page += 1) {
+            const res = await apiFetch(buildUrl(page));
+            const totalPages = Math.max(1, Number(res?.totalPages) || 1);
+            const batch = Array.isArray(res?.results) ? res.results : [];
+            merged = dedupeDiscoverResults([...merged, ...batch]);
+            if (merged.length >= maxItems || page >= totalPages) break;
+        }
+        return merged.slice(0, maxItems);
     }
 
     let merged: any[] = [];
@@ -90,7 +99,7 @@ export async function fetchDiscoverHomeRowResults(
         if (merged.length >= minItems || page >= totalPages) break;
     }
 
-    return merged.slice(0, 20);
+    return merged.slice(0, maxItems);
 }
 
 /** Keep fetching pages when browse filtering empties early pages. */
