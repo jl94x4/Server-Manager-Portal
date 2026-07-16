@@ -365,7 +365,9 @@ export const MediaDetailsPage: React.FC<{
                             className={`absolute inset-0 w-full h-full object-cover ${
                                 heroUsesPosterFallback
                                     ? 'scale-[1.35] blur-2xl opacity-48 md:scale-125 md:blur-xl md:opacity-58'
-                                    : 'scale-110 object-[48%_30%] opacity-68 md:scale-100 md:object-[76%_22%] md:opacity-90'
+                                    // Bias left in the source so centered subjects land in the open right panel
+                                    // (poster + copy sit on the left). Slight scale avoids empty edges.
+                                    : 'scale-110 object-[32%_30%] opacity-68 md:scale-[1.15] md:object-[22%_28%] md:opacity-90'
                             }`}
                             fetchPriority="high"
                             decoding="async"
