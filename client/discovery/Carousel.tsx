@@ -7,15 +7,21 @@ interface CarouselProps {
 
 export const Carousel: React.FC<CarouselProps> = ({ children }) => {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
-    const [showLeft, setShowLeft] = useState(false);
-    const [showRight, setShowRight] = useState(false);
+    const [atStart, setAtStart] = useState(true);
+    const [atEnd, setAtEnd] = useState(true);
 
     const handleScroll = useCallback(() => {
         if (!scrollContainerRef.current) return;
         const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
-        const canScroll = scrollWidth > clientWidth + 8;
-        setShowLeft(canScroll && scrollLeft > 12);
-        setShowRight(canScroll && scrollLeft < scrollWidth - clientWidth - 12);
+        const margin = 5;
+        const canScroll = scrollWidth > clientWidth + margin;
+        if (!canScroll) {
+            setAtStart(true);
+            setAtEnd(true);
+            return;
+        }
+        setAtStart(scrollLeft <= margin);
+        setAtEnd(scrollLeft >= scrollWidth - clientWidth - margin);
     }, []);
 
     useEffect(() => {
@@ -29,7 +35,6 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
         resizeObserver?.observe(node);
         window.addEventListener('resize', handleScroll);
 
-        // Re-measure after images/layout settle
         const t = window.setTimeout(handleScroll, 100);
 
         return () => {
@@ -51,23 +56,28 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
     };
 
     return (
-        <div className="relative group/carousel w-full min-w-0">
-            {showLeft && (
-                <>
-                    <div
-                        className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 sm:w-24 bg-gradient-to-r from-background via-background/80 to-transparent"
-                        aria-hidden
-                    />
-                    <button
-                        type="button"
-                        onClick={() => scroll('left')}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-10 h-10 rounded-full bg-card/95 backdrop-blur-md border border-border shadow-xl opacity-90 sm:opacity-0 sm:group-hover/carousel:opacity-100 transition-all hover:scale-110 hover:bg-card"
-                        aria-label="Scroll left"
-                    >
-                        <ChevronLeft className="w-6 h-6 text-text" />
-                    </button>
-                </>
-            )}
+        <div className="relative w-full min-w-0">
+            {/* Seerr-style: chevrons sit on the section title row, top-right — no side gradients */}
+            <div className="absolute right-1 -top-9 z-10 flex items-center text-muted">
+                <button
+                    type="button"
+                    onClick={() => scroll('left')}
+                    disabled={atStart}
+                    className={`p-0.5 transition-colors ${atStart ? 'text-muted/30 cursor-default' : 'hover:text-text'}`}
+                    aria-label="Scroll left"
+                >
+                    <ChevronLeft className="w-6 h-6" />
+                </button>
+                <button
+                    type="button"
+                    onClick={() => scroll('right')}
+                    disabled={atEnd}
+                    className={`p-0.5 transition-colors ${atEnd ? 'text-muted/30 cursor-default' : 'hover:text-text'}`}
+                    aria-label="Scroll right"
+                >
+                    <ChevronRight className="w-6 h-6" />
+                </button>
+            </div>
 
             <div
                 ref={scrollContainerRef}
@@ -77,23 +87,6 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
             >
                 {children}
             </div>
-
-            {showRight && (
-                <>
-                    <div
-                        className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 sm:w-28 bg-gradient-to-l from-background via-background/85 to-transparent"
-                        aria-hidden
-                    />
-                    <button
-                        type="button"
-                        onClick={() => scroll('right')}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-10 h-10 rounded-full bg-card/95 backdrop-blur-md border border-border shadow-xl opacity-90 sm:opacity-0 sm:group-hover/carousel:opacity-100 transition-all hover:scale-110 hover:bg-card"
-                        aria-label="Scroll right"
-                    >
-                        <ChevronRight className="w-6 h-6 text-text" />
-                    </button>
-                </>
-            )}
         </div>
     );
 };

@@ -168,10 +168,10 @@ export const DiscoverHome: React.FC<{
             if (!empty) return null;
             return (
                 <div className="flex flex-col gap-2 relative">
-                    <div className="flex items-center justify-between px-2">
-                        <h2 className={`${discoveryTheme.sectionTitle} px-2`}>{title}</h2>
+                    <div className="flex items-center gap-3 min-w-0 px-2 pr-16">
+                        <h2 className={`${discoveryTheme.sectionTitle} truncate`}>{title}</h2>
                         {onViewAll && (
-                            <button type="button" onClick={onViewAll} className="text-xs font-bold text-plex hover:underline">
+                            <button type="button" onClick={onViewAll} className="shrink-0 text-xs font-bold text-plex hover:underline">
                                 View All
                             </button>
                         )}
@@ -182,10 +182,10 @@ export const DiscoverHome: React.FC<{
         }
         return (
             <div className="flex flex-col gap-2 relative">
-                <div className="flex items-center justify-between px-2">
-                    <h2 className={`${discoveryTheme.sectionTitle} px-2`}>{title}</h2>
+                <div className="flex items-center gap-3 min-w-0 px-2 pr-16">
+                    <h2 className={`${discoveryTheme.sectionTitle} truncate`}>{title}</h2>
                     {onViewAll && (
-                        <button type="button" onClick={onViewAll} className="text-xs font-bold text-plex hover:underline">
+                        <button type="button" onClick={onViewAll} className="shrink-0 text-xs font-bold text-plex hover:underline">
                             View All
                         </button>
                     )}
@@ -222,7 +222,7 @@ export const DiscoverHome: React.FC<{
 
         return (
             <div className="flex flex-col gap-2 relative">
-                <h2 className={`${discoveryTheme.sectionTitle} px-2`}>{title}</h2>
+                <h2 className={`${discoveryTheme.sectionTitle} px-2 pr-16`}>{title}</h2>
                 <Carousel>
                     {items.map((g) => {
                         const fallback = fallbackGenres.find((fg) => fg.id === g.id);
@@ -339,7 +339,7 @@ export const DiscoverHome: React.FC<{
                 <DiscoveryRow title="Upcoming Movies" items={rows.upcomingMovies} />
 
                 <div className="flex flex-col gap-2 relative rounded-2xl border border-border/60 bg-white/[0.02] p-3 sm:p-4">
-                    <h2 className={`${discoveryTheme.sectionTitle} px-1`}>Studios</h2>
+                    <h2 className={`${discoveryTheme.sectionTitle} px-1 pr-16`}>Studios</h2>
                     <Carousel>
                         {DISCOVER_STUDIOS.map((studio) => (
                             <CompanyCard
@@ -357,7 +357,7 @@ export const DiscoverHome: React.FC<{
                 <DiscoveryRow title="Upcoming Series" items={rows.upcomingSeries} />
 
                 <div className="flex flex-col gap-2 relative rounded-2xl border border-border/60 bg-white/[0.02] p-3 sm:p-4">
-                    <h2 className={`${discoveryTheme.sectionTitle} px-1`}>Networks</h2>
+                    <h2 className={`${discoveryTheme.sectionTitle} px-1 pr-16`}>Networks</h2>
                     <Carousel>
                         {DISCOVER_NETWORKS.map((network) => (
                             <CompanyCard

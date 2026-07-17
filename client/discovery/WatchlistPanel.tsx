@@ -140,7 +140,7 @@ export const WatchlistPanel: React.FC<Props> = ({
     if (!items?.length) return null;
 
     const header = showHeader ? (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-2">
+        <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-2 ${variant === 'row' ? 'pr-16' : ''}`}>
             <div>
                 <h2 className="text-xl font-bold text-text">Your {providerLabel} Watchlist</h2>
                 <p className="text-xs text-muted mt-1">

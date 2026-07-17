@@ -24,7 +24,7 @@ import {
 } from './requestSeasonUtils';
 
 const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <div className="flex items-center gap-3 mb-4">
+    <div className="flex items-center gap-3 mb-4 pr-16">
         <h3 className="text-xs font-black text-white/50 uppercase tracking-[0.2em]">{children}</h3>
         <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
     </div>
