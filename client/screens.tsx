@@ -9280,24 +9280,25 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
     return (
         <>
 
-            {/* Mobile Top Nav */}
-            <div className="md:hidden fixed top-0 left-0 right-0 h-16 nav-shell border-b z-50 flex items-center justify-between px-4 pt-[env(safe-area-inset-top)] shadow-lg">
-                <div className="flex items-center gap-3">
+            {/* Mobile Top Nav — height grows with safe-area so content clears the iOS status bar in PWA */}
+            <div className="md:hidden fixed top-0 left-0 right-0 z-50 nav-shell border-b shadow-lg pt-[env(safe-area-inset-top,0px)]">
+                <div className="h-16 flex items-center justify-between px-4">
+                <div className="flex items-center gap-3 min-w-0">
                     <img
                         src={serverIcon}
                         alt="Logo"
-                        className={`w-8 h-8 ${customLogoUrl ? 'object-contain' : 'rounded-full object-cover'}`}
+                        className={`w-8 h-8 shrink-0 ${customLogoUrl ? 'object-contain' : 'rounded-full object-cover'}`}
                         onError={(e) => {
                             (e.target as HTMLImageElement).src = logoUrl();
                         }}
                     />
-                    <span className="font-bold text-text uppercase tracking-widest text-sm">{serverName}</span>
+                    <span className="font-bold text-text uppercase tracking-widest text-sm truncate">{serverName}</span>
                 </div>
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2.5 shrink-0">
                     <div className="relative" ref={mobileThemeRef}>
                         <button
                             onClick={() => setMobileThemeOpen(v => !v)}
-                            className={`w-7 h-7 flex items-center justify-center rounded-md border transition-all ${mobileThemeOpen ? 'border-plex text-plex ring-1 ring-plex' : 'border-border text-muted hover:border-plex/50 hover:text-text'}`}
+                            className={`w-8 h-8 flex items-center justify-center rounded-md border transition-all ${mobileThemeOpen ? 'border-plex text-plex ring-1 ring-plex' : 'border-border text-muted hover:border-plex/50 hover:text-text'}`}
                             title="Change theme"
                         >
                             <Palette className="w-3.5 h-3.5" />
@@ -9350,6 +9351,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                     <button onClick={(e) => { e.preventDefault(); onLogout(); }} className="text-muted hover:text-red-500 transition-colors">
                         <LogOut className="w-4 h-4" />
                     </button>
+                </div>
                 </div>
             </div>
 

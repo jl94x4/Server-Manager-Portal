@@ -24,6 +24,16 @@
   }
 
   [data-theme="nordic"] {
+    --color-bg: 7 12 24;
+    --color-card: 14 22 40;
+    --color-border: 35 54 92;
+    --color-text: 235 245 255;
+    --color-muted: 145 170 200;
+    --color-plex: 0 164 220;
+    --color-plex-hover: 56 189 248;
+  }
+
+  [data-theme="jellyfin"] {
     --color-bg: 11 15 25;
     --color-card: 20 27 45;
     --color-border: 37 47 70;
@@ -31,16 +41,6 @@
     --color-muted: 156 163 175;
     --color-plex: 129 140 248;
     --color-plex-hover: 99 102 241;
-  }
-
-  [data-theme="jellyfin"] {
-    --color-bg: 7 12 24;
-    --color-card: 14 22 40;
-    --color-border: 35 54 92;
-    --color-text: 235 245 255;
-    --color-muted: 145 170 200;
-    --color-plex: 0 164 220;
-    --color-plex-hover: 170 92 238;
   }
 
   [data-theme="emerald"] {
