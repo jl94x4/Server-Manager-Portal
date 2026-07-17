@@ -438,6 +438,11 @@ export const MediaDetailsPage: React.FC<{
                                         {chip.label}
                                     </div>
                                 ))}
+                                {voteCountLabel && (
+                                    <div className="bg-black/45 px-2 py-1 rounded-md backdrop-blur-md border border-white/10 text-[11px] text-white/80 font-semibold">
+                                        {voteCountLabel}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -558,7 +563,7 @@ export const MediaDetailsPage: React.FC<{
                                 </div>
                             ))}
                             {voteCountLabel && (
-                                <div className="text-[11px] text-white/40 font-medium px-1">
+                                <div className="bg-black/45 px-3 py-1.5 rounded-lg backdrop-blur-md border border-white/10 text-xs text-white/80 font-semibold shadow-sm">
                                     {voteCountLabel}
                                 </div>
                             )}
