@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     Settings, Sparkles, ChevronRight, ChevronLeft, Check, Palette, Mail, Layers, Server, PartyPopper, BookOpen, Upload,
 } from 'lucide-react';
-import { apiFetch } from '../shared/api';
+import { apiFetch, PORTAL_CSRF_HEADER, PORTAL_CSRF_VALUE } from '../shared/api';
 import { getPublicOrigin, logoUrl, portalUrl, stripBasePath } from '../shared/basePath';
 import { IntegrationTestButton } from '../shared/IntegrationTestButton';
 import { CustomSelect } from '../shared/ui';
@@ -68,9 +68,10 @@ const readSetupAccessToken = (): string => {
     }
 };
 
-const setupAuthHeaders = (setupToken: string): Record<string, string> => (
-    setupToken ? { 'X-Setup-Token': setupToken } : {}
-);
+const setupAuthHeaders = (setupToken: string): Record<string, string> => ({
+    [PORTAL_CSRF_HEADER]: PORTAL_CSRF_VALUE,
+    ...(setupToken ? { 'X-Setup-Token': setupToken } : {}),
+});
 
 const REQUEST_APP_OPTIONS = [
     { label: 'Disabled', value: 'none' },

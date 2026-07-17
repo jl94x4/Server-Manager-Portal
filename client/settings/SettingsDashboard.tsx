@@ -25,7 +25,7 @@ import {
     Shield,
     ScrollText,
 } from 'lucide-react';
-import { apiFetch } from '../shared/api';
+import { apiFetch, PORTAL_CSRF_HEADER, PORTAL_CSRF_VALUE } from '../shared/api';
 import { portalUrl, resolvePortalAssetUrl } from '../shared/basePath';
 import { appConfirm } from '../shared/confirm';
 import { CustomSelect, SettingsSwitch, SettingsToggleRow } from '../shared/ui';
@@ -600,7 +600,10 @@ export const SettingsDashboard: React.FC = () => {
 
     const handleDownloadBackup = async () => {
         try {
-            const response = await fetch(portalUrl('/api/admin/backup'));
+            const response = await fetch(portalUrl('/api/admin/backup'), {
+                credentials: 'same-origin',
+                headers: { [PORTAL_CSRF_HEADER]: PORTAL_CSRF_VALUE },
+            });
             if (!response.ok) throw new Error('Backup download failed');
             const text = await response.text();
             const blob = new Blob([text], { type: 'application/json' });
@@ -639,9 +642,11 @@ export const SettingsDashboard: React.FC = () => {
             try {
                 const response = await fetch(portalUrl('/api/admin/backup/restore?confirm=true'), {
                     method: 'POST',
+                    credentials: 'same-origin',
                     headers: {
                         'Content-Type': 'text/plain',
-                        'x-confirm-restore': 'true'
+                        'x-confirm-restore': 'true',
+                        [PORTAL_CSRF_HEADER]: PORTAL_CSRF_VALUE,
                     },
                     body: backupRestoreText
                 });
@@ -1079,7 +1084,11 @@ export const SettingsDashboard: React.FC = () => {
             try {
                 const uploadResponse = await fetch(portalUrl('/api/config/logo'), {
                     method: 'POST',
-                    headers: { 'Content-Type': logoFile.type || (logoFile.name.toLowerCase().endsWith('.png') ? 'image/png' : (logoFile.name.toLowerCase().endsWith('.webp') ? 'image/webp' : 'image/jpeg')) },
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': logoFile.type || (logoFile.name.toLowerCase().endsWith('.png') ? 'image/png' : (logoFile.name.toLowerCase().endsWith('.webp') ? 'image/webp' : 'image/jpeg')),
+                        [PORTAL_CSRF_HEADER]: PORTAL_CSRF_VALUE,
+                    },
                     body: logoFile,
                 });
                 if (!uploadResponse.ok) {
@@ -1101,7 +1110,11 @@ export const SettingsDashboard: React.FC = () => {
             try {
                 const uploadResponse = await fetch(portalUrl('/api/config/background'), {
                     method: 'POST',
-                    headers: { 'Content-Type': backgroundFile.type || (backgroundFile.name.toLowerCase().endsWith('.png') ? 'image/png' : (backgroundFile.name.toLowerCase().endsWith('.webp') ? 'image/webp' : 'image/jpeg')) },
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': backgroundFile.type || (backgroundFile.name.toLowerCase().endsWith('.png') ? 'image/png' : (backgroundFile.name.toLowerCase().endsWith('.webp') ? 'image/webp' : 'image/jpeg')),
+                        [PORTAL_CSRF_HEADER]: PORTAL_CSRF_VALUE,
+                    },
                     body: backgroundFile,
                 });
                 if (!uploadResponse.ok) {

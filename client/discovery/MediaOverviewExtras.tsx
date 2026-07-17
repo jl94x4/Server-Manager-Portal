@@ -78,7 +78,7 @@ export const MediaOverviewExtras: React.FC<{
                         <a
                             href={trailerUrl}
                             target="_blank"
-                            rel="noreferrer"
+                            rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.06] px-2.5 py-1.5 text-xs font-bold text-white/85 transition-all hover:brightness-110 hover:scale-[1.02] hover:bg-white/10 hover:border-white/20"
                         >
                             <Play className="w-5 h-5 shrink-0" />
@@ -210,7 +210,7 @@ export const MediaOverviewExtras: React.FC<{
                             key={link.key}
                             href={link.url}
                             target="_blank"
-                            rel="noreferrer"
+                            rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] text-[11px] font-semibold text-white/65 hover:text-white hover:border-white/20 hover:bg-white/[0.07] transition-colors"
                         >
                             <ExternalLink className="w-3 h-3 opacity-70" />

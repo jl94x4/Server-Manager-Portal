@@ -73,7 +73,7 @@ export const MediaRatingPills: React.FC<MediaRatingPillsProps> = ({
                     key="rt-critics"
                     href={ratings.rt.url}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className={className}
                     title="Rotten Tomatoes Tomatometer"
                 >
@@ -105,7 +105,7 @@ export const MediaRatingPills: React.FC<MediaRatingPillsProps> = ({
                     key="rt-audience"
                     href={ratings.rt.url}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className={className}
                     title="Rotten Tomatoes Audience Score"
                 >
@@ -135,7 +135,7 @@ export const MediaRatingPills: React.FC<MediaRatingPillsProps> = ({
                     key="imdb"
                     href={ratings.imdb.url}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className={imdbClass}
                     title="IMDb rating"
                 >
@@ -163,7 +163,7 @@ export const MediaRatingPills: React.FC<MediaRatingPillsProps> = ({
                     key="tmdb"
                     href={tmdbUrl}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className={tmdbClass}
                     title="TMDB user score"
                 >

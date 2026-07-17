@@ -487,7 +487,7 @@ export const MediaDetailsPage: React.FC<{
                         <a
                             href={details.homepage}
                             target="_blank"
-                            rel="noreferrer"
+                            rel="noopener noreferrer"
                             className="col-span-2 md:col-span-1 w-full py-2.5 px-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors"
                         >
                             <Globe className="w-4 h-4" /> Visit Website

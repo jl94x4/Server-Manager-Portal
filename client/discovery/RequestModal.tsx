@@ -221,7 +221,6 @@ export const RequestModal: React.FC<Props> = ({
                 body: JSON.stringify({
                     mediaType: opts.mediaType,
                     tmdbId: opts.tmdbId,
-                    userId: opts.seerrUserId,
                     is4k,
                 }),
             });

@@ -4,7 +4,7 @@ import express from 'express';
 import fs from 'fs/promises';
 import path from 'path';
 import fetch, { Blob, FormData } from 'node-fetch';
-import { randomUUID, randomBytes } from 'crypto';
+import { randomUUID, randomBytes, createHash, createCipheriv, createDecipheriv } from 'crypto';
 import nodemailer from 'nodemailer';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
@@ -139,7 +139,16 @@ app.use((req, res, next) => {
 });
 
 // --- Security: Rate Limiting for Auth Endpoints ---
-const getClientIp = (req) => req.ip || req.socket.remoteAddress || 'unknown';
+// Prefer the TCP peer address so client-supplied X-Forwarded-For cannot bypass limits
+// unless TRUST_PROXY is explicitly enabled for a real reverse-proxy deployment.
+const TRUST_PROXY_FOR_RATE_LIMIT = ['1', 'true', 'yes'].includes(String(process.env.TRUST_PROXY || '').toLowerCase());
+const getSocketPeerIp = (req) => (req.socket && req.socket.remoteAddress) || 'unknown';
+const getClientIp = (req) => {
+    if (TRUST_PROXY_FOR_RATE_LIMIT) {
+        return req.ip || getSocketPeerIp(req) || 'unknown';
+    }
+    return getSocketPeerIp(req);
+};
 const createRateLimiter = (windowMs, maxRequests) => {
     const store = new Map();
     // Prune stale IP entries every window to prevent unbounded memory growth under high unique-IP load
@@ -184,7 +193,6 @@ const hasValidSetupToken = (req) => {
 // Use the raw TCP peer address for setup authorization. req.ip honors the
 // client-supplied X-Forwarded-For header (trust proxy is enabled), which an
 // attacker could spoof to impersonate localhost during the unconfigured window.
-const getSocketPeerIp = (req) => (req.socket && req.socket.remoteAddress) || 'unknown';
 const canRunInitialSetup = (req) => hasValidSetupToken(req) || isLoopbackAddress(getSocketPeerIp(req));
 
 const isPrivateIp = (host) => {
@@ -248,28 +256,67 @@ const resolveRequestAppFetchUrl = (config = {}) => {
     return resolveIntegrationUrlForFetch(config.requestAppUrl || '');
 };
 
-// Only mark cookies Secure when explicitly enabled. Auto-detecting HTTPS breaks plain
-// HTTP LAN access (e.g. http://192.168.x.x:2121) when FORCE_SECURE_COOKIES was left on.
-const sessionCookieBase = () => ({
+// Mark cookies Secure on HTTPS requests or when FORCE_SECURE_COOKIES=true.
+// Plain HTTP LAN setups remain usable when the request is not secure.
+const sessionCookieBase = (req) => ({
     httpOnly: true,
-    secure: FORCE_SECURE_COOKIES,
+    secure: FORCE_SECURE_COOKIES || !!(req && req.secure),
     sameSite: 'lax',
     path: BASE_PATH || '/',
 });
 
 const clearSessionCookie = (req, res) => {
-    res.clearCookie('session', sessionCookieBase());
+    res.clearCookie('session', sessionCookieBase(req));
 };
 
 const setSessionCookie = (req, res, token) => {
     res.cookie('session', token, {
-        ...sessionCookieBase(),
+        ...sessionCookieBase(req),
         maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 };
 
 app.use(express.json({ limit: '50kb' })); // Middleware to parse JSON bodies (with size limit)
 app.use(cookieParser()); // Middleware to parse cookies
+
+// CSRF defense for cookie-authenticated API mutations: require same-origin
+// Origin/Referer or the portal's custom X-Requested-With header (sent by apiFetch).
+const PORTAL_CSRF_HEADER = 'x-requested-with';
+const PORTAL_CSRF_VALUE = 'ServerManagerPortal';
+const collectAllowedOrigins = (req) => {
+    const allowed = new Set();
+    const host = String(req.get('x-forwarded-host') || req.get('host') || '').split(',')[0].trim();
+    if (host) {
+        allowed.add(`https://${host}`);
+        allowed.add(`http://${host}`);
+    }
+    if (PUBLIC_BASE_URL) {
+        try {
+            allowed.add(new URL(PUBLIC_BASE_URL).origin);
+        } catch { /* ignore */ }
+    }
+    return allowed;
+};
+const isSameOriginApiRequest = (req) => {
+    const allowed = collectAllowedOrigins(req);
+    if (!allowed.size) return false;
+    const origin = String(req.get('origin') || '').trim();
+    if (origin && allowed.has(origin)) return true;
+    const referer = String(req.get('referer') || '').trim();
+    if (referer) {
+        try {
+            if (allowed.has(new URL(referer).origin)) return true;
+        } catch { /* ignore */ }
+    }
+    return false;
+};
+app.use((req, res, next) => {
+    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
+    if (!String(req.path || '').startsWith('/api/')) return next();
+    const headerOk = String(req.get(PORTAL_CSRF_HEADER) || '') === PORTAL_CSRF_VALUE;
+    if (headerOk || isSameOriginApiRequest(req)) return next();
+    return res.status(403).json({ error: 'CSRF validation failed.' });
+});
 
 // Trust the first proxy (e.g. Nginx/Caddy) so req.secure reflects HTTPS correctly
 app.set('trust proxy', 1);
@@ -5059,7 +5106,11 @@ app.get('/api/dynamic-theme/sample-image', requireAuth, requireMember, async (re
     }
 
     try {
-        const response = await fetchWithTimeout(rawUrl, {}, 15000);
+        // Do not follow redirects — an allowlisted host could otherwise bounce to an internal URL.
+        const response = await fetchWithTimeout(rawUrl, { redirect: 'manual' }, 15000);
+        if (response.status >= 300 && response.status < 400) {
+            return res.status(400).send('redirects not allowed');
+        }
         if (!response.ok) throw new Error('fetch failed');
         const contentType = response.headers.get('content-type') || 'image/jpeg';
         if (!contentType.startsWith('image/')) return res.status(400).send('not an image');
@@ -5069,7 +5120,7 @@ app.get('/api/dynamic-theme/sample-image', requireAuth, requireMember, async (re
         res.send(buffer);
     } catch (e) {
         log(`Dynamic theme sample-image error: ${e.message}`);
-        res.status(502).send('');
+        res.status(502).send('image fetch failed');
     }
 });
 
@@ -5181,13 +5232,14 @@ app.post('/api/discovery/request-override-defaults', requireAuth, requireMember,
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
 
-        const { mediaType, tmdbId, userId, is4k } = req.body || {};
+        const { mediaType, tmdbId, is4k } = req.body || {};
         if (!mediaType || !tmdbId) return res.status(400).json({ error: 'Missing mediaType or tmdbId' });
 
-        let resolvedUserId = userId != null ? Number(userId) : null;
-        if (!Number.isFinite(resolvedUserId)) {
-            const users = await requestAppService.listRequestUsers(config);
-            resolvedUserId = requestAppService.resolveSeerrRequestUserId(req.user, users);
+        // Always bind to the session's Seerr user — ignore client-supplied userId (IDOR).
+        const users = await requestAppService.listRequestUsers(config);
+        const resolvedUserId = requestAppService.resolveSeerrRequestUserId(req.user, users);
+        if (!resolvedUserId) {
+            return res.status(403).json({ error: 'Your portal account is not linked to a Seerr user.' });
         }
 
         const defaults = await requestAppService.getAdvancedRequestDefaults(config, {
@@ -6527,6 +6579,48 @@ const BACKUP_TARGETS = [
     { key: 'maintenancePreferences', path: MAINTENANCE_PREFS_PATH }
 ];
 
+const getBackupEncryptionKey = () => createHash('sha256').update(String(JWT_SECRET)).digest();
+
+const encryptBackupObject = (backup) => {
+    const iv = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', getBackupEncryptionKey(), iv);
+    const plaintext = Buffer.from(JSON.stringify(backup), 'utf8');
+    const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    return {
+        schemaVersion: BACKUP_SCHEMA_VERSION,
+        encrypted: true,
+        alg: 'aes-256-gcm',
+        createdAt: backup.createdAt || new Date().toISOString(),
+        createdBy: backup.createdBy || 'system',
+        reason: backup.reason || 'manual',
+        iv: iv.toString('base64'),
+        tag: tag.toString('base64'),
+        ciphertext: ciphertext.toString('base64'),
+    };
+};
+
+const decryptBackupObject = (payload) => {
+    if (!payload || typeof payload !== 'object') {
+        throw new Error('Invalid backup payload.');
+    }
+    if (!payload.encrypted) return payload;
+    if (payload.alg !== 'aes-256-gcm' || !payload.iv || !payload.tag || !payload.ciphertext) {
+        throw new Error('Encrypted backup is missing required fields.');
+    }
+    const decipher = createDecipheriv(
+        'aes-256-gcm',
+        getBackupEncryptionKey(),
+        Buffer.from(String(payload.iv), 'base64'),
+    );
+    decipher.setAuthTag(Buffer.from(String(payload.tag), 'base64'));
+    const plain = Buffer.concat([
+        decipher.update(Buffer.from(String(payload.ciphertext), 'base64')),
+        decipher.final(),
+    ]);
+    return JSON.parse(plain.toString('utf8'));
+};
+
 const readBackupPayload = async () => {
     const payload = {};
     for (const target of BACKUP_TARGETS) {
@@ -6607,17 +6701,19 @@ const writeBackupToFolder = async (backup) => {
     await ensureBackupDir();
     const filename = getBackupFilename(backup);
     const filePath = path.join(BACKUP_DIR, filename);
-    await fs.writeFile(filePath, JSON.stringify(backup, null, 2), 'utf8');
+    const sealed = encryptBackupObject(backup);
+    await fs.writeFile(filePath, JSON.stringify(sealed, null, 2), 'utf8');
     return { filename, filePath };
 };
 
 app.get('/api/admin/backup', requireAdmin, async (req, res) => {
     try {
         const backup = await createBackupObject(req.user?.username || req.user?.email || 'admin', 'manual-download');
-        await appendAuditLog('backup_exported', req.user, null, { schemaVersion: BACKUP_SCHEMA_VERSION });
+        await appendAuditLog('backup_exported', req.user, null, { schemaVersion: BACKUP_SCHEMA_VERSION, encrypted: true });
+        const sealed = encryptBackupObject(backup);
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.setHeader('Content-Disposition', `attachment; filename=\"portal-backup-${Date.now()}.json\"`);
-        res.send(JSON.stringify(backup, null, 2));
+        res.send(JSON.stringify(sealed, null, 2));
     } catch (e) {
         res.status(500).json({ error: `Failed to create backup: ${e.message}` });
     }
@@ -6652,9 +6748,9 @@ app.post('/api/admin/backup/restore', requireAdmin, express.text({ type: '*/*', 
 
         let backup;
         try {
-            backup = JSON.parse(rawBody);
+            backup = decryptBackupObject(JSON.parse(rawBody));
         } catch (e) {
-            return res.status(400).json({ error: 'Backup payload is not valid JSON.' });
+            return res.status(400).json({ error: e.message || 'Backup payload is not valid JSON.' });
         }
 
         const confirmRestore = req.query.confirm === 'true' || req.headers['x-confirm-restore'] === 'true';
@@ -6683,7 +6779,7 @@ app.post('/api/admin/backups/restore-file', requireAdmin, async (req, res) => {
         }
         const filePath = path.join(BACKUP_DIR, filename);
         const raw = await fs.readFile(filePath, 'utf8');
-        const backup = JSON.parse(raw);
+        const backup = decryptBackupObject(JSON.parse(raw));
         await applyBackupPayload(backup);
         await appendAuditLog('backup_restored_file', req.user, null, {
             filename,
@@ -11078,6 +11174,8 @@ app.post('/api/downloads/control', requireAdmin, async (req, res) => {
 app.get('/api/downloads/status', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
+        const actor = getSessionActor(req.user);
+        const viewerIsAdmin = await resolveCurrentAdmin(actor, config);
         const clients = (Array.isArray(config.downloadClients) ? config.downloadClients : []).filter((client) => client.enabled !== false && client.url);
         const arrMatcher = await buildDownloadArrMatcher(config);
         const results = await Promise.all(clients.map(async (client) => {
@@ -11090,7 +11188,22 @@ app.get('/api/downloads/status', requireAuth, requireMember, async (req, res) =>
         }));
         const downloads = results.flatMap((entry) => entry.torrents).map((torrent) => {
             const arrMatch = arrMatcher ? arrMatcher(torrent) : null;
-            return arrMatch ? { ...torrent, ...arrMatch } : torrent;
+            const merged = arrMatch ? { ...torrent, ...arrMatch } : torrent;
+            if (viewerIsAdmin) return merged;
+            // Members may see progress for the badge/UI, but not hashes/paths/magnets.
+            return {
+                id: merged.id,
+                name: merged.name,
+                state: merged.state,
+                progress: merged.progress,
+                size: merged.size,
+                dlspeed: merged.dlspeed,
+                upspeed: merged.upspeed,
+                eta: merged.eta,
+                source: merged.source || 'unknown',
+                clientId: merged.clientId,
+                clientName: merged.clientName,
+            };
         });
         res.json({
             clients: results.map(({ torrents, ...entry }) => ({ ...entry, count: torrents.length })),
