@@ -68,11 +68,13 @@ export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
         {
             metric: 'Total Streams',
             label: 'Total Streams',
-            bgImage: FALLBACK_IMAGES.streams,
+            bgImage: analytics.recentHistory?.[0]?.artUrl || analytics.recentHistory?.[0]?.thumbUrl || FALLBACK_IMAGES.streams,
             icon: PlayCircle,
             valueClassName: 'text-2xl font-black leading-none',
             value: analytics.totalPlays || 0,
-            subValue: (
+            subValue: analytics.recentHistory?.[0]?.title ? (
+                <span className="line-clamp-1">Last: {analytics.recentHistory[0].title}</span>
+            ) : (
                 <span className="flex gap-2 justify-center flex-wrap">
                     <span>🎬 {analytics.moviesCount || 0}</span>
                     <span>📺 {analytics.showsCount || 0}</span>
