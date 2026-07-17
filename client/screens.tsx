@@ -5083,7 +5083,7 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | str
                 return (
                     <div className="flex flex-col items-center justify-center text-center p-6 relative">
                         {analytics.topMovie?.artUrl || analytics.topMovie?.thumbUrl ? (
-                            <div className="w-full h-40 bg-cover bg-center rounded-xl shadow-lg mb-6 border border-white/10 relative overflow-hidden" style={{ backgroundImage: `url('${resolvePortalAssetUrl(analytics.topMovie.artUrl) || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=600'}')` }}>
+                            <div className="w-full h-40 bg-cover bg-center rounded-xl shadow-lg mb-6 border border-white/10 relative overflow-hidden" style={{ backgroundImage: `url('${resolvePortalAssetUrl(analytics.topMovie.artUrl || analytics.topMovie.thumbUrl) || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=600'}')` }}>
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
                                 <div className="absolute bottom-4 left-0 right-0 px-4 flex flex-col items-center">
                                     <h2 className="text-2xl font-black text-white mb-1 line-clamp-1 drop-shadow-md">{analytics.topMovie?.title || 'Nothing yet'}</h2>
@@ -6090,34 +6090,56 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
 
     useEffect(() => {
         let cancelled = false;
-        const fetchAnalytics = async () => {
+        let refreshTimer: ReturnType<typeof setInterval> | null = null;
+        const ANALYTICS_REFRESH_MS = 5 * 60 * 1000;
+
+        const fetchAnalytics = async ({ silent = false } = {}) => {
             if (!sessionInfo?.session?.isAdmin && !user) {
-                setAnalyticsLoading(false);
+                if (!silent) setAnalyticsLoading(false);
                 return;
             }
             try {
-                setAnalyticsLoading(true);
-                setAnalyticsError(null);
+                if (!silent) {
+                    setAnalyticsLoading(true);
+                    setAnalyticsError(null);
+                }
                 const res = isJellyfinPortal
                     ? buildJellyfinHomeAnalytics(await apiFetch(`/api/jellystat/analytics?days=${analyticsDays}`))
                     : await apiFetch(`/api/plex/analytics/me?days=${analyticsDays}`);
                 if (cancelled) return;
                 setAnalytics(res);
-                setTopContentPage(0);
-                setRecentHistoryPage(0);
+                if (!silent) {
+                    setTopContentPage(0);
+                    setRecentHistoryPage(0);
+                }
             } catch (e: any) {
-                if (!cancelled) {
+                if (!cancelled && !silent) {
                     const message = e?.message || 'Failed to load your analytics';
                     setAnalyticsError(message);
                     setAnalytics(null);
                     setToast({ id: Date.now(), message, type: 'error' });
                 }
             } finally {
-                if (!cancelled) setAnalyticsLoading(false);
+                if (!cancelled && !silent) setAnalyticsLoading(false);
             }
         };
+
         fetchAnalytics();
-        return () => { cancelled = true; };
+        refreshTimer = setInterval(() => fetchAnalytics({ silent: true }), ANALYTICS_REFRESH_MS);
+
+        const onFocus = () => fetchAnalytics({ silent: true });
+        const onVisibility = () => {
+            if (document.visibilityState === 'visible') onFocus();
+        };
+        window.addEventListener('focus', onFocus);
+        document.addEventListener('visibilitychange', onVisibility);
+
+        return () => {
+            cancelled = true;
+            if (refreshTimer) clearInterval(refreshTimer);
+            window.removeEventListener('focus', onFocus);
+            document.removeEventListener('visibilitychange', onVisibility);
+        };
     }, [user, sessionInfo.session.isAdmin, analyticsDays, isJellyfinPortal]);
 
     useEffect(() => {

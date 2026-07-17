@@ -8839,6 +8839,17 @@ app.get('/api/jellystat/analytics', requireAuth, requireMember, async (req, res)
     }
 });
 
+/** Normalize Plex history keys so `/library/metadata/123` and `123` count as the same title. */
+const normalizePlexHistoryContentKey = (rawKey) => {
+    if (rawKey == null || rawKey === '') return null;
+    const value = String(rawKey).trim();
+    if (!value) return null;
+    if (value.startsWith('/library/metadata/')) return value;
+    const tail = value.includes('/') ? value.split('/').pop() : value;
+    if (tail && /^\d+$/.test(tail)) return `/library/metadata/${tail}`;
+    return value;
+};
+
 const fetchPlexAccountHistory = async (uri, config, accountID, { maxItems = 250000 } = {}) => {
     const pageSize = 5000;
     let historyItems = [];
@@ -9058,10 +9069,15 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
                 libraryCounts[item.librarySectionID].plays++;
             }
 
-            const contentKey = item.type === 'episode' ? (item.grandparentKey || item.parentKey || item.ratingKey) : item.type === 'track' ? (item.parentKey || item.grandparentKey || item.ratingKey) : item.ratingKey;
-                const contentTitle = item.type === 'episode' ? (item.grandparentTitle || item.parentTitle || item.title) : item.type === 'track' ? (item.parentTitle || item.grandparentTitle || item.title) : item.title;
-                const contentThumb = item.type === 'episode' ? (item.grandparentThumb || item.parentThumb || item.thumb) : item.type === 'track' ? (item.parentThumb || item.grandparentThumb || item.thumb) : item.thumb;
-                const contentArt = item.type === 'episode' ? (item.grandparentArt || item.parentArt || item.art) : item.type === 'track' ? (item.parentArt || item.grandparentArt || item.art) : item.art;
+            const rawContentKey = item.type === 'episode'
+                ? (item.grandparentKey || item.grandparentRatingKey || item.parentKey || item.ratingKey)
+                : item.type === 'track'
+                    ? (item.parentKey || item.grandparentKey || item.ratingKey)
+                    : (item.ratingKey || item.key);
+            const contentKey = normalizePlexHistoryContentKey(rawContentKey);
+            const contentTitle = item.type === 'episode' ? (item.grandparentTitle || item.parentTitle || item.title) : item.type === 'track' ? (item.parentTitle || item.grandparentTitle || item.title) : item.title;
+            const contentThumb = item.type === 'episode' ? (item.grandparentThumb || item.parentThumb || item.thumb) : item.type === 'track' ? (item.parentThumb || item.grandparentThumb || item.thumb) : item.thumb;
+            const contentArt = item.type === 'episode' ? (item.grandparentArt || item.parentArt || item.art) : item.type === 'track' ? (item.parentArt || item.grandparentArt || item.art) : item.art;
 
             if (contentKey) {
                 if (!contentCounts[contentKey]) {
@@ -9072,10 +9088,19 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
                         thumb: contentThumb,
                         art: contentArt,
                         plays: 0,
-                        plexUrl: `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent('/library/metadata/' + contentKey.split('/').pop())}`
+                        lastViewedAt: 0,
+                        plexUrl: `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent(contentKey)}`
                     };
                 }
                 contentCounts[contentKey].plays++;
+                const viewedAt = Number(item.viewedAt) || 0;
+                if (viewedAt >= (contentCounts[contentKey].lastViewedAt || 0)) {
+                    contentCounts[contentKey].lastViewedAt = viewedAt;
+                    // Keep title/artwork aligned with the most recent play of this title.
+                    if (contentTitle) contentCounts[contentKey].title = contentTitle;
+                    if (contentThumb) contentCounts[contentKey].thumb = contentThumb;
+                    if (contentArt) contentCounts[contentKey].art = contentArt;
+                }
             }
         });
 
@@ -9101,13 +9126,14 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
             hourDistribution.splice(0, 24, ...plexHourDistribution);
         }
 
+        const sortByPlaysThenRecent = (a, b) => (b.plays - a.plays) || ((b.lastViewedAt || 0) - (a.lastViewedAt || 0));
         const allLibraries = Object.values(libraryCounts).sort((a, b) => b.plays - a.plays);
         const topLibraries = allLibraries.slice(0, 5);
-        const topWatched = Object.values(contentCounts).filter(c => c.type !== 'track').sort((a, b) => b.plays - a.plays).slice(0, 30).map(c => {
+        const topWatched = Object.values(contentCounts).filter(c => c.type !== 'track').sort(sortByPlaysThenRecent).slice(0, 30).map(c => {
             if (c.thumb) c.thumbUrl = plexImageUrl(c.thumb);
             return c;
         });
-        const topMusic = Object.values(contentCounts).filter(c => c.type === 'track').sort((a, b) => b.plays - a.plays).slice(0, 30).map(c => {
+        const topMusic = Object.values(contentCounts).filter(c => c.type === 'track').sort(sortByPlaysThenRecent).slice(0, 30).map(c => {
             if (c.thumb) c.thumbUrl = plexImageUrl(c.thumb);
             return c;
         });
@@ -9116,7 +9142,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
         const peakHour = resolvePeakHour(hourDistribution);
         const timeOfDay = resolveTimeOfDayPersona(peakHour);
 
-        const allShowsList = Object.values(contentCounts).filter(c => c.type === 'show').sort((a, b) => b.plays - a.plays);
+        const allShowsList = Object.values(contentCounts).filter(c => c.type === 'show').sort(sortByPlaysThenRecent);
         let topShowsRaw = allShowsList.slice(0, 5);
         await Promise.all(topShowsRaw.map(async (s, i) => {
             if (!s.art || i === 0) {
@@ -9140,7 +9166,11 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
                 }
             }
         }));
-        const topShows = topShowsRaw.map(s => ({ ...s, artUrl: s.art ? plexImageUrl(s.art) : null, thumbUrl: s.thumb ? plexImageUrl(s.thumb) : null }));
+        const topShows = topShowsRaw.map(s => ({
+            ...s,
+            artUrl: s.art ? plexImageUrl(s.art) : (s.thumb ? plexImageUrl(s.thumb) : null),
+            thumbUrl: s.thumb ? plexImageUrl(s.thumb) : null,
+        }));
         const topBinge = topShows.length > 0 ? topShows[0] : null;
 
         const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -9164,7 +9194,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
             else if (musicCount / totalPrefCount >= 0.6) mediaPreference = 'Music Lover';
         }
 
-        const allMoviesList = Object.values(contentCounts).filter(c => c.type === 'movie').sort((a, b) => b.plays - a.plays);
+        const allMoviesList = Object.values(contentCounts).filter(c => c.type === 'movie').sort(sortByPlaysThenRecent);
         let topMoviesRaw = allMoviesList.slice(0, 5);
         await Promise.all(topMoviesRaw.map(async (m, i) => {
             if (!m.art || i === 0) {
@@ -9181,6 +9211,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
 
                 if (data) {
                     m.art = data.art || data.grandparentArt || data.parentArt || m.art;
+                    if (!m.thumb) m.thumb = data.thumb || m.thumb;
                     if (i === 0) {
                         m.summary = data.summary;
                         m.year = data.year;
@@ -9189,7 +9220,11 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
                 }
             }
         }));
-        const topMovies = topMoviesRaw.map(m => ({ ...m, artUrl: m.art ? plexImageUrl(m.art) : null, thumbUrl: m.thumb ? plexImageUrl(m.thumb) : null }));
+        const topMovies = topMoviesRaw.map(m => ({
+            ...m,
+            artUrl: m.art ? plexImageUrl(m.art) : (m.thumb ? plexImageUrl(m.thumb) : null),
+            thumbUrl: m.thumb ? plexImageUrl(m.thumb) : null,
+        }));
         const topMovie = topMovies.length > 0 ? topMovies[0] : null;
 
         let watchStyle = 'Explorer';

@@ -83,7 +83,7 @@ export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
         {
             metric: 'Top Binge',
             label: 'Top Binge',
-            bgImage: analytics.topBinge?.artUrl || FALLBACK_IMAGES.binge,
+            bgImage: analytics.topBinge?.artUrl || analytics.topBinge?.thumbUrl || FALLBACK_IMAGES.binge,
             icon: Tv,
             valueClassName: 'text-sm font-bold line-clamp-2 leading-tight',
             value: analytics.topBinge?.title || 'Nothing yet',
@@ -92,7 +92,7 @@ export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
         {
             metric: 'Top Movie',
             label: 'Top Movie',
-            bgImage: analytics.topMovie?.artUrl || FALLBACK_IMAGES.movie,
+            bgImage: analytics.topMovie?.artUrl || analytics.topMovie?.thumbUrl || FALLBACK_IMAGES.movie,
             icon: Clapperboard,
             valueClassName: 'text-sm font-bold line-clamp-2 leading-tight',
             value: analytics.topMovie?.title || 'Nothing yet',
@@ -245,6 +245,7 @@ export const WrapUpCardGrid: React.FC<WrapUpCardGridProps> = ({
                         ) : (
                             <>
                                 <img
+                                    key={bgImage}
                                     src={bgImage}
                                     alt=""
                                     className={`absolute inset-0 w-full h-full object-cover z-0 opacity-60 ${interactive ? 'transition-transform duration-700 group-hover:scale-110' : ''}`}
