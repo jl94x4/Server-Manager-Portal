@@ -83,6 +83,12 @@ export const RequestModal: React.FC<Props> = ({
     const [tagCreating, setTagCreating] = useState(false);
     const [tagSuggestionsOpen, setTagSuggestionsOpen] = useState(false);
     const loadGenRef = useRef(0);
+    const onErrorRef = useRef(onError);
+    const onSuccessRef = useRef(onSuccess);
+    const onCloseRef = useRef(onClose);
+    onErrorRef.current = onError;
+    onSuccessRef.current = onSuccess;
+    onCloseRef.current = onClose;
 
     const updateQualityForm = useCallback((quality: QualityKey, patch: Partial<QualityFormState>) => {
         setQualityForms((prev) => ({
@@ -96,36 +102,38 @@ export const RequestModal: React.FC<Props> = ({
         data: PortalServiceOptions,
         defaults?: Record<string, unknown> | null,
     ): Omit<QualityFormState, 'serviceOptions' | 'loaded' | 'loading'> => {
-        const server = data?.server || {};
-        const profiles = Array.isArray(data?.profiles) ? data.profiles : [];
-        const folders = Array.isArray(data?.rootFolders) ? data.rootFolders : [];
-        const languageProfiles = Array.isArray(data?.languageProfiles) ? data.languageProfiles : [];
+        const server: PortalServiceOptions['server'] = data.server;
+        const profiles = Array.isArray(data.profiles) ? data.profiles : [];
+        const folders = Array.isArray(data.rootFolders) ? data.rootFolders : [];
+        const languageProfiles = Array.isArray(data.languageProfiles) ? data.languageProfiles : [];
         const isAnime = !!opts.isAnime;
 
-        let nextProfileId = defaults?.profileId != null ? Number(defaults.profileId) : null;
+        let nextProfileId = defaults?.profileId != null ? Number(defaults.profileId) : Number.NaN;
         if (!Number.isFinite(nextProfileId)) {
-            const activeProfile = isAnime && server.activeAnimeProfileId
-                ? server.activeAnimeProfileId
-                : server.activeProfileId;
-            nextProfileId = activeProfile ?? profiles[0]?.id ?? null;
+            const activeProfile = isAnime && server.activeAnimeProfileId != null
+                ? Number(server.activeAnimeProfileId)
+                : (server.activeProfileId != null ? Number(server.activeProfileId) : Number.NaN);
+            nextProfileId = Number.isFinite(activeProfile) ? activeProfile : (profiles[0]?.id ?? Number.NaN);
         }
 
         let nextRootFolder = defaults?.rootFolder ? String(defaults.rootFolder) : '';
         if (!nextRootFolder) {
             const activeFolder = isAnime && server.activeAnimeDirectory
                 ? server.activeAnimeDirectory
-                : server.activeDirectory;
+                : (server.activeDirectory || '');
             nextRootFolder = activeFolder || folders[0]?.path || '';
         }
 
         let nextLanguageProfileId = defaults?.languageProfileId != null
             ? Number(defaults.languageProfileId)
-            : null;
+            : Number.NaN;
         if (opts.mediaType === 'tv' && !Number.isFinite(nextLanguageProfileId)) {
-            const activeLang = isAnime && server.activeAnimeLanguageProfileId
-                ? server.activeAnimeLanguageProfileId
-                : server.activeLanguageProfileId;
-            nextLanguageProfileId = activeLang ?? languageProfiles[0]?.id ?? null;
+            const activeLang = isAnime && server.activeAnimeLanguageProfileId != null
+                ? Number(server.activeAnimeLanguageProfileId)
+                : (server.activeLanguageProfileId != null ? Number(server.activeLanguageProfileId) : Number.NaN);
+            nextLanguageProfileId = Number.isFinite(activeLang)
+                ? activeLang
+                : (languageProfiles[0]?.id ?? Number.NaN);
         }
 
         const nextTags = Array.isArray(defaults?.tags)
@@ -134,10 +142,10 @@ export const RequestModal: React.FC<Props> = ({
 
         const nextServerId = defaults?.serverId != null
             ? Number(defaults.serverId)
-            : (server.id != null ? Number(server.id) : null);
+            : Number(server.id);
 
         return {
-            serverId: Number.isFinite(nextServerId as number) ? (nextServerId as number) : null,
+            serverId: Number.isFinite(nextServerId) ? nextServerId : null,
             profileId: Number.isFinite(nextProfileId) ? nextProfileId : null,
             rootFolder: nextRootFolder,
             languageProfileId: Number.isFinite(nextLanguageProfileId) ? nextLanguageProfileId : null,
@@ -182,10 +190,10 @@ export const RequestModal: React.FC<Props> = ({
                 };
             });
         } catch (e: any) {
-            onError(e?.message || 'Failed to load request options');
+            onErrorRef.current(e?.message || 'Failed to load request options');
             updateQualityForm(quality, { serviceOptions: null, loading: false, loaded: false });
         }
-    }, [applyServiceDefaults, onError, updateQualityForm]);
+    }, [applyServiceDefaults, updateQualityForm]);
 
     const qualityFormsRef = useRef(qualityForms);
     qualityFormsRef.current = qualityForms;
@@ -225,7 +233,11 @@ export const RequestModal: React.FC<Props> = ({
                 }),
             });
             if (defaults?.serverId != null) {
-                nextServerId = Number(defaults.serverId);
+                const candidate = Number(defaults.serverId);
+                // Only accept override server when it matches this quality's HD/4K pool.
+                if (servers.some((server) => Number(server.id) === candidate)) {
+                    nextServerId = candidate;
+                }
             }
         } catch {
             defaults = null;
@@ -282,12 +294,12 @@ export const RequestModal: React.FC<Props> = ({
             }
         } catch (e: any) {
             if (gen !== loadGenRef.current) return;
-            onError(e?.message || 'Failed to load request options');
+            onErrorRef.current(e?.message || 'Failed to load request options');
             setOptions(null);
         } finally {
             if (gen === loadGenRef.current) setLoading(false);
         }
-    }, [mediaId, mediaType, onError, loadAdvancedForQuality]);
+    }, [mediaId, mediaType, loadAdvancedForQuality]);
 
     useEffect(() => {
         if (!open) return undefined;
@@ -298,11 +310,11 @@ export const RequestModal: React.FC<Props> = ({
     useEffect(() => {
         if (!open) return undefined;
         const onKey = (event: KeyboardEvent) => {
-            if (event.key === 'Escape' && !submitting) onClose();
+            if (event.key === 'Escape' && !submitting) onCloseRef.current();
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
-    }, [open, onClose, submitting]);
+    }, [open, submitting]);
 
     // Keep advancedQuality pointing at a selected quality
     useEffect(() => {
@@ -555,17 +567,17 @@ export const RequestModal: React.FC<Props> = ({
             }
 
             if (successes.length && !failures.length) {
-                onSuccess(
+                onSuccessRef.current(
                     mediaType === 'tv'
                         ? `Series request submitted (${successes.join(' + ')})!`
                         : `Movie request submitted (${successes.join(' + ')})!`,
                 );
-                onClose();
+                onCloseRef.current();
             } else if (successes.length && failures.length) {
-                onSuccess(`Submitted ${successes.join(' + ')}. Failed: ${failures.join('; ')}`);
-                onClose();
+                onSuccessRef.current(`Submitted ${successes.join(' + ')}. Failed: ${failures.join('; ')}`);
+                onCloseRef.current();
             } else {
-                onError(failures.join('; ') || 'Failed to submit request');
+                onErrorRef.current(failures.join('; ') || 'Failed to submit request');
             }
         } finally {
             setSubmitting(false);
