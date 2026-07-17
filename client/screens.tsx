@@ -1846,7 +1846,6 @@ export const DownloadStatusPage: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = 
                             <CustomSelect
                                 value={uploadClientId}
                                 onChange={setUploadClientId}
-                                compact={true}
                                 options={torrentClients.map((client: any) => ({
                                     label: client.name || downloadClientLabel(client.type),
                                     value: String(client.id),
@@ -1859,10 +1858,10 @@ export const DownloadStatusPage: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = 
                                 value={torrentUrl}
                                 onChange={(e) => { setTorrentUrl(e.target.value); if (e.target.value.trim()) setTorrentFile(null); }}
                                 placeholder="magnet:?xt=... or https://example/torrent.torrent"
-                                className="w-full p-2.5 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all text-sm"
+                                className="w-full px-4 py-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all text-sm"
                             />
                         </div>
-                        <label className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-white/[0.04] text-sm font-bold text-text hover:bg-white/10 cursor-pointer transition-colors">
+                        <label className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-border bg-white/[0.04] text-sm font-bold text-text hover:bg-white/10 cursor-pointer transition-colors">
                             <Upload className="w-4 h-4 text-plex" />
                             {torrentFile ? torrentFile.name : 'Torrent File'}
                             <input
@@ -1880,7 +1879,7 @@ export const DownloadStatusPage: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = 
                             type="button"
                             onClick={uploadTorrent}
                             disabled={uploadBusy || !uploadClientId || (!torrentFile && !torrentUrl.trim())}
-                            className="px-5 py-2.5 rounded-lg bg-plex text-background text-sm font-black hover:bg-plex-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="px-5 py-3 rounded-lg bg-plex text-background text-sm font-black hover:bg-plex-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             {uploadBusy ? 'Sending...' : 'Add Torrent'}
                         </button>
