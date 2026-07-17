@@ -9672,20 +9672,36 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
         // Build a neighbourhood snapshot: the 2 users above and 2 below
         const users = await loadFile(USERS_PATH, []);
         const usernameMap = {};
-        users.forEach(u => { if (u.plexAccountId) usernameMap[u.plexAccountId] = u.username || u.email || 'Unknown'; });
+        // Prefer live Plex account names so admins see real usernames even when
+        // a viewer is not in the portal users file.
+        (plexAccounts || []).forEach((account) => {
+            if (account?.id == null) return;
+            const name = String(account.name || '').trim();
+            if (name) usernameMap[String(account.id)] = name;
+        });
+        users.forEach((u) => {
+            if (!u.plexAccountId) return;
+            const key = String(u.plexAccountId);
+            usernameMap[key] = u.username || u.email || usernameMap[key] || 'Unknown';
+        });
 
+        const shouldObfuscateUsernames = shouldObfuscateAnalyticsViewers(req.user, config);
         let leaderboardNeighbourhood = [];
         const sortedBoard = trendingStats.leaderboardsSorted && trendingStats.leaderboardsSorted[periodKey] ? trendingStats.leaderboardsSorted[periodKey] : [];
         if (leaderboardRank && sortedBoard.length > 0) {
             const myIdx = leaderboardRank - 1;
             const start = Math.max(0, myIdx - 2);
             const end = Math.min(sortedBoard.length - 1, myIdx + 2);
-            leaderboardNeighbourhood = sortedBoard.slice(start, end + 1).map(entry => ({
-                rank: entry.rank,
-                plays: entry.plays,
-                isMe: entry.accountId === String(accountID),
-                username: usernameMap[entry.accountId] || `User ${entry.rank}`
-            }));
+            leaderboardNeighbourhood = sortedBoard.slice(start, end + 1).map((entry) => {
+                const isMe = String(entry.accountId) === String(accountID);
+                const realName = usernameMap[String(entry.accountId)] || `User ${entry.rank}`;
+                return {
+                    rank: entry.rank,
+                    plays: entry.plays,
+                    isMe,
+                    username: shouldObfuscateUsernames && !isMe ? `Viewer ${entry.rank}` : realName,
+                };
+            });
         }
 
         res.json({
