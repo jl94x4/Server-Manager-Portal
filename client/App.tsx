@@ -45,7 +45,13 @@ export const MainApp: React.FC = () => {
 
     const [activeTheme, setActiveTheme] = useState(() => {
         if (typeof window !== 'undefined') {
-            return localStorage.getItem('portal-theme') || 'plex';
+            const stored = localStorage.getItem('portal-theme') || 'plex';
+            // Light theme is temporarily disabled — migrate saved preference.
+            if (stored === 'light') {
+                localStorage.setItem('portal-theme', 'plex');
+                return 'plex';
+            }
+            return stored;
         }
         return 'plex';
     });
@@ -90,23 +96,31 @@ export const MainApp: React.FC = () => {
     useEffect(() => {
         if (!publicConfig.brandingTheme) return;
 
+        const resolveTheme = (value: string) => (value === 'light' ? 'plex' : value);
+
         if (lastBrandingTheme.current === null) {
             // First time config loads - respect user's localStorage choice if any
-            const theme = localStorage.getItem('portal-theme') || publicConfig.brandingTheme || 'plex';
+            const theme = resolveTheme(localStorage.getItem('portal-theme') || publicConfig.brandingTheme || 'plex');
             setActiveTheme(theme);
             lastBrandingTheme.current = publicConfig.brandingTheme;
         } else if (publicConfig.brandingTheme !== lastBrandingTheme.current) {
             // Default theme setting was changed (e.g. saved in Settings) - override local theme
-            setActiveTheme(publicConfig.brandingTheme);
-            localStorage.setItem('portal-theme', publicConfig.brandingTheme);
+            const theme = resolveTheme(publicConfig.brandingTheme);
+            setActiveTheme(theme);
+            localStorage.setItem('portal-theme', theme);
             lastBrandingTheme.current = publicConfig.brandingTheme;
         }
     }, [publicConfig.brandingTheme]);
 
     useEffect(() => {
-        document.documentElement.setAttribute('data-theme', activeTheme);
-        localStorage.setItem('portal-theme', activeTheme);
-        if (activeTheme !== 'dynamic') {
+        const theme = activeTheme === 'light' ? 'plex' : activeTheme;
+        if (theme !== activeTheme) {
+            setActiveTheme('plex');
+            return;
+        }
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('portal-theme', theme);
+        if (theme !== 'dynamic') {
             document.documentElement.style.removeProperty('--color-plex');
             document.documentElement.style.removeProperty('--color-plex-hover');
         }

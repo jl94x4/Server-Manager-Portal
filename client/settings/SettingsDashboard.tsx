@@ -961,7 +961,7 @@ export const SettingsDashboard: React.FC = () => {
             setRequestDiscoverLanguage(initialSettings.requestDiscoverLanguage || '');
             setRequestHideAvailableMedia(!!initialSettings.requestHideAvailableMedia);
             const savedBrandingTheme = localStorage.getItem('portal-theme') || initialSettings.brandingTheme || 'plex';
-            setBrandingTheme(savedBrandingTheme);
+            setBrandingTheme(savedBrandingTheme === 'light' ? 'plex' : savedBrandingTheme);
             setCustomLogoUrl(initialSettings.customLogoUrl || '');
             setSidebarIdentityPosition(initialSettings.sidebarIdentityPosition === 'top' ? 'top' : 'bottom');
             setPwaIconSource(initialSettings.pwaIconSource === 'application' ? 'application' : 'server');
@@ -2462,7 +2462,6 @@ export const SettingsDashboard: React.FC = () => {
                                                         onChange={setBrandingTheme}
                                                         options={[
                                                             { label: 'Dynamic (Chameleon)', value: 'dynamic' },
-                                                            { label: 'Light', value: 'light' },
                                                             { label: 'Plex Dark', value: 'plex' },
                                                             { label: 'Sleek Slate', value: 'slate' },
                                                             { label: 'Nordic Frost', value: 'nordic' },

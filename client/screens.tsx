@@ -9322,7 +9322,6 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                             >
                                 {[
                                     { label: 'Dynamic (Chameleon)', value: 'dynamic' },
-                                    { label: 'Light', value: 'light' },
                                     { label: 'Plex Dark', value: 'plex' },
                                     { label: 'Sleek Slate', value: 'slate' },
                                     { label: 'Nordic Frost', value: 'nordic' },
@@ -9463,7 +9462,6 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                 className="w-full"
                                 options={[
                                     { label: 'Dynamic (Chameleon)', value: 'dynamic' },
-                                    { label: 'Light', value: 'light' },
                                     { label: 'Plex Dark', value: 'plex' },
                                     { label: 'Sleek Slate', value: 'slate' },
                                     { label: 'Nordic Frost', value: 'nordic' },
