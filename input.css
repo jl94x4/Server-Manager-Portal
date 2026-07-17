@@ -11,6 +11,20 @@
     --color-muted: 139 148 158;
     --color-plex: 229 160 13;
     --color-plex-hover: 240 168 16;
+    color-scheme: dark;
+  }
+
+  /* True light mode — bright surfaces, dark ink, readable accent */
+  [data-theme="light"] {
+    --color-bg: 244 246 249;
+    --color-card: 255 255 255;
+    --color-border: 206 214 224;
+    --color-text: 22 27 34;
+    --color-muted: 88 100 116;
+    --color-plex: 196 112 0;
+    --color-plex-hover: 168 90 0;
+    --light-ink: 22 27 34;
+    color-scheme: light;
   }
 
   [data-theme="slate"] {
@@ -160,6 +174,77 @@
   input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"] {
     color-scheme: dark;
   }
+
+  [data-theme="light"] input[type="date"],
+  [data-theme="light"] input[type="time"],
+  [data-theme="light"] input[type="datetime-local"],
+  [data-theme="light"] input[type="month"] {
+    color-scheme: light;
+  }
+}
+
+/*
+ * True light theme: dark-theme UIs use translucent white fills/borders.
+ * Remap those to translucent ink so panels stay readable on bright surfaces.
+ * Do NOT remap text-white — often used on photo/hero overlays.
+ */
+html[data-theme="light"] .bg-white\/\[0\.02\],
+html[data-theme="light"] .bg-white\/\[0\.03\],
+html[data-theme="light"] .bg-white\/\[0\.04\],
+html[data-theme="light"] .bg-white\/\[0\.05\],
+html[data-theme="light"] .bg-white\/\[0\.06\],
+html[data-theme="light"] .bg-white\/\[0\.07\],
+html[data-theme="light"] .bg-white\/5,
+html[data-theme="light"] .bg-white\/10,
+html[data-theme="light"] .bg-white\/15,
+html[data-theme="light"] .bg-white\/20 {
+  background-color: rgb(var(--light-ink) / 0.05) !important;
+}
+
+html[data-theme="light"] .hover\:bg-white\/5:hover,
+html[data-theme="light"] .hover\:bg-white\/10:hover,
+html[data-theme="light"] .hover\:bg-white\/\[0\.02\]:hover,
+html[data-theme="light"] .hover\:bg-white\/\[0\.04\]:hover,
+html[data-theme="light"] .hover\:bg-white\/\[0\.05\]:hover,
+html[data-theme="light"] .hover\:bg-white\/\[0\.06\]:hover,
+html[data-theme="light"] .hover\:bg-white\/\[0\.07\]:hover {
+  background-color: rgb(var(--light-ink) / 0.08) !important;
+}
+
+html[data-theme="light"] .border-white\/5,
+html[data-theme="light"] .border-white\/10,
+html[data-theme="light"] .border-white\/15,
+html[data-theme="light"] .border-white\/20,
+html[data-theme="light"] .border-white\/30 {
+  border-color: rgb(var(--light-ink) / 0.12) !important;
+}
+
+html[data-theme="light"] .ring-white\/10,
+html[data-theme="light"] .ring-white\/\[0\.04\] {
+  --tw-ring-color: rgb(var(--light-ink) / 0.12) !important;
+}
+
+html[data-theme="light"] .divide-white\/5 > :not([hidden]) ~ :not([hidden]),
+html[data-theme="light"] .divide-white\/10 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgb(var(--light-ink) / 0.1) !important;
+}
+
+html[data-theme="light"] .glass-card,
+html[data-theme="light"] .glass-card-sm,
+html[data-theme="light"] .glass-card-lg,
+html[data-theme="light"] .section-card {
+  border-color: rgb(var(--light-ink) / 0.12);
+  box-shadow: 0 12px 40px -16px rgba(22, 27, 34, 0.18);
+}
+
+html[data-theme="light"] .btn-secondary {
+  border-color: rgb(var(--light-ink) / 0.14);
+  background-color: rgb(var(--light-ink) / 0.04);
+}
+
+html[data-theme="light"] .input-premium {
+  border-color: rgb(var(--light-ink) / 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 
 /* Custom Scrollbars */

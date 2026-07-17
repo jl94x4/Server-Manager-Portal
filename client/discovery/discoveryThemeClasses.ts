@@ -25,7 +25,7 @@ export const discoveryTheme = {
     heroShell: 'relative w-full rounded-2xl border border-border shadow-2xl min-h-[220px] sm:min-h-[280px] overflow-visible',
     heroBackdrop: 'absolute inset-0 rounded-2xl overflow-hidden bg-gradient-to-br from-plex/20 to-background/80',
     heroTitle: 'text-2xl sm:text-4xl font-bold text-text tracking-tight drop-shadow-md',
-    heroChip: 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-bold border border-white/15 bg-black/35 text-white/85 backdrop-blur-md hover:bg-plex/90 hover:text-black hover:border-plex transition-colors',
+    heroChip: 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-bold border border-border/80 bg-background/85 text-text backdrop-blur-md hover:bg-plex hover:text-background hover:border-plex transition-colors',
     personalPanel: 'rounded-2xl border border-plex/25 bg-gradient-to-br from-plex/[0.12] via-card/50 to-transparent p-4 sm:p-5 flex flex-col gap-5 shadow-[0_0_40px_rgba(229,160,13,0.06)]',
     personalEyebrow: 'text-[10px] uppercase tracking-[0.25em] font-black text-plex',
     browseSection: 'flex flex-col gap-4 pt-2',
