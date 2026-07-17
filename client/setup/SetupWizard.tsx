@@ -38,7 +38,7 @@ const STEPS = [
     { id: 'plex', label: 'Media Server', icon: Server, hint: 'Choose Plex or Jellyfin' },
     { id: 'branding', label: 'Branding', icon: Palette, hint: 'Colors, logo & domain' },
     { id: 'email', label: 'Email', icon: Mail, hint: 'SMTP alerts & newsletters' },
-    { id: 'integrations', label: 'Integrations', icon: Layers, hint: 'Sonarr, Radarr & more' },
+    { id: 'integrations', label: 'Integrations', icon: Layers, hint: 'Arr apps, library map & requests' },
     { id: 'finish', label: 'Finish', icon: PartyPopper, hint: 'Review & launch' },
 ] as const;
 
@@ -234,6 +234,9 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
     const [testRecipient, setTestRecipient] = useState('');
 
     const [arrInstances, setArrInstances] = useState<ArrInstance[]>(() => normalizeSetupArrInstances(storedPlex || {}));
+    const [plexLibraries, setPlexLibraries] = useState<Array<{ id: string; title: string; type: string }>>([]);
+    const [plexLibrariesLoading, setPlexLibrariesLoading] = useState(false);
+    const [plexLibrariesError, setPlexLibrariesError] = useState('');
     const [tautulliUrl, setTautulliUrl] = useState(storedPlex?.tautulliUrl ?? '');
     const [tautulliApiKey, setTautulliApiKey] = useState(storedPlex?.tautulliApiKey ?? '');
     const [jellystatUrl, setJellystatUrl] = useState(storedPlex?.jellystatUrl ?? '');
@@ -271,6 +274,47 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
         document.documentElement.style.setProperty('--color-plex', hexToRgb(primaryColor));
         document.documentElement.style.setProperty('--color-plex-hover', accentHoverRgb(primaryColor));
     }, [primaryColor]);
+
+    useEffect(() => {
+        if (step !== 'integrations' || mediaServerType !== 'plex' || !token.trim() || !serverIdentifier.trim()) {
+            setPlexLibraries([]);
+            setPlexLibrariesError('');
+            setPlexLibrariesLoading(false);
+            return undefined;
+        }
+
+        let cancelled = false;
+        setPlexLibrariesLoading(true);
+        setPlexLibrariesError('');
+
+        (async () => {
+            try {
+                const libs = await apiFetch('/api/plex/libraries', {
+                    method: 'POST',
+                    headers: setupAuthHeaders(setupToken),
+                    body: JSON.stringify({
+                        type: 'plex',
+                        token: token.trim(),
+                        serverIdentifier: serverIdentifier.trim(),
+                        ...(plexServerUrl.trim() ? { plexServerUrl: plexServerUrl.trim() } : {}),
+                        ...(setupToken ? { setupToken } : {}),
+                    }),
+                });
+                if (cancelled) return;
+                setPlexLibraries(Array.isArray(libs) ? libs : []);
+            } catch (e) {
+                if (cancelled) return;
+                setPlexLibraries([]);
+                setPlexLibrariesError(e instanceof Error ? e.message : 'Failed to load Plex libraries.');
+            } finally {
+                if (!cancelled) setPlexLibrariesLoading(false);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [step, mediaServerType, token, serverIdentifier, plexServerUrl, setupToken]);
 
     const persistSetupPlex = (patch: Partial<ReturnType<typeof readStoredSetupPlex>>) => {
         const next = {
@@ -907,12 +951,35 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
 
                             {integrationTab === 'arr' && (
                                 <div className="space-y-8">
+                                    {mediaServerType === 'plex' && (
+                                        <div className="rounded-xl border border-border bg-white/[0.03] px-4 py-3 text-sm text-muted">
+                                            {plexLibrariesLoading ? (
+                                                <p>Loading Plex libraries for Sonarr/Radarr mapping…</p>
+                                            ) : plexLibrariesError ? (
+                                                <p className="text-amber-200">
+                                                    Could not load Plex libraries ({plexLibrariesError}). You can map them later in Settings → Integrations.
+                                                </p>
+                                            ) : plexLibraries.length > 0 ? (
+                                                <p>
+                                                    Map TV libraries to Sonarr and movie libraries to Radarr below. Unmapped libraries use the default instance — same as Settings.
+                                                </p>
+                                            ) : (
+                                                <p>No Plex libraries found yet. You can map them later in Settings → Integrations.</p>
+                                            )}
+                                        </div>
+                                    )}
+                                    {mediaServerType !== 'plex' && (
+                                        <div className="rounded-xl border border-border bg-white/[0.03] px-4 py-3 text-sm text-muted">
+                                            Library mapping during setup is available for Plex. Jellyfin/Emby Arr routing can be adjusted later in Settings if needed.
+                                        </div>
+                                    )}
                                     <ArrInstancesPanel
                                         type="sonarr"
                                         title="Sonarr Instances"
                                         subtitle="TV series automation"
                                         instances={arrInstances.filter((entry) => entry.type === 'sonarr')}
                                         savedInstances={arrInstances.filter((entry) => entry.type === 'sonarr')}
+                                        libraries={plexLibraries}
                                         allInstances={arrInstances}
                                         onChange={(nextSonarr) => {
                                             const other = arrInstances.filter((entry) => entry.type !== 'sonarr');
@@ -926,6 +993,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                                         subtitle="Movie automation"
                                         instances={arrInstances.filter((entry) => entry.type === 'radarr')}
                                         savedInstances={arrInstances.filter((entry) => entry.type === 'radarr')}
+                                        libraries={plexLibraries}
                                         allInstances={arrInstances}
                                         onChange={(nextRadarr) => {
                                             const other = arrInstances.filter((entry) => entry.type !== 'radarr');

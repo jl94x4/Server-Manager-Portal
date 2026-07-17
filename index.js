@@ -3952,6 +3952,27 @@ const getPlexConnectionUri = async (config) => {
     return cachedPlexConnectionUri;
 };
 
+const listPlexLibrariesForConfig = async (config) => {
+    const uri = await getPlexConnectionUri(config);
+    if (!uri) throw new Error('Cannot connect to Plex');
+    const token = normalizePlexToken(config.plexToken);
+    if (!token) throw new Error('Plex token is required');
+
+    const sectionsRes = await fetchWithTimeout(
+        `${uri}/library/sections?X-Plex-Token=${encodeURIComponent(token)}`,
+        { headers: { Accept: 'application/json' } },
+        15000,
+    ).then((r) => r.json()).catch(() => null);
+
+    const directories = sectionsRes?.MediaContainer?.Directory;
+    if (!Array.isArray(directories)) return [];
+    return directories.map((section) => ({
+        id: section.key,
+        title: section.title,
+        type: section.type,
+    }));
+};
+
 const isSafePlexMediaPath = (rawPath) => {
     const thumbPath = String(rawPath || '');
     if (!thumbPath.startsWith('/') || thumbPath.startsWith('//')) return false;
@@ -7744,23 +7765,39 @@ app.get('/api/plex/libraries', requireAdmin, async (req, res) => {
         if (!config || !config.plexToken || !config.serverIdentifier) {
             return res.status(503).json({ error: 'Plex not configured' });
         }
-        const uri = await getPlexConnectionUri(config);
-        if (!uri) return res.status(503).json({ error: 'Cannot connect to Plex' });
-
-        const sectionsRes = await fetchWithTimeout(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }, 15000).then(r => r.json()).catch(() => null);
-
-        let libraries = [];
-        if (sectionsRes && sectionsRes.MediaContainer && sectionsRes.MediaContainer.Directory) {
-            libraries = sectionsRes.MediaContainer.Directory.map(s => ({
-                id: s.key,
-                title: s.title,
-                type: s.type
-            }));
-        }
+        const libraries = await listPlexLibrariesForConfig(config);
         res.json(libraries);
     } catch (e) {
         log(`Error fetching Plex libraries: ${e.message}`);
-        res.status(500).json({ error: 'Failed to fetch libraries' });
+        res.status(500).json({ error: e.message || 'Failed to fetch libraries' });
+    }
+});
+
+/** Setup / admin: list Plex libraries using saved config and/or credentials from the body. */
+app.post('/api/plex/libraries', setupRateLimit, async (req, res) => {
+    if (!req.body || typeof req.body !== 'object') req.body = {};
+    if (!req.body.type) req.body.type = 'plex';
+    if (!(await assertIntegrationTestAccess(req, res))) return;
+
+    try {
+        const stored = await loadFile(CONFIG_PATH, {});
+        const plexToken = resolveTestCredential(req.body.token, stored.plexToken);
+        const serverId = resolveTestCredential(req.body.serverIdentifier, stored.serverIdentifier);
+        const directUrl = resolveTestCredential(req.body.plexServerUrl, stored.plexServerUrl);
+        if (!plexToken || !serverId) {
+            return res.status(400).json({ error: 'Plex token and server identifier are required.' });
+        }
+        const testConfig = {
+            ...stored,
+            plexToken,
+            serverIdentifier: serverId,
+            ...(directUrl ? { plexServerUrl: directUrl } : {}),
+        };
+        const libraries = await listPlexLibrariesForConfig(testConfig);
+        res.json(libraries);
+    } catch (e) {
+        log(`Error fetching Plex libraries (setup): ${e.message}`);
+        res.status(500).json({ error: e.message || 'Failed to fetch libraries' });
     }
 });
 
