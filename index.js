@@ -402,6 +402,7 @@ import {
     normalizeDiscoveryProxyPath,
     normalizeDiscoverLanguage,
     normalizeDiscoverRegion,
+    resolveDiscoverMetadataLanguage,
     syncSeerrDiscoverySettings,
 } from './lib/discovery-settings.js';
 import { buildDiscoveryFacts } from './lib/discovery-facts.js';
@@ -5104,8 +5105,13 @@ app.get('/api/discovery/search', requireAuth, requireMember, async (req, res) =>
         
         const query = req.query.query || '';
         if (!query) return res.json({ results: [] });
-        
-        const data = await requestAppService.rawFetch(config, `/api/v1/search?query=${encodeURIComponent(query)}`);
+
+        const metadataLanguage = resolveDiscoverMetadataLanguage(req);
+        const data = await requestAppService.rawFetch(
+            config,
+            `/api/v1/search?query=${encodeURIComponent(query)}&language=${encodeURIComponent(metadataLanguage)}`,
+            { headers: { 'Accept-Language': metadataLanguage } },
+        );
         res.json(data);
     } catch (e) {
         log(`Discovery search error: ${e.message}`);
@@ -5120,7 +5126,12 @@ app.get('/api/discovery/trending', requireAuth, requireMember, async (req, res) 
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
 
         await ensureSeerrDiscoverySettings(config, requestAppService.rawFetch);
-        const data = await requestAppService.rawFetch(config, '/api/v1/discover/trending');
+        const metadataLanguage = resolveDiscoverMetadataLanguage(req);
+        const data = await requestAppService.rawFetch(
+            config,
+            `/api/v1/discover/trending?language=${encodeURIComponent(metadataLanguage)}`,
+            { headers: { 'Accept-Language': metadataLanguage } },
+        );
         const prefs = getDiscoveryPreferences(config);
         res.json(filterDiscoveryPayload(data, '/discover/trending', prefs.hideAvailableMedia));
     } catch (e) {
@@ -6283,14 +6294,18 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
         }
 
         const prefs = getDiscoveryPreferences(config);
+        const metadataLanguage = resolveDiscoverMetadataLanguage(req);
 
-        const params = applyDiscoveryQueryParams(new URLSearchParams(req.query), path, prefs);
+        const params = applyDiscoveryQueryParams(new URLSearchParams(req.query), path, prefs, metadataLanguage);
         const qs = params.toString();
         const fullPath = qs ? `${path}?${qs}` : path;
 
         let data = await requestAppService.rawFetch(config, '/api/v1' + fullPath, {
             // Genre slider fans out many TMDB calls inside Seerr — needs a longer budget.
             timeoutMs: /^\/discover\/genreslider\//i.test(path) ? 90000 : 15000,
+            // Seerr uses Accept-Language / req.locale for TMDB metadata on discover browse
+            // (query.language there is the original-language filter, not title translation).
+            headers: { 'Accept-Language': metadataLanguage },
         });
         const tvDetailMatch = path.match(/^\/tv\/(\d+)$/);
         const shouldLibraryCheck = String(req.query.libraryCheck || req.query.sonarrCheck || '') === '1';

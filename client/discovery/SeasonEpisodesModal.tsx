@@ -61,7 +61,7 @@ export const SeasonEpisodesModal: React.FC<Props> = ({
     statusLabel,
     onClose,
 }) => {
-    const { t } = useDiscoverI18n();
+    const { t, locale } = useDiscoverI18n();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [season, setSeason] = useState<SeasonPayload | null>(null);
@@ -107,7 +107,7 @@ export const SeasonEpisodesModal: React.FC<Props> = ({
         return () => {
             cancelled = true;
         };
-    }, [open, mediaId, seasonNumber]);
+    }, [open, mediaId, seasonNumber, locale]);
 
     const episodes = Array.isArray(season?.episodes) ? season.episodes : [];
     const headerPoster = season?.posterPath || showPosterPath;

@@ -6,20 +6,13 @@ import { es } from './es';
 import {
     DISCOVER_UI_LOCALE_KEY,
     normalizeDiscoverLocale,
+    readDiscoverUiLocale,
     type DiscoverLocale,
     type DiscoverTranslate,
     type DiscoverTranslateVars,
 } from './types';
 
 const catalogs: Record<DiscoverLocale, unknown> = { en, fr, de, es };
-
-const readStoredLocale = (): DiscoverLocale => {
-    try {
-        return normalizeDiscoverLocale(localStorage.getItem(DISCOVER_UI_LOCALE_KEY));
-    } catch {
-        return 'en';
-    }
-};
 
 const getPath = (obj: unknown, path: string): unknown => {
     let current: unknown = obj;
@@ -94,7 +87,7 @@ const DiscoverI18nContext = createContext<DiscoverI18nContextValue | null>(null)
 
 export const DiscoverI18nProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [locale, setLocaleState] = useState<DiscoverLocale>(() => (
-        typeof window !== 'undefined' ? readStoredLocale() : 'en'
+        typeof window !== 'undefined' ? readDiscoverUiLocale() : 'en'
     ));
 
     const setLocale = useCallback((next: DiscoverLocale) => {

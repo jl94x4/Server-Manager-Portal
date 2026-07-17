@@ -4,6 +4,7 @@ import { apiFetch } from '../shared/api';
 import { DiscoverPosterCard } from '../screens';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
 import { upgraderPosterGridClass, upgraderPosterGridStyle } from '../shared/portalLayout';
+import { useDiscoverI18n } from './i18n';
 
 const splitBiography = (bio: string) => {
     const trimmed = bio.trim();
@@ -27,6 +28,7 @@ export const PersonDetailsPage: React.FC<{
     onSelect: (item: any) => void;
     formatItem: (item: any) => any;
 }> = ({ personId, onBack, onSelect, formatItem }) => {
+    const { locale } = useDiscoverI18n();
     const { preferences } = useDiscoveryPreferences();
     const [person, setPerson] = useState<any>(null);
     const [credits, setCredits] = useState<any[]>([]);
@@ -57,7 +59,7 @@ export const PersonDetailsPage: React.FC<{
             setLoading(false);
         };
         fetchPerson();
-    }, [personId]);
+    }, [personId, locale]);
 
     useEffect(() => {
         setBioExpanded(false);

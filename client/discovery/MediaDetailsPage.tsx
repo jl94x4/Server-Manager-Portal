@@ -68,7 +68,7 @@ export const MediaDetailsPage: React.FC<{
     isAdmin?: boolean;
     mediaServerType?: string;
 }> = ({ mediaType, mediaId, onBack, formatItem, pushToast, isAdmin = false, mediaServerType = 'plex' }) => {
-    const { t } = useDiscoverI18n();
+    const { t, locale } = useDiscoverI18n();
     const { preferences } = useDiscoveryPreferences();
     const { profile: discoveryMe } = useDiscoveryMe(true);
     const [details, setDetails] = useState<any>(null);
@@ -122,7 +122,7 @@ export const MediaDetailsPage: React.FC<{
         return () => {
             cancelled = true;
         };
-    }, [mediaId, mediaType]);
+    }, [mediaId, mediaType, locale]);
 
     useEffect(() => {
         if (mediaType !== 'tv' || loading || !details) return undefined;

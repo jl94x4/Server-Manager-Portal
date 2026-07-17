@@ -15,6 +15,7 @@ import {
     buildDiscoverStudioApiUrl,
     fetchDiscoverPageWithBackfill,
 } from './discoverFetchUtils';
+import { useDiscoverI18n } from './i18n';
 
 type Props = {
     kind: 'studio' | 'network';
@@ -25,13 +26,14 @@ type Props = {
 };
 
 export const DiscoverCategoryPage: React.FC<Props> = ({ kind, id, onBack, onSelect, formatItem }) => {
+    const { locale } = useDiscoverI18n();
     const { preferences } = useDiscoveryPreferences();
     const [gridSize, setGridSize] = useDiscoverGridSize();
     const containerRef = useRef<HTMLDivElement>(null);
     const meta = kind === 'studio' ? findStudio(id) : findNetwork(id);
     const [entityName, setEntityName] = useState(meta?.name || '');
 
-    const resetKey = `${kind}:${id}:${preferences.hideAvailableMedia}:${gridSize}`;
+    const resetKey = `${kind}:${id}:${preferences.hideAvailableMedia}:${gridSize}:${locale}`;
 
     const buildUrl = useCallback((page: number) => (
         kind === 'studio'

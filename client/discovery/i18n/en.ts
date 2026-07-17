@@ -56,7 +56,7 @@ export const en = {
         seasonN: 'Season {number}',
         episodeN: 'Episode {number}',
         runtimeMin: '{count} min',
-        language: 'Interface language',
+        language: 'Language (UI & titles)',
     },
     nav: {
         discover: 'Discover',

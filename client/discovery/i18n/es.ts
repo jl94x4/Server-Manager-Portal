@@ -58,7 +58,7 @@ export const es: DeepPartial<EnCatalog> = {
         seasonN: 'Temporada {number}',
         episodeN: 'Episodio {number}',
         runtimeMin: '{count} min',
-        language: 'Idioma de la interfaz',
+        language: 'Idioma (interfaz y títulos)',
     },
     nav: {
         discover: 'Discover',

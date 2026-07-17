@@ -1,8 +1,31 @@
 import { portalUrl } from './basePath';
+import {
+    DISCOVER_LOCALE_HEADER,
+    DISCOVER_UI_LOCALE_KEY,
+    normalizeDiscoverLocale,
+} from '../discovery/i18n/types';
 
 /** Sent on every API call so mutating routes can reject cross-site CSRF. */
 export const PORTAL_CSRF_HEADER = 'X-Requested-With';
 export const PORTAL_CSRF_VALUE = 'ServerManagerPortal';
+
+const needsDiscoverMetadataLocale = (url: string) => {
+    const path = String(url || '');
+    return path.includes('/api/discovery/proxy')
+        || path.includes('/api/discovery/search')
+        || path.includes('/api/discovery/trending');
+};
+
+const discoverLocaleHeaders = (url: string): HeadersInit => {
+    if (typeof localStorage === 'undefined' || !needsDiscoverMetadataLocale(url)) return {};
+    try {
+        return {
+            [DISCOVER_LOCALE_HEADER]: normalizeDiscoverLocale(localStorage.getItem(DISCOVER_UI_LOCALE_KEY)),
+        };
+    } catch {
+        return {};
+    }
+};
 
 export const portalRequestHeaders = (extra: HeadersInit = {}): HeadersInit => ({
     'Content-Type': 'application/json',
@@ -15,7 +38,10 @@ export const apiFetch = async (url: string, options: RequestInit = {}) => {
     const response = await fetch(portalUrl(url), {
         credentials: 'same-origin',
         ...options,
-        headers: portalRequestHeaders(options.headers),
+        headers: portalRequestHeaders({
+            ...discoverLocaleHeaders(url),
+            ...(options.headers || {}),
+        }),
     });
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'An unknown API error occurred.' }));

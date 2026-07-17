@@ -29,7 +29,7 @@ const DiscoveryDashboardInner: React.FC<{
     mediaServerType?: string;
     isAdmin?: boolean;
 }> = ({ pushToast, mediaServerType = 'plex', isAdmin = false }) => {
-    const { t } = useDiscoverI18n();
+    const { t, locale } = useDiscoverI18n();
     const [path, setPath] = useState(() => {
         if (typeof window !== 'undefined') return window.location.pathname;
         return '/discovery';
@@ -110,7 +110,7 @@ const DiscoveryDashboardInner: React.FC<{
             }
         }, 350);
         return () => window.clearTimeout(timer);
-    }, [query]);
+    }, [query, locale]);
 
     const formatItem = (rawItem: any) => {
         const item = normalizeRawDiscoveryItem(rawItem);

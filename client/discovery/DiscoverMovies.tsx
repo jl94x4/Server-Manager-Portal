@@ -19,12 +19,14 @@ import { buildDiscoverMoviesApiUrl, fetchDiscoverPageWithBackfill } from './disc
 import { DiscoverHideRequestedToggle } from './DiscoverHideRequestedToggle';
 import { useHideRequestedToggle } from './useHideRequestedToggle';
 import { discoveryTheme } from './discoveryThemeClasses';
+import { useDiscoverI18n } from './i18n';
 
 export const DiscoverMovies: React.FC<{
     onSelect: (item: any) => void;
     formatItem: (item: any) => any;
     navigate: (path: string) => void;
 }> = ({ onSelect, formatItem, navigate }) => {
+    const { locale } = useDiscoverI18n();
     const { preferences } = useDiscoveryPreferences();
     const { hideRequested, setHideRequested } = useHideRequestedToggle();
     const [gridSize, setGridSize] = useDiscoverGridSize();
@@ -50,8 +52,8 @@ export const DiscoverMovies: React.FC<{
     }, [readFiltersFromUrl]);
 
     const resetKey = useMemo(
-        () => `${JSON.stringify(filters)}:${preferences.hideAvailableMedia}:${hideRequested}:${gridSize}`,
-        [filters, preferences.hideAvailableMedia, hideRequested, gridSize],
+        () => `${JSON.stringify(filters)}:${preferences.hideAvailableMedia}:${hideRequested}:${gridSize}:${locale}`,
+        [filters, preferences.hideAvailableMedia, hideRequested, gridSize, locale],
     );
 
     const browseFilterOptions = useMemo(() => ({

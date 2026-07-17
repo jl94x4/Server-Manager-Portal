@@ -100,7 +100,7 @@ export const DiscoverHome: React.FC<{
     pushToast?: (msg: string, type: 'success' | 'error') => void;
     providerLabel?: string;
 }> = ({ onSelect, formatItem, navigate, pushToast, providerLabel = 'Plex' }) => {
-    const { t } = useDiscoverI18n();
+    const { t, locale } = useDiscoverI18n();
     const { preferences, loaded } = useDiscoveryPreferences();
     const { showLibraryQueue, toggleLibraryQueue } = useLibraryQueueToggle();
     const [gridSize, setGridSize] = useDiscoverGridSize();
@@ -200,7 +200,7 @@ export const DiscoverHome: React.FC<{
             console.error(e);
         }
         setLoading(false);
-    }, [loaded, preferences.hideAvailableMedia, preferences.discoverLanguage, preferences.discoverRegion]);
+    }, [loaded, preferences.hideAvailableMedia, preferences.discoverLanguage, preferences.discoverRegion, locale]);
 
     useEffect(() => {
         loadData();
