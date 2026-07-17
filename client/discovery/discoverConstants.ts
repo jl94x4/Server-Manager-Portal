@@ -14,8 +14,10 @@ export type DiscoverGenre = {
 };
 
 /** TMDB duotone logo treatment used by Overseerr CompanyCard. */
-export const tmdbDuotoneLogo = (logoPath: string, width: 780 | 300 = 780) =>
-    `https://image.tmdb.org/t/p/w${width}_filter(duotone,ffffff,bababa)${logoPath}`;
+export const tmdbDuotoneLogo = (logoPath: string, width: 780 | 300 = 780) => {
+    const path = logoPath.startsWith('/') ? logoPath : `/${logoPath}`;
+    return `https://image.tmdb.org/t/p/w${width}_filter(duotone,ffffff,bababa)${path}`;
+};
 
 export const tmdbBackdropUrl = (backdropPath: string) => {
     if (!backdropPath) return '';
@@ -24,6 +26,7 @@ export const tmdbBackdropUrl = (backdropPath: string) => {
 };
 
 export const DISCOVER_STUDIOS: DiscoverCompany[] = [
+    // Core Seerr / Overseerr set
     { id: 2, name: 'Disney', logoPath: '/wdrCwmRnLFJhEoH8GSfymY85KHT.png' },
     { id: 127928, name: '20th Century Studios', logoPath: '/h0rjX5vjW5r8yEnUBStFarjcLT4.png' },
     { id: 34, name: 'Sony Pictures', logoPath: '/GagSvqWlyPdkFHMfQ3pNq6ix9P.png' },
@@ -35,14 +38,29 @@ export const DISCOVER_STUDIOS: DiscoverCompany[] = [
     { id: 420, name: 'Marvel Studios', logoPath: '/hUzeosd33nzE5MCNsZxCGEKTXaQ.png' },
     { id: 9993, name: 'DC', logoPath: '/2Tc1P3Ac8M479naPp1kYT3izLS5.png' },
     { id: 41077, name: 'A24', logoPath: '/1ZXsGaFPgrgS6ZZGS37AqD5uU12.png' },
-    { id: 25, name: '20th Century Fox', logoPath: '/qZCc1lty5FzX30aOCVRXrxSRYcF.png' },
-    { id: 5, name: 'Columbia Pictures', logoPath: '/71BqEFAF4V3qjjZAJ6NKeDOP2g4.png' },
-    { id: 12, name: 'New Line Cinema', logoPath: '/jT91plwe0e6Qc1OcUZ6fMelNxQ5.png' },
-    { id: 14, name: 'Miramax', logoPath: '/8C5PWL4j7H13HGPq5xMU9c3uMwr.png' },
-    { id: 1632, name: 'Lionsgate', logoPath: '/f6B6orH0Fk0blmKchvW6y6q2cQ8.png' },
+    // Expanded majors / labels
+    { id: 25, name: '20th Century Fox', logoPath: '/qZCc1lty5FzX30aOCVRBLzaVmcp.png' },
+    { id: 5, name: 'Columbia Pictures', logoPath: '/71BqEFAF4V3qjjMPCpLuyJFB9A.png' },
+    { id: 12, name: 'New Line Cinema', logoPath: '/2ycs64eqV5rqKYHyQK0GVoKGvfX.png' },
+    { id: 14, name: 'Miramax', logoPath: '/m6AHu84oZQxvq7n1rsvMNJIAsMu.png' },
+    { id: 1632, name: 'Lionsgate', logoPath: '/cisLn1YAUuptXVBa0xjq7ST9cH0.png' },
+    { id: 21, name: 'MGM', logoPath: '/usUnaYV6hQnlVAXP6r4HwrlLFPG.png' },
+    { id: 43, name: 'Searchlight Pictures', logoPath: '/4RgIPr55kBakgupWkzdDxqXJEqr.png' },
+    { id: 58, name: 'TriStar Pictures', logoPath: '/voYCwlBHJQANtjvm5MNIkCF1dDH.png' },
+    { id: 105, name: 'Screen Gems', logoPath: '/pyiNvPJYGz4W2SImgULoG2sn4y4.png' },
+    { id: 491, name: 'Summit Entertainment', logoPath: '/5LvDUt3KmvRnXQ4NrdWJYHeuA8J.png' },
+    { id: 670, name: 'Illumination', logoPath: '/rRGi5UkwvdOPSfr5Xf42RZUsYgd.png' },
+    { id: 923, name: 'Legendary Pictures', logoPath: '/5UQsZrfbfG2dYJbx8DxfoTr2Bvu.png' },
+    { id: 3172, name: 'Blumhouse', logoPath: '/rzKluDcRkIwHZK2pHsiT667A2Kw.png' },
+    { id: 7295, name: 'Amblin Entertainment', logoPath: '/5MYE96QiE5a5oFhXxFb4y8ILSpw.png' },
+    { id: 10342, name: 'Studio Ghibli', logoPath: '/uFuxPEZRUcBTEiYIxjHJq62Vr77.png' },
+    { id: 89136, name: 'Neon', logoPath: '/5w19JCYpAshGGSIh1fTgwswl4DC.png' },
+    { id: 10146, name: 'Focus Features', logoPath: '/xnFIOeq5cKw09kCWqV7foWDe4AA.png' },
+    { id: 508, name: 'Regency Enterprises', logoPath: '/4sGWXoboEkWPphI6es6rTmqkCBh.png' },
 ];
 
 export const DISCOVER_NETWORKS: DiscoverCompany[] = [
+    // Core Seerr / Overseerr set
     { id: 213, name: 'Netflix', logoPath: '/wwemzKWzjKYJFfCeiB57q3r4Bcm.png' },
     { id: 2739, name: 'Disney+', logoPath: '/gJ8VX6JSu3ciXHuC2dDGAo2lvwM.png' },
     { id: 1024, name: 'Prime Video', logoPath: '/ifhbNuuVnlwYy5oXA5VIb2YR8AZ.png' },
@@ -65,7 +83,14 @@ export const DISCOVER_NETWORKS: DiscoverCompany[] = [
     { id: 80, name: 'Adult Swim', logoPath: '/9AKyspxVzywuaMuZ1Bvilu8sXly.png' },
     { id: 13, name: 'Nickelodeon', logoPath: '/ikZXxg6GnwpzqiZbRPhJGaZapqB.png' },
     { id: 3353, name: 'Peacock', logoPath: '/gIAcGTjKKr0KOHL5s4O36roJ8p7.png' },
-    // TMDB removed these logo assets (404) — bundled Wikimedia marks instead.
+    // Expanded
+    { id: 41, name: 'TNT', logoPath: '/em0rOXVRu3qprWZCx58uDDV2fze.png' },
+    { id: 47, name: 'Comedy Central', logoPath: '/i7Z9ot2o3N5Sa3HrF09kniFs2y8.png' },
+    { id: 54, name: 'Disney Channel', logoPath: '/bMe9KX1Wtd7HY0yD14TR5a6fEbM.png' },
+    { id: 1267, name: 'Freeform', logoPath: '/j3kXC0bEn4vxrIyUApeKBtSUu9w.png' },
+    { id: 34, name: 'Lifetime', logoPath: '/xAb1o9HrSvKBo9mnXC8fJKDNu00.png' },
+    { id: 1063, name: 'Sky Atlantic', logoPath: '/fpVBhNnopOZwGuF0gg99oBHp1ht.png' },
+    // TMDB removed these logo assets previously — bundled marks instead.
     { id: 9, name: 'ITV', logoPath: '/static/logos/itv.svg' },
     { id: 214, name: 'Sky', logoPath: '/static/logos/sky.svg' },
 ];
@@ -111,3 +136,62 @@ export const TV_GENRES: DiscoverGenre[] = [
 
 export const findStudio = (id: number) => DISCOVER_STUDIOS.find((s) => s.id === id);
 export const findNetwork = (id: number) => DISCOVER_NETWORKS.find((n) => n.id === id);
+
+/** Seerr/Overseerr genre card duotone tones [dark, light]. */
+export const GENRE_COLOR_TONES: Record<string, [string, string]> = {
+    red: ['991B1B', 'FCA5A5'],
+    darkred: ['1F2937', 'F87171'],
+    blue: ['032541', '01b4e4'],
+    lightblue: ['1F2937', '60A5FA'],
+    darkblue: ['1F2937', '2864d2'],
+    orange: ['92400E', 'FCD34D'],
+    lightgreen: ['065F46', '6EE7B7'],
+    green: ['087d29', '21cb51'],
+    purple: ['5B21B6', 'C4B5FD'],
+    yellow: ['777e0d', 'e4ed55'],
+    darkorange: ['552c01', 'd47c1d'],
+    black: ['1F2937', 'D1D5DB'],
+    pink: ['9D174D', 'F9A8D4'],
+    darkpurple: ['480c8b', 'a96bef'],
+};
+
+export const GENRE_COLOR_MAP: Record<number, [string, string]> = {
+    0: GENRE_COLOR_TONES.black,
+    28: GENRE_COLOR_TONES.red,
+    12: GENRE_COLOR_TONES.darkpurple,
+    16: GENRE_COLOR_TONES.blue,
+    35: GENRE_COLOR_TONES.orange,
+    80: GENRE_COLOR_TONES.darkblue,
+    99: GENRE_COLOR_TONES.lightgreen,
+    18: GENRE_COLOR_TONES.pink,
+    10751: GENRE_COLOR_TONES.yellow,
+    14: GENRE_COLOR_TONES.lightblue,
+    36: GENRE_COLOR_TONES.orange,
+    27: GENRE_COLOR_TONES.black,
+    10402: GENRE_COLOR_TONES.blue,
+    9648: GENRE_COLOR_TONES.purple,
+    10749: GENRE_COLOR_TONES.pink,
+    878: GENRE_COLOR_TONES.lightblue,
+    10770: GENRE_COLOR_TONES.red,
+    53: GENRE_COLOR_TONES.black,
+    10752: GENRE_COLOR_TONES.darkred,
+    37: GENRE_COLOR_TONES.orange,
+    10759: GENRE_COLOR_TONES.darkpurple,
+    10762: GENRE_COLOR_TONES.blue,
+    10763: GENRE_COLOR_TONES.black,
+    10764: GENRE_COLOR_TONES.darkorange,
+    10765: GENRE_COLOR_TONES.lightblue,
+    10766: GENRE_COLOR_TONES.pink,
+    10767: GENRE_COLOR_TONES.lightgreen,
+    10768: GENRE_COLOR_TONES.darkred,
+};
+
+/** Build Seerr-style duotone backdrop URL for a genre slider card. */
+export const buildGenreSliderImage = (genreId: number, backdrops?: string[] | null) => {
+    const list = (Array.isArray(backdrops) ? backdrops : []).filter(Boolean);
+    if (!list.length) return undefined;
+    const path = list[Math.min(4, list.length - 1)];
+    const tones = GENRE_COLOR_MAP[genreId] || GENRE_COLOR_MAP[0];
+    const normalized = String(path).startsWith('/') ? String(path) : `/${path}`;
+    return `https://image.tmdb.org/t/p/w1280_filter(duotone,${tones[0]},${tones[1]})${normalized}`;
+};

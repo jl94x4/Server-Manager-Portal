@@ -111,6 +111,7 @@ export const DiscoverCategoryPage: React.FC<Props> = ({ kind, id, onBack, onSele
                                         logoPath={meta.logoPath}
                                         alt={title}
                                         width={780}
+                                        duotone
                                         className="max-w-[78%] max-h-[58%] object-contain"
                                     />
                                 </div>

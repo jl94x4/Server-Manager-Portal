@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { tmdbDuotoneLogo } from './discoverConstants';
 import {
     discoveryLogoUrl,
     isKnownDarkLogoPath,
@@ -12,23 +13,52 @@ type Props = {
     alt: string;
     className?: string;
     width?: 154 | 300 | 780;
+    /** Overseerr-style light gray duotone — use on dark company cards. */
+    duotone?: boolean;
     onError?: () => void;
 };
 
-/** TMDB network/studio logo — inverts only when the mark is predominantly black. */
+const isBundledOrAbsoluteLogo = (logoPath: string) => {
+    const path = String(logoPath || '').trim();
+    return path.startsWith('http://')
+        || path.startsWith('https://')
+        || path.startsWith('/static/');
+};
+
+/** TMDB network/studio logo — duotone for dark cards, or invert when predominantly black. */
 export const DiscoveryLogo: React.FC<Props> = ({
     logoPath,
     alt,
     className = '',
     width = 154,
+    duotone = false,
     onError,
 }) => {
+    const useDuotone = duotone && !isBundledOrAbsoluteLogo(logoPath);
+    const src = useDuotone
+        ? tmdbDuotoneLogo(logoPath, width === 154 ? 300 : width)
+        : discoveryLogoUrl(logoPath, width);
+
     const [invert, setInvert] = useState(
-        () => !shouldNeverInvertLogo(logoPath, alt)
-            && (isKnownDarkLogoPath(logoPath) || shouldInvertByLabel(alt)),
+        () => !useDuotone
+            && !shouldNeverInvertLogo(logoPath, alt)
+            && (isKnownDarkLogoPath(logoPath)
+                || shouldInvertByLabel(alt)
+                || String(logoPath || '').startsWith('/static/')),
     );
 
     useEffect(() => {
+        if (useDuotone) {
+            setInvert(false);
+            return undefined;
+        }
+
+        // Bundled SVGs are typically dark marks for light UIs — force invert on dark cards.
+        if (String(logoPath || '').startsWith('/static/')) {
+            setInvert(true);
+            return undefined;
+        }
+
         if (shouldNeverInvertLogo(logoPath, alt)) {
             setInvert(false);
             return undefined;
@@ -57,11 +87,11 @@ export const DiscoveryLogo: React.FC<Props> = ({
             probe.onload = null;
             probe.onerror = null;
         };
-    }, [logoPath, alt, width]);
+    }, [logoPath, alt, width, useDuotone]);
 
     return (
         <img
-            src={discoveryLogoUrl(logoPath, width)}
+            src={src}
             alt={alt}
             loading="lazy"
             onError={onError}

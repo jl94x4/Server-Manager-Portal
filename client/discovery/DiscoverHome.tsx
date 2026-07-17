@@ -9,6 +9,7 @@ import {
     DISCOVER_STUDIOS,
     MOVIE_GENRES,
     TV_GENRES,
+    buildGenreSliderImage,
 } from './discoverConstants';
 import { enrichDiscoveryItems } from './discoverItemUtils';
 import { portalRequestToDiscoveryRowItem } from './myRequestUtils';
@@ -22,7 +23,23 @@ import { DiscoverGridSizeSelect } from './DiscoverGridSizeSelect';
 import { useDiscoverGridSize } from './useDiscoverGridSize';
 import { discoverRowCardWidthClass } from '../shared/portalLayout';
 
-type GenreSliderItem = { id: number; name: string; image?: string };
+type GenreSliderItem = { id: number; name: string; image?: string; backdrops?: string[] };
+
+const mapGenreSliderResponse = (payload: any): GenreSliderItem[] => {
+    const list = Array.isArray(payload) ? payload : (Array.isArray(payload?.results) ? payload.results : []);
+    return list
+        .map((genre: any) => {
+            const id = Number(genre?.id);
+            const name = String(genre?.name || '').trim();
+            if (!Number.isFinite(id) || !name) return null;
+            return {
+                id,
+                name,
+                image: genre?.image || buildGenreSliderImage(id, genre?.backdrops),
+            };
+        })
+        .filter(Boolean) as GenreSliderItem[];
+};
 
 const EmptyRail: React.FC<{
     title: string;
@@ -141,12 +158,8 @@ export const DiscoverHome: React.FC<{
                 upcomingSeries,
             });
 
-            if (Array.isArray(movieGenreRes) && movieGenreRes.length) {
-                setMovieGenres(movieGenreRes);
-            }
-            if (Array.isArray(tvGenreRes) && tvGenreRes.length) {
-                setTvGenres(tvGenreRes);
-            }
+            setMovieGenres(mapGenreSliderResponse(movieGenreRes));
+            setTvGenres(mapGenreSliderResponse(tvGenreRes));
         } catch (e) {
             console.error(e);
         }
