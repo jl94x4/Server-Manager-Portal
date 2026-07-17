@@ -22,6 +22,16 @@ const reorder = (items: string[], from: number, to: number): string[] => {
 /** Keys that never appear in the mobile bottom bar / More menu. */
 const isMobileNavKey = (key: string) => key !== 'logout' && key !== 'logs';
 
+const vibrate = (pattern: number | number[]) => {
+    try {
+        if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+            navigator.vibrate(pattern);
+        }
+    } catch {
+        /* ignore unsupported / blocked vibration */
+    }
+};
+
 export const NavigationOrderSettings: React.FC<Props> = ({
     navOrder,
     onChange,
@@ -30,6 +40,7 @@ export const NavigationOrderSettings: React.FC<Props> = ({
 }) => {
     const [dragIndex, setDragIndex] = useState<number | null>(null);
     const [dropIndex, setDropIndex] = useState<number | null>(null);
+    const [dragPoint, setDragPoint] = useState<{ x: number; y: number } | null>(null);
     const dragIndexRef = useRef<number | null>(null);
     const dropIndexRef = useRef<number | null>(null);
     const itemRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -45,9 +56,10 @@ export const NavigationOrderSettings: React.FC<Props> = ({
         return map;
     }, [mobileKeys]);
 
-    const commitReorder = (from: number, to: number) => {
+    const commitReorder = (from: number, to: number, { haptic = false } = {}) => {
         if (from === to) return;
         onChange(reorder(navOrder, from, to));
+        if (haptic) vibrate(18);
     };
 
     const indexFromClientY = (clientY: number) => {
@@ -69,6 +81,7 @@ export const NavigationOrderSettings: React.FC<Props> = ({
         dropIndexRef.current = null;
         setDragIndex(null);
         setDropIndex(null);
+        setDragPoint(null);
     };
 
     const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>, index: number) => {
@@ -79,14 +92,18 @@ export const NavigationOrderSettings: React.FC<Props> = ({
         dropIndexRef.current = index;
         setDragIndex(index);
         setDropIndex(index);
+        setDragPoint({ x: event.clientX, y: event.clientY });
+        vibrate(12);
     };
 
     const handlePointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
         if (dragIndexRef.current === null) return;
+        setDragPoint({ x: event.clientX, y: event.clientY });
         const nextDrop = indexFromClientY(event.clientY);
         if (dropIndexRef.current !== nextDrop) {
             dropIndexRef.current = nextDrop;
             setDropIndex(nextDrop);
+            vibrate(8);
         }
     };
 
@@ -100,12 +117,20 @@ export const NavigationOrderSettings: React.FC<Props> = ({
         const from = dragIndexRef.current;
         const to = dropIndexRef.current ?? from;
         clearDragState();
-        commitReorder(from, to);
+        if (from !== to) {
+            vibrate([10, 30, 16]);
+            commitReorder(from, to);
+        } else {
+            vibrate(6);
+        }
     };
 
     const handlePointerCancel = () => {
         clearDragState();
+        vibrate(6);
     };
+
+    const draggingKey = dragIndex != null ? navOrder[dragIndex] : null;
 
     return (
         <div className="mb-8 animate-fade-in">
@@ -134,7 +159,7 @@ export const NavigationOrderSettings: React.FC<Props> = ({
                 </p>
             </div>
 
-            <div className="flex flex-col gap-2 max-w-xl select-none">
+            <div className={`relative flex flex-col gap-2 max-w-xl select-none ${dragIndex !== null ? 'cursor-grabbing' : ''}`}>
                 {navOrder.map((key, index) => {
                     const mobileIndex = mobileIndexByKey.get(key);
                     const inMobileBar = mobileIndex !== undefined
@@ -147,6 +172,8 @@ export const NavigationOrderSettings: React.FC<Props> = ({
 
                     const isDragging = dragIndex === index;
                     const isDropTarget = dropIndex === index && dragIndex !== null && dragIndex !== index;
+                    const insertBefore = isDropTarget && dragIndex !== null && dropIndex < dragIndex;
+                    const insertAfter = isDropTarget && dragIndex !== null && dropIndex > dragIndex;
 
                     return (
                         <React.Fragment key={key}>
@@ -164,12 +191,19 @@ export const NavigationOrderSettings: React.FC<Props> = ({
                             <div
                                 ref={(node) => { itemRefs.current[index] = node; }}
                                 data-nav-order-index={index}
-                                className={`flex items-center gap-2 sm:gap-3 py-3 px-3 rounded-xl border bg-background/30 transition-all
-                                    ${isDragging ? 'opacity-50 border-plex/40 scale-[0.98]' : 'border-border/40'}
-                                    ${isDropTarget ? 'border-plex ring-1 ring-plex/30' : ''}
-                                    ${inMoreMenu ? 'border-dashed border-border/50 bg-white/[0.02]' : ''}
+                                className={`relative flex items-center gap-2 sm:gap-3 py-3 px-3 rounded-xl border bg-background/30 transition-[transform,box-shadow,opacity,border-color,background-color] duration-150
+                                    ${isDragging ? 'opacity-40 border-plex/50 bg-plex/5 scale-[0.985] shadow-inner' : 'border-border/40'}
+                                    ${isDropTarget ? 'border-plex ring-2 ring-plex/35 bg-plex/10' : ''}
+                                    ${inMoreMenu && !isDropTarget ? 'border-dashed border-border/50 bg-white/[0.02]' : ''}
                                     ${!isMobileNavKey(key) ? 'opacity-70' : ''}`}
                             >
+                                {insertBefore && (
+                                    <div className="pointer-events-none absolute -top-1.5 left-3 right-3 h-1 rounded-full bg-plex shadow-[0_0_12px_rgba(229,160,13,0.55)]" />
+                                )}
+                                {insertAfter && (
+                                    <div className="pointer-events-none absolute -bottom-1.5 left-3 right-3 h-1 rounded-full bg-plex shadow-[0_0_12px_rgba(229,160,13,0.55)]" />
+                                )}
+
                                 <button
                                     type="button"
                                     aria-label={`Drag to reorder ${getNavItemLabel(key)}`}
@@ -177,7 +211,8 @@ export const NavigationOrderSettings: React.FC<Props> = ({
                                     onPointerMove={handlePointerMove}
                                     onPointerUp={handlePointerUp}
                                     onPointerCancel={handlePointerCancel}
-                                    className="touch-none shrink-0 p-1.5 -ml-1 rounded-lg text-muted hover:text-text hover:bg-white/5 active:bg-white/10 cursor-grab active:cursor-grabbing"
+                                    className={`touch-none shrink-0 p-1.5 -ml-1 rounded-lg transition-colors cursor-grab active:cursor-grabbing
+                                        ${isDragging ? 'text-plex bg-plex/15' : 'text-muted hover:text-text hover:bg-white/5 active:bg-white/10 active:scale-95'}`}
                                 >
                                     <GripVertical className="w-5 h-5" aria-hidden />
                                 </button>
@@ -209,8 +244,8 @@ export const NavigationOrderSettings: React.FC<Props> = ({
                                         type="button"
                                         aria-label={`Move ${getNavItemLabel(key)} up`}
                                         disabled={index === 0}
-                                        onClick={() => commitReorder(index, index - 1)}
-                                        className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-border/60 bg-white/[0.03] text-muted hover:text-text hover:border-plex/40 disabled:opacity-30 disabled:pointer-events-none"
+                                        onClick={() => commitReorder(index, index - 1, { haptic: true })}
+                                        className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-border/60 bg-white/[0.03] text-muted hover:text-text hover:border-plex/40 active:scale-90 active:bg-plex/15 disabled:opacity-30 disabled:pointer-events-none transition-transform"
                                     >
                                         <ChevronUp className="w-4 h-4" />
                                     </button>
@@ -218,8 +253,8 @@ export const NavigationOrderSettings: React.FC<Props> = ({
                                         type="button"
                                         aria-label={`Move ${getNavItemLabel(key)} down`}
                                         disabled={index === navOrder.length - 1}
-                                        onClick={() => commitReorder(index, index + 1)}
-                                        className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-border/60 bg-white/[0.03] text-muted hover:text-text hover:border-plex/40 disabled:opacity-30 disabled:pointer-events-none"
+                                        onClick={() => commitReorder(index, index + 1, { haptic: true })}
+                                        className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-border/60 bg-white/[0.03] text-muted hover:text-text hover:border-plex/40 active:scale-90 active:bg-plex/15 disabled:opacity-30 disabled:pointer-events-none transition-transform"
                                     >
                                         <ChevronDown className="w-4 h-4" />
                                     </button>
@@ -228,6 +263,24 @@ export const NavigationOrderSettings: React.FC<Props> = ({
                         </React.Fragment>
                     );
                 })}
+
+                {draggingKey && dragPoint && (
+                    <div
+                        className="pointer-events-none fixed z-[80] w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-plex/50 bg-card/95 px-3 py-3 shadow-2xl shadow-black/40 ring-1 ring-plex/30 backdrop-blur-md"
+                        style={{ left: dragPoint.x, top: dragPoint.y }}
+                        aria-hidden
+                    >
+                        <div className="flex items-center gap-3">
+                            <GripVertical className="w-5 h-5 text-plex shrink-0" />
+                            <p className="text-sm font-bold text-text truncate">
+                                {getNavItemLabel(draggingKey, {
+                                    adminSuffix: true,
+                                    downloadsMembersVisible: downloadsVisibleToMembers,
+                                })}
+                            </p>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {moreStartsAtMobileIndex === null ? (
