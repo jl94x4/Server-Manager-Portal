@@ -1184,6 +1184,10 @@ const isJellyfinConfigured = (config = {}) => (
 const isPortalConfigured = (config = {}) => isPlexConfigured(config) || isJellyfinConfigured(config);
 const isPublicStatusVisible = (config = {}) => config.showPublicStatusMonitor !== false;
 const arePublicLibraryStatsVisible = (config = {}) => config.showPublicLibraryStats !== false;
+const normalizePwaIconSource = (value, fallback = 'server') => {
+    const normalized = String(value || '').trim().toLowerCase();
+    return normalized === 'application' || normalized === 'server' ? normalized : fallback;
+};
 
 const requireAuth = (req, res, next) => {
     const token = req.cookies.session;
@@ -2735,6 +2739,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 customLogoUrl: config.customLogoUrl || '',
                 brandingTheme: config.brandingTheme || 'plex',
                 sidebarIdentityPosition: ['top', 'bottom'].includes(String(config.sidebarIdentityPosition || '').toLowerCase()) ? String(config.sidebarIdentityPosition).toLowerCase() : 'bottom',
+                pwaIconSource: normalizePwaIconSource(config.pwaIconSource),
                 backgroundImageUrl: config.backgroundImageUrl || '',
                 useScrollRevealAnimations: !!config.useScrollRevealAnimations,
                 useCinematicLoading: !!config.useCinematicLoading,
@@ -2824,6 +2829,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 customLogoUrl: '',
                 brandingTheme: 'plex',
                 sidebarIdentityPosition: 'bottom',
+                pwaIconSource: 'server',
                 backgroundImageUrl: '',
                 useScrollRevealAnimations: false,
                 useCinematicLoading: false,
@@ -2875,7 +2881,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         requestAppType, requestAppUrl, requestAppFetchUrl, requestAppApiKey,
         requestDiscoverRegion, requestDiscoverLanguage, requestHideAvailableMedia,
         inactiveCleanupEnabled, inactiveCleanupDays,
-        primaryColor, customLogoUrl, brandingTheme, sidebarIdentityPosition, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges, showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds,
+        primaryColor, customLogoUrl, brandingTheme, sidebarIdentityPosition, pwaIconSource, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges, showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds,
         showPublicStatusMonitor, showPublicLibraryStats,
         autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, upgraderEnabled, upgraderDefaultPreset, upgraderMinSizeGB, upgraderAutomationEnabled, upgraderProfileMap, upgraderMaxActionsPerHour, upgraderDefaultSort, upgraderDrawerPosition, dashboardLayout,
         showUsernamesInAnalytics, useTrendingSlideshowOnLogin, downloadsVisibleToMembers
@@ -3031,6 +3037,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         customLogoUrl: customLogoUrl || '',
         brandingTheme: ['plex', 'slate', 'nordic', 'jellyfin', 'emerald', 'midnight', 'crimson', 'amethyst', 'sunset', 'ocean', 'rose', 'royal', 'graphite', 'cyberlime', 'aurora'].includes(String(brandingTheme || '').toLowerCase()) ? String(brandingTheme).toLowerCase() : (existingConfig.brandingTheme || 'plex'),
         sidebarIdentityPosition: ['top', 'bottom'].includes(String(sidebarIdentityPosition || '').toLowerCase()) ? String(sidebarIdentityPosition).toLowerCase() : (existingConfig.sidebarIdentityPosition || 'bottom'),
+        pwaIconSource: normalizePwaIconSource(pwaIconSource, normalizePwaIconSource(existingConfig.pwaIconSource)),
         backgroundImageUrl: backgroundImageUrl || '',
         useScrollRevealAnimations: !!useScrollRevealAnimations,
         useCinematicLoading: !!useCinematicLoading,
@@ -3168,6 +3175,7 @@ app.get('/api/config/public', async (req, res) => {
             customLogoUrl: config.customLogoUrl || '',
             brandingTheme: config.brandingTheme || 'plex',
             sidebarIdentityPosition: ['top', 'bottom'].includes(String(config.sidebarIdentityPosition || '').toLowerCase()) ? String(config.sidebarIdentityPosition).toLowerCase() : 'bottom',
+            pwaIconSource: normalizePwaIconSource(config.pwaIconSource),
             backgroundImageUrl: config.backgroundImageUrl || '',
             useScrollRevealAnimations: !!config.useScrollRevealAnimations,
             useCinematicLoading: !!config.useCinematicLoading,
@@ -3196,6 +3204,7 @@ app.get('/api/config/public', async (req, res) => {
             customLogoUrl: '',
             brandingTheme: 'plex',
             sidebarIdentityPosition: 'bottom',
+            pwaIconSource: 'server',
             backgroundImageUrl: '',
             useScrollRevealAnimations: false,
             useCinematicLoading: false,
@@ -7158,6 +7167,124 @@ async function getAdminProfile(config) {
     }
 }
 
+/** Prefer custom logo, then Jellyfin branding, then Plex/admin thumb — same order as the in-app nav icon. */
+const getPortalBrandingIconCacheKey = (config = {}, profile = {}) => createHash('sha1')
+    .update([
+        String(config.pwaIconSource || 'server'),
+        String(config.customLogoUrl || ''),
+        String(config.mediaServerType || ''),
+        String(profile.thumb || ''),
+        String(profile.serverName || ''),
+    ].join('|'))
+    .digest('hex')
+    .slice(0, 12);
+
+const sendStaticLogoFallback = async (res) => {
+    const logoPath = path.join(process.cwd(), 'static', 'logo.png');
+    try {
+        await fs.access(logoPath);
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        return res.sendFile(logoPath);
+    } catch {
+        return res.status(404).send('');
+    }
+};
+
+app.get('/api/public/branding-icon', publicReadRateLimit, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        if (normalizePwaIconSource(config.pwaIconSource) === 'application') {
+            return sendStaticLogoFallback(res);
+        }
+        const profile = await getAdminProfile(config);
+        const custom = String(config.customLogoUrl || '').trim();
+
+        if (custom) {
+            if (custom.startsWith('http://') || custom.startsWith('https://')) {
+                try {
+                    const parsed = new URL(custom);
+                    if (!isBlockedHostName(parsed.hostname)) {
+                        const response = await fetchWithTimeout(custom, { redirect: 'follow' }, 15000).catch(() => null);
+                        if (response?.ok) {
+                            const buffer = Buffer.from(await response.arrayBuffer());
+                            if (buffer.length) {
+                                res.setHeader('Content-Type', response.headers.get('content-type') || 'image/png');
+                                res.setHeader('Cache-Control', 'public, max-age=3600');
+                                return res.send(buffer);
+                            }
+                        }
+                    }
+                } catch {
+                    // fall through to other sources
+                }
+            } else {
+                const localPath = stripBasePathFromUrl(custom.startsWith('/') ? custom : `/${custom}`).split('?')[0];
+                if (localPath.startsWith('/static/')) {
+                    const fileName = path.basename(localPath);
+                    if (!fileName || fileName.includes('..')) return sendStaticLogoFallback(res);
+                    const assetPath = path.join(process.cwd(), 'static', fileName);
+                    try {
+                        await fs.access(assetPath);
+                        const ext = path.extname(fileName).toLowerCase();
+                        const type = ext === '.webp' ? 'image/webp' : (ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png');
+                        res.setHeader('Content-Type', type);
+                        res.setHeader('Cache-Control', 'public, max-age=3600');
+                        return res.sendFile(assetPath);
+                    } catch {
+                        return sendStaticLogoFallback(res);
+                    }
+                }
+            }
+        }
+
+        if (String(config.mediaServerType || '').toLowerCase() === 'jellyfin' && isJellyfinConfigured(config)) {
+            return proxyJellyfinBrandingAsset(res, ['/web/icon-transparent.png', '/web/assets/img/icon-transparent.png', '/web/favicon.ico'], 'image/png');
+        }
+
+        const thumb = String(profile.thumb || '').trim();
+        if (thumb.startsWith('http://') || thumb.startsWith('https://')) {
+            try {
+                const parsed = new URL(thumb);
+                if (!isBlockedHostName(parsed.hostname)) {
+                    const response = await fetchWithTimeout(thumb, { redirect: 'follow' }, 15000).catch(() => null);
+                    if (response?.ok) {
+                        const buffer = Buffer.from(await response.arrayBuffer());
+                        if (buffer.length) {
+                            res.setHeader('Content-Type', response.headers.get('content-type') || 'image/png');
+                            res.setHeader('Cache-Control', 'public, max-age=3600');
+                            return res.send(buffer);
+                        }
+                    }
+                }
+            } catch {
+                // fall through
+            }
+        } else if (thumb && isSafePlexMediaPath(thumb) && config.plexToken) {
+            const uri = await getPlexConnectionUri(config);
+            if (uri) {
+                const width = Math.min(Math.max(parseInt(req.query.width, 10) || 180, 32), 512);
+                const height = Math.min(Math.max(parseInt(req.query.height, 10) || 180, 32), 512);
+                const url = `${uri}/photo/:/transcode?url=${encodeURIComponent(thumb)}&width=${width}&height=${height}&minSize=1&X-Plex-Token=${config.plexToken}`;
+                const response = await fetchWithTimeout(url, {}, 15000).catch(() => null);
+                if (response?.ok) {
+                    const buffer = Buffer.from(await response.arrayBuffer());
+                    if (buffer.length) {
+                        res.setHeader('Content-Type', response.headers.get('content-type') || 'image/jpeg');
+                        res.setHeader('Cache-Control', 'public, max-age=3600');
+                        return res.send(buffer);
+                    }
+                }
+            }
+        }
+
+        return sendStaticLogoFallback(res);
+    } catch (e) {
+        log(`Branding icon failed: ${e.message}`);
+        return sendStaticLogoFallback(res);
+    }
+});
+
 app.get('/api/public/info', publicReadRateLimit, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
@@ -9652,15 +9779,11 @@ const buildPwaManifest = async (req) => {
     const profile = await getAdminProfile(config);
     const serverName = profile.serverName || 'Server Portal';
     const basePath = BASE_PATH || '';
-    const configuredLogoUrl = String(config.customLogoUrl || '').trim();
-    const iconSrc = configuredLogoUrl
-        ? (configuredLogoUrl.startsWith('http://') || configuredLogoUrl.startsWith('https://')
-            ? configuredLogoUrl
-            : withBasePath(stripBasePathFromUrl(configuredLogoUrl.startsWith('/') ? configuredLogoUrl : `/${configuredLogoUrl}`)))
-        : `${basePath}/static/logo.png`;
-    const iconType = iconSrc.toLowerCase().split('?')[0].endsWith('.webp')
+    const iconSrc = resolvePortalBrandingIconHref(config, profile);
+    const iconPath = iconSrc.toLowerCase().split('?')[0];
+    const iconType = iconPath.endsWith('.webp')
         ? 'image/webp'
-        : (iconSrc.toLowerCase().split('?')[0].endsWith('.jpg') || iconSrc.toLowerCase().split('?')[0].endsWith('.jpeg') ? 'image/jpeg' : 'image/png');
+        : (iconPath.endsWith('.jpg') || iconPath.endsWith('.jpeg') ? 'image/jpeg' : 'image/png');
     return {
         name: `${serverName} Portal`,
         short_name: serverName.length > 12 ? 'Portal' : serverName,
@@ -9673,7 +9796,13 @@ const buildPwaManifest = async (req) => {
         icons: [
             {
                 src: iconSrc,
-                sizes: 'any',
+                sizes: '192x192',
+                type: iconType,
+                purpose: 'any'
+            },
+            {
+                src: iconSrc,
+                sizes: '512x512',
                 type: iconType,
                 purpose: 'any maskable'
             }
@@ -9752,11 +9881,16 @@ const resolvePublicAssetHref = (url = '/static/logo.png') => {
     return withBasePath(stripBasePathFromUrl(path));
 };
 
+const resolvePortalBrandingIconHref = (config = {}, profile = {}) => {
+    const href = resolvePublicAssetHref('/api/public/branding-icon');
+    return `${href}?v=${getPortalBrandingIconCacheKey(config, profile)}`;
+};
+
 const injectAppIconLinks = (html, iconHref) => {
     const safeHref = escapeHtmlAttr(iconHref || resolvePublicAssetHref('/static/logo.png'));
     const iconLinks = [
-        `<link rel="icon" href="${safeHref}" />`,
-        `<link rel="apple-touch-icon" href="${safeHref}" />`
+        `<link rel="icon" type="image/png" href="${safeHref}" />`,
+        `<link rel="apple-touch-icon" sizes="180x180" href="${safeHref}" />`
     ].join('\n    ');
     return html
         .replace(/<link\b(?=[^>]*\brel=["'][^"']*(?:apple-touch-icon|icon)[^"']*["'])[^>]*>\s*/gi, '')
@@ -9809,7 +9943,7 @@ const buildSocialMetaTags = async (req) => {
         `<meta name="description" content="${escapeHtmlAttr(description)}" />`
     ].join('\n    ');
 
-    return { title, tags, iconHref: resolvePublicAssetHref(config.customLogoUrl || '/static/logo.png') };
+    return { title, tags, iconHref: resolvePortalBrandingIconHref(config, profile) };
 };
 
 // Serve the main index.html for SPA routes (after base-path strip, paths are root-relative)

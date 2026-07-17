@@ -451,6 +451,7 @@ export const SettingsDashboard: React.FC = () => {
     const [tmdbApiKey, setTmdbApiKey] = useState('');
     const [brandingTheme, setBrandingTheme] = useState('plex');
     const [sidebarIdentityPosition, setSidebarIdentityPosition] = useState<'top' | 'bottom'>('bottom');
+    const [pwaIconSource, setPwaIconSource] = useState<'server' | 'application'>('server');
     const [referralEnabled, setReferralEnabled] = useState(false);
     const [referralTrialDays, setReferralTrialDays] = useState(3);
     const [referralRewardDays, setReferralRewardDays] = useState(7);
@@ -961,8 +962,9 @@ export const SettingsDashboard: React.FC = () => {
             setRequestHideAvailableMedia(!!initialSettings.requestHideAvailableMedia);
             const savedBrandingTheme = localStorage.getItem('portal-theme') || initialSettings.brandingTheme || 'plex';
             setBrandingTheme(savedBrandingTheme);
-            setSidebarIdentityPosition(initialSettings.sidebarIdentityPosition === 'top' ? 'top' : 'bottom');
             setCustomLogoUrl(initialSettings.customLogoUrl || '');
+            setSidebarIdentityPosition(initialSettings.sidebarIdentityPosition === 'top' ? 'top' : 'bottom');
+            setPwaIconSource(initialSettings.pwaIconSource === 'application' ? 'application' : 'server');
             setBackgroundImageUrl(initialSettings.backgroundImageUrl || '');
             setUseScrollRevealAnimations(!!initialSettings.useScrollRevealAnimations);
             setUseCinematicLoading(!!initialSettings.useCinematicLoading);
@@ -1191,6 +1193,7 @@ export const SettingsDashboard: React.FC = () => {
             customLogoUrl: savedCustomLogoUrl,
             brandingTheme,
             sidebarIdentityPosition,
+            pwaIconSource,
             backgroundImageUrl: savedBackgroundImageUrl,
             useScrollRevealAnimations,
             useCinematicLoading,
@@ -2430,6 +2433,22 @@ export const SettingsDashboard: React.FC = () => {
                                                         />
                                                     </div>
                                                     {logoFile && <p className="text-xs text-muted mt-2">{logoFile.name}</p>}
+                                                </div>
+
+                                                <div>
+                                                    <SettingFieldLabel
+                                                        hint={<SettingHint>Controls the home-screen / PWA icon. Server uses your custom logo or media-server branding; Application keeps the Server Portal icon.</SettingHint>}
+                                                    >
+                                                        PWA Home Screen Icon
+                                                    </SettingFieldLabel>
+                                                    <CustomSelect
+                                                        value={pwaIconSource}
+                                                        onChange={(value) => setPwaIconSource(value === 'application' ? 'application' : 'server')}
+                                                        options={[
+                                                            { label: 'Server logo', value: 'server' },
+                                                            { label: 'Application logo', value: 'application' },
+                                                        ]}
+                                                    />
                                                 </div>
 
                                                 <div id={getSettingsSectionElementId('theme')} className="scroll-mt-24 relative z-[50]">

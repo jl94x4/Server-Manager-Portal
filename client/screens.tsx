@@ -137,17 +137,25 @@ export const updateFavicon = (thumbUrl: string | null | undefined) => {
         link.type = 'image/png';
         document.head.appendChild(link);
     }
+    let appleLink = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement;
+    if (!appleLink) {
+        appleLink = document.createElement('link');
+        appleLink.rel = 'apple-touch-icon';
+        appleLink.setAttribute('sizes', '180x180');
+        document.head.appendChild(appleLink);
+    }
+    let href = logoUrl();
     if (thumbUrl) {
         if (thumbUrl.startsWith('http://') || thumbUrl.startsWith('https://')) {
-            link.href = thumbUrl;
-        } else if (thumbUrl.startsWith('/api/')) {
-            link.href = resolvePortalAssetUrl(thumbUrl);
+            href = thumbUrl;
+        } else if (thumbUrl.startsWith('/api/') || thumbUrl.startsWith('/static/')) {
+            href = resolvePortalAssetUrl(thumbUrl);
         } else {
-            link.href = portalUrl(`/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=32&height=32`);
+            href = portalUrl(`/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=180&height=180`);
         }
-    } else {
-        link.href = logoUrl();
     }
+    link.href = href;
+    appleLink.href = href;
 };
 
 // --- Components ---
@@ -9360,7 +9368,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
             <div className="hidden md:flex flex-col w-72 nav-shell border-r px-5 py-4 sticky top-0 self-start h-dvh shadow-2xl overflow-hidden">
                 {sidebarIdentityPosition === 'top' && renderServerIdentity('top')}
 
-                <div className="flex flex-col justify-start gap-0.5 xl:justify-evenly xl:gap-0 min-h-0 flex-1 overflow-hidden py-0.5">
+                <div className="flex flex-col justify-start gap-1 min-h-0 flex-1 overflow-y-auto overflow-x-hidden py-0.5 custom-scrollbar">
                     {normalizedNavOrder.map((key) => {
                         const item = navItemsConfig[key];
                         if (!item) return null;
