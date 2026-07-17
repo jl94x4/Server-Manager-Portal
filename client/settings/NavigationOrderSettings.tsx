@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { GripVertical, MoreHorizontal } from 'lucide-react';
+import React, { useMemo, useRef, useState } from 'react';
+import { ChevronDown, ChevronUp, GripVertical, MoreHorizontal } from 'lucide-react';
 import { getNavItemLabel, MOBILE_NAV_PRIMARY_SLOTS } from '../shared/nav';
 import { SettingsToggleRow } from '../shared/ui';
 import { SettingHint } from './SettingHint';
@@ -30,6 +30,9 @@ export const NavigationOrderSettings: React.FC<Props> = ({
 }) => {
     const [dragIndex, setDragIndex] = useState<number | null>(null);
     const [dropIndex, setDropIndex] = useState<number | null>(null);
+    const dragIndexRef = useRef<number | null>(null);
+    const dropIndexRef = useRef<number | null>(null);
+    const itemRefs = useRef<Array<HTMLDivElement | null>>([]);
 
     const mobileKeys = useMemo(() => navOrder.filter(isMobileNavKey), [navOrder]);
     const moreStartsAtMobileIndex = mobileKeys.length > MOBILE_NAV_PRIMARY_SLOTS
@@ -42,18 +45,73 @@ export const NavigationOrderSettings: React.FC<Props> = ({
         return map;
     }, [mobileKeys]);
 
-    const handleDrop = (targetIndex: number) => {
-        if (dragIndex === null) return;
-        onChange(reorder(navOrder, dragIndex, targetIndex));
+    const commitReorder = (from: number, to: number) => {
+        if (from === to) return;
+        onChange(reorder(navOrder, from, to));
+    };
+
+    const indexFromClientY = (clientY: number) => {
+        let nextIndex = navOrder.length - 1;
+        for (let i = 0; i < itemRefs.current.length; i += 1) {
+            const node = itemRefs.current[i];
+            if (!node) continue;
+            const rect = node.getBoundingClientRect();
+            if (clientY < rect.top + rect.height / 2) {
+                nextIndex = i;
+                break;
+            }
+        }
+        return Math.max(0, Math.min(navOrder.length - 1, nextIndex));
+    };
+
+    const clearDragState = () => {
+        dragIndexRef.current = null;
+        dropIndexRef.current = null;
         setDragIndex(null);
         setDropIndex(null);
+    };
+
+    const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>, index: number) => {
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        event.preventDefault();
+        event.currentTarget.setPointerCapture(event.pointerId);
+        dragIndexRef.current = index;
+        dropIndexRef.current = index;
+        setDragIndex(index);
+        setDropIndex(index);
+    };
+
+    const handlePointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+        if (dragIndexRef.current === null) return;
+        const nextDrop = indexFromClientY(event.clientY);
+        if (dropIndexRef.current !== nextDrop) {
+            dropIndexRef.current = nextDrop;
+            setDropIndex(nextDrop);
+        }
+    };
+
+    const handlePointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
+        if (dragIndexRef.current === null) return;
+        try {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+        } catch {
+            /* already released */
+        }
+        const from = dragIndexRef.current;
+        const to = dropIndexRef.current ?? from;
+        clearDragState();
+        commitReorder(from, to);
+    };
+
+    const handlePointerCancel = () => {
+        clearDragState();
     };
 
     return (
         <div className="mb-8 animate-fade-in">
             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Navigation Order</h3>
             <p className="text-muted text-sm mb-2 max-w-2xl">
-                Drag items to reorder the desktop sidebar. On mobile, the first {MOBILE_NAV_PRIMARY_SLOTS} items stay in the bottom bar; the rest move into More.
+                Drag the handle to reorder the desktop sidebar. On phones, press and drag the grip — or use the arrows. The first {MOBILE_NAV_PRIMARY_SLOTS} items stay in the bottom bar; the rest move into More.
             </p>
             <p className="text-xs text-muted mb-4 max-w-2xl">
                 Labels match the live sidebar. Logout stays in this list for desktop config but is not shown in the mobile bar.
@@ -76,7 +134,7 @@ export const NavigationOrderSettings: React.FC<Props> = ({
                 </p>
             </div>
 
-            <div className="flex flex-col gap-2 max-w-xl">
+            <div className="flex flex-col gap-2 max-w-xl select-none">
                 {navOrder.map((key, index) => {
                     const mobileIndex = mobileIndexByKey.get(key);
                     const inMobileBar = mobileIndex !== undefined
@@ -104,30 +162,26 @@ export const NavigationOrderSettings: React.FC<Props> = ({
                             )}
 
                             <div
-                                draggable
-                                onDragStart={() => setDragIndex(index)}
-                                onDragEnd={() => {
-                                    setDragIndex(null);
-                                    setDropIndex(null);
-                                }}
-                                onDragOver={(e) => {
-                                    e.preventDefault();
-                                    setDropIndex(index);
-                                }}
-                                onDragLeave={() => {
-                                    if (dropIndex === index) setDropIndex(null);
-                                }}
-                                onDrop={(e) => {
-                                    e.preventDefault();
-                                    handleDrop(index);
-                                }}
-                                className={`flex items-center gap-3 py-3 px-3 rounded-xl border bg-background/30 transition-all cursor-grab active:cursor-grabbing
+                                ref={(node) => { itemRefs.current[index] = node; }}
+                                data-nav-order-index={index}
+                                className={`flex items-center gap-2 sm:gap-3 py-3 px-3 rounded-xl border bg-background/30 transition-all
                                     ${isDragging ? 'opacity-50 border-plex/40 scale-[0.98]' : 'border-border/40'}
                                     ${isDropTarget ? 'border-plex ring-1 ring-plex/30' : ''}
                                     ${inMoreMenu ? 'border-dashed border-border/50 bg-white/[0.02]' : ''}
                                     ${!isMobileNavKey(key) ? 'opacity-70' : ''}`}
                             >
-                                <GripVertical className="w-5 h-5 text-muted shrink-0" aria-hidden />
+                                <button
+                                    type="button"
+                                    aria-label={`Drag to reorder ${getNavItemLabel(key)}`}
+                                    onPointerDown={(e) => handlePointerDown(e, index)}
+                                    onPointerMove={handlePointerMove}
+                                    onPointerUp={handlePointerUp}
+                                    onPointerCancel={handlePointerCancel}
+                                    className="touch-none shrink-0 p-1.5 -ml-1 rounded-lg text-muted hover:text-text hover:bg-white/5 active:bg-white/10 cursor-grab active:cursor-grabbing"
+                                >
+                                    <GripVertical className="w-5 h-5" aria-hidden />
+                                </button>
+
                                 <div className="min-w-0 flex-1">
                                     <div className="text-text font-medium">
                                         {getNavItemLabel(key, {
@@ -139,16 +193,37 @@ export const NavigationOrderSettings: React.FC<Props> = ({
                                         <p className="text-[11px] text-muted mt-0.5">Not shown in the mobile bottom bar</p>
                                     )}
                                 </div>
-                                {inMobileBar && moreStartsAtMobileIndex !== null && (
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-plex/90 bg-plex/10 border border-plex/25 rounded-md px-2 py-1 shrink-0">
-                                        Mobile bar
-                                    </span>
-                                )}
-                                {inMoreMenu && (
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted bg-white/5 border border-border/60 rounded-md px-2 py-1 shrink-0">
-                                        More
-                                    </span>
-                                )}
+
+                                <div className="flex items-center gap-1 shrink-0">
+                                    {inMobileBar && moreStartsAtMobileIndex !== null && (
+                                        <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wider text-plex/90 bg-plex/10 border border-plex/25 rounded-md px-2 py-1">
+                                            Mobile bar
+                                        </span>
+                                    )}
+                                    {inMoreMenu && (
+                                        <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wider text-muted bg-white/5 border border-border/60 rounded-md px-2 py-1">
+                                            More
+                                        </span>
+                                    )}
+                                    <button
+                                        type="button"
+                                        aria-label={`Move ${getNavItemLabel(key)} up`}
+                                        disabled={index === 0}
+                                        onClick={() => commitReorder(index, index - 1)}
+                                        className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-border/60 bg-white/[0.03] text-muted hover:text-text hover:border-plex/40 disabled:opacity-30 disabled:pointer-events-none"
+                                    >
+                                        <ChevronUp className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        aria-label={`Move ${getNavItemLabel(key)} down`}
+                                        disabled={index === navOrder.length - 1}
+                                        onClick={() => commitReorder(index, index + 1)}
+                                        className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-border/60 bg-white/[0.03] text-muted hover:text-text hover:border-plex/40 disabled:opacity-30 disabled:pointer-events-none"
+                                    >
+                                        <ChevronDown className="w-4 h-4" />
+                                    </button>
+                                </div>
                             </div>
                         </React.Fragment>
                     );
