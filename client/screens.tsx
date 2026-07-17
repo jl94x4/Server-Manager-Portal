@@ -3046,17 +3046,17 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
 return (
         <div className="w-full min-w-0 animate-fade-in flex flex-col gap-6">
             <div className="flex flex-col gap-4 mb-6">
-                <h1 className="text-3xl font-black text-white flex items-center gap-3 uppercase tracking-wider">
+                <h1 className="text-3xl font-black text-text flex items-center gap-3 uppercase tracking-wider">
                     <BarChart3 className="w-8 h-8 text-plex" />
                     Advanced Analytics
                 </h1>
                 <div className="flex flex-row items-center justify-between gap-3 w-full">
                     <div className="flex bg-black/40 rounded-lg p-1 border border-white/5 w-fit overflow-x-auto hide-scrollbar">
-                        <button onClick={() => setViewTab('overview')} className={`px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 md:gap-2 ${viewTab === 'overview' ? 'bg-plex text-white shadow-lg' : 'text-muted hover:text-white'}`}>
+                        <button onClick={() => setViewTab('overview')} className={`px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 md:gap-2 ${viewTab === 'overview' ? 'bg-plex text-background' : 'text-muted hover:text-text'}`}>
                             <Activity className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Overview</span><span className="sm:hidden">Overview</span>
                         </button>
                         {!isJellyfinPortal && (
-                            <button onClick={() => setViewTab('graphs')} className={`px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 md:gap-2 ${viewTab === 'graphs' ? 'bg-plex text-white shadow-lg' : 'text-muted hover:text-white'}`}>
+                            <button onClick={() => setViewTab('graphs')} className={`px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 md:gap-2 ${viewTab === 'graphs' ? 'bg-plex text-background' : 'text-muted hover:text-text'}`}>
                                 <LucideLineChart className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Graphs</span><span className="sm:hidden">Graphs</span>
                             </button>
                         )}
@@ -5460,8 +5460,8 @@ export const DiscoverPosterCard: React.FC<{
 }> = ({ item, aspect = '2/3', overlay, variant = 'discover', className = 'w-full', footer, showQualityBadges = true, posterOnlyLink = false, onPosterClick, posterWidth = 300, posterHeight }) => {
     const resolvedPosterHeight = posterHeight ?? (aspect === 'square' ? posterWidth : Math.round(posterWidth * 1.5));
     const posterShell = variant === 'home'
-        ? 'relative rounded-xl overflow-hidden bg-background border border-white/5 transition-[box-shadow,border-color] duration-300 group-hover:shadow-xl group-hover:border-plex/50'
-        : 'relative rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md';
+        ? 'relative rounded-xl overflow-hidden bg-background border border-border transition-[border-color] duration-300 group-hover:border-plex/50'
+        : 'relative rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors bg-card';
 
     const primaryPosterSrc = item.thumbUrl
         ? resolvePortalAssetUrl(item.thumbUrl)
@@ -5513,7 +5513,7 @@ export const DiscoverPosterCard: React.FC<{
     );
 
     const defaultFooter = (
-        <div className={`text-xs font-medium line-clamp-2 leading-tight ${variant === 'home' ? 'text-text text-left px-1' : 'text-white text-center mt-1'}`}>
+        <div className={`text-xs font-medium line-clamp-2 leading-tight text-text ${variant === 'home' ? 'text-left px-1' : 'text-center mt-1'}`}>
             {item.title}
         </div>
     );
@@ -6534,7 +6534,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                 })()}
                             </p>
                             <h1
-                                className="text-4xl md:text-5xl font-black text-white leading-normal drop-shadow-lg pb-0.5"
+                                className="text-4xl md:text-5xl font-black text-text leading-normal pb-0.5"
                                 style={{ fontSize: 'clamp(1.6rem, 8vw, 3rem)', wordBreak: 'break-word' }}
                             >
                                 {sessionInfo.session.username}
@@ -6895,7 +6895,7 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)}
                         className={`px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 cursor-pointer border-none outline-none ${activeTab === tab.id
-                            ? 'bg-plex text-background shadow-md'
+                            ? 'bg-plex text-background'
                             : 'bg-transparent text-muted hover:text-text hover:bg-white/5'
                             }`}
                     >
@@ -9275,12 +9275,12 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
             </div>
 
             <div className="flex flex-col items-center text-center px-2">
-                <h2 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-gray-100 to-gray-400 drop-shadow-md tracking-tight leading-tight line-clamp-2">
+                <h2 className="text-xl font-black text-text tracking-tight leading-tight line-clamp-2">
                     {serverName}
                 </h2>
                 <div className="mt-1.5 flex items-center gap-2">
                     <div className="h-px w-6 bg-gradient-to-r from-transparent to-plex/50"></div>
-                    <span className="text-[10px] uppercase tracking-[0.3em] text-plex font-bold drop-shadow-[0_0_8px_rgba(229,160,13,0.5)]">
+                    <span className="text-[10px] uppercase tracking-[0.3em] text-plex font-bold">
                         Portal
                     </span>
                     <div className="h-px w-6 bg-gradient-to-l from-transparent to-plex/50"></div>

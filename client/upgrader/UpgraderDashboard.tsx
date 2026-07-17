@@ -867,7 +867,7 @@ export const UpgraderDashboard: React.FC = () => {
                                                             <div>
                                                                 <button
                                                                     type="button"
-                                                                    className={`text-lg font-bold text-white line-clamp-1 text-left ${isShow ? 'hover:text-plex transition-colors' : 'cursor-default'}`}
+                                                                    className={`text-lg font-bold text-text line-clamp-1 text-left ${isShow ? 'hover:text-plex transition-colors' : 'cursor-default'}`}
                                                                     onClick={isShow ? () => handleOpenDrawer(item) : undefined}
                                                                 >
                                                                     {item.title}{item.year ? ` (${item.year})` : ''}

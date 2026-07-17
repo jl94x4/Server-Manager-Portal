@@ -396,12 +396,13 @@ export const MediaDetailsPage: React.FC<{
                     ) : (
                         <div className="absolute inset-0 bg-black" />
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-card/65 via-[55%] to-card md:hidden" />
-                    <div className="absolute inset-0 hidden md:block bg-gradient-to-t from-card from-0% via-card/80 via-[38%] to-transparent" />
-                    <div className="absolute inset-0 hidden md:block bg-gradient-to-r from-card from-0% via-card/70 via-[32%] to-transparent to-[78%]" />
+                    {/* Black-based scrims keep hero type readable in light mode (card vars become white). */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/45 via-[55%] to-background md:hidden" />
+                    <div className="absolute inset-0 hidden md:block bg-gradient-to-t from-background from-0% via-black/55 via-[38%] to-transparent" />
+                    <div className="absolute inset-0 hidden md:block bg-gradient-to-r from-black/75 from-0% via-black/45 via-[32%] to-transparent to-[78%]" />
                 </div>
 
-                <div className="relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 pt-4 sm:pt-5 pb-8">
+                <div className="relative z-10 light-on-media w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 pt-4 sm:pt-5 pb-8">
                     <button
                         type="button"
                         onClick={onBack}

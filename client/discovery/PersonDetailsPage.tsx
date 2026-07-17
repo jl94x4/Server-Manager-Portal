@@ -83,7 +83,7 @@ export const PersonDetailsPage: React.FC<{
         <div className="w-full flex flex-col gap-8 pb-12 animate-fade-in relative z-10 px-4 sm:px-8 mt-4">
             <button 
                 onClick={onBack}
-                className="flex items-center gap-2 text-white/70 hover:text-white font-medium transition-colors w-fit"
+                className="flex items-center gap-2 text-muted hover:text-text font-medium transition-colors w-fit"
             >
                 <ArrowLeft className="w-5 h-5" /> Back to Discovery
             </button>
@@ -95,22 +95,22 @@ export const PersonDetailsPage: React.FC<{
                         <img 
                             src={profileUrl} 
                             alt={person.name}
-                            className="w-full rounded-2xl shadow-2xl object-cover aspect-[2/3] border border-white/10"
+                            className="w-full rounded-2xl object-cover aspect-[2/3] border border-border"
                         />
                     ) : (
-                        <div className="w-full rounded-2xl bg-white/5 border border-white/10 aspect-[2/3] flex items-center justify-center">
-                            <span className="text-white/30 text-2xl font-bold">No Photo</span>
+                        <div className="w-full rounded-2xl bg-white/5 border border-border aspect-[2/3] flex items-center justify-center">
+                            <span className="text-muted text-2xl font-bold">No Photo</span>
                         </div>
                     )}
                 </div>
 
                 {/* Profile Info */}
                 <div className="flex-1 flex flex-col gap-6">
-                    <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tight drop-shadow-md">
+                    <h1 className="text-4xl sm:text-6xl font-black text-text tracking-tight">
                         {person.name}
                     </h1>
 
-                    <div className="flex flex-wrap gap-4 text-sm font-bold text-white/70 uppercase tracking-widest">
+                    <div className="flex flex-wrap gap-4 text-sm font-bold text-muted uppercase tracking-widest">
                         {person.knownForDepartment && (
                             <span className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full border border-white/5">
                                 <Star className="w-4 h-4 text-plex" /> {person.knownForDepartment}
@@ -129,8 +129,8 @@ export const PersonDetailsPage: React.FC<{
                     </div>
 
                     <div className="flex flex-col gap-3 mt-4">
-                        <h2 className="text-2xl font-bold text-white">Biography</h2>
-                        <div className="text-white/70 text-lg leading-relaxed whitespace-pre-line space-y-4">
+                        <h2 className="text-2xl font-bold text-text">Biography</h2>
+                        <div className="text-muted text-lg leading-relaxed whitespace-pre-line space-y-4">
                             <p>{bioFirst}</p>
                             {bioHasMore && bioExpanded && <p>{bioRest}</p>}
                         </div>
@@ -150,8 +150,8 @@ export const PersonDetailsPage: React.FC<{
 
             {/* Known For Grid */}
             {visibleCredits.length > 0 && (
-                <div className="flex flex-col gap-4 mt-12 border-t border-white/10 pt-10">
-                    <h2 className="text-2xl font-black text-white flex items-center gap-3">
+                <div className="flex flex-col gap-4 mt-12 border-t border-border pt-10">
+                    <h2 className="text-2xl font-black text-text flex items-center gap-3">
                         <Film className="w-6 h-6 text-plex" /> Known For
                     </h2>
                     <div className={upgraderPosterGridClass('large')} style={upgraderPosterGridStyle('large')}>
@@ -165,7 +165,7 @@ export const PersonDetailsPage: React.FC<{
                                     showQualityBadges={false}
                                     onPosterClick={() => onSelect(formatted)}
                                     footer={(
-                                        <div className="text-[11px] font-medium line-clamp-2 leading-tight text-white/75 text-center mt-1 px-0.5">
+                                        <div className="text-[11px] font-medium line-clamp-2 leading-tight text-text text-center mt-1 px-0.5">
                                             {formatted.title}
                                         </div>
                                     )}

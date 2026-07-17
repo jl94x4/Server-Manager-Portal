@@ -15,7 +15,7 @@ export const CompanyCard: React.FC<CompanyCardProps> = ({ name, logoPath, onClic
         <button
             type="button"
             onClick={onClick}
-            className="group relative w-[170px] sm:w-[200px] h-[100px] sm:h-[112px] flex-shrink-0 snap-start rounded-xl border border-border bg-card/80 overflow-hidden transition-all duration-300 hover:scale-[1.03] hover:border-border/80 hover:shadow-[0_8px_30px_rgba(0,0,0,0.25)] focus:outline-none focus-visible:ring-2 focus-visible:ring-plex"
+            className="group relative w-[170px] sm:w-[200px] h-[100px] sm:h-[112px] flex-shrink-0 snap-start rounded-xl border border-border bg-card/80 overflow-hidden transition-all duration-300 hover:scale-[1.03] hover:border-plex/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-plex"
             aria-label={name}
         >
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-transparent pointer-events-none" />
@@ -57,7 +57,7 @@ export const GenreCard: React.FC<GenreCardProps> = ({ name, gradient, image, onC
         <button
             type="button"
             onClick={onClick}
-            className={`relative w-[180px] sm:w-[216px] h-[106px] sm:h-[120px] flex-shrink-0 snap-start rounded-xl overflow-hidden px-4 flex items-center justify-center cursor-pointer hover:scale-[1.03] transition-transform shadow-lg border border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-plex ${
+            className={`relative w-[180px] sm:w-[216px] h-[106px] sm:h-[120px] flex-shrink-0 snap-start rounded-xl overflow-hidden px-4 flex items-center justify-center cursor-pointer hover:scale-[1.03] transition-transform border border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-plex ${
                 showImage ? 'bg-card' : `bg-gradient-to-br ${gradient || 'from-card to-background'}`
             }`}
         >
@@ -71,10 +71,10 @@ export const GenreCard: React.FC<GenreCardProps> = ({ name, gradient, image, onC
                         loading="lazy"
                         onError={() => setImageFailed(true)}
                     />
-                    <div className="absolute inset-0 bg-black/30 pointer-events-none" />
+                    <div className="absolute inset-0 bg-black/45 pointer-events-none" />
                 </>
             )}
-            <span className="relative z-10 text-white font-black drop-shadow-md text-center leading-tight text-sm sm:text-base">
+            <span className={`relative z-10 font-black text-center leading-tight text-sm sm:text-base ${showImage ? 'text-white light-on-media' : 'text-text'}`}>
                 {name}
             </span>
         </button>

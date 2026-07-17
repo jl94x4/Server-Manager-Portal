@@ -195,7 +195,7 @@ export const DiscoverHeroHeader: React.FC<SearchResultProps> = (props) => {
                         <h1 className={discoveryTheme.heroTitle}>
                             {t('hero.title')}
                         </h1>
-                        <p className="text-sm text-white/65 max-w-xl mx-auto">
+                        <p className="text-sm text-muted max-w-xl mx-auto">
                             {t('hero.subtitle')}
                         </p>
                     </div>
