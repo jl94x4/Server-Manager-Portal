@@ -13,7 +13,7 @@ type Props = {
     alt: string;
     className?: string;
     width?: 154 | 300 | 780;
-    /** Overseerr-style light gray duotone — use on dark company cards. */
+    /** Overseerr-style duotone — light marks on dark cards, dark marks in light theme. */
     duotone?: boolean;
     onError?: () => void;
 };
@@ -25,7 +25,12 @@ const isBundledOrAbsoluteLogo = (logoPath: string) => {
         || path.startsWith('/static/');
 };
 
-/** TMDB network/studio logo — duotone for dark cards, or invert when predominantly black. */
+const readLightTheme = () => {
+    if (typeof document === 'undefined') return false;
+    return document.documentElement.getAttribute('data-theme') === 'light';
+};
+
+/** TMDB network/studio logo — duotone for company cards, or invert when predominantly black. */
 export const DiscoveryLogo: React.FC<Props> = ({
     logoPath,
     alt,
@@ -34,10 +39,19 @@ export const DiscoveryLogo: React.FC<Props> = ({
     duotone = false,
     onError,
 }) => {
+    const [isLightTheme, setIsLightTheme] = useState(readLightTheme);
     const useDuotone = duotone && !isBundledOrAbsoluteLogo(logoPath);
     const src = useDuotone
-        ? tmdbDuotoneLogo(logoPath, width === 154 ? 300 : width)
+        ? tmdbDuotoneLogo(logoPath, width === 154 ? 300 : width, isLightTheme ? 'onLight' : 'onDark')
         : discoveryLogoUrl(logoPath, width);
+
+    useEffect(() => {
+        const apply = () => setIsLightTheme(readLightTheme());
+        apply();
+        const observer = new MutationObserver(apply);
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+        return () => observer.disconnect();
+    }, []);
 
     const [invert, setInvert] = useState(
         () => !useDuotone
@@ -55,7 +69,7 @@ export const DiscoveryLogo: React.FC<Props> = ({
 
         // Bundled SVGs are typically dark marks for light UIs — force invert on dark cards.
         if (String(logoPath || '').startsWith('/static/')) {
-            setInvert(true);
+            setInvert(!isLightTheme);
             return undefined;
         }
 
@@ -65,7 +79,7 @@ export const DiscoveryLogo: React.FC<Props> = ({
         }
 
         if (isKnownDarkLogoPath(logoPath) || shouldInvertByLabel(alt)) {
-            setInvert(true);
+            setInvert(!isLightTheme);
             return undefined;
         }
 
@@ -75,7 +89,7 @@ export const DiscoveryLogo: React.FC<Props> = ({
         probe.onload = () => {
             if (cancelled) return;
             try {
-                if (isPredominantlyDarkLogo(probe)) setInvert(true);
+                if (isPredominantlyDarkLogo(probe)) setInvert(!isLightTheme);
             } catch {
                 // Canvas blocked — keep path/label fallbacks only.
             }
@@ -87,7 +101,7 @@ export const DiscoveryLogo: React.FC<Props> = ({
             probe.onload = null;
             probe.onerror = null;
         };
-    }, [logoPath, alt, width, useDuotone]);
+    }, [logoPath, alt, width, useDuotone, isLightTheme]);
 
     return (
         <img

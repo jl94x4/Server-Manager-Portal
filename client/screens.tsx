@@ -6411,7 +6411,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
             )}
 
             {/* Massive Hero Banner */}
-            <div className="relative w-full rounded-2xl overflow-hidden shadow-2xl bg-card border border-border">
+            <div className="home-hero-banner relative w-full rounded-2xl overflow-hidden shadow-2xl bg-card border border-border">
                 {/* Blurred Background */}
                 <div className="absolute inset-0 bg-background overflow-hidden">
                     {publicConfig?.useTrendingSlideshow && publicConfig?.trendingBackgrounds?.length > 0 ? (
@@ -6424,7 +6424,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                     smartFocus
                                 />
                             </div>
-                            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
+                            <div className="home-hero-scrim absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
                             <div className="absolute inset-0 bg-gradient-to-r from-card via-card/20 to-transparent" />
                             <div className="absolute inset-0 bg-black/10" />
                         </>
@@ -6439,7 +6439,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                     </div>
                                 ))}
                             </div>
-                            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" />
+                            <div className="home-hero-scrim absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" />
                             <div className="absolute inset-0 bg-gradient-to-r from-card via-card/40 to-transparent" />
                         </>
                     ) : heroBg ? (
@@ -6448,12 +6448,12 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                 className="absolute inset-0 bg-cover bg-center opacity-30 blur-2xl scale-110"
                                 style={{ backgroundImage: `url(${heroBg})` }}
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" />
+                            <div className="home-hero-scrim absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" />
                             <div className="absolute inset-0 bg-gradient-to-r from-card via-card/40 to-transparent" />
                         </>
                     ) : (
                         <>
-                            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" />
+                            <div className="home-hero-scrim absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" />
                             <div className="absolute inset-0 bg-gradient-to-r from-card via-card/40 to-transparent" />
                         </>
                     )}

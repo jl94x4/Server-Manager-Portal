@@ -13,10 +13,16 @@ export type DiscoverGenre = {
     gradient: string;
 };
 
-/** TMDB duotone logo treatment used by Overseerr CompanyCard. */
-export const tmdbDuotoneLogo = (logoPath: string, width: 780 | 300 = 780) => {
+/** TMDB duotone logo treatment used by Overseerr CompanyCard.
+ *  onDark = light marks for dark cards; onLight = dark marks for light cards. */
+export const tmdbDuotoneLogo = (
+    logoPath: string,
+    width: 780 | 300 = 780,
+    surface: 'onDark' | 'onLight' = 'onDark',
+) => {
     const path = logoPath.startsWith('/') ? logoPath : `/${logoPath}`;
-    return `https://image.tmdb.org/t/p/w${width}_filter(duotone,ffffff,bababa)${path}`;
+    const tones = surface === 'onLight' ? '1a2332,5b6b7c' : 'ffffff,bababa';
+    return `https://image.tmdb.org/t/p/w${width}_filter(duotone,${tones})${path}`;
 };
 
 export const tmdbBackdropUrl = (backdropPath: string) => {

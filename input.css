@@ -412,6 +412,74 @@ html[data-theme="light"] .discovery-theme .from-background\/85 {
   --tw-gradient-from: rgb(var(--color-bg) / 0.92) var(--tw-gradient-from-position);
 }
 
+/*
+ * Personal Wrap-Up cards: dark photo + black scrim + white type works in dark themes,
+ * but light mode remaps white→ink and makes the muddy dark tiles look broken.
+ * Use a soft light surface with faint art instead.
+ */
+html[data-theme="light"] .wrap-up-card {
+  background-color: rgb(var(--color-card));
+  border-color: rgb(var(--light-ink) / 0.14) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="light"] .wrap-up-card .wrap-up-card-bg {
+  opacity: 0.14 !important;
+  filter: saturate(0.85) brightness(1.15);
+}
+
+html[data-theme="light"] .wrap-up-card .wrap-up-card-scrim {
+  background: linear-gradient(
+    160deg,
+    rgb(var(--color-card) / 0.92) 0%,
+    rgb(var(--color-bg) / 0.88) 100%
+  ) !important;
+}
+
+html[data-theme="light"] .wrap-up-card .wrap-up-card-label {
+  color: rgb(var(--color-muted)) !important;
+}
+
+html[data-theme="light"] .wrap-up-card .wrap-up-card-value,
+html[data-theme="light"] .wrap-up-card .wrap-up-card-value .text-white {
+  color: rgb(var(--color-text)) !important;
+}
+
+html[data-theme="light"] .wrap-up-card .wrap-up-card-sub:not(.text-plex) {
+  color: rgb(var(--color-muted)) !important;
+}
+
+html[data-theme="light"] .wrap-up-card .text-plex {
+  color: rgb(var(--color-plex)) !important;
+}
+
+/* Home hero banner: keep greeting readable over bright slideshow art */
+html[data-theme="light"] .home-hero-banner {
+  box-shadow: none !important;
+}
+
+html[data-theme="light"] .home-hero-banner .home-hero-scrim {
+  background: linear-gradient(
+    105deg,
+    rgb(var(--color-bg) / 0.92) 0%,
+    rgb(var(--color-bg) / 0.72) 42%,
+    rgb(var(--color-bg) / 0.2) 72%,
+    transparent 100%
+  ) !important;
+}
+
+/* Studios / Networks: white duotone logos disappear on light cards */
+html[data-theme="light"] .company-card {
+  background-color: rgb(var(--color-card));
+  border-color: rgb(var(--light-ink) / 0.16);
+  box-shadow: none !important;
+}
+
+html[data-theme="light"] .company-card .company-duotone-logo {
+  /* Fallback if a cached light duotone image is still shown */
+  filter: none;
+}
+
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 8px;

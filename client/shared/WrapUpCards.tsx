@@ -212,7 +212,7 @@ export const WrapUpCardGrid: React.FC<WrapUpCardGridProps> = ({
                         key={card.metric}
                         data-wrap-up-card=""
                         onClick={interactive && onCardClick ? () => onCardClick(card.metric) : undefined}
-                        className={`rounded-xl relative border border-border/50 flex flex-col ${isExport ? 'isolate' : 'overflow-hidden'} ${interactive ? 'cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all group' : ''}`}
+                        className={`wrap-up-card rounded-xl relative border border-border/50 flex flex-col ${isExport ? 'isolate' : 'overflow-hidden'} ${interactive ? 'cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all group' : ''}`}
                         style={{ minHeight: `${resolvedMinHeight}px` }}
                     >
                         {isExport ? (
@@ -248,17 +248,21 @@ export const WrapUpCardGrid: React.FC<WrapUpCardGridProps> = ({
                                     key={bgImage}
                                     src={bgImage}
                                     alt=""
-                                    className={`absolute inset-0 w-full h-full object-cover z-0 opacity-60 ${interactive ? 'transition-transform duration-700 group-hover:scale-110' : ''}`}
+                                    className={`wrap-up-card-bg absolute inset-0 w-full h-full object-cover z-0 opacity-55 ${interactive ? 'transition-transform duration-700 group-hover:scale-110' : ''}`}
                                 />
-                                <div className="absolute inset-0 bg-black/60 z-10" />
+                                <div className="wrap-up-card-scrim absolute inset-0 bg-black/65 z-10" />
                                 <div className="relative z-20 p-3 md:p-4 flex-1 flex flex-col items-center justify-center text-center">
-                                    <Icon className="w-6 h-6 text-plex mb-2 drop-shadow-md flex-shrink-0" />
-                                    <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">{card.label}</p>
-                                    <p className={`text-white drop-shadow-lg mb-1 ${valueClass}`}>
+                                    <Icon className="w-6 h-6 text-plex mb-2 flex-shrink-0" />
+                                    <p className="wrap-up-card-label text-[10px] uppercase tracking-widest font-bold mb-1 text-white/70">
+                                        {card.label}
+                                    </p>
+                                    <p className={`wrap-up-card-value text-white mb-1 ${valueClass}`}>
                                         {card.value}
                                     </p>
                                     {subValue && (
-                                        <p className={`text-[10px] font-bold tracking-wider ${card.metric === 'Top Binge' || card.metric === 'Top Movie' ? 'text-plex' : 'text-gray-400'}`}>{subValue}</p>
+                                        <p className={`wrap-up-card-sub text-[10px] font-bold tracking-wider ${card.metric === 'Top Binge' || card.metric === 'Top Movie' ? 'text-plex' : 'text-white/55'}`}>
+                                            {subValue}
+                                        </p>
                                     )}
                                 </div>
                             </>
