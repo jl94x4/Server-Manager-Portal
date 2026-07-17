@@ -29,7 +29,9 @@ import { WrapUpCardGrid } from './shared/WrapUpCards';
 import { SetupWizard } from './setup/SetupWizard';
 import { DiscoveryDashboard } from './discovery/DiscoveryDashboard';
 import { AuthPageBackground, themeClasses, SlideshowBackground } from './shared/theme';
-import { activityStreamColumnCount, activityStreamGridClass, discoverPosterGridClass } from './shared/portalLayout';
+import { activityStreamColumnCount, activityStreamGridClass, upgraderPosterGridClass, upgraderPosterGridStyle, type UpgraderGridSize } from './shared/portalLayout';
+import { DiscoverGridSizeSelect } from './discovery/DiscoverGridSizeSelect';
+import { useDiscoverGridSize } from './discovery/useDiscoverGridSize';
 import { filterNavOrder, ensureCompleteNavOrder, MOBILE_NAV_PRIMARY_SLOTS, type NavFeatureFlags } from './shared/nav';
 import { ANALYTICS_PERIOD_OPTIONS } from './shared/analyticsPeriodOptions';
 import { UserDashboardLayout } from './home/UserDashboardLayout';
@@ -5589,12 +5591,12 @@ const DISCOVER_LIMIT_OPTIONS = [
     { value: '250', label: '250 Items' },
 ];
 
-const TrendingDiscoverSection: React.FC<{ title: string; items: any[]; limit: number; showQualityBadges?: boolean; useScrollRevealAnimations?: boolean; onItemClick?: (item: any) => void }> = ({ title, items, limit, showQualityBadges = true, useScrollRevealAnimations, onItemClick }) => {
+const TrendingDiscoverSection: React.FC<{ title: string; items: any[]; limit: number; showQualityBadges?: boolean; useScrollRevealAnimations?: boolean; onItemClick?: (item: any) => void; gridSize?: UpgraderGridSize }> = ({ title, items, limit, showQualityBadges = true, useScrollRevealAnimations, onItemClick, gridSize = 'medium' }) => {
     if (!items?.length) return null;
     return (
         <ScrollReveal enabled={!!useScrollRevealAnimations} className="flex flex-col">
             <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">{title}</h3>
-            <div className={discoverPosterGridClass}>
+            <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
                 {items.slice(0, limit).map((item, i) => (
                     <DiscoverPosterCard
                         key={i}
@@ -7298,6 +7300,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
     });
     const responsiveRecentLimit = isDiscoverDesktop ? DISCOVER_DESKTOP_ITEM_LIMIT : DISCOVER_MOBILE_ITEM_LIMIT;
     const recentLimit = recentLimitOverride ?? responsiveRecentLimit;
+    const [gridSize, setGridSize] = useDiscoverGridSize();
     const [selectedSession, setSelectedSession] = useState<any | null>(null);
     const showQualityBadges = publicConfig?.showPosterQualityBadges !== false;
     const isJellyfinPortal = String(publicConfig?.mediaServerType || mediaServerType || 'plex').toLowerCase() === 'jellyfin';
@@ -7710,7 +7713,8 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                     )}
                 </section>
 
-                <div className="flex justify-end gap-4 items-center mb-8">
+                <div className="flex justify-end gap-3 sm:gap-4 items-center mb-8 flex-wrap">
+                    <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
                     <span className="text-xs uppercase tracking-wider text-muted font-semibold">Items Per Section</span>
                     <CustomSelect
                         compact
@@ -7725,7 +7729,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                     {/* RECENT MOVIES */}
                     <ScrollReveal enabled={!!publicConfig?.useScrollRevealAnimations} className="flex flex-col">
                         <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">RECENTLY ADDED MOVIES</h2>
-                        <div className={discoverPosterGridClass}>
+                        <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
                             {dashboardData && dashboardData.recentMovies.slice(0, recentLimit).map((item, i) => (
                                 <DiscoverPosterCard key={i} item={item} showQualityBadges={showQualityBadges} />
                             ))}
@@ -7736,7 +7740,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                     {/* RECENT TV SHOWS */}
                     <ScrollReveal enabled={!!publicConfig?.useScrollRevealAnimations} className="flex flex-col">
                         <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">{isJellyfinPortal ? 'RECENTLY ADDED EPISODES' : 'RECENTLY ADDED TV SHOWS'}</h2>
-                        <div className={discoverPosterGridClass}>
+                        <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
                             {dashboardData && dashboardData.recentShows.slice(0, recentLimit).map((item, i) => (
                                 <DiscoverPosterCard key={i} item={item} showQualityBadges={showQualityBadges} />
                             ))}
@@ -7747,7 +7751,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                     {/* RECENT MUSIC */}
                     <ScrollReveal enabled={!!publicConfig?.useScrollRevealAnimations} className="flex flex-col">
                         <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">RECENTLY ADDED MUSIC</h2>
-                        <div className={discoverPosterGridClass}>
+                        <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
                             {dashboardData && dashboardData.recentMusic.slice(0, recentLimit).map((item, i) => (
                                 <DiscoverPosterCard key={i} item={item} aspect="square" showQualityBadges={showQualityBadges} />
                             ))}
@@ -7766,15 +7770,15 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                             <p className="text-muted text-sm max-w-xl">A look at what the community is currently watching across the entire server.</p>
                         </div>
 
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🔥 Trending This Week" items={trendingStats.trending7Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🍿 Most Watched Movies (This Month)" items={trendingStats.movies30Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="📺 Most Watched Shows (This Month)" items={trendingStats.shows30Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🏆 Top of the Year" items={trendingStats.top365Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🌟 All Time Favorites" items={trendingStats.allTime} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🍿 Weekend Warriors" items={trendingStats.weekendWarriors} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🦇 Night Owl Club" items={trendingStats.nightOwls} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="📼 Blast from the Past" items={trendingStats.retroHits} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="💎 Cult Classics" items={trendingStats.cultClassics} limit={recentLimit} showQualityBadges={showQualityBadges} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🔥 Trending This Week" items={trendingStats.trending7Days} limit={recentLimit} showQualityBadges={showQualityBadges} gridSize={gridSize} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🍿 Most Watched Movies (This Month)" items={trendingStats.movies30Days} limit={recentLimit} showQualityBadges={showQualityBadges} gridSize={gridSize} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="📺 Most Watched Shows (This Month)" items={trendingStats.shows30Days} limit={recentLimit} showQualityBadges={showQualityBadges} gridSize={gridSize} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🏆 Top of the Year" items={trendingStats.top365Days} limit={recentLimit} showQualityBadges={showQualityBadges} gridSize={gridSize} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🌟 All Time Favorites" items={trendingStats.allTime} limit={recentLimit} showQualityBadges={showQualityBadges} gridSize={gridSize} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🍿 Weekend Warriors" items={trendingStats.weekendWarriors} limit={recentLimit} showQualityBadges={showQualityBadges} gridSize={gridSize} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🦇 Night Owl Club" items={trendingStats.nightOwls} limit={recentLimit} showQualityBadges={showQualityBadges} gridSize={gridSize} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="📼 Blast from the Past" items={trendingStats.retroHits} limit={recentLimit} showQualityBadges={showQualityBadges} gridSize={gridSize} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="💎 Cult Classics" items={trendingStats.cultClassics} limit={recentLimit} showQualityBadges={showQualityBadges} gridSize={gridSize} />
                     </div>
                 )}
             </main>

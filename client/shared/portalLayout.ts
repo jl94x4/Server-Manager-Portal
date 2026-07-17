@@ -59,6 +59,17 @@ export const upgraderPosterGridStyle = (size: UpgraderGridSize): CSSProperties =
     gridTemplateColumns: `repeat(auto-fill, minmax(${UPGRADER_GRID_MIN_WIDTH[size]}, 1fr))`,
 });
 
+/** Fixed carousel poster widths for Discover home rails (mirrors Movies/Series grid density). */
+export const DISCOVER_ROW_CARD_WIDTH_CLASS: Record<UpgraderGridSize, string> = {
+    small: 'w-[100px] sm:w-[112px]',
+    medium: 'w-[140px] sm:w-[160px]',
+    large: 'w-[170px] sm:w-[196px]',
+    xlarge: 'w-[204px] sm:w-[236px]',
+    list: 'w-[140px] sm:w-[160px]',
+};
+
+export const discoverRowCardWidthClass = (size: UpgraderGridSize) => DISCOVER_ROW_CARD_WIDTH_CLASS[size] || DISCOVER_ROW_CARD_WIDTH_CLASS.medium;
+
 export const UPGRADER_GRID_SIZE_STORAGE_KEY = 'upgraderGridSize';
 
 export const normalizeUpgraderGridSize = (value: unknown): UpgraderGridSize => {

@@ -6083,17 +6083,25 @@ app.get('/api/discovery/library-link', requireAuth, requireMember, async (req, r
             ? 'tv'
             : (mediaTypeRaw === 'movie' ? 'movie' : '');
         const tmdbId = Number(req.query.tmdbId);
-        const ratingKeyHint = String(req.query.ratingKey || '').trim();
+        const ratingKeyHint = String(req.query.ratingKey || '').replace(/^\/library\/metadata\//, '').trim();
+        const title = String(req.query.title || '').trim();
+        const yearRaw = Number(req.query.year);
+        const year = Number.isFinite(yearRaw) && yearRaw > 0 ? yearRaw : null;
 
         if (mediaType !== 'movie' && mediaType !== 'tv') {
             return res.status(400).json({ error: 'mediaType must be movie or tv' });
         }
-        if ((!Number.isFinite(tmdbId) || tmdbId <= 0) && !ratingKeyHint) {
-            return res.status(400).json({ error: 'tmdbId or ratingKey is required' });
+        if ((!Number.isFinite(tmdbId) || tmdbId <= 0) && !ratingKeyHint && !title) {
+            return res.status(400).json({ error: 'tmdbId, ratingKey, or title is required' });
         }
 
         const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
         const providerLabel = mediaServerType === 'jellyfin' ? 'Jellyfin' : (mediaServerType === 'emby' ? 'Emby' : 'Plex');
+        const toPlexWebUrl = (key) => {
+            const clean = String(key || '').replace(/^\/library\/metadata\//, '').trim();
+            if (!config.serverIdentifier || !clean) return null;
+            return `https://app.plex.tv/desktop#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent(`/library/metadata/${clean}`)}`;
+        };
 
         if (mediaServerType === 'jellyfin' || mediaServerType === 'emby') {
             if (!isJellyfinConfigured(config)) {
@@ -6124,61 +6132,116 @@ app.get('/api/discovery/library-link', requireAuth, requireMember, async (req, r
             return res.status(404).json({ error: 'Plex is not configured' });
         }
 
-        let ratingKey = ratingKeyHint.replace(/^\/library\/metadata\//, '').trim();
-        if (!ratingKey && Number.isFinite(tmdbId) && tmdbId > 0) {
-            const uri = await getPlexConnectionUri(config);
-            if (!uri) {
-                return res.status(503).json({ error: 'Unable to reach Plex server' });
-            }
-            const plexType = mediaType === 'movie' ? 1 : 2;
-            const guidCandidates = [
-                `tmdb://${tmdbId}`,
-                `com.plexapp.agents.themoviedb://${tmdbId}?lang=en`,
-            ];
-            for (const guid of guidCandidates) {
-                const lookupUrl = `${uri}/library/all?type=${plexType}&guid=${encodeURIComponent(guid)}&X-Plex-Token=${encodeURIComponent(config.plexToken)}`;
-                const response = await fetchWithTimeout(lookupUrl, { headers: { Accept: 'application/json' } }, 12000).catch(() => null);
-                if (!response?.ok) continue;
-                const payload = await response.json().catch(() => null);
-                const meta = payload?.MediaContainer?.Metadata?.[0];
-                if (meta?.ratingKey) {
-                    ratingKey = String(meta.ratingKey);
-                    break;
-                }
-            }
-
-            // Fallback: scan section hubs for a matching TMDB guid
-            if (!ratingKey) {
-                const sectionsRes = await fetchWithTimeout(
-                    `${uri}/library/sections?X-Plex-Token=${encodeURIComponent(config.plexToken)}`,
-                    { headers: { Accept: 'application/json' } },
-                    12000,
-                ).catch(() => null);
-                const sections = sectionsRes?.ok ? (await sectionsRes.json().catch(() => null))?.MediaContainer?.Directory || [] : [];
-                const wantedType = mediaType === 'movie' ? 'movie' : 'show';
-                for (const section of sections) {
-                    if (String(section?.type || '') !== wantedType) continue;
-                    for (const guid of guidCandidates) {
-                        const sectionLookup = `${uri}/library/sections/${encodeURIComponent(section.key)}/all?type=${plexType}&guid=${encodeURIComponent(guid)}&X-Plex-Token=${encodeURIComponent(config.plexToken)}`;
-                        const response = await fetchWithTimeout(sectionLookup, { headers: { Accept: 'application/json' } }, 12000).catch(() => null);
-                        if (!response?.ok) continue;
-                        const payload = await response.json().catch(() => null);
-                        const meta = payload?.MediaContainer?.Metadata?.[0];
-                        if (meta?.ratingKey) {
-                            ratingKey = String(meta.ratingKey);
-                            break;
-                        }
-                    }
-                    if (ratingKey) break;
-                }
+        // Fast path: Seerr/Overseerr already knows the Plex rating key
+        if (ratingKeyHint) {
+            const url = toPlexWebUrl(ratingKeyHint);
+            if (url) {
+                return res.json({ url, label: 'Open in Plex', provider: 'plex', ratingKey: ratingKeyHint });
             }
         }
 
-        const url = buildPlexWebDetailUrl(config, ratingKey);
+        const uri = await getPlexConnectionUri(config);
+        if (!uri) {
+            return res.status(503).json({ error: 'Unable to reach Plex server' });
+        }
+
+        const plexType = mediaType === 'movie' ? 1 : 2;
+        const guidCandidates = Number.isFinite(tmdbId) && tmdbId > 0
+            ? [
+                `tmdb://${tmdbId}`,
+                `com.plexapp.agents.themoviedb://${tmdbId}?lang=en`,
+                `tmdb://${tmdbId}?lang=en`,
+            ]
+            : [];
+
+        const metaMatchesTmdb = (meta) => {
+            if (!Number.isFinite(tmdbId) || tmdbId <= 0 || !meta) return false;
+            const needle = String(tmdbId);
+            const guidBlob = [
+                meta.guid,
+                ...(Array.isArray(meta.Guid) ? meta.Guid.map((g) => g?.id || g) : []),
+            ].map((v) => String(v || '')).join(' ').toLowerCase();
+            return guidBlob.includes(`tmdb://${needle}`)
+                || guidBlob.includes(`themoviedb://${needle}`)
+                || guidBlob.includes(`tmdb:${needle}`);
+        };
+
+        let ratingKey = '';
+
+        for (const guid of guidCandidates) {
+            const lookupUrl = `${uri}/library/all?type=${plexType}&guid=${encodeURIComponent(guid)}&includeGuids=1&X-Plex-Token=${encodeURIComponent(config.plexToken)}`;
+            const response = await fetchWithTimeout(lookupUrl, { headers: { Accept: 'application/json' } }, 12000).catch(() => null);
+            if (!response?.ok) continue;
+            const payload = await response.json().catch(() => null);
+            const meta = payload?.MediaContainer?.Metadata?.[0];
+            if (meta?.ratingKey) {
+                ratingKey = String(meta.ratingKey);
+                break;
+            }
+        }
+
+        if (!ratingKey) {
+            const sectionsRes = await fetchWithTimeout(
+                `${uri}/library/sections?X-Plex-Token=${encodeURIComponent(config.plexToken)}`,
+                { headers: { Accept: 'application/json' } },
+                12000,
+            ).catch(() => null);
+            const sections = sectionsRes?.ok ? (await sectionsRes.json().catch(() => null))?.MediaContainer?.Directory || [] : [];
+            const wantedType = mediaType === 'movie' ? 'movie' : 'show';
+            for (const section of sections) {
+                if (String(section?.type || '') !== wantedType) continue;
+                for (const guid of guidCandidates) {
+                    const sectionLookup = `${uri}/library/sections/${encodeURIComponent(section.key)}/all?type=${plexType}&guid=${encodeURIComponent(guid)}&includeGuids=1&X-Plex-Token=${encodeURIComponent(config.plexToken)}`;
+                    const response = await fetchWithTimeout(sectionLookup, { headers: { Accept: 'application/json' } }, 12000).catch(() => null);
+                    if (!response?.ok) continue;
+                    const payload = await response.json().catch(() => null);
+                    const meta = payload?.MediaContainer?.Metadata?.[0];
+                    if (meta?.ratingKey) {
+                        ratingKey = String(meta.ratingKey);
+                        break;
+                    }
+                }
+                if (ratingKey) break;
+            }
+        }
+
+        // Title search fallback (availability can come from Sonarr before Seerr has a ratingKey)
+        if (!ratingKey && title) {
+            const searchUrl = `${uri}/hubs/search?query=${encodeURIComponent(title)}&limit=30&includeGuids=1&X-Plex-Token=${encodeURIComponent(config.plexToken)}`;
+            const searchRes = await fetchWithTimeout(searchUrl, { headers: { Accept: 'application/json' } }, 15000).catch(() => null);
+            const hubs = searchRes?.ok
+                ? ((await searchRes.json().catch(() => null))?.MediaContainer?.Hub || [])
+                : [];
+            const wantedHubTypes = mediaType === 'movie' ? new Set(['movie']) : new Set(['show']);
+            const candidates = [];
+            for (const hub of hubs) {
+                if (hub?.type && !wantedHubTypes.has(String(hub.type))) continue;
+                for (const meta of (Array.isArray(hub?.Metadata) ? hub.Metadata : [])) {
+                    if (!meta?.ratingKey) continue;
+                    candidates.push(meta);
+                }
+            }
+
+            const tmdbHit = candidates.find(metaMatchesTmdb);
+            if (tmdbHit?.ratingKey) {
+                ratingKey = String(tmdbHit.ratingKey);
+            } else {
+                const titleKey = title.trim().toLowerCase();
+                const exact = candidates.find((meta) => {
+                    const metaTitle = String(meta.title || meta.grandparentTitle || '').trim().toLowerCase();
+                    if (metaTitle !== titleKey) return false;
+                    if (year && Number(meta.year) && Number(meta.year) !== year) return false;
+                    return true;
+                });
+                if (exact?.ratingKey) ratingKey = String(exact.ratingKey);
+            }
+        }
+
+        const url = toPlexWebUrl(ratingKey);
         if (!url) {
             return res.status(404).json({ error: 'Title not found in Plex' });
         }
-        return res.json({ url, label: 'Open in Plex', provider: 'plex' });
+        return res.json({ url, label: 'Open in Plex', provider: 'plex', ratingKey });
     } catch (e) {
         log(`Discovery library-link error: ${e.message}`);
         res.status(500).json({ error: e.message || 'Failed to resolve library link' });

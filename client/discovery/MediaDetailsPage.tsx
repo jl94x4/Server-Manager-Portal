@@ -494,6 +494,8 @@ export const MediaDetailsPage: React.FC<{
                                             <OpenInLibraryButton
                                                 mediaType={mediaType}
                                                 tmdbId={mediaId}
+                                                title={title}
+                                                year={year}
                                                 mediaInfo={details.mediaInfo}
                                                 mediaServerType={mediaServerType}
                                                 className="w-full px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-bold transition-colors inline-flex items-center justify-center gap-1.5 disabled:opacity-50"

@@ -6,6 +6,8 @@ export type LibraryDeepLinkParams = {
     mediaType: 'movie' | 'tv';
     tmdbId?: number | null;
     ratingKey?: string | null;
+    title?: string | null;
+    year?: string | number | null;
     mediaServerType?: string;
 };
 
@@ -37,14 +39,15 @@ export const resolveLibraryLinkFromMediaInfo = (mediaInfo: any, mediaServerType?
 export const resolveLibraryRatingKey = (mediaInfo: any): string | null => {
     if (!mediaInfo || typeof mediaInfo !== 'object') return null;
     const direct = mediaInfo.ratingKey || mediaInfo.ratingKey4k || mediaInfo.jellyfinMediaId || mediaInfo.jellyfinMediaId4k;
-    if (direct != null && String(direct).trim()) return String(direct).trim();
+    if (direct != null && String(direct).trim() && String(direct).trim() !== '0') {
+        return String(direct).trim().replace(/^\/library\/metadata\//, '');
+    }
 
-    // Recover rating key from a Seerr plexUrl if present
     for (const candidate of [mediaInfo.plexUrl, mediaInfo.plexUrl4k, mediaInfo.iOSPlexUrl, mediaInfo.iOSPlexUrl4k]) {
         const raw = String(candidate || '');
         const match = raw.match(/library%2Fmetadata%2F(\d+)/i)
             || raw.match(/library\/metadata\/(\d+)/i)
-            || raw.match(/metadataKey=.*?(\d+)/i);
+            || raw.match(/metadataKey=[^&]*?(\d+)/i);
         if (match?.[1]) return match[1];
     }
     return null;
@@ -55,6 +58,8 @@ export const fetchLibraryDeepLink = async (params: LibraryDeepLinkParams): Promi
     qs.set('mediaType', params.mediaType);
     if (params.tmdbId != null && Number(params.tmdbId) > 0) qs.set('tmdbId', String(params.tmdbId));
     if (params.ratingKey) qs.set('ratingKey', String(params.ratingKey));
+    if (params.title) qs.set('title', String(params.title));
+    if (params.year != null && String(params.year).trim()) qs.set('year', String(params.year).trim().slice(0, 4));
 
     const res = await apiFetch(`/api/discovery/library-link?${qs.toString()}`);
     if (!res?.url || !isHttpUrl(res.url)) {
@@ -69,31 +74,24 @@ export const fetchLibraryDeepLink = async (params: LibraryDeepLinkParams): Promi
 export const OpenInLibraryButton: React.FC<{
     mediaType: 'movie' | 'tv';
     tmdbId?: number | null;
+    title?: string | null;
+    year?: string | number | null;
     mediaInfo?: any;
     mediaServerType?: string;
     className?: string;
     onError?: (message: string) => void;
-}> = ({ mediaType, tmdbId, mediaInfo, mediaServerType = 'plex', className = '' }) => {
+}> = ({ mediaType, tmdbId, title, year, mediaInfo, mediaServerType = 'plex', className = '' }) => {
     const serverType = String(mediaServerType || 'plex').toLowerCase();
     const preferredUrl = resolveLibraryLinkFromMediaInfo(mediaInfo, serverType);
     const ratingKey = resolveLibraryRatingKey(mediaInfo);
     const defaultLabel = `Open in ${providerLabelFor(serverType)}`;
-    const [href, setHref] = useState<string | null>(preferredUrl);
+    const [href, setHref] = useState<string | null>(null);
     const [label, setLabel] = useState(defaultLabel);
-    const [loading, setLoading] = useState(!preferredUrl);
-    const canResolve = !!preferredUrl || !!ratingKey || (tmdbId != null && Number(tmdbId) > 0);
+    const [loading, setLoading] = useState(true);
+    const canResolve = !!preferredUrl || !!ratingKey || (tmdbId != null && Number(tmdbId) > 0) || !!String(title || '').trim();
 
     useEffect(() => {
         setLabel(defaultLabel);
-
-        // Always resolve through the portal for Plex so we use this server's machine id
-        // (Seerr plexUrl can point at the wrong machine or use plex://).
-        const shouldForcePortalResolve = serverType === 'plex' || !preferredUrl;
-        if (!shouldForcePortalResolve && preferredUrl) {
-            setHref(preferredUrl);
-            setLoading(false);
-            return;
-        }
         if (!canResolve) {
             setHref(null);
             setLoading(false);
@@ -102,7 +100,14 @@ export const OpenInLibraryButton: React.FC<{
 
         let cancelled = false;
         setLoading(true);
-        fetchLibraryDeepLink({ mediaType, tmdbId, ratingKey, mediaServerType: serverType })
+        fetchLibraryDeepLink({
+            mediaType,
+            tmdbId,
+            ratingKey,
+            title,
+            year,
+            mediaServerType: serverType,
+        })
             .then((link) => {
                 if (cancelled) return;
                 setHref(link.url);
@@ -110,12 +115,7 @@ export const OpenInLibraryButton: React.FC<{
             })
             .catch(() => {
                 if (cancelled) return;
-                // Fall back to Seerr http(s) URL only if portal lookup failed
-                if (preferredUrl) {
-                    setHref(preferredUrl);
-                } else {
-                    setHref(null);
-                }
+                setHref(preferredUrl || null);
             })
             .finally(() => {
                 if (!cancelled) setLoading(false);
@@ -124,9 +124,10 @@ export const OpenInLibraryButton: React.FC<{
         return () => {
             cancelled = true;
         };
-    }, [canResolve, defaultLabel, mediaType, preferredUrl, ratingKey, serverType, tmdbId]);
+    }, [canResolve, defaultLabel, mediaType, preferredUrl, ratingKey, serverType, title, tmdbId, year]);
 
     if (!canResolve) return null;
+
     if (loading) {
         return (
             <button
@@ -140,6 +141,7 @@ export const OpenInLibraryButton: React.FC<{
             </button>
         );
     }
+
     if (!href) return null;
 
     return (

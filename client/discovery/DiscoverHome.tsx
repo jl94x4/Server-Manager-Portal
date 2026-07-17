@@ -18,6 +18,9 @@ import { WatchlistPanel } from './WatchlistPanel';
 import { DiscoverHomeSkeleton } from '../shared/skeletons';
 import { discoveryTheme } from './discoveryThemeClasses';
 import { useLibraryQueueToggle } from './useLibraryQueueToggle';
+import { DiscoverGridSizeSelect } from './DiscoverGridSizeSelect';
+import { useDiscoverGridSize } from './useDiscoverGridSize';
+import { discoverRowCardWidthClass } from '../shared/portalLayout';
 
 type GenreSliderItem = { id: number; name: string; image?: string };
 
@@ -55,6 +58,8 @@ export const DiscoverHome: React.FC<{
 }> = ({ onSelect, formatItem, navigate, pushToast, providerLabel = 'Plex' }) => {
     const { preferences, loaded } = useDiscoveryPreferences();
     const { showLibraryQueue, toggleLibraryQueue } = useLibraryQueueToggle();
+    const [gridSize, setGridSize] = useDiscoverGridSize();
+    const posterCardClass = discoverRowCardWidthClass(gridSize);
     const [rows, setRows] = useState({
         recentlyAdded: [] as any[],
         recentRequests: [] as any[],
@@ -195,7 +200,7 @@ export const DiscoverHome: React.FC<{
                         if (!rawItem) return null;
                         const formatted = formatItem(rawItem);
                         return (
-                            <div key={`${title}-${formatted.id || idx}`} className="w-[140px] sm:w-[160px] flex-shrink-0 relative group">
+                            <div key={`${title}-${formatted.id || idx}`} className={`${posterCardClass} flex-shrink-0 relative group`}>
                                 <DiscoverPosterCard
                                     item={formatted}
                                     overlay={formatted.overlay}
@@ -296,6 +301,7 @@ export const DiscoverHome: React.FC<{
                                 onRefresh={loadData}
                                 variant="row"
                                 providerLabel={providerLabel}
+                                rowCardClassName={posterCardClass}
                             />
                         ) : (
                             <div className="flex flex-col gap-2">
@@ -316,18 +322,21 @@ export const DiscoverHome: React.FC<{
             </section>
 
             <section className={discoveryTheme.browseSection}>
-                <div className="px-3 flex items-end justify-between gap-3">
+                <div className="px-3 flex items-end justify-between gap-3 flex-wrap">
                     <div>
                         <p className={discoveryTheme.personalEyebrow}>Browse</p>
                         <h2 className="text-lg sm:text-xl font-black text-text mt-1">What’s popular</h2>
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => navigate('/discovery/movies')}
-                        className="text-xs font-bold text-plex hover:underline inline-flex items-center gap-1"
-                    >
-                        <Film className="w-3.5 h-3.5" /> All movies
-                    </button>
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
+                        <button
+                            type="button"
+                            onClick={() => navigate('/discovery/movies')}
+                            className="text-xs font-bold text-plex hover:underline inline-flex items-center gap-1"
+                        >
+                            <Film className="w-3.5 h-3.5" /> All movies
+                        </button>
+                    </div>
                 </div>
 
                 <DiscoveryRow title="Recently Added" items={rows.recentlyAdded} />

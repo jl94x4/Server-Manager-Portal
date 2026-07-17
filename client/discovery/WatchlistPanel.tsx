@@ -23,6 +23,7 @@ type Props = {
     variant?: 'row' | 'page';
     showHeader?: boolean;
     providerLabel?: string;
+    rowCardClassName?: string;
 };
 
 export const WatchlistPanel: React.FC<Props> = ({
@@ -35,6 +36,7 @@ export const WatchlistPanel: React.FC<Props> = ({
     variant = 'row',
     showHeader = true,
     providerLabel = 'Plex',
+    rowCardClassName,
 }) => {
     const [requestTarget, setRequestTarget] = useState<{ mediaType: 'movie' | 'tv'; mediaId: number; title: string } | null>(null);
     const [bulkLoading, setBulkLoading] = useState(false);
@@ -97,7 +99,9 @@ export const WatchlistPanel: React.FC<Props> = ({
         const requestable = isWatchlistItemRequestable(rawItem);
         const statusLabel = watchlistItemStatusLabel(rawItem);
 
-        const cardWidth = variant === 'page' ? 'w-full' : 'w-[140px] sm:w-[160px] flex-shrink-0';
+        const cardWidth = variant === 'page'
+            ? 'w-full'
+            : `${rowCardClassName || 'w-[140px] sm:w-[160px]'} flex-shrink-0`;
         const footer = (
             <div className="flex flex-col gap-1.5 mt-1.5 px-0.5">
                 <div className={`text-xs font-medium line-clamp-2 leading-tight text-text ${variant === 'page' ? 'text-left' : 'text-center'}`}>
