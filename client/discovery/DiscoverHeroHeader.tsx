@@ -4,6 +4,7 @@ import { Search, Loader2, Sparkles, X, Film, Tv, TrendingUp, Clapperboard } from
 import { SlideshowBackground } from '../shared/theme';
 import { apiFetch } from '../shared/api';
 import { discoveryTheme } from './discoveryThemeClasses';
+import { useDiscoverI18n } from './i18n';
 
 type SearchResultProps = {
     query: string;
@@ -29,6 +30,7 @@ const SearchDropdown: React.FC<SearchResultProps & { anchorRect: DOMRect | null 
     onSelect,
     formatItem,
 }) => {
+    const { t } = useDiscoverI18n();
     if (!searchOpen || query.trim().length < 2 || !anchorRect) return null;
 
     return createPortal(
@@ -47,10 +49,10 @@ const SearchDropdown: React.FC<SearchResultProps & { anchorRect: DOMRect | null 
             {searchLoading ? (
                 <div className="flex items-center justify-center gap-2 p-6 text-muted">
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    Searching…
+                    {t('common.searching')}
                 </div>
             ) : searchResults.length === 0 ? (
-                <div className="p-6 text-center text-muted text-sm">No results found.</div>
+                <div className="p-6 text-center text-muted text-sm">{t('common.noResults')}</div>
             ) : (
                 searchResults.slice(0, 20).map((rawItem, idx) => {
                     const formatted = formatItem(rawItem);
@@ -71,7 +73,7 @@ const SearchDropdown: React.FC<SearchResultProps & { anchorRect: DOMRect | null 
                                 <div className="font-bold text-text truncate">{formatted.title}</div>
                                 <div className="text-xs text-muted">
                                     {isPerson
-                                        ? (formatted.tags?.[0] || 'Person')
+                                        ? (formatted.tags?.[0] || t('mediaType.person'))
                                         : [formatted.year, formatted.tags?.[0]].filter(Boolean).join(' · ')}
                                 </div>
                             </div>
@@ -85,17 +87,18 @@ const SearchDropdown: React.FC<SearchResultProps & { anchorRect: DOMRect | null 
 };
 
 const QUICK_CHIPS = [
-    { id: 'trending', label: 'Trending', icon: TrendingUp, path: '/discovery' },
-    { id: 'movies', label: 'Movies', icon: Film, path: '/discovery/movies' },
-    { id: 'series', label: 'Series', icon: Tv, path: '/discovery/series' },
-    { id: 'action', label: 'Action', icon: Clapperboard, path: '/discovery/movies?genre=28' },
-    { id: 'comedy', label: 'Comedy', icon: Clapperboard, path: '/discovery/movies?genre=35' },
-    { id: 'scifi', label: 'Sci-Fi', icon: Clapperboard, path: '/discovery/movies?genre=878' },
-    { id: 'fresh', label: 'Fresh', icon: Sparkles, path: '/discovery/movies?sort=primary_release_date.desc&dateGte=' },
+    { id: 'trending', labelKey: 'hero.chipTrending', icon: TrendingUp, path: '/discovery' },
+    { id: 'movies', labelKey: 'hero.chipMovies', icon: Film, path: '/discovery/movies' },
+    { id: 'series', labelKey: 'hero.chipSeries', icon: Tv, path: '/discovery/series' },
+    { id: 'action', labelKey: 'hero.chipAction', icon: Clapperboard, path: '/discovery/movies?genre=28' },
+    { id: 'comedy', labelKey: 'hero.chipComedy', icon: Clapperboard, path: '/discovery/movies?genre=35' },
+    { id: 'scifi', labelKey: 'hero.chipSciFi', icon: Clapperboard, path: '/discovery/movies?genre=878' },
+    { id: 'fresh', labelKey: 'hero.chipFresh', icon: Sparkles, path: '/discovery/movies?sort=primary_release_date.desc&dateGte=' },
 ] as const;
 
 export const DiscoverHeroHeader: React.FC<SearchResultProps> = (props) => {
     const { query, onClear, onQueryChange, onFocus, navigate, searchInputRef } = props;
+    const { t } = useDiscoverI18n();
     const [backgrounds, setBackgrounds] = useState<string[]>([]);
     const [intervalSeconds, setIntervalSeconds] = useState(12);
     const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
@@ -190,10 +193,10 @@ export const DiscoverHeroHeader: React.FC<SearchResultProps> = (props) => {
                     <Sparkles className="w-10 h-10 sm:w-12 sm:h-12 text-plex opacity-90 drop-shadow-lg" />
                     <div className="flex flex-col gap-1.5">
                         <h1 className={discoveryTheme.heroTitle}>
-                            Discover & Request
+                            {t('hero.title')}
                         </h1>
                         <p className="text-sm text-white/65 max-w-xl mx-auto">
-                            Search the catalog, or jump in with a quick pick below.
+                            {t('hero.subtitle')}
                         </p>
                     </div>
 
@@ -202,12 +205,12 @@ export const DiscoverHeroHeader: React.FC<SearchResultProps> = (props) => {
                         <input
                             ref={setInputRef}
                             type="text"
-                            placeholder="Search movies, TV, people…  (press / )"
+                            placeholder={t('hero.searchPlaceholder')}
                             value={query}
                             onChange={(e) => onQueryChange(e.target.value)}
                             onFocus={onFocus}
                             className={discoveryTheme.searchInput}
-                            aria-label="Search Discover"
+                            aria-label={t('hero.searchAria')}
                         />
                         {query && (
                             <button
@@ -232,7 +235,7 @@ export const DiscoverHeroHeader: React.FC<SearchResultProps> = (props) => {
                                         className={discoveryTheme.heroChip}
                                     >
                                         <Icon className="w-3.5 h-3.5" />
-                                        {chip.label}
+                                        {t(chip.labelKey)}
                                     </button>
                                 );
                             })}

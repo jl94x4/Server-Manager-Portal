@@ -3,6 +3,7 @@ import { ChevronLeft, Film, Loader2 } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { ModalPortal } from '../shared/ModalPortal';
 import { NoPosterPlaceholder } from '../shared/NoPosterPlaceholder';
+import { useDiscoverI18n, translateDiscoverStatus } from './i18n';
 
 type SeasonEpisode = {
     id: number;
@@ -60,6 +61,7 @@ export const SeasonEpisodesModal: React.FC<Props> = ({
     statusLabel,
     onClose,
 }) => {
+    const { t } = useDiscoverI18n();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [season, setSeason] = useState<SeasonPayload | null>(null);
@@ -96,7 +98,7 @@ export const SeasonEpisodesModal: React.FC<Props> = ({
                 setSeason(data as SeasonPayload);
             } catch (err: any) {
                 if (cancelled) return;
-                setError(err?.message || 'Failed to load episodes');
+                setError(err?.message || t('episodes.loadFailed'));
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -118,7 +120,7 @@ export const SeasonEpisodesModal: React.FC<Props> = ({
             <div className="fixed inset-0 z-[300] flex items-center justify-center p-0 sm:p-6 md:p-12">
                 <button
                     type="button"
-                    aria-label="Close episodes modal"
+                    aria-label={t('episodes.closeAria')}
                     className="absolute inset-0 bg-black/70 backdrop-blur-sm"
                     onClick={onClose}
                 />
@@ -135,7 +137,7 @@ export const SeasonEpisodesModal: React.FC<Props> = ({
                             className="inline-flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-lg hover:bg-white/10 text-muted hover:text-text text-sm font-bold transition-colors"
                         >
                             <ChevronLeft className="w-4 h-4" />
-                            Back to show
+                            {t('episodes.backToShow')}
                         </button>
 
                         <div className="flex items-start gap-4">
@@ -153,7 +155,7 @@ export const SeasonEpisodesModal: React.FC<Props> = ({
                                 <p className="text-xs text-muted mt-1">
                                     {displaySeasonName}
                                     {showYear ? ` · ${showYear}` : ''}
-                                    {totalEpisodes > 0 ? ` · ${totalEpisodes} episode${totalEpisodes === 1 ? '' : 's'}` : ''}
+                                    {totalEpisodes > 0 ? ` · ${t('common.episodeCount', { count: totalEpisodes })}` : ''}
                                 </p>
                                 <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
                                     <span className="px-2 py-1 rounded-full bg-white/5 border border-white/10 text-muted font-semibold">
@@ -161,14 +163,14 @@ export const SeasonEpisodesModal: React.FC<Props> = ({
                                     </span>
                                     {statusLabel ? (
                                         <span className="px-2 py-1 rounded-full bg-green-500/10 border border-green-500/30 text-green-200 font-semibold">
-                                            {statusLabel}
+                                            {translateDiscoverStatus(t, statusLabel)}
                                         </span>
                                     ) : null}
                                 </div>
                                 {loading ? (
                                     <p className="text-[11px] text-muted mt-2 flex items-center gap-1.5">
                                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                        Loading episodes…
+                                        {t('episodes.loading')}
                                     </p>
                                 ) : null}
                             </div>
@@ -183,7 +185,7 @@ export const SeasonEpisodesModal: React.FC<Props> = ({
                                 <Loader2 className="w-7 h-7 text-plex animate-spin" />
                             </div>
                         ) : !episodes.length ? (
-                            <div className="p-8 text-center text-sm text-muted">No episodes found for this season.</div>
+                            <div className="p-8 text-center text-sm text-muted">{t('episodes.empty')}</div>
                         ) : (
                             <div className="divide-y divide-border/40">
                                 {episodes.map((episode) => {
@@ -208,7 +210,7 @@ export const SeasonEpisodesModal: React.FC<Props> = ({
                                                 ) : (
                                                     <span className="text-xs text-muted/40 font-medium inline-flex items-center gap-1.5">
                                                         <Film className="w-4 h-4" />
-                                                        No image
+                                                        {t('episodes.noImage')}
                                                     </span>
                                                 )}
                                             </div>
@@ -220,7 +222,7 @@ export const SeasonEpisodesModal: React.FC<Props> = ({
                                                         </span>
                                                     ) : null}
                                                     <h4 className="text-base font-bold text-text truncate group-hover:text-plex transition-colors">
-                                                        {episode.name || `Episode ${episode.episodeNumber ?? ''}`}
+                                                        {episode.name || t('common.episodeN', { number: episode.episodeNumber ?? '' })}
                                                     </h4>
                                                     {airDate ? (
                                                         <span className="text-xs text-muted ml-auto shrink-0 font-medium">
@@ -233,7 +235,7 @@ export const SeasonEpisodesModal: React.FC<Props> = ({
                                                         {episode.overview}
                                                     </p>
                                                 ) : (
-                                                    <p className="text-sm text-muted/50 mt-2 italic">No synopsis available.</p>
+                                                    <p className="text-sm text-muted/50 mt-2 italic">{t('episodes.noSynopsis')}</p>
                                                 )}
                                             </div>
                                         </div>

@@ -25,6 +25,7 @@ import {
     getRequestButtonState,
     seasonStatusBadgeClass,
 } from './requestSeasonUtils';
+import { useDiscoverI18n, translateDiscoverStatus } from './i18n';
 
 const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="flex items-center gap-3 mb-4 pr-16">
@@ -67,6 +68,7 @@ export const MediaDetailsPage: React.FC<{
     isAdmin?: boolean;
     mediaServerType?: string;
 }> = ({ mediaType, mediaId, onBack, formatItem, pushToast, isAdmin = false, mediaServerType = 'plex' }) => {
+    const { t } = useDiscoverI18n();
     const { preferences } = useDiscoveryPreferences();
     const { profile: discoveryMe } = useDiscoveryMe(true);
     const [details, setDetails] = useState<any>(null);
@@ -337,18 +339,18 @@ export const MediaDetailsPage: React.FC<{
         });
     }
     if (mediaType === 'movie' && details.runtime > 0) {
-        metaChips.push({ icon: <Clock className="w-3.5 h-3.5 text-white/50" />, label: `${details.runtime} min` });
+        metaChips.push({ icon: <Clock className="w-3.5 h-3.5 text-white/50" />, label: t('common.runtimeMin', { count: details.runtime }) });
     }
     if (mediaType === 'tv' && details.numberOfSeasons) {
         metaChips.push({
             icon: <Tv className="w-3.5 h-3.5 text-white/50" />,
-            label: `${details.numberOfSeasons} season${details.numberOfSeasons === 1 ? '' : 's'}`,
+            label: t('common.seasonCount', { count: details.numberOfSeasons }),
         });
     }
     if (mediaType === 'tv' && details.numberOfEpisodes) {
         metaChips.push({
             icon: <Film className="w-3.5 h-3.5 text-white/50" />,
-            label: `${details.numberOfEpisodes} eps`,
+            label: t('common.episodeCount', { count: details.numberOfEpisodes }),
         });
     }
 
@@ -406,7 +408,7 @@ export const MediaDetailsPage: React.FC<{
                         className="mb-4 md:mb-6 inline-flex items-center gap-2 text-white/90 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-black/65"
                     >
                         <ArrowLeft className="w-5 h-5" />
-                        <span className="font-bold text-sm">Back to Discover</span>
+                        <span className="font-bold text-sm">{t('media.backToDiscover')}</span>
                     </button>
 
                     <div className="flex flex-col md:flex-row gap-5 md:gap-6 lg:gap-10">
@@ -490,7 +492,7 @@ export const MediaDetailsPage: React.FC<{
                             className="w-full py-3 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-colors shadow-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-100 border border-amber-500/30"
                         >
                             <AlertTriangle className="w-4 h-4 shrink-0" />
-                            <span className="truncate">Report Issue</span>
+                            <span className="truncate">{t('media.reportIssue')}</span>
                         </button>
                     )}
 
@@ -599,7 +601,7 @@ export const MediaDetailsPage: React.FC<{
                     </div>
 
                     <p className="text-sm sm:text-base lg:text-[17px] text-white/82 leading-relaxed max-w-none md:max-w-5xl">
-                        {details.overview || 'No description available.'}
+                        {details.overview || t('media.noDescription')}
                     </p>
 
                     {details.genres?.length > 0 && (
@@ -714,7 +716,7 @@ export const MediaDetailsPage: React.FC<{
             <div className="relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 mt-2 md:mt-4 flex flex-col gap-8 md:gap-10">
                 {details.credits?.cast?.length > 0 && (
                     <section className="border-t border-white/5 pt-8">
-                        <SectionHeading>Top Cast</SectionHeading>
+                        <SectionHeading>{t('media.topCast')}</SectionHeading>
                         <Carousel>
                             {details.credits.cast.slice(0, 15).map((actor: any) => (
                                 <button
@@ -748,7 +750,7 @@ export const MediaDetailsPage: React.FC<{
 
                 {mediaType === 'tv' && seasonRows.length > 0 && (
                     <section className="border-t border-white/5 pt-8">
-                        <SectionHeading>Seasons</SectionHeading>
+                        <SectionHeading>{t('media.seasons')}</SectionHeading>
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                             {seasonRows.map((season) => (
                                 <button
@@ -772,9 +774,9 @@ export const MediaDetailsPage: React.FC<{
                                     </div>
                                     <div className="flex flex-col min-w-0 gap-1">
                                         <span className="font-bold text-white text-sm truncate">{season.name}</span>
-                                        <span className="text-xs text-white/50">{season.episodeCount} episodes</span>
+                                        <span className="text-xs text-white/50">{t('common.episodeCount', { count: season.episodeCount })}</span>
                                         <span className={`self-start text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${seasonStatusBadgeClass(season.statusLabel, season.requestable)}`}>
-                                            {season.statusLabel}
+                                            {translateDiscoverStatus(t, season.statusLabel)}
                                         </span>
                                     </div>
                                 </button>
@@ -785,7 +787,7 @@ export const MediaDetailsPage: React.FC<{
 
                 {visibleRecommendations.length > 0 && (
                     <section className="border-t border-white/5 pt-8 pb-4">
-                        <SectionHeading>Recommendations</SectionHeading>
+                        <SectionHeading>{t('media.recommendations')}</SectionHeading>
                         <Carousel>
                             {visibleRecommendations.map((item, idx) => {
                                 const formatted = formatItem(item);

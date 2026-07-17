@@ -10,6 +10,7 @@ import {
     memberRequestStatusClass,
 } from './myRequestUtils';
 import { discoveryTheme } from './discoveryThemeClasses';
+import { useDiscoverI18n, translateDiscoverStatus } from './i18n';
 
 type RequestFilter = 'pending' | 'approved' | 'available' | 'declined' | 'failed';
 
@@ -33,6 +34,7 @@ const RequestTypeBadge: React.FC<{ type: string; is4k: boolean }> = ({ type, is4
 );
 
 export const MyRequestsPage: React.FC<Props> = ({ navigate, pushToast, onCountsChange }) => {
+    const { t } = useDiscoverI18n();
     const [filter, setFilter] = useState<RequestFilter>('pending');
     const [requests, setRequests] = useState<PortalRequestItem[]>([]);
     const [counts, setCounts] = useState({
@@ -97,24 +99,24 @@ export const MyRequestsPage: React.FC<Props> = ({ navigate, pushToast, onCountsC
     }, [loadData]);
 
     const filterTabs = useMemo(() => ([
-        { id: 'pending' as const, label: 'Pending', count: counts.pending },
-        { id: 'approved' as const, label: 'Approved', count: counts.approved },
-        { id: 'available' as const, label: 'Available', count: counts.available },
-        { id: 'declined' as const, label: 'Declined', count: counts.declined },
-        { id: 'failed' as const, label: 'Failed', count: counts.failed },
-    ]), [counts]);
+        { id: 'pending' as const, label: t('status.pending'), count: counts.pending },
+        { id: 'approved' as const, label: t('status.approved'), count: counts.approved },
+        { id: 'available' as const, label: t('status.available'), count: counts.available },
+        { id: 'declined' as const, label: t('status.declined'), count: counts.declined },
+        { id: 'failed' as const, label: t('status.failed'), count: counts.failed },
+    ]), [counts, t]);
 
     const handleCancel = async (item: PortalRequestItem) => {
         setActionId(item.id);
         try {
             const res = await apiFetch(`/api/discovery/my-requests/${item.id}`, { method: 'DELETE' });
             if (res?.error) throw new Error(res.error);
-            pushToast?.(res?.message || 'Request cancelled.', 'success');
+            pushToast?.(res?.message || t('requestsPage.cancelled'), 'success');
             setCancelTarget(null);
             await loadData({ silent: true });
             onCountsChange?.();
         } catch (e: any) {
-            pushToast?.(e?.message || 'Failed to cancel request', 'error');
+            pushToast?.(e?.message || t('requestsPage.cancelFailed'), 'error');
         } finally {
             setActionId(null);
         }
@@ -144,15 +146,15 @@ export const MyRequestsPage: React.FC<Props> = ({ navigate, pushToast, onCountsC
         <div className="flex flex-col gap-6 w-full pb-12">
             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 px-2">
                 <div>
-                    <h2 className={discoveryTheme.heading}>My Requests</h2>
+                    <h2 className={discoveryTheme.heading}>{t('requestsPage.title')}</h2>
                     <p className={discoveryTheme.subheading}>
-                        Track, cancel, and retry your media requests.
+                        {t('requestsPage.subtitle')}
                     </p>
                 </div>
                 {refreshing && (
                     <div className="inline-flex items-center gap-2 text-xs text-muted/70">
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        Refreshing…
+                        {t('common.refreshing')}
                     </div>
                 )}
             </div>
@@ -204,6 +206,7 @@ export const MyRequestsPage: React.FC<Props> = ({ navigate, pushToast, onCountsC
                 <div className="flex flex-col gap-3 px-2">
                     {requests.map((item) => {
                         const statusLabel = memberRequestDisplayStatus(item);
+                        const statusDisplay = translateDiscoverStatus(t, statusLabel);
                         const busy = actionId === item.id;
                         const canCancel = Number(item.status) === 1;
                         const canRetry = item.canRetry || Number(item.status) === 4;
@@ -231,7 +234,7 @@ export const MyRequestsPage: React.FC<Props> = ({ navigate, pushToast, onCountsC
                                             <div className="flex flex-wrap items-center gap-2 mb-1.5">
                                                 <RequestTypeBadge type={item.type} is4k={item.is4k} />
                                                 <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${memberRequestStatusClass(statusLabel)}`}>
-                                                    {statusLabel}
+                                                    {statusDisplay}
                                                 </span>
                                             </div>
                                             <h3 className="text-lg font-black text-text leading-tight group-hover:text-plex transition-colors">

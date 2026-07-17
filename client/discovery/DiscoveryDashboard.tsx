@@ -19,14 +19,17 @@ import { useMyIssueCount } from './useMyIssueCount';
 import { useDiscoveryMe } from './useDiscoveryMe';
 import { WatchlistPage } from './WatchlistPage';
 import { scrollPortalToTop } from './discoverNavigationUtils';
+import { DiscoverI18nProvider, useDiscoverI18n } from './i18n';
+import { DiscoverLocaleSelect } from './i18n/DiscoverLocaleSelect';
 import { discoveryTheme } from './discoveryThemeClasses';
 
-export const DiscoveryDashboard: React.FC<{
+const DiscoveryDashboardInner: React.FC<{
     onItemClick: (item: any) => void;
     pushToast?: (msg: string, type: 'success' | 'error') => void;
     mediaServerType?: string;
     isAdmin?: boolean;
 }> = ({ pushToast, mediaServerType = 'plex', isAdmin = false }) => {
+    const { t } = useDiscoverI18n();
     const [path, setPath] = useState(() => {
         if (typeof window !== 'undefined') return window.location.pathname;
         return '/discovery';
@@ -134,7 +137,7 @@ export const DiscoveryDashboard: React.FC<{
             thumbUrl: isPerson ? profileUrl : posterUrl,
             overview,
             type: mediaType,
-            tags: [isPerson ? 'Person' : (isMovie ? 'Movie' : 'TV Show')],
+            tags: [isPerson ? t('mediaType.person') : (isMovie ? t('mediaType.movie') : t('mediaType.tvShow'))],
             status: item.mediaInfo?.status,
             availability,
             isAvailable: availability.kind === 'available',
@@ -248,12 +251,12 @@ export const DiscoveryDashboard: React.FC<{
     );
 
     const tabs = [
-        { id: 'home', path: '/discovery', label: 'Discover', icon: Compass, count: 0, countColor: '' },
-        { id: 'movies', path: '/discovery/movies', label: 'Movies', icon: Film, count: 0, countColor: '' },
-        { id: 'series', path: '/discovery/series', label: 'Series', icon: Tv, count: 0, countColor: '' },
-        { id: 'requests', path: '/discovery/requests', label: 'My Requests', icon: ClipboardList, count: myPendingCount, countColor: 'bg-plex/25 text-plex' },
+        { id: 'home', path: '/discovery', label: t('nav.discover'), icon: Compass, count: 0, countColor: '' },
+        { id: 'movies', path: '/discovery/movies', label: t('nav.movies'), icon: Film, count: 0, countColor: '' },
+        { id: 'series', path: '/discovery/series', label: t('nav.series'), icon: Tv, count: 0, countColor: '' },
+        { id: 'requests', path: '/discovery/requests', label: t('nav.myRequests'), icon: ClipboardList, count: myPendingCount, countColor: 'bg-plex/25 text-plex' },
         ...(canSeeIssuesTab
-            ? [{ id: 'issues', path: '/discovery/issues', label: 'My Issues', icon: AlertTriangle, count: myOpenIssueCount, countColor: 'bg-amber-500/25 text-amber-300' }]
+            ? [{ id: 'issues', path: '/discovery/issues', label: t('nav.myIssues'), icon: AlertTriangle, count: myOpenIssueCount, countColor: 'bg-amber-500/25 text-amber-300' }]
             : []),
     ];
 
@@ -311,7 +314,8 @@ export const DiscoveryDashboard: React.FC<{
                             )}
                         </div>
 
-                        <div className={`hidden sm:flex ${discoveryTheme.tabBar}`}>
+                        <div className={`hidden sm:flex ${discoveryTheme.tabBar} items-center gap-2`}>
+                            <div className="flex flex-1 min-w-0 gap-1 overflow-x-auto">
                             {tabs.map(tab => {
                                 const active = tab.id === subRoute;
                                 return (
@@ -327,6 +331,11 @@ export const DiscoveryDashboard: React.FC<{
                                     </button>
                                 );
                             })}
+                            </div>
+                            <DiscoverLocaleSelect className="w-32 shrink-0 hidden md:flex" />
+                        </div>
+                        <div className="sm:hidden mt-2 flex justify-end">
+                            <DiscoverLocaleSelect className="w-36" />
                         </div>
                     </div>
 
@@ -374,3 +383,14 @@ export const DiscoveryDashboard: React.FC<{
         </div>
     );
 };
+
+export const DiscoveryDashboard: React.FC<{
+    onItemClick: (item: any) => void;
+    pushToast?: (msg: string, type: 'success' | 'error') => void;
+    mediaServerType?: string;
+    isAdmin?: boolean;
+}> = (props) => (
+    <DiscoverI18nProvider>
+        <DiscoveryDashboardInner {...props} />
+    </DiscoverI18nProvider>
+);

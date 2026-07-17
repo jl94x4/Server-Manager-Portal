@@ -9,15 +9,19 @@ import {
     XCircle,
 } from 'lucide-react';
 import type { MediaAvailabilityState } from './discoverAvailability';
+import { useDiscoverI18n, translateDiscoverStatus } from './i18n';
 
 const badgeClass = 'absolute top-2 right-2 rounded-full p-1 shadow-lg backdrop-blur-sm z-10 border flex items-center justify-center';
 
 export const DiscoverStatusOverlay: React.FC<{ state: MediaAvailabilityState }> = ({ state }) => {
+    const { t } = useDiscoverI18n();
     if (state.kind === 'none') return null;
+
+    const title = translateDiscoverStatus(t, state.detail || state.label) || state.label;
 
     if (state.kind === 'available') {
         return (
-            <div className={`${badgeClass} bg-green-500/90 text-white border-green-400/30`} title={state.label}>
+            <div className={`${badgeClass} bg-green-500/90 text-white border-green-400/30`} title={title}>
                 <CheckCircle className="w-4 h-4" />
             </div>
         );
@@ -27,17 +31,17 @@ export const DiscoverStatusOverlay: React.FC<{ state: MediaAvailabilityState }> 
         return (
             <div
                 className="absolute top-2 right-2 z-10 flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-500/90 text-white text-[10px] font-black uppercase tracking-wide shadow-lg backdrop-blur-sm border border-emerald-400/30"
-                title={state.detail || state.label}
+                title={title}
             >
                 <Layers className="w-3 h-3" />
-                Partial
+                {t('status.partial')}
             </div>
         );
     }
 
     if (state.kind === 'processing') {
         return (
-            <div className={`${badgeClass} bg-blue-500/90 text-white border-blue-400/30`} title={state.label}>
+            <div className={`${badgeClass} bg-blue-500/90 text-white border-blue-400/30`} title={title}>
                 <Download className="w-4 h-4" />
             </div>
         );
@@ -47,17 +51,17 @@ export const DiscoverStatusOverlay: React.FC<{ state: MediaAvailabilityState }> 
         return (
             <div
                 className="absolute top-2 right-2 z-10 flex items-center gap-1 px-2 py-1 rounded-full bg-indigo-500/90 text-white text-[10px] font-black uppercase tracking-wide shadow-lg backdrop-blur-sm border border-indigo-400/30"
-                title={state.detail || state.label}
+                title={title}
             >
                 <Clock className="w-3 h-3" />
-                Requested
+                {t('status.requested')}
             </div>
         );
     }
 
     if (state.kind === 'pending') {
         return (
-            <div className={`${badgeClass} bg-amber-500/90 text-white border-amber-400/30`} title={state.label}>
+            <div className={`${badgeClass} bg-amber-500/90 text-white border-amber-400/30`} title={title}>
                 <Clock className="w-4 h-4" />
             </div>
         );
@@ -67,17 +71,17 @@ export const DiscoverStatusOverlay: React.FC<{ state: MediaAvailabilityState }> 
         return (
             <div
                 className="absolute top-2 right-2 z-10 flex items-center gap-1 px-2 py-1 rounded-full bg-red-500/90 text-white text-[10px] font-black uppercase tracking-wide shadow-lg backdrop-blur-sm border border-red-400/30"
-                title={state.detail || state.label}
+                title={title}
             >
                 <AlertCircle className="w-3 h-3" />
-                Failed
+                {t('status.failed')}
             </div>
         );
     }
 
     if (state.kind === 'declined') {
         return (
-            <div className={`${badgeClass} bg-red-500/80 text-white border-red-400/30`} title={state.detail || state.label}>
+            <div className={`${badgeClass} bg-red-500/80 text-white border-red-400/30`} title={title}>
                 <XCircle className="w-4 h-4" />
             </div>
         );
@@ -85,7 +89,7 @@ export const DiscoverStatusOverlay: React.FC<{ state: MediaAvailabilityState }> 
 
     if (state.kind === 'blacklisted') {
         return (
-            <div className={`${badgeClass} bg-zinc-700/95 text-white border-white/20`} title={state.label}>
+            <div className={`${badgeClass} bg-zinc-700/95 text-white border-white/20`} title={title}>
                 <Ban className="w-4 h-4" />
             </div>
         );
@@ -112,12 +116,13 @@ export const MediaStatusPanel: React.FC<{
     libraryAction?: React.ReactNode;
     arrAction?: React.ReactNode;
 }> = ({ state, onViewRequests, onRetry, libraryAction, arrAction }) => {
+    const { t } = useDiscoverI18n();
     if (state.kind === 'none') return null;
 
     return (
         <div className={`rounded-xl border px-4 py-3 flex flex-col gap-3 ${mediaStatusPanelClass(state.kind)}`}>
             <div className="min-w-0">
-                <p className="text-sm font-bold">{state.label}</p>
+                <p className="text-sm font-bold">{translateDiscoverStatus(t, state.label)}</p>
                 {state.detail && (
                     <p className="text-xs opacity-80 mt-0.5 leading-relaxed">{state.detail}</p>
                 )}
@@ -130,7 +135,7 @@ export const MediaStatusPanel: React.FC<{
                             onClick={onRetry}
                             className="w-full px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-bold transition-colors text-center"
                         >
-                            Retry request
+                            {t('media.retryRequest')}
                         </button>
                     )}
                     {state.hasUserRequest && onViewRequests && (
@@ -139,7 +144,7 @@ export const MediaStatusPanel: React.FC<{
                             onClick={onViewRequests}
                             className="w-full px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-bold transition-colors text-center"
                         >
-                            View in My Requests
+                            {t('media.viewInMyRequests')}
                         </button>
                     )}
                     {libraryAction}

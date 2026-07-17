@@ -9,6 +9,7 @@ import {
 } from './mediaDetailUtils';
 import { MediaRatingPills } from './MediaRatingPills';
 import { DiscoveryFactWidget } from './DiscoveryFactWidget';
+import { useDiscoverI18n, translateDiscoverStatus } from './i18n';
 
 export const MediaOverviewExtras: React.FC<{
     mediaType: 'movie' | 'tv';
@@ -20,6 +21,7 @@ export const MediaOverviewExtras: React.FC<{
     onOpenKeyword?: (keyword: { id: number; name: string }) => void;
     onOpenStudio?: (studioId: number) => void;
 }> = ({ mediaType, mediaId, details, ratings, onOpenPerson, onOpenCollection, onOpenKeyword, onOpenStudio }) => {
+    const { t } = useDiscoverI18n();
     const [showAllStudios, setShowAllStudios] = useState(false);
 
     const factRows = useMemo(() => buildMediaFactRows(mediaType, details), [mediaType, details]);
@@ -82,7 +84,7 @@ export const MediaOverviewExtras: React.FC<{
                             className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.06] px-2.5 py-1.5 text-xs font-bold text-white/85 transition-all hover:brightness-110 hover:scale-[1.02] hover:bg-white/10 hover:border-white/20"
                         >
                             <Play className="w-5 h-5 shrink-0" />
-                            Watch trailer
+                            {t('media.watchTrailer')}
                         </a>
                     )}
                 </div>
@@ -91,14 +93,14 @@ export const MediaOverviewExtras: React.FC<{
             {(visibleFactRows.length > 0 || studios.length > 0) && (
                 <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-3">
-                        <h3 className="text-xs font-black text-white/50 uppercase tracking-[0.2em]">Details</h3>
+                        <h3 className="text-xs font-black text-white/50 uppercase tracking-[0.2em]">{t('media.details')}</h3>
                         <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
                         {visibleFactRows.map((row) => (
                             <div key={row.key} className="flex flex-col gap-0.5 min-w-0">
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">
-                                    {row.label}
+                                    {t(`facts.${row.key}`)}
                                 </span>
                                 {row.people?.length ? (
                                     <div className="flex flex-wrap gap-2">
@@ -115,7 +117,7 @@ export const MediaOverviewExtras: React.FC<{
                                     </div>
                                 ) : (
                                     <span className="text-sm text-white/80 leading-snug">
-                                        {row.value}
+                                        {row.key === 'status' ? translateDiscoverStatus(t, row.value) : row.value}
                                     </span>
                                 )}
                             </div>
@@ -123,7 +125,7 @@ export const MediaOverviewExtras: React.FC<{
                         {studios.length > 0 && (
                             <div className="flex flex-col gap-2 min-w-0 sm:col-span-2">
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">
-                                    {studios.length === 1 ? 'Studio' : 'Studios'}
+                                    {studios.length === 1 ? t('media.studio') : t('media.studios')}
                                 </span>
                                 <div className="flex flex-wrap gap-2">
                                     {visibleStudios.map((studio) => (
@@ -143,7 +145,7 @@ export const MediaOverviewExtras: React.FC<{
                                         onClick={() => setShowAllStudios((prev) => !prev)}
                                         className="self-start text-xs font-semibold text-plex hover:text-plex-hover transition-colors"
                                     >
-                                        {showAllStudios ? 'Show less' : `Show ${studios.length - 3} more`}
+                                        {showAllStudios ? t('common.showLess') : t('media.showMoreStudios', { count: studios.length - 3 })}
                                     </button>
                                 )}
                             </div>
@@ -160,7 +162,7 @@ export const MediaOverviewExtras: React.FC<{
                 >
                     <div className="px-4 py-3 flex items-center justify-between gap-3 min-w-[12rem]">
                         <div className="min-w-0">
-                            <div className="text-[9px] font-bold uppercase tracking-wider text-white/35">Collection</div>
+                            <div className="text-[9px] font-bold uppercase tracking-wider text-white/35">{t('media.collection')}</div>
                             <div className="text-sm font-semibold text-white/90 mt-1 truncate">{details.collection.name}</div>
                         </div>
                         <ArrowRight className="w-4 h-4 text-white/40 group-hover:text-plex transition-colors shrink-0" />
@@ -173,7 +175,7 @@ export const MediaOverviewExtras: React.FC<{
             {crew.length > 0 && (
                 <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-3">
-                        <h3 className="text-xs font-black text-white/50 uppercase tracking-[0.2em]">Key crew</h3>
+                        <h3 className="text-xs font-black text-white/50 uppercase tracking-[0.2em]">{t('media.keyCrew')}</h3>
                         <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
@@ -197,7 +199,7 @@ export const MediaOverviewExtras: React.FC<{
             {keywords.length > 0 && (
                 <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-3">
-                        <h3 className="text-xs font-black text-white/50 uppercase tracking-[0.2em]">Keywords</h3>
+                        <h3 className="text-xs font-black text-white/50 uppercase tracking-[0.2em]">{t('media.keywords')}</h3>
                         <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
                     </div>
                     <div className="flex flex-wrap gap-2">

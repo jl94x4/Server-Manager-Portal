@@ -22,6 +22,7 @@ import { useLibraryQueueToggle } from './useLibraryQueueToggle';
 import { DiscoverGridSizeSelect } from './DiscoverGridSizeSelect';
 import { useDiscoverGridSize } from './useDiscoverGridSize';
 import { discoverRowCardWidthClass } from '../shared/portalLayout';
+import { useDiscoverI18n } from './i18n';
 
 type GenreSliderItem = { id: number; name: string; image?: string; backdrops?: string[] };
 
@@ -99,6 +100,7 @@ export const DiscoverHome: React.FC<{
     pushToast?: (msg: string, type: 'success' | 'error') => void;
     providerLabel?: string;
 }> = ({ onSelect, formatItem, navigate, pushToast, providerLabel = 'Plex' }) => {
+    const { t } = useDiscoverI18n();
     const { preferences, loaded } = useDiscoveryPreferences();
     const { showLibraryQueue, toggleLibraryQueue } = useLibraryQueueToggle();
     const [gridSize, setGridSize] = useDiscoverGridSize();
@@ -224,7 +226,7 @@ export const DiscoverHome: React.FC<{
                         <h2 className={`${discoveryTheme.sectionTitle} truncate`}>{title}</h2>
                         {onViewAll && (
                             <button type="button" onClick={onViewAll} className="shrink-0 text-xs font-bold text-plex hover:underline">
-                                View All
+                                {t('common.viewAll')}
                             </button>
                         )}
                     </div>
@@ -238,7 +240,7 @@ export const DiscoverHome: React.FC<{
                     <h2 className={`${discoveryTheme.sectionTitle} truncate`}>{title}</h2>
                     {onViewAll && (
                         <button type="button" onClick={onViewAll} className="shrink-0 text-xs font-bold text-plex hover:underline">
-                            View All
+                            {t('common.viewAll')}
                         </button>
                     )}
                 </div>
@@ -302,10 +304,10 @@ export const DiscoverHome: React.FC<{
             <section className={discoveryTheme.personalPanel}>
                 <div className="px-1 flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                        <p className={discoveryTheme.personalEyebrow}>For you</p>
-                        <h2 className="text-lg sm:text-xl font-black text-text mt-1">Your library queue</h2>
+                        <p className={discoveryTheme.personalEyebrow}>{t('home.forYou')}</p>
+                        <h2 className="text-lg sm:text-xl font-black text-text mt-1">{t('home.libraryQueue')}</h2>
                         {showLibraryQueue && (
-                            <p className="text-sm text-muted mt-1">Requests and watchlist first — then browse what’s new.</p>
+                            <p className="text-sm text-muted mt-1">{t('home.libraryQueueHint')}</p>
                         )}
                     </div>
                     <button
@@ -314,9 +316,9 @@ export const DiscoverHome: React.FC<{
                         className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-white/5 hover:bg-white/10 text-xs font-bold text-muted hover:text-text transition-colors"
                         aria-expanded={showLibraryQueue}
                         aria-controls="discover-library-queue"
-                        title={showLibraryQueue ? 'Hide library queue' : 'Show library queue'}
+                        title={showLibraryQueue ? t('home.hideLibraryQueue') : t('home.showLibraryQueue')}
                     >
-                        {showLibraryQueue ? 'Hide' : 'Show'}
+                        {showLibraryQueue ? t('common.hide') : t('common.show')}
                         {showLibraryQueue ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                     </button>
                 </div>
@@ -324,14 +326,14 @@ export const DiscoverHome: React.FC<{
                 {showLibraryQueue && (
                     <div id="discover-library-queue" className="flex flex-col gap-5">
                         <DiscoveryRow
-                            title="Your Requests"
+                            title={t('home.yourRequests')}
                             items={rows.recentRequests}
                             onViewAll={() => navigate('/discovery/requests')}
                             empty={(
                                 <EmptyRail
-                                    title="No requests yet"
-                                    body="Find something good and send it to the queue."
-                                    actionLabel="Browse movies"
+                                    title={t('home.noRequestsTitle')}
+                                    body={t('home.noRequestsBody')}
+                                    actionLabel={t('home.browseMovies')}
                                     onAction={() => navigate('/discovery/movies')}
                                     icon={<ClipboardList className="w-5 h-5" />}
                                 />
@@ -352,11 +354,11 @@ export const DiscoverHome: React.FC<{
                             />
                         ) : (
                             <div className="flex flex-col gap-2">
-                                <h2 className={`${discoveryTheme.sectionTitle} px-2`}>Your {providerLabel} Watchlist</h2>
+                                <h2 className={`${discoveryTheme.sectionTitle} px-2`}>{t('watchlist.title', { provider: providerLabel })}</h2>
                                 <EmptyRail
-                                    title="Watchlist is empty"
-                                    body={`Sync from ${providerLabel} in Seerr, or start from trending titles.`}
-                                    actionLabel="See trending"
+                                    title={t('home.watchlistEmptyTitle')}
+                                    body={t('home.watchlistEmptyBody', { provider: providerLabel })}
+                                    actionLabel={t('home.seeTrending')}
                                     onAction={() => {
                                         document.getElementById('discover-trending')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                                     }}
@@ -371,8 +373,8 @@ export const DiscoverHome: React.FC<{
             <section className={discoveryTheme.browseSection}>
                 <div className="px-3 flex items-end justify-between gap-3 flex-wrap">
                     <div>
-                        <p className={discoveryTheme.personalEyebrow}>Browse</p>
-                        <h2 className="text-lg sm:text-xl font-black text-text mt-1">What’s popular</h2>
+                        <p className={discoveryTheme.personalEyebrow}>{t('home.browse')}</p>
+                        <h2 className="text-lg sm:text-xl font-black text-text mt-1">{t('home.whatsPopular')}</h2>
                     </div>
                     <div className="flex items-center gap-2 sm:gap-3">
                         <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
@@ -381,21 +383,21 @@ export const DiscoverHome: React.FC<{
                             onClick={() => navigate('/discovery/movies')}
                             className="text-xs font-bold text-plex hover:underline inline-flex items-center gap-1"
                         >
-                            <Film className="w-3.5 h-3.5" /> All movies
+                            <Film className="w-3.5 h-3.5" /> {t('home.allMovies')}
                         </button>
                     </div>
                 </div>
 
-                <DiscoveryRow title="Recently Added" items={rows.recentlyAdded} />
+                <DiscoveryRow title={t('home.recentlyAdded')} items={rows.recentlyAdded} />
                 <div id="discover-trending">
-                    <DiscoveryRow title="Trending" items={rows.trending} />
+                    <DiscoveryRow title={t('home.trending')} items={rows.trending} />
                 </div>
-                <DiscoveryRow title="Popular Movies" items={rows.popularMovies} onViewAll={() => navigate('/discovery/movies')} />
-                {renderGenreSlider('Movie Genres', movieGenres, MOVIE_GENRES, '/discovery/movies')}
-                <DiscoveryRow title="Upcoming Movies" items={rows.upcomingMovies} />
+                <DiscoveryRow title={t('home.popularMovies')} items={rows.popularMovies} onViewAll={() => navigate('/discovery/movies')} />
+                {renderGenreSlider(t('home.movieGenres'), movieGenres, MOVIE_GENRES, '/discovery/movies')}
+                <DiscoveryRow title={t('home.upcomingMovies')} items={rows.upcomingMovies} />
 
                 <div className="flex flex-col gap-2 relative rounded-2xl border border-border/60 bg-white/[0.02] p-3 sm:p-4">
-                    <h2 className={`${discoveryTheme.sectionTitle} px-1 pr-16`}>Studios</h2>
+                    <h2 className={`${discoveryTheme.sectionTitle} px-1 pr-16`}>{t('home.studios')}</h2>
                     <Carousel>
                         {DISCOVER_STUDIOS.map((studio) => (
                             <CompanyCard
@@ -408,12 +410,12 @@ export const DiscoverHome: React.FC<{
                     </Carousel>
                 </div>
 
-                <DiscoveryRow title="Popular Series" items={rows.popularSeries} onViewAll={() => navigate('/discovery/series')} />
-                {renderGenreSlider('Series Genres', tvGenres, TV_GENRES, '/discovery/series')}
-                <DiscoveryRow title="Upcoming Series" items={rows.upcomingSeries} />
+                <DiscoveryRow title={t('home.popularSeries')} items={rows.popularSeries} onViewAll={() => navigate('/discovery/series')} />
+                {renderGenreSlider(t('home.seriesGenres'), tvGenres, TV_GENRES, '/discovery/series')}
+                <DiscoveryRow title={t('home.upcomingSeries')} items={rows.upcomingSeries} />
 
                 <div className="flex flex-col gap-2 relative rounded-2xl border border-border/60 bg-white/[0.02] p-3 sm:p-4">
-                    <h2 className={`${discoveryTheme.sectionTitle} px-1 pr-16`}>Networks</h2>
+                    <h2 className={`${discoveryTheme.sectionTitle} px-1 pr-16`}>{t('home.networks')}</h2>
                     <Carousel>
                         {DISCOVER_NETWORKS.map((network) => (
                             <CompanyCard

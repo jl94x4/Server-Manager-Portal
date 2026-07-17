@@ -22,6 +22,7 @@ import {
     type FilterOption,
 } from './filterControls';
 import { useDiscoveryPreferences } from './useDiscoveryPreferences';
+import { useDiscoverI18n } from './i18n';
 
 export interface FilterState {
     sort: string;
@@ -158,6 +159,7 @@ const toNumber = (value: string, fallback: number) => {
 };
 
 export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, type, filters, onApply, onClear }) => {
+    const { t } = useDiscoverI18n();
     const { preferences } = useDiscoveryPreferences();
     const [localFilters, setLocalFilters] = useState<FilterState>(filters);
 
@@ -259,10 +261,10 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                 <div className={discoveryTheme.drawerHeader}>
                     <div>
                         <h2 className={discoveryTheme.drawerTitle}>
-                            <Filter className="w-6 h-6 text-plex" /> Filters
+                            <Filter className="w-6 h-6 text-plex" /> {t('filters.title')}
                         </h2>
                         <p className="text-xs text-muted mt-1 font-medium">
-                            {activeCount} Active Filter{activeCount === 1 ? '' : 's'}
+                            {t('filters.activeCount', { count: activeCount })}
                         </p>
                     </div>
                     <button
@@ -275,7 +277,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                 </div>
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-7">
-                    <FilterField label="Quick Presets" hint="One tap setups">
+                    <FilterField label={t('filters.quickPresets')} hint={t('filters.quickPresetsHint')}>
                         <div className="flex flex-wrap gap-2">
                             {FILTER_PRESETS.map((preset) => (
                                 <button
@@ -291,7 +293,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                         </div>
                     </FilterField>
 
-                    <FilterField label="Sort By">
+                    <FilterField label={t('filters.sortBy')}>
                         <CustomSelect
                             value={localFilters.sort}
                             onChange={(sort) => patch({ sort })}
@@ -300,7 +302,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                         />
                     </FilterField>
 
-                    <FilterField label={type === 'movie' ? 'Release Date' : 'First Air Date'}>
+                    <FilterField label={type === 'movie' ? t('filters.releaseDate') : t('filters.firstAirDate')}>
                         <DateRangeInputs
                             from={localFilters.dateGte}
                             to={localFilters.dateLte}
@@ -310,7 +312,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                     </FilterField>
 
                     {type === 'movie' ? (
-                        <FilterField label="Studio">
+                        <FilterField label={t('filters.studio')}>
                             <AsyncTagSelect
                                 mode="company"
                                 values={studioOptions}
@@ -326,7 +328,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                             />
                         </FilterField>
                     ) : (
-                        <FilterField label="Network">
+                        <FilterField label={t('filters.network')}>
                             <AsyncTagSelect
                                 mode="company"
                                 values={networkOptions}
@@ -343,7 +345,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                         </FilterField>
                     )}
 
-                    <FilterField label="Genres">
+                    <FilterField label={t('filters.genres')}>
                         <ChipMultiSelect
                             options={genreOptions}
                             selected={selectedGenres}
@@ -352,7 +354,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                     </FilterField>
 
                     {type === 'tv' && (
-                        <FilterField label="Status">
+                        <FilterField label={t('filters.status')}>
                             <ChipMultiSelect
                                 options={TV_STATUS_OPTIONS}
                                 selected={statusSelected}
@@ -361,7 +363,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                         </FilterField>
                     )}
 
-                    <FilterField label="Keywords">
+                    <FilterField label={t('filters.keywords')}>
                         <AsyncTagSelect
                             mode="keyword"
                             values={keywordOptions}
@@ -370,7 +372,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                         />
                     </FilterField>
 
-                    <FilterField label="Exclude Keywords">
+                    <FilterField label={t('filters.excludeKeywords')}>
                         <AsyncTagSelect
                             mode="keyword"
                             values={excludeKeywordOptions}
@@ -379,7 +381,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                         />
                     </FilterField>
 
-                    <FilterField label="Original Language">
+                    <FilterField label={t('filters.originalLanguage')}>
                         <CustomSelect
                             value={localFilters.language}
                             onChange={(language) => patch({ language })}
@@ -388,7 +390,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                         />
                     </FilterField>
 
-                    <FilterField label="Content Rating" hint="US">
+                    <FilterField label={t('filters.contentRating')} hint={t('filters.contentRatingHint')}>
                         <CertificationToggles
                             ratings={US_CONTENT_RATINGS}
                             selected={certificationSelected}
@@ -396,7 +398,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                         />
                     </FilterField>
 
-                    <FilterField label="Runtime">
+                    <FilterField label={t('filters.runtime')}>
                         <DualRangeSlider
                             min={0}
                             max={400}
@@ -411,7 +413,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                         />
                     </FilterField>
 
-                    <FilterField label="TMDB User Score">
+                    <FilterField label={t('filters.tmdbUserScore')}>
                         <DualRangeSlider
                             min={1}
                             max={10}
@@ -426,7 +428,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                         />
                     </FilterField>
 
-                    <FilterField label="TMDB Vote Count">
+                    <FilterField label={t('filters.tmdbVoteCount')}>
                         <DualRangeSlider
                             min={0}
                             max={5000}
@@ -441,7 +443,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                         />
                     </FilterField>
 
-                    <FilterField label="Streaming Services">
+                    <FilterField label={t('filters.streamingServices')}>
                         <WatchProviderPicker
                             type={type}
                             region={normalizeWatchRegion(
@@ -463,14 +465,14 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({ isOpen, onClose, typ
                         onClick={handleClear}
                         className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 border border-border rounded-lg text-sm text-text font-bold transition-colors"
                     >
-                        Clear All
+                        {t('filters.clearAll')}
                     </button>
                     <button
                         type="button"
                         onClick={handleApply}
                         className="flex-1 py-2.5 bg-plex hover:bg-plex-hover rounded-lg text-sm text-black font-black transition-colors shadow-[0_0_12px_rgba(229,160,13,0.25)]"
                     >
-                        Apply Filters
+                        {t('filters.applyFilters')}
                     </button>
                 </div>
             </div>
