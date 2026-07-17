@@ -17,7 +17,7 @@ export const periodLabel = (days: number | string) => {
 };
 
 const FALLBACK_IMAGES = {
-    rank: 'https://images.unsplash.com/photo-1567427017947-545c5f8d16ad?auto=format&fit=crop&q=80&w=600',
+    rank: 'https://images.unsplash.com/photo-1755039466834-3322b29dc45e?auto=format&fit=crop&q=80&w=600',
     streams: 'https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&q=80&w=600',
     binge: 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?auto=format&fit=crop&q=80&w=600',
     movie: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=600',
