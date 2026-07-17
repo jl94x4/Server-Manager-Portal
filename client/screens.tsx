@@ -6308,7 +6308,8 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
 
     const daysLeft = user?.expiryDate ? getDaysUntilExpiry(user.expiryDate) : null;
     const progressPct = getAccessProgressPct(user?.expiryDate || null, user?.joiningDate || null);
-    const isExpiringSoon = daysLeft !== null && daysLeft <= 7;
+    const isExpired = daysLeft !== null && daysLeft < 0;
+    const isExpiringSoon = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7;
     const isRevoked = user?.plexAccessStatus === 'revoked';
     const isPending = user?.plexAccessStatus?.toLowerCase() === 'pending';
 

@@ -213,6 +213,7 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
 
     const analyticsDaysOptions = ANALYTICS_PERIOD_OPTIONS;
     const isJellyfinPortal = String(publicConfig?.mediaServerType || 'plex').toLowerCase() === 'jellyfin';
+    const isExpired = daysLeft !== null && daysLeft < 0;
 
     return (id: MainGridWidgetId): React.ReactNode => {
         switch (id) {
@@ -261,16 +262,21 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                                 <div className="bg-background/40 rounded-xl p-5 border border-white/5 mt-2">
                                     <div className="flex justify-between items-baseline mb-3">
                                         <span className="text-muted text-xs uppercase tracking-widest font-semibold">Time Remaining</span>
-                                        <span className={`font-black text-3xl md:text-4xl leading-none ${isExpiringSoon ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.3)]' : 'text-plex drop-shadow-[0_0_8px_rgba(229,160,13,0.3)]'}`}>
+                                        <span className={`font-black text-3xl md:text-4xl leading-none ${isExpired || isRevoked ? 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.3)]' : isExpiringSoon ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.3)]' : 'text-plex drop-shadow-[0_0_8px_rgba(229,160,13,0.3)]'}`}>
                                             {daysLeft}<span className="text-base font-semibold text-muted ml-1.5">{daysLeft === 1 ? 'day' : 'days'}</span>
                                         </span>
                                     </div>
                                     <div className="w-full h-3 bg-black/40 rounded-full overflow-hidden shadow-inner border border-white/5">
-                                        <div className={`h-full rounded-full transition-all duration-1000 relative ${isExpiringSoon ? 'bg-yellow-400' : 'bg-gradient-to-r from-plex via-amber-400 to-orange-500'}`} style={{ width: `${progressPct}%` }}>
+                                        <div className={`h-full rounded-full transition-all duration-1000 relative ${isExpired || isRevoked ? 'bg-red-400' : isExpiringSoon ? 'bg-yellow-400' : 'bg-gradient-to-r from-plex via-amber-400 to-orange-500'}`} style={{ width: `${progressPct}%` }}>
                                             <div className="absolute top-0 bottom-0 left-0 right-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[shimmer_1s_linear_infinite]" />
                                         </div>
                                     </div>
-                                    {isExpiringSoon && <p className="text-yellow-400/90 text-sm font-medium mt-3 flex items-center gap-2">⚠️ Expiring soon — contact admin</p>}
+                                    {isExpired && (
+                                        <p className="text-red-400/90 text-sm font-medium mt-3 flex items-center gap-2">Expired</p>
+                                    )}
+                                    {isExpiringSoon && !isExpired && (
+                                        <p className="text-yellow-400/90 text-sm font-medium mt-3 flex items-center gap-2">⚠️ Expiring soon — contact admin</p>
+                                    )}
                                 </div>
                             )}
                         </div>

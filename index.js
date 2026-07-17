@@ -5707,7 +5707,7 @@ app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) 
             }
         }
 
-        if (options.canRequestAdvanced) {
+        if (options.canRequest || options.canRequestAdvanced) {
             if (serverId != null) body.serverId = Number(serverId);
             if (profileId != null) body.profileId = Number(profileId);
             if (rootFolder) body.rootFolder = String(rootFolder);
