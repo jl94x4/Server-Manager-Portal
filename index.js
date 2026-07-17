@@ -345,6 +345,8 @@ import {
     ensureSeerrDiscoverySettings,
     filterDiscoveryPayload,
     getDiscoveryPreferences,
+    isAllowedDiscoveryProxyPath,
+    normalizeDiscoveryProxyPath,
     normalizeDiscoverLanguage,
     normalizeDiscoverRegion,
     syncSeerrDiscoverySettings,
@@ -1104,11 +1106,16 @@ const resolveCurrentAdmin = async (sessionUser, config = null) => {
                     const jellyfinUser = await userRes.json();
                     return jellyfinUser?.Policy?.IsAdministrator === true;
                 }
+                // Fail closed when Jellyfin responds but user lookup fails — do not trust JWT claims.
+                log(`Jellyfin admin policy check HTTP ${userRes.status} for ${sessionUser.username || sessionUser.jellyfinId}`);
+                return false;
             } catch (e) {
                 log(`Jellyfin admin policy check failed for ${sessionUser.username || sessionUser.jellyfinId}: ${e.message}`);
+                // Fail closed when Jellyfin is unreachable — do not elevate from cookie flags.
+                return false;
             }
         }
-        return sessionUser?.jellyfinIsAdmin === true || sessionUser?.isAdmin === true;
+        return false;
     }
     if (!sessionUser?.plexId) return false;
     const adminId = await getAdminId(loadedConfig);
@@ -1166,6 +1173,10 @@ const requireAdmin = async (req, res, next) => {
         req.user = jwt.verify(token, JWT_SECRET);
     } catch (e) {
         return res.status(401).json({ error: 'Invalid session' });
+    }
+
+    if (isImpersonatingSession(req.user)) {
+        return res.status(403).json({ error: 'Admin actions are disabled while viewing as another user. Stop impersonation first.' });
     }
 
     const config = await loadFile(CONFIG_PATH, {});
@@ -2226,7 +2237,6 @@ const assertInitialSetupAccess = async (req, res, options = {}) => {
         res.status(403).json({ error: 'Portal is already configured.' });
         return false;
     }
-    if (options.allowUnconfigured === true) return true;
     if (canRunInitialSetup(req)) return true;
     const sessionToken = req.cookies && req.cookies.session;
     if (sessionToken) {
@@ -2240,7 +2250,8 @@ const assertInitialSetupAccess = async (req, res, options = {}) => {
 };
 
 app.post('/api/setup/plex/callback', setupRateLimit, authRateLimit, async (req, res) => {
-    if (!(await assertInitialSetupAccess(req, res, { allowUnconfigured: true }))) return;
+    // Require localhost or SETUP_TOKEN — never return a Plex owner token on an open unconfigured portal.
+    if (!(await assertInitialSetupAccess(req, res))) return;
     const { pinId } = req.body;
     if (!pinId) return res.status(400).json({ error: 'pinId is required' });
 
@@ -5861,7 +5872,11 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
 
         await ensureSeerrDiscoverySettings(config, requestAppService.rawFetch);
 
-        const path = '/' + req.params[0];
+        const path = normalizeDiscoveryProxyPath('/' + req.params[0]);
+        if (!path || !isAllowedDiscoveryProxyPath(path)) {
+            return res.status(403).json({ error: 'Discovery proxy path is not allowed.' });
+        }
+
         const prefs = getDiscoveryPreferences(config);
 
         const params = applyDiscoveryQueryParams(new URLSearchParams(req.query), path, prefs);

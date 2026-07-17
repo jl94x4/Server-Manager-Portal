@@ -52,6 +52,25 @@ const WELCOME_FEATURES = [
 ] as const;
 
 const SETUP_PLEX_STORAGE_KEY = 'setupWizardPlex';
+const SETUP_TOKEN_STORAGE_KEY = 'setupWizardSetupToken';
+
+const readSetupAccessToken = (): string => {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const fromQuery = String(params.get('setupToken') || '').trim();
+        if (fromQuery) {
+            sessionStorage.setItem(SETUP_TOKEN_STORAGE_KEY, fromQuery);
+            return fromQuery;
+        }
+        return String(sessionStorage.getItem(SETUP_TOKEN_STORAGE_KEY) || '').trim();
+    } catch {
+        return '';
+    }
+};
+
+const setupAuthHeaders = (setupToken: string): Record<string, string> => (
+    setupToken ? { 'X-Setup-Token': setupToken } : {}
+);
 
 const REQUEST_APP_OPTIONS = [
     { label: 'Disabled', value: 'none' },
@@ -178,6 +197,7 @@ const readStoredSetupPlex = () => {
 export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
     const storedPlex = readStoredSetupPlex();
     const isOAuthReturn = typeof window !== 'undefined' && stripBasePath(window.location.pathname).startsWith('/auth/setup/');
+    const [setupToken] = useState(() => (typeof window !== 'undefined' ? readSetupAccessToken() : ''));
 
     const [step, setStep] = useState<StepId>(() => {
         if (isOAuthReturn) return 'plex';
@@ -300,7 +320,11 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
 
         apiFetch('/api/setup/plex/callback', {
             method: 'POST',
-            body: JSON.stringify({ pinId }),
+            headers: setupAuthHeaders(readSetupAccessToken()),
+            body: JSON.stringify({
+                pinId,
+                ...(readSetupAccessToken() ? { setupToken: readSetupAccessToken() } : {}),
+            }),
         }).then((data) => {
             const next = {
                 token: data.token,
@@ -350,7 +374,12 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
         try {
             const foundServers = await apiFetch('/api/plex/servers', {
                 method: 'POST',
-                body: JSON.stringify({ token: token.trim(), plexServerUrl: plexServerUrl || undefined }),
+                headers: setupAuthHeaders(setupToken),
+                body: JSON.stringify({
+                    token: token.trim(),
+                    plexServerUrl: plexServerUrl || undefined,
+                    ...(setupToken ? { setupToken } : {}),
+                }),
             });
             setServers(foundServers);
             if (foundServers.length > 0) {
@@ -396,7 +425,10 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                 const uploadResponse = await fetch(portalUrl('/api/config/logo'), {
                     method: 'POST',
                     credentials: 'same-origin',
-                    headers: { 'Content-Type': logoFile.type || (logoFile.name.toLowerCase().endsWith('.png') ? 'image/png' : (logoFile.name.toLowerCase().endsWith('.webp') ? 'image/webp' : 'image/jpeg')) },
+                    headers: {
+                        'Content-Type': logoFile.type || (logoFile.name.toLowerCase().endsWith('.png') ? 'image/png' : (logoFile.name.toLowerCase().endsWith('.webp') ? 'image/webp' : 'image/jpeg')),
+                        ...setupAuthHeaders(setupToken),
+                    },
                     body: logoFile,
                 });
                 if (!uploadResponse.ok) {
@@ -408,6 +440,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
             }
             await apiFetch('/api/config', {
                 method: 'POST',
+                headers: setupAuthHeaders(setupToken),
                 body: JSON.stringify({
                     token: token.trim(),
                     mediaServerType,
@@ -433,10 +466,12 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                     requestAppType,
                     requestAppUrl,
                     requestAppApiKey,
+                    ...(setupToken ? { setupToken } : {}),
                 }),
             });
             sessionStorage.removeItem(SETUP_PLEX_STORAGE_KEY);
             sessionStorage.removeItem('setupReturnPath');
+            sessionStorage.removeItem(SETUP_TOKEN_STORAGE_KEY);
             onComplete();
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Failed to save configuration.');
