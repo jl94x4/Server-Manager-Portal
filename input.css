@@ -490,6 +490,37 @@ html[data-theme="light"] .media-details-panel {
   box-shadow: none !important;
 }
 
+/* Light mode: keep cinematic image but use darker left/bottom washes so white
+ * hero titles stay readable (card vars are white in light theme). */
+html[data-theme="light"] .media-details-hero-scrim-mobile {
+  background: linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 0.45) 0%,
+    rgb(0 0 0 / 0.25) 45%,
+    rgb(var(--color-card) / 0.88) 78%,
+    rgb(var(--color-card)) 100%
+  ) !important;
+}
+
+html[data-theme="light"] .media-details-hero-scrim-bottom {
+  background: linear-gradient(
+    to top,
+    rgb(var(--color-card)) 0%,
+    rgb(var(--color-card) / 0.92) 28%,
+    rgb(0 0 0 / 0.35) 55%,
+    transparent 100%
+  ) !important;
+}
+
+html[data-theme="light"] .media-details-hero-scrim-left {
+  background: linear-gradient(
+    to right,
+    rgb(0 0 0 / 0.55) 0%,
+    rgb(0 0 0 / 0.28) 32%,
+    transparent 78%
+  ) !important;
+}
+
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 8px;

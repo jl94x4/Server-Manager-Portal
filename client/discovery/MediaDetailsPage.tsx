@@ -373,7 +373,7 @@ export const MediaDetailsPage: React.FC<{
         <div className="w-[calc(100%+2rem)] -mx-4 md:mx-0 md:w-full flex flex-col min-h-screen bg-card animate-fade-in pb-24 md:pb-16 rounded-none md:rounded-2xl lg:rounded-3xl overflow-x-hidden border-0 md:border border-white/5 shadow-2xl">
             <div className="relative isolate">
                 <div
-                    className="absolute inset-0 overflow-hidden pointer-events-none"
+                    className="media-details-hero-backdrop absolute inset-x-0 top-0 h-[34rem] max-h-[72vh] sm:h-[36rem] md:h-[min(72vh,52rem)] md:max-h-none overflow-hidden pointer-events-none"
                     aria-hidden
                 >
                     {heroImageUrl ? (
@@ -382,8 +382,9 @@ export const MediaDetailsPage: React.FC<{
                             alt=""
                             className={`absolute inset-0 w-full h-full object-cover ${
                                 heroUsesPosterFallback
-                                    ? 'scale-[1.35] blur-2xl opacity-40 md:scale-125 md:blur-xl md:opacity-50'
-                                    : 'scale-110 object-[32%_20%] opacity-40 md:scale-[1.12] md:object-[22%_18%] md:opacity-75'
+                                    ? 'scale-[1.35] blur-2xl opacity-40 md:scale-125 md:blur-xl md:opacity-58'
+                                    // Bias left so subjects land in the open right panel; slight scale avoids empty edges.
+                                    : 'scale-110 object-[32%_30%] opacity-45 md:scale-[1.15] md:object-[22%_28%] md:opacity-90'
                             }`}
                             fetchPriority="high"
                             decoding="async"
@@ -392,12 +393,12 @@ export const MediaDetailsPage: React.FC<{
                             }}
                         />
                     ) : (
-                        <div className="absolute inset-0 bg-card" />
+                        <div className="absolute inset-0 bg-black" />
                     )}
-                    {/* Top stays cinematic; bottom dissolves into the page card — no hard cutoff. */}
-                    <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/35 via-[42%] to-card" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-black/70 from-0% via-black/35 via-[36%] to-transparent to-[80%]" />
-                    <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-card to-transparent" />
+                    {/* Classic fade: image up top → dissolves into page card (dark & light). */}
+                    <div className="media-details-hero-scrim-mobile absolute inset-0 bg-gradient-to-b from-black/50 via-card/65 via-[55%] to-card md:hidden" />
+                    <div className="media-details-hero-scrim-bottom absolute inset-0 hidden md:block bg-gradient-to-t from-card from-0% via-card/80 via-[38%] to-transparent" />
+                    <div className="media-details-hero-scrim-left absolute inset-0 hidden md:block bg-gradient-to-r from-card from-0% via-card/70 via-[32%] to-transparent to-[78%]" />
                 </div>
 
                 <div className="relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 pt-4 sm:pt-5 pb-8">
