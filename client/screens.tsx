@@ -2823,6 +2823,7 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
         topDevices: any[],
         peakHours: number[],
         totalPlaybacks: number,
+        totalActiveUsers?: number,
         maxConcurrentStreams: number,
         maxDirectPlays: number,
         maxTranscodes: number,
