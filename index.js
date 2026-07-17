@@ -10212,8 +10212,20 @@ const buildSocialMetaTags = async (req) => {
     const baseUrl = getRequestBaseUrl(req);
     const pageUrl = `${baseUrl}${stripBasePathFromUrl(req.originalUrl || '/')}`;
     const serverName = profile.serverName || 'Server Portal';
-    const serverId = config.serverIdentifier || 'unconfigured';
-    const description = `Live Plex portal for ${serverName} (${serverId}).`;
+    const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
+    const mediaLabel = mediaServerType === 'jellyfin' ? 'Jellyfin' : mediaServerType === 'emby' ? 'Emby' : 'Plex';
+    const requestAppType = config.requestAppType === 'overseerr' ? 'seerr' : (config.requestAppType || 'none');
+    const hasRequests = !!(requestAppType && requestAppType !== 'none' && (config.requestAppUrl || config.requestUrl));
+
+    const highlights = [
+        'see what\'s playing',
+        'browse your library',
+        'check watch history',
+    ];
+    if (hasRequests) highlights.push('discover & request movies and TV');
+    else highlights.push('discover new movies and TV');
+
+    const description = `Your private ${mediaLabel} portal for ${serverName}. Sign in to ${highlights.slice(0, -1).join(', ')}, and ${highlights[highlights.length - 1]}.`;
     const title = `${serverName} Portal`;
 
     let imageUrl = '';
