@@ -3,10 +3,7 @@ import { ArrowLeft, Loader2, Star, Calendar, Film, ChevronDown } from 'lucide-re
 import { apiFetch } from '../shared/api';
 import { DiscoverPosterCard } from '../screens';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
-
-const PERSON_CREDITS_GRID_STYLE: React.CSSProperties = {
-    gridTemplateColumns: 'repeat(auto-fill, minmax(6.5rem, 1fr))',
-};
+import { upgraderPosterGridClass, upgraderPosterGridStyle } from '../shared/portalLayout';
 
 const splitBiography = (bio: string) => {
     const trimmed = bio.trim();
@@ -157,7 +154,7 @@ export const PersonDetailsPage: React.FC<{
                     <h2 className="text-2xl font-black text-white flex items-center gap-3">
                         <Film className="w-6 h-6 text-plex" /> Known For
                     </h2>
-                    <div className="grid w-full gap-2.5 sm:gap-3" style={PERSON_CREDITS_GRID_STYLE}>
+                    <div className={upgraderPosterGridClass('large')} style={upgraderPosterGridStyle('large')}>
                         {visibleCredits.map((rawItem, idx) => {
                             const formatted = formatItem(rawItem);
                             return (
@@ -167,7 +164,6 @@ export const PersonDetailsPage: React.FC<{
                                     overlay={formatted.overlay}
                                     showQualityBadges={false}
                                     onPosterClick={() => onSelect(formatted)}
-                                    posterWidth={200}
                                     footer={(
                                         <div className="text-[11px] font-medium line-clamp-2 leading-tight text-white/75 text-center mt-1 px-0.5">
                                             {formatted.title}

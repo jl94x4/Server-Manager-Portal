@@ -82,10 +82,18 @@ export const hasActiveSeerrDownloads = (
     return activeQueues.length > 0;
 };
 
+/** True when Seerr or Sonarr reports this title is still downloading / importing. */
+export const hasActiveShowDownloads = (details?: any, mediaInfo?: any): boolean => {
+    if (details?.sonarrLibraryStatus?.hasActiveDownloads) return true;
+    return hasActiveSeerrDownloads(mediaInfo || details?.mediaInfo);
+};
+
 export const isMediaActivelyProcessing = (
     mediaInfo: any,
     mediaStatus?: number | null,
+    details?: any,
 ): boolean => {
+    if (hasActiveShowDownloads(details, mediaInfo)) return true;
     const status = Number(mediaStatus ?? mediaInfo?.status);
     if (status !== MEDIA_STATUS.PROCESSING) return false;
     return hasActiveSeerrDownloads(mediaInfo);
@@ -94,7 +102,16 @@ export const isMediaActivelyProcessing = (
 export const resolveInProgressDisplay = (
     mediaInfo: any,
     mediaStatus?: number | null,
+    details?: any,
 ): { kind: 'processing' | 'requested'; label: string; detail: string } | null => {
+    if (hasActiveShowDownloads(details, mediaInfo)) {
+        return {
+            kind: 'processing',
+            label: 'Processing',
+            detail: 'Episodes are still downloading or importing.',
+        };
+    }
+
     const status = Number(mediaStatus ?? mediaInfo?.status);
     if (status !== MEDIA_STATUS.PROCESSING) return null;
 
@@ -194,6 +211,7 @@ export const isTvShowLibraryComplete = (
     mediaInfo?: any,
 ): boolean => {
     const info = mediaInfo || details?.mediaInfo;
+    if (hasActiveShowDownloads(details, info)) return false;
     if (details?.sonarrLibraryStatus?.showComplete) return true;
 
     const status = Number(info?.status);
@@ -566,6 +584,9 @@ export const getRequestButtonState = (
         return { label: 'Blacklisted', disabled: true, variant: 'blocked' as const };
     }
     const requestableCount = seasonRows.filter((s) => s.requestable).length;
+    if (hasActiveShowDownloads(details, mediaInfo)) {
+        return { label: 'Processing', disabled: true, variant: 'pending' as const };
+    }
     const libraryComplete = isTvShowLibraryComplete(details, seasonRows, mediaInfo);
     if (libraryComplete) {
         return {

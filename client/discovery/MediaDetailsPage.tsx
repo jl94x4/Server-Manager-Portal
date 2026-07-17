@@ -127,7 +127,9 @@ export const MediaDetailsPage: React.FC<{
                     sonarrLibraryStatus: res.sonarrLibraryStatus,
                     mediaInfo: {
                         ...(prev.mediaInfo || {}),
-                        ...(res.sonarrLibraryStatus.showComplete ? { status: 5 } : {}),
+                        ...(res.sonarrLibraryStatus.showComplete && !res.sonarrLibraryStatus.hasActiveDownloads
+                            ? { status: 5 }
+                            : {}),
                     },
                 } : prev));
             })
@@ -193,7 +195,9 @@ export const MediaDetailsPage: React.FC<{
                                 sonarrLibraryStatus: lib.sonarrLibraryStatus,
                                 mediaInfo: {
                                     ...(prev.mediaInfo || {}),
-                                    ...(lib.sonarrLibraryStatus.showComplete ? { status: 5 } : {}),
+                                    ...(lib.sonarrLibraryStatus.showComplete && !lib.sonarrLibraryStatus.hasActiveDownloads
+                                        ? { status: 5 }
+                                        : {}),
                                 },
                             } : prev));
                         })

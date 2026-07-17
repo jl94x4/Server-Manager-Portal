@@ -2,6 +2,7 @@ import { normalizeRawDiscoveryItem } from './discoverItemUtils';
 import {
     buildSeasonStatusFromDetails,
     hasActiveSeerrDownloads,
+    hasActiveShowDownloads,
     hasAnyEpisodeAired,
     isEndedShow,
     isMainSeasonNumber,
@@ -125,6 +126,16 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
     }
 
     const seasonRows = mediaType === 'tv' ? buildSeasonStatusFromDetails(item) : [];
+    const inProgressDisplay = resolveInProgressDisplay(mediaInfo, mediaStatus, item);
+    if (inProgressDisplay?.kind === 'processing' || hasActiveShowDownloads(item, mediaInfo)) {
+        return {
+            ...base,
+            kind: 'processing',
+            label: 'Processing',
+            detail: inProgressDisplay?.detail || 'Episodes are still downloading or importing.',
+        };
+    }
+
     const tvLibraryComplete = mediaType === 'tv'
         ? isTvShowLibraryComplete(item, seasonRows, mediaInfo)
         : false;
@@ -148,7 +159,6 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
     const approvedSeasons = seasonRows.filter((s) => s.statusLabel === 'Approved');
     const processingSeasons = seasonRows.filter((s) => s.statusLabel === 'Processing');
     const requestedSeasons = seasonRows.filter((s) => s.statusLabel === 'Requested');
-    const inProgressDisplay = resolveInProgressDisplay(mediaInfo, mediaStatus);
     const returningSeries = isReturningSeries(item);
     const endedShow = isEndedShow(item);
 
