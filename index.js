@@ -10881,7 +10881,7 @@ const isDelugeMissingTorrentError = (error) => {
 const controlDelugeTorrent = async (client, action, id) => {
     const cookie = await delugeLogin(client);
     const method = action === 'pause' ? 'core.pause_torrent' : action === 'resume' ? 'core.resume_torrent' : 'core.remove_torrent';
-    const params = action === 'remove' ? [[id], false] : [[id]];
+    const params = action === 'remove' ? [id, false] : [[id]];
     try {
         await delugeRpc(client, method, params, cookie);
     } catch (error) {
