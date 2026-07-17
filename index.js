@@ -6124,7 +6124,7 @@ app.get('/api/discovery/library-link', requireAuth, requireMember, async (req, r
             return res.status(404).json({ error: 'Plex is not configured' });
         }
 
-        let ratingKey = ratingKeyHint;
+        let ratingKey = ratingKeyHint.replace(/^\/library\/metadata\//, '').trim();
         if (!ratingKey && Number.isFinite(tmdbId) && tmdbId > 0) {
             const uri = await getPlexConnectionUri(config);
             if (!uri) {
@@ -6144,6 +6144,32 @@ app.get('/api/discovery/library-link', requireAuth, requireMember, async (req, r
                 if (meta?.ratingKey) {
                     ratingKey = String(meta.ratingKey);
                     break;
+                }
+            }
+
+            // Fallback: scan section hubs for a matching TMDB guid
+            if (!ratingKey) {
+                const sectionsRes = await fetchWithTimeout(
+                    `${uri}/library/sections?X-Plex-Token=${encodeURIComponent(config.plexToken)}`,
+                    { headers: { Accept: 'application/json' } },
+                    12000,
+                ).catch(() => null);
+                const sections = sectionsRes?.ok ? (await sectionsRes.json().catch(() => null))?.MediaContainer?.Directory || [] : [];
+                const wantedType = mediaType === 'movie' ? 'movie' : 'show';
+                for (const section of sections) {
+                    if (String(section?.type || '') !== wantedType) continue;
+                    for (const guid of guidCandidates) {
+                        const sectionLookup = `${uri}/library/sections/${encodeURIComponent(section.key)}/all?type=${plexType}&guid=${encodeURIComponent(guid)}&X-Plex-Token=${encodeURIComponent(config.plexToken)}`;
+                        const response = await fetchWithTimeout(sectionLookup, { headers: { Accept: 'application/json' } }, 12000).catch(() => null);
+                        if (!response?.ok) continue;
+                        const payload = await response.json().catch(() => null);
+                        const meta = payload?.MediaContainer?.Metadata?.[0];
+                        if (meta?.ratingKey) {
+                            ratingKey = String(meta.ratingKey);
+                            break;
+                        }
+                    }
+                    if (ratingKey) break;
                 }
             }
         }
@@ -12233,7 +12259,10 @@ const mergeUpgraderCodecMaps = (codecMap = {}) => {
 
 const buildPlexWebDetailUrl = (config, ratingKey) => {
     if (!config?.serverIdentifier || !ratingKey) return null;
-    return `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent(`/library/metadata/${ratingKey}`)}`;
+    const key = String(ratingKey).replace(/^\/library\/metadata\//, '').trim();
+    if (!key) return null;
+    // Match Overseerr / Plex Web format (desktop#!/server/...)
+    return `https://app.plex.tv/desktop#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent(`/library/metadata/${key}`)}`;
 };
 
 const deriveQualityFieldsFromTags = (displayTags = [], videoCodec = '') => {
