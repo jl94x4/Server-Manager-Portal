@@ -6,6 +6,7 @@ import { Loader, ToastContainer, pushToast, type ToastMessage } from '../shared/
 import { CustomSelect } from '../shared/ui';
 import { RequestApprovalModal } from './RequestApprovalModal';
 import { RequestCardActions, RequestCardShell, requestCardActionBtnClass } from './RequestCardShell';
+import { OpenInArrButton } from '../shared/OpenInArrButton';
 import {
     type AdminRequestFilter,
     buildRequesterOptions,
@@ -650,6 +651,15 @@ export const RequestsAdminPanel: React.FC<Props> = ({ onCountsChange, embedded =
                                             Edit
                                         </button>
                                     )}
+                                    <OpenInArrButton
+                                        mediaType={item.type === 'tv' ? 'tv' : 'movie'}
+                                        tmdbId={item.tmdbId}
+                                        title={item.title}
+                                        year={item.year}
+                                        is4k={!!item.is4k}
+                                        className={`${requestCardActionBtnClass} border border-sky-500/40 bg-background/80 text-sky-200 hover:bg-sky-500/15`}
+                                        onError={(message) => addToast(message, 'error')}
+                                    />
                                     <button
                                         type="button"
                                         disabled={busy}

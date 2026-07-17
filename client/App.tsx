@@ -365,7 +365,7 @@ export const MainApp: React.FC = () => {
                 />
             );
         }
-        if (currentRoute === 'discovery') return <DiscoveryDashboard onItemClick={(item) => console.log('Item', item)} mediaServerType={sessionInfo?.mediaServerType || publicConfig?.mediaServerType || 'plex'} />;
+        if (currentRoute === 'discovery') return <DiscoveryDashboard onItemClick={(item) => console.log('Item', item)} mediaServerType={sessionInfo?.mediaServerType || publicConfig?.mediaServerType || 'plex'} isAdmin={isAdmin} />;
         if (currentRoute === 'logs' && isAdmin) return <LogsDashboard onLogout={handleLogout} />;
         if (currentRoute === 'mediastack') return <MediaStackDashboard isAdmin={isAdmin} />;
         if (currentRoute === 'downloads') return <DownloadStatusPage isAdmin={isAdmin} />;

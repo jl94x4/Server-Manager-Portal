@@ -109,7 +109,8 @@ export const MediaStatusPanel: React.FC<{
     state: MediaAvailabilityState;
     onViewRequests?: () => void;
     onRetry?: () => void;
-}> = ({ state, onViewRequests, onRetry }) => {
+    arrAction?: React.ReactNode;
+}> = ({ state, onViewRequests, onRetry, arrAction }) => {
     if (state.kind === 'none') return null;
 
     return (
@@ -120,7 +121,7 @@ export const MediaStatusPanel: React.FC<{
                     <p className="text-xs opacity-80 mt-0.5 leading-relaxed">{state.detail}</p>
                 )}
             </div>
-            {(onRetry || onViewRequests) && (
+            {(onRetry || onViewRequests || arrAction) && (
                 <div className="flex flex-col gap-2 w-full">
                     {state.kind === 'failed' && onRetry && (
                         <button
@@ -140,6 +141,7 @@ export const MediaStatusPanel: React.FC<{
                             View in My Requests
                         </button>
                     )}
+                    {arrAction}
                 </div>
             )}
         </div>

@@ -25,7 +25,8 @@ export const DiscoveryDashboard: React.FC<{
     onItemClick: (item: any) => void;
     pushToast?: (msg: string, type: 'success' | 'error') => void;
     mediaServerType?: string;
-}> = ({ pushToast, mediaServerType = 'plex' }) => {
+    isAdmin?: boolean;
+}> = ({ pushToast, mediaServerType = 'plex', isAdmin = false }) => {
     const [path, setPath] = useState(() => {
         if (typeof window !== 'undefined') return window.location.pathname;
         return '/discovery';
@@ -219,6 +220,7 @@ export const DiscoveryDashboard: React.FC<{
                 onBack={() => navigate('/discovery')}
                 formatItem={formatItem}
                 pushToast={pushToast}
+                isAdmin={isAdmin}
             />
         );
     }

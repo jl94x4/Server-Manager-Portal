@@ -5901,6 +5901,98 @@ app.get('/api/discovery/radarr-releases', requireAuth, requireMember, async (req
     }
 });
 
+app.get('/api/arr/deep-link', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        const mediaTypeRaw = String(req.query.mediaType || req.query.type || '').trim().toLowerCase();
+        const mediaType = mediaTypeRaw === 'tv' || mediaTypeRaw === 'show' || mediaTypeRaw === 'series'
+            ? 'tv'
+            : (mediaTypeRaw === 'movie' ? 'movie' : '');
+        const tmdbId = Number(req.query.tmdbId);
+        const title = String(req.query.title || '').trim();
+        const yearRaw = Number(req.query.year);
+        const year = Number.isFinite(yearRaw) && yearRaw > 0 ? yearRaw : null;
+        const is4k = req.query.is4k === '1' || String(req.query.is4k || '').toLowerCase() === 'true';
+
+        if (mediaType !== 'movie' && mediaType !== 'tv') {
+            return res.status(400).json({ error: 'mediaType must be movie or tv' });
+        }
+        if ((!Number.isFinite(tmdbId) || tmdbId <= 0) && !title) {
+            return res.status(400).json({ error: 'tmdbId or title is required' });
+        }
+
+        const config = await loadFile(CONFIG_PATH, {});
+        const normalized = normalizeArrConfig(config);
+        const arrType = mediaType === 'movie' ? 'radarr' : 'sonarr';
+        const enabled = getArrInstances(normalized, { type: arrType, enabledOnly: true }).filter(isArrInstanceReady);
+        if (!enabled.length) {
+            return res.status(404).json({ error: `${arrType === 'radarr' ? 'Radarr' : 'Sonarr'} is not configured` });
+        }
+
+        let preferred = null;
+        if (is4k) {
+            preferred = enabled.find((entry) => /4k|uhd/i.test(String(entry.name || ''))) || null;
+        }
+        if (!preferred) preferred = getDefaultArrInstance(normalized, arrType);
+        if (!isArrInstanceReady(preferred)) {
+            return res.status(404).json({ error: `${arrType === 'radarr' ? 'Radarr' : 'Sonarr'} is not configured` });
+        }
+
+        const catalog = await getArrCatalog(normalized);
+        const lookupItem = {
+            mediaType,
+            tmdbId: Number.isFinite(tmdbId) && tmdbId > 0 ? tmdbId : null,
+            title,
+            year,
+        };
+        const resolved = resolveArrEntity(lookupItem, catalog, normalized);
+        let instance = resolved.instanceId ? getArrInstance(normalized, resolved.instanceId) : preferred;
+        if (!isArrInstanceReady(instance)) instance = preferred;
+        let entity = resolved.entity || null;
+
+        if (!entity && arrType === 'radarr' && lookupItem.tmdbId) {
+            entity = { tmdbId: lookupItem.tmdbId, title: lookupItem.title };
+        }
+
+        if (!entity && arrType === 'sonarr' && instance) {
+            const terms = [];
+            if (lookupItem.tmdbId) terms.push(`tmdb:${lookupItem.tmdbId}`);
+            if (lookupItem.title) terms.push(lookupItem.title);
+            for (const term of terms) {
+                const payload = await fetchArrInstanceJson(instance, `/api/v3/series/lookup?term=${encodeURIComponent(term)}`, {
+                    resolveUrl: resolveIntegrationUrlForFetch,
+                    fetchImpl: fetch,
+                }).catch(() => null);
+                const records = Array.isArray(payload) ? payload : [];
+                const match = lookupItem.tmdbId
+                    ? (records.find((entry) => Number(entry?.tmdbId) === lookupItem.tmdbId) || records[0])
+                    : records[0];
+                if (match) {
+                    entity = match;
+                    break;
+                }
+            }
+            if (!entity && lookupItem.title) {
+                entity = { title: lookupItem.title };
+            }
+        }
+
+        const url = buildArrDeepUrl(instance, entity, arrType);
+        if (!url) {
+            return res.status(404).json({ error: 'Unable to build Arr deep link' });
+        }
+
+        res.json({
+            url,
+            arrType,
+            label: arrType === 'radarr' ? 'Open in Radarr' : 'Open in Sonarr',
+            instanceName: instance.name || (arrType === 'radarr' ? 'Radarr' : 'Sonarr'),
+        });
+    } catch (e) {
+        log(`Arr deep-link error: ${e.message}`);
+        res.status(500).json({ error: e.message || 'Failed to resolve Arr deep link' });
+    }
+});
+
 app.get('/api/discovery/ratings/:mediaType/:mediaId', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});

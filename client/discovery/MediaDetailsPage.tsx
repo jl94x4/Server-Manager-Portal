@@ -15,6 +15,7 @@ import { MediaStatusPanel } from './DiscoverStatusOverlay';
 import { DiscoveryLogo } from './DiscoveryLogo';
 import { scrollPortalToTop } from './discoverNavigationUtils';
 import { MediaOverviewExtras } from './MediaOverviewExtras';
+import { OpenInArrButton } from '../shared/OpenInArrButton';
 import type { CombinedRatings } from './mediaDetailUtils';
 import { fetchCombinedRatings } from './mediaDetailUtils';
 import {
@@ -61,7 +62,8 @@ export const MediaDetailsPage: React.FC<{
     onBack: () => void;
     formatItem: (item: any) => any;
     pushToast?: (msg: string, type: 'success' | 'error') => void;
-}> = ({ mediaType, mediaId, onBack, formatItem, pushToast }) => {
+    isAdmin?: boolean;
+}> = ({ mediaType, mediaId, onBack, formatItem, pushToast, isAdmin = false }) => {
     const { preferences } = useDiscoveryPreferences();
     const { profile: discoveryMe } = useDiscoveryMe(true);
     const [details, setDetails] = useState<any>(null);
@@ -479,6 +481,21 @@ export const MediaDetailsPage: React.FC<{
                                 state={availability}
                                 onViewRequests={availability.hasUserRequest ? openMyRequests : undefined}
                                 onRetry={availability.kind === 'failed' ? handleRetryRequest : undefined}
+                                arrAction={
+                                    isAdmin
+                                    && ['available', 'partial', 'processing', 'requested', 'pending'].includes(availability.kind)
+                                        ? (
+                                            <OpenInArrButton
+                                                mediaType={mediaType}
+                                                tmdbId={mediaId}
+                                                title={title}
+                                                year={year}
+                                                className="w-full px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-bold transition-colors inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                                onError={(message) => pushToast?.(message, 'error')}
+                                            />
+                                        )
+                                        : undefined
+                                }
                             />
                         </div>
                     )}
