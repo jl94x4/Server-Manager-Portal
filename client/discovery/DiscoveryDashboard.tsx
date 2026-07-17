@@ -221,6 +221,7 @@ export const DiscoveryDashboard: React.FC<{
                 formatItem={formatItem}
                 pushToast={pushToast}
                 isAdmin={isAdmin}
+                mediaServerType={mediaServerType}
             />
         );
     }

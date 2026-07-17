@@ -6075,6 +6075,90 @@ app.get('/api/discovery/tv/:tmdbId/library-status', requireAuth, requireMember, 
     }
 });
 
+app.get('/api/discovery/library-link', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const mediaTypeRaw = String(req.query.mediaType || req.query.type || '').trim().toLowerCase();
+        const mediaType = mediaTypeRaw === 'tv' || mediaTypeRaw === 'show' || mediaTypeRaw === 'series'
+            ? 'tv'
+            : (mediaTypeRaw === 'movie' ? 'movie' : '');
+        const tmdbId = Number(req.query.tmdbId);
+        const ratingKeyHint = String(req.query.ratingKey || '').trim();
+
+        if (mediaType !== 'movie' && mediaType !== 'tv') {
+            return res.status(400).json({ error: 'mediaType must be movie or tv' });
+        }
+        if ((!Number.isFinite(tmdbId) || tmdbId <= 0) && !ratingKeyHint) {
+            return res.status(400).json({ error: 'tmdbId or ratingKey is required' });
+        }
+
+        const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
+        const providerLabel = mediaServerType === 'jellyfin' ? 'Jellyfin' : (mediaServerType === 'emby' ? 'Emby' : 'Plex');
+
+        if (mediaServerType === 'jellyfin' || mediaServerType === 'emby') {
+            if (!isJellyfinConfigured(config)) {
+                return res.status(404).json({ error: `${providerLabel} is not configured` });
+            }
+            let itemId = ratingKeyHint;
+            if (!itemId && Number.isFinite(tmdbId) && tmdbId > 0) {
+                const baseUrl = resolveIntegrationUrlForFetch(config.jellyfinUrl);
+                const includeType = mediaType === 'movie' ? 'Movie' : 'Series';
+                const lookupUrl = `${baseUrl}/Items?Recursive=true&IncludeItemTypes=${encodeURIComponent(includeType)}&AnyProviderIdEquals=${encodeURIComponent(`Tmdb=${tmdbId}`)}&Limit=1&fields=ProviderIds`;
+                const response = await fetchWithTimeout(lookupUrl, {
+                    headers: jellyfinHeaders(config.jellyfinApiKey),
+                }, 12000).catch(() => null);
+                if (response?.ok) {
+                    const payload = await response.json().catch(() => null);
+                    const items = Array.isArray(payload?.Items) ? payload.Items : [];
+                    itemId = String(items[0]?.Id || '').trim();
+                }
+            }
+            const url = jellyfinItemUrl(config, itemId);
+            if (!url || !itemId) {
+                return res.status(404).json({ error: `Title not found in ${providerLabel}` });
+            }
+            return res.json({ url, label: `Open in ${providerLabel}`, provider: mediaServerType });
+        }
+
+        if (!isPlexConfigured(config)) {
+            return res.status(404).json({ error: 'Plex is not configured' });
+        }
+
+        let ratingKey = ratingKeyHint;
+        if (!ratingKey && Number.isFinite(tmdbId) && tmdbId > 0) {
+            const uri = await getPlexConnectionUri(config);
+            if (!uri) {
+                return res.status(503).json({ error: 'Unable to reach Plex server' });
+            }
+            const plexType = mediaType === 'movie' ? 1 : 2;
+            const guidCandidates = [
+                `tmdb://${tmdbId}`,
+                `com.plexapp.agents.themoviedb://${tmdbId}?lang=en`,
+            ];
+            for (const guid of guidCandidates) {
+                const lookupUrl = `${uri}/library/all?type=${plexType}&guid=${encodeURIComponent(guid)}&X-Plex-Token=${encodeURIComponent(config.plexToken)}`;
+                const response = await fetchWithTimeout(lookupUrl, { headers: { Accept: 'application/json' } }, 12000).catch(() => null);
+                if (!response?.ok) continue;
+                const payload = await response.json().catch(() => null);
+                const meta = payload?.MediaContainer?.Metadata?.[0];
+                if (meta?.ratingKey) {
+                    ratingKey = String(meta.ratingKey);
+                    break;
+                }
+            }
+        }
+
+        const url = buildPlexWebDetailUrl(config, ratingKey);
+        if (!url) {
+            return res.status(404).json({ error: 'Title not found in Plex' });
+        }
+        return res.json({ url, label: 'Open in Plex', provider: 'plex' });
+    } catch (e) {
+        log(`Discovery library-link error: ${e.message}`);
+        res.status(500).json({ error: e.message || 'Failed to resolve library link' });
+    }
+});
+
 app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
