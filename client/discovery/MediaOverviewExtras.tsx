@@ -11,6 +11,13 @@ import { MediaRatingPills } from './MediaRatingPills';
 import { DiscoveryFactWidget } from './DiscoveryFactWidget';
 import { useDiscoverI18n, translateDiscoverStatus } from './i18n';
 
+const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+    <div className="flex items-center gap-3">
+        <h3 className="text-xs font-black text-muted uppercase tracking-[0.2em]">{children}</h3>
+        <div className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
+    </div>
+);
+
 export const MediaOverviewExtras: React.FC<{
     mediaType: 'movie' | 'tv';
     mediaId: number;
@@ -81,7 +88,7 @@ export const MediaOverviewExtras: React.FC<{
                             href={trailerUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.06] px-2.5 py-1.5 text-xs font-bold text-white/85 transition-all hover:brightness-110 hover:scale-[1.02] hover:bg-white/10 hover:border-white/20"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white/5 px-2.5 py-1.5 text-xs font-bold text-text transition-all hover:brightness-110 hover:scale-[1.02] hover:bg-white/10 hover:border-plex/40"
                         >
                             <Play className="w-5 h-5 shrink-0" />
                             {t('media.watchTrailer')}
@@ -92,14 +99,11 @@ export const MediaOverviewExtras: React.FC<{
 
             {(visibleFactRows.length > 0 || studios.length > 0) && (
                 <div className="flex flex-col gap-3">
-                    <div className="flex items-center gap-3">
-                        <h3 className="text-xs font-black text-white/50 uppercase tracking-[0.2em]">{t('media.details')}</h3>
-                        <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
-                    </div>
+                    <SectionLabel>{t('media.details')}</SectionLabel>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
                         {visibleFactRows.map((row) => (
                             <div key={row.key} className="flex flex-col gap-0.5 min-w-0">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-muted">
                                     {t(`facts.${row.key}`)}
                                 </span>
                                 {row.people?.length ? (
@@ -109,14 +113,14 @@ export const MediaOverviewExtras: React.FC<{
                                                 key={person.id}
                                                 type="button"
                                                 onClick={() => onOpenPerson?.(person.id)}
-                                                className="px-2.5 py-1 rounded-lg bg-white/[0.05] border border-white/10 text-sm text-white/80 hover:bg-plex/15 hover:border-plex/40 hover:text-white transition-colors cursor-pointer"
+                                                className="px-2.5 py-1 rounded-lg bg-white/5 border border-border text-sm text-text hover:bg-plex/15 hover:border-plex/40 hover:text-plex transition-colors cursor-pointer"
                                             >
                                                 {person.name}
                                             </button>
                                         ))}
                                     </div>
                                 ) : (
-                                    <span className="text-sm text-white/80 leading-snug">
+                                    <span className="text-sm text-text leading-snug">
                                         {row.key === 'status' ? translateDiscoverStatus(t, row.value) : row.value}
                                     </span>
                                 )}
@@ -124,7 +128,7 @@ export const MediaOverviewExtras: React.FC<{
                         ))}
                         {studios.length > 0 && (
                             <div className="flex flex-col gap-2 min-w-0 sm:col-span-2">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-muted">
                                     {studios.length === 1 ? t('media.studio') : t('media.studios')}
                                 </span>
                                 <div className="flex flex-wrap gap-2">
@@ -133,7 +137,7 @@ export const MediaOverviewExtras: React.FC<{
                                             key={studio.id}
                                             type="button"
                                             onClick={() => onOpenStudio?.(studio.id)}
-                                            className="px-2.5 py-1 rounded-lg bg-white/[0.05] border border-white/10 text-sm text-white/80 hover:bg-plex/15 hover:border-plex/40 hover:text-white transition-colors cursor-pointer"
+                                            className="px-2.5 py-1 rounded-lg bg-white/5 border border-border text-sm text-text hover:bg-plex/15 hover:border-plex/40 hover:text-plex transition-colors cursor-pointer"
                                         >
                                             {studio.name}
                                         </button>
@@ -158,14 +162,14 @@ export const MediaOverviewExtras: React.FC<{
                 <button
                     type="button"
                     onClick={() => onOpenCollection?.(Number(details.collection.id))}
-                    className="group text-left rounded-xl border border-white/10 bg-black/35 backdrop-blur-xl overflow-hidden ring-1 ring-white/[0.04] hover:border-plex/30 transition-colors w-fit max-w-full"
+                    className="group text-left rounded-xl border border-border bg-white/5 overflow-hidden hover:border-plex/30 transition-colors w-fit max-w-full"
                 >
                     <div className="px-4 py-3 flex items-center justify-between gap-3 min-w-[12rem]">
                         <div className="min-w-0">
-                            <div className="text-[9px] font-bold uppercase tracking-wider text-white/35">{t('media.collection')}</div>
-                            <div className="text-sm font-semibold text-white/90 mt-1 truncate">{details.collection.name}</div>
+                            <div className="text-[9px] font-bold uppercase tracking-wider text-muted">{t('media.collection')}</div>
+                            <div className="text-sm font-semibold text-text mt-1 truncate">{details.collection.name}</div>
                         </div>
-                        <ArrowRight className="w-4 h-4 text-white/40 group-hover:text-plex transition-colors shrink-0" />
+                        <ArrowRight className="w-4 h-4 text-muted group-hover:text-plex transition-colors shrink-0" />
                     </div>
                 </button>
             )}
@@ -174,10 +178,7 @@ export const MediaOverviewExtras: React.FC<{
 
             {crew.length > 0 && (
                 <div className="flex flex-col gap-3">
-                    <div className="flex items-center gap-3">
-                        <h3 className="text-xs font-black text-white/50 uppercase tracking-[0.2em]">{t('media.keyCrew')}</h3>
-                        <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
-                    </div>
+                    <SectionLabel>{t('media.keyCrew')}</SectionLabel>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
                         {crew.map((person: any) => (
                             <button
@@ -186,8 +187,8 @@ export const MediaOverviewExtras: React.FC<{
                                 onClick={() => onOpenPerson?.(person.id)}
                                 className="flex items-baseline justify-between gap-3 text-left border-0 bg-transparent p-0 group cursor-pointer min-w-0"
                             >
-                                <span className="text-[11px] uppercase tracking-wide text-white/40 shrink-0">{person.job}</span>
-                                <span className="text-sm text-white/80 group-hover:text-plex transition-colors truncate">
+                                <span className="text-[11px] uppercase tracking-wide text-muted shrink-0">{person.job}</span>
+                                <span className="text-sm text-text group-hover:text-plex transition-colors truncate">
                                     {person.name}
                                 </span>
                             </button>
@@ -198,10 +199,7 @@ export const MediaOverviewExtras: React.FC<{
 
             {keywords.length > 0 && (
                 <div className="flex flex-col gap-3">
-                    <div className="flex items-center gap-3">
-                        <h3 className="text-xs font-black text-white/50 uppercase tracking-[0.2em]">{t('media.keywords')}</h3>
-                        <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
-                    </div>
+                    <SectionLabel>{t('media.keywords')}</SectionLabel>
                     <div className="flex flex-wrap gap-2">
                         {keywords.slice(0, 24).map((keyword: any) => (
                             <button
@@ -211,7 +209,7 @@ export const MediaOverviewExtras: React.FC<{
                                     id: Number(keyword.id),
                                     name: String(keyword.name || ''),
                                 })}
-                                className="px-2.5 py-1 rounded-lg bg-white/[0.05] border border-white/10 text-[11px] font-medium text-white/60 hover:bg-plex/15 hover:border-plex/40 hover:text-white transition-colors cursor-pointer"
+                                className="px-2.5 py-1 rounded-lg bg-white/5 border border-border text-[11px] font-medium text-muted hover:bg-plex/15 hover:border-plex/40 hover:text-text transition-colors cursor-pointer"
                             >
                                 {keyword.name}
                             </button>
@@ -228,7 +226,7 @@ export const MediaOverviewExtras: React.FC<{
                             href={link.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] text-[11px] font-semibold text-white/65 hover:text-white hover:border-white/20 hover:bg-white/[0.07] transition-colors"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-white/5 text-[11px] font-semibold text-muted hover:text-text hover:border-border hover:bg-white/10 transition-colors"
                         >
                             <ExternalLink className="w-3 h-3 opacity-70" />
                             {link.label}

@@ -29,8 +29,8 @@ import { useDiscoverI18n, translateDiscoverStatus } from './i18n';
 
 const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="flex items-center gap-3 mb-4 pr-16">
-        <h3 className="text-xs font-black text-white/50 uppercase tracking-[0.2em]">{children}</h3>
-        <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
+        <h3 className="text-xs font-black text-muted uppercase tracking-[0.2em]">{children}</h3>
+        <div className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
     </div>
 );
 
@@ -402,11 +402,11 @@ export const MediaDetailsPage: React.FC<{
                     <div className="absolute inset-0 hidden md:block bg-gradient-to-r from-black/75 from-0% via-black/45 via-[32%] to-transparent to-[78%]" />
                 </div>
 
-                <div className="relative z-10 light-on-media w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 pt-4 sm:pt-5 pb-8">
+                <div className="relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 pt-4 sm:pt-5 pb-8">
                     <button
                         type="button"
                         onClick={onBack}
-                        className="mb-4 md:mb-6 inline-flex items-center gap-2 text-white/90 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-black/65"
+                        className="light-on-media mb-4 md:mb-6 inline-flex items-center gap-2 text-white/90 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-black/65"
                     >
                         <ArrowLeft className="w-5 h-5" />
                         <span className="font-bold text-sm">{t('media.backToDiscover')}</span>
@@ -429,7 +429,7 @@ export const MediaDetailsPage: React.FC<{
                             )}
                         </div>
 
-                        <div className="flex-1 min-w-0 flex flex-col justify-end gap-2 md:hidden">
+                        <div className="light-on-media flex-1 min-w-0 flex flex-col justify-end gap-2 md:hidden">
                             <div className="flex items-center gap-2 flex-wrap">
                                 {mediaType === 'movie' ? <Film className="w-3.5 h-3.5 text-plex" /> : <Tv className="w-3.5 h-3.5 text-plex" />}
                                 <span className="text-[10px] font-bold uppercase tracking-widest text-plex">{mediaType}</span>
@@ -543,7 +543,7 @@ export const MediaDetailsPage: React.FC<{
                             href={details.homepage}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="col-span-2 md:col-span-1 w-full py-2.5 px-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors"
+                            className="col-span-2 md:col-span-1 w-full py-2.5 px-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-border text-text transition-colors"
                         >
                             <Globe className="w-4 h-4" /> Visit Website
                         </a>
@@ -552,7 +552,7 @@ export const MediaDetailsPage: React.FC<{
                 </div>
 
                 <div className="flex-1 min-w-0 flex flex-col gap-4 pb-2">
-                    <div className="hidden md:flex flex-col gap-2.5">
+                    <div className="light-on-media hidden md:flex flex-col gap-2.5">
                         <div className="flex items-center gap-2 flex-wrap">
                             {mediaType === 'movie' ? <Film className="w-3.5 h-3.5 text-plex" /> : <Tv className="w-3.5 h-3.5 text-plex" />}
                             <span className="text-[10px] font-bold uppercase tracking-widest text-plex">{mediaType}</span>
@@ -601,7 +601,7 @@ export const MediaDetailsPage: React.FC<{
                         )}
                     </div>
 
-                    <p className="text-sm sm:text-base lg:text-[17px] text-white/82 leading-relaxed max-w-none md:max-w-5xl">
+                    <p className="text-sm sm:text-base lg:text-[17px] text-text/90 leading-relaxed max-w-none md:max-w-5xl">
                         {details.overview || t('media.noDescription')}
                     </p>
 
@@ -612,7 +612,7 @@ export const MediaDetailsPage: React.FC<{
                                     key={g.id}
                                     type="button"
                                     onClick={() => openGenre(g.id)}
-                                    className="px-2.5 py-1 bg-white/[0.06] border border-white/10 rounded-lg text-xs font-semibold text-white/75 backdrop-blur-sm transition-colors hover:bg-plex/15 hover:border-plex/40 hover:text-white cursor-pointer"
+                                    className="px-2.5 py-1 bg-white/5 border border-border rounded-lg text-xs font-semibold text-muted transition-colors hover:bg-plex/15 hover:border-plex/40 hover:text-text cursor-pointer"
                                 >
                                     {g.name}
                                 </button>
@@ -621,7 +621,7 @@ export const MediaDetailsPage: React.FC<{
                     )}
 
                     {releaseDateRows.length > 0 && (
-                        <div className="w-fit max-w-full rounded-xl border border-white/10 bg-black/45 backdrop-blur-xl shadow-[0_8px_28px_rgba(0,0,0,0.28)] overflow-hidden ring-1 ring-white/[0.04]">
+                        <div className="light-on-media w-fit max-w-full rounded-xl border border-white/10 bg-black/45 backdrop-blur-xl shadow-[0_8px_28px_rgba(0,0,0,0.28)] overflow-hidden ring-1 ring-white/[0.04]">
                             <div
                                 className={`grid divide-white/[0.06] ${
                                     releaseDateRows.length === 1
@@ -674,8 +674,8 @@ export const MediaDetailsPage: React.FC<{
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 max-w-5xl">
                             {extraDetails.map((row) => (
                                 <div key={row.label} className="flex flex-col gap-0.5 min-w-0">
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">{row.label}</span>
-                                    <span className="text-sm text-white/80">{row.value}</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{row.label}</span>
+                                    <span className="text-sm text-text">{row.value}</span>
                                 </div>
                             ))}
                         </div>
@@ -690,7 +690,7 @@ export const MediaDetailsPage: React.FC<{
                                         key={n.id}
                                         type="button"
                                         onClick={() => openNetwork(n.id)}
-                                        className="flex items-center rounded-lg border border-transparent px-2 py-1.5 transition-all hover:border-white/15 hover:bg-white/[0.04] cursor-pointer"
+                                        className="flex items-center rounded-lg border border-transparent px-2 py-1.5 transition-all hover:border-border hover:bg-white/5 cursor-pointer"
                                         title={`Browse ${n.name}`}
                                     >
                                         {n.logoPath ? (
@@ -701,7 +701,7 @@ export const MediaDetailsPage: React.FC<{
                                                 className="h-6 max-w-[120px] object-contain opacity-90 hover:opacity-100 transition-opacity"
                                             />
                                         ) : (
-                                            <span className="text-xs font-semibold text-white/70 hover:text-white transition-colors">{n.name}</span>
+                                            <span className="text-xs font-semibold text-muted hover:text-text transition-colors">{n.name}</span>
                                         )}
                                     </button>
                                 ))}
@@ -716,7 +716,7 @@ export const MediaDetailsPage: React.FC<{
             {/* Full-width rows below — no nested page scrollbars */}
             <div className="relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 mt-2 md:mt-4 flex flex-col gap-8 md:gap-10">
                 {details.credits?.cast?.length > 0 && (
-                    <section className="border-t border-white/5 pt-8">
+                    <section className="border-t border-border pt-8">
                         <SectionHeading>{t('media.topCast')}</SectionHeading>
                         <Carousel>
                             {details.credits.cast.slice(0, 15).map((actor: any) => (
@@ -726,7 +726,7 @@ export const MediaDetailsPage: React.FC<{
                                     onClick={() => openPerson(actor.id)}
                                     className="group flex flex-col items-center gap-3 w-36 sm:w-40 flex-shrink-0 snap-start cursor-pointer transition-all duration-200 border-0 bg-transparent p-0 hover:-translate-y-1"
                                 >
-                                    <div className="w-32 h-32 rounded-full bg-black/40 border-2 border-white/10 group-hover:border-plex/40 overflow-hidden shadow-xl ring-0 group-hover:ring-4 group-hover:ring-plex/10 transition-all">
+                                    <div className="w-32 h-32 rounded-full bg-white/5 border-2 border-border group-hover:border-plex/40 overflow-hidden ring-0 group-hover:ring-4 group-hover:ring-plex/10 transition-all">
                                         {actor.profilePath ? (
                                             <img
                                                 src={`https://image.tmdb.org/t/p/w342${actor.profilePath}`}
@@ -734,14 +734,14 @@ export const MediaDetailsPage: React.FC<{
                                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                             />
                                         ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-white/20 bg-white/5">
+                                            <div className="w-full h-full flex items-center justify-center text-muted bg-white/5">
                                                 <Users className="w-10 h-10" />
                                             </div>
                                         )}
                                     </div>
                                     <div className="text-center w-full px-1">
-                                        <div className="text-sm font-bold text-white/95 leading-tight line-clamp-2 group-hover:text-white transition-colors">{actor.name}</div>
-                                        <div className="text-xs text-white/45 mt-1 leading-snug line-clamp-2">{actor.character}</div>
+                                        <div className="text-sm font-bold text-text leading-tight line-clamp-2 group-hover:text-plex transition-colors">{actor.name}</div>
+                                        <div className="text-xs text-muted mt-1 leading-snug line-clamp-2">{actor.character}</div>
                                     </div>
                                 </button>
                             ))}
@@ -750,7 +750,7 @@ export const MediaDetailsPage: React.FC<{
                 )}
 
                 {mediaType === 'tv' && seasonRows.length > 0 && (
-                    <section className="border-t border-white/5 pt-8">
+                    <section className="border-t border-border pt-8">
                         <SectionHeading>{t('media.seasons')}</SectionHeading>
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                             {seasonRows.map((season) => (
@@ -764,9 +764,9 @@ export const MediaDetailsPage: React.FC<{
                                         statusLabel: season.statusLabel,
                                         posterPath: season.posterPath,
                                     })}
-                                    className="bg-white/[0.04] border border-white/10 rounded-xl p-3 flex gap-3 items-center min-w-0 text-left hover:bg-white/[0.07] hover:border-white/15 transition-colors cursor-pointer"
+                                    className="bg-white/5 border border-border rounded-xl p-3 flex gap-3 items-center min-w-0 text-left hover:bg-white/10 hover:border-plex/30 transition-colors cursor-pointer"
                                 >
-                                    <div className="w-11 h-16 rounded-md overflow-hidden flex-shrink-0 bg-black/40 border border-white/10">
+                                    <div className="w-11 h-16 rounded-md overflow-hidden flex-shrink-0 bg-white/5 border border-border">
                                         {season.posterPath ? (
                                             <img src={`https://image.tmdb.org/t/p/w92${season.posterPath}`} className="w-full h-full object-cover" alt="" />
                                         ) : (
@@ -774,8 +774,8 @@ export const MediaDetailsPage: React.FC<{
                                         )}
                                     </div>
                                     <div className="flex flex-col min-w-0 gap-1">
-                                        <span className="font-bold text-white text-sm truncate">{season.name}</span>
-                                        <span className="text-xs text-white/50">{t('common.episodeCount', { count: season.episodeCount })}</span>
+                                        <span className="font-bold text-text text-sm truncate">{season.name}</span>
+                                        <span className="text-xs text-muted">{t('common.episodeCount', { count: season.episodeCount })}</span>
                                         <span className={`self-start text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${seasonStatusBadgeClass(season.statusLabel, season.requestable)}`}>
                                             {translateDiscoverStatus(t, season.statusLabel)}
                                         </span>
@@ -787,7 +787,7 @@ export const MediaDetailsPage: React.FC<{
                 )}
 
                 {visibleRecommendations.length > 0 && (
-                    <section className="border-t border-white/5 pt-8 pb-4">
+                    <section className="border-t border-border pt-8 pb-4">
                         <SectionHeading>{t('media.recommendations')}</SectionHeading>
                         <Carousel>
                             {visibleRecommendations.map((item, idx) => {
