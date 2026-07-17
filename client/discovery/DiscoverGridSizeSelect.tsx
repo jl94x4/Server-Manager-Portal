@@ -10,8 +10,9 @@ export const DiscoverGridSizeSelect: React.FC<{
     value: UpgraderGridSize;
     onChange: (value: UpgraderGridSize) => void;
     className?: string;
-}> = ({ value, onChange, className = 'min-w-[140px]' }) => (
+}> = ({ value, onChange, className = 'w-32' }) => (
     <CustomSelect
+        compact
         value={value}
         onChange={(next) => onChange(normalizeUpgraderGridSize(next))}
         options={UPGRADER_GRID_SIZE_OPTIONS.filter((opt) => opt.value !== 'list')}

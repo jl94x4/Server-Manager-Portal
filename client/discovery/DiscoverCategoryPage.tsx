@@ -133,7 +133,7 @@ export const DiscoverCategoryPage: React.FC<Props> = ({ kind, id, onBack, onSele
                         <DiscoverGridSizeSelect
                             value={gridSize}
                             onChange={setGridSize}
-                            className="min-w-[160px] self-start sm:self-center flex-shrink-0"
+                            className="w-32 self-start sm:self-center flex-shrink-0"
                         />
                     </div>
                 </div>
