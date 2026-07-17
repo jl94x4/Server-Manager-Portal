@@ -70,7 +70,7 @@ export const MediaOverviewExtras: React.FC<{
     }
 
     return (
-        <div className="flex flex-col gap-5 max-w-3xl">
+        <div className="flex flex-col gap-5 max-w-5xl">
             {(hasRatings || trailerUrl) && (
                 <div className="flex flex-wrap items-center gap-2">
                     <MediaRatingPills ratings={ratings} tmdbScore={tmdbScore} tmdbUrl={tmdbUrl} />

@@ -552,7 +552,7 @@ export const MediaDetailsPage: React.FC<{
                             {title}
                         </h1>
                         {details.tagline && mediaType === 'movie' && (
-                            <p className="text-sm sm:text-base text-white/55 italic max-w-2xl">{details.tagline}</p>
+                            <p className="text-sm sm:text-base text-white/55 italic max-w-4xl">{details.tagline}</p>
                         )}
                         <div className="flex flex-wrap items-center gap-2">
                             {metaChips.map((chip) => (
@@ -586,7 +586,7 @@ export const MediaDetailsPage: React.FC<{
                         )}
                     </div>
 
-                    <p className="text-sm sm:text-base lg:text-[17px] text-white/82 leading-relaxed max-w-none md:max-w-3xl">
+                    <p className="text-sm sm:text-base lg:text-[17px] text-white/82 leading-relaxed max-w-none md:max-w-5xl">
                         {details.overview || 'No description available.'}
                     </p>
 
@@ -656,7 +656,7 @@ export const MediaDetailsPage: React.FC<{
                     />
 
                     {extraDetails.length > 0 && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 max-w-3xl">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 max-w-5xl">
                             {extraDetails.map((row) => (
                                 <div key={row.label} className="flex flex-col gap-0.5 min-w-0">
                                     <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">{row.label}</span>
