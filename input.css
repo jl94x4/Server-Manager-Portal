@@ -480,6 +480,16 @@ html[data-theme="light"] .company-card .company-duotone-logo {
   filter: none;
 }
 
+/* Media details: only in light mode, put overview/facts on an opaque panel
+ * so dark ink stays readable over leftover hero art. Dark themes stay seamless. */
+html[data-theme="light"] .media-details-panel {
+  background-color: rgb(var(--color-card)) !important;
+  border: 1px solid rgb(var(--light-ink) / 0.14);
+  border-radius: 1rem;
+  padding: 1rem 1.25rem;
+  box-shadow: none !important;
+}
+
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 8px;

@@ -373,7 +373,7 @@ export const MediaDetailsPage: React.FC<{
         <div className="w-[calc(100%+2rem)] -mx-4 md:mx-0 md:w-full flex flex-col min-h-screen bg-card animate-fade-in pb-24 md:pb-16 rounded-none md:rounded-2xl lg:rounded-3xl overflow-x-hidden border-0 md:border border-white/5 shadow-2xl">
             <div className="relative isolate">
                 <div
-                    className="absolute inset-x-0 top-0 h-[34rem] max-h-[72vh] sm:h-[36rem] md:h-[min(72vh,52rem)] md:max-h-none overflow-hidden pointer-events-none"
+                    className="absolute inset-0 overflow-hidden pointer-events-none"
                     aria-hidden
                 >
                     {heroImageUrl ? (
@@ -382,10 +382,8 @@ export const MediaDetailsPage: React.FC<{
                             alt=""
                             className={`absolute inset-0 w-full h-full object-cover ${
                                 heroUsesPosterFallback
-                                    ? 'scale-[1.35] blur-2xl opacity-40 md:scale-125 md:blur-xl md:opacity-58'
-                                    // Bias left in the source so centered subjects land in the open right panel
-                                    // (poster + copy sit on the left). Slight scale avoids empty edges.
-                                    : 'scale-110 object-[32%_30%] opacity-45 md:scale-[1.15] md:object-[22%_28%] md:opacity-90'
+                                    ? 'scale-[1.35] blur-2xl opacity-40 md:scale-125 md:blur-xl md:opacity-50'
+                                    : 'scale-110 object-[32%_20%] opacity-40 md:scale-[1.12] md:object-[22%_18%] md:opacity-75'
                             }`}
                             fetchPriority="high"
                             decoding="async"
@@ -394,12 +392,12 @@ export const MediaDetailsPage: React.FC<{
                             }}
                         />
                     ) : (
-                        <div className="absolute inset-0 bg-black" />
+                        <div className="absolute inset-0 bg-card" />
                     )}
-                    {/* Black-based scrims keep hero type readable in light mode (card vars become white). */}
-                    <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/45 via-[55%] to-background md:hidden" />
-                    <div className="absolute inset-0 hidden md:block bg-gradient-to-t from-background from-0% via-black/55 via-[38%] to-transparent" />
-                    <div className="absolute inset-0 hidden md:block bg-gradient-to-r from-black/75 from-0% via-black/45 via-[32%] to-transparent to-[78%]" />
+                    {/* Top stays cinematic; bottom dissolves into the page card — no hard cutoff. */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/35 via-[42%] to-card" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-black/70 from-0% via-black/35 via-[36%] to-transparent to-[80%]" />
+                    <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-card to-transparent" />
                 </div>
 
                 <div className="relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 pt-4 sm:pt-5 pb-8">
@@ -601,7 +599,8 @@ export const MediaDetailsPage: React.FC<{
                         )}
                     </div>
 
-                    <p className="text-sm sm:text-base lg:text-[17px] text-text/90 leading-relaxed max-w-none md:max-w-5xl">
+                    <div className="media-details-panel flex flex-col gap-4 max-w-5xl">
+                    <p className="text-sm sm:text-base lg:text-[17px] text-text leading-relaxed">
                         {details.overview || t('media.noDescription')}
                     </p>
 
@@ -621,9 +620,9 @@ export const MediaDetailsPage: React.FC<{
                     )}
 
                     {releaseDateRows.length > 0 && (
-                        <div className="light-on-media w-fit max-w-full rounded-xl border border-white/10 bg-black/45 backdrop-blur-xl shadow-[0_8px_28px_rgba(0,0,0,0.28)] overflow-hidden ring-1 ring-white/[0.04]">
+                        <div className="w-fit max-w-full rounded-xl border border-border bg-white/5 overflow-hidden">
                             <div
-                                className={`grid divide-white/[0.06] ${
+                                className={`grid divide-border ${
                                     releaseDateRows.length === 1
                                         ? 'grid-cols-1'
                                         : releaseDateRows.length === 2
@@ -638,15 +637,14 @@ export const MediaDetailsPage: React.FC<{
                                             key={row.key}
                                             className="group relative px-3 py-2.5 flex items-start gap-2 min-w-0 sm:min-w-[8.5rem]"
                                         >
-                                            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                                            <div className="relative w-7 h-7 shrink-0 rounded-lg bg-white/[0.06] border border-white/10 flex items-center justify-center group-hover:border-plex/30 group-hover:bg-plex/10 transition-colors">
-                                                <Icon className="w-3.5 h-3.5 text-white/55 group-hover:text-plex transition-colors" aria-hidden />
+                                            <div className="relative w-7 h-7 shrink-0 rounded-lg bg-white/5 border border-border flex items-center justify-center group-hover:border-plex/30 group-hover:bg-plex/10 transition-colors">
+                                                <Icon className="w-3.5 h-3.5 text-muted group-hover:text-plex transition-colors" aria-hidden />
                                             </div>
                                             <div className="relative flex flex-col gap-0.5 min-w-0 pt-0.5">
-                                                <span className="text-[9px] font-bold uppercase tracking-wider text-white/40 leading-none">
+                                                <span className="text-[9px] font-bold uppercase tracking-wider text-muted leading-none">
                                                     {row.label}
                                                 </span>
-                                                <span className="text-xs font-semibold text-white/90 leading-snug">
+                                                <span className="text-xs font-semibold text-text leading-snug">
                                                     {row.date}
                                                 </span>
                                             </div>
@@ -671,7 +669,7 @@ export const MediaDetailsPage: React.FC<{
                     />
 
                     {extraDetails.length > 0 && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 max-w-5xl">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
                             {extraDetails.map((row) => (
                                 <div key={row.label} className="flex flex-col gap-0.5 min-w-0">
                                     <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{row.label}</span>
@@ -708,13 +706,14 @@ export const MediaDetailsPage: React.FC<{
                             </div>
                         </div>
                     )}
+                    </div>
                 </div>
                     </div>
                 </div>
             </div>
 
-            {/* Full-width rows below — no nested page scrollbars */}
-            <div className="relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 mt-2 md:mt-4 flex flex-col gap-8 md:gap-10">
+            {/* Cast / seasons / recommendations stay on the same page card */}
+            <div className="relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-8 xl:px-12 mt-2 md:mt-4 flex flex-col gap-8 md:gap-10 bg-card">
                 {details.credits?.cast?.length > 0 && (
                     <section className="border-t border-border pt-8">
                         <SectionHeading>{t('media.topCast')}</SectionHeading>
