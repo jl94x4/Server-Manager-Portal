@@ -27,7 +27,7 @@ export const SETTINGS_INDEX: SettingsIndexEntry[] = [
     { id: 'contact/whatsapp', tabId: 'contact', sectionId: 'whatsapp', label: 'WhatsApp Number', group: 'Portal', keywords: ['whatsapp', 'phone', 'number'] },
     { id: 'contact/email', tabId: 'contact', sectionId: 'email', label: 'Contact Email', group: 'Portal', keywords: ['email', 'mail', 'support'] },
 
-    { id: 'navigation', tabId: 'navigation', label: 'Navigation', group: 'Portal', keywords: ['menu', 'order', 'sidebar', 'nav'] },
+    { id: 'navigation', tabId: 'navigation', label: 'Navigation', group: 'Portal', keywords: ['menu', 'order', 'sidebar', 'nav', 'downloads', 'members'] },
     { id: 'home-layout', tabId: 'home-layout', label: 'Home Layout', group: 'Portal', keywords: ['dashboard', 'widgets', 'sections', 'home', 'layout', 'reorder', 'hide'] },
 
     { id: 'plex', tabId: 'plex', label: 'Media Player', group: 'Media Stack', keywords: ['plex', 'jellyfin', 'media', 'player', 'server'] },

@@ -466,6 +466,7 @@ export const SettingsDashboard: React.FC = () => {
     const [showPublicLibraryStats, setShowPublicLibraryStats] = useState(initialSettings?.showPublicLibraryStats !== false);
     const [allowTemporaryAccess, setAllowTemporaryAccess] = useState(initialSettings?.allowTemporaryAccess || false);
     const [navOrder, setNavOrder] = useState<string[]>(() => ensureCompleteNavOrder([...DEFAULT_NAV_ORDER]));
+    const [downloadsVisibleToMembers, setDownloadsVisibleToMembers] = useState(true);
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
     const [logoPreviewUrl, setLogoPreviewUrl] = useState('');
@@ -974,6 +975,9 @@ export const SettingsDashboard: React.FC = () => {
             setReferralRewardDays(initialSettings.referralRewardDays || 7);
             setAnnouncement(initialSettings.announcement || '');
             if (initialSettings.navOrder) setNavOrder(ensureCompleteNavOrder(initialSettings.navOrder));
+            if (initialSettings.downloadsVisibleToMembers !== undefined) {
+                setDownloadsVisibleToMembers(!!initialSettings.downloadsVisibleToMembers);
+            }
             setHideStreamUsers(initialSettings.hideStreamUsers === true ? 'anonymous' : (initialSettings.hideStreamUsers || 'false'));
             setShowUsernamesInAnalytics(!!initialSettings.showUsernamesInAnalytics);
             setUseTrendingSlideshowOnLogin(initialSettings.useTrendingSlideshowOnLogin !== false);
@@ -1199,6 +1203,7 @@ export const SettingsDashboard: React.FC = () => {
             referralRewardDays,
             announcement,
             navOrder: ensureCompleteNavOrder(navOrder),
+            downloadsVisibleToMembers,
             hideStreamUsers,
             showUsernamesInAnalytics,
             useTrendingSlideshowOnLogin,
@@ -2305,7 +2310,12 @@ export const SettingsDashboard: React.FC = () => {
                     )}
 
                     {activeTab === 'navigation' && (
-                        <NavigationOrderSettings navOrder={navOrder} onChange={setNavOrder} />
+                        <NavigationOrderSettings
+                            navOrder={navOrder}
+                            onChange={setNavOrder}
+                            downloadsVisibleToMembers={downloadsVisibleToMembers}
+                            onDownloadsVisibleToMembersChange={setDownloadsVisibleToMembers}
+                        />
                     )}
 
                     {activeTab === 'broadcast' && (

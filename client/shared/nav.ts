@@ -3,6 +3,8 @@ export type NavFeatureFlags = {
     upgrader?: boolean;
     request?: boolean;
     requestsQueue?: boolean;
+    /** When false, Downloads is hidden from non-admins. Default/undefined = visible. */
+    downloads?: boolean;
 };
 
 /** Default sidebar order matching Settings → Navigation stock layout. */
@@ -54,10 +56,13 @@ const ADMIN_ONLY_NAV_KEYS = new Set([
     'logs',
 ]);
 
-export const getNavItemLabel = (key: string, options?: { adminSuffix?: boolean }) => {
+export const getNavItemLabel = (key: string, options?: { adminSuffix?: boolean; downloadsMembersVisible?: boolean }) => {
     const base = NAV_ITEM_LABELS[key] || key;
-    if (options?.adminSuffix && ADMIN_ONLY_NAV_KEYS.has(key)) {
-        return `${base} (Admin Only)`;
+    if (options?.adminSuffix) {
+        if (ADMIN_ONLY_NAV_KEYS.has(key)) return `${base} (Admin Only)`;
+        if (key === 'downloads' && options.downloadsMembersVisible === false) {
+            return `${base} (Admin Only)`;
+        }
     }
     return base;
 };
@@ -161,6 +166,7 @@ export const filterNavOrder = (
     return (Array.isArray(order) ? order : []).filter((key) => {
         if (key === 'logout' || key === 'logs') return false;
         if ((key === 'users' || key === 'settings' || key === 'maintenance' || key === 'upgrader' || key === 'requests') && !options.isAdmin) return false;
+        if (key === 'downloads' && !options.isAdmin && features.downloads === false) return false;
         if (key === 'maintenance' && !maintenanceEnabled) return false;
         if (key === 'upgrader' && !upgraderEnabled) return false;
         if (key === 'request' && !requestEnabled) return false;

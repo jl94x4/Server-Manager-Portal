@@ -1,10 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { GripVertical, MoreHorizontal } from 'lucide-react';
 import { getNavItemLabel, MOBILE_NAV_PRIMARY_SLOTS } from '../shared/nav';
+import { SettingsToggleRow } from '../shared/ui';
+import { SettingHint } from './SettingHint';
 
 type Props = {
     navOrder: string[];
     onChange: (next: string[]) => void;
+    downloadsVisibleToMembers: boolean;
+    onDownloadsVisibleToMembersChange: (next: boolean) => void;
 };
 
 const reorder = (items: string[], from: number, to: number): string[] => {
@@ -18,7 +22,12 @@ const reorder = (items: string[], from: number, to: number): string[] => {
 /** Keys that never appear in the mobile bottom bar / More menu. */
 const isMobileNavKey = (key: string) => key !== 'logout' && key !== 'logs';
 
-export const NavigationOrderSettings: React.FC<Props> = ({ navOrder, onChange }) => {
+export const NavigationOrderSettings: React.FC<Props> = ({
+    navOrder,
+    onChange,
+    downloadsVisibleToMembers,
+    onDownloadsVisibleToMembersChange,
+}) => {
     const [dragIndex, setDragIndex] = useState<number | null>(null);
     const [dropIndex, setDropIndex] = useState<number | null>(null);
 
@@ -49,6 +58,23 @@ export const NavigationOrderSettings: React.FC<Props> = ({ navOrder, onChange })
             <p className="text-xs text-muted mb-4 max-w-2xl">
                 Labels match the live sidebar. Logout stays in this list for desktop config but is not shown in the mobile bar.
             </p>
+
+            <div className="mb-6 max-w-xl rounded-xl border border-border/70 p-4 bg-background/30">
+                <SettingsToggleRow
+                    title="Show Downloads to members"
+                    hint={(
+                        <SettingHint>
+                            When off, Downloads stays in the nav order for admins only. Members will not see the tab or the download status page.
+                        </SettingHint>
+                    )}
+                    checked={downloadsVisibleToMembers}
+                    onChange={onDownloadsVisibleToMembersChange}
+                    border={false}
+                />
+                <p className={`text-xs mt-2 font-semibold ${downloadsVisibleToMembers ? 'text-green-300' : 'text-yellow-300'}`}>
+                    Members: {downloadsVisibleToMembers ? 'can see Downloads' : 'Downloads hidden'}
+                </p>
+            </div>
 
             <div className="flex flex-col gap-2 max-w-xl">
                 {navOrder.map((key, index) => {
@@ -104,7 +130,10 @@ export const NavigationOrderSettings: React.FC<Props> = ({ navOrder, onChange })
                                 <GripVertical className="w-5 h-5 text-muted shrink-0" aria-hidden />
                                 <div className="min-w-0 flex-1">
                                     <div className="text-text font-medium">
-                                        {getNavItemLabel(key, { adminSuffix: true })}
+                                        {getNavItemLabel(key, {
+                                            adminSuffix: true,
+                                            downloadsMembersVisible: downloadsVisibleToMembers,
+                                        })}
                                     </div>
                                     {!isMobileNavKey(key) && (
                                         <p className="text-[11px] text-muted mt-0.5">Not shown in the mobile bottom bar</p>

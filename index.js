@@ -2437,6 +2437,7 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
         upgrader: !!config.upgraderEnabled,
         request: !!(requestAppType && requestAppType !== 'none' && resolvedRequestUrl && resolvedRequestUrl !== 'https://yourdomain.com'),
         requestsQueue: requestAppService.isRequestAppConfigured(config),
+        downloads: config.downloadsVisibleToMembers !== false,
     };
 
     res.json({
@@ -2747,6 +2748,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 announcement: config.announcement || '',
                 hideStreamUsers: config.hideStreamUsers === true ? 'anonymous' : (config.hideStreamUsers || 'false'),
                 navOrder: config.navOrder || ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'],
+                downloadsVisibleToMembers: config.downloadsVisibleToMembers !== false,
                 defaultLibraryIds: config.defaultLibraryIds || null,
                 use24HourClock: !!config.use24HourClock,
                 allowTemporaryAccess: !!config.allowTemporaryAccess,
@@ -2835,6 +2837,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 announcement: '',
                 hideStreamUsers: 'false',
                 navOrder: ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'],
+                downloadsVisibleToMembers: true,
                 defaultLibraryIds: null,
                 use24HourClock: false,
                 allowTemporaryAccess: false,
@@ -2875,7 +2878,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         primaryColor, customLogoUrl, brandingTheme, sidebarIdentityPosition, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges, showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds,
         showPublicStatusMonitor, showPublicLibraryStats,
         autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, upgraderEnabled, upgraderDefaultPreset, upgraderMinSizeGB, upgraderAutomationEnabled, upgraderProfileMap, upgraderMaxActionsPerHour, upgraderDefaultSort, upgraderDrawerPosition, dashboardLayout,
-        showUsernamesInAnalytics, useTrendingSlideshowOnLogin
+        showUsernamesInAnalytics, useTrendingSlideshowOnLogin, downloadsVisibleToMembers
     } = req.body;
 
     const existingConfig = await loadFile(CONFIG_PATH, {});
@@ -3041,6 +3044,9 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         announcement: announcement || '',
         hideStreamUsers: hideStreamUsers === true ? 'anonymous' : (hideStreamUsers === false ? 'false' : (hideStreamUsers || 'false')),
         navOrder: Array.isArray(navOrder) ? navOrder : existingConfig.navOrder || ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'],
+        downloadsVisibleToMembers: downloadsVisibleToMembers !== undefined
+            ? !!downloadsVisibleToMembers
+            : (existingConfig.downloadsVisibleToMembers !== false),
         defaultLibraryIds: Array.isArray(defaultLibraryIds) ? defaultLibraryIds : null,
         use24HourClock: !!use24HourClock,
         allowTemporaryAccess: !!allowTemporaryAccess,
@@ -11252,6 +11258,9 @@ app.get('/api/downloads/status', requireAuth, requireMember, async (req, res) =>
         const config = await loadFile(CONFIG_PATH, {});
         const actor = getSessionActor(req.user);
         const viewerIsAdmin = await resolveCurrentAdmin(actor, config);
+        if (!viewerIsAdmin && config.downloadsVisibleToMembers === false) {
+            return res.status(403).json({ error: 'Downloads are not available for members.' });
+        }
         const clients = (Array.isArray(config.downloadClients) ? config.downloadClients : []).filter((client) => client.enabled !== false && client.url);
         const arrMatcher = await buildDownloadArrMatcher(config);
         const results = await Promise.all(clients.map(async (client) => {

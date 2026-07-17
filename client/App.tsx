@@ -211,6 +211,14 @@ export const MainApp: React.FC = () => {
         }
     }, []);
 
+    useEffect(() => {
+        if (!sessionInfo) return;
+        if (currentRoute !== 'downloads') return;
+        if (sessionInfo.session?.isAdmin) return;
+        if (sessionInfo.navFeatures?.downloads !== false) return;
+        setRoute('user');
+    }, [currentRoute, sessionInfo, setRoute]);
+
     const checkSession = useCallback(async () => {
         let path = stripBasePath(window.location.pathname).toLowerCase();
         if (path.endsWith('/') && path.length > 1) path = path.slice(0, -1);
@@ -313,7 +321,10 @@ export const MainApp: React.FC = () => {
     const showDashboardWatchingBadge = publicConfig?.showDashboardWatchingBadge === true;
     const dashboardWatchingBadgePollSeconds = Number(publicConfig?.dashboardWatchingBadgePollSeconds) || 15;
     const { watchingCount } = useWatchingCount(showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds);
-    const { downloadCount } = useDownloadCount(!!sessionInfo, 15);
+    const downloadsNavEnabled = !!sessionInfo && (
+        !!sessionInfo?.session?.isAdmin || sessionInfo?.navFeatures?.downloads !== false
+    );
+    const { downloadCount } = useDownloadCount(downloadsNavEnabled, 15);
     const { openCount: openIssueCount, refresh: refreshOpenIssueCount } = useOpenIssueCount(requestsQueueEnabled);
     const queueBadgeCount = pendingRequestCount + openIssueCount;
     const refreshQueueCounts = useCallback(() => {
