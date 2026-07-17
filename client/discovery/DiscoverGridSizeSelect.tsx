@@ -10,7 +10,7 @@ export const DiscoverGridSizeSelect: React.FC<{
     value: UpgraderGridSize;
     onChange: (value: UpgraderGridSize) => void;
     className?: string;
-}> = ({ value, onChange, className = 'w-32' }) => (
+}> = ({ value, onChange, className = 'w-44' }) => (
     <CustomSelect
         compact
         value={value}
