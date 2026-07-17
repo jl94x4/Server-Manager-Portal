@@ -42,7 +42,7 @@ export const formatMediaCurrency = (value?: number | null): string | null => {
         style: 'currency',
         currency: 'USD',
         maximumFractionDigits: 0,
-    }).format(amount);
+    }).format(amount).replace(/([A-Z]{2})\$/, '$1 $');
 };
 
 export const formatLanguageName = (code?: string | null): string | null => {
@@ -144,6 +144,7 @@ export type MediaFactRow = {
     key: string;
     label: string;
     value: string;
+    people?: { id: number; name: string }[];
 };
 
 export type ProductionStudio = {
@@ -179,10 +180,18 @@ export const buildMediaFactRows = (
         const lastAired = formatDetailDate(details?.lastAirDate);
         if (lastAired) rows.push({ key: 'last-aired', label: 'Last aired', value: lastAired });
         const creators = (Array.isArray(details?.createdBy) ? details.createdBy : [])
-            .map((person: any) => person?.name)
-            .filter(Boolean);
+            .map((person: any) => ({
+                id: Number(person?.id),
+                name: String(person?.name || '').trim(),
+            }))
+            .filter((person) => person.name && Number.isFinite(person.id) && person.id > 0);
         if (creators.length) {
-            rows.push({ key: 'created-by', label: 'Created by', value: creators.join(', ') });
+            rows.push({
+                key: 'created-by',
+                label: 'Created by',
+                value: creators.map((person) => person.name).join(', '),
+                people: creators,
+            });
         }
     }
 

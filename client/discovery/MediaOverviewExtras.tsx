@@ -100,9 +100,24 @@ export const MediaOverviewExtras: React.FC<{
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">
                                     {row.label}
                                 </span>
-                                <span className="text-sm text-white/80 leading-snug">
-                                    {row.value}
-                                </span>
+                                {row.people?.length ? (
+                                    <div className="flex flex-wrap gap-2">
+                                        {row.people.map((person) => (
+                                            <button
+                                                key={person.id}
+                                                type="button"
+                                                onClick={() => onOpenPerson?.(person.id)}
+                                                className="px-2.5 py-1 rounded-lg bg-white/[0.05] border border-white/10 text-sm text-white/80 hover:bg-plex/15 hover:border-plex/40 hover:text-white transition-colors cursor-pointer"
+                                            >
+                                                {person.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <span className="text-sm text-white/80 leading-snug">
+                                        {row.value}
+                                    </span>
+                                )}
                             </div>
                         ))}
                         {studios.length > 0 && (
