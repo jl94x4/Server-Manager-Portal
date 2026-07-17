@@ -5937,13 +5937,27 @@ app.get('/api/arr/deep-link', requireAuth, requireAdmin, async (req, res) => {
             return res.status(404).json({ error: `${arrType === 'radarr' ? 'Radarr' : 'Sonarr'} is not configured` });
         }
 
-        const catalog = await getArrCatalog(normalized);
         const lookupItem = {
             mediaType,
             tmdbId: Number.isFinite(tmdbId) && tmdbId > 0 ? tmdbId : null,
             title,
             year,
         };
+
+        // Movies can deep-link by TMDB id without scanning the full Arr catalog.
+        if (arrType === 'radarr' && lookupItem.tmdbId) {
+            const url = buildArrDeepUrl(preferred, { tmdbId: lookupItem.tmdbId, title: lookupItem.title }, 'radarr');
+            if (url) {
+                return res.json({
+                    url,
+                    arrType,
+                    label: 'Open in Radarr',
+                    instanceName: preferred.name || 'Radarr',
+                });
+            }
+        }
+
+        const catalog = await getArrCatalog(normalized);
         const resolved = resolveArrEntity(lookupItem, catalog, normalized);
         let instance = resolved.instanceId ? getArrInstance(normalized, resolved.instanceId) : preferred;
         if (!isArrInstanceReady(instance)) instance = preferred;
