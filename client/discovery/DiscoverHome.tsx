@@ -151,7 +151,7 @@ export const DiscoverHome: React.FC<{
                 recentlyAdded,
                 recentRequests: filterHiddenAvailableItems(recentRequests, hideAvailable),
                 plexWatchlist,
-                trending: Array.isArray(trendingRes) ? trendingRes : filterHiddenAvailableItems(trendingRes?.results || [], hideAvailable),
+                trending: trendingRes,
                 popularMovies,
                 upcomingMovies,
                 popularSeries,
