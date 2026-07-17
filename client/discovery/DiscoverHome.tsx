@@ -32,13 +32,39 @@ const mapGenreSliderResponse = (payload: any): GenreSliderItem[] => {
             const id = Number(genre?.id);
             const name = String(genre?.name || '').trim();
             if (!Number.isFinite(id) || !name) return null;
+            const backdrops = genre?.backdrops || genre?.backdropPaths || genre?.backdrop_paths || [];
             return {
                 id,
                 name,
-                image: genre?.image || buildGenreSliderImage(id, genre?.backdrops),
+                image: genre?.image || buildGenreSliderImage(id, backdrops),
             };
         })
         .filter(Boolean) as GenreSliderItem[];
+};
+
+const enrichGenreFallbacks = async (
+    fallbackGenres: typeof MOVIE_GENRES,
+    kind: 'movie' | 'tv',
+): Promise<GenreSliderItem[]> => {
+    const results = await Promise.all(fallbackGenres.map(async (genre) => {
+        try {
+            const path = kind === 'movie'
+                ? `/api/discovery/proxy/discover/movies?genre=${genre.id}&sortBy=popularity.desc&page=1`
+                : `/api/discovery/proxy/discover/tv?genre=${genre.id}&sortBy=popularity.desc&page=1`;
+            const data = await apiFetch(path);
+            const backdrops = (Array.isArray(data?.results) ? data.results : [])
+                .map((item: any) => item?.backdropPath || item?.backdrop_path)
+                .filter(Boolean);
+            return {
+                id: genre.id,
+                name: genre.name,
+                image: buildGenreSliderImage(genre.id, backdrops),
+            } as GenreSliderItem;
+        } catch {
+            return { id: genre.id, name: genre.name } as GenreSliderItem;
+        }
+    }));
+    return results;
 };
 
 const EmptyRail: React.FC<{
@@ -158,8 +184,16 @@ export const DiscoverHome: React.FC<{
                 upcomingSeries,
             });
 
-            setMovieGenres(mapGenreSliderResponse(movieGenreRes));
-            setTvGenres(mapGenreSliderResponse(tvGenreRes));
+            let mappedMovies = mapGenreSliderResponse(movieGenreRes);
+            let mappedTv = mapGenreSliderResponse(tvGenreRes);
+            if (!mappedMovies.some((g) => g.image)) {
+                mappedMovies = await enrichGenreFallbacks(MOVIE_GENRES, 'movie');
+            }
+            if (!mappedTv.some((g) => g.image)) {
+                mappedTv = await enrichGenreFallbacks(TV_GENRES, 'tv');
+            }
+            setMovieGenres(mappedMovies);
+            setTvGenres(mappedTv);
         } catch (e) {
             console.error(e);
         }

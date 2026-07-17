@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DiscoveryLogo } from './DiscoveryLogo';
 
 type CompanyCardProps = {
@@ -45,18 +45,38 @@ type GenreCardProps = {
     onClick: () => void;
 };
 
-export const GenreCard: React.FC<GenreCardProps> = ({ name, gradient, image, onClick }) => (
-    <button
-        type="button"
-        onClick={onClick}
-        className={`relative w-[180px] sm:w-[216px] h-[106px] sm:h-[120px] flex-shrink-0 snap-start rounded-xl overflow-hidden px-4 flex items-center justify-center cursor-pointer hover:scale-[1.03] transition-transform shadow-lg border border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-plex ${
-            image ? 'bg-card' : `bg-gradient-to-br ${gradient || 'from-card to-background'}`
-        }`}
-        style={image ? { backgroundImage: `url(${image})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
-    >
-        {image && <div className="absolute inset-0 bg-black/25 pointer-events-none" />}
-        <span className="relative z-10 text-white font-black drop-shadow-md text-center leading-tight text-sm sm:text-base">
-            {name}
-        </span>
-    </button>
-);
+export const GenreCard: React.FC<GenreCardProps> = ({ name, gradient, image, onClick }) => {
+    const [imageFailed, setImageFailed] = useState(false);
+    const showImage = Boolean(image) && !imageFailed;
+
+    useEffect(() => {
+        setImageFailed(false);
+    }, [image]);
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`relative w-[180px] sm:w-[216px] h-[106px] sm:h-[120px] flex-shrink-0 snap-start rounded-xl overflow-hidden px-4 flex items-center justify-center cursor-pointer hover:scale-[1.03] transition-transform shadow-lg border border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-plex ${
+                showImage ? 'bg-card' : `bg-gradient-to-br ${gradient || 'from-card to-background'}`
+            }`}
+        >
+            {showImage && (
+                <>
+                    <img
+                        src={image}
+                        alt=""
+                        aria-hidden="true"
+                        className="absolute inset-0 w-full h-full object-cover"
+                        loading="lazy"
+                        onError={() => setImageFailed(true)}
+                    />
+                    <div className="absolute inset-0 bg-black/30 pointer-events-none" />
+                </>
+            )}
+            <span className="relative z-10 text-white font-black drop-shadow-md text-center leading-tight text-sm sm:text-base">
+                {name}
+            </span>
+        </button>
+    );
+};

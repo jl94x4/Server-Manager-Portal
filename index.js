@@ -6267,7 +6267,10 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
         const qs = params.toString();
         const fullPath = qs ? `${path}?${qs}` : path;
 
-        let data = await requestAppService.rawFetch(config, '/api/v1' + fullPath);
+        let data = await requestAppService.rawFetch(config, '/api/v1' + fullPath, {
+            // Genre slider fans out many TMDB calls inside Seerr — needs a longer budget.
+            timeoutMs: /^\/discover\/genreslider\//i.test(path) ? 90000 : 15000,
+        });
         const tvDetailMatch = path.match(/^\/tv\/(\d+)$/);
         const shouldLibraryCheck = String(req.query.libraryCheck || req.query.sonarrCheck || '') === '1';
         if (tvDetailMatch && shouldLibraryCheck && data && typeof data === 'object' && !Array.isArray(data)) {
