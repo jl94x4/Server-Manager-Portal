@@ -10,6 +10,7 @@ import { useDiscoveryMe } from './useDiscoveryMe';
 import { tmdbBackdropUrl } from './discoverConstants';
 import { RequestModal } from './RequestModal';
 import { ReportIssueModal } from './ReportIssueModal';
+import { SeasonEpisodesModal } from './SeasonEpisodesModal';
 import { resolveMediaAvailabilityState } from './discoverAvailability';
 import { MediaStatusPanel } from './DiscoverStatusOverlay';
 import { DiscoveryLogo } from './DiscoveryLogo';
@@ -77,6 +78,13 @@ export const MediaDetailsPage: React.FC<{
     const [ratings, setRatings] = useState<CombinedRatings | null>(null);
     const [requestModalOpen, setRequestModalOpen] = useState(false);
     const [issueModalOpen, setIssueModalOpen] = useState(false);
+    const [episodesSeason, setEpisodesSeason] = useState<{
+        seasonNumber: number;
+        name: string;
+        episodeCount: number;
+        statusLabel: string;
+        posterPath?: string | null;
+    } | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -743,7 +751,18 @@ export const MediaDetailsPage: React.FC<{
                         <SectionHeading>Seasons</SectionHeading>
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                             {seasonRows.map((season) => (
-                                <div key={season.seasonNumber} className="bg-white/[0.04] border border-white/10 rounded-xl p-3 flex gap-3 items-center min-w-0 hover:bg-white/[0.07] hover:border-white/15 transition-colors">
+                                <button
+                                    key={season.seasonNumber}
+                                    type="button"
+                                    onClick={() => setEpisodesSeason({
+                                        seasonNumber: season.seasonNumber,
+                                        name: season.name,
+                                        episodeCount: season.episodeCount,
+                                        statusLabel: season.statusLabel,
+                                        posterPath: season.posterPath,
+                                    })}
+                                    className="bg-white/[0.04] border border-white/10 rounded-xl p-3 flex gap-3 items-center min-w-0 text-left hover:bg-white/[0.07] hover:border-white/15 transition-colors cursor-pointer"
+                                >
                                     <div className="w-11 h-16 rounded-md overflow-hidden flex-shrink-0 bg-black/40 border border-white/10">
                                         {season.posterPath ? (
                                             <img src={`https://image.tmdb.org/t/p/w92${season.posterPath}`} className="w-full h-full object-cover" alt="" />
@@ -758,7 +777,7 @@ export const MediaDetailsPage: React.FC<{
                                             {season.statusLabel}
                                         </span>
                                     </div>
-                                </div>
+                                </button>
                             ))}
                         </div>
                     </section>
@@ -795,6 +814,20 @@ export const MediaDetailsPage: React.FC<{
             onSuccess={handleRequestSuccess}
             onError={(msg) => pushToast?.(msg, 'error')}
         />
+        {mediaType === 'tv' && episodesSeason ? (
+            <SeasonEpisodesModal
+                open
+                mediaId={mediaId}
+                showTitle={title}
+                showYear={year || undefined}
+                showPosterPath={details.posterPath}
+                seasonNumber={episodesSeason.seasonNumber}
+                seasonName={episodesSeason.name}
+                episodeCount={episodesSeason.episodeCount}
+                statusLabel={episodesSeason.statusLabel}
+                onClose={() => setEpisodesSeason(null)}
+            />
+        ) : null}
         {canReportIssue && (
             <ReportIssueModal
                 open={issueModalOpen}
