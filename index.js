@@ -285,7 +285,11 @@ const PORTAL_CSRF_HEADER = 'x-requested-with';
 const PORTAL_CSRF_VALUE = 'ServerManagerPortal';
 const collectAllowedOrigins = (req) => {
     const allowed = new Set();
-    const host = String(req.get('x-forwarded-host') || req.get('host') || '').split(',')[0].trim();
+    // Prefer Host; only trust X-Forwarded-Host when TRUST_PROXY is explicitly enabled.
+    const rawHost = TRUST_PROXY_FOR_RATE_LIMIT
+        ? (req.get('x-forwarded-host') || req.get('host') || '')
+        : (req.get('host') || '');
+    const host = String(rawHost).split(',')[0].trim();
     if (host) {
         allowed.add(`https://${host}`);
         allowed.add(`http://${host}`);
@@ -310,23 +314,25 @@ const isSameOriginApiRequest = (req) => {
     }
     return false;
 };
-app.use((req, res, next) => {
+const portalCsrfMiddleware = (req, res, next) => {
     if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
     if (!String(req.path || '').startsWith('/api/')) return next();
     const headerOk = String(req.get(PORTAL_CSRF_HEADER) || '') === PORTAL_CSRF_VALUE;
     if (headerOk || isSameOriginApiRequest(req)) return next();
     return res.status(403).json({ error: 'CSRF validation failed.' });
-});
+};
 
 // Trust the first proxy (e.g. Nginx/Caddy) so req.secure reflects HTTPS correctly
 app.set('trust proxy', 1);
 
+// Strip BASE_PATH before CSRF so subdirectory deploys still match `/api/...`.
 if (BASE_PATH) {
     app.use((req, res, next) => {
         req.url = stripBasePathFromUrl(req.url);
         next();
     });
 }
+app.use(portalCsrfMiddleware);
 
 // --- In-Memory Cache for Plex Metadata ---
 const plexMetadataCache = new Map();
@@ -2284,15 +2290,9 @@ const assertInitialSetupAccess = async (req, res, options = {}) => {
         res.status(403).json({ error: 'Portal is already configured.' });
         return false;
     }
+    // Only localhost / SETUP_TOKEN — do not accept an arbitrary valid JWT while unconfigured.
     if (canRunInitialSetup(req)) return true;
-    const sessionToken = req.cookies && req.cookies.session;
-    if (sessionToken) {
-        try {
-            jwt.verify(sessionToken, JWT_SECRET);
-            return true;
-        } catch (e) { /* fall through */ }
-    }
-    res.status(403).json({ error: 'Initial setup denied: localhost, valid setup token, or admin session required.' });
+    res.status(403).json({ error: 'Initial setup denied: localhost or valid setup token required.' });
     return false;
 };
 
@@ -3937,11 +3937,21 @@ const getPlexConnectionUri = async (config) => {
     return cachedPlexConnectionUri;
 };
 
+const isSafePlexMediaPath = (rawPath) => {
+    const thumbPath = String(rawPath || '');
+    if (!thumbPath.startsWith('/') || thumbPath.startsWith('//')) return false;
+    if (thumbPath.includes('://') || thumbPath.includes('\\')) return false;
+    if (thumbPath.includes('..')) return false;
+    // Disallow control chars / whitespace that can confuse upstream URL parsers
+    if (/[\s\x00-\x1f\x7f]/.test(thumbPath)) return false;
+    return true;
+};
+
 app.get('/api/plex/image', requireAuth, requireMember, async (req, res) => {
     const { path: thumbPath, width, height } = req.query;
     if (!thumbPath) return res.status(400).send('path required');
     // Security: only allow relative Plex paths — block protocol-relative and absolute URLs
-    if (!thumbPath.startsWith('/') || thumbPath.includes('://')) {
+    if (!isSafePlexMediaPath(thumbPath)) {
         return res.status(400).send('Invalid path');
     }
     try {
@@ -5685,7 +5695,7 @@ app.get('/api/discovery/watchlist', requireAuth, requireMember, async (req, res)
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
 
-        const payload = await requestAppService.getMemberWatchlist(config);
+        const payload = await requestAppService.getMemberWatchlist(config, req.user);
         res.json(payload);
     } catch (e) {
         log(`Discovery watchlist error: ${e.message}`);
@@ -5761,22 +5771,50 @@ app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) 
         const body = { mediaType: type, mediaId: tmdbId };
         if (is4k) body.is4k = true;
         if (type === 'tv') {
+            const requestableSeasonIds = new Set(
+                (options.seasons || [])
+                    .filter((season) => season.requestable)
+                    .map((season) => Number(season.seasonNumber))
+                    .filter((n) => Number.isFinite(n)),
+            );
             if (seasons === 'all') {
                 body.seasons = 'all';
             } else if (Array.isArray(seasons) && seasons.length > 0) {
-                body.seasons = seasons.map((season) => Number(season)).filter((season) => Number.isFinite(season));
+                const nextSeasons = seasons.map((season) => Number(season)).filter((season) => Number.isFinite(season));
+                if (requestableSeasonIds.size && nextSeasons.some((id) => !requestableSeasonIds.has(id))) {
+                    return res.status(403).json({ error: 'One or more selected seasons are not requestable.' });
+                }
+                body.seasons = nextSeasons;
             } else {
                 body.seasons = 'all';
             }
         }
 
-        if (options.canRequest || options.canRequestAdvanced) {
-            if (serverId != null) body.serverId = Number(serverId);
-            if (profileId != null) body.profileId = Number(profileId);
-            if (rootFolder) body.rootFolder = String(rootFolder);
-            if (languageProfileId != null) body.languageProfileId = Number(languageProfileId);
-            if (Array.isArray(tags)) {
-                body.tags = tags.map((tag) => Number(tag)).filter((tag) => Number.isFinite(tag));
+        if (options.canRequestAdvanced) {
+            const hasRouting =
+                serverId != null
+                || profileId != null
+                || rootFolder
+                || languageProfileId != null
+                || Array.isArray(tags);
+            if (hasRouting) {
+                try {
+                    const routing = await requestAppService.validateMemberRequestRouting(config, {
+                        mediaType: type,
+                        is4k: !!is4k,
+                        servers: options.servers,
+                        serverId,
+                        profileId,
+                        rootFolder,
+                        languageProfileId,
+                        tags,
+                    });
+                    Object.assign(body, routing);
+                } catch (routingErr) {
+                    return res.status(routingErr.status || 400).json({
+                        error: routingErr.message || 'Invalid request routing options.',
+                    });
+                }
             }
         }
 
@@ -6604,7 +6642,10 @@ const decryptBackupObject = (payload) => {
     if (!payload || typeof payload !== 'object') {
         throw new Error('Invalid backup payload.');
     }
-    if (!payload.encrypted) return payload;
+    // Reject legacy plaintext backups — secrets must only restore from AES-GCM sealed exports.
+    if (!payload.encrypted) {
+        throw new Error('Only encrypted backups can be restored. Create a new backup from this portal version.');
+    }
     if (payload.alg !== 'aes-256-gcm' || !payload.iv || !payload.tag || !payload.ciphertext) {
         throw new Error('Encrypted backup is missing required fields.');
     }
@@ -7448,7 +7489,7 @@ app.get('/api/plex/dashboard', requireAuth, requireMember, async (req, res) => {
                     userThumb: isHidden ? null : (m.User ? m.User.thumb : null),
                     playerProduct: player.product || 'Unknown Device',
                     playerTitle: player.title || 'Unknown Player',
-                    playerAddress: player.address || 'Unknown IP',
+                    playerAddress: req.user.isAdmin ? (player.address || 'Unknown IP') : null,
                     sessionLocation: session.location || 'Unknown',
                     state: player.state || 'playing',
                     isTranscoding: !!isTranscoding,
@@ -7820,7 +7861,7 @@ app.get('/api/jellyfin/dashboard', requireAuth, requireMember, async (req, res) 
                     userThumb: (!isHidden && session.UserId) ? withBasePath(`/api/jellyfin/user-image?userId=${encodeURIComponent(session.UserId)}`) : null,
                     playerProduct: session.Client || 'Jellyfin',
                     playerTitle: session.DeviceName || session.Client || 'Jellyfin Player',
-                    playerAddress: session.RemoteEndPoint || 'Unknown IP',
+                    playerAddress: req.user.isAdmin ? (session.RemoteEndPoint || 'Unknown IP') : null,
                     sessionLocation: 'remote',
                     state: playState.IsPaused ? 'paused' : 'playing',
                     isTranscoding: !!session.TranscodingInfo,
@@ -11190,17 +11231,19 @@ app.get('/api/downloads/status', requireAuth, requireMember, async (req, res) =>
             const arrMatch = arrMatcher ? arrMatcher(torrent) : null;
             const merged = arrMatch ? { ...torrent, ...arrMatch } : torrent;
             if (viewerIsAdmin) return merged;
-            // Members may see progress for the badge/UI, but not hashes/paths/magnets.
+            // Members may see progress for the badge/UI, but not release names/hashes/paths/magnets.
+            const source = merged.source || 'unknown';
+            const sourceLabel = source === 'unknown' ? 'Download' : `${source.charAt(0).toUpperCase()}${source.slice(1)} download`;
             return {
                 id: merged.id,
-                name: merged.name,
+                name: sourceLabel,
                 state: merged.state,
                 progress: merged.progress,
                 size: merged.size,
                 dlspeed: merged.dlspeed,
                 upspeed: merged.upspeed,
                 eta: merged.eta,
-                source: merged.source || 'unknown',
+                source,
                 clientId: merged.clientId,
                 clientName: merged.clientName,
             };

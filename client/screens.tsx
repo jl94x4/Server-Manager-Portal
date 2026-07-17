@@ -7176,7 +7176,7 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
                         </div>
                         <div>
                             <p className="text-[10px] text-muted uppercase tracking-widest font-bold mb-1">Network</p>
-                            <p className="text-sm font-medium">{session.playerAddress}</p>
+                            <p className="text-sm font-medium">{isAdmin ? (session.playerAddress || 'Unknown IP') : 'Hidden'}</p>
                             <p className="text-xs text-muted/80">{(session.bandwidth / 1000).toFixed(1)} Mbps</p>
                         </div>
 
