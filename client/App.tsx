@@ -151,7 +151,7 @@ export const MainApp: React.FC = () => {
         if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') return;
         const swUrl = portalUrl('/service-worker.js');
         const scope = portalUrl('/');
-        navigator.serviceWorker.register(swUrl, { scope }).catch(() => {});
+        navigator.serviceWorker.register(swUrl, { scope, updateViaCache: 'none' }).catch(() => {});
     }, []);
 
     useEffect(() => {

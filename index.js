@@ -10184,8 +10184,11 @@ if (BASE_PATH) {
     app.get([`${BASE_PATH}/manifest.webmanifest`, `${BASE_PATH}/manifest.json`], sendPwaManifest);
 }
 
-// Network passthrough fetch handler is required for Chrome Android WebAPK / Install app.
-const serviceWorkerScript = `self.addEventListener('install', (event) => {
+// A fetch listener is required for Chrome Android WebAPK / Install app.
+// Do NOT respondWith() here — intercepting every request breaks logos/images
+// (range requests, opaque responses, auth cookies, etc.).
+const serviceWorkerScript = `/* portal-sw v2 */
+self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
@@ -10193,9 +10196,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-self.addEventListener('fetch', (event) => {
-  event.respondWith(fetch(event.request));
-});
+self.addEventListener('fetch', () => {});
 `;
 
 const sendServiceWorker = (_req, res) => {
