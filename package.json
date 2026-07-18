@@ -22,12 +22,13 @@
     "esbuild": "^0.28.1",
     "express": "^4.19.2",
     "html2canvas": "^1.4.1",
+    "jpeg-js": "^0.4.4",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.21.0",
     "node-fetch": "^3.3.2",
     "nodemailer": "^9.0.1",
-    "recharts": "^3.9.0",
-    "sharp": "^0.35.3"
+    "pngjs": "^7.0.0",
+    "recharts": "^3.9.0"
   },
   "devDependencies": {
     "@types/node": "^26.0.0",

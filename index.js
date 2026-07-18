@@ -14,7 +14,7 @@ import compression from 'compression';
 import { execSync } from 'child_process';
 import fsSync from 'fs';
 import net from 'net';
-import sharp from 'sharp';
+import { makeCircularPwaIconPng } from './lib/circular-icon.js';
 
 const resolveAppVersion = () => {
     let pkgVersion = '1.0.0';
@@ -7534,27 +7534,12 @@ const detectRasterImageType = (buffer) => {
 };
 
 /** Cover-crop + circular mask — matches login/hero `rounded-full object-cover` treatment. */
-const makeCircularPwaIconPng = async (inputBuffer, size = 192) => {
-    const s = Math.max(64, Math.min(1024, Number(size) || 192));
-    const circle = Buffer.from(
-        `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}">`
-        + `<circle cx="${s / 2}" cy="${s / 2}" r="${s / 2}" fill="#fff"/></svg>`
-    );
-    return sharp(inputBuffer)
-        .rotate()
-        .resize(s, s, { fit: 'cover', position: 'centre' })
-        .ensureAlpha()
-        .composite([{ input: circle, blend: 'dest-in' }])
-        .png()
-        .toBuffer();
-};
-
 const sendCircularPwaIcon = async (res, buffer, size = 192) => {
     try {
         if (!detectRasterImageType(buffer)) {
             return sendPwaSizedIconFile(res, size);
         }
-        const png = await makeCircularPwaIconPng(buffer, size);
+        const png = makeCircularPwaIconPng(buffer, size);
         res.setHeader('Content-Type', 'image/png');
         res.setHeader('Cache-Control', 'public, max-age=3600');
         return res.send(png);
