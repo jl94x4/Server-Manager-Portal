@@ -148,10 +148,36 @@ export const MainApp: React.FC = () => {
 
     useEffect(() => {
         if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
-        if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') return;
-        const swUrl = portalUrl('/service-worker.js');
-        const scope = portalUrl('/');
-        navigator.serviceWorker.register(swUrl, { scope, updateViaCache: 'none' }).catch(() => {});
+
+        const isFirefox = /Firefox/i.test(navigator.userAgent || '');
+        let cancelled = false;
+
+        (async () => {
+            try {
+                const regs = await navigator.serviceWorker.getRegistrations();
+
+                // Firefox does not need a SW for Install/A2HS. A leftover broken SW
+                // from earlier PWA work makes Install silently do nothing — remove it.
+                if (isFirefox) {
+                    await Promise.all(regs.map((reg) => reg.unregister()));
+                    return;
+                }
+
+                if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                    return;
+                }
+                if (cancelled) return;
+
+                await navigator.serviceWorker.register(portalUrl('/service-worker.js'), {
+                    scope: portalUrl('/'),
+                    updateViaCache: 'none',
+                });
+            } catch {
+                // ignore
+            }
+        })();
+
+        return () => { cancelled = true; };
     }, []);
 
     useEffect(() => {

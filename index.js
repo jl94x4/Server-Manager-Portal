@@ -127,7 +127,7 @@ app.use((req, res, next) => {
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'");
     if (req.secure || FORCE_SECURE_COOKIES) {
         res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     }
@@ -10139,11 +10139,11 @@ const buildPwaManifest = async () => {
     const config = await loadFile(CONFIG_PATH, {});
     const profile = await getAdminProfile(config);
     const serverName = profile.serverName || 'Server Portal';
-    // Exact-size PNGs — Firefox Android silently aborts install on huge/mismatched icons.
+    // Exact-size PNGs — Firefox Android aborts install on huge/mismatched icons.
     const icon192 = resolvePublicAssetHref('/static/pwa-icon-192.png');
     const icon512 = resolvePublicAssetHref('/static/pwa-icon-512.png');
-    // App home is /portal (not /) when BASE_PATH is empty — matches login redirect + client router.
-    const startUrl = withBasePath('/portal');
+    // Prefer app root; client routes / → /portal after load. Avoid /portal/portal when BASE_PATH=/portal.
+    const startUrl = BASE_PATH ? `${BASE_PATH}/` : '/portal';
     const scope = BASE_PATH ? `${BASE_PATH}/` : '/';
     return {
         name: `${serverName} Portal`,
@@ -10181,8 +10181,9 @@ if (BASE_PATH) {
     ], sendPwaManifest);
 }
 
-// Fetch listener present for Chromium installability; do not respondWith (breaks images).
-const serviceWorkerScript = `/* portal-sw v3 */
+// Chromium uses this for installability. Firefox deliberately does not register it
+// (a bad SW makes Firefox Install silently no-op).
+const serviceWorkerScript = `/* portal-sw v4 */
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
@@ -10253,15 +10254,21 @@ const resolvePortalBrandingIconHref = (config = {}, profile = {}) => {
 const injectAppIconLinks = (html, iconHref) => {
     const safeHref = escapeHtmlAttr(iconHref || resolvePublicAssetHref('/static/logo.png'));
     const manifestHref = escapeHtmlAttr(withBasePath('/manifest.webmanifest'));
+    const manifestTag = `<link rel="manifest" href="${manifestHref}" />`;
     const iconLinks = [
-        `<link rel="manifest" href="${manifestHref}" />`,
         `<link rel="icon" type="image/png" href="${safeHref}" />`,
         `<link rel="apple-touch-icon" sizes="180x180" href="${safeHref}" />`
     ].join('\n    ');
-    return html
+    let updated = html
         .replace(/<link\b(?=[^>]*\brel=["'][^"']*manifest[^"']*["'])[^>]*>\s*/gi, '')
-        .replace(/<link\b(?=[^>]*\brel=["'][^"']*(?:apple-touch-icon|icon)[^"']*["'])[^>]*>\s*/gi, '')
-        .replace('</head>', `    ${iconLinks}\n</head>`);
+        .replace(/<link\b(?=[^>]*\brel=["'][^"']*(?:apple-touch-icon|icon)[^"']*["'])[^>]*>\s*/gi, '');
+    // Firefox discovers the manifest from the initial HTML head — keep it near the top.
+    if (/<base\b[^>]*>/i.test(updated)) {
+        updated = updated.replace(/(<base\b[^>]*>)/i, `$1\n    ${manifestTag}`);
+    } else {
+        updated = updated.replace(/<head([^>]*)>/i, `<head$1>\n    ${manifestTag}`);
+    }
+    return updated.replace('</head>', `    ${iconLinks}\n</head>`);
 };
 
 const injectBasePathHtml = (html) => {

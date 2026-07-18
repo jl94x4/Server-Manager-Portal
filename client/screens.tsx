@@ -9621,10 +9621,31 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                         {!installDiag && installHelpOpen && (
                             <p className="mt-4 text-xs text-muted">Checking install requirements…</p>
                         )}
+                        {isFirefoxMobile && (
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    try {
+                                        if ('serviceWorker' in navigator) {
+                                            const regs = await navigator.serviceWorker.getRegistrations();
+                                            await Promise.all(regs.map((reg) => reg.unregister()));
+                                        }
+                                        if ('caches' in window) {
+                                            const keys = await caches.keys();
+                                            await Promise.all(keys.map((key) => caches.delete(key)));
+                                        }
+                                    } catch { /* ignore */ }
+                                    window.location.reload();
+                                }}
+                                className="mt-3 w-full inline-flex items-center justify-center rounded-xl border border-border px-4 py-3 text-sm font-bold text-text hover:bg-white/5 transition-colors"
+                            >
+                                Reset install data & reload
+                            </button>
+                        )}
                         <button
                             type="button"
                             onClick={() => setInstallHelpOpen(false)}
-                            className="mt-5 w-full inline-flex items-center justify-center rounded-xl bg-plex px-4 py-3 text-sm font-bold text-background hover:bg-plex-hover transition-colors"
+                            className="mt-3 w-full inline-flex items-center justify-center rounded-xl bg-plex px-4 py-3 text-sm font-bold text-background hover:bg-plex-hover transition-colors"
                         >
                             Done
                         </button>
