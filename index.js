@@ -10252,8 +10252,11 @@ const buildPwaManifest = async () => {
     const serverName = profile.serverName || 'Server Portal';
     // ALWAYS use static exact-size PNGs. Dynamic/API branding icons break Firefox Android
     // Install (silent no-op). Server branding still applies in-app + favicon via branding-icon.
-    const icon192 = resolvePublicAssetHref('/static/pwa-icon-192.png');
-    const icon512 = resolvePublicAssetHref('/static/pwa-icon-512.png');
+    // Cache-bust so Chrome drops blank/stale adaptive icons from earlier builds.
+    const iconVer = '3';
+    const icon192 = `${resolvePublicAssetHref('/static/pwa-icon-192.png')}?v=${iconVer}`;
+    const icon512 = `${resolvePublicAssetHref('/static/pwa-icon-512.png')}?v=${iconVer}`;
+    const iconMaskable = `${resolvePublicAssetHref('/static/pwa-icon-maskable-512.png')}?v=${iconVer}`;
     const startUrl = BASE_PATH ? `${BASE_PATH}/` : '/portal';
     const scope = BASE_PATH ? `${BASE_PATH}/` : '/';
     return {
@@ -10268,7 +10271,7 @@ const buildPwaManifest = async () => {
         icons: [
             { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
             { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
-            { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+            { src: iconMaskable, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ]
     };
 };
