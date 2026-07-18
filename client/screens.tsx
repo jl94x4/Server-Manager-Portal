@@ -1686,6 +1686,7 @@ export const DownloadStatusPage: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = 
     const [clientFilter, setClientFilter] = useState<string>('all');
     const [busyAction, setBusyAction] = useState('');
     const [uploadClientId, setUploadClientId] = useState('');
+    const [uploadCategory, setUploadCategory] = useState('');
     const [torrentUrl, setTorrentUrl] = useState('');
     const [torrentFile, setTorrentFile] = useState<File | null>(null);
     const [uploadBusy, setUploadBusy] = useState(false);
@@ -1737,6 +1738,25 @@ export const DownloadStatusPage: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = 
     };
 
     const sourceLabel = (source: string) => ({ sonarr: 'Sonarr', radarr: 'Radarr', lidarr: 'Lidarr', unknown: 'Other' }[source] || 'Other');
+    const uploadCategoryOptions = useMemo(() => {
+        const seen = new Set(['']);
+        const arrOptions = (Array.isArray(data?.downloadCategoryOptions) ? data.downloadCategoryOptions : [])
+            .map((option: any) => ({
+                label: String(option?.label || option?.value || '').trim(),
+                value: String(option?.value || '').trim(),
+            }))
+            .filter((option: any) => {
+                if (!option.value || seen.has(option.value)) return false;
+                seen.add(option.value);
+                return true;
+            });
+        return [{ label: 'No category', value: '' }, ...arrOptions];
+    }, [data]);
+    useEffect(() => {
+        if (uploadCategory && !uploadCategoryOptions.some((option) => String(option.value) === uploadCategory)) {
+            setUploadCategory('');
+        }
+    }, [uploadCategory, uploadCategoryOptions]);
     const downloadClientLabel = (type: string) => ({
         qbittorrent: 'qBittorrent',
         transmission: 'Transmission',
@@ -1794,10 +1814,16 @@ export const DownloadStatusPage: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = 
             return;
         }
         setUploadBusy(true);
+        const category = String(uploadCategory || '').trim();
         try {
             if (torrentFile) {
                 const bytes = await torrentFile.arrayBuffer();
-                await apiFetch(`/api/downloads/add-file?clientId=${encodeURIComponent(targetClientId)}&filename=${encodeURIComponent(torrentFile.name || 'upload.torrent')}`, {
+                const params = new URLSearchParams({
+                    clientId: targetClientId,
+                    filename: torrentFile.name || 'upload.torrent',
+                });
+                if (category) params.set('category', category);
+                await apiFetch(`/api/downloads/add-file?${params.toString()}`, {
                     method: 'POST',
                     headers: { 'Content-Type': torrentFile.type || 'application/x-bittorrent' },
                     body: bytes,
@@ -1805,7 +1831,7 @@ export const DownloadStatusPage: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = 
             } else {
                 await apiFetch('/api/downloads/add-url', {
                     method: 'POST',
-                    body: JSON.stringify({ clientId: targetClientId, url: torrentUrl.trim() }),
+                    body: JSON.stringify({ clientId: targetClientId, url: torrentUrl.trim(), category }),
                 });
             }
             setTorrentUrl('');
@@ -1850,6 +1876,14 @@ export const DownloadStatusPage: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = 
                                     label: client.name || downloadClientLabel(client.type),
                                     value: String(client.id),
                                 }))}
+                            />
+                        </div>
+                        <div className="lg:w-48">
+                            <label className="text-[10px] uppercase tracking-widest font-bold text-muted mb-1.5 block">Category</label>
+                            <CustomSelect
+                                value={uploadCategory}
+                                onChange={setUploadCategory}
+                                options={uploadCategoryOptions}
                             />
                         </div>
                         <div className="flex-1 min-w-0">

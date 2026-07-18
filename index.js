@@ -11573,10 +11573,71 @@ const controlQbitTorrent = async (client, action, id) => {
     throw new Error(`qBittorrent ${action} HTTP ${lastStatus}`);
 };
 
-const addQbitTorrentDownload = async (client, { url = '', fileBuffer = null, filename = 'upload.torrent' } = {}) => {
+const normalizeDownloadCategory = (value) => String(value || '').trim().slice(0, 80);
+
+const arrDownloadClientCategoryValue = (client = {}) => {
+    const direct = [
+        client.category,
+        client.tvCategory,
+        client.movieCategory,
+    ].map(normalizeDownloadCategory).find(Boolean);
+    if (direct) return direct;
+
+    const fields = Array.isArray(client.fields) ? client.fields : [];
+    const categoryField = fields.find((field) => {
+        const key = String(field?.name || field?.label || '').toLowerCase();
+        return key.includes('category') && !key.includes('priority');
+    });
+    return normalizeDownloadCategory(categoryField?.value);
+};
+
+const fetchArrDownloadCategoryOptions = async (config = {}) => {
+    const instances = getArrInstances(config, { enabledOnly: true })
+        .filter((instance) => ['sonarr', 'radarr', 'lidarr'].includes(instance.type))
+        .filter(isArrInstanceReady);
+    if (!instances.length) return [];
+
+    const results = await Promise.all(instances.map(async (instance) => {
+        try {
+            const clients = await fetchArrInstanceJson(instance, '/api/v3/downloadclient', {
+                resolveUrl: resolveIntegrationUrlForFetch,
+                fetchImpl: fetch,
+            });
+            return (Array.isArray(clients) ? clients : []).map((downloadClient) => {
+                const value = arrDownloadClientCategoryValue(downloadClient);
+                if (!value) return null;
+                const arrLabel = instance.name || downloadClientLabel(instance.type);
+                const clientName = downloadClient.name || downloadClient.implementationName || downloadClient.implementation || 'Download client';
+                return { value, source: `${arrLabel} / ${clientName}` };
+            }).filter(Boolean);
+        } catch (error) {
+            log(`Download category fetch failed for ${instance.name || instance.type}: ${error.message}`);
+            return [];
+        }
+    }));
+
+    const byValue = new Map();
+    results.flat().forEach((entry) => {
+        if (!byValue.has(entry.value)) byValue.set(entry.value, new Set());
+        byValue.get(entry.value).add(entry.source);
+    });
+    return [...byValue.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([value, sources]) => {
+            const sourceList = [...sources];
+            return {
+                value,
+                label: sourceList.length ? `${value} (${sourceList.join(', ')})` : value,
+                sources: sourceList,
+            };
+        });
+};
+
+const addQbitTorrentDownload = async (client, { url = '', fileBuffer = null, filename = 'upload.torrent', category = '' } = {}) => {
     const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
     const cookie = await qbitCookie(client);
     const form = new FormData();
+    const normalizedCategory = normalizeDownloadCategory(category);
     if (url) {
         form.append('urls', url);
     } else if (fileBuffer?.length) {
@@ -11584,6 +11645,7 @@ const addQbitTorrentDownload = async (client, { url = '', fileBuffer = null, fil
     } else {
         throw new Error('Torrent URL or file is required');
     }
+    if (normalizedCategory) form.append('category', normalizedCategory);
     const response = await fetchWithTimeout(`${base}/api/v2/torrents/add`, {
         method: 'POST',
         headers: { Cookie: cookie },
@@ -11633,11 +11695,13 @@ const controlTransmissionTorrent = async (client, action, id) => {
     if (payload?.result && payload.result !== 'success') throw new Error(payload.result);
 };
 
-const addTransmissionDownload = async (client, { url = '', fileBuffer = null } = {}) => {
+const addTransmissionDownload = async (client, { url = '', fileBuffer = null, category = '' } = {}) => {
     const argumentsPayload = url
         ? { filename: url }
         : { metainfo: Buffer.from(fileBuffer || Buffer.alloc(0)).toString('base64') };
     if (!url && !fileBuffer?.length) throw new Error('Torrent URL or file is required');
+    const normalizedCategory = normalizeDownloadCategory(category);
+    if (normalizedCategory) argumentsPayload.labels = [normalizedCategory];
     const payload = await transmissionRpc(client, { method: 'torrent-add', arguments: argumentsPayload });
     if (payload?.result && payload.result !== 'success') throw new Error(payload.result);
 };
@@ -11673,12 +11737,15 @@ const controlBitTorrent = async (client, action, id) => {
     if (!response.ok) throw new Error(`BitTorrent ${action} HTTP ${response.status}`);
 };
 
-const addBitTorrentDownload = async (client, { url = '', fileBuffer = null } = {}) => {
+const addBitTorrentDownload = async (client, { url = '', fileBuffer = null, category = '' } = {}) => {
     if (fileBuffer?.length) throw new Error('BitTorrent file upload is not supported by this API. Use a torrent URL or magnet link.');
     if (!url) throw new Error('Torrent URL is required');
     const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
     const auth = client.username || client.password ? `Basic ${Buffer.from(`${client.username || ''}:${client.password || ''}`).toString('base64')}` : '';
-    const response = await fetchWithTimeout(`${base}/gui/?action=add-url&s=${encodeURIComponent(url)}`, {
+    const params = new URLSearchParams({ action: 'add-url', s: url });
+    const normalizedCategory = normalizeDownloadCategory(category);
+    if (normalizedCategory) params.set('label', normalizedCategory);
+    const response = await fetchWithTimeout(`${base}/gui/?${params.toString()}`, {
         headers: { ...(auth ? { Authorization: auth } : {}), Accept: 'application/json' },
     }, 12000);
     if (!response.ok) throw new Error(`BitTorrent add HTTP ${response.status}`);
@@ -11763,14 +11830,30 @@ const controlDelugeTorrent = async (client, action, id) => {
     }
 };
 
-const addDelugeDownload = async (client, { url = '', fileBuffer = null, filename = 'upload.torrent' } = {}) => {
+const addDelugeDownload = async (client, { url = '', fileBuffer = null, filename = 'upload.torrent', category = '' } = {}) => {
     const cookie = await delugeLogin(client);
+    const normalizedCategory = normalizeDownloadCategory(category);
+    const applyLabel = async (torrentId) => {
+        if (!normalizedCategory || !torrentId) return;
+        try {
+            await delugeRpc(client, 'label.add', [normalizedCategory], cookie);
+        } catch (error) {
+            // Label may already exist or the plugin may not expose add; setting it below is the real check.
+        }
+        try {
+            await delugeRpc(client, 'label.set_torrent', [torrentId, normalizedCategory], cookie);
+        } catch (error) {
+            log(`Deluge label assignment skipped: ${error.message}`);
+        }
+    };
     if (url) {
-        await delugeRpc(client, 'core.add_torrent_url', [url, {}], cookie);
+        const result = await delugeRpc(client, 'core.add_torrent_url', [url, {}], cookie);
+        await applyLabel(result.data?.result);
         return;
     }
     if (!fileBuffer?.length) throw new Error('Torrent URL or file is required');
-    await delugeRpc(client, 'core.add_torrent_file', [filename || 'upload.torrent', Buffer.from(fileBuffer).toString('base64'), {}], cookie);
+    const result = await delugeRpc(client, 'core.add_torrent_file', [filename || 'upload.torrent', Buffer.from(fileBuffer).toString('base64'), {}], cookie);
+    await applyLabel(result.data?.result);
 };
 
 const parseSabSize = (value) => {
@@ -11894,12 +11977,12 @@ const getConfiguredDownloadClient = async (clientId) => {
 
 app.post('/api/downloads/add-url', requireAdmin, async (req, res) => {
     try {
-        const { clientId, url } = req.body || {};
+        const { clientId, url, category } = req.body || {};
         const torrentUrl = String(url || '').trim();
         if (!torrentUrl) return res.status(400).json({ error: 'Torrent URL or magnet link is required.' });
         const client = await getConfiguredDownloadClient(clientId);
         if (!client) return res.status(404).json({ error: 'Download client not found.' });
-        await addDownloadClientItem(client, { url: torrentUrl });
+        await addDownloadClientItem(client, { url: torrentUrl, category });
         return res.json({ ok: true, message: `Sent torrent URL to ${client.name || downloadClientLabel(client.type)}.` });
     } catch (e) {
         res.status(500).json({ error: e.message || 'Failed to add torrent URL.' });
@@ -11910,11 +11993,12 @@ app.post('/api/downloads/add-file', requireAdmin, express.raw({ type: ['applicat
     try {
         const clientId = req.query.clientId || req.headers['x-download-client-id'];
         const filename = String(req.query.filename || req.headers['x-filename'] || 'upload.torrent').replace(/[^\w.\- ()]/g, '').slice(0, 180) || 'upload.torrent';
+        const category = req.query.category || req.headers['x-download-category'] || '';
         const fileBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body || []);
         if (!fileBuffer.length) return res.status(400).json({ error: 'Torrent file is required.' });
         const client = await getConfiguredDownloadClient(clientId);
         if (!client) return res.status(404).json({ error: 'Download client not found.' });
-        await addDownloadClientItem(client, { fileBuffer, filename });
+        await addDownloadClientItem(client, { fileBuffer, filename, category });
         return res.json({ ok: true, message: `Sent torrent file to ${client.name || downloadClientLabel(client.type)}.` });
     } catch (e) {
         res.status(500).json({ error: e.message || 'Failed to add torrent file.' });
@@ -11942,7 +12026,10 @@ app.get('/api/downloads/status', requireAuth, requireMember, async (req, res) =>
             return res.status(403).json({ error: 'Downloads are not available for members.' });
         }
         const clients = (Array.isArray(config.downloadClients) ? config.downloadClients : []).filter((client) => client.enabled !== false && client.url);
-        const arrMatcher = await buildDownloadArrMatcher(config);
+        const [arrMatcher, downloadCategoryOptions] = await Promise.all([
+            buildDownloadArrMatcher(config),
+            viewerIsAdmin ? fetchArrDownloadCategoryOptions(config) : Promise.resolve([]),
+        ]);
         const results = await Promise.all(clients.map(async (client) => {
             try {
                 const torrents = await fetchDownloadClientTorrents(client);
@@ -11974,6 +12061,7 @@ app.get('/api/downloads/status', requireAuth, requireMember, async (req, res) =>
         });
         res.json({
             clients: results.map(({ torrents, ...entry }) => ({ ...entry, count: torrents.length })),
+            downloadCategoryOptions,
             downloads,
             counts: {
                 total: downloads.length,
