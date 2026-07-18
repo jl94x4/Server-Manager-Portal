@@ -281,37 +281,41 @@ const DiscoveryDashboardInner: React.FC<{
             {showTabs && (
                 <>
                     <div className={`w-full ${discoveryTheme.tabSticky}`}>
-                        <div className="sm:hidden relative">
-                            <button
-                                type="button"
-                                onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
-                                className={discoveryTheme.mobileNavBtn}
-                            >
-                                <span className="flex items-center gap-2">
-                                    <ActiveIcon className="w-5 h-5" /> {activeTab.label}
-                                    {renderTabBadge(activeTab, true)}
-                                </span>
-                                <ChevronDown className={`w-5 h-5 transition-transform ${isMobileNavOpen ? 'rotate-180' : ''}`} />
-                            </button>
-                            {isMobileNavOpen && (
-                                <div className={discoveryTheme.mobileNavMenu}>
-                                    {tabs.map(tab => (
-                                        <button
-                                            key={tab.id}
-                                            type="button"
-                                            onClick={() => { navigate(tab.path); setIsMobileNavOpen(false); }}
-                                            className={`${discoveryTheme.mobileNavItem} ${tab.id === subRoute ? discoveryTheme.mobileNavItemActive : ''}`}
-                                        >
-                                            <tab.icon className="w-5 h-5" /> {tab.label}
-                                            {tab.count > 0 && (
-                                                <span className="ml-auto min-w-[1.25rem] h-5 px-1.5 rounded-full bg-plex text-black text-[10px] font-black inline-flex items-center justify-center">
-                                                    {tab.count > 99 ? '99+' : tab.count}
-                                                </span>
-                                            )}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
+                        <div className="sm:hidden flex items-center gap-2">
+                            <div className="relative flex-1 min-w-0">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
+                                    className={discoveryTheme.mobileNavBtn}
+                                >
+                                    <span className="flex items-center gap-2 min-w-0">
+                                        <ActiveIcon className="w-5 h-5 shrink-0" />
+                                        <span className="truncate">{activeTab.label}</span>
+                                        {renderTabBadge(activeTab, true)}
+                                    </span>
+                                    <ChevronDown className={`w-5 h-5 shrink-0 transition-transform ${isMobileNavOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                                {isMobileNavOpen && (
+                                    <div className={discoveryTheme.mobileNavMenu}>
+                                        {tabs.map(tab => (
+                                            <button
+                                                key={tab.id}
+                                                type="button"
+                                                onClick={() => { navigate(tab.path); setIsMobileNavOpen(false); }}
+                                                className={`${discoveryTheme.mobileNavItem} ${tab.id === subRoute ? discoveryTheme.mobileNavItemActive : ''}`}
+                                            >
+                                                <tab.icon className="w-5 h-5" /> {tab.label}
+                                                {tab.count > 0 && (
+                                                    <span className="ml-auto min-w-[1.25rem] h-5 px-1.5 rounded-full bg-plex text-black text-[10px] font-black inline-flex items-center justify-center">
+                                                        {tab.count > 99 ? '99+' : tab.count}
+                                                    </span>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <DiscoverLocaleSelect showLabel={false} className="w-[7.25rem] shrink-0" />
                         </div>
 
                         <div className={`hidden sm:flex ${discoveryTheme.tabBar} items-center gap-2`}>
@@ -332,10 +336,7 @@ const DiscoveryDashboardInner: React.FC<{
                                 );
                             })}
                             </div>
-                            <DiscoverLocaleSelect className="w-32 shrink-0 hidden md:flex" />
-                        </div>
-                        <div className="sm:hidden mt-2 flex justify-end">
-                            <DiscoverLocaleSelect className="w-36" />
+                            <DiscoverLocaleSelect showLabel={false} className="w-28 shrink-0 hidden md:flex" />
                         </div>
                     </div>
 

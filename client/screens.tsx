@@ -5614,14 +5614,14 @@ const DISCOVER_DESKTOP_ITEM_LIMIT = 20;
 const DISCOVER_MOBILE_ITEM_LIMIT = 12;
 const RECENTLY_ADDED_ITEM_LIMIT = 100;
 const DISCOVER_LIMIT_OPTIONS = [
-    { value: '12', label: '12 Items' },
-    { value: '20', label: '20 Items' },
-    { value: '25', label: '25 Items' },
-    { value: '50', label: '50 Items' },
-    { value: '100', label: '100 Items' },
-    { value: '150', label: '150 Items' },
-    { value: '200', label: '200 Items' },
-    { value: '250', label: '250 Items' },
+    { value: '12', label: '12' },
+    { value: '20', label: '20' },
+    { value: '25', label: '25' },
+    { value: '50', label: '50' },
+    { value: '100', label: '100' },
+    { value: '150', label: '150' },
+    { value: '200', label: '200' },
+    { value: '250', label: '250' },
 ];
 
 const TrendingDiscoverSection: React.FC<{ title: string; items: any[]; limit: number; showQualityBadges?: boolean; useScrollRevealAnimations?: boolean; onItemClick?: (item: any) => void; gridSize?: UpgraderGridSize }> = ({ title, items, limit, showQualityBadges = true, useScrollRevealAnimations, onItemClick, gridSize = 'medium' }) => {
@@ -7746,16 +7746,21 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                     )}
                 </section>
 
-                <div className="flex justify-end gap-3 sm:gap-4 items-center mb-8 flex-wrap">
-                    <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
-                    <span className="text-xs uppercase tracking-wider text-muted font-semibold">Items Per Section</span>
-                    <CustomSelect
-                        compact
-                        className="w-32"
-                        value={String(recentLimit)}
-                        onChange={handleRecentLimitChange}
-                        options={DISCOVER_LIMIT_OPTIONS}
-                    />
+                <div className="flex justify-end gap-2 sm:gap-3 items-end mb-8 flex-wrap">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted px-0.5">Grid</span>
+                        <DiscoverGridSizeSelect className="w-36" value={gridSize} onChange={setGridSize} />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted px-0.5">Per section</span>
+                        <CustomSelect
+                            compact
+                            className="w-28"
+                            value={String(recentLimit)}
+                            onChange={handleRecentLimitChange}
+                            options={DISCOVER_LIMIT_OPTIONS}
+                        />
+                    </div>
                 </div>
 
                 <div className="flex flex-col gap-12 w-full">
