@@ -10246,19 +10246,38 @@ if (BASE_PATH) {
     app.use(`${BASE_PATH}/static`, express.static(staticDir, staticAssetOptions));
 }
 
-const buildPwaManifest = async () => {
+const buildPwaManifest = async (req) => {
     const config = await loadFile(CONFIG_PATH, {});
     const profile = await getAdminProfile(config);
     const serverName = profile.serverName || 'Server Portal';
-    // ALWAYS use static exact-size PNGs. Dynamic/API branding icons break Firefox Android
-    // Install (silent no-op). Server branding still applies in-app + favicon via branding-icon.
-    // Cache-bust so Chrome drops blank/stale adaptive icons from earlier builds.
-    const iconVer = '3';
-    const icon192 = `${resolvePublicAssetHref('/static/pwa-icon-192.png')}?v=${iconVer}`;
-    const icon512 = `${resolvePublicAssetHref('/static/pwa-icon-512.png')}?v=${iconVer}`;
-    const iconMaskable = `${resolvePublicAssetHref('/static/pwa-icon-maskable-512.png')}?v=${iconVer}`;
     const startUrl = BASE_PATH ? `${BASE_PATH}/` : '/portal';
     const scope = BASE_PATH ? `${BASE_PATH}/` : '/';
+    const useServerIcon = normalizePwaIconSource(config.pwaIconSource) !== 'application';
+    // Firefox Android silently aborts Install on dynamic/API icons — keep static PNGs there.
+    // Chromium can use the server logo via the fast /api/public/pwa-icon route.
+    const ua = String(req?.get?.('user-agent') || '');
+    const isFirefox = /Firefox/i.test(ua);
+    const useDynamicServerIcons = useServerIcon && !isFirefox;
+    const iconVer = '3';
+    let icons;
+    if (useDynamicServerIcons) {
+        const cacheKey = getPortalBrandingIconCacheKey(config, profile);
+        const pwaIcon = resolvePublicAssetHref('/api/public/pwa-icon');
+        icons = [
+            { src: `${pwaIcon}?size=192&v=${cacheKey}`, sizes: '192x192', purpose: 'any' },
+            { src: `${pwaIcon}?size=512&v=${cacheKey}`, sizes: '512x512', purpose: 'any' },
+            { src: `${pwaIcon}?size=512&v=${cacheKey}`, sizes: '512x512', purpose: 'maskable' }
+        ];
+    } else {
+        const icon192 = `${resolvePublicAssetHref('/static/pwa-icon-192.png')}?v=${iconVer}`;
+        const icon512 = `${resolvePublicAssetHref('/static/pwa-icon-512.png')}?v=${iconVer}`;
+        const iconMaskable = `${resolvePublicAssetHref('/static/pwa-icon-maskable-512.png')}?v=${iconVer}`;
+        icons = [
+            { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: iconMaskable, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+        ];
+    }
     return {
         name: `${serverName} Portal`,
         short_name: serverName.length > 12 ? 'Portal' : serverName,
@@ -10268,19 +10287,17 @@ const buildPwaManifest = async () => {
         display: 'standalone',
         background_color: '#0b0f19',
         theme_color: '#0b0f19',
-        icons: [
-            { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
-            { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
-            { src: iconMaskable, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
-        ]
+        icons
     };
 };
 
-const sendPwaManifest = async (_req, res) => {
+const sendPwaManifest = async (req, res) => {
     try {
         res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-        res.json(await buildPwaManifest());
+        // Vary so Chrome vs Firefox each keep the right icon set cached.
+        res.setHeader('Vary', 'User-Agent');
+        res.json(await buildPwaManifest(req));
     } catch (e) {
         res.status(500).json({ error: 'Failed to build web app manifest.' });
     }

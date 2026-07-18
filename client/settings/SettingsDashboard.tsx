@@ -2437,9 +2437,9 @@ export const SettingsDashboard: React.FC = () => {
 
                                                 <div>
                                                     <SettingFieldLabel
-                                                        hint={<SettingHint>Browser tab / bookmark icon. Home-screen Install always uses the Application icon — dynamic server logos break Firefox Android install.</SettingHint>}
+                                                        hint={<SettingHint>Chrome / Edge home-screen install uses your server logo when set. Firefox always uses the Application icon (required for reliable install).</SettingHint>}
                                                     >
-                                                        PWA / Bookmark Icon
+                                                        PWA Home Screen Icon
                                                     </SettingFieldLabel>
                                                     <CustomSelect
                                                         value={pwaIconSource}
