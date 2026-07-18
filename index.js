@@ -14,6 +14,7 @@ import compression from 'compression';
 import { execSync } from 'child_process';
 import fsSync from 'fs';
 import net from 'net';
+import sharp from 'sharp';
 
 const resolveAppVersion = () => {
     let pkgVersion = '1.0.0';
@@ -7532,10 +7533,44 @@ const detectRasterImageType = (buffer) => {
     return null;
 };
 
+/** Cover-crop + circular mask — matches login/hero `rounded-full object-cover` treatment. */
+const makeCircularPwaIconPng = async (inputBuffer, size = 192) => {
+    const s = Math.max(64, Math.min(1024, Number(size) || 192));
+    const circle = Buffer.from(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}">`
+        + `<circle cx="${s / 2}" cy="${s / 2}" r="${s / 2}" fill="#fff"/></svg>`
+    );
+    return sharp(inputBuffer)
+        .rotate()
+        .resize(s, s, { fit: 'cover', position: 'centre' })
+        .ensureAlpha()
+        .composite([{ input: circle, blend: 'dest-in' }])
+        .png()
+        .toBuffer();
+};
+
+const sendCircularPwaIcon = async (res, buffer, size = 192) => {
+    try {
+        if (!detectRasterImageType(buffer)) {
+            return sendPwaSizedIconFile(res, size);
+        }
+        const png = await makeCircularPwaIconPng(buffer, size);
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        return res.send(png);
+    } catch (e) {
+        log(`Circular PWA icon failed: ${e.message}`);
+        return sendPwaSizedIconFile(res, size);
+    }
+};
+
 const sendBrandingImageBuffer = async (res, buffer, contentTypeHint = '', pwaSize = 0) => {
+    if (pwaSize) {
+        return sendCircularPwaIcon(res, buffer, pwaSize);
+    }
     const detected = detectRasterImageType(buffer);
     if (!detected) {
-        return pwaSize ? sendPwaSizedIconFile(res, pwaSize) : sendStaticLogoFallback(res);
+        return sendStaticLogoFallback(res);
     }
     const hint = String(contentTypeHint || '').split(';')[0].trim().toLowerCase();
     const type = detected || (hint.startsWith('image/') && hint !== 'image/svg+xml' ? hint : 'image/png');
@@ -7596,8 +7631,17 @@ app.get('/api/public/pwa-icon', publicReadRateLimit, async (req, res) => {
 
         if (String(config.mediaServerType || '').toLowerCase() === 'jellyfin' && isJellyfinConfigured(config)) {
             try {
-                await proxyJellyfinBrandingAsset(res, ['/web/icon-transparent.png', '/web/assets/img/icon-transparent.png'], 'image/png');
-                return;
+                const baseUrl = resolveIntegrationUrlForFetch(config.jellyfinUrl);
+                for (const assetPath of ['/web/icon-transparent.png', '/web/assets/img/icon-transparent.png']) {
+                    const response = await fetchWithTimeout(`${baseUrl}${assetPath}`, {
+                        headers: jellyfinHeaders(config.jellyfinApiKey, { Accept: 'image/*,*/*;q=0.8' }),
+                    }, iconTimeoutMs).catch(() => null);
+                    if (!response?.ok) continue;
+                    const buffer = Buffer.from(await response.arrayBuffer());
+                    if (buffer.length) {
+                        return sendCircularPwaIcon(res, buffer, size);
+                    }
+                }
             } catch {
                 // fall through
             }
@@ -10264,9 +10308,9 @@ const buildPwaManifest = async (req) => {
         const cacheKey = getPortalBrandingIconCacheKey(config, profile);
         const pwaIcon = resolvePublicAssetHref('/api/public/pwa-icon');
         icons = [
-            { src: `${pwaIcon}?size=192&v=${cacheKey}`, sizes: '192x192', purpose: 'any' },
-            { src: `${pwaIcon}?size=512&v=${cacheKey}`, sizes: '512x512', purpose: 'any' },
-            { src: `${pwaIcon}?size=512&v=${cacheKey}`, sizes: '512x512', purpose: 'maskable' }
+            { src: `${pwaIcon}?size=192&v=${cacheKey}c`, sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: `${pwaIcon}?size=512&v=${cacheKey}c`, sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: `${pwaIcon}?size=512&v=${cacheKey}c`, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ];
     } else {
         const icon192 = `${resolvePublicAssetHref('/static/pwa-icon-192.png')}?v=${iconVer}`;

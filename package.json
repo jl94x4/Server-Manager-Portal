@@ -26,7 +26,8 @@
     "lucide-react": "^1.21.0",
     "node-fetch": "^3.3.2",
     "nodemailer": "^9.0.1",
-    "recharts": "^3.9.0"
+    "recharts": "^3.9.0",
+    "sharp": "^0.35.3"
   },
   "devDependencies": {
     "@types/node": "^26.0.0",
