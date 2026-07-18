@@ -5103,17 +5103,47 @@ app.get('/api/discovery/search', requireAuth, requireMember, async (req, res) =>
         const config = await loadFile(CONFIG_PATH, {});
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-        
-        const query = req.query.query || '';
-        if (!query) return res.json({ results: [] });
+
+        const query = String(req.query.query || '').trim();
+        if (query.length < 2) return res.json({ results: [] });
 
         const metadataLanguage = resolveDiscoverMetadataLanguage(req);
-        const data = await requestAppService.rawFetch(
-            config,
-            `/api/v1/search?query=${encodeURIComponent(query)}&language=${encodeURIComponent(metadataLanguage)}`,
-            { headers: { 'Accept-Language': metadataLanguage } },
+        const searchPath = (language) => (
+            `/api/v1/search?query=${encodeURIComponent(query)}&page=1&language=${encodeURIComponent(language)}`
         );
-        res.json(data);
+        const runSearch = (language) => requestAppService.rawFetch(
+            config,
+            searchPath(language),
+            { headers: { 'Accept-Language': language }, timeoutMs: 20000 },
+        );
+
+        // Seerr/TMDB often soft-fail to `{ results: [] }` on transient errors.
+        // Retry once (and once without an explicit language) before returning empty.
+        let data = await runSearch(metadataLanguage).catch((err) => {
+            log(`Discovery search attempt failed: ${err.message}`);
+            return null;
+        });
+        const resultCount = (payload) => (Array.isArray(payload?.results) ? payload.results.length : -1);
+        if (!data || resultCount(data) === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            data = await runSearch(metadataLanguage).catch((err) => {
+                log(`Discovery search retry failed: ${err.message}`);
+                return data;
+            });
+        }
+        if (data && resultCount(data) === 0 && metadataLanguage !== 'en') {
+            const fallback = await runSearch('en').catch(() => null);
+            if (fallback && resultCount(fallback) > 0) data = fallback;
+        }
+        if (!data) {
+            return res.status(502).json({ error: 'Search temporarily unavailable. Try again.' });
+        }
+        res.json({
+            page: data.page || 1,
+            totalPages: data.totalPages || data.total_pages || 1,
+            totalResults: data.totalResults || data.total_results || resultCount(data) || 0,
+            results: Array.isArray(data.results) ? data.results : [],
+        });
     } catch (e) {
         log(`Discovery search error: ${e.message}`);
         res.status(500).json({ error: e.message });

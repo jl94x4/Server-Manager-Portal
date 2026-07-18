@@ -38,8 +38,12 @@ const DiscoveryDashboardInner: React.FC<{
     const [query, setQuery] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [searchLoading, setSearchLoading] = useState(false);
+    const [searchError, setSearchError] = useState<string | null>(null);
     const [searchOpen, setSearchOpen] = useState(false);
+    const [searchRetryToken, setSearchRetryToken] = useState(0);
     const searchInputRef = useRef<HTMLInputElement | null>(null);
+    const searchAbortRef = useRef<AbortController | null>(null);
+    const searchSeqRef = useRef(0);
     const { pendingCount: myPendingCount, refresh: refreshMyRequestCount } = useMyRequestCount(true);
     const { openCount: myOpenIssueCount, refresh: refreshMyIssueCount } = useMyIssueCount(true);
     const { profile: discoveryMe } = useDiscoveryMe(true);
@@ -92,25 +96,49 @@ const DiscoveryDashboardInner: React.FC<{
     useEffect(() => {
         const q = query.trim();
         if (q.length < 2) {
+            searchAbortRef.current?.abort();
+            searchAbortRef.current = null;
             setSearchResults([]);
+            setSearchError(null);
             setSearchLoading(false);
             return undefined;
         }
-        setSearchLoading(true);
+
         const timer = window.setTimeout(async () => {
+            searchAbortRef.current?.abort();
+            const controller = new AbortController();
+            searchAbortRef.current = controller;
+            const seq = ++searchSeqRef.current;
+
+            setSearchLoading(true);
+            setSearchError(null);
+            setSearchOpen(true);
+
             try {
-                const res = await apiFetch(`/api/discovery/search?query=${encodeURIComponent(q)}`);
+                const res = await apiFetch(
+                    `/api/discovery/search?query=${encodeURIComponent(q)}`,
+                    { signal: controller.signal },
+                );
+                if (seq !== searchSeqRef.current) return;
                 setSearchResults(Array.isArray(res?.results) ? res.results : []);
-                setSearchOpen(true);
-            } catch (e) {
+                setSearchError(null);
+            } catch (e: any) {
+                if (controller.signal.aborted || e?.name === 'AbortError' || /aborted/i.test(String(e?.message || ''))) {
+                    return;
+                }
+                if (seq !== searchSeqRef.current) return;
                 console.error(e);
                 setSearchResults([]);
+                setSearchError(e?.message || 'Search failed');
             } finally {
-                setSearchLoading(false);
+                if (seq === searchSeqRef.current) setSearchLoading(false);
             }
-        }, 350);
-        return () => window.clearTimeout(timer);
-    }, [query, locale]);
+        }, 300);
+
+        return () => {
+            window.clearTimeout(timer);
+        };
+    }, [query, locale, searchRetryToken]);
 
     const formatItem = (rawItem: any) => {
         const item = normalizeRawDiscoveryItem(rawItem);
@@ -151,11 +179,19 @@ const DiscoveryDashboardInner: React.FC<{
         query,
         searchOpen,
         searchLoading,
+        searchError,
         searchResults,
         onClose: () => setSearchOpen(false),
-        onClear: () => { setQuery(''); setSearchOpen(false); setSearchResults([]); },
+        onClear: () => {
+            searchAbortRef.current?.abort();
+            setQuery('');
+            setSearchOpen(false);
+            setSearchResults([]);
+            setSearchError(null);
+        },
         onQueryChange: setQuery,
         onFocus: () => query.trim().length >= 2 && setSearchOpen(true),
+        onRetrySearch: () => setSearchRetryToken((n) => n + 1),
         formatItem,
         navigate,
         searchInputRef,

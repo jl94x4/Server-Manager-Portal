@@ -49,6 +49,8 @@ export const fr: DeepPartial<EnCatalog> = {
         endOfResults: 'Fin des résultats',
         noResults: 'Aucun résultat.',
         searching: 'Recherche…',
+        searchFailed: 'Échec de la recherche. Réessayez.',
+        tryAgain: 'Réessayer',
         from: 'Du',
         to: 'Au',
         episodeCount: '{count} épisode',

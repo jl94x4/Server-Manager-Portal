@@ -47,6 +47,8 @@ export const en = {
         endOfResults: 'End of results',
         noResults: 'No results found.',
         searching: 'Searching…',
+        searchFailed: 'Search failed. Please try again.',
+        tryAgain: 'Try again',
         from: 'From',
         to: 'To',
         episodeCount: '{count} episode',
