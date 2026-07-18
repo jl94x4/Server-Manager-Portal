@@ -10293,9 +10293,9 @@ const buildPwaManifest = async (req) => {
         const cacheKey = getPortalBrandingIconCacheKey(config, profile);
         const pwaIcon = resolvePublicAssetHref('/api/public/pwa-icon');
         icons = [
-            { src: `${pwaIcon}?size=192&v=${cacheKey}c`, sizes: '192x192', type: 'image/png', purpose: 'any' },
-            { src: `${pwaIcon}?size=512&v=${cacheKey}c`, sizes: '512x512', type: 'image/png', purpose: 'any' },
-            { src: `${pwaIcon}?size=512&v=${cacheKey}c`, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+            { src: `${pwaIcon}?size=192&v=${cacheKey}c2`, sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: `${pwaIcon}?size=512&v=${cacheKey}c2`, sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: `${pwaIcon}?size=512&v=${cacheKey}c2`, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ];
     } else {
         const icon192 = `${resolvePublicAssetHref('/static/pwa-icon-192.png')}?v=${iconVer}`;
