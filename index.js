@@ -7509,6 +7509,19 @@ const sendStaticLogoFallback = async (res) => {
     }
 };
 
+const sendPwaSizedIconFile = async (res, size = 192) => {
+    const normalized = Number(size) >= 512 ? 512 : 192;
+    const iconPath = path.join(process.cwd(), 'static', `pwa-icon-${normalized}.png`);
+    try {
+        await fs.access(iconPath);
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        return res.sendFile(iconPath);
+    } catch {
+        return sendStaticLogoFallback(res);
+    }
+};
+
 /** Detect raster type from magic bytes — Firefox A2HS fails on ICO/SVG/HTML icon bodies. */
 const detectRasterImageType = (buffer) => {
     if (!Buffer.isBuffer(buffer) || buffer.length < 12) return null;
@@ -7519,15 +7532,113 @@ const detectRasterImageType = (buffer) => {
     return null;
 };
 
-const sendBrandingImageBuffer = async (res, buffer, contentTypeHint = '') => {
+const sendBrandingImageBuffer = async (res, buffer, contentTypeHint = '', pwaSize = 0) => {
     const detected = detectRasterImageType(buffer);
-    if (!detected) return sendStaticLogoFallback(res);
+    if (!detected) {
+        return pwaSize ? sendPwaSizedIconFile(res, pwaSize) : sendStaticLogoFallback(res);
+    }
     const hint = String(contentTypeHint || '').split(';')[0].trim().toLowerCase();
     const type = detected || (hint.startsWith('image/') && hint !== 'image/svg+xml' ? hint : 'image/png');
     res.setHeader('Content-Type', type);
     res.setHeader('Cache-Control', 'public, max-age=3600');
     return res.send(buffer);
 };
+
+/**
+ * Dedicated PWA icon route — always returns a valid raster quickly.
+ * Firefox aborts Install if the first manifest icon fails/times out; never point the
+ * manifest at slow/unreliable branding URLs without this guarantee.
+ */
+app.get('/api/public/pwa-icon', publicReadRateLimit, async (req, res) => {
+    const size = Number(req.query.size) >= 512 ? 512 : 192;
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        if (normalizePwaIconSource(config.pwaIconSource) === 'application') {
+            return sendPwaSizedIconFile(res, size);
+        }
+
+        const profile = await getAdminProfile(config);
+        const custom = String(config.customLogoUrl || '').trim();
+        const iconTimeoutMs = 2500;
+
+        if (custom) {
+            if (custom.startsWith('http://') || custom.startsWith('https://')) {
+                try {
+                    const parsed = new URL(custom);
+                    if (!isBlockedHostName(parsed.hostname)) {
+                        const response = await fetchWithTimeout(custom, { redirect: 'follow' }, iconTimeoutMs).catch(() => null);
+                        if (response?.ok) {
+                            const buffer = Buffer.from(await response.arrayBuffer());
+                            if (buffer.length) {
+                                return sendBrandingImageBuffer(res, buffer, response.headers.get('content-type') || '', size);
+                            }
+                        }
+                    }
+                } catch {
+                    // fall through
+                }
+            } else {
+                const localPath = stripBasePathFromUrl(custom.startsWith('/') ? custom : `/${custom}`).split('?')[0];
+                if (localPath.startsWith('/static/')) {
+                    const fileName = path.basename(localPath);
+                    if (fileName && !fileName.includes('..')) {
+                        const assetPath = path.join(process.cwd(), 'static', fileName);
+                        try {
+                            const buffer = await fs.readFile(assetPath);
+                            return sendBrandingImageBuffer(res, buffer, '', size);
+                        } catch {
+                            // fall through
+                        }
+                    }
+                }
+            }
+        }
+
+        if (String(config.mediaServerType || '').toLowerCase() === 'jellyfin' && isJellyfinConfigured(config)) {
+            try {
+                await proxyJellyfinBrandingAsset(res, ['/web/icon-transparent.png', '/web/assets/img/icon-transparent.png'], 'image/png');
+                return;
+            } catch {
+                // fall through
+            }
+        }
+
+        const thumb = String(profile.thumb || '').trim();
+        if (thumb.startsWith('http://') || thumb.startsWith('https://')) {
+            try {
+                const parsed = new URL(thumb);
+                if (!isBlockedHostName(parsed.hostname)) {
+                    const response = await fetchWithTimeout(thumb, { redirect: 'follow' }, iconTimeoutMs).catch(() => null);
+                    if (response?.ok) {
+                        const buffer = Buffer.from(await response.arrayBuffer());
+                        if (buffer.length) {
+                            return sendBrandingImageBuffer(res, buffer, response.headers.get('content-type') || '', size);
+                        }
+                    }
+                }
+            } catch {
+                // fall through
+            }
+        } else if (thumb && isSafePlexMediaPath(thumb) && config.plexToken) {
+            const uri = await getPlexConnectionUri(config);
+            if (uri) {
+                const url = `${uri}/photo/:/transcode?url=${encodeURIComponent(thumb)}&width=${size}&height=${size}&minSize=1&X-Plex-Token=${config.plexToken}`;
+                const response = await fetchWithTimeout(url, {}, iconTimeoutMs).catch(() => null);
+                if (response?.ok) {
+                    const buffer = Buffer.from(await response.arrayBuffer());
+                    if (buffer.length) {
+                        return sendBrandingImageBuffer(res, buffer, response.headers.get('content-type') || 'image/jpeg', size);
+                    }
+                }
+            }
+        }
+
+        return sendPwaSizedIconFile(res, size);
+    } catch (e) {
+        log(`PWA icon failed: ${e.message}`);
+        return sendPwaSizedIconFile(res, size);
+    }
+});
 
 app.get('/api/public/branding-icon', publicReadRateLimit, async (req, res) => {
     try {
@@ -10140,28 +10251,49 @@ const buildPwaManifest = async () => {
     const profile = await getAdminProfile(config);
     const serverName = profile.serverName || 'Server Portal';
     const useServerIcon = normalizePwaIconSource(config.pwaIconSource) !== 'application';
-    const appIcon192 = resolvePublicAssetHref('/static/pwa-icon-192.png');
-    const appIcon512 = resolvePublicAssetHref('/static/pwa-icon-512.png');
-    const brandingBase = resolvePortalBrandingIconHref(config, profile);
-    const branding192 = `${brandingBase}&width=192&height=192`;
-    const branding512 = `${brandingBase}&width=512&height=512`;
+    const cacheKey = getPortalBrandingIconCacheKey(config, profile);
     // Prefer app root; client routes / → /portal after load. Avoid /portal/portal when BASE_PATH=/portal.
     const startUrl = BASE_PATH ? `${BASE_PATH}/` : '/portal';
     const scope = BASE_PATH ? `${BASE_PATH}/` : '/';
+    // Installability: only use the guaranteed /api/public/pwa-icon route (or static app icons).
+    // Never list branding + fallbacks — Firefox uses the first icon and aborts if it fails.
     const icons = useServerIcon
         ? [
-            // Omit type — branding may be JPEG/WebP; claiming PNG breaks some installers.
-            { src: branding192, sizes: '192x192', purpose: 'any' },
-            { src: branding512, sizes: '512x512', purpose: 'any' },
-            { src: branding512, sizes: '512x512', purpose: 'maskable' },
-            // App icons as fallback if branding fails to load
-            { src: appIcon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
-            { src: appIcon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
+            {
+                src: `${resolvePublicAssetHref('/api/public/pwa-icon')}?size=192&v=${cacheKey}`,
+                sizes: '192x192',
+                purpose: 'any'
+            },
+            {
+                src: `${resolvePublicAssetHref('/api/public/pwa-icon')}?size=512&v=${cacheKey}`,
+                sizes: '512x512',
+                purpose: 'any'
+            },
+            {
+                src: `${resolvePublicAssetHref('/api/public/pwa-icon')}?size=512&v=${cacheKey}`,
+                sizes: '512x512',
+                purpose: 'maskable'
+            }
         ]
         : [
-            { src: appIcon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
-            { src: appIcon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
-            { src: appIcon512, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+            {
+                src: resolvePublicAssetHref('/static/pwa-icon-192.png'),
+                sizes: '192x192',
+                type: 'image/png',
+                purpose: 'any'
+            },
+            {
+                src: resolvePublicAssetHref('/static/pwa-icon-512.png'),
+                sizes: '512x512',
+                type: 'image/png',
+                purpose: 'any'
+            },
+            {
+                src: resolvePublicAssetHref('/static/pwa-icon-512.png'),
+                sizes: '512x512',
+                type: 'image/png',
+                purpose: 'maskable'
+            }
         ];
     return {
         name: `${serverName} Portal`,
