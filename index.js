@@ -10250,51 +10250,12 @@ const buildPwaManifest = async () => {
     const config = await loadFile(CONFIG_PATH, {});
     const profile = await getAdminProfile(config);
     const serverName = profile.serverName || 'Server Portal';
-    const useServerIcon = normalizePwaIconSource(config.pwaIconSource) !== 'application';
-    const cacheKey = getPortalBrandingIconCacheKey(config, profile);
-    // Prefer app root; client routes / → /portal after load. Avoid /portal/portal when BASE_PATH=/portal.
+    // ALWAYS use static exact-size PNGs. Dynamic/API branding icons break Firefox Android
+    // Install (silent no-op). Server branding still applies in-app + favicon via branding-icon.
+    const icon192 = resolvePublicAssetHref('/static/pwa-icon-192.png');
+    const icon512 = resolvePublicAssetHref('/static/pwa-icon-512.png');
     const startUrl = BASE_PATH ? `${BASE_PATH}/` : '/portal';
     const scope = BASE_PATH ? `${BASE_PATH}/` : '/';
-    // Installability: only use the guaranteed /api/public/pwa-icon route (or static app icons).
-    // Never list branding + fallbacks — Firefox uses the first icon and aborts if it fails.
-    const icons = useServerIcon
-        ? [
-            {
-                src: `${resolvePublicAssetHref('/api/public/pwa-icon')}?size=192&v=${cacheKey}`,
-                sizes: '192x192',
-                purpose: 'any'
-            },
-            {
-                src: `${resolvePublicAssetHref('/api/public/pwa-icon')}?size=512&v=${cacheKey}`,
-                sizes: '512x512',
-                purpose: 'any'
-            },
-            {
-                src: `${resolvePublicAssetHref('/api/public/pwa-icon')}?size=512&v=${cacheKey}`,
-                sizes: '512x512',
-                purpose: 'maskable'
-            }
-        ]
-        : [
-            {
-                src: resolvePublicAssetHref('/static/pwa-icon-192.png'),
-                sizes: '192x192',
-                type: 'image/png',
-                purpose: 'any'
-            },
-            {
-                src: resolvePublicAssetHref('/static/pwa-icon-512.png'),
-                sizes: '512x512',
-                type: 'image/png',
-                purpose: 'any'
-            },
-            {
-                src: resolvePublicAssetHref('/static/pwa-icon-512.png'),
-                sizes: '512x512',
-                type: 'image/png',
-                purpose: 'maskable'
-            }
-        ];
     return {
         name: `${serverName} Portal`,
         short_name: serverName.length > 12 ? 'Portal' : serverName,
@@ -10304,7 +10265,11 @@ const buildPwaManifest = async () => {
         display: 'standalone',
         background_color: '#0b0f19',
         theme_color: '#0b0f19',
-        icons
+        icons: [
+            { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+        ]
     };
 };
 

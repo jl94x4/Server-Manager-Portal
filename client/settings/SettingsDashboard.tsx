@@ -2437,9 +2437,9 @@ export const SettingsDashboard: React.FC = () => {
 
                                                 <div>
                                                     <SettingFieldLabel
-                                                        hint={<SettingHint>Controls the home-screen / PWA icon. Server uses your custom logo or media-server branding; Application keeps the Server Portal icon.</SettingHint>}
+                                                        hint={<SettingHint>Browser tab / bookmark icon. Home-screen Install always uses the Application icon — dynamic server logos break Firefox Android install.</SettingHint>}
                                                     >
-                                                        PWA Home Screen Icon
+                                                        PWA / Bookmark Icon
                                                     </SettingFieldLabel>
                                                     <CustomSelect
                                                         value={pwaIconSource}
