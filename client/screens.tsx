@@ -9095,10 +9095,15 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
     const [installHelpOpen, setInstallHelpOpen] = useState(false);
     const [isInstalledApp, setIsInstalledApp] = useState(() => (
         typeof window !== 'undefined'
-        && (window.matchMedia?.('(display-mode: standalone)').matches || (navigator as any).standalone === true)
+        && (window.matchMedia?.('(display-mode: standalone)').matches
+            || window.matchMedia?.('(display-mode: fullscreen)').matches
+            || (navigator as any).standalone === true)
     ));
     const mobileThemeRef = useRef<HTMLDivElement>(null);
     const [mobileThemePos, setMobileThemePos] = useState<{ top: number; right: number } | null>(null);
+    const isFirefoxMobile = typeof navigator !== 'undefined'
+        && /Firefox/i.test(navigator.userAgent)
+        && /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent);
 
     useEffect(() => {
         const handleBeforeInstallPrompt = (event: Event) => {
@@ -9110,26 +9115,41 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
             setInstallPrompt(null);
             setInstallHelpOpen(false);
         };
+        const syncInstalledState = () => {
+            const installed = window.matchMedia?.('(display-mode: standalone)').matches
+                || window.matchMedia?.('(display-mode: fullscreen)').matches
+                || (navigator as any).standalone === true;
+            setIsInstalledApp(!!installed);
+        };
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
         window.addEventListener('appinstalled', handleInstalled);
+        const standaloneMq = window.matchMedia?.('(display-mode: standalone)');
+        standaloneMq?.addEventListener?.('change', syncInstalledState);
         return () => {
             window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
             window.removeEventListener('appinstalled', handleInstalled);
+            standaloneMq?.removeEventListener?.('change', syncInstalledState);
         };
     }, []);
 
     const handleInstallApp = async () => {
         if (isInstalledApp) return;
-        if (!installPrompt) {
+        // Firefox (and most non-Chromium browsers) never fire beforeinstallprompt —
+        // always show manual install steps instead of appearing to do nothing.
+        if (!installPrompt || isFirefoxMobile) {
             setInstallHelpOpen(true);
             return;
         }
         const promptEvent = installPrompt;
         setInstallPrompt(null);
-        await promptEvent.prompt();
-        const choice = await promptEvent.userChoice;
-        if (choice.outcome === 'accepted') {
-            setIsInstalledApp(true);
+        try {
+            await promptEvent.prompt();
+            const choice = await promptEvent.userChoice;
+            if (choice.outcome === 'accepted') {
+                setIsInstalledApp(true);
+            }
+        } catch {
+            setInstallHelpOpen(true);
         }
     };
 
@@ -9356,7 +9376,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                         </button>
                     )}
                     {!isInstalledApp && (
-                        <button onClick={(e) => { e.preventDefault(); handleInstallApp(); }} className="text-muted hover:text-text transition-colors" title="Install app" aria-label="Install app">
+                        <button type="button" onClick={(e) => { e.preventDefault(); handleInstallApp(); }} className="text-muted hover:text-text transition-colors" title="Install app" aria-label="Install app">
                             <MonitorSmartphone className="w-4 h-4" />
                         </button>
                     )}
@@ -9524,7 +9544,18 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                             </button>
                         </div>
                         <p className="text-sm text-muted leading-relaxed">
-                            Use your browser menu and choose <span className="text-text font-semibold">Install app</span> or <span className="text-text font-semibold">Add to Home Screen</span>.
+                            {isFirefoxMobile ? (
+                                <>
+                                    Tap the Firefox menu <span className="text-text font-semibold">(⋮)</span>, then choose{' '}
+                                    <span className="text-text font-semibold">Install</span> or{' '}
+                                    <span className="text-text font-semibold">Add to Home screen</span>.
+                                    If nothing happens, refresh the page once and try again.
+                                </>
+                            ) : (
+                                <>
+                                    Use your browser menu and choose <span className="text-text font-semibold">Install app</span> or <span className="text-text font-semibold">Add to Home Screen</span>.
+                                </>
+                            )}
                         </p>
                         <button
                             type="button"

@@ -7509,6 +7509,26 @@ const sendStaticLogoFallback = async (res) => {
     }
 };
 
+/** Detect raster type from magic bytes — Firefox A2HS fails on ICO/SVG/HTML icon bodies. */
+const detectRasterImageType = (buffer) => {
+    if (!Buffer.isBuffer(buffer) || buffer.length < 12) return null;
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) return 'image/png';
+    if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'image/jpeg';
+    if (buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP') return 'image/webp';
+    if (buffer.toString('ascii', 0, 3) === 'GIF') return 'image/gif';
+    return null;
+};
+
+const sendBrandingImageBuffer = async (res, buffer, contentTypeHint = '') => {
+    const detected = detectRasterImageType(buffer);
+    if (!detected) return sendStaticLogoFallback(res);
+    const hint = String(contentTypeHint || '').split(';')[0].trim().toLowerCase();
+    const type = detected || (hint.startsWith('image/') && hint !== 'image/svg+xml' ? hint : 'image/png');
+    res.setHeader('Content-Type', type);
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    return res.send(buffer);
+};
+
 app.get('/api/public/branding-icon', publicReadRateLimit, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
@@ -7527,9 +7547,7 @@ app.get('/api/public/branding-icon', publicReadRateLimit, async (req, res) => {
                         if (response?.ok) {
                             const buffer = Buffer.from(await response.arrayBuffer());
                             if (buffer.length) {
-                                res.setHeader('Content-Type', response.headers.get('content-type') || 'image/png');
-                                res.setHeader('Cache-Control', 'public, max-age=3600');
-                                return res.send(buffer);
+                                return sendBrandingImageBuffer(res, buffer, response.headers.get('content-type') || '');
                             }
                         }
                     }
@@ -7544,11 +7562,8 @@ app.get('/api/public/branding-icon', publicReadRateLimit, async (req, res) => {
                     const assetPath = path.join(process.cwd(), 'static', fileName);
                     try {
                         await fs.access(assetPath);
-                        const ext = path.extname(fileName).toLowerCase();
-                        const type = ext === '.webp' ? 'image/webp' : (ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png');
-                        res.setHeader('Content-Type', type);
-                        res.setHeader('Cache-Control', 'public, max-age=3600');
-                        return res.sendFile(assetPath);
+                        const buffer = await fs.readFile(assetPath);
+                        return sendBrandingImageBuffer(res, buffer);
                     } catch {
                         return sendStaticLogoFallback(res);
                     }
@@ -7557,7 +7572,7 @@ app.get('/api/public/branding-icon', publicReadRateLimit, async (req, res) => {
         }
 
         if (String(config.mediaServerType || '').toLowerCase() === 'jellyfin' && isJellyfinConfigured(config)) {
-            return proxyJellyfinBrandingAsset(res, ['/web/icon-transparent.png', '/web/assets/img/icon-transparent.png', '/web/favicon.ico'], 'image/png');
+            return proxyJellyfinBrandingAsset(res, ['/web/icon-transparent.png', '/web/assets/img/icon-transparent.png'], 'image/png');
         }
 
         const thumb = String(profile.thumb || '').trim();
@@ -7569,9 +7584,7 @@ app.get('/api/public/branding-icon', publicReadRateLimit, async (req, res) => {
                     if (response?.ok) {
                         const buffer = Buffer.from(await response.arrayBuffer());
                         if (buffer.length) {
-                            res.setHeader('Content-Type', response.headers.get('content-type') || 'image/png');
-                            res.setHeader('Cache-Control', 'public, max-age=3600');
-                            return res.send(buffer);
+                            return sendBrandingImageBuffer(res, buffer, response.headers.get('content-type') || '');
                         }
                     }
                 }
@@ -7588,9 +7601,7 @@ app.get('/api/public/branding-icon', publicReadRateLimit, async (req, res) => {
                 if (response?.ok) {
                     const buffer = Buffer.from(await response.arrayBuffer());
                     if (buffer.length) {
-                        res.setHeader('Content-Type', response.headers.get('content-type') || 'image/jpeg');
-                        res.setHeader('Cache-Control', 'public, max-age=3600');
-                        return res.send(buffer);
+                        return sendBrandingImageBuffer(res, buffer, response.headers.get('content-type') || 'image/jpeg');
                     }
                 }
             }
@@ -10131,10 +10142,41 @@ const buildPwaManifest = async () => {
     const basePath = BASE_PATH || '';
     const startUrl = basePath ? `${basePath}/` : '/';
     const scope = basePath || '/';
+    // Always lead with a real static PNG. Firefox Android silently no-ops
+    // "Add to Home screen" when manifest icons are missing, ICO/SVG, or mistyped.
+    const staticIcon = resolvePublicAssetHref('/static/logo.png');
+    const useBrandingIcon = normalizePwaIconSource(config.pwaIconSource) !== 'application';
     const iconBase = resolvePortalBrandingIconHref(config, profile);
-    // Chrome Android requires real 192 + 512 icons; branding-icon honors width/height (Plex thumbs default to 180 otherwise).
-    const icon192 = `${iconBase}&width=192&height=192`;
-    const icon512 = `${iconBase}&width=512&height=512`;
+    const branding192 = `${iconBase}&width=192&height=192`;
+    const branding512 = `${iconBase}&width=512&height=512`;
+    const icons = [
+        {
+            src: staticIcon,
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any'
+        },
+        {
+            src: staticIcon,
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any'
+        },
+        {
+            src: staticIcon,
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
+        }
+    ];
+    if (useBrandingIcon) {
+        // No `type` here — branding may be JPEG/WebP; lying as PNG breaks Firefox.
+        icons.push(
+            { src: branding192, sizes: '192x192', purpose: 'any' },
+            { src: branding512, sizes: '512x512', purpose: 'any' },
+            { src: branding512, sizes: '512x512', purpose: 'maskable' }
+        );
+    }
     return {
         id: startUrl,
         name: `${serverName} Portal`,
@@ -10143,29 +10185,9 @@ const buildPwaManifest = async () => {
         start_url: startUrl,
         scope,
         display: 'standalone',
-        orientation: 'any',
         background_color: '#0b0f19',
         theme_color: '#0b0f19',
-        icons: [
-            {
-                src: icon192,
-                sizes: '192x192',
-                type: 'image/png',
-                purpose: 'any'
-            },
-            {
-                src: icon512,
-                sizes: '512x512',
-                type: 'image/png',
-                purpose: 'any'
-            },
-            {
-                src: icon512,
-                sizes: '512x512',
-                type: 'image/png',
-                purpose: 'maskable'
-            }
-        ]
+        icons
     };
 };
 
