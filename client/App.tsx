@@ -149,7 +149,9 @@ export const MainApp: React.FC = () => {
     useEffect(() => {
         if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
         if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') return;
-        navigator.serviceWorker.register(portalUrl('/service-worker.js')).catch(() => {});
+        const swUrl = portalUrl('/service-worker.js');
+        const scope = portalUrl('/');
+        navigator.serviceWorker.register(swUrl, { scope }).catch(() => {});
     }, []);
 
     useEffect(() => {

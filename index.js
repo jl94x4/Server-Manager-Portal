@@ -7581,8 +7581,8 @@ app.get('/api/public/branding-icon', publicReadRateLimit, async (req, res) => {
         } else if (thumb && isSafePlexMediaPath(thumb) && config.plexToken) {
             const uri = await getPlexConnectionUri(config);
             if (uri) {
-                const width = Math.min(Math.max(parseInt(req.query.width, 10) || 180, 32), 512);
-                const height = Math.min(Math.max(parseInt(req.query.height, 10) || 180, 32), 512);
+                const width = Math.min(Math.max(parseInt(req.query.width, 10) || 180, 32), 1024);
+                const height = Math.min(Math.max(parseInt(req.query.height, 10) || 180, 32), 1024);
                 const url = `${uri}/photo/:/transcode?url=${encodeURIComponent(thumb)}&width=${width}&height=${height}&minSize=1&X-Plex-Token=${config.plexToken}`;
                 const response = await fetchWithTimeout(url, {}, 15000).catch(() => null);
                 if (response?.ok) {
@@ -10124,52 +10124,67 @@ if (BASE_PATH) {
     app.use(`${BASE_PATH}/static`, express.static(staticDir, staticAssetOptions));
 }
 
-const buildPwaManifest = async (req) => {
+const buildPwaManifest = async () => {
     const config = await loadFile(CONFIG_PATH, {});
     const profile = await getAdminProfile(config);
     const serverName = profile.serverName || 'Server Portal';
     const basePath = BASE_PATH || '';
-    const iconSrc = resolvePortalBrandingIconHref(config, profile);
-    const iconPath = iconSrc.toLowerCase().split('?')[0];
-    const iconType = iconPath.endsWith('.webp')
-        ? 'image/webp'
-        : (iconPath.endsWith('.jpg') || iconPath.endsWith('.jpeg') ? 'image/jpeg' : 'image/png');
+    const startUrl = basePath ? `${basePath}/` : '/';
+    const scope = basePath || '/';
+    const iconBase = resolvePortalBrandingIconHref(config, profile);
+    // Chrome Android requires real 192 + 512 icons; branding-icon honors width/height (Plex thumbs default to 180 otherwise).
+    const icon192 = `${iconBase}&width=192&height=192`;
+    const icon512 = `${iconBase}&width=512&height=512`;
     return {
+        id: startUrl,
         name: `${serverName} Portal`,
         short_name: serverName.length > 12 ? 'Portal' : serverName,
         description: `Install ${serverName} Portal for quick access.`,
-        start_url: `${basePath}/`,
-        scope: `${basePath || '/'}`,
+        start_url: startUrl,
+        scope,
         display: 'standalone',
+        orientation: 'any',
         background_color: '#0b0f19',
         theme_color: '#0b0f19',
         icons: [
             {
-                src: iconSrc,
+                src: icon192,
                 sizes: '192x192',
-                type: iconType,
+                type: 'image/png',
                 purpose: 'any'
             },
             {
-                src: iconSrc,
+                src: icon512,
                 sizes: '512x512',
-                type: iconType,
-                purpose: 'any maskable'
+                type: 'image/png',
+                purpose: 'any'
+            },
+            {
+                src: icon512,
+                sizes: '512x512',
+                type: 'image/png',
+                purpose: 'maskable'
             }
         ]
     };
 };
 
-app.get(['/manifest.webmanifest', '/manifest.json'], async (req, res) => {
+const sendPwaManifest = async (_req, res) => {
     try {
         res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-        res.json(await buildPwaManifest(req));
+        res.json(await buildPwaManifest());
     } catch (e) {
         res.status(500).json({ error: 'Failed to build web app manifest.' });
     }
-});
+};
 
+app.get(['/manifest.webmanifest', '/manifest.json'], sendPwaManifest);
+if (BASE_PATH) {
+    app.get([`${BASE_PATH}/manifest.webmanifest`, `${BASE_PATH}/manifest.json`], sendPwaManifest);
+}
+
+// Network passthrough fetch handler is required for Chrome Android WebAPK / Install app.
 const serviceWorkerScript = `self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
@@ -10177,19 +10192,22 @@ const serviceWorkerScript = `self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(fetch(event.request));
+});
 `;
 
-app.get('/service-worker.js', (req, res) => {
+const sendServiceWorker = (_req, res) => {
     res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Service-Worker-Allowed', BASE_PATH ? `${BASE_PATH}/` : '/');
     res.send(serviceWorkerScript);
-});
+};
+
+app.get('/service-worker.js', sendServiceWorker);
 if (BASE_PATH) {
-    app.get(`${BASE_PATH}/service-worker.js`, (req, res) => {
-        res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-        res.send(serviceWorkerScript);
-    });
+    app.get(`${BASE_PATH}/service-worker.js`, sendServiceWorker);
 }
 
 // Serve optional legacy stylesheet from the root directory
@@ -10238,11 +10256,14 @@ const resolvePortalBrandingIconHref = (config = {}, profile = {}) => {
 
 const injectAppIconLinks = (html, iconHref) => {
     const safeHref = escapeHtmlAttr(iconHref || resolvePublicAssetHref('/static/logo.png'));
+    const manifestHref = escapeHtmlAttr(withBasePath('/manifest.webmanifest'));
     const iconLinks = [
+        `<link rel="manifest" href="${manifestHref}" />`,
         `<link rel="icon" type="image/png" href="${safeHref}" />`,
         `<link rel="apple-touch-icon" sizes="180x180" href="${safeHref}" />`
     ].join('\n    ');
     return html
+        .replace(/<link\b(?=[^>]*\brel=["'][^"']*manifest[^"']*["'])[^>]*>\s*/gi, '')
         .replace(/<link\b(?=[^>]*\brel=["'][^"']*(?:apple-touch-icon|icon)[^"']*["'])[^>]*>\s*/gi, '')
         .replace('</head>', `    ${iconLinks}\n</head>`);
 };
@@ -10309,7 +10330,7 @@ const buildSocialMetaTags = async (req) => {
 };
 
 // Serve the main index.html for SPA routes (after base-path strip, paths are root-relative)
-app.get(/^\/(?!api\/|static\/).*$/, async (req, res) => {
+app.get(/^\/(?!api\/|static\/|manifest\.(?:webmanifest|json)|service-worker\.js).*$/, async (req, res) => {
     if (!arePortalFrontendAssetsReady()) {
         res.status(503);
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
