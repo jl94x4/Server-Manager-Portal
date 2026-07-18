@@ -10139,12 +10139,30 @@ const buildPwaManifest = async () => {
     const config = await loadFile(CONFIG_PATH, {});
     const profile = await getAdminProfile(config);
     const serverName = profile.serverName || 'Server Portal';
-    // Exact-size PNGs — Firefox Android aborts install on huge/mismatched icons.
-    const icon192 = resolvePublicAssetHref('/static/pwa-icon-192.png');
-    const icon512 = resolvePublicAssetHref('/static/pwa-icon-512.png');
+    const useServerIcon = normalizePwaIconSource(config.pwaIconSource) !== 'application';
+    const appIcon192 = resolvePublicAssetHref('/static/pwa-icon-192.png');
+    const appIcon512 = resolvePublicAssetHref('/static/pwa-icon-512.png');
+    const brandingBase = resolvePortalBrandingIconHref(config, profile);
+    const branding192 = `${brandingBase}&width=192&height=192`;
+    const branding512 = `${brandingBase}&width=512&height=512`;
     // Prefer app root; client routes / → /portal after load. Avoid /portal/portal when BASE_PATH=/portal.
     const startUrl = BASE_PATH ? `${BASE_PATH}/` : '/portal';
     const scope = BASE_PATH ? `${BASE_PATH}/` : '/';
+    const icons = useServerIcon
+        ? [
+            // Omit type — branding may be JPEG/WebP; claiming PNG breaks some installers.
+            { src: branding192, sizes: '192x192', purpose: 'any' },
+            { src: branding512, sizes: '512x512', purpose: 'any' },
+            { src: branding512, sizes: '512x512', purpose: 'maskable' },
+            // App icons as fallback if branding fails to load
+            { src: appIcon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: appIcon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
+        ]
+        : [
+            { src: appIcon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: appIcon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: appIcon512, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ];
     return {
         name: `${serverName} Portal`,
         short_name: serverName.length > 12 ? 'Portal' : serverName,
@@ -10154,11 +10172,7 @@ const buildPwaManifest = async () => {
         display: 'standalone',
         background_color: '#0b0f19',
         theme_color: '#0b0f19',
-        icons: [
-            { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
-            { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
-            { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
-        ]
+        icons
     };
 };
 
