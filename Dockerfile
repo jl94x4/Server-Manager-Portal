@@ -1,5 +1,5 @@
 # --- Build frontend assets and version stamp ---
-FROM node:22-alpine AS builder
+FROM node:22-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -10,7 +10,8 @@ ENV GIT_SHA=${GIT_SHA}
 ENV GITHUB_REF=${GITHUB_REF}
 
 COPY package.json package-lock.json ./
-RUN npm ci
+# Use install (not ci) so Windows-generated lockfiles / optional platform pkgs cannot hard-fail the image build.
+RUN npm install --no-audit --no-fund
 
 COPY . .
 RUN npm run build \
@@ -19,7 +20,7 @@ RUN npm run build \
     && npm cache clean --force
 
 # --- Production image ---
-FROM node:22-alpine AS runner
+FROM node:22-bookworm-slim AS runner
 
 WORKDIR /app
 
@@ -28,7 +29,9 @@ ENV BIND_HOST=0.0.0.0
 ENV PORT=2121
 ENV FORCE_SECURE_COOKIES=false
 
-RUN apk add --no-cache su-exec
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gosu \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
 COPY --from=builder /app/node_modules ./node_modules

@@ -6,6 +6,13 @@ PGID=${PGID:-1000}
 
 # Unraid appdata mounts are often root-owned; fix permissions before dropping privileges.
 mkdir -p /app/config /app/backup
-chown -R $PUID:$PGID /app/config /app/backup
+chown -R "$PUID:$PGID" /app/config /app/backup
 
-exec su-exec $PUID:$PGID "$@"
+if command -v gosu >/dev/null 2>&1; then
+  exec gosu "$PUID:$PGID" "$@"
+fi
+if command -v su-exec >/dev/null 2>&1; then
+  exec su-exec "$PUID:$PGID" "$@"
+fi
+
+exec "$@"
