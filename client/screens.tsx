@@ -9104,6 +9104,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
     const isFirefoxMobile = typeof navigator !== 'undefined'
         && /Firefox/i.test(navigator.userAgent)
         && /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent);
+    const [installDiag, setInstallDiag] = useState<string[] | null>(null);
 
     useEffect(() => {
         const handleBeforeInstallPrompt = (event: Event) => {
@@ -9131,6 +9132,60 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
             standaloneMq?.removeEventListener?.('change', syncInstalledState);
         };
     }, []);
+
+    useEffect(() => {
+        if (!installHelpOpen) {
+            setInstallDiag(null);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            const notes: string[] = [];
+            const secure = window.isSecureContext || ['localhost', '127.0.0.1'].includes(window.location.hostname);
+            if (!secure || window.location.protocol !== 'https:') {
+                if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                    notes.push('Site is not HTTPS — Firefox will not install a PWA over plain HTTP. Open the portal via your HTTPS URL (reverse proxy / tunnel), not http://IP:port.');
+                }
+            }
+            try {
+                const manifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement | null;
+                const manifestHref = manifestLink?.href || portalUrl('/manifest.webmanifest');
+                const manifestRes = await fetch(manifestHref, { credentials: 'same-origin', cache: 'no-store' });
+                if (!manifestRes.ok) {
+                    notes.push(`Manifest failed to load (${manifestRes.status}).`);
+                } else {
+                    const manifest = await manifestRes.json();
+                    const icons = Array.isArray(manifest.icons) ? manifest.icons : [];
+                    if (!manifest.name && !manifest.short_name) notes.push('Manifest is missing a name.');
+                    if (!manifest.start_url) notes.push('Manifest is missing start_url.');
+                    if (!icons.length) notes.push('Manifest has no icons.');
+                    for (const icon of icons.slice(0, 3)) {
+                        try {
+                            const iconUrl = new URL(String(icon.src || ''), window.location.href).toString();
+                            const iconRes = await fetch(iconUrl, { credentials: 'same-origin', cache: 'no-store' });
+                            if (!iconRes.ok) {
+                                notes.push(`Icon failed (${icon.sizes || '?'}): ${iconRes.status}`);
+                                continue;
+                            }
+                            const type = (iconRes.headers.get('content-type') || '').toLowerCase();
+                            if (type && !type.includes('image/')) {
+                                notes.push(`Icon is not an image (${icon.sizes || '?'}): ${type}`);
+                            }
+                        } catch {
+                            notes.push(`Icon could not be fetched (${icon.sizes || '?'}).`);
+                        }
+                    }
+                    if (!notes.length) {
+                        notes.push('Manifest and icons look OK. In Firefox: menu ⋮ → Install. If that still does nothing, clear site data for this site and retry once over HTTPS.');
+                    }
+                }
+            } catch {
+                notes.push('Could not verify the web app manifest from this device.');
+            }
+            if (!cancelled) setInstallDiag(notes);
+        })();
+        return () => { cancelled = true; };
+    }, [installHelpOpen]);
 
     const handleInstallApp = async () => {
         if (isInstalledApp) return;
@@ -9547,9 +9602,8 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                             {isFirefoxMobile ? (
                                 <>
                                     Tap the Firefox menu <span className="text-text font-semibold">(⋮)</span>, then choose{' '}
-                                    <span className="text-text font-semibold">Install</span> or{' '}
-                                    <span className="text-text font-semibold">Add to Home screen</span>.
-                                    If nothing happens, refresh the page once and try again.
+                                    <span className="text-text font-semibold">Install</span>.
+                                    Use your public <span className="text-text font-semibold">HTTPS</span> URL — not a plain http://IP address.
                                 </>
                             ) : (
                                 <>
@@ -9557,6 +9611,16 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                 </>
                             )}
                         </p>
+                        {installDiag && (
+                            <ul className="mt-4 space-y-2 rounded-xl border border-border bg-background/40 p-3 text-xs text-muted">
+                                {installDiag.map((note) => (
+                                    <li key={note} className="leading-relaxed">• {note}</li>
+                                ))}
+                            </ul>
+                        )}
+                        {!installDiag && installHelpOpen && (
+                            <p className="mt-4 text-xs text-muted">Checking install requirements…</p>
+                        )}
                         <button
                             type="button"
                             onClick={() => setInstallHelpOpen(false)}

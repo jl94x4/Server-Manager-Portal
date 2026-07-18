@@ -10139,46 +10139,13 @@ const buildPwaManifest = async () => {
     const config = await loadFile(CONFIG_PATH, {});
     const profile = await getAdminProfile(config);
     const serverName = profile.serverName || 'Server Portal';
-    const basePath = BASE_PATH || '';
-    const startUrl = basePath ? `${basePath}/` : '/';
-    const scope = basePath || '/';
-    // Always lead with a real static PNG. Firefox Android silently no-ops
-    // "Add to Home screen" when manifest icons are missing, ICO/SVG, or mistyped.
-    const staticIcon = resolvePublicAssetHref('/static/logo.png');
-    const useBrandingIcon = normalizePwaIconSource(config.pwaIconSource) !== 'application';
-    const iconBase = resolvePortalBrandingIconHref(config, profile);
-    const branding192 = `${iconBase}&width=192&height=192`;
-    const branding512 = `${iconBase}&width=512&height=512`;
-    const icons = [
-        {
-            src: staticIcon,
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any'
-        },
-        {
-            src: staticIcon,
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any'
-        },
-        {
-            src: staticIcon,
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable'
-        }
-    ];
-    if (useBrandingIcon) {
-        // No `type` here — branding may be JPEG/WebP; lying as PNG breaks Firefox.
-        icons.push(
-            { src: branding192, sizes: '192x192', purpose: 'any' },
-            { src: branding512, sizes: '512x512', purpose: 'any' },
-            { src: branding512, sizes: '512x512', purpose: 'maskable' }
-        );
-    }
+    // Exact-size PNGs — Firefox Android silently aborts install on huge/mismatched icons.
+    const icon192 = resolvePublicAssetHref('/static/pwa-icon-192.png');
+    const icon512 = resolvePublicAssetHref('/static/pwa-icon-512.png');
+    // App home is /portal (not /) when BASE_PATH is empty — matches login redirect + client router.
+    const startUrl = withBasePath('/portal');
+    const scope = BASE_PATH ? `${BASE_PATH}/` : '/';
     return {
-        id: startUrl,
         name: `${serverName} Portal`,
         short_name: serverName.length > 12 ? 'Portal' : serverName,
         description: `Install ${serverName} Portal for quick access.`,
@@ -10187,7 +10154,11 @@ const buildPwaManifest = async () => {
         display: 'standalone',
         background_color: '#0b0f19',
         theme_color: '#0b0f19',
-        icons
+        icons: [
+            { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+        ]
     };
 };
 
@@ -10201,15 +10172,17 @@ const sendPwaManifest = async (_req, res) => {
     }
 };
 
-app.get(['/manifest.webmanifest', '/manifest.json'], sendPwaManifest);
+app.get(['/manifest.webmanifest', '/manifest.json', '/site.webmanifest'], sendPwaManifest);
 if (BASE_PATH) {
-    app.get([`${BASE_PATH}/manifest.webmanifest`, `${BASE_PATH}/manifest.json`], sendPwaManifest);
+    app.get([
+        `${BASE_PATH}/manifest.webmanifest`,
+        `${BASE_PATH}/manifest.json`,
+        `${BASE_PATH}/site.webmanifest`
+    ], sendPwaManifest);
 }
 
-// A fetch listener is required for Chrome Android WebAPK / Install app.
-// Do NOT respondWith() here — intercepting every request breaks logos/images
-// (range requests, opaque responses, auth cookies, etc.).
-const serviceWorkerScript = `/* portal-sw v2 */
+// Fetch listener present for Chromium installability; do not respondWith (breaks images).
+const serviceWorkerScript = `/* portal-sw v3 */
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
@@ -10222,7 +10195,7 @@ self.addEventListener('fetch', () => {});
 `;
 
 const sendServiceWorker = (_req, res) => {
-    res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
+    res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.setHeader('Service-Worker-Allowed', BASE_PATH ? `${BASE_PATH}/` : '/');
     res.send(serviceWorkerScript);
@@ -10353,7 +10326,7 @@ const buildSocialMetaTags = async (req) => {
 };
 
 // Serve the main index.html for SPA routes (after base-path strip, paths are root-relative)
-app.get(/^\/(?!api\/|static\/|manifest\.(?:webmanifest|json)|service-worker\.js).*$/, async (req, res) => {
+app.get(/^\/(?!api\/|static\/|manifest\.(?:webmanifest|json)|site\.webmanifest|service-worker\.js).*$/, async (req, res) => {
     if (!arePortalFrontendAssetsReady()) {
         res.status(503);
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
