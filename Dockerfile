@@ -14,7 +14,9 @@ RUN npm ci
 
 COPY . .
 RUN npm run build \
-    && test -f style.css || printf '/* Legacy stylesheet placeholder */\n' > style.css
+    && test -f style.css || printf '/* Legacy stylesheet placeholder */\n' > style.css \
+    && npm prune --omit=dev \
+    && npm cache clean --force
 
 # --- Production image ---
 FROM node:22-alpine AS runner
@@ -29,8 +31,7 @@ ENV FORCE_SECURE_COOKIES=false
 RUN apk add --no-cache su-exec
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
-
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/index.js ./
 COPY --from=builder /app/index.html ./
 COPY --from=builder /app/style.css ./
