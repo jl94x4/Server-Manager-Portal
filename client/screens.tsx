@@ -32,6 +32,7 @@ import { AuthPageBackground, themeClasses, SlideshowBackground } from './shared/
 import { activityStreamColumnCount, activityStreamGridClass, upgraderPosterGridClass, upgraderPosterGridStyle, type UpgraderGridSize } from './shared/portalLayout';
 import { DiscoverGridSizeSelect } from './discovery/DiscoverGridSizeSelect';
 import { useDiscoverGridSize } from './discovery/useDiscoverGridSize';
+import { DiscoverLocaleSelect } from './discovery/i18n/DiscoverLocaleSelect';
 import { filterNavOrder, ensureCompleteNavOrder, MOBILE_NAV_PRIMARY_SLOTS, type NavFeatureFlags } from './shared/nav';
 import { ANALYTICS_PERIOD_OPTIONS } from './shared/analyticsPeriodOptions';
 import { UserDashboardLayout } from './home/UserDashboardLayout';
@@ -9420,7 +9421,10 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                     />
                     <span className="font-bold text-text uppercase tracking-widest text-sm truncate">{serverName}</span>
                 </div>
-                <div className="flex items-center gap-2.5 shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
+                    {currentRoute === 'discovery' && (
+                        <DiscoverLocaleSelect showLabel={false} className="w-[6.75rem]" />
+                    )}
                     <div className="relative" ref={mobileThemeRef}>
                         <button
                             onClick={() => setMobileThemeOpen(v => !v)}
@@ -9500,6 +9504,11 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                 {sidebarIdentityPosition !== 'top' && renderServerIdentity('bottom')}
 
                 <div className="mt-3 pt-3 border-t border-white/10 shrink-0">
+                    {currentRoute === 'discovery' && (
+                        <div className="mb-2">
+                            <DiscoverLocaleSelect showLabel className="w-full" />
+                        </div>
+                    )}
                     <button
                         type="button"
                         onClick={() => setProfileOpen(true)}

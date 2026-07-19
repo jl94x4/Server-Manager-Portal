@@ -7,6 +7,7 @@ import { ConfirmModal } from './shared/ui';
 import { Loader } from './shared/toast';
 import { AppAmbientBackground } from './shared/theme';
 import { WhatsNewModal } from './shared/WhatsNewModal';
+import { DiscoverI18nProvider } from './discovery/i18n';
 import {
     getLastSeenVersion,
     parseAppSemver,
@@ -418,6 +419,7 @@ export const MainApp: React.FC = () => {
     };
 
     return (
+        <DiscoverI18nProvider>
         <div className="relative flex w-full min-h-screen md:h-dvh md:overflow-hidden">
             <AppAmbientBackground backgroundImageUrl={publicConfig?.backgroundImageUrl} />
             <ConfirmModal isOpen={confirmState.isOpen} message={confirmState.message} onConfirm={handleConfirm} onCancel={closeConfirm} />
@@ -460,5 +462,6 @@ export const MainApp: React.FC = () => {
                 )}
             </div>
         </div>
+        </DiscoverI18nProvider>
     );
 };
