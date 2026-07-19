@@ -38,7 +38,8 @@ export const DiscoverLocaleSelect: React.FC<{
             return;
         }
         const rect = triggerRef.current.getBoundingClientRect();
-        setMenuPos({ top: rect.bottom + 4, left: rect.left + rect.width / 2 });
+        // Open upward from the trigger so the menu isn't clipped by the viewport bottom.
+        setMenuPos({ top: rect.top - 4, left: rect.left + rect.width / 2 });
     }, [menuOpen]);
 
     if (variant === 'text') {
@@ -46,7 +47,13 @@ export const DiscoverLocaleSelect: React.FC<{
             ? ReactDOM.createPortal(
                 <div
                     ref={menuRef}
-                    style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, transform: 'translateX(-50%)', zIndex: 99999 }}
+                    style={{
+                        position: 'fixed',
+                        top: menuPos.top,
+                        left: menuPos.left,
+                        transform: 'translate(-50%, -100%)',
+                        zIndex: 99999,
+                    }}
                     className="min-w-[7rem] rounded-md border border-border bg-card shadow-xl py-1"
                 >
                     {DISCOVER_LOCALES.map((item) => (
@@ -57,7 +64,7 @@ export const DiscoverLocaleSelect: React.FC<{
                                 setLocale(item.code);
                                 setMenuOpen(false);
                             }}
-                            className={`block w-full px-3 py-1.5 text-left text-[10px] font-mono tracking-wider transition-colors ${
+                            className={`block w-full px-3 py-1.5 text-center text-[10px] font-mono tracking-wider transition-colors ${
                                 item.code === locale
                                     ? 'text-plex font-bold bg-plex/10'
                                     : 'text-white/70 hover:text-text hover:bg-white/5'
@@ -72,12 +79,12 @@ export const DiscoverLocaleSelect: React.FC<{
             : null;
 
         return (
-            <div className={className}>
+            <div className={`flex justify-center ${className || ''}`}>
                 <button
                     ref={triggerRef}
                     type="button"
                     onClick={() => setMenuOpen((open) => !open)}
-                    className="text-[10px] text-white/50 font-mono tracking-wider opacity-80 hover:opacity-100 hover:text-white/80 transition-opacity"
+                    className="text-[10px] text-white/50 font-mono tracking-wider opacity-80 hover:opacity-100 hover:text-white/80 transition-opacity text-center"
                     title={t('common.language')}
                     aria-label={t('common.language')}
                     aria-expanded={menuOpen}
