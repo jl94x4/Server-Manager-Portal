@@ -9502,9 +9502,6 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                 {sidebarIdentityPosition !== 'top' && renderServerIdentity('bottom')}
 
                 <div className="mt-3 pt-3 border-t border-white/10 shrink-0">
-                    <div className="mb-2 flex justify-end">
-                        <DiscoverLocaleSelect showLabel={false} className="w-[6.5rem]" />
-                    </div>
                     <button
                         type="button"
                         onClick={() => setProfileOpen(true)}
@@ -9524,11 +9521,14 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                         </div>
                         <Palette className="w-4 h-4 text-plex flex-shrink-0" />
                     </button>
-                    {appVersion && (
-                        <div className="mt-1.5 text-center text-[10px] text-white/50 font-mono tracking-wider opacity-80 hover:opacity-100 transition-opacity">
-                            {appVersion}
-                        </div>
-                    )}
+                    <div className="mt-1.5 flex flex-col items-center gap-0.5">
+                        {appVersion && (
+                            <div className="text-[10px] text-white/50 font-mono tracking-wider opacity-80 hover:opacity-100 transition-opacity">
+                                {appVersion}
+                            </div>
+                        )}
+                        <DiscoverLocaleSelect variant="text" />
+                    </div>
                 </div>
             </div>
 
