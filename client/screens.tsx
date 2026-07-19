@@ -9422,9 +9422,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                     <span className="font-bold text-text uppercase tracking-widest text-sm truncate">{serverName}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                    {currentRoute === 'discovery' && (
-                        <DiscoverLocaleSelect showLabel={false} className="w-[6.75rem]" />
-                    )}
+                    <DiscoverLocaleSelect showLabel={false} className="w-[6.75rem]" />
                     <div className="relative" ref={mobileThemeRef}>
                         <button
                             onClick={() => setMobileThemeOpen(v => !v)}
@@ -9504,11 +9502,9 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                 {sidebarIdentityPosition !== 'top' && renderServerIdentity('bottom')}
 
                 <div className="mt-3 pt-3 border-t border-white/10 shrink-0">
-                    {currentRoute === 'discovery' && (
-                        <div className="mb-2">
-                            <DiscoverLocaleSelect showLabel className="w-full" />
-                        </div>
-                    )}
+                    <div className="mb-2 flex justify-end">
+                        <DiscoverLocaleSelect showLabel={false} className="w-[6.5rem]" />
+                    </div>
                     <button
                         type="button"
                         onClick={() => setProfileOpen(true)}
