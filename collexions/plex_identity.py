@@ -18,7 +18,7 @@ _configured = False
 _client_id = None
 
 
-def _persist_path() -> str:
+def _persist_path():
     data_root = (os.environ.get('COLLEXIONS_DATA_DIR') or '').strip()
     if not data_root:
         data_root = os.path.dirname(os.path.abspath(__file__))

@@ -15,8 +15,12 @@ import argparse # <--- ADDED FOR DRY-RUN ARGUMENT
 from jsonschema import validate, exceptions as jsonschema_exceptions # <--- ADDED FOR CONFIG VALIDATION
 
 # Stable identity before any PlexServer() — avoid Docker hostname as device name.
-from plex_identity import configure_plex_identity
-configure_plex_identity()
+try:
+    from plex_identity import configure_plex_identity
+    configure_plex_identity()
+except ImportError:
+    def configure_plex_identity(force=False):
+        return ''
 
 # --- Configuration & Constants (Updated for Docker / portal embed) ---
 # Portal sets COLLEXIONS_DATA_DIR to the persistent config volume. Fall back to the

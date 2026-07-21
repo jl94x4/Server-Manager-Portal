@@ -24,8 +24,22 @@ except ImportError:
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Patch plexapi BEFORE any PlexServer() so Docker hostname is never the device name.
-from plex_identity import configure_plex_identity, plex_request_headers
-configure_plex_identity()
+try:
+    from plex_identity import configure_plex_identity, plex_request_headers
+    configure_plex_identity()
+except ImportError as e:
+    logging.error('plex_identity module missing (%s) — Collexions will start but Plex may see Docker hostname as a device', e)
+
+    def configure_plex_identity(force=False):
+        return ''
+
+    def plex_request_headers(token='', extra=None):
+        headers = {'Accept': 'application/json'}
+        if token:
+            headers['X-Plex-Token'] = str(token)
+        if extra:
+            headers.update(extra)
+        return headers
 
 app = Flask(__name__)
 CORS(app)
