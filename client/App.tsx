@@ -23,6 +23,7 @@ import { useDownloadCount } from './shared/useDownloadCount';
 import { useAppDynamicTheme } from './shared/useAppDynamicTheme';
 import { useOpenIssueCount } from './requests/useOpenIssueCount';
 const UpgraderDashboard = lazy(() => import('./upgrader/UpgraderDashboard').then(m => ({ default: m.UpgraderDashboard })));
+const CollexionsDashboard = lazy(() => import('./collexions/CollexionsDashboard').then(m => ({ default: m.CollexionsDashboard })));
 import {
     updateFavicon,
     Login,
@@ -70,7 +71,7 @@ export const MainApp: React.FC = () => {
         closeConfirm();
     };
 
-    const [currentRoute, setCurrentRoute] = useState<'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'requests' | 'discovery' | 'about' | 'invite' | 'loading'>('loading');
+    const [currentRoute, setCurrentRoute] = useState<'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'collexions' | 'requests' | 'discovery' | 'about' | 'invite' | 'loading'>('loading');
     const [sessionInfo, setSessionInfo] = useState<any>(null);
     const [publicConfig, setPublicConfig] = useState<any>({});
     const [releaseNotes, setReleaseNotes] = useState<ReleaseNotes | null>(null);
@@ -224,7 +225,7 @@ export const MainApp: React.FC = () => {
         setShowWhatsNew(false);
     }, [publicConfig?.appVersion]);
 
-    const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'requests' | 'discovery' | 'about' | 'invite' | 'loading', options?: { hash?: string; reviewId?: number }) => {
+    const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'collexions' | 'requests' | 'discovery' | 'about' | 'invite' | 'loading', options?: { hash?: string; reviewId?: number }) => {
         if (route === 'logs') {
             setCurrentRoute('settings');
             window.history.pushState({}, '', portalUrl('/settings#logs'));
@@ -244,6 +245,7 @@ export const MainApp: React.FC = () => {
             if (route === 'mediastack') path = '/mediastack';
             if (route === 'maintenance') path = '/maintenance';
             if (route === 'upgrader') path = '/upgrader';
+            if (route === 'collexions') path = '/collexions';
             if (route === 'requests') {
                 path = options?.reviewId ? `/requests?review=${options.reviewId}` : '/requests';
             }
@@ -296,6 +298,7 @@ export const MainApp: React.FC = () => {
             else if (path.startsWith('/downloads')) setCurrentRoute('downloads');
             else if (path.startsWith('/maintenance') && data.session.isAdmin) setCurrentRoute('maintenance');
             else if (path.startsWith('/upgrader') && data.session.isAdmin) setCurrentRoute('upgrader');
+            else if (path.startsWith('/collexions') && data.session.isAdmin) setCurrentRoute('collexions');
             else if (path.startsWith('/requests') && data.session.isAdmin) setCurrentRoute('requests');
             else if (path.startsWith('/discovery')) setCurrentRoute('discovery');
             else if (path.startsWith('/about')) setCurrentRoute('about');
@@ -400,6 +403,7 @@ export const MainApp: React.FC = () => {
         if (currentRoute === 'settings' && isAdmin) return <SettingsDashboard />;
         if (currentRoute === 'maintenance' && isAdmin) return <MaintenanceDashboard />;
         if (currentRoute === 'upgrader' && isAdmin) return <UpgraderDashboard />;
+        if (currentRoute === 'collexions' && isAdmin) return <CollexionsDashboard />;
         if (currentRoute === 'requests' && isAdmin) {
             return (
                 <RequestQueueDashboard
@@ -430,7 +434,7 @@ export const MainApp: React.FC = () => {
                     onDismiss={dismissWhatsNew}
                 />
             )}
-            {!isPublicView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Server Portal'} adminThumb={sessionInfo?.adminThumb} customLogoUrl={publicConfig?.customLogoUrl} requestUrl={sessionInfo?.requestUrl || 'https://yourdomain.com'} navOrder={sessionInfo?.navOrder || ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'logs', 'settings', 'logout']} navFeatures={sessionInfo?.navFeatures} appVersion={publicConfig.appVersion} activeTheme={activeTheme} setActiveTheme={setActiveTheme} pendingRequestCount={queueBadgeCount} watchingCount={watchingCount} downloadCount={downloadCount} showDashboardWatchingBadge={showDashboardWatchingBadge} sessionInfo={sessionInfo} mediaServerType={sessionInfo?.mediaServerType || publicConfig?.mediaServerType || 'plex'} sidebarIdentityPosition={publicConfig?.sidebarIdentityPosition || 'bottom'} />}
+            {!isPublicView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Server Portal'} adminThumb={sessionInfo?.adminThumb} customLogoUrl={publicConfig?.customLogoUrl} requestUrl={sessionInfo?.requestUrl || 'https://yourdomain.com'} navOrder={sessionInfo?.navOrder || ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'collexions', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'logs', 'settings', 'logout']} navFeatures={sessionInfo?.navFeatures} appVersion={publicConfig.appVersion} activeTheme={activeTheme} setActiveTheme={setActiveTheme} pendingRequestCount={queueBadgeCount} watchingCount={watchingCount} downloadCount={downloadCount} showDashboardWatchingBadge={showDashboardWatchingBadge} sessionInfo={sessionInfo} mediaServerType={sessionInfo?.mediaServerType || publicConfig?.mediaServerType || 'plex'} sidebarIdentityPosition={publicConfig?.sidebarIdentityPosition || 'bottom'} />}
             <div id="main-scroll-container" className={`relative z-10 flex-1 min-w-0 min-h-0 flex flex-col items-center px-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:px-8 md:pb-8 overflow-x-visible md:overflow-y-auto custom-scrollbar ${isPublicView ? '!pb-8' : ''}`}>
                 {isImpersonating && (
                     <div className="w-full max-w-[100%] pt-[calc(5rem+env(safe-area-inset-top,0px))] md:pt-0 md:sticky md:top-0 md:z-30">

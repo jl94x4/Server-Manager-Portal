@@ -9280,6 +9280,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         'mediastack': { label: 'Calendar', icon: Calendar, route: 'mediastack', adminOnly: false },
         'maintenance': { label: 'Cleaner', icon: Shield, route: 'maintenance', adminOnly: true },
         'upgrader': { label: 'Upgrader', icon: ArrowUpCircle, route: 'upgrader', adminOnly: true },
+        'collexions': { label: 'Collexions', icon: Layers, route: 'collexions', adminOnly: true },
         'requests': { label: 'Requests', icon: ClipboardList, route: 'requests', adminOnly: true },
         'request': { label: 'Discover & Request', icon: Sparkles, route: 'discovery', adminOnly: false },
         'about': { label: 'About', icon: Info, route: 'about', adminOnly: false },

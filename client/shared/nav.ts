@@ -1,6 +1,7 @@
 export type NavFeatureFlags = {
     maintenance?: boolean;
     upgrader?: boolean;
+    collexions?: boolean;
     request?: boolean;
     requestsQueue?: boolean;
     /** When false, Downloads is hidden from non-admins. Default/undefined = visible. */
@@ -16,6 +17,7 @@ export const DEFAULT_NAV_ORDER = [
     'users',
     'downloads',
     'upgrader',
+    'collexions',
     'mediastack',
     'requests',
     'status',
@@ -37,6 +39,7 @@ export const NAV_ITEM_LABELS: Record<string, string> = {
     users: 'Users',
     downloads: 'Downloads',
     upgrader: 'Upgrader',
+    collexions: 'Collexions',
     mediastack: 'Calendar',
     requests: 'Requests',
     status: 'Status',
@@ -50,6 +53,7 @@ export const NAV_ITEM_LABELS: Record<string, string> = {
 const ADMIN_ONLY_NAV_KEYS = new Set([
     'users',
     'upgrader',
+    'collexions',
     'requests',
     'maintenance',
     'settings',
@@ -160,15 +164,17 @@ export const filterNavOrder = (
     const features = options.features || {};
     const maintenanceEnabled = features.maintenance !== false;
     const upgraderEnabled = !!features.upgrader;
+    const collexionsEnabled = !!features.collexions;
     const requestsQueueEnabled = !!features.requestsQueue;
     const requestEnabled = features.request !== false || requestsQueueEnabled;
 
     return (Array.isArray(order) ? order : []).filter((key) => {
         if (key === 'logout' || key === 'logs') return false;
-        if ((key === 'users' || key === 'settings' || key === 'maintenance' || key === 'upgrader' || key === 'requests') && !options.isAdmin) return false;
+        if ((key === 'users' || key === 'settings' || key === 'maintenance' || key === 'upgrader' || key === 'collexions' || key === 'requests') && !options.isAdmin) return false;
         if (key === 'downloads' && !options.isAdmin && features.downloads === false) return false;
         if (key === 'maintenance' && !maintenanceEnabled) return false;
         if (key === 'upgrader' && !upgraderEnabled) return false;
+        if (key === 'collexions' && !collexionsEnabled) return false;
         if (key === 'request' && !requestEnabled) return false;
         if (key === 'requests' && !requestsQueueEnabled) return false;
         return true;

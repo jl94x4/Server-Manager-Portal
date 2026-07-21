@@ -2441,6 +2441,7 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
     const navFeatures = {
         maintenance: !!config.maintenanceExperimentalEnabled,
         upgrader: !!config.upgraderEnabled,
+        collexions: !!(config.collexionsEnabled && String(config.collexionsInternalUrl || '').trim()),
         request: !!(requestAppType && requestAppType !== 'none' && resolvedRequestUrl && resolvedRequestUrl !== 'https://yourdomain.com'),
         requestsQueue: requestAppService.isRequestAppConfigured(config),
         downloads: config.downloadsVisibleToMembers !== false,
@@ -2769,6 +2770,9 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 autoBackupRetentionCount: Number(config.autoBackupRetentionCount) > 0 ? Number(config.autoBackupRetentionCount) : 10,
                 maintenanceExperimentalEnabled: !!config.maintenanceExperimentalEnabled,
                 upgraderEnabled: !!config.upgraderEnabled,
+                collexionsEnabled: !!config.collexionsEnabled,
+                collexionsInternalUrl: config.collexionsInternalUrl || '',
+                collexionsServiceKey: config.collexionsServiceKey ? '********' : '',
                 upgraderDefaultPreset: config.upgraderDefaultPreset || 'non_hevc',
                 upgraderMinSizeGB: Number(config.upgraderMinSizeGB) > 0 ? Number(config.upgraderMinSizeGB) : 5,
                 upgraderAutomationEnabled: !!config.upgraderAutomationEnabled,
@@ -2859,6 +2863,9 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 autoBackupRetentionCount: 10,
                 maintenanceExperimentalEnabled: false,
                 upgraderEnabled: false,
+                collexionsEnabled: false,
+                collexionsInternalUrl: '',
+                collexionsServiceKey: '',
                 upgraderDefaultPreset: 'non_hevc',
                 upgraderMinSizeGB: 5,
                 upgraderAutomationEnabled: false,
@@ -2885,7 +2892,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         inactiveCleanupEnabled, inactiveCleanupDays,
         primaryColor, customLogoUrl, brandingTheme, sidebarIdentityPosition, pwaIconSource, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges, showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds,
         showPublicStatusMonitor, showPublicLibraryStats,
-        autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, upgraderEnabled, upgraderDefaultPreset, upgraderMinSizeGB, upgraderAutomationEnabled, upgraderProfileMap, upgraderMaxActionsPerHour, upgraderDefaultSort, upgraderDrawerPosition, dashboardLayout,
+        autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, upgraderEnabled, collexionsEnabled, collexionsInternalUrl, collexionsServiceKey, upgraderDefaultPreset, upgraderMinSizeGB, upgraderAutomationEnabled, upgraderProfileMap, upgraderMaxActionsPerHour, upgraderDefaultSort, upgraderDrawerPosition, dashboardLayout,
         showUsernamesInAnalytics, useTrendingSlideshowOnLogin, downloadsVisibleToMembers
     } = req.body;
 
@@ -3069,6 +3076,23 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         autoBackupRetentionCount: Math.max(1, parseInt(autoBackupRetentionCount, 10) || 10),
         maintenanceExperimentalEnabled: maintenanceExperimentalEnabled !== undefined ? !!maintenanceExperimentalEnabled : !!existingConfig.maintenanceExperimentalEnabled,
         upgraderEnabled: upgraderEnabled !== undefined ? !!upgraderEnabled : !!existingConfig.upgraderEnabled,
+        collexionsEnabled: collexionsEnabled !== undefined ? !!collexionsEnabled : !!existingConfig.collexionsEnabled,
+        collexionsInternalUrl: (() => {
+            if (collexionsInternalUrl === undefined) return existingConfig.collexionsInternalUrl || '';
+            const incoming = String(collexionsInternalUrl || '').trim();
+            if (!incoming) return '';
+            try {
+                return sanitizeIntegrationUrl(incoming);
+            } catch {
+                return existingConfig.collexionsInternalUrl || '';
+            }
+        })(),
+        collexionsServiceKey: (() => {
+            if (collexionsServiceKey === undefined) return existingConfig.collexionsServiceKey || '';
+            const incoming = String(collexionsServiceKey || '').trim();
+            if (!incoming || incoming === '********') return existingConfig.collexionsServiceKey || '';
+            return incoming;
+        })(),
         upgraderDefaultPreset: upgraderDefaultPreset || existingConfig.upgraderDefaultPreset || 'non_hevc',
         upgraderMinSizeGB: Math.max(0, Number(upgraderMinSizeGB ?? existingConfig.upgraderMinSizeGB ?? 5) || 5),
         upgraderAutomationEnabled: upgraderAutomationEnabled !== undefined ? !!upgraderAutomationEnabled : !!existingConfig.upgraderAutomationEnabled,
@@ -15626,6 +15650,81 @@ app.get('/api/maintenance/library-items', requireAdmin, async (req, res) => {
         });
     } catch (e) {
         res.status(500).json({ error: `Failed to load maintenance library items: ${e.message}` });
+    }
+});
+
+const isCollexionsEnabled = (config) => (
+    !!config?.collexionsEnabled && !!String(config?.collexionsInternalUrl || '').trim()
+);
+
+const requireCollexions = async (req, res, next) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        if (!isCollexionsEnabled(config)) {
+            return res.status(403).json({ error: 'Collexions is disabled. Enable it and set the internal URL in Settings first.' });
+        }
+        req.collexionsConfig = config;
+        return next();
+    } catch (e) {
+        return res.status(500).json({ error: 'Failed to check Collexions feature flag.' });
+    }
+};
+
+/** Proxy /api/collexions/* → Collexions Flask sidecar with portal admin SSO. */
+app.all('/api/collexions/*', requireAdmin, requireCollexions, async (req, res) => {
+    try {
+        const config = req.collexionsConfig || await loadFile(CONFIG_PATH, {});
+        const base = String(config.collexionsInternalUrl || '').replace(/\/+$/, '');
+        const serviceKey = String(config.collexionsServiceKey || process.env.COLLEXIONS_SERVICE_KEY || '').trim();
+        if (!base) {
+            return res.status(503).json({ error: 'Collexions internal URL is not configured.' });
+        }
+        if (!serviceKey) {
+            return res.status(503).json({ error: 'Collexions service key is not configured. Set it in Settings (shared with the sidecar COLLEXIONS_SERVICE_KEY).' });
+        }
+
+        const suffix = String(req.params[0] || '').replace(/^\/+/, '');
+        const targetUrl = new URL(`${base}/api/${suffix}`);
+        for (const [key, value] of Object.entries(req.query || {})) {
+            if (value == null) continue;
+            if (Array.isArray(value)) value.forEach((v) => targetUrl.searchParams.append(key, String(v)));
+            else targetUrl.searchParams.set(key, String(value));
+        }
+
+        const headers = {
+            Accept: req.headers.accept || 'application/json',
+            'X-Collexions-Service-Key': serviceKey,
+            'X-Portal-Admin': '1',
+        };
+        if (req.headers['content-type']) headers['Content-Type'] = req.headers['content-type'];
+
+        const method = String(req.method || 'GET').toUpperCase();
+        const init = { method, headers };
+        if (method !== 'GET' && method !== 'HEAD') {
+            if (Buffer.isBuffer(req.body)) init.body = req.body;
+            else if (typeof req.body === 'string') init.body = req.body;
+            else if (req.body != null) {
+                headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+                init.body = JSON.stringify(req.body);
+            }
+        }
+
+        const upstream = await fetch(targetUrl.toString(), init);
+        const contentType = upstream.headers.get('content-type') || '';
+        res.status(upstream.status);
+        if (contentType) res.setHeader('Content-Type', contentType);
+        const cacheControl = upstream.headers.get('cache-control');
+        if (cacheControl) res.setHeader('Cache-Control', cacheControl);
+
+        if (contentType.includes('application/json')) {
+            const data = await upstream.json().catch(() => null);
+            return res.send(data == null ? '' : data);
+        }
+        const buf = Buffer.from(await upstream.arrayBuffer());
+        return res.send(buf);
+    } catch (e) {
+        log(`Collexions proxy error: ${e.message}`);
+        return res.status(502).json({ error: `Cannot reach Collexions sidecar: ${e.message}` });
     }
 });
 

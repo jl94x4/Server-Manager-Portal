@@ -91,7 +91,8 @@ A comprehensive control panel for the server owner:
 - **Customizable Home Layout** - Reorder home page sections and show or hide whole blocks (Personal Wrap-Up, Main grid, Pending Requests, Recently / Most Watched, Recently Added) from **Settings → Home Layout**, with a live preview before saving. The main dashboard grid keeps a fixed balanced two-column layout so card heights stay aligned
 - **Pending Requests Widget** - Surface open Seerr/Jellyseerr requests on the home dashboard with quick review actions, fanart-backed cards, and a count badge in the sidebar
 - **Library Maintenance** - Scan libraries for missing or empty media, manage exclusions, and run cleanup tasks from the Maintenance page
-- **Library Upgrader (Plex / Jellyfin)** — Find non-HEVC titles, browse a poster grid with codec/HDR badges, drill into show episodes, open Plex/Jellyfin or Sonarr/Radarr deep links, snooze titles, and optionally switch ARR quality profiles with search triggers (dry-run preview, bulk select, history tab, rate limits). Enable in **Settings → System → Library Upgrader**.
+- **Library Upgrader (Plex / Jellyfin)** — Find non-HEVC titles, browse a poster grid with codec/HDR badges, drill into show episodes, open Plex/Jellyfin or Sonarr/Radarr deep links, snooze titles, and optionally switch ARR quality profiles with search triggers (dry-run preview, bulk select, history tab, rate limits). Enable in **Settings → Library Upgrader**.
+- **Collexions (admin)** — Automated Plex collection pinning via a Flask sidecar. Portal hosts the UI at `/collexions` and proxies APIs with service-key SSO (no Collexions password). Enable in **Settings → Collexions**.
 
 ---
 
@@ -175,7 +176,7 @@ Review and approve media requests from Seerr, Jellyseerr, or Ombi without leavin
 
 ### Library Upgrader
 
-A powerful, built-in tool for server admins to identify and upgrade sub-optimal media in your library, fully integrated with your Sonarr and Radarr instances. Enable it in **Settings → System → Library Upgrader**.
+A powerful, built-in tool for server admins to identify and upgrade sub-optimal media in your library, fully integrated with your Sonarr and Radarr instances. Enable it in **Settings → Library Upgrader**.
 
 **Core Capabilities:**
 - **Advanced Media Filtering** - Index your entire library to easily filter and browse your media by codec, resolution, and size. Instantly locate H.264 files or check HDR availability per show, so you can easily upgrade to a different codec when you need to.
@@ -200,6 +201,12 @@ A powerful, built-in tool for server admins to identify and upgrade sub-optimal 
 - **Action History** - A dedicated audit log tracking all your manual and automated upgrade actions, profile changes, and search triggers.
 - **Snooze & Ignore** - Snooze specific titles to hide them from the upgrader view for a set duration, or permanently exclude specific libraries, shows, or movies.
 - **Reclaimable Space Estimation** - View live statistics on how many gigabytes of storage could be reclaimed by upgrading your media to more efficient formats.
+
+---
+
+### Collexions
+
+Admin-only Plex collection automation. The portal ships the React UI; a **Collexions Flask sidecar** runs the worker (`ColleXions.py`). Enable under **Settings → Collexions**, point Internal URL at the sidecar (typically `http://collexions:5000`), and set a shared service key. Portal SSO replaces Collexions login — configure Plex and integrations in onboarding/config only.
 
 ---
 
@@ -407,6 +414,37 @@ On first startup, any legacy JSON files still in the project root are automatica
 - View logs: `docker compose logs -f portal`
 - Update: `git pull && docker compose up -d --build`
 
+### Optional: Collexions sidecar
+
+Collexions runs as a **second container** on the same Docker network. The portal UI talks to it through `/api/collexions/*` (admin session + shared service key).
+
+**1. Start both services**
+
+```bash
+# Generate a shared key, then put it in .env as COLLEXIONS_SERVICE_KEY=
+docker compose --profile collexions up -d --build
+```
+
+The compose profile builds the sidecar from `ColleXions-WebUI-main/` (includes portal service-key auth). Keep that folder in sync if you customize the worker.
+
+**2. Configure the portal**
+
+In **Settings → Collexions**:
+
+| Setting | Example |
+|---|---|
+| Enable Collexions | ON |
+| Internal URL | `http://collexions:5000` |
+| Service key | Same value as `COLLEXIONS_SERVICE_KEY` on both containers |
+
+**3. Sidecar env (already in compose profile)**
+
+- `COLLEXIONS_SERVICE_KEY` — must match the portal
+- `COLLEXIONS_PORTAL_MODE=true` — skip password setup; onboarding is Plex/integrations only
+- Volumes `./collexions-config` and `./collexions-logs` hold pinning state and logs
+
+**Smoke checklist:** enable flag → open **Collexions** in the nav → complete onboarding if needed → start/stop worker → gallery pin/unpin → creator/search → jobs → stats → config save → logs → posters load.
+
 ### Build the image manually
 
 ```bash
@@ -567,6 +605,7 @@ Server-Manager-Portal/
 │   ├── home/           # User dashboard layout and widget renderers
 │   ├── requests/       # Seerr-style request review UI (admin panel, approval modal, home widget)
 │   ├── upgrader/       # Library Upgrader poster browse (non-HEVC scan)
+│   ├── collexions/     # Collexions admin UI (proxied Flask sidecar)
 │   ├── settings/       # Settings UI (Media Server, Home Layout, System, Background Tasks)
 │   ├── shared/         # API helpers, types, theme, skeletons, wrap-up cards
 │   ├── setup/          # First-time setup wizard

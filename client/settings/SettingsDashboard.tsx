@@ -157,6 +157,7 @@ const SETTINGS_TAB_ICONS: Record<string, React.ComponentType<{ className?: strin
     invites: UserPlus,
     tasks: ListTodo,
     upgrader: Wand2,
+    collexions: Layers,
     system: Settings,
     contact: Phone,
     broadcast: Radio,
@@ -423,6 +424,9 @@ export const SettingsDashboard: React.FC = () => {
     const [requestHideAvailableMedia, setRequestHideAvailableMedia] = useState(false);
     const [maintenanceExperimentalEnabled, setMaintenanceExperimentalEnabled] = useState(false);
     const [upgraderEnabled, setUpgraderEnabled] = useState(false);
+    const [collexionsEnabled, setCollexionsEnabled] = useState(false);
+    const [collexionsInternalUrl, setCollexionsInternalUrl] = useState('');
+    const [collexionsServiceKey, setCollexionsServiceKey] = useState('');
     const [upgraderDefaultPreset, setUpgraderDefaultPreset] = useState('non_hevc');
     const [upgraderMinSizeGB, setUpgraderMinSizeGB] = useState(5);
     const [upgraderAutomationEnabled, setUpgraderAutomationEnabled] = useState(false);
@@ -998,6 +1002,9 @@ export const SettingsDashboard: React.FC = () => {
             if (initialSettings.autoBackupRetentionCount !== undefined) setAutoBackupRetentionCount(Number(initialSettings.autoBackupRetentionCount) || 10);
             if (initialSettings.maintenanceExperimentalEnabled !== undefined) setMaintenanceExperimentalEnabled(!!initialSettings.maintenanceExperimentalEnabled);
             if (initialSettings.upgraderEnabled !== undefined) setUpgraderEnabled(!!initialSettings.upgraderEnabled);
+            if (initialSettings.collexionsEnabled !== undefined) setCollexionsEnabled(!!initialSettings.collexionsEnabled);
+            if (initialSettings.collexionsInternalUrl !== undefined) setCollexionsInternalUrl(String(initialSettings.collexionsInternalUrl || ''));
+            if (initialSettings.collexionsServiceKey !== undefined) setCollexionsServiceKey(String(initialSettings.collexionsServiceKey || ''));
             if (initialSettings.upgraderDefaultPreset) setUpgraderDefaultPreset(initialSettings.upgraderDefaultPreset);
             if (initialSettings.upgraderMinSizeGB !== undefined) setUpgraderMinSizeGB(Math.max(0, Number(initialSettings.upgraderMinSizeGB) || 5));
             if (initialSettings.upgraderAutomationEnabled !== undefined) setUpgraderAutomationEnabled(!!initialSettings.upgraderAutomationEnabled);
@@ -1223,6 +1230,9 @@ export const SettingsDashboard: React.FC = () => {
             autoBackupRetentionCount,
             maintenanceExperimentalEnabled,
             upgraderEnabled,
+            collexionsEnabled,
+            collexionsInternalUrl,
+            collexionsServiceKey,
             upgraderDefaultPreset,
             upgraderMinSizeGB,
             upgraderAutomationEnabled,
@@ -2932,6 +2942,51 @@ export const SettingsDashboard: React.FC = () => {
                                 )}
                                 <p className="text-[11px] text-muted mt-1">Requires Plex or Jellyfin. Sonarr/Radarr recommended for deep links and automation.</p>
                                 <p className="text-[11px] text-muted mt-1">After changing these options, click Save Settings.</p>
+                            </section>
+                        </div>
+                    )}
+                    {activeTab === 'collexions' && (
+                        <div className="mb-8 animate-fade-in space-y-6">
+                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Collexions</h3>
+                            <section id={getSettingsSectionElementId('collexions')} className="space-y-3 scroll-mt-24">
+                                <SettingsToggleRow
+                                    title="Enable Collexions"
+                                    hint={<SettingHint>Admin-only collections manager. Requires a Collexions Flask sidecar on the same Docker network. OFF by default.</SettingHint>}
+                                    checked={collexionsEnabled}
+                                    onChange={setCollexionsEnabled}
+                                    border={false}
+                                />
+                                <p className={`text-xs mt-2 font-semibold ${collexionsEnabled && collexionsInternalUrl.trim() ? 'text-green-300' : 'text-yellow-300'}`}>
+                                    Current status: {collexionsEnabled && collexionsInternalUrl.trim() ? 'ON (nav visible)' : collexionsEnabled ? 'Enabled (set internal URL)' : 'OFF'}
+                                </p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                                    <div>
+                                        <label className="font-semibold text-sm block mb-2">Internal URL</label>
+                                        <input
+                                            type="text"
+                                            className="w-full p-2 rounded border border-border bg-background text-text"
+                                            placeholder="http://collexions:5000"
+                                            value={collexionsInternalUrl}
+                                            onChange={(e) => setCollexionsInternalUrl(e.target.value)}
+                                            disabled={!collexionsEnabled}
+                                        />
+                                        <p className="text-[11px] text-muted mt-1">Docker service hostname preferred (e.g. http://collexions:5000).</p>
+                                    </div>
+                                    <div>
+                                        <label className="font-semibold text-sm block mb-2">Service key</label>
+                                        <input
+                                            type="password"
+                                            className="w-full p-2 rounded border border-border bg-background text-text"
+                                            placeholder={collexionsServiceKey === '********' ? '•••••••• (unchanged)' : 'Shared with sidecar COLLEXIONS_SERVICE_KEY'}
+                                            value={collexionsServiceKey === '********' ? '' : collexionsServiceKey}
+                                            onChange={(e) => setCollexionsServiceKey(e.target.value)}
+                                            disabled={!collexionsEnabled}
+                                            autoComplete="new-password"
+                                        />
+                                        <p className="text-[11px] text-muted mt-1">Must match the sidecar env. Leave blank to keep the saved key. Never exposed to browsers.</p>
+                                    </div>
+                                </div>
+                                <p className="text-[11px] text-muted mt-2">After changing these options, click Save Settings. Admins use portal login — no Collexions password.</p>
                             </section>
                         </div>
                     )}

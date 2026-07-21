@@ -28,6 +28,7 @@
     "node-fetch": "^3.3.2",
     "nodemailer": "^9.0.1",
     "pngjs": "^7.0.0",
+    "react-router-dom": "^7.18.1",
     "recharts": "^3.9.0"
   },
   "devDependencies": {

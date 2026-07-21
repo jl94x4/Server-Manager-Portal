@@ -16,6 +16,8 @@ services:
       BIND_HOST: 0.0.0.0
       CONFIG_DIR: /app/config
       PLEX_PREFER_REMOTE_CONNECTION: "true"
+      # Optional: same value as Collexions sidecar (or set in Settings → Collexions)
+      COLLEXIONS_SERVICE_KEY: ${COLLEXIONS_SERVICE_KEY:-}
     volumes:
       - ./config:/app/config
       - ./backup:/app/backup
@@ -25,3 +27,25 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+
+  # Optional Collexions sidecar (admin collections manager). Enable in Settings → Collexions
+  # with Internal URL http://collexions:5000 and matching service key.
+  # Builds from ColleXions-WebUI-main so portal service-key / PORTAL_MODE patches are included.
+  collexions:
+    profiles: ["collexions"]
+    build:
+      context: ./ColleXions-WebUI-main
+    image: collexions-portal-sidecar:local
+    container_name: collexions
+    restart: unless-stopped
+    # No host port required when only the portal proxies to it.
+    expose:
+      - "5000"
+    volumes:
+      - ./collexions-config:/app/config
+      - ./collexions-logs:/app/logs
+    environment:
+      COLLEXIONS_SECRET_KEY: ${COLLEXIONS_SECRET_KEY:-change-me-to-a-long-random-secret}
+      COLLEXIONS_SERVICE_KEY: ${COLLEXIONS_SERVICE_KEY:-}
+      COLLEXIONS_PORTAL_MODE: "true"
+      COLLEXIONS_AUTOSTART: "true"
