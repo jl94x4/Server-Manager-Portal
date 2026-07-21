@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { api, collexionsImageUrl } from '../api';
 import { PlexCollection } from '../types';
 import {
@@ -13,6 +13,9 @@ import {
     ChevronDown,
     Check,
     ExternalLink,
+    Square,
+    CheckSquare,
+    X,
 } from 'lucide-react';
 import { CustomSelect } from '../../shared/ui';
 import {
@@ -29,16 +32,40 @@ const LEGACY_GRID_MAP: Record<string, UpgraderGridSize> = {
     lg: 'large',
 };
 
+type StatusFilter = 'all' | 'pinned' | 'tracked' | 'missing_art';
+type SortMode = 'title' | 'library';
+
+const collKey = (c: { library: string; title: string }) => `${c.library}\0${c.title}`;
+const collId = (c: { library: string; title: string }) => `${c.library}-${c.title}`;
+
+const STATUS_FILTER_OPTIONS = [
+    { value: 'all', label: 'All status' },
+    { value: 'pinned', label: 'Pinned' },
+    { value: 'tracked', label: 'Tracked' },
+    { value: 'missing_art', label: 'Missing art' },
+];
+
+const SORT_OPTIONS = [
+    { value: 'title', label: 'Sort: Title' },
+    { value: 'library', label: 'Sort: Library' },
+];
+
 const Gallery: React.FC = () => {
     const [collections, setCollections] = useState<PlexCollection[]>([]);
     const [loading, setLoading] = useState(true);
+    const [resolvingPins, setResolvingPins] = useState(false);
     const [loadError, setLoadError] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedLibrary, setSelectedLibrary] = useState<string>('All');
-    const [showPinnedOnly, setShowPinnedOnly] = useState(false);
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+    const [sortMode, setSortMode] = useState<SortMode>('title');
     const [gridSize, setGridSize] = useState<UpgraderGridSize>('medium');
     const [pinningId, setPinningId] = useState<string | null>(null);
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+    const [selectMode, setSelectMode] = useState(false);
+    const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
+    const [bulkBusy, setBulkBusy] = useState(false);
+    const resolveGenRef = useRef(0);
 
     useEffect(() => {
         const savedState = localStorage.getItem('collexions_gallery_state');
@@ -47,7 +74,9 @@ const Gallery: React.FC = () => {
                 const state = JSON.parse(savedState);
                 if (state.searchQuery !== undefined) setSearchQuery(state.searchQuery);
                 if (state.selectedLibrary !== undefined) setSelectedLibrary(state.selectedLibrary);
-                if (state.showPinnedOnly !== undefined) setShowPinnedOnly(state.showPinnedOnly);
+                if (state.statusFilter !== undefined) setStatusFilter(state.statusFilter);
+                else if (state.showPinnedOnly) setStatusFilter('pinned');
+                if (state.sortMode !== undefined) setSortMode(state.sortMode);
                 if (state.gridSize !== undefined) {
                     const raw = String(state.gridSize);
                     setGridSize(normalizeUpgraderGridSize(LEGACY_GRID_MAP[raw] || raw));
@@ -62,46 +91,98 @@ const Gallery: React.FC = () => {
         localStorage.setItem('collexions_gallery_state', JSON.stringify({
             searchQuery,
             selectedLibrary,
-            showPinnedOnly,
+            statusFilter,
+            sortMode,
             gridSize,
         }));
-    }, [searchQuery, selectedLibrary, showPinnedOnly, gridSize]);
+    }, [searchQuery, selectedLibrary, statusFilter, sortMode, gridSize]);
 
     const libraries = useMemo(() => {
         const libs = ['All', ...new Set(collections.map(c => c.library))];
         return libs.sort();
     }, [collections]);
 
-    useEffect(() => {
-        fetchCollections();
+    const enrichPins = useCallback(async (list: PlexCollection[]) => {
+        const needs = list.filter(c => c.pin_resolved === false);
+        if (!needs.length) {
+            setResolvingPins(false);
+            return;
+        }
+        const gen = ++resolveGenRef.current;
+        setResolvingPins(true);
+        const chunkSize = 80;
+        try {
+            for (let i = 0; i < needs.length; i += chunkSize) {
+                if (gen !== resolveGenRef.current) return;
+                const chunk = needs.slice(i, i + chunkSize);
+                const pins = await api.resolveCollectionPins(
+                    chunk.map(c => ({ title: c.title, library: c.library })),
+                );
+                if (gen !== resolveGenRef.current) return;
+                setCollections(prev => prev.map(c => {
+                    const key = collKey(c);
+                    if (!(key in pins)) return c;
+                    return { ...c, is_pinned: !!pins[key], pin_resolved: true };
+                }));
+            }
+        } catch (e) {
+            console.error('Failed to resolve pin status', e);
+            if (gen === resolveGenRef.current) {
+                setCollections(prev => prev.map(c =>
+                    c.pin_resolved === false ? { ...c, pin_resolved: true } : c,
+                ));
+            }
+        } finally {
+            if (gen === resolveGenRef.current) setResolvingPins(false);
+        }
     }, []);
 
-    const fetchCollections = async (isManual = false) => {
+    const fetchCollections = useCallback(async (isManual = false) => {
         setLoading(true);
         setLoadError('');
+        resolveGenRef.current += 1;
+        setResolvingPins(false);
         try {
-            const data = await api.getCollections(isManual);
-            setCollections(Array.isArray(data) ? data : []);
+            const data = await api.getCollections(isManual, { light: true });
+            const finalList = (Array.isArray(data) ? data : []).map(c => ({
+                ...c,
+                is_pinned: !!c.is_pinned,
+                pin_resolved: typeof c.pin_resolved === 'boolean' ? c.pin_resolved : false,
+            }));
+            setCollections(finalList);
+            setLoading(false);
+            void enrichPins(finalList);
         } catch (e: any) {
             console.error('Failed to fetch collections', e);
             setLoadError(e?.message || 'Failed to load collections from Plex.');
             setCollections([]);
-        } finally {
             setLoading(false);
         }
-    };
+    }, [enrichPins]);
+
+    useEffect(() => {
+        fetchCollections();
+    }, [fetchCollections]);
 
     const handlePinToggle = async (coll: PlexCollection) => {
-        const id = `${coll.library}-${coll.title}`;
+        const id = collId(coll);
         setPinningId(id);
-
         try {
             if (coll.is_pinned) {
                 await api.unpinCollection(coll.title, coll.library);
+                setCollections(prev => prev.map(c =>
+                    collKey(c) === collKey(coll)
+                        ? { ...c, is_pinned: false, pin_resolved: true, has_label: false }
+                        : c,
+                ));
             } else {
                 await api.pinCollection(coll.title, coll.library);
+                setCollections(prev => prev.map(c =>
+                    collKey(c) === collKey(coll)
+                        ? { ...c, is_pinned: true, pin_resolved: true, has_label: true }
+                        : c,
+                ));
             }
-            await fetchCollections();
         } catch (e) {
             alert('Action failed. Check Plex connection.');
         } finally {
@@ -109,14 +190,78 @@ const Gallery: React.FC = () => {
         }
     };
 
-    const filteredCollections = useMemo(() => {
-        return collections.filter(c => {
-            const matchSearch = c.title.toLowerCase().includes(searchQuery.toLowerCase());
-            const matchLib = selectedLibrary === 'All' || c.library === selectedLibrary;
-            const matchPinned = !showPinnedOnly || c.is_pinned;
-            return matchSearch && matchLib && matchPinned;
+    const toggleSelect = (coll: PlexCollection) => {
+        const key = collKey(coll);
+        setSelectedKeys(prev => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
+            return next;
         });
-    }, [collections, searchQuery, selectedLibrary, showPinnedOnly]);
+    };
+
+    const exitSelectMode = () => {
+        setSelectMode(false);
+        setSelectedKeys(new Set());
+    };
+
+    const filteredCollections = useMemo(() => {
+        const q = searchQuery.toLowerCase();
+        let list = collections.filter(c => {
+            const matchSearch = c.title.toLowerCase().includes(q);
+            const matchLib = selectedLibrary === 'All' || c.library === selectedLibrary;
+            let matchStatus = true;
+            if (statusFilter === 'pinned') matchStatus = c.is_pinned;
+            else if (statusFilter === 'tracked') matchStatus = c.has_label && !c.is_pinned;
+            else if (statusFilter === 'missing_art') matchStatus = !c.thumb;
+            return matchSearch && matchLib && matchStatus;
+        });
+        list = [...list].sort((a, b) => {
+            if (sortMode === 'library') {
+                const libCmp = a.library.localeCompare(b.library);
+                if (libCmp !== 0) return libCmp;
+            }
+            return a.title.localeCompare(b.title);
+        });
+        return list;
+    }, [collections, searchQuery, selectedLibrary, statusFilter, sortMode]);
+
+    const selectAllVisible = () => {
+        setSelectedKeys(new Set(filteredCollections.map(collKey)));
+    };
+
+    const handleBulk = async (action: 'pin' | 'unpin') => {
+        const items = collections
+            .filter(c => selectedKeys.has(collKey(c)))
+            .map(c => ({ title: c.title, library: c.library }));
+        if (!items.length) return;
+        setBulkBusy(true);
+        try {
+            const result = await api.bulkPinCollections(action, items);
+            const okKeys = new Set(
+                (result.results || [])
+                    .filter(r => r.ok)
+                    .map(r => collKey({ title: r.title, library: r.library })),
+            );
+            setCollections(prev => prev.map(c => {
+                if (!okKeys.has(collKey(c))) return c;
+                return {
+                    ...c,
+                    is_pinned: action === 'pin',
+                    pin_resolved: true,
+                    has_label: action === 'pin',
+                };
+            }));
+            exitSelectMode();
+            if (result.ok_count < items.length) {
+                alert(`Updated ${result.ok_count} of ${items.length}. Some actions failed.`);
+            }
+        } catch (e) {
+            alert('Bulk action failed. Check Plex connection.');
+        } finally {
+            setBulkBusy(false);
+        }
+    };
 
     const isCompact = gridSize === 'small';
     const isList = gridSize === 'list';
@@ -164,19 +309,78 @@ const Gallery: React.FC = () => {
                     <p className="text-muted mt-1 flex items-center gap-2 text-sm">
                         <Library className="w-4 h-4" />
                         Explore and manually pin collections to your Home Screen
+                        {resolvingPins && (
+                            <span className="inline-flex items-center gap-1.5 text-plex/80">
+                                <RefreshCw className="w-3 h-3 animate-spin" />
+                                Updating pin status…
+                            </span>
+                        )}
                     </p>
                 </div>
-                <button
-                    type="button"
-                    onClick={() => fetchCollections(true)}
-                    className="p-2 rounded-lg bg-card border border-border text-muted hover:text-text transition-colors"
-                >
-                    <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+                        className={`px-3 py-2 rounded-lg border text-sm font-bold transition-colors ${selectMode
+                            ? 'bg-plex text-background border-plex'
+                            : 'bg-card border-border text-muted hover:text-text'
+                            }`}
+                    >
+                        {selectMode ? 'Cancel' : 'Select'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => fetchCollections(true)}
+                        className="p-2 rounded-lg bg-card border border-border text-muted hover:text-text transition-colors"
+                    >
+                        <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                    </button>
+                </div>
             </div>
 
-            <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1 relative">
+            {selectMode && (
+                <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl bg-card/60 border border-border">
+                    <span className="text-sm text-muted mr-1">
+                        {selectedKeys.size} selected
+                    </span>
+                    <button
+                        type="button"
+                        onClick={selectAllVisible}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold border border-border text-muted hover:text-text"
+                    >
+                        Select visible ({filteredCollections.length})
+                    </button>
+                    <button
+                        type="button"
+                        disabled={bulkBusy || selectedKeys.size === 0}
+                        onClick={() => handleBulk('pin')}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 disabled:opacity-50 inline-flex items-center gap-1.5"
+                    >
+                        {bulkBusy ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Pin className="w-3 h-3" />}
+                        Pin selected
+                    </button>
+                    <button
+                        type="button"
+                        disabled={bulkBusy || selectedKeys.size === 0}
+                        onClick={() => handleBulk('unpin')}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 disabled:opacity-50 inline-flex items-center gap-1.5"
+                    >
+                        {bulkBusy ? <RefreshCw className="w-3 h-3 animate-spin" /> : <PinOff className="w-3 h-3" />}
+                        Unpin selected
+                    </button>
+                    <button
+                        type="button"
+                        onClick={exitSelectMode}
+                        className="ml-auto p-1.5 rounded-lg text-muted hover:text-text"
+                        title="Exit select mode"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
+
+            <div className="flex flex-col md:flex-row gap-4 flex-wrap">
+                <div className="flex-1 relative min-w-[200px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
                     <input
                         type="text"
@@ -187,7 +391,7 @@ const Gallery: React.FC = () => {
                     />
                 </div>
 
-                <div className="relative w-full md:w-64">
+                <div className="relative w-full md:w-52">
                     <button
                         type="button"
                         onClick={() => setIsLibraryOpen(!isLibraryOpen)}
@@ -230,39 +434,57 @@ const Gallery: React.FC = () => {
                 </div>
 
                 <CustomSelect
+                    value={statusFilter}
+                    onChange={(value) => setStatusFilter(value as StatusFilter)}
+                    options={STATUS_FILTER_OPTIONS}
+                    className="w-full md:w-40"
+                    compact
+                />
+
+                <CustomSelect
+                    value={sortMode}
+                    onChange={(value) => setSortMode(value as SortMode)}
+                    options={SORT_OPTIONS}
+                    className="w-full md:w-40"
+                    compact
+                />
+
+                <CustomSelect
                     value={gridSize}
                     onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}
                     options={UPGRADER_GRID_SIZE_OPTIONS}
                     className="w-full md:w-44"
                     compact
                 />
-
-                <button
-                    type="button"
-                    onClick={() => setShowPinnedOnly(!showPinnedOnly)}
-                    className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold transition-all border ${showPinnedOnly
-                        ? 'bg-plex text-background border-plex shadow-lg'
-                        : 'bg-card/60 border-border text-muted hover:text-text'
-                        }`}
-                    title="Show Pinned Only"
-                >
-                    <Pin className={`w-4 h-4 ${showPinnedOnly ? 'fill-current' : ''}`} />
-                    <span className="hidden lg:inline text-xs whitespace-nowrap">Pinned Only</span>
-                </button>
             </div>
 
             <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
                 {filteredCollections.map((coll, idx) => {
-                    const id = `${coll.library}-${coll.title}`;
+                    const id = collId(coll);
+                    const key = collKey(coll);
                     const uniqueKey = `${id}-${idx}`;
                     const isProcessing = pinningId === id;
+                    const isSelected = selectedKeys.has(key);
+                    const pinPending = coll.pin_resolved === false;
 
                     if (isList) {
                         return (
                             <div
                                 key={uniqueKey}
-                                className="group flex items-center gap-4 bg-card/50 border border-border rounded-xl overflow-hidden hover:border-plex/40 transition-all p-3"
+                                className={`group flex items-center gap-4 bg-card/50 border rounded-xl overflow-hidden hover:border-plex/40 transition-all p-3 ${isSelected ? 'border-plex ring-1 ring-plex/40' : 'border-border'}`}
                             >
+                                {selectMode && (
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleSelect(coll)}
+                                        className="shrink-0 text-plex"
+                                        aria-label={isSelected ? 'Deselect' : 'Select'}
+                                    >
+                                        {isSelected
+                                            ? <CheckSquare className="w-5 h-5" />
+                                            : <Square className="w-5 h-5 text-muted" />}
+                                    </button>
+                                )}
                                 <div className="w-14 h-[84px] shrink-0 rounded-lg overflow-hidden bg-card">
                                     {coll.thumb ? (
                                         <img
@@ -296,51 +518,55 @@ const Gallery: React.FC = () => {
                                                 {coll.title}
                                             </h3>
                                         )}
-                                        {coll.is_pinned && (
+                                        {pinPending ? (
+                                            <span className="text-[10px] font-bold uppercase bg-white/5 text-muted px-1.5 py-0.5 rounded">…</span>
+                                        ) : coll.is_pinned ? (
                                             <span className="text-[10px] font-bold uppercase bg-plex text-background px-1.5 py-0.5 rounded">Pinned</span>
-                                        )}
-                                        {coll.has_label && !coll.is_pinned && (
+                                        ) : null}
+                                        {coll.has_label && !coll.is_pinned && !pinPending && (
                                             <span className="text-[10px] font-bold uppercase bg-white/10 text-muted px-1.5 py-0.5 rounded">Tracked</span>
                                         )}
                                     </div>
                                     <p className="text-xs text-muted uppercase mt-0.5">{coll.library}</p>
                                 </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    {coll.plexUrl && (
-                                        <a
-                                            href={coll.plexUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="rounded-lg border border-border bg-card/60 text-muted hover:text-plex hover:border-plex/40 p-2 transition-colors"
-                                            title="Open in Plex"
-                                        >
-                                            <ExternalLink className="w-3.5 h-3.5" />
-                                        </a>
-                                    )}
-                                    <button
-                                        type="button"
-                                        onClick={() => handlePinToggle(coll)}
-                                        disabled={isProcessing}
-                                        className={`rounded-lg font-bold flex items-center justify-center gap-2 transition-all border px-3 py-2 text-xs ${coll.is_pinned
-                                            ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'
-                                            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-                                            } disabled:opacity-50`}
-                                    >
-                                        {isProcessing ? (
-                                            <RefreshCw className="w-3 h-3 animate-spin" />
-                                        ) : coll.is_pinned ? (
-                                            <>
-                                                <PinOff className="w-3 h-3" />
-                                                Unpin
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Pin className="w-3 h-3" />
-                                                Pin
-                                            </>
+                                {!selectMode && (
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        {coll.plexUrl && (
+                                            <a
+                                                href={coll.plexUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="rounded-lg border border-border bg-card/60 text-muted hover:text-plex hover:border-plex/40 p-2 transition-colors"
+                                                title="Open in Plex"
+                                            >
+                                                <ExternalLink className="w-3.5 h-3.5" />
+                                            </a>
                                         )}
-                                    </button>
-                                </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => handlePinToggle(coll)}
+                                            disabled={isProcessing || pinPending}
+                                            className={`rounded-lg font-bold flex items-center justify-center gap-2 transition-all border px-3 py-2 text-xs ${coll.is_pinned
+                                                ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'
+                                                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                                                } disabled:opacity-50`}
+                                        >
+                                            {isProcessing ? (
+                                                <RefreshCw className="w-3 h-3 animate-spin" />
+                                            ) : coll.is_pinned ? (
+                                                <>
+                                                    <PinOff className="w-3 h-3" />
+                                                    Unpin
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Pin className="w-3 h-3" />
+                                                    Pin
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         );
                     }
@@ -348,10 +574,22 @@ const Gallery: React.FC = () => {
                     return (
                         <div
                             key={uniqueKey}
-                            className={`group relative flex flex-col bg-card/50 border border-border overflow-hidden hover:border-plex/40 transition-all hover:shadow-2xl hover:shadow-black/50 ${isCompact ? 'rounded-xl' : 'rounded-2xl'}`}
+                            className={`group relative flex flex-col bg-card/50 border overflow-hidden hover:border-plex/40 transition-all hover:shadow-2xl hover:shadow-black/50 ${isCompact ? 'rounded-xl' : 'rounded-2xl'} ${isSelected ? 'border-plex ring-1 ring-plex/40' : 'border-border'}`}
                         >
+                            {selectMode && (
+                                <button
+                                    type="button"
+                                    onClick={() => toggleSelect(coll)}
+                                    className="absolute top-2 left-2 z-10 bg-black/70 rounded p-1 text-white"
+                                    aria-label={isSelected ? 'Deselect' : 'Select'}
+                                >
+                                    {isSelected
+                                        ? <CheckSquare className="w-4 h-4 text-plex" />
+                                        : <Square className="w-4 h-4" />}
+                                </button>
+                            )}
                             <div className="aspect-[2/3] bg-card relative overflow-hidden">
-                                {coll.plexUrl ? (
+                                {coll.plexUrl && !selectMode ? (
                                     <a
                                         href={coll.plexUrl}
                                         target="_blank"
@@ -382,13 +620,17 @@ const Gallery: React.FC = () => {
                                         loading="lazy"
                                         decoding="async"
                                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                        onClick={selectMode ? () => toggleSelect(coll) : undefined}
                                     />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center bg-card text-muted">
+                                    <div
+                                        className="w-full h-full flex items-center justify-center bg-card text-muted"
+                                        onClick={selectMode ? () => toggleSelect(coll) : undefined}
+                                    >
                                         <ImageIcon className="w-10 h-10 opacity-30" />
                                     </div>
                                 )}
-                                {coll.plexUrl && (
+                                {coll.plexUrl && !selectMode && (
                                     <a
                                         href={coll.plexUrl}
                                         target="_blank"
@@ -400,12 +642,16 @@ const Gallery: React.FC = () => {
                                         {!isCompact && <span>Plex</span>}
                                     </a>
                                 )}
-                                {coll.is_pinned && (
+                                {pinPending ? (
+                                    <div className={`absolute top-2 right-2 bg-black/60 text-muted font-bold rounded flex items-center gap-1 ${isCompact ? 'px-1 py-0.5 text-[8px]' : 'px-2 py-1 text-[10px]'}`}>
+                                        <RefreshCw className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} animate-spin`} />
+                                    </div>
+                                ) : coll.is_pinned ? (
                                     <div className={`absolute top-2 right-2 bg-plex text-background font-bold rounded flex items-center gap-1 shadow-lg ring-1 ring-white/20 ${isCompact ? 'px-1 py-0.5 text-[8px]' : 'px-2 py-1 text-[10px]'}`}>
                                         <Pin className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} fill-current`} /> PINNED
                                     </div>
-                                )}
-                                {coll.has_label && !coll.is_pinned && (
+                                ) : null}
+                                {coll.has_label && !coll.is_pinned && !pinPending && (
                                     <div className={`absolute top-2 right-2 bg-plex/90 text-background font-bold rounded flex items-center gap-1 shadow-lg ring-1 ring-white/20 ${isCompact ? 'px-1 py-0.5 text-[8px]' : 'px-2 py-1 text-[10px]'}`}>
                                         <CheckCircle2 className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'}`} /> TRACKED
                                     </div>
@@ -436,31 +682,32 @@ const Gallery: React.FC = () => {
                                     )}
                                 </div>
 
-                                <button
-                                    type="button"
-                                    onClick={() => handlePinToggle(coll)}
-                                    disabled={isProcessing}
-                                    className={`w-full rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all border whitespace-nowrap ${isCompact ? 'py-1 text-[10px]' : 'py-2 text-xs'} ${coll.is_pinned
-                                        ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'
-                                        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-                                        } disabled:opacity-50`}
-                                >
-                                    {isProcessing ? (
-                                        <RefreshCw className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0 animate-spin`} />
-                                    ) : coll.is_pinned ? (
-                                        <>
-                                            <PinOff className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0`} />
-                                            <span className={isCompact ? 'hidden' : ''}>Unpin</span>
-                                            {isCompact && <span>Unpin</span>}
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Pin className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0`} />
-                                            <span className={isCompact ? 'hidden' : ''}>Pin to Home</span>
-                                            {isCompact && <span>Pin</span>}
-                                        </>
-                                    )}
-                                </button>
+                                {!selectMode && (
+                                    <button
+                                        type="button"
+                                        onClick={() => handlePinToggle(coll)}
+                                        disabled={isProcessing || pinPending}
+                                        className={`w-full rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all border whitespace-nowrap ${isCompact ? 'py-1 text-[10px]' : 'py-2 text-xs'} ${coll.is_pinned
+                                            ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'
+                                            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                                            } disabled:opacity-50`}
+                                    >
+                                        {isProcessing ? (
+                                            <RefreshCw className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0 animate-spin`} />
+                                        ) : coll.is_pinned ? (
+                                            <>
+                                                <PinOff className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0`} />
+                                                <span>Unpin</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Pin className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0`} />
+                                                <span className={isCompact ? 'hidden' : ''}>Pin to Home</span>
+                                                {isCompact && <span>Pin</span>}
+                                            </>
+                                        )}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     );

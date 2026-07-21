@@ -77,6 +77,7 @@ def require_auth(f):
     return decorated
 
 # --- Cache System ---
+# version bumped by list_collections (3=light, 4=full pin resolve)
 GALLERY_CACHE = {
     'data': None,
     'timestamp': 0,
@@ -540,6 +541,69 @@ def is_script_already_running():
         pass
     return False
 
+def _check_plex_quick(config, timeout=3):
+    """Lightweight Plex reachability check (identity endpoint)."""
+    url = str(config.get('plex_url') or '').rstrip('/')
+    token = str(config.get('plex_token') or '').strip()
+    if not url or not token:
+        return False, 'Plex URL/token missing'
+    try:
+        resp = requests.get(
+            f'{url}/identity',
+            headers={'X-Plex-Token': token, 'Accept': 'application/json'},
+            timeout=timeout,
+            verify=False,
+        )
+        if resp.status_code == 200:
+            return True, None
+        return False, f'Plex returned HTTP {resp.status_code}'
+    except Exception as e:
+        return False, str(e)[:200]
+
+
+@app.route('/api/health')
+def health():
+    """Worker health for portal diagnostics (config, script, Plex)."""
+    global process
+    config = load_config()
+    libraries = config.get('library_names') or []
+    has_url = bool(str(config.get('plex_url') or '').strip())
+    has_token = bool(str(config.get('plex_token') or '').strip())
+
+    script_status = 'stopped'
+    if process is not None and process.poll() is None:
+        script_status = 'running'
+    elif is_script_already_running():
+        script_status = 'running'
+
+    plex_ok, plex_error = _check_plex_quick(config)
+    issues = []
+    if not has_url or not has_token:
+        issues.append('Plex URL or token is not configured in Collexions.')
+    elif not plex_ok:
+        issues.append(f'Cannot reach Plex: {plex_error}')
+    if not libraries:
+        issues.append('No libraries selected — pinning has nothing to process.')
+    if script_status == 'stopped':
+        issues.append('Pinning service is stopped (Start Service or enable Auto-start).')
+
+    return jsonify({
+        'ok': plex_ok and bool(libraries),
+        'worker': True,
+        'portal_mode': bool(PORTAL_MODE),
+        'autostart': env_flag_enabled('COLLEXIONS_AUTOSTART'),
+        'config': {
+            'plex_url': has_url,
+            'plex_token': has_token,
+            'library_count': len(libraries),
+            'dry_run': bool(config.get('dry_run')),
+        },
+        'script': script_status,
+        'plex': {'ok': plex_ok, 'error': plex_error},
+        'issues': issues,
+    })
+
+
 @app.route('/api/status')
 @require_auth
 def get_status():
@@ -854,75 +918,76 @@ def get_plex_instance():
         return None
 
 # --- Gallery Endpoints ---
+def _collection_is_pinned(coll):
+    """Resolve home-pin state via Plex hub visibility (expensive — avoid on first paint)."""
+    try:
+        hubs = coll.visibility()
+        if not isinstance(hubs, list):
+            hubs = [hubs] if hubs else []
+        for h in hubs:
+            if not h:
+                continue
+            if getattr(h, 'promotedToOwnHome', False) or getattr(h, 'promotedToSharedHome', False):
+                return True
+            if getattr(h, 'context', '') == 'home' and (getattr(h, 'promoted', False) or getattr(h, '_promoted', False)):
+                return True
+    except Exception:
+        pass
+    return False
+
+
 @app.route('/api/collections')
 @require_auth
 def list_collections():
     global GALLERY_CACHE
-    
-    # Check if we should force refresh
+
     force_refresh = request.args.get('refresh', 'false').lower() == 'true'
-    
-    # Return from cache if valid and not forcing refresh
+    # light=true (default): skip per-collection visibility() for fast first paint
+    light = request.args.get('light', 'true').lower() != 'false'
+    cache_version = 3 if light else 4
+
     now = time.time()
     if (
         not force_refresh
         and GALLERY_CACHE['data'] is not None
-        and GALLERY_CACHE.get('version') == 2
+        and GALLERY_CACHE.get('version') == cache_version
         and now - GALLERY_CACHE['timestamp'] < GALLERY_CACHE['ttl']
     ):
-        print("Serving collections from cache")
+        print(f"Serving collections from cache (light={light})")
         return jsonify(GALLERY_CACHE['data'])
-            
+
     plex = get_plex_instance()
     if not plex:
         return jsonify({"error": "Plex not configured"}), 400
-    
+
     config = load_config()
     lib_names = config.get('library_names', [])
     collexions_label = config.get('collexions_label', 'Collexions').lower()
     from urllib.parse import quote
     server_id = getattr(plex, 'machineIdentifier', None) or ''
-    
+
     all_collections = []
     for lib_name in lib_names:
         try:
             library = plex.library.section(lib_name)
             for coll in library.collections():
-                # Check for our label
                 has_label = any(l.tag.lower() == collexions_label for l in getattr(coll, 'labels', []))
-                
-                # Check pinned status from real-time Hub attributes
-                is_pinned = False
-                try:
-                    hubs = coll.visibility()
-                    if not isinstance(hubs, list): hubs = [hubs] if hubs else []
-                    for h in hubs:
-                        if not h: continue
-                        # promotedToOwnHome and promotedToSharedHome are the most accurate indicators
-                        if getattr(h, 'promotedToOwnHome', False) or getattr(h, 'promotedToSharedHome', False):
-                            is_pinned = True
-                            break
-                        # Fallback for older plexapi versions if needed
-                        if getattr(h, 'context', '') == 'home' and (getattr(h, 'promoted', False) or getattr(h, '_promoted', False)):
-                            is_pinned = True
-                            break
-                except:
-                    pass
+
+                if light:
+                    is_pinned = False
+                    pin_resolved = False
+                else:
+                    is_pinned = _collection_is_pinned(coll)
+                    pin_resolved = True
 
                 thumb = getattr(coll, 'thumb', None)
-                # Prefer explicit art; composite mosaics cover music + many auto collections.
-                # Never call coll.items() — that loads the whole collection and stalls the gallery.
                 if not thumb:
                     thumb = getattr(coll, 'composite', None) or getattr(coll, 'art', None)
 
-                # Normalise: strip host prefix so proxies always get a clean /path
                 if thumb and isinstance(thumb, str) and thumb.startswith('http'):
                     from urllib.parse import urlparse
-                    parsed = urlparse(thumb)
-                    thumb = parsed.path
+                    thumb = urlparse(thumb).path
 
-                # Last resort: Plex serves a mosaic at /library/collections/{id}/composite
-                # even when the Metadata object has no thumb attribute.
                 if not thumb and getattr(coll, 'ratingKey', None):
                     thumb = f'/library/collections/{coll.ratingKey}/composite'
 
@@ -938,21 +1003,116 @@ def list_collections():
                     "title": coll.title,
                     "library": lib_name,
                     "is_pinned": is_pinned,
+                    "pin_resolved": pin_resolved,
                     "has_label": has_label,
                     "thumb": thumb,
-                    "ratingKey": coll.ratingKey,
+                    "ratingKey": str(coll.ratingKey),
                     "key": meta_key,
                     "plexUrl": plex_url,
                 })
         except Exception as e:
             print(f"Error fetching collections from {lib_name}: {e}")
-            
-    # Update Cache
+
     GALLERY_CACHE['data'] = all_collections
     GALLERY_CACHE['timestamp'] = time.time()
-    GALLERY_CACHE['version'] = 2
-    
+    GALLERY_CACHE['version'] = cache_version
+
     return jsonify(all_collections)
+
+
+@app.route('/api/collections/resolve-pins', methods=['POST'])
+@require_auth
+def resolve_collection_pins():
+    """Enrich pin state for a batch of collections after a light gallery load."""
+    plex = get_plex_instance()
+    if not plex:
+        return jsonify({"error": "Plex not configured"}), 400
+
+    data = request.json or {}
+    items = data.get('items') or []
+    if not isinstance(items, list) or len(items) == 0:
+        return jsonify({"pins": {}})
+
+    # Cap to keep request time bounded
+    items = items[:400]
+    pins = {}
+    by_library = {}
+    for item in items:
+        lib = str(item.get('library') or '').strip()
+        title = str(item.get('title') or '').strip()
+        if not lib or not title:
+            continue
+        by_library.setdefault(lib, []).append(title)
+
+    for lib_name, titles in by_library.items():
+        try:
+            library = plex.library.section(lib_name)
+            for title in titles:
+                key = f'{lib_name}\0{title}'
+                try:
+                    coll = library.collection(title)
+                    pins[key] = _collection_is_pinned(coll)
+                except Exception:
+                    pins[key] = False
+        except Exception as e:
+            logging.warning(f"resolve-pins library '{lib_name}' failed: {e}")
+            for title in titles:
+                pins[f'{lib_name}\0{title}'] = False
+
+    return jsonify({"pins": pins})
+
+
+@app.route('/api/collections/bulk', methods=['POST'])
+@require_auth
+def bulk_pin_collections():
+    """Pin or unpin many collections in one request."""
+    global GALLERY_CACHE
+    plex = get_plex_instance()
+    config = load_config()
+    label = config.get('collexions_label', 'Collexions')
+    data = request.json or {}
+    action = str(data.get('action') or '').lower()
+    items = data.get('items') or []
+
+    if action not in ('pin', 'unpin'):
+        return jsonify({"success": False, "error": "action must be pin or unpin"}), 400
+    if not plex or not isinstance(items, list) or not items:
+        return jsonify({"success": False, "error": "Invalid request"}), 400
+
+    items = items[:100]
+    results = []
+    for item in items:
+        title = str(item.get('title') or '').strip()
+        library_name = str(item.get('library') or '').strip()
+        if not title or not library_name:
+            results.append({"title": title, "library": library_name, "ok": False, "error": "Missing title/library"})
+            continue
+        try:
+            library = plex.library.section(library_name)
+            collection = library.collection(title)
+            hub = collection.visibility()
+            if action == 'pin':
+                collection.addLabel(label)
+                hub.promoteHome()
+                hub.promoteShared()
+                log_action(f"Pinned '{title}' successfully.")
+            else:
+                try:
+                    collection.removeLabel(label)
+                except Exception:
+                    pass
+                hub.demoteHome()
+                hub.demoteShared()
+                log_action(f"Unpinned '{title}' successfully.")
+            results.append({"title": title, "library": library_name, "ok": True})
+        except Exception as e:
+            results.append({"title": title, "library": library_name, "ok": False, "error": str(e)})
+
+    GALLERY_CACHE['data'] = None
+    GALLERY_CACHE['timestamp'] = 0
+    ok_count = sum(1 for r in results if r.get('ok'))
+    return jsonify({"success": True, "ok_count": ok_count, "results": results})
+
 
 @app.route('/api/cache/clear', methods=['POST'])
 @require_auth
@@ -1403,7 +1563,8 @@ def pin_collection():
         
         # Log to collexions.log in the same format as the main script
         log_action(f"Pinned '{title}' successfully.")
-        
+        GALLERY_CACHE['data'] = None
+        GALLERY_CACHE['timestamp'] = 0
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -1471,7 +1632,8 @@ def unpin_collection():
         
         # Log to collexions.log in the same format as the main script
         log_action(f"Unpinned '{title}' successfully.")
-        
+        GALLERY_CACHE['data'] = None
+        GALLERY_CACHE['timestamp'] = 0
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500

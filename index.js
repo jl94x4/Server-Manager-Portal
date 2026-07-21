@@ -15711,6 +15711,65 @@ const requireCollexions = async (req, res, next) => {
     }
 };
 
+/** Portal-side Collexions health (works even when worker is down). Before catch-all proxy. */
+app.get('/api/collexions/health', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const enabled = !!config.collexionsEnabled;
+        const autostart = !!config.collexionsAutostart;
+        const embedded = getCollexionsEmbeddedStatus();
+        const base = String(config.collexionsInternalUrl || '').replace(/\/+$/, '');
+        const serviceKey = String(config.collexionsServiceKey || process.env.COLLEXIONS_SERVICE_KEY || '').trim();
+        const issues = [];
+
+        if (!enabled) issues.push('Collexions is disabled in Settings.');
+        if (enabled && !base) issues.push('Internal URL is not configured.');
+        if (enabled && !serviceKey) issues.push('Service key is missing.');
+
+        let worker = { ok: false, reachable: false, error: null, detail: null };
+        if (enabled && base && serviceKey) {
+            try {
+                const upstream = await fetchWithTimeout(
+                    `${base}/api/health`,
+                    { headers: { Accept: 'application/json', 'X-Collexions-Service-Key': serviceKey } },
+                    6000,
+                );
+                if (upstream.ok) {
+                    const detail = await upstream.json().catch(() => null);
+                    worker = { ok: !!(detail && detail.ok), reachable: true, error: null, detail };
+                    if (detail && Array.isArray(detail.issues)) issues.push(...detail.issues);
+                } else {
+                    worker = { ok: false, reachable: false, error: `Worker HTTP ${upstream.status}`, detail: null };
+                    issues.push(`Collexions worker returned HTTP ${upstream.status}.`);
+                }
+            } catch (e) {
+                const timedOut = e?.name === 'AbortError' || /aborted/i.test(String(e?.message || ''));
+                worker = {
+                    ok: false,
+                    reachable: false,
+                    error: timedOut ? 'Worker timed out' : (e.message || 'Unreachable'),
+                    detail: null,
+                };
+                issues.push(timedOut
+                    ? 'Collexions worker did not respond in time.'
+                    : `Cannot reach Collexions worker: ${e.message}`);
+            }
+        }
+
+        const uniqueIssues = [...new Set(issues.filter(Boolean))];
+        return res.json({
+            ok: enabled && worker.reachable && worker.ok,
+            enabled,
+            autostart,
+            embedded,
+            worker,
+            issues: uniqueIssues,
+        });
+    } catch (e) {
+        return res.status(500).json({ error: e.message || 'Failed to check Collexions health.' });
+    }
+});
+
 /** Seed Collexions forms from portal-stored Plex/TMDB credentials (admin only). Must be registered before the catch-all proxy. */
 app.get('/api/collexions/portal-defaults', requireAdmin, requireCollexions, async (req, res) => {
     try {
@@ -15775,7 +15834,11 @@ app.all('/api/collexions/*', requireAdmin, requireCollexions, async (req, res) =
             }
         }
 
-        const upstream = await fetch(targetUrl.toString(), init);
+        // Gallery scans can take a while; keep other calls snappy.
+        const timeoutMs = suffix === 'collections' || suffix.startsWith('collections?')
+            ? 90000
+            : 20000;
+        const upstream = await fetchWithTimeout(targetUrl.toString(), init, timeoutMs);
         const contentType = upstream.headers.get('content-type') || '';
         res.status(upstream.status);
         if (contentType) res.setHeader('Content-Type', contentType);
@@ -15789,8 +15852,13 @@ app.all('/api/collexions/*', requireAdmin, requireCollexions, async (req, res) =
         const buf = Buffer.from(await upstream.arrayBuffer());
         return res.send(buf);
     } catch (e) {
+        const timedOut = e?.name === 'AbortError' || /aborted/i.test(String(e?.message || ''));
         log(`Collexions proxy error: ${e.message}`);
-        return res.status(502).json({ error: `Cannot reach Collexions sidecar: ${e.message}` });
+        return res.status(timedOut ? 504 : 502).json({
+            error: timedOut
+                ? 'Collexions worker timed out.'
+                : `Cannot reach Collexions sidecar: ${e.message}`,
+        });
     }
 });
 

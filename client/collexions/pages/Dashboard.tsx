@@ -19,7 +19,7 @@ import {
     Filter,
     Settings
 } from 'lucide-react';
-import { api } from '../api';
+import { api, type CollexionsHealth } from '../api';
 import { AppConfig, AppStatus } from '../types';
 
 interface LibraryRunStats {
@@ -48,6 +48,8 @@ const Dashboard: React.FC = () => {
     const [logs, setLogs] = useState<string>('');
     const [loading, setLoading] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [health, setHealth] = useState<CollexionsHealth | null>(null);
+    const [healthError, setHealthError] = useState('');
 
     // Default Settings
     const [autoRefresh] = useState(true);
@@ -238,6 +240,16 @@ const Dashboard: React.FC = () => {
         } catch (e) { /* ignore */ }
     }, []);
 
+    const fetchHealth = useCallback(async () => {
+        try {
+            const h = await api.getHealth();
+            setHealth(h);
+            setHealthError('');
+        } catch (e: any) {
+            setHealthError(e?.message || 'Health check failed');
+        }
+    }, []);
+
     const fetchLogsOnly = useCallback(async () => {
         try {
             const l = await api.getLogs();
@@ -248,14 +260,18 @@ const Dashboard: React.FC = () => {
     useEffect(() => {
         fetchStatusOnly();
         fetchLogsOnly();
+        fetchHealth();
     }, []);
 
     useEffect(() => {
         if (autoRefresh) {
-            const interval = setInterval(fetchStatusOnly, 5000);
+            const interval = setInterval(() => {
+                fetchStatusOnly();
+                fetchHealth();
+            }, 5000);
             return () => clearInterval(interval);
         }
-    }, [autoRefresh, fetchStatusOnly]);
+    }, [autoRefresh, fetchStatusOnly, fetchHealth]);
 
     useEffect(() => {
         if (liveLogs) {
@@ -297,13 +313,48 @@ const Dashboard: React.FC = () => {
 
     const manualRefresh = async () => {
         setIsRefreshing(true);
-        await fetchStatusOnly();
-        await fetchLogsOnly();
+        await Promise.all([fetchStatusOnly(), fetchLogsOnly(), fetchHealth()]);
         setTimeout(() => setIsRefreshing(false), 500);
     };
 
+    const healthIssues = health?.issues?.length ? health.issues : (healthError ? [healthError] : []);
+    const showHealthWarn = !!(health && (!health.ok || healthIssues.length > 0)) || !!healthError;
+
     return (
         <div className="space-y-6 animate-in fade-in duration-500 pb-10">
+
+            {showHealthWarn && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90 space-y-2">
+                    <div className="flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                        <div className="min-w-0 flex-1">
+                            <p className="font-bold text-amber-200">Health check</p>
+                            <ul className="mt-1 space-y-0.5 text-xs list-disc list-inside text-amber-100/80">
+                                {healthIssues.slice(0, 5).map((issue) => (
+                                    <li key={issue}>{issue}</li>
+                                ))}
+                            </ul>
+                            {health && (
+                                <p className="mt-2 text-[11px] text-amber-200/70 uppercase tracking-wider font-bold">
+                                    Worker {health.worker?.reachable ? 'reachable' : 'down'}
+                                    {' · '}
+                                    Script {health.worker?.detail?.script || 'unknown'}
+                                    {' · '}
+                                    Plex {health.worker?.detail?.plex?.ok ? 'ok' : 'issue'}
+                                    {health.autostart ? ' · auto-start on' : ''}
+                                </p>
+                            )}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => { void fetchHealth(); }}
+                            className="text-amber-200 font-semibold hover:underline text-xs whitespace-nowrap"
+                        >
+                            Recheck
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Config Warnings */}
             {config && isDryRun && (

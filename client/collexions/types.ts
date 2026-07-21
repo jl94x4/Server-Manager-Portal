@@ -44,8 +44,10 @@ export interface PlexCollection {
   title: string;
   library: string;
   is_pinned: boolean;
+  /** False until resolve-pins (or a full non-light list) has filled pin state */
+  pin_resolved?: boolean;
   has_label: boolean;
-  thumb: string;
+  thumb?: string | null;
   ratingKey: string;
   key?: string;
   /** Deep link to open this collection in the Plex web/app UI. */
