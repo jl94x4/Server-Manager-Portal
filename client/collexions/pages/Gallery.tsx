@@ -644,7 +644,7 @@ const Gallery: React.FC = () => {
                                             type="button"
                                             onClick={() => handleDelete(coll)}
                                             disabled={isProcessing}
-                                            className="rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 p-2 transition-colors disabled:opacity-50"
+                                            className="rounded-lg border border-border bg-card/60 text-red-400 hover:text-red-300 hover:border-red-500/40 p-2 transition-colors disabled:opacity-50"
                                             title="Delete collection from Plex"
                                         >
                                             {isDeleting
@@ -706,25 +706,39 @@ const Gallery: React.FC = () => {
                                         href={coll.plexUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className={`absolute top-2 left-2 bg-black/70 hover:bg-plex text-white rounded flex items-center gap-1 shadow-lg ring-1 ring-white/20 transition-colors ${isCompact ? 'px-1 py-0.5 text-[8px]' : 'px-2 py-1 text-[10px] font-bold'}`}
+                                        className={`absolute top-2 left-2 z-[1] bg-black/70 hover:bg-plex text-white rounded flex items-center gap-1 shadow-lg ring-1 ring-white/20 transition-colors ${isCompact ? 'px-1 py-0.5 text-[8px]' : 'px-2 py-1 text-[10px] font-bold'}`}
                                         title="Open in Plex"
                                     >
                                         <ExternalLink className={isCompact ? 'w-2.5 h-2.5' : 'w-3 h-3'} />
                                         {!isCompact && <span>Plex</span>}
                                     </a>
                                 )}
-                                {pinPending ? (
-                                    <div className={`absolute top-2 right-2 bg-black/60 text-muted font-bold rounded flex items-center gap-1 ${isCompact ? 'px-1 py-0.5 text-[8px]' : 'px-2 py-1 text-[10px]'}`}>
-                                        <RefreshCw className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} animate-spin`} />
-                                    </div>
-                                ) : coll.is_pinned ? (
-                                    <div className={`absolute top-2 right-2 bg-plex text-background font-bold rounded flex items-center gap-1 shadow-lg ring-1 ring-white/20 ${isCompact ? 'px-1 py-0.5 text-[8px]' : 'px-2 py-1 text-[10px]'}`}>
-                                        <Pin className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} fill-current`} /> PINNED
-                                    </div>
-                                ) : null}
-                                {coll.has_label && !coll.is_pinned && !pinPending && (
-                                    <div className={`absolute top-2 right-2 bg-plex/90 text-background font-bold rounded flex items-center gap-1 shadow-lg ring-1 ring-white/20 ${isCompact ? 'px-1 py-0.5 text-[8px]' : 'px-2 py-1 text-[10px]'}`}>
-                                        <CheckCircle2 className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'}`} /> TRACKED
+                                {!selectMode && (
+                                    <div className="absolute top-2 right-2 z-[1] flex flex-col items-end gap-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDelete(coll)}
+                                            disabled={isProcessing}
+                                            className={`bg-black/70 hover:bg-red-600 text-white rounded flex items-center justify-center shadow-lg ring-1 ring-white/20 transition-colors disabled:opacity-50 ${isCompact ? 'px-1 py-0.5' : 'px-2 py-1'}`}
+                                            title="Delete collection from Plex"
+                                        >
+                                            {isDeleting
+                                                ? <RefreshCw className={`${isCompact ? 'w-2.5 h-2.5' : 'w-3 h-3'} animate-spin`} />
+                                                : <Trash2 className={isCompact ? 'w-2.5 h-2.5' : 'w-3 h-3'} />}
+                                        </button>
+                                        {pinPending ? (
+                                            <div className={`bg-black/60 text-muted font-bold rounded flex items-center gap-1 ${isCompact ? 'px-1 py-0.5 text-[8px]' : 'px-2 py-1 text-[10px]'}`}>
+                                                <RefreshCw className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} animate-spin`} />
+                                            </div>
+                                        ) : coll.is_pinned ? (
+                                            <div className={`bg-plex text-background font-bold rounded flex items-center gap-1 shadow-lg ring-1 ring-white/20 ${isCompact ? 'px-1 py-0.5 text-[8px]' : 'px-2 py-1 text-[10px]'}`}>
+                                                <Pin className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} fill-current`} /> PINNED
+                                            </div>
+                                        ) : coll.has_label ? (
+                                            <div className={`bg-plex/90 text-background font-bold rounded flex items-center gap-1 shadow-lg ring-1 ring-white/20 ${isCompact ? 'px-1 py-0.5 text-[8px]' : 'px-2 py-1 text-[10px]'}`}>
+                                                <CheckCircle2 className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'}`} /> TRACKED
+                                            </div>
+                                        ) : null}
                                     </div>
                                 )}
                             </div>
@@ -754,43 +768,30 @@ const Gallery: React.FC = () => {
                                 </div>
 
                                 {!selectMode && (
-                                    <div className={`flex ${isCompact ? 'gap-1' : 'gap-2'}`}>
-                                        <button
-                                            type="button"
-                                            onClick={() => handlePinToggle(coll)}
-                                            disabled={isProcessing || pinPending}
-                                            className={`flex-1 rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all border whitespace-nowrap ${isCompact ? 'py-1 text-[10px]' : 'py-2 text-xs'} ${coll.is_pinned
-                                                ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'
-                                                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-                                                } disabled:opacity-50`}
-                                        >
-                                            {isProcessing && !isDeleting ? (
-                                                <RefreshCw className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0 animate-spin`} />
-                                            ) : coll.is_pinned ? (
-                                                <>
-                                                    <PinOff className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0`} />
-                                                    <span>Unpin</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Pin className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0`} />
-                                                    <span className={isCompact ? 'hidden' : ''}>Pin to Home</span>
-                                                    {isCompact && <span>Pin</span>}
-                                                </>
-                                            )}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleDelete(coll)}
-                                            disabled={isProcessing}
-                                            className={`rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50 flex items-center justify-center ${isCompact ? 'px-1.5 py-1' : 'px-2.5 py-2'}`}
-                                            title="Delete collection from Plex"
-                                        >
-                                            {isDeleting
-                                                ? <RefreshCw className={`${isCompact ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'} animate-spin`} />
-                                                : <Trash2 className={isCompact ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'} />}
-                                        </button>
-                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => handlePinToggle(coll)}
+                                        disabled={isProcessing || pinPending}
+                                        className={`w-full rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all border whitespace-nowrap ${isCompact ? 'py-1 text-[10px]' : 'py-2 text-xs'} ${coll.is_pinned
+                                            ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'
+                                            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                                            } disabled:opacity-50`}
+                                    >
+                                        {isProcessing && !isDeleting ? (
+                                            <RefreshCw className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0 animate-spin`} />
+                                        ) : coll.is_pinned ? (
+                                            <>
+                                                <PinOff className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0`} />
+                                                <span>Unpin</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Pin className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0`} />
+                                                <span className={isCompact ? 'hidden' : ''}>Pin to Home</span>
+                                                {isCompact && <span>Pin</span>}
+                                            </>
+                                        )}
+                                    </button>
                                 )}
                             </div>
                         </div>
