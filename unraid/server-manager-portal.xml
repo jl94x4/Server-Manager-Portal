@@ -14,7 +14,7 @@
   <WebUI>http://[IP]:[PORT:2121]/portal</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/jl94x4/Server-Manager-Portal/main/unraid/server-manager-portal.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/jl94x4/Server-Manager-Portal/main/static/logo.png</Icon>
-  <ExtraParams>--restart=unless-stopped</ExtraParams>
+  <ExtraParams>--restart=unless-stopped --hostname=server-manager-portal</ExtraParams>
   <Config Name="WebUI Port" Target="2121" Default="2121" Mode="tcp" Description="Portal web interface port." Type="Port" Display="always" Required="true" Mask="false">2121</Config>
   <Config Name="Config Directory" Target="/app/config" Default="/mnt/user/appdata/server-manager-portal/config" Mode="rw" Description="Persistent JSON data (users, settings, caches, logs). Container path: /app/config" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/server-manager-portal/config</Config>
   <Config Name="Backup Directory" Target="/app/backup" Default="/mnt/user/appdata/server-manager-portal/backup" Mode="rw" Description="Rolling backup snapshots created from Settings. Container path: /app/backup" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/server-manager-portal/backup</Config>

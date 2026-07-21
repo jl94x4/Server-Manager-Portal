@@ -380,6 +380,7 @@ def run_sync_job(job_id=None):
 
     from plexapi.server import PlexServer
     try:
+        configure_plex_identity()
         plex = PlexServer(plex_url, plex_token)
     except Exception as e:
         log_action(f"Sync failed: Plex connection error: {e}")
@@ -860,6 +861,7 @@ def validate_config_endpoint():
     # Live Plex connection + library existence (draft credentials, not saved config)
     if url and token:
         try:
+            configure_plex_identity()
             from plexapi.server import PlexServer
             plex = PlexServer(url, token, timeout=10)
             sections = list(plex.library.sections())
@@ -1102,6 +1104,7 @@ def get_plex_instance():
     if not url or not token:
         return None
     try:
+        configure_plex_identity()
         from plexapi.server import PlexServer
         _plex_cache = PlexServer(url, token)
         return _plex_cache
