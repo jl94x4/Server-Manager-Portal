@@ -2422,7 +2422,7 @@ def list_templates():
 @app.route('/api/templates/franchise-search')
 @require_auth
 def franchise_search():
-    """Search TMDB collections (franchises) by name."""
+    """Search TMDB collections (franchises) by name, including film counts."""
     config = load_config()
     tmdb_key = str(config.get('tmdb_api_key') or '').strip()
     query = str(request.args.get('q') or '').strip()
@@ -2438,17 +2438,55 @@ def franchise_search():
         )
         if resp.status_code != 200:
             return jsonify({'error': f'TMDB returned HTTP {resp.status_code}'}), 400
+
+        raw = (resp.json().get('results') or [])[:20]
+
+        def _film_count(collection_id):
+            try:
+                detail = requests.get(
+                    f"https://api.themoviedb.org/3/collection/{collection_id}",
+                    params={'api_key': tmdb_key},
+                    timeout=8,
+                )
+                if detail.status_code == 200:
+                    return len(detail.json().get('parts') or [])
+            except Exception:
+                pass
+            return None
+
+        # Parallel detail lookups so the UI can show "N films" pills quickly.
+        counts = {}
+        try:
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                futures = {
+                    pool.submit(_film_count, r.get('id')): r.get('id')
+                    for r in raw if r.get('id')
+                }
+                for fut in as_completed(futures):
+                    cid = futures[fut]
+                    try:
+                        counts[cid] = fut.result()
+                    except Exception:
+                        counts[cid] = None
+        except Exception:
+            for r in raw:
+                if r.get('id'):
+                    counts[r.get('id')] = _film_count(r.get('id'))
+
         results = []
-        for r in resp.json().get('results') or []:
+        for r in raw:
+            cid = r.get('id')
             results.append({
-                'id': r.get('id'),
+                'id': cid,
                 'name': r.get('name'),
                 'overview': (r.get('overview') or '')[:240],
                 'poster': f"https://image.tmdb.org/t/p/w342{r['poster_path']}" if r.get('poster_path') else None,
                 'source_type': 'tmdb_collection',
-                'source_id': str(r.get('id')),
+                'source_id': str(cid),
+                'film_count': counts.get(cid),
             })
-        return jsonify(results[:20])
+        return jsonify(results)
     except Exception as e:
         logging.error(f"Franchise search error: {e}")
         return jsonify({'error': str(e)}), 500

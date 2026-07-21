@@ -761,7 +761,14 @@ const Creator: React.FC = () => {
                                                         )}
                                                     </div>
                                                     <div className="min-w-0 flex-1 flex flex-col">
-                                                        <h4 className="font-bold text-text text-sm truncate">{fr.name}</h4>
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <h4 className="font-bold text-text text-sm truncate min-w-0">{fr.name}</h4>
+                                                            {typeof fr.film_count === 'number' && (
+                                                                <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-plex/15 text-plex border border-plex/30">
+                                                                    {fr.film_count} {fr.film_count === 1 ? 'film' : 'films'}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         <p className="text-xs text-muted mt-1 line-clamp-2 flex-1">{fr.overview || 'TMDB franchise collection'}</p>
                                                         <button
                                                             type="button"

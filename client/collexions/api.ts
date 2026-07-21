@@ -314,10 +314,11 @@ class CollexionsApiService {
         poster: string | null;
         source_type: string;
         source_id: string;
+        film_count?: number | null;
     }>> {
         return withTimeout(
             apiFetch(base(`/templates/franchise-search?q=${encodeURIComponent(query)}`)),
-            15000,
+            30000,
             'Franchise search',
         );
     }
