@@ -47,6 +47,9 @@ export interface PlexCollection {
   has_label: boolean;
   thumb: string;
   ratingKey: string;
+  key?: string;
+  /** Deep link to open this collection in the Plex web/app UI. */
+  plexUrl?: string;
 }
 
 export interface PinEvent {

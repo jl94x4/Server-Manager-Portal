@@ -875,6 +875,8 @@ def list_collections():
     config = load_config()
     lib_names = config.get('library_names', [])
     collexions_label = config.get('collexions_label', 'Collexions').lower()
+    from urllib.parse import quote
+    server_id = getattr(plex, 'machineIdentifier', None) or ''
     
     all_collections = []
     for lib_name in lib_names:
@@ -920,13 +922,23 @@ def list_collections():
                     from urllib.parse import urlparse
                     thumb = urlparse(thumb).path
 
+                meta_key = getattr(coll, 'key', None) or f'/library/metadata/{coll.ratingKey}'
+                plex_url = ''
+                if server_id and meta_key:
+                    plex_url = (
+                        f"https://app.plex.tv/desktop/#!/server/{server_id}/details"
+                        f"?key={quote(meta_key)}"
+                    )
+
                 all_collections.append({
                     "title": coll.title,
                     "library": lib_name,
                     "is_pinned": is_pinned,
                     "has_label": has_label,
                     "thumb": thumb,
-                    "ratingKey": coll.ratingKey
+                    "ratingKey": coll.ratingKey,
+                    "key": meta_key,
+                    "plexUrl": plex_url,
                 })
         except Exception as e:
             print(f"Error fetching collections from {lib_name}: {e}")

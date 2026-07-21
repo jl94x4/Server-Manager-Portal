@@ -12,6 +12,7 @@ import {
     Info,
     ChevronDown,
     Check,
+    ExternalLink,
 } from 'lucide-react';
 import { CustomSelect } from '../../shared/ui';
 import {
@@ -249,9 +250,21 @@ const Gallery: React.FC = () => {
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                        <h3 className="font-bold text-text truncate group-hover:text-plex transition-colors">
-                                            {coll.title}
-                                        </h3>
+                                        {coll.plexUrl ? (
+                                            <a
+                                                href={coll.plexUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="font-bold text-text truncate hover:text-plex transition-colors"
+                                                title="Open in Plex"
+                                            >
+                                                {coll.title}
+                                            </a>
+                                        ) : (
+                                            <h3 className="font-bold text-text truncate group-hover:text-plex transition-colors">
+                                                {coll.title}
+                                            </h3>
+                                        )}
                                         {coll.is_pinned && (
                                             <span className="text-[10px] font-bold uppercase bg-plex text-background px-1.5 py-0.5 rounded">Pinned</span>
                                         )}
@@ -261,29 +274,42 @@ const Gallery: React.FC = () => {
                                     </div>
                                     <p className="text-xs text-muted uppercase mt-0.5">{coll.library}</p>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={() => handlePinToggle(coll)}
-                                    disabled={isProcessing}
-                                    className={`shrink-0 rounded-lg font-bold flex items-center justify-center gap-2 transition-all border px-3 py-2 text-xs ${coll.is_pinned
-                                        ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'
-                                        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-                                        } disabled:opacity-50`}
-                                >
-                                    {isProcessing ? (
-                                        <RefreshCw className="w-3 h-3 animate-spin" />
-                                    ) : coll.is_pinned ? (
-                                        <>
-                                            <PinOff className="w-3 h-3" />
-                                            Unpin
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Pin className="w-3 h-3" />
-                                            Pin
-                                        </>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    {coll.plexUrl && (
+                                        <a
+                                            href={coll.plexUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="rounded-lg border border-border bg-card/60 text-muted hover:text-plex hover:border-plex/40 p-2 transition-colors"
+                                            title="Open in Plex"
+                                        >
+                                            <ExternalLink className="w-3.5 h-3.5" />
+                                        </a>
                                     )}
-                                </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handlePinToggle(coll)}
+                                        disabled={isProcessing}
+                                        className={`rounded-lg font-bold flex items-center justify-center gap-2 transition-all border px-3 py-2 text-xs ${coll.is_pinned
+                                            ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'
+                                            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                                            } disabled:opacity-50`}
+                                    >
+                                        {isProcessing ? (
+                                            <RefreshCw className="w-3 h-3 animate-spin" />
+                                        ) : coll.is_pinned ? (
+                                            <>
+                                                <PinOff className="w-3 h-3" />
+                                                Unpin
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Pin className="w-3 h-3" />
+                                                Pin
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
                             </div>
                         );
                     }
@@ -294,7 +320,29 @@ const Gallery: React.FC = () => {
                             className={`group relative flex flex-col bg-card/50 border border-border overflow-hidden hover:border-plex/40 transition-all hover:shadow-2xl hover:shadow-black/50 ${isCompact ? 'rounded-xl' : 'rounded-2xl'}`}
                         >
                             <div className="aspect-[2/3] bg-card relative overflow-hidden">
-                                {coll.thumb ? (
+                                {coll.plexUrl ? (
+                                    <a
+                                        href={coll.plexUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block w-full h-full"
+                                        title="Open in Plex"
+                                    >
+                                        {coll.thumb ? (
+                                            <img
+                                                src={collexionsImageUrl(coll.thumb)}
+                                                alt={coll.title}
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                                loading="lazy"
+                                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center bg-card text-muted">
+                                                <ImageIcon className="w-10 h-10 opacity-30" />
+                                            </div>
+                                        )}
+                                    </a>
+                                ) : coll.thumb ? (
                                     <img
                                         src={collexionsImageUrl(coll.thumb)}
                                         alt={coll.title}
@@ -306,6 +354,18 @@ const Gallery: React.FC = () => {
                                     <div className="w-full h-full flex items-center justify-center bg-card text-muted">
                                         <ImageIcon className="w-10 h-10 opacity-30" />
                                     </div>
+                                )}
+                                {coll.plexUrl && (
+                                    <a
+                                        href={coll.plexUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={`absolute top-2 left-2 bg-black/70 hover:bg-plex text-white rounded flex items-center gap-1 shadow-lg ring-1 ring-white/20 transition-colors ${isCompact ? 'px-1 py-0.5 text-[8px]' : 'px-2 py-1 text-[10px] font-bold'}`}
+                                        title="Open in Plex"
+                                    >
+                                        <ExternalLink className={isCompact ? 'w-2.5 h-2.5' : 'w-3 h-3'} />
+                                        {!isCompact && <span>Plex</span>}
+                                    </a>
                                 )}
                                 {coll.is_pinned && (
                                     <div className={`absolute top-2 right-2 bg-plex text-background font-bold rounded flex items-center gap-1 shadow-lg ring-1 ring-white/20 ${isCompact ? 'px-1 py-0.5 text-[8px]' : 'px-2 py-1 text-[10px]'}`}>
@@ -321,9 +381,21 @@ const Gallery: React.FC = () => {
 
                             <div className={`${isCompact ? 'p-2' : 'p-4'} flex-1 flex flex-col justify-between`}>
                                 <div className={isCompact ? 'mb-1' : 'mb-3'}>
-                                    <h3 className={`font-bold text-text line-clamp-2 leading-snug group-hover:text-plex transition-colors ${isCompact ? 'text-[10px]' : 'text-sm'}`}>
-                                        {coll.title}
-                                    </h3>
+                                    {coll.plexUrl ? (
+                                        <a
+                                            href={coll.plexUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className={`font-bold text-text line-clamp-2 leading-snug hover:text-plex transition-colors block ${isCompact ? 'text-[10px]' : 'text-sm'}`}
+                                            title="Open in Plex"
+                                        >
+                                            {coll.title}
+                                        </a>
+                                    ) : (
+                                        <h3 className={`font-bold text-text line-clamp-2 leading-snug group-hover:text-plex transition-colors ${isCompact ? 'text-[10px]' : 'text-sm'}`}>
+                                            {coll.title}
+                                        </h3>
+                                    )}
                                     {!isCompact && (
                                         <p className="text-[10px] text-muted font-medium uppercase mt-1">
                                             {coll.library}
@@ -335,22 +407,22 @@ const Gallery: React.FC = () => {
                                     type="button"
                                     onClick={() => handlePinToggle(coll)}
                                     disabled={isProcessing}
-                                    className={`w-full rounded-lg font-bold flex items-center justify-center gap-2 transition-all border ${isCompact ? 'py-1 text-[10px]' : 'py-2 text-xs'} ${coll.is_pinned
+                                    className={`w-full rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all border whitespace-nowrap ${isCompact ? 'py-1 text-[10px]' : 'py-2 text-xs'} ${coll.is_pinned
                                         ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'
                                         : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
                                         } disabled:opacity-50`}
                                 >
                                     {isProcessing ? (
-                                        <RefreshCw className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} animate-spin`} />
+                                        <RefreshCw className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0 animate-spin`} />
                                     ) : coll.is_pinned ? (
                                         <>
-                                            <PinOff className={isCompact ? 'w-2 h-2' : 'w-3 h-3'} />
-                                            <span className={isCompact ? 'hidden' : ''}>Unpin from Home</span>
+                                            <PinOff className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0`} />
+                                            <span className={isCompact ? 'hidden' : ''}>Unpin</span>
                                             {isCompact && <span>Unpin</span>}
                                         </>
                                     ) : (
                                         <>
-                                            <Pin className={isCompact ? 'w-2 h-2' : 'w-3 h-3'} />
+                                            <Pin className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0`} />
                                             <span className={isCompact ? 'hidden' : ''}>Pin to Home</span>
                                             {isCompact && <span>Pin</span>}
                                         </>

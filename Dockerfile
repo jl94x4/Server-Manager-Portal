@@ -45,9 +45,9 @@ COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/static ./static
 
 # Bundled Collexions worker (Flask + ColleXions.py) — no second container required.
-COPY ColleXions-WebUI-main/requirements.txt /app/collexions/requirements.txt
-COPY ColleXions-WebUI-main/server.py /app/collexions/server.py
-COPY ColleXions-WebUI-main/ColleXions.py /app/collexions/ColleXions.py
+COPY collexions/requirements.txt /app/collexions/requirements.txt
+COPY collexions/server.py /app/collexions/server.py
+COPY collexions/ColleXions.py /app/collexions/ColleXions.py
 RUN python3 -m venv /opt/collexions-venv \
     && /opt/collexions-venv/bin/pip install --no-cache-dir -r /app/collexions/requirements.txt \
     && /opt/collexions-venv/bin/pip install --no-cache-dir bcrypt werkzeug \

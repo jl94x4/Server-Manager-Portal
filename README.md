@@ -206,7 +206,7 @@ A powerful, built-in tool for server admins to identify and upgrade sub-optimal 
 
 ### Collexions
 
-Admin-only Plex collection automation. The portal ships the React UI and **bundles** the Flask/`ColleXions.py` worker inside the same Docker image. Enable under **Settings → Collexions** and save — the portal starts the worker on localhost automatically (service key and internal URL are generated for you).
+Admin-only Plex collection automation. The portal ships the React UI (`client/collexions/`) and **bundles** the Flask/`ColleXions.py` worker from `collexions/` inside the same Docker image. Enable under **Settings → Collexions** and save — the portal starts the worker on localhost automatically (service key and internal URL are generated for you).
 
 Onboarding (and Config → Import from portal) auto-fills Plex URL/token and TMDB from portal Settings when available; Trakt/MDBList are still entered in Collexions if you use them. Migrating from standalone Collexions: use **Config → Import config.json** with your existing file, review, then **Save Config**. Worker state lives under `config/collexions/` on the portal volume.
 
@@ -586,11 +586,12 @@ Server-Manager-Portal/
 │   ├── home/           # User dashboard layout and widget renderers
 │   ├── requests/       # Seerr-style request review UI (admin panel, approval modal, home widget)
 │   ├── upgrader/       # Library Upgrader poster browse (non-HEVC scan)
-│   ├── collexions/     # Collexions admin UI (bundled Flask worker proxied locally)
+│   ├── collexions/     # Collexions admin UI (proxied to bundled worker)
 │   ├── settings/       # Settings UI (Media Server, Home Layout, System, Background Tasks)
 │   ├── shared/         # API helpers, types, theme, skeletons, wrap-up cards
 │   ├── setup/          # First-time setup wizard
 │   └── maintenance/    # Library maintenance panel
+├── collexions/         # Bundled Collexions worker (Flask + ColleXions.py)
 ├── input.css           # Tailwind CSS source
 ├── static/
 │   ├── bundle.js       # Built React frontend
