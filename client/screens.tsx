@@ -9543,28 +9543,28 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                         aria-label="Close profile modal"
                         onClick={() => setProfileOpen(false)}
                     />
-                    <div className="absolute left-6 bottom-6 w-[21rem] max-w-[calc(100vw-3rem)] rounded-2xl border border-border bg-card shadow-2xl overflow-hidden animate-fade-in">
-                        <div className="p-5 border-b border-border/70">
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="flex items-center gap-3 min-w-0">
+                    <div className="absolute left-5 bottom-4 w-[calc(18rem-2.5rem)] max-w-[calc(18rem-2.5rem)] rounded-2xl border border-border bg-card shadow-2xl overflow-hidden animate-fade-in">
+                        <div className="p-4 border-b border-border/70">
+                            <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
                                     <img
                                         src={profileIcon}
                                         alt={`${profileName} profile`}
-                                        className="w-14 h-14 flex-shrink-0 rounded-full object-cover bg-background/60 border border-white/10"
+                                        className="w-11 h-11 flex-shrink-0 rounded-full object-cover bg-background/60 border border-white/10"
                                         onError={(e) => {
                                             (e.target as HTMLImageElement).src = logoUrl();
                                         }}
                                     />
                                     <div className="min-w-0">
-                                        <p className="text-lg font-black text-text truncate">{profileName}</p>
-                                        <p className="text-[10px] uppercase tracking-[0.25em] text-plex font-bold mt-0.5">{providerName} Profile</p>
+                                        <p className="text-base font-black text-text truncate">{profileName}</p>
+                                        <p className="text-[10px] uppercase tracking-[0.2em] text-plex font-bold mt-0.5">{providerName} Profile</p>
                                         {profileEmail && <p className="text-xs text-muted truncate mt-1">{profileEmail}</p>}
                                     </div>
                                 </div>
                                 <button
                                     type="button"
                                     onClick={() => setProfileOpen(false)}
-                                    className="p-2 rounded-lg text-muted hover:text-text hover:bg-white/5 transition-colors"
+                                    className="p-1.5 rounded-lg text-muted hover:text-text hover:bg-white/5 transition-colors shrink-0"
                                     aria-label="Close profile modal"
                                 >
                                     <X className="w-4 h-4" />
@@ -9572,7 +9572,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                             </div>
                         </div>
 
-                        <div className="p-5">
+                        <div className="p-4">
                             <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-muted font-bold">
                                 <Palette className="w-3.5 h-3.5 text-plex" />
                                 Theme
