@@ -7167,6 +7167,13 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
         </div>
     );
 };
+const StreamSpecCard: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+    <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-3 min-w-0">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-1.5">{label}</p>
+        {children}
+    </div>
+);
+
 const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?: boolean, onKilled?: () => void, providerLabel?: string }> = ({ session, onClose, isAdmin, onKilled, providerLabel = 'Plex' }) => {
     const [killReason, setKillReason] = useState('');
     const [isKilling, setIsKilling] = useState(false);
@@ -7191,6 +7198,28 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
         ? `https://www.google.com/maps?q=${encodeURIComponent(`${geoLat},${geoLon}`)}`
         : '';
 
+    const showTitle = session.grandparentTitle || session.title;
+    const episodeLine = session.grandparentTitle
+        ? [
+            session.title,
+            session.type === 'episode' && session.season !== undefined
+                ? `S${String(session.season).padStart(2, '0')}E${String(session.episode).padStart(2, '0')}`
+                : null,
+        ].filter(Boolean).join(' · ')
+        : (session.type === 'episode' && session.season !== undefined
+            ? `S${String(session.season).padStart(2, '0')}E${String(session.episode).padStart(2, '0')}`
+            : '');
+    const progressPct = Math.min(100, Math.max(0, Number(session.progress) || 0));
+    const resolutionLabel = session.resolution
+        ? (String(session.resolution).includes('p') || String(session.resolution).includes('k')
+            ? String(session.resolution).toUpperCase()
+            : `${session.resolution}p`)
+        : null;
+    const isLocal = session.sessionLocation === 'lan';
+    const bandwidthLabel = Number.isFinite(Number(session.bandwidth))
+        ? `${(Number(session.bandwidth) / 1000).toFixed(1)} Mbps`
+        : null;
+
     const handleKill = async () => {
         setIsKilling(true);
         try {
@@ -7211,81 +7240,155 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
             setIsKilling(false);
         }
     };
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-card w-full max-w-2xl md:max-w-5xl lg:max-w-6xl md:min-h-[500px] lg:min-h-[600px] max-h-[90vh] md:max-h-[85vh] rounded-2xl overflow-y-auto custom-scrollbar md:overflow-hidden shadow-2xl relative flex flex-col md:flex-row" onClick={e => e.stopPropagation()}>
-                {/* Poster Side */}
-                <div className="w-full md:w-2/5 lg:w-1/3 relative bg-black flex-shrink-0">
-                    <div className="w-full aspect-square md:aspect-auto md:h-full relative">
-                        <img
-                            src={sessionPosterSrc}
-                            alt={session.title}
-                            onError={(e) => {
-                                if (sessionFallbackPosterSrc && e.currentTarget.src !== sessionFallbackPosterSrc) {
-                                    e.currentTarget.src = sessionFallbackPosterSrc;
-                                }
-                            }}
-                            className="absolute inset-0 w-full h-full object-cover object-top md:object-center opacity-80"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent md:bg-gradient-to-r"></div>
-                    </div>
-                    {/* User Avatar Badge */}
-                    {session.user && (
-                        <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/60 backdrop-blur-md rounded-full pr-4 p-1.5 shadow-lg border border-white/10 z-10">
-                            <img src={sessionUserThumbSrc} className="w-8 h-8 rounded-full object-cover" onError={(e) => { e.currentTarget.src = 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'; }} />
-                            <span className="text-xs font-bold text-white truncate max-w-[120px]">{session.user}</span>
-                        </div>
-                    )}
-                </div>
-
-                {/* Details Side */}
-                <div className="p-6 md:p-8 flex flex-col flex-grow relative md:overflow-y-auto custom-scrollbar">
-                    <button onClick={onClose} className="absolute top-4 right-4 text-muted hover:text-white transition-colors bg-white/5 rounded-full p-2 z-10">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-
-                    <h2 className="text-2xl font-bold text-text leading-tight mb-1 pr-10">{session.grandparentTitle || session.title}</h2>
-                    <p className="text-base text-muted mb-4">{session.grandparentTitle ? session.title : ''} {session.type === 'episode' && session.season !== undefined ? `| S${String(session.season).padStart(2, '0')}E${String(session.episode).padStart(2, '0')}` : ''}</p>
-
-                    <div className="flex flex-wrap gap-2 mb-6">
-                        {session.resolution && <span className="bg-white/10 text-white/90 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border border-white/10">{session.resolution.includes('p') || session.resolution.includes('k') ? session.resolution : `${session.resolution}p`}</span>}
-                        <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border ${session.sessionLocation === 'lan' ? 'bg-status-active/20 text-status-active border-status-active/30' : 'bg-plex/20 text-plex border-plex/30'}`}>{session.sessionLocation === 'lan' ? 'Local' : 'Remote'}</span>
-                        <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border ${session.isTranscoding ? 'bg-status-expiring/20 text-status-expiring border-status-expiring/30' : 'bg-status-active/20 text-status-active border-status-active/30'}`}>{session.isTranscoding ? 'Transcode' : 'Direct Play'}</span>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="stream-details-title"
+                className="relative w-full sm:max-w-2xl lg:max-w-3xl max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-0.5rem))] sm:max-h-[85vh] bg-card border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+                onClick={e => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="flex items-start gap-4 p-5 border-b border-white/10 bg-black/20 shrink-0">
+                    <div className="w-[4.5rem] h-[6.75rem] sm:w-24 sm:h-36 rounded-xl overflow-hidden flex-shrink-0 bg-black/40 border border-white/10 shadow-lg">
+                        {session.thumb || session.thumbUrl ? (
+                            <img
+                                src={sessionPosterSrc}
+                                alt=""
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                    if (sessionFallbackPosterSrc && e.currentTarget.src !== sessionFallbackPosterSrc) {
+                                        e.currentTarget.src = sessionFallbackPosterSrc;
+                                    }
+                                }}
+                            />
+                        ) : (
+                            <NoPosterPlaceholder compact />
+                        )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-4 mb-6">
-                        <div>
-                            <p className="text-[10px] text-muted uppercase tracking-widest font-bold mb-1">Player</p>
-                            <p className="text-sm font-medium truncate" title={session.playerTitle}>{session.playerTitle}</p>
-                            <p className="text-xs text-muted/80 truncate" title={session.playerProduct}>{session.playerProduct}</p>
-                        </div>
-                        <div>
-                            <p className="text-[10px] text-muted uppercase tracking-widest font-bold mb-1">Network</p>
-                            <p className="text-sm font-medium">{isAdmin ? (session.playerAddress || 'Unknown IP') : 'Hidden'}</p>
-                            <p className="text-xs text-muted/80">{(session.bandwidth / 1000).toFixed(1)} Mbps</p>
-                            {geo?.label && (
-                                <p className="text-xs text-plex mt-1.5 flex items-start gap-1">
-                                    <MapPin className="w-3 h-3 mt-0.5 shrink-0" />
-                                    <span>{geo.label}</span>
-                                </p>
+                    <div className="min-w-0 flex-1 pt-0.5">
+                        {session.user && (
+                            <div className="inline-flex items-center gap-2 mb-2 rounded-full border border-white/10 bg-white/5 pl-1 pr-2.5 py-1">
+                                <img
+                                    src={sessionUserThumbSrc}
+                                    alt=""
+                                    className="w-5 h-5 rounded-full object-cover"
+                                    onError={(e) => { e.currentTarget.src = 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'; }}
+                                />
+                                <span className="text-[11px] font-bold text-white/80 truncate max-w-[10rem]">{session.user}</span>
+                            </div>
+                        )}
+                        <h2 id="stream-details-title" className="text-xl sm:text-2xl font-black text-text leading-tight tracking-tight">
+                            {showTitle}
+                        </h2>
+                        {episodeLine ? (
+                            <p className="text-sm text-muted mt-1 leading-snug">{episodeLine}</p>
+                        ) : null}
+
+                        <div className="flex flex-wrap gap-1.5 mt-3">
+                            {resolutionLabel && (
+                                <span className="text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide bg-white/10 text-white/80 border border-white/10">
+                                    {resolutionLabel}
+                                </span>
+                            )}
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide border ${
+                                isLocal
+                                    ? 'bg-status-active/15 text-status-active border-status-active/25'
+                                    : 'bg-plex/15 text-plex border-plex/30'
+                            }`}>
+                                {isLocal ? 'Local' : 'Remote'}
+                            </span>
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide border ${
+                                session.isTranscoding
+                                    ? 'bg-status-expiring/15 text-status-expiring border-status-expiring/25'
+                                    : 'bg-status-active/15 text-status-active border-status-active/25'
+                            }`}>
+                                {session.isTranscoding ? 'Transcode' : 'Direct Play'}
+                            </span>
+                            {session.state && session.state !== 'playing' && (
+                                <span className="text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide bg-white/10 text-white/70 border border-white/10">
+                                    {session.state}
+                                </span>
                             )}
                         </div>
 
-                        <div>
-                            <p className="text-[10px] text-muted uppercase tracking-widest font-bold mb-1">Video</p>
-                            <p className="text-sm font-medium uppercase">{session.videoCodec || 'Unknown'} {session.videoProfile ? `(${session.videoProfile})` : ''}</p>
-                            {session.transcodeVideoDecision === 'transcode' && <p className="text-[10px] text-status-expiring font-bold">Transcoding</p>}
-                        </div>
-                        <div>
-                            <p className="text-[10px] text-muted uppercase tracking-widest font-bold mb-1">Audio</p>
-                            <p className="text-sm font-medium uppercase">{session.audioCodec || 'Unknown'} {session.audioChannels ? `(${session.audioChannels}ch)` : ''}</p>
-                            {session.transcodeAudioDecision === 'transcode' && <p className="text-[10px] text-status-expiring font-bold">Transcoding</p>}
-                        </div>
+                        {progressPct > 0 && (
+                            <div className="mt-3.5 max-w-md">
+                                <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                                    <div className="h-full rounded-full bg-plex transition-all" style={{ width: `${progressPct}%` }} />
+                                </div>
+                                <p className="text-[10px] text-muted mt-1.5 font-medium">{Math.round(progressPct)}% watched</p>
+                            </div>
+                        )}
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="p-2 rounded-full hover:bg-white/10 text-white/45 hover:text-white transition-colors shrink-0"
+                        aria-label="Close"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-5 flex flex-col gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <StreamSpecCard label="Player">
+                            <p className="text-sm font-semibold text-text truncate" title={session.playerTitle}>{session.playerTitle || 'Unknown'}</p>
+                            <p className="text-xs text-muted truncate mt-0.5" title={session.playerProduct}>{session.playerProduct || '—'}</p>
+                        </StreamSpecCard>
+                        <StreamSpecCard label="Network">
+                            <p className="text-sm font-semibold text-text font-mono tracking-tight">
+                                {isAdmin ? (session.playerAddress || 'Unknown IP') : 'Hidden'}
+                            </p>
+                            {bandwidthLabel && <p className="text-xs text-muted mt-0.5">{bandwidthLabel}</p>}
+                        </StreamSpecCard>
+                        <StreamSpecCard label="Video">
+                            <p className="text-sm font-semibold text-text uppercase tracking-wide">
+                                {session.videoCodec || 'Unknown'}
+                                {session.videoProfile ? ` · ${session.videoProfile}` : ''}
+                            </p>
+                            {session.transcodeVideoDecision === 'transcode' && (
+                                <p className="text-[10px] text-status-expiring font-bold mt-1">Transcoding</p>
+                            )}
+                        </StreamSpecCard>
+                        <StreamSpecCard label="Audio">
+                            <p className="text-sm font-semibold text-text uppercase tracking-wide">
+                                {session.audioCodec || 'Unknown'}
+                                {session.audioChannels ? ` · ${session.audioChannels}ch` : ''}
+                            </p>
+                            {session.transcodeAudioDecision === 'transcode' && (
+                                <p className="text-[10px] text-status-expiring font-bold mt-1">Transcoding</p>
+                            )}
+                        </StreamSpecCard>
                     </div>
 
                     {geo && osmEmbedUrl && (
-                        <div className="mb-6 rounded-xl overflow-hidden border border-white/10 bg-black/20">
-                            <div className="relative w-full aspect-[16/9] sm:aspect-[2.2/1] max-h-48">
+                        <div className="rounded-xl overflow-hidden border border-white/10 bg-white/[0.03]">
+                            <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 border-b border-white/10">
+                                <div className="min-w-0 flex items-center gap-2">
+                                    <MapPin className="w-3.5 h-3.5 text-plex shrink-0" />
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-text truncate">{geo.label}</p>
+                                        <p className="text-[10px] text-muted">Approximate location from IP</p>
+                                    </div>
+                                </div>
+                                <a
+                                    href={googleMapsUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold text-plex hover:text-plex-hover transition-colors"
+                                >
+                                    <ExternalLink className="w-3 h-3" />
+                                    Google Maps
+                                </a>
+                            </div>
+                            <div className="relative w-full h-40 sm:h-44">
                                 <iframe
                                     title={`Approximate location: ${geo.label}`}
                                     src={osmEmbedUrl}
@@ -7294,45 +7397,60 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
                                     referrerPolicy="no-referrer-when-downgrade"
                                 />
                             </div>
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 py-2.5 border-t border-white/10">
-                                <p className="text-[11px] text-muted">Approximate location from IP</p>
-                                <a
-                                    href={googleMapsUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-1.5 text-[11px] font-bold text-plex hover:text-plex-hover transition-colors"
-                                >
-                                    <ExternalLink className="w-3 h-3" />
-                                    Open in Google Maps
-                                </a>
-                            </div>
                         </div>
                     )}
+                </div>
 
-                    <div className="mt-auto flex flex-col gap-3 pt-4 border-t border-white/5">
-                        {isAdmin && session.sessionId && (
-                            showKillConfirm ? (
-                                <div className="flex flex-col gap-2 bg-red-500/10 border border-red-500/20 p-3 rounded-lg">
-                                    <input type="text" placeholder="Reason (Optional)" value={killReason} onChange={e => setKillReason(e.target.value)} className="w-full bg-black/30 border border-red-500/30 rounded px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:border-red-500" />
-                                    <div className="flex gap-2">
-                                        <button onClick={handleKill} disabled={isKilling} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2 rounded transition-colors text-sm">
-                                            {isKilling ? 'Killing...' : 'Confirm Kill'}
-                                        </button>
-                                        <button onClick={() => setShowKillConfirm(false)} className="px-4 bg-white/10 hover:bg-white/20 text-white font-bold py-2 rounded transition-colors text-sm">
-                                            Cancel
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <button onClick={() => setShowKillConfirm(true)} className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 font-bold py-2.5 rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
+                {/* Footer actions */}
+                <div className="shrink-0 border-t border-white/10 bg-black/20 p-4 sm:p-5">
+                    {isAdmin && session.sessionId && showKillConfirm ? (
+                        <div className="flex flex-col gap-2 rounded-xl border border-red-500/25 bg-red-500/10 p-3">
+                            <input
+                                type="text"
+                                placeholder="Reason (optional)"
+                                value={killReason}
+                                onChange={e => setKillReason(e.target.value)}
+                                className="w-full bg-black/30 border border-red-500/30 rounded-lg px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:border-red-500"
+                            />
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handleKill}
+                                    disabled={isKilling}
+                                    className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2.5 rounded-xl transition-colors text-sm disabled:opacity-50"
+                                >
+                                    {isKilling ? 'Terminating…' : 'Confirm terminate'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowKillConfirm(false)}
+                                    className="px-4 bg-white/10 hover:bg-white/15 text-white font-bold py-2.5 rounded-xl transition-colors text-sm"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className={`grid gap-2.5 ${isAdmin && session.sessionId ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+                            {isAdmin && session.sessionId && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowKillConfirm(true)}
+                                    className="w-full order-2 sm:order-1 bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/30 font-bold py-3 rounded-xl transition-colors text-sm inline-flex items-center justify-center gap-2"
+                                >
                                     <X className="w-4 h-4" /> Terminate Stream
                                 </button>
-                            )
-                        )}
-                        <a href={session.plexUrl} target="_blank" rel="noreferrer" className="flex-1 bg-plex text-background font-bold text-center py-3 rounded-lg hover:bg-plex-hover transition-colors shadow-lg">
-                            Open in {providerLabel}
-                        </a>
-                    </div>
+                            )}
+                            <a
+                                href={session.plexUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="w-full order-1 sm:order-2 bg-plex hover:bg-plex-hover text-background font-bold text-center py-3 rounded-xl transition-colors text-sm inline-flex items-center justify-center gap-2"
+                            >
+                                Open in {providerLabel}
+                            </a>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
