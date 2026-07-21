@@ -1,4 +1,5 @@
 import type { AppConfig } from './types';
+import { mmDdToDisplay, normalizeSpecialDateFormat } from './specialDates';
 
 export type ConflictTab = 'exclusions' | 'specials' | 'categories' | 'libraries';
 
@@ -19,6 +20,7 @@ export function findConfigConflicts(config: AppConfig): ConfigConflict[] {
     const exclusionSet = new Set(exclusions);
     const regexes = config.regex_exclusion_patterns || [];
     const specials = config.special_collections || [];
+    const dateFmt = normalizeSpecialDateFormat(config.special_date_format);
     const categoriesByLib = config.categories || {};
     const pinSlots = config.number_of_collections_to_pin || {};
     const randomMode = !!config.use_random_category_mode;
@@ -57,7 +59,7 @@ export function findConfigConflicts(config: AppConfig): ConfigConflict[] {
     // Special titles → which events
     const specialTitleMap = new Map<string, string[]>();
     specials.forEach((spec, idx) => {
-        const label = `${spec.start_date || '?'}–${spec.end_date || '?'} (#${idx + 1})`;
+        const label = `${mmDdToDisplay(spec.start_date || '', dateFmt)}–${mmDdToDisplay(spec.end_date || '', dateFmt)} (#${idx + 1})`;
         for (const raw of spec.collection_names || []) {
             const title = norm(raw);
             if (!title) continue;

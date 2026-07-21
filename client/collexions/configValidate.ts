@@ -1,5 +1,6 @@
 import type { AppConfig } from './types';
 import { findConfigConflicts } from './configConflicts';
+import { displayToMmDd } from './specialDates';
 
 export type ConfigValidationIssue = {
     id: string;
@@ -83,6 +84,28 @@ export function validateConfigLocal(config: AppConfig): ConfigValidationIssue[] 
                 severity: 'error',
                 message: `Invalid regex exclusion: ${p}`,
             });
+        }
+    });
+
+    (config.special_collections || []).forEach((spec, idx) => {
+        for (const field of ['start_date', 'end_date'] as const) {
+            const raw = norm(spec[field]);
+            if (!raw) {
+                issues.push({
+                    id: `special-empty:${idx}:${field}`,
+                    severity: 'error',
+                    message: `Special event #${idx + 1} is missing ${field === 'start_date' ? 'start' : 'end'} date.`,
+                });
+                continue;
+            }
+            // Stored values must always be valid MM-DD
+            if (!displayToMmDd(raw, 'MM-DD')) {
+                issues.push({
+                    id: `special-bad:${idx}:${field}`,
+                    severity: 'error',
+                    message: `Special event #${idx + 1} has invalid ${field === 'start_date' ? 'start' : 'end'} date "${raw}" (expected MM-DD).`,
+                });
+            }
         }
     });
 

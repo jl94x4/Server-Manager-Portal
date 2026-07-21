@@ -25,6 +25,8 @@ export interface AppConfig {
   exclusion_list: string[];
   regex_exclusion_patterns: string[];
   special_collections: SpecialCollection[];
+  /** UI display preference only — dates in special_collections stay stored as MM-DD. */
+  special_date_format: 'MM-DD' | 'DD-MM';
   library_names: string[];
   number_of_collections_to_pin: Record<string, number>;
   categories: Record<string, CategoryConfig[]>;

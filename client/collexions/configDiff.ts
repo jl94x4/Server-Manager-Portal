@@ -21,6 +21,7 @@ const FIELD_LABELS: Record<string, string> = {
     exclusion_list: 'Exclusion list',
     regex_exclusion_patterns: 'Regex exclusions',
     special_collections: 'Special events',
+    special_date_format: 'Special date format',
     library_names: 'Libraries',
     number_of_collections_to_pin: 'Pin limits',
     categories: 'Categories',

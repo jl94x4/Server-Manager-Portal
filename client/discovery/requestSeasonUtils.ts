@@ -204,7 +204,7 @@ const fulfilledSeasonLabel = (label: string) => (
     label === 'Available' || label === 'Up to date'
 );
 
-/** True when every aired season is in the library (Sonarr-confirmed or inferred from stale Seerr state). */
+/** True when every aired season is actually on disk — never from approve alone. */
 export const isTvShowLibraryComplete = (
     details: any,
     seasonRows: SeasonStatusInfo[],
@@ -212,11 +212,16 @@ export const isTvShowLibraryComplete = (
 ): boolean => {
     const info = mediaInfo || details?.mediaInfo;
     if (hasActiveShowDownloads(details, info)) return false;
-    if (details?.sonarrLibraryStatus?.showComplete) return true;
 
-    const status = Number(info?.status);
-    if (status === MEDIA_STATUS.AVAILABLE) return true;
+    const sonarr = details?.sonarrLibraryStatus;
+    // Sonarr is the source of truth when the portal can see the series.
+    if (sonarr?.matched) {
+        if (sonarr.hasActiveDownloads) return false;
+        return !!sonarr.showComplete;
+    }
 
+    // Without Sonarr verification, do not trust Seerr show-level AVAILABLE /
+    // Approved — those flip on approve, before files land on disk.
     if (seasonRows.length > 0) {
         const requestable = seasonRows.filter((s) => s.requestable);
         if (requestable.length > 0) return false;
@@ -224,20 +229,10 @@ export const isTvShowLibraryComplete = (
         const mainRows = seasonRows.filter((s) => isMainSeasonNumber(s.seasonNumber));
         if (!mainRows.length) return false;
 
-        if (mainRows.every((s) => fulfilledSeasonLabel(s.statusLabel))) return true;
-
-        if (isEndedShow(details) && !hasActiveSeerrDownloads(info)) {
-            return mainRows.every((s) => (
-                fulfilledSeasonLabel(s.statusLabel) || s.statusLabel === 'Approved'
-            ));
-        }
-
-        return false;
+        // Approved / Requested / Processing mean fulfillment is still in flight.
+        return mainRows.every((s) => fulfilledSeasonLabel(s.statusLabel));
     }
 
-    if (!isEndedShow(details)) return false;
-    if (status === MEDIA_STATUS.PARTIAL) return true;
-    if (status === MEDIA_STATUS.PROCESSING && !hasActiveSeerrDownloads(info)) return true;
     return false;
 };
 
@@ -387,6 +382,18 @@ export const applySonarrLibrarySeasonOverrides = (
                 requestable: false,
                 statusLabel: resolvePartialSeasonLabel(details, seasonNumber),
                 libraryStatus: MEDIA_STATUS.PARTIAL,
+            };
+        }
+
+        // Seerr often marks seasons Available once approved/sent to Sonarr even
+        // with 0 files on disk — prefer Processing/Requested from Sonarr truth.
+        if (Number(probe.airedTotal) > 0 || Number(probe.total) > 0) {
+            const downloading = !!sonarr.hasActiveDownloads;
+            return {
+                ...row,
+                requestable: false,
+                statusLabel: downloading ? 'Processing' : 'Requested',
+                libraryStatus: MEDIA_STATUS.PROCESSING,
             };
         }
 

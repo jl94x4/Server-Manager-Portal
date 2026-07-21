@@ -161,6 +161,10 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
     const requestedSeasons = seasonRows.filter((s) => s.statusLabel === 'Requested');
     const returningSeries = isReturningSeries(item);
     const endedShow = isEndedShow(item);
+    // Seerr flips seasons/show to Available on approve; don't treat that as on-disk
+    // unless Sonarr (or tvLibraryComplete) already confirmed files.
+    const approvalStillOpen = userRequestStatus === REQUEST_STATUS.APPROVED
+        && !(item?.sonarrLibraryStatus?.matched && item.sonarrLibraryStatus.showComplete);
 
     if (mediaType === 'tv' && seasonRows.length > 0) {
         const requestable = seasonRows.filter((s) => s.requestable);
@@ -173,7 +177,7 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
         );
         const mainHandled = handledSeasons.filter((s) => isMainSeasonNumber(s.seasonNumber));
 
-        if (endedShow && mainRequestable.length === 0 && mainHandled.length > 0
+        if (!approvalStillOpen && endedShow && mainRequestable.length === 0 && mainHandled.length > 0
             && (mainAvailable.length > 0 || mainUpToDate.length > 0)) {
             return {
                 ...base,
@@ -183,7 +187,7 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
             };
         }
 
-        if (requestable.length === 0 && handledSeasons.length > 0) {
+        if (!approvalStillOpen && requestable.length === 0 && handledSeasons.length > 0) {
             if (returningSeries && hasAnyEpisodeAired(item)) {
                 return {
                     ...base,
@@ -223,7 +227,7 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
                 detail: `${mainIncomplete.length} season${mainIncomplete.length === 1 ? '' : 's'} missing episodes in your library.`,
             };
         }
-        if (processingSeasons.length > 0) {
+        if (processingSeasons.length > 0 || (approvalStillOpen && hasActiveShowDownloads(item, mediaInfo))) {
             return {
                 ...base,
                 kind: 'processing',
@@ -234,16 +238,20 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
         if (inProgressDisplay) {
             return { ...base, ...inProgressDisplay };
         }
-        if (requestedSeasons.length > 0) {
+        if (requestedSeasons.length > 0 || approvalStillOpen) {
             return {
                 ...base,
                 kind: 'requested',
                 label: 'Requested',
-                detail: 'Your request was sent to the media server and is waiting to download.',
+                detail: approvalStillOpen
+                    ? (hasAnyEpisodeAired(item)
+                        ? 'Approved — waiting for downloads to finish.'
+                        : 'Your request is approved. New episodes will download as they air.')
+                    : 'Your request was sent to the media server and is waiting to download.',
             };
         }
         if (approvedSeasons.length > 0 || userRequestStatus === REQUEST_STATUS.APPROVED) {
-            if (hasActiveSeerrDownloads(mediaInfo)) {
+            if (hasActiveSeerrDownloads(mediaInfo) || hasActiveShowDownloads(item, mediaInfo)) {
                 return {
                     ...base,
                     kind: 'processing',
@@ -300,7 +308,9 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
         }
     }
 
-    if (mediaStatus === MEDIA_STATUS.AVAILABLE) {
+    // Seerr show-level AVAILABLE is unreliable for TV during/after approve —
+    // only trust it for movies, or when Sonarr already confirmed completeness above.
+    if (mediaStatus === MEDIA_STATUS.AVAILABLE && mediaType === 'movie') {
         return {
             ...base,
             kind: 'available',
@@ -347,20 +357,23 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
         };
     }
 
-    if (userRequestStatus === REQUEST_STATUS.APPROVED && mediaStatus !== MEDIA_STATUS.AVAILABLE) {
-        if (mediaType === 'tv' && !hasActiveSeerrDownloads(mediaInfo)) {
+    // Approval ≠ available. Keep requested/processing until files are on disk.
+    if (userRequestStatus === REQUEST_STATUS.APPROVED) {
+        if (hasActiveShowDownloads(item, mediaInfo) || hasActiveSeerrDownloads(mediaInfo)) {
             return {
                 ...base,
-                kind: 'available',
-                label: 'Available in library',
-                detail: 'Your request has been fulfilled.',
+                kind: 'processing',
+                label: 'Processing',
+                detail: 'Your request is being downloaded or imported.',
             };
         }
         return {
             ...base,
             kind: 'requested',
             label: 'Requested',
-            detail: 'Approved and sent to your media server.',
+            detail: mediaType === 'tv' && !hasAnyEpisodeAired(item)
+                ? 'Your request is approved. New episodes will download as they air.'
+                : 'Approved and sent to your media server.',
         };
     }
 

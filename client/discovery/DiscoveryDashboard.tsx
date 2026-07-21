@@ -21,6 +21,7 @@ import { WatchlistPage } from './WatchlistPage';
 import { scrollPortalToTop } from './discoverNavigationUtils';
 import { useDiscoverI18n } from './i18n';
 import { discoveryTheme } from './discoveryThemeClasses';
+import { ToastContainer, pushToast as appendToast, type ToastMessage } from '../shared/toast';
 
 const DiscoveryDashboardInner: React.FC<{
     onItemClick: (item: any) => void;
@@ -421,6 +422,17 @@ export const DiscoveryDashboard: React.FC<{
     pushToast?: (msg: string, type: 'success' | 'error') => void;
     mediaServerType?: string;
     isAdmin?: boolean;
-}> = (props) => (
-    <DiscoveryDashboardInner {...props} />
-);
+}> = ({ pushToast: pushToastProp, ...props }) => {
+    const [toasts, setToasts] = useState<ToastMessage[]>([]);
+    const pushToast = useCallback((msg: string, type: 'success' | 'error') => {
+        setToasts((prev) => appendToast(prev, msg, type));
+        pushToastProp?.(msg, type);
+    }, [pushToastProp]);
+
+    return (
+        <>
+            <DiscoveryDashboardInner {...props} pushToast={pushToast} />
+            <ToastContainer toasts={toasts} setToasts={setToasts} />
+        </>
+    );
+};

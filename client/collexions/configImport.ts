@@ -16,6 +16,7 @@ const CONFIG_KEYS: (keyof AppConfig)[] = [
     'exclusion_list',
     'regex_exclusion_patterns',
     'special_collections',
+    'special_date_format',
     'library_names',
     'number_of_collections_to_pin',
     'categories',
@@ -71,6 +72,7 @@ export const parseCollexionsConfigJson = (raw: unknown): ParsedCollexionsConfig 
     if (!Array.isArray(next.exclusion_list)) next.exclusion_list = [];
     if (!Array.isArray(next.regex_exclusion_patterns)) next.regex_exclusion_patterns = [];
     if (!Array.isArray(next.special_collections)) next.special_collections = [];
+    next.special_date_format = next.special_date_format === 'DD-MM' ? 'DD-MM' : 'MM-DD';
     if (!next.number_of_collections_to_pin || typeof next.number_of_collections_to_pin !== 'object') {
         next.number_of_collections_to_pin = {};
     }

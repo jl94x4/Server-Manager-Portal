@@ -87,6 +87,12 @@ CONFIG_SCHEMA = {
             "default": [],
             "description": "Definitions for special collections active during specific date ranges."
         },
+        "special_date_format": {
+            "type": "string",
+            "enum": ["MM-DD", "DD-MM"],
+            "default": "MM-DD",
+            "description": "UI display preference for special event dates. Stored values remain MM-DD."
+        },
         "use_random_category_mode": {"type": "boolean", "default": False, "description": "Enable random category selection mode."},
         "random_category_skip_percent": {"type": "integer", "minimum": 0, "maximum": 100, "default": 70, "description": "Percentage chance to skip category selection if random mode is active."}
     },
@@ -293,6 +299,9 @@ def load_config():
         config_data.setdefault('exclusion_list', [])
         config_data.setdefault('regex_exclusion_patterns', [])
         config_data.setdefault('special_collections', [])
+        config_data.setdefault('special_date_format', 'MM-DD')
+        if config_data.get('special_date_format') not in ('MM-DD', 'DD-MM'):
+            config_data['special_date_format'] = 'MM-DD'
 
         if not isinstance(config_data.get('library_names'), list):
             logging.warning("Config 'library_names' is not a list after load/defaults. Resetting to empty list.")

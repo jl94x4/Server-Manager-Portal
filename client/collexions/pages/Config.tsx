@@ -9,6 +9,13 @@ import { buildExportableConfig, parseCollexionsConfigText } from '../configImpor
 import { conflictsForTab, findConfigConflicts } from '../configConflicts';
 import { partitionValidationIssues, validateConfigLocal, type ConfigValidationIssue } from '../configValidate';
 import { diffAppConfig, revertConfigField } from '../configDiff';
+import {
+    displayToMmDd,
+    mmDdToDisplay,
+    normalizeSpecialDateFormat,
+    specialDateFormatLabel,
+    type SpecialDateFormat,
+} from '../specialDates';
 
 const ConfigPage: React.FC = () => {
     const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
@@ -745,7 +752,11 @@ const ConfigPage: React.FC = () => {
                 )}
 
                 {activeTab === 'specials' && (
-                    <SpecialEditor specials={specials} setConfig={setConfig} />
+                    <SpecialEditor
+                        specials={specials}
+                        dateFormat={normalizeSpecialDateFormat(config.special_date_format)}
+                        setConfig={setConfig}
+                    />
                 )}
 
                 {activeTab === 'categories' && (
@@ -891,10 +902,68 @@ const ArrayEditor = ({ list = [], onChange, placeholder }: { list: string[], onC
     );
 };
 
+// Special date field: displays in selected format, commits canonical MM-DD
+const SpecialDateField: React.FC<{
+    label: string;
+    stored: string;
+    format: SpecialDateFormat;
+    onCommit: (mmDd: string) => void;
+}> = ({ label, stored, format, onCommit }) => {
+    const [text, setText] = useState(() => mmDdToDisplay(stored, format));
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        setText(mmDdToDisplay(stored, format));
+        setError('');
+    }, [stored, format]);
+
+    const commit = () => {
+        const next = displayToMmDd(text, format);
+        if (!next) {
+            setError(`Use ${specialDateFormatLabel(format)} (e.g. ${format === 'DD-MM' ? '25-12' : '12-25'})`);
+            setText(mmDdToDisplay(stored, format));
+            return;
+        }
+        setError('');
+        setText(mmDdToDisplay(next, format));
+        if (next !== stored) onCommit(next);
+    };
+
+    return (
+        <div>
+            <Input
+                label={label}
+                value={text}
+                onChange={(e) => {
+                    setText(e.target.value);
+                    if (error) setError('');
+                }}
+                onBlur={commit}
+                placeholder={format === 'DD-MM' ? 'DD-MM' : 'MM-DD'}
+            />
+            {error && <p className="text-[11px] text-red-400 mt-1">{error}</p>}
+        </div>
+    );
+};
+
 // Special Collections Editor
-const SpecialEditor = ({ specials = [], setConfig }: { specials: SpecialCollection[], setConfig: React.Dispatch<React.SetStateAction<AppConfig>> }) => {
+const SpecialEditor = ({
+    specials = [],
+    dateFormat,
+    setConfig,
+}: {
+    specials: SpecialCollection[];
+    dateFormat: SpecialDateFormat;
+    setConfig: React.Dispatch<React.SetStateAction<AppConfig>>;
+}) => {
+    const fmtLabel = specialDateFormatLabel(dateFormat);
+
     const handleAddSpecial = () => {
-        const newItem: SpecialCollection = { start_date: '12-01', end_date: '12-25', collection_names: ['Christmas Movies'] };
+        const newItem: SpecialCollection = {
+            start_date: '12-01',
+            end_date: '12-25',
+            collection_names: ['Christmas Movies'],
+        };
         setConfig(prev => ({ ...prev, special_collections: [...(prev.special_collections || []), newItem] }));
     };
 
@@ -909,38 +978,87 @@ const SpecialEditor = ({ specials = [], setConfig }: { specials: SpecialCollecti
     };
 
     return (
-        <Card title="Special Event Collections" actions={<button onClick={handleAddSpecial} className="text-plex hover:text-plex text-sm font-bold flex items-center gap-1"><Plus className="w-4 h-4" /> Add Event</button>}>
-            <div className="space-y-4">
-                {specials.map((spec, idx) => (
-                    <div key={idx} className="bg-background/30 border border-border p-4 md:p-6 rounded-xl space-y-4 relative group hover:border-border transition-colors">
-                        <button
-                            onClick={() => {
-                                const updated = specials.filter((_, i) => i !== idx);
-                                setConfig(prev => ({ ...prev, special_collections: updated }));
-                            }}
-                            className="absolute top-4 right-4 text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/10 rounded-lg">
-                            <Trash2 className="w-4 h-4" />
-                        </button>
+        <div className="space-y-4">
+            <Card
+                title="Special Event Collections"
+                actions={
+                    <button
+                        type="button"
+                        onClick={handleAddSpecial}
+                        className="text-plex hover:text-plex text-sm font-bold flex items-center gap-1"
+                    >
+                        <Plus className="w-4 h-4" /> Add Event
+                    </button>
+                }
+            >
+                <div className="mb-5 max-w-md">
+                    <CustomSelect
+                        label="Date format"
+                        value={dateFormat}
+                        onChange={(v) => setConfig(prev => ({
+                            ...prev,
+                            special_date_format: normalizeSpecialDateFormat(v),
+                        }))}
+                        options={[
+                            { value: 'DD-MM', label: 'Day–Month (UK) — DD-MM' },
+                            { value: 'MM-DD', label: 'Month–Day (US) — MM-DD' },
+                        ]}
+                        tooltip="How dates appear in this form. Values are always saved as MM-DD for the pinning script."
+                    />
+                    <p className="text-[11px] text-muted mt-2">
+                        Display only — stored config stays MM-DD so ColleXions can pin without format ambiguity.
+                    </p>
+                </div>
 
-                        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
-                            <div className="md:w-1/3 space-y-4">
-                                <Input label="Start Date (MM-DD)" value={spec.start_date} onChange={e => updateSpecial(idx, 'start_date', e.target.value)} />
-                                <Input label="End Date (MM-DD)" value={spec.end_date} onChange={e => updateSpecial(idx, 'end_date', e.target.value)} />
-                            </div>
-                            <div className="md:w-2/3">
-                                <label className="block text-sm font-medium text-text mb-1.5">Collection Names (comma separated)</label>
-                                <textarea
-                                    className="w-full bg-background/60 border border-border rounded-lg p-3 text-sm text-text h-28 focus:outline-none focus:border-plex/50"
-                                    value={(spec.collection_names || []).join(',')}
-                                    onChange={e => updateSpecialCollNames(idx, e.target.value)}
-                                />
+                <div className="space-y-3">
+                    {specials.map((spec, idx) => (
+                        <div
+                            key={idx}
+                            className="bg-background/30 border border-border p-3 md:p-4 rounded-xl space-y-3 relative group hover:border-border transition-colors"
+                        >
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const updated = specials.filter((_, i) => i !== idx);
+                                    setConfig(prev => ({ ...prev, special_collections: updated }));
+                                }}
+                                className="absolute top-3 right-3 text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-red-500/10 rounded-lg"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+
+                            <div className="flex flex-col md:flex-row gap-3 md:gap-4 pr-8">
+                                <div className="md:w-1/3 space-y-3">
+                                    <SpecialDateField
+                                        label={`Start Date (${fmtLabel})`}
+                                        stored={spec.start_date}
+                                        format={dateFormat}
+                                        onCommit={(mmDd) => updateSpecial(idx, 'start_date', mmDd)}
+                                    />
+                                    <SpecialDateField
+                                        label={`End Date (${fmtLabel})`}
+                                        stored={spec.end_date}
+                                        format={dateFormat}
+                                        onCommit={(mmDd) => updateSpecial(idx, 'end_date', mmDd)}
+                                    />
+                                </div>
+                                <div className="md:w-2/3">
+                                    <label className="block text-sm font-medium text-text mb-1.5">Collection Names (comma separated)</label>
+                                    <textarea
+                                        className="w-full bg-background/60 border border-border rounded-lg p-2.5 text-sm text-text h-20 focus:outline-none focus:border-plex/50"
+                                        value={(spec.collection_names || []).join(',')}
+                                        onChange={e => updateSpecialCollNames(idx, e.target.value)}
+                                    />
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ))}
-                {specials.length === 0 && <div className="text-center text-muted py-8">No special events configured.</div>}
-            </div>
-        </Card>
+                    ))}
+                    {specials.length === 0 && (
+                        <div className="text-center text-muted py-6 text-sm">No special events configured.</div>
+                    )}
+                </div>
+            </Card>
+        </div>
     );
 };
 

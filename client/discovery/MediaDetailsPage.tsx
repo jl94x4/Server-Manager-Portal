@@ -132,16 +132,28 @@ export const MediaDetailsPage: React.FC<{
         apiFetch(`/api/discovery/tv/${mediaId}/library-status`)
             .then((res) => {
                 if (cancelled || !res?.sonarrLibraryStatus?.matched) return;
-                setDetails((prev) => (prev ? {
-                    ...prev,
-                    sonarrLibraryStatus: res.sonarrLibraryStatus,
-                    mediaInfo: {
-                        ...(prev.mediaInfo || {}),
-                        ...(res.sonarrLibraryStatus.showComplete && !res.sonarrLibraryStatus.hasActiveDownloads
-                            ? { status: 5 }
-                            : {}),
-                    },
-                } : prev));
+                const sonarr = res.sonarrLibraryStatus;
+                setDetails((prev) => {
+                    if (!prev) return prev;
+                    let nextStatus = prev.mediaInfo?.status;
+                    if (sonarr.hasActiveDownloads) {
+                        nextStatus = 3; // PROCESSING — still downloading
+                    } else if (sonarr.showComplete) {
+                        nextStatus = 5; // AVAILABLE
+                    } else if (Number(sonarr.fileCount) > 0) {
+                        nextStatus = 4; // PARTIAL
+                    } else if (Number(sonarr.episodeCount) > 0) {
+                        nextStatus = 3; // tracked in Sonarr, nothing on disk yet
+                    }
+                    return {
+                        ...prev,
+                        sonarrLibraryStatus: sonarr,
+                        mediaInfo: {
+                            ...(prev.mediaInfo || {}),
+                            ...(nextStatus != null ? { status: nextStatus } : {}),
+                        },
+                    };
+                });
             })
             .catch(() => undefined);
 
@@ -200,16 +212,28 @@ export const MediaDetailsPage: React.FC<{
                     apiFetch(`/api/discovery/tv/${mediaId}/library-status`)
                         .then((lib) => {
                             if (!lib?.sonarrLibraryStatus?.matched) return;
-                            setDetails((prev) => (prev ? {
-                                ...prev,
-                                sonarrLibraryStatus: lib.sonarrLibraryStatus,
-                                mediaInfo: {
-                                    ...(prev.mediaInfo || {}),
-                                    ...(lib.sonarrLibraryStatus.showComplete && !lib.sonarrLibraryStatus.hasActiveDownloads
-                                        ? { status: 5 }
-                                        : {}),
-                                },
-                            } : prev));
+                            const sonarr = lib.sonarrLibraryStatus;
+                            setDetails((prev) => {
+                                if (!prev) return prev;
+                                let nextStatus = prev.mediaInfo?.status;
+                                if (sonarr.hasActiveDownloads) {
+                                    nextStatus = 3;
+                                } else if (sonarr.showComplete) {
+                                    nextStatus = 5;
+                                } else if (Number(sonarr.fileCount) > 0) {
+                                    nextStatus = 4;
+                                } else if (Number(sonarr.episodeCount) > 0) {
+                                    nextStatus = 3;
+                                }
+                                return {
+                                    ...prev,
+                                    sonarrLibraryStatus: sonarr,
+                                    mediaInfo: {
+                                        ...(prev.mediaInfo || {}),
+                                        ...(nextStatus != null ? { status: nextStatus } : {}),
+                                    },
+                                };
+                            });
                         })
                         .catch(() => undefined);
                 }

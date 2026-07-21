@@ -14,6 +14,7 @@ export const DEFAULT_CONFIG: AppConfig = {
     exclusion_list: [],
     regex_exclusion_patterns: [],
     special_collections: [],
+    special_date_format: 'MM-DD',
     library_names: [],
     number_of_collections_to_pin: {},
     categories: {},
