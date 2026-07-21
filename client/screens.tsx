@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Pause, Upload, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2, Search, BookOpen, Loader2, Eye, EyeOff, ClipboardList, ArrowUpCircle, MoreHorizontal, ExternalLink, Info, GitFork } from 'lucide-react';
+import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Pause, Upload, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2, Search, BookOpen, Loader2, Eye, EyeOff, ClipboardList, ArrowUpCircle, MoreHorizontal, ExternalLink, Info, GitFork, MapPin } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
 
 import { SettingsDashboard } from './settings/SettingsDashboard';
@@ -7176,6 +7176,20 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
         : portalUrl(`/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=400&height=600`);
     const sessionFallbackPosterSrc = session.posterFallbackUrl ? resolvePortalAssetUrl(session.posterFallbackUrl) : '';
     const sessionUserThumbSrc = session.userThumb ? resolvePortalAssetUrl(session.userThumb) : 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y';
+    const geo = isAdmin && session.geo && Number.isFinite(Number(session.geo.latitude)) && Number.isFinite(Number(session.geo.longitude))
+        ? session.geo
+        : null;
+    const geoLat = geo ? Number(geo.latitude) : NaN;
+    const geoLon = geo ? Number(geo.longitude) : NaN;
+    const mapPad = 0.35;
+    const osmEmbedUrl = geo
+        ? `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(
+            `${geoLon - mapPad},${geoLat - mapPad},${geoLon + mapPad},${geoLat + mapPad}`,
+        )}&layer=mapnik&marker=${encodeURIComponent(`${geoLat},${geoLon}`)}`
+        : '';
+    const googleMapsUrl = geo
+        ? `https://www.google.com/maps?q=${encodeURIComponent(`${geoLat},${geoLon}`)}`
+        : '';
 
     const handleKill = async () => {
         setIsKilling(true);
@@ -7239,7 +7253,7 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
                         <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border ${session.isTranscoding ? 'bg-status-expiring/20 text-status-expiring border-status-expiring/30' : 'bg-status-active/20 text-status-active border-status-active/30'}`}>{session.isTranscoding ? 'Transcode' : 'Direct Play'}</span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-4 mb-8">
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-4 mb-6">
                         <div>
                             <p className="text-[10px] text-muted uppercase tracking-widest font-bold mb-1">Player</p>
                             <p className="text-sm font-medium truncate" title={session.playerTitle}>{session.playerTitle}</p>
@@ -7249,6 +7263,12 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
                             <p className="text-[10px] text-muted uppercase tracking-widest font-bold mb-1">Network</p>
                             <p className="text-sm font-medium">{isAdmin ? (session.playerAddress || 'Unknown IP') : 'Hidden'}</p>
                             <p className="text-xs text-muted/80">{(session.bandwidth / 1000).toFixed(1)} Mbps</p>
+                            {geo?.label && (
+                                <p className="text-xs text-plex mt-1.5 flex items-start gap-1">
+                                    <MapPin className="w-3 h-3 mt-0.5 shrink-0" />
+                                    <span>{geo.label}</span>
+                                </p>
+                            )}
                         </div>
 
                         <div>
@@ -7262,6 +7282,32 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
                             {session.transcodeAudioDecision === 'transcode' && <p className="text-[10px] text-status-expiring font-bold">Transcoding</p>}
                         </div>
                     </div>
+
+                    {geo && osmEmbedUrl && (
+                        <div className="mb-6 rounded-xl overflow-hidden border border-white/10 bg-black/20">
+                            <div className="relative w-full aspect-[16/9] sm:aspect-[2.2/1] max-h-48">
+                                <iframe
+                                    title={`Approximate location: ${geo.label}`}
+                                    src={osmEmbedUrl}
+                                    className="absolute inset-0 w-full h-full border-0"
+                                    loading="lazy"
+                                    referrerPolicy="no-referrer-when-downgrade"
+                                />
+                            </div>
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 py-2.5 border-t border-white/10">
+                                <p className="text-[11px] text-muted">Approximate location from IP</p>
+                                <a
+                                    href={googleMapsUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1.5 text-[11px] font-bold text-plex hover:text-plex-hover transition-colors"
+                                >
+                                    <ExternalLink className="w-3 h-3" />
+                                    Open in Google Maps
+                                </a>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="mt-auto flex flex-col gap-3 pt-4 border-t border-white/5">
                         {isAdmin && session.sessionId && (

@@ -128,7 +128,7 @@ app.use((req, res, next) => {
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; frame-src 'self' https://www.openstreetmap.org; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'");
     if (req.secure || FORCE_SECURE_COOKIES) {
         res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     }
@@ -416,6 +416,7 @@ import { buildDiscoveryFacts } from './lib/discovery-facts.js';
 import { fetchDiscoveryHeroBackdrops } from './lib/discovery-hero.js';
 import { fetchDiscoveryCombinedRatings } from './lib/discovery-ratings.js';
 import { enrichTvDetailsWithSonarrLibraryStatus, fetchSonarrLibraryStatusForShow } from './lib/sonarr-library-status.js';
+import { enrichSessionsWithGeo } from './lib/geoip-lookup.js';
 const PLEX_API = 'https://plex.tv/api';
 
 // --- Status App Global State ---
@@ -8228,8 +8229,14 @@ app.get('/api/plex/dashboard', requireAuth, requireMember, async (req, res) => {
                     progress: progress,
                     timeRemaining: Math.max(0, duration - viewOffset),
                     bandwidth: normalizePlexBandwidthKbps((session && session.bandwidth) || (m.Media && m.Media[0] && m.Media[0].bitrate) || 0),
-                    plexUrl: plexUrl
+                    plexUrl: plexUrl,
+                    geo: null,
                 };
+            });
+            await enrichSessionsWithGeo(config, activeSessions, {
+                isAdmin: !!req.user.isAdmin,
+                fetchImpl: fetchWithTimeout,
+                resolveUrl: resolveIntegrationUrlForFetch,
             });
         }
 
@@ -8594,8 +8601,15 @@ app.get('/api/jellyfin/dashboard', requireAuth, requireMember, async (req, res) 
                     timeRemaining: Math.max(0, runtime - position),
                     bandwidth: Math.round(reportedBitrate / 1000),
                     plexUrl: jellyfinItemUrl(config, item.Id),
+                    geo: null,
                 };
             });
+
+        await enrichSessionsWithGeo(config, activeSessions, {
+            isAdmin: !!req.user.isAdmin,
+            fetchImpl: fetchWithTimeout,
+            resolveUrl: resolveIntegrationUrlForFetch,
+        });
 
         res.json({
             activeSessions,
