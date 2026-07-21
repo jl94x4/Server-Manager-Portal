@@ -16180,10 +16180,16 @@ app.all('/api/collexions/*', requireAdmin, requireCollexions, async (req, res) =
             }
         }
 
-        // Gallery scans can take a while; keep other calls snappy.
-        const timeoutMs = suffix === 'collections' || suffix.startsWith('collections?')
-            ? 90000
-            : 20000;
+        // Gallery / create / template jobs can take a while on large libraries.
+        const longSuffix =
+            suffix === 'collections'
+            || suffix.startsWith('collections?')
+            || suffix === 'collections/create'
+            || suffix === 'collections/create-from-external'
+            || suffix === 'templates/create'
+            || suffix.startsWith('templates/franchise-search')
+            || suffix === 'trending';
+        const timeoutMs = longSuffix ? 180000 : 20000;
         const upstream = await fetchWithTimeout(targetUrl.toString(), init, timeoutMs);
         const contentType = upstream.headers.get('content-type') || '';
         res.status(upstream.status);

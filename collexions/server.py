@@ -434,7 +434,7 @@ def get_template_by_id(template_id):
 
 
 def _build_library_tmdb_cache(library):
-    """Map tmdb id string → Plex item for fast matching."""
+    """Map tmdb id string → Plex item for fast matching (full library scan — expensive)."""
     cache = {}
     for item in library.all():
         try:
@@ -449,13 +449,70 @@ def _build_library_tmdb_cache(library):
     return cache
 
 
+def _plex_item_tmdb_ids(item):
+    ids = set()
+    try:
+        for guid in getattr(item, 'guids', []) or []:
+            gid = getattr(guid, 'id', '') or ''
+            if 'tmdb://' in gid:
+                ids.add(gid.split('tmdb://')[-1])
+    except Exception:
+        pass
+    return ids
+
+
 def _match_external_to_plex(library, external_items, tmdb_cache=None):
-    """Match external {tmdb_id/id, title} items to local Plex items."""
-    if tmdb_cache is None:
-        tmdb_cache = _build_library_tmdb_cache(library)
+    """Match external {tmdb_id/id, title} items to local Plex items.
+
+    For small lists (franchises / trending), prefer per-title search so we don't
+    scan the entire library (which often exceeds the portal proxy timeout).
+    """
+    items = list(external_items or [])
+    if not items:
+        return []
+
     matched = []
     seen_keys = set()
-    for ext in external_items or []:
+
+    # Fast path: title search (+ TMDB guid verify) for modest lists.
+    if tmdb_cache is None and len(items) <= 80:
+        logging.info(f"Matching {len(items)} items via title search (fast path)")
+        for ext in items:
+            tmdb_id = str(ext.get('tmdb_id') or ext.get('id') or '').strip()
+            title = str(ext.get('title') or '').strip()
+            libtype = 'movie' if str(ext.get('type') or 'movie') == 'movie' else 'show'
+            if not title and not tmdb_id:
+                continue
+            pick = None
+            try:
+                results = library.search(title=title, libtype=libtype) if title else []
+            except Exception as e:
+                logging.debug(f"Search failed for '{title}': {e}")
+                results = []
+            if tmdb_id and results:
+                for r in results[:20]:
+                    if tmdb_id in _plex_item_tmdb_ids(r):
+                        pick = r
+                        break
+            if pick is None and title and results:
+                for r in results[:10]:
+                    if (getattr(r, 'title', '') or '').casefold() == title.casefold():
+                        pick = r
+                        break
+            if pick is None and results:
+                pick = results[0]
+            if pick is not None:
+                key = getattr(pick, 'ratingKey', None)
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    matched.append(pick)
+        return matched
+
+    if tmdb_cache is None:
+        logging.info(f"Building full TMDB cache for {len(items)} items (slow path)")
+        tmdb_cache = _build_library_tmdb_cache(library)
+
+    for ext in items:
         tmdb_id_val = ext.get('tmdb_id') or ext.get('id')
         if not tmdb_id_val:
             continue
