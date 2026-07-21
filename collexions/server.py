@@ -253,6 +253,8 @@ SOURCE_TYPE_MEDIA = {
     'tmdb_horror': 'movie',
     'tmdb_docs': 'movie',
     'tmdb_scifi': 'movie',
+    'tmdb_genre': 'movie',
+    'tmdb_tv_genre': 'show',
     'tmdb_collection': 'movie',
     'trakt_trending_movie': 'movie',
     'trakt_trending_show': 'show',
@@ -390,21 +392,39 @@ def fetch_source_items(source_type, source_id, config):
                     items.extend([{'title': m.get('title'), 'tmdb_id': m.get('id'), 'type': 'movie'} for m in data])
                 else: break
             items = items[:100]
-        elif source_type in ['tmdb_kids', 'tmdb_horror', 'tmdb_docs', 'tmdb_scifi']:
-            # Categorical - User wants 500
-            genre_map = {'tmdb_kids': '10751,35', 'tmdb_horror': '27', 'tmdb_docs': '99', 'tmdb_scifi': '878'}
-            media_map = {'tmdb_kids': 'movie', 'tmdb_horror': 'movie', 'tmdb_docs': 'movie', 'tmdb_scifi': 'movie'}
-            genre_ids = genre_map.get(source_type)
-            media_type = media_map.get(source_type)
-            for page in range(1, 26): # 500 items
-                url = f"https://api.themoviedb.org/3/discover/{media_type}?api_key={tmdb_key}&with_genres={genre_ids}&sort_by=popularity.desc&page={page}"
-                resp = requests.get(url, timeout=5)
-                if resp.status_code == 200:
-                    data = resp.json().get('results', [])
-                    if not data: break
-                    items.extend([{'title': m.get('title'), 'tmdb_id': m.get('id'), 'type': 'movie'} for m in data])
-                else: break
-            items = items[:500]
+        elif source_type in ('tmdb_kids', 'tmdb_horror', 'tmdb_docs', 'tmdb_scifi', 'tmdb_genre', 'tmdb_tv_genre'):
+            # Genre discover — up to 500 popular titles
+            legacy_genres = {
+                'tmdb_kids': ('movie', '10751,35'),
+                'tmdb_horror': ('movie', '27'),
+                'tmdb_docs': ('movie', '99'),
+                'tmdb_scifi': ('movie', '878'),
+            }
+            if source_type in legacy_genres:
+                media_type, genre_ids = legacy_genres[source_type]
+            else:
+                media_type = 'tv' if source_type == 'tmdb_tv_genre' else 'movie'
+                genre_ids = str(source_id or '').strip()
+            if genre_ids:
+                item_type = 'show' if media_type == 'tv' else 'movie'
+                title_key = 'name' if media_type == 'tv' else 'title'
+                for page in range(1, 26):  # 500 items
+                    url = (
+                        f"https://api.themoviedb.org/3/discover/{media_type}"
+                        f"?api_key={tmdb_key}&with_genres={genre_ids}&sort_by=popularity.desc&page={page}"
+                    )
+                    resp = requests.get(url, timeout=5)
+                    if resp.status_code == 200:
+                        data = resp.json().get('results', [])
+                        if not data:
+                            break
+                        items.extend([
+                            {'title': m.get(title_key), 'tmdb_id': m.get('id'), 'type': item_type}
+                            for m in data
+                        ])
+                    else:
+                        break
+                items = items[:500]
         elif source_type == 'trakt_trending_movie':
             # Trending - User wants 30
             resp = requests.get("https://api.trakt.tv/movies/trending?limit=30", headers=headers, timeout=5)
@@ -511,11 +531,40 @@ JOB_TEMPLATES = [
     # Quality / awards-style
     {"id": "tmdb_top_rated_movies", "name": "Top Rated Movies", "description": "Highest-rated movies on TMDB.", "category": "quality", "media": "movie", "source_type": "tmdb_movie_top_rated", "source_id": "", "default_sort": "custom", "requires": ["tmdb"]},
     {"id": "tmdb_popular_tv", "name": "Popular TV", "description": "Currently popular TV on TMDB.", "category": "quality", "media": "tv", "source_type": "tmdb_tv_popular", "source_id": "", "default_sort": "custom", "requires": ["tmdb"]},
-    # Genre
-    {"id": "tmdb_horror", "name": "Horror Movies", "description": "Popular horror from TMDB discover.", "category": "genre", "media": "movie", "source_type": "tmdb_horror", "source_id": "", "default_sort": "custom", "requires": ["tmdb"]},
-    {"id": "tmdb_scifi", "name": "Sci-Fi Movies", "description": "Popular science fiction from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_scifi", "source_id": "", "default_sort": "custom", "requires": ["tmdb"]},
-    {"id": "tmdb_kids", "name": "Family & Kids", "description": "Family-friendly movies from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_kids", "source_id": "", "default_sort": "custom", "requires": ["tmdb"]},
+    # Genre — movies (TMDB discover)
+    {"id": "tmdb_genre_action", "name": "Action Movies", "description": "Popular action from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_genre", "source_id": "28", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_genre_adventure", "name": "Adventure Movies", "description": "Popular adventure from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_genre", "source_id": "12", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_genre_animation", "name": "Animation Movies", "description": "Popular animation from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_genre", "source_id": "16", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_genre_comedy", "name": "Comedy Movies", "description": "Popular comedy from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_genre", "source_id": "35", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_genre_crime", "name": "Crime Movies", "description": "Popular crime from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_genre", "source_id": "80", "default_sort": "custom", "requires": ["tmdb"]},
     {"id": "tmdb_docs", "name": "Documentaries", "description": "Popular documentaries from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_docs", "source_id": "", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_genre_drama", "name": "Drama Movies", "description": "Popular drama from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_genre", "source_id": "18", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_kids", "name": "Family & Kids", "description": "Family-friendly movies from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_kids", "source_id": "", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_genre_family", "name": "Family Movies", "description": "Popular family films from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_genre", "source_id": "10751", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_genre_fantasy", "name": "Fantasy Movies", "description": "Popular fantasy from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_genre", "source_id": "14", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_genre_history", "name": "History Movies", "description": "Popular history from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_genre", "source_id": "36", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_horror", "name": "Horror Movies", "description": "Popular horror from TMDB discover.", "category": "genre", "media": "movie", "source_type": "tmdb_horror", "source_id": "", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_genre_music", "name": "Music Movies", "description": "Popular music films from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_genre", "source_id": "10402", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_genre_mystery", "name": "Mystery Movies", "description": "Popular mystery from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_genre", "source_id": "9648", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_genre_romance", "name": "Romance Movies", "description": "Popular romance from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_genre", "source_id": "10749", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_scifi", "name": "Sci-Fi Movies", "description": "Popular science fiction from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_scifi", "source_id": "", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_genre_thriller", "name": "Thriller Movies", "description": "Popular thrillers from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_genre", "source_id": "53", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_genre_war", "name": "War Movies", "description": "Popular war films from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_genre", "source_id": "10752", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_genre_western", "name": "Western Movies", "description": "Popular westerns from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_genre", "source_id": "37", "default_sort": "custom", "requires": ["tmdb"]},
+    # Genre — TV (TMDB discover)
+    {"id": "tmdb_tv_genre_action", "name": "Action & Adventure TV", "description": "Popular action & adventure shows from TMDB.", "category": "genre", "media": "tv", "source_type": "tmdb_tv_genre", "source_id": "10759", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_tv_genre_animation", "name": "Animation TV", "description": "Popular animated shows from TMDB.", "category": "genre", "media": "tv", "source_type": "tmdb_tv_genre", "source_id": "16", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_tv_genre_comedy", "name": "Comedy TV", "description": "Popular comedy shows from TMDB.", "category": "genre", "media": "tv", "source_type": "tmdb_tv_genre", "source_id": "35", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_tv_genre_crime", "name": "Crime TV", "description": "Popular crime shows from TMDB.", "category": "genre", "media": "tv", "source_type": "tmdb_tv_genre", "source_id": "80", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_tv_genre_docs", "name": "Documentary TV", "description": "Popular documentary series from TMDB.", "category": "genre", "media": "tv", "source_type": "tmdb_tv_genre", "source_id": "99", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_tv_genre_drama", "name": "Drama TV", "description": "Popular drama shows from TMDB.", "category": "genre", "media": "tv", "source_type": "tmdb_tv_genre", "source_id": "18", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_tv_genre_family", "name": "Family TV", "description": "Popular family shows from TMDB.", "category": "genre", "media": "tv", "source_type": "tmdb_tv_genre", "source_id": "10751", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_tv_genre_kids", "name": "Kids TV", "description": "Popular kids shows from TMDB.", "category": "genre", "media": "tv", "source_type": "tmdb_tv_genre", "source_id": "10762", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_tv_genre_mystery", "name": "Mystery TV", "description": "Popular mystery shows from TMDB.", "category": "genre", "media": "tv", "source_type": "tmdb_tv_genre", "source_id": "9648", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_tv_genre_reality", "name": "Reality TV", "description": "Popular reality shows from TMDB.", "category": "genre", "media": "tv", "source_type": "tmdb_tv_genre", "source_id": "10764", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_tv_genre_scifi", "name": "Sci-Fi & Fantasy TV", "description": "Popular sci-fi & fantasy shows from TMDB.", "category": "genre", "media": "tv", "source_type": "tmdb_tv_genre", "source_id": "10765", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_tv_genre_soap", "name": "Soap TV", "description": "Popular soap operas from TMDB.", "category": "genre", "media": "tv", "source_type": "tmdb_tv_genre", "source_id": "10766", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_tv_genre_war", "name": "War & Politics TV", "description": "Popular war & politics shows from TMDB.", "category": "genre", "media": "tv", "source_type": "tmdb_tv_genre", "source_id": "10768", "default_sort": "custom", "requires": ["tmdb"]},
     # Franchises (TMDB collection IDs)
     {"id": "franchise_star_wars", "name": "Star Wars", "description": "The Star Wars saga collection.", "category": "franchise", "media": "movie", "source_type": "tmdb_collection", "source_id": "10", "default_sort": "release", "requires": ["tmdb"]},
     {"id": "franchise_harry_potter", "name": "Harry Potter", "description": "Wizarding World films.", "category": "franchise", "media": "movie", "source_type": "tmdb_collection", "source_id": "1241", "default_sort": "release", "requires": ["tmdb"]},

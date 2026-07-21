@@ -44,7 +44,7 @@ const mediaFromSourceType = (sourceType?: string): MediaKind | null => {
     const st = String(sourceType || '').toLowerCase();
     if (!st) return null;
     if (st.includes('show') || st.endsWith('_tv') || st.includes('_tv_') || st.startsWith('tmdb_tv')) return 'show';
-    if (st.includes('movie') || st === 'tmdb_collection') return 'movie';
+    if (st.includes('movie') || st === 'tmdb_collection' || st === 'tmdb_genre') return 'movie';
     return null;
 };
 
