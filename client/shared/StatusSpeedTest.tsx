@@ -18,6 +18,18 @@ const WARMUP_MS = 2500;
 const MEASURE_MS = 8000;
 const PING_SAMPLES = 5;
 const UPLOAD_CHUNK_BYTES = 1024 * 1024;
+/** Web Crypto getRandomValues rejects views larger than 65536 bytes. */
+const CRYPTO_RANDOM_MAX = 65536;
+
+const fillIncompressible = (buffer: Uint8Array) => {
+    if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+        for (let offset = 0; offset < buffer.length; offset += CRYPTO_RANDOM_MAX) {
+            crypto.getRandomValues(buffer.subarray(offset, Math.min(offset + CRYPTO_RANDOM_MAX, buffer.length)));
+        }
+        return;
+    }
+    for (let i = 0; i < buffer.length; i += 1) buffer[i] = (i * 31) & 0xff;
+};
 
 const speedHeaders = (extra: HeadersInit = {}): HeadersInit => ({
     [PORTAL_CSRF_HEADER]: PORTAL_CSRF_VALUE,
@@ -124,11 +136,7 @@ async function measureDownload(): Promise<number> {
 /** Generate an upload body that keeps producing chunks until aborted. */
 const createUploadBody = (signal: AbortSignal, onBytes: (n: number) => void) => {
     const chunk = new Uint8Array(UPLOAD_CHUNK_BYTES);
-    if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
-        crypto.getRandomValues(chunk);
-    } else {
-        for (let i = 0; i < chunk.length; i += 1) chunk[i] = (i * 31) & 0xff;
-    }
+    fillIncompressible(chunk);
 
     return new ReadableStream<Uint8Array>({
         pull(controller) {
@@ -222,9 +230,7 @@ export const StatusSpeedTest: React.FC = () => {
             } catch (uploadErr: any) {
                 // Streaming upload isn't supported in every browser — fall back to chunked posts.
                 const chunk = new Uint8Array(8 * 1024 * 1024);
-                if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
-                    crypto.getRandomValues(chunk);
-                }
+                fillIncompressible(chunk);
                 const start = performance.now();
                 let bytes = 0;
                 const endAt = start + MEASURE_MS;
