@@ -103,6 +103,20 @@ class CollexionsApiService {
         await apiFetch(base('/config'), { method: 'POST', body: JSON.stringify(config) });
     }
 
+    /** Validate draft config against the worker (Plex reachability + library names). Does not save. */
+    async validateConfig(config: AppConfig): Promise<{
+        ok: boolean;
+        errors: string[];
+        warnings: string[];
+        available_libraries?: string[];
+    }> {
+        return withTimeout(
+            apiFetch(base('/config/validate'), { method: 'POST', body: JSON.stringify(config) }),
+            20000,
+            'Validating config',
+        );
+    }
+
     async getStatus(): Promise<AppStatus> {
         try {
             return await withTimeout(apiFetch(base('/status')), 8000, 'Status');

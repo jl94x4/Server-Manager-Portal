@@ -3,18 +3,24 @@ import { Card } from '../components/ui/Card';
 import { Input, Switch, CustomSelect } from '../components/ui/Inputs';
 import { AppConfig, CategoryConfig, SpecialCollection } from '../types';
 import { api } from '../api';
-import { Save, Plus, Trash2, AlertCircle, ShieldAlert, CheckCircle, Sliders, RefreshCw, Power, Info, HelpCircle, Upload, Download, AlertTriangle } from 'lucide-react';
+import { Save, Plus, Trash2, AlertCircle, ShieldAlert, CheckCircle, Sliders, RefreshCw, Power, Info, HelpCircle, Upload, Download, AlertTriangle, GitCompare, Undo2, X } from 'lucide-react';
 import { DEFAULT_CONFIG } from '../constants';
 import { buildExportableConfig, parseCollexionsConfigText } from '../configImport';
 import { conflictsForTab, findConfigConflicts } from '../configConflicts';
+import { partitionValidationIssues, validateConfigLocal, type ConfigValidationIssue } from '../configValidate';
+import { diffAppConfig, revertConfigField } from '../configDiff';
+
 const ConfigPage: React.FC = () => {
     const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
     const [originalConfig, setOriginalConfig] = useState<AppConfig | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [saveLabel, setSaveLabel] = useState('Save Config');
     const [restarting, setRestarting] = useState(false);
     const [showRestartBanner, setShowRestartBanner] = useState(false);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const [validationIssues, setValidationIssues] = useState<ConfigValidationIssue[]>([]);
+    const [showDiffModal, setShowDiffModal] = useState(false);
     const [activeTab, setActiveTab] = useState<'general' | 'libraries' | 'exclusions' | 'specials' | 'categories' | 'integrations'>('general');
     const [importingPortal, setImportingPortal] = useState(false);
     const [importMessage, setImportMessage] = useState('');
@@ -24,6 +30,12 @@ const ConfigPage: React.FC = () => {
     const conflicts = useMemo(() => findConfigConflicts(config), [config]);
     const tabConflicts = useMemo(() => conflictsForTab(conflicts, activeTab), [conflicts, activeTab]);
     const warningCount = conflicts.filter(c => c.severity === 'warning').length;
+    const validationErrors = validationIssues.filter(i => i.severity === 'error');
+    const validationWarnings = validationIssues.filter(i => i.severity === 'warning');
+    const configDiffs = useMemo(
+        () => (originalConfig ? diffAppConfig(originalConfig, config) : []),
+        [originalConfig, config],
+    );
 
     // Handle browser refresh/close
     useEffect(() => {
@@ -57,8 +69,78 @@ const ConfigPage: React.FC = () => {
 
     const handleSave = async () => {
         setSaving(true);
+        setSaveLabel('Validating…');
         setSaveStatus('idle');
+        setValidationIssues([]);
         try {
+            const local = validateConfigLocal(config);
+            const { errors: localErrors } = partitionValidationIssues(local);
+            if (localErrors.length) {
+                setValidationIssues(local);
+                setSaveStatus('error');
+                setSaving(false);
+                setSaveLabel('Save Config');
+                return;
+            }
+
+            let remoteErrors: string[] = [];
+            let remoteWarnings: string[] = [];
+            try {
+                const remote = await api.validateConfig(config);
+                remoteErrors = remote.errors || [];
+                remoteWarnings = remote.warnings || [];
+            } catch (e: any) {
+                // Worker validate unavailable — fall back to local-only with a soft warning
+                remoteWarnings = [e?.message || 'Live Plex validation skipped (worker unreachable).'];
+            }
+
+            const merged: ConfigValidationIssue[] = [
+                ...local,
+                ...remoteErrors.map((message, i) => ({
+                    id: `remote-err:${i}:${message}`,
+                    severity: 'error' as const,
+                    message,
+                })),
+                ...remoteWarnings.map((message, i) => ({
+                    id: `remote-warn:${i}:${message}`,
+                    severity: 'warning' as const,
+                    message,
+                })),
+            ];
+            // Dedupe by message
+            const seen = new Set<string>();
+            const deduped = merged.filter(issue => {
+                const key = `${issue.severity}:${issue.message}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+
+            const { errors, warnings } = partitionValidationIssues(deduped);
+            if (errors.length) {
+                setValidationIssues(deduped);
+                setSaveStatus('error');
+                setSaving(false);
+                setSaveLabel('Save Config');
+                return;
+            }
+
+            if (warnings.length) {
+                const preview = warnings.slice(0, 5).map(w => `• ${w.message}`).join('\n');
+                const extra = warnings.length > 5 ? `\n…and ${warnings.length - 5} more` : '';
+                const ok = window.confirm(
+                    `Config has ${warnings.length} warning${warnings.length === 1 ? '' : 's'}:\n\n${preview}${extra}\n\nSave anyway?`,
+                );
+                if (!ok) {
+                    setValidationIssues(deduped);
+                    setSaving(false);
+                    setSaveLabel('Save Config');
+                    return;
+                }
+            }
+
+            setValidationIssues(deduped.filter(i => i.severity === 'warning'));
+            setSaveLabel('Saving…');
             await api.saveConfig(config);
 
             // Re-check status to see if we need to warn user
@@ -77,8 +159,14 @@ const ConfigPage: React.FC = () => {
         } catch (e) {
             console.error(e);
             setSaveStatus('error');
+            setValidationIssues([{
+                id: 'save-failed',
+                severity: 'error',
+                message: 'Error saving configuration. Check console.',
+            }]);
         }
         setSaving(false);
+        setSaveLabel('Save Config');
     };
 
     const handleRestartService = async () => {
@@ -232,13 +320,55 @@ const ConfigPage: React.FC = () => {
                         {importingPortal ? 'Importing…' : 'Import from portal'}
                     </button>
                     <button
+                        type="button"
+                        onClick={() => setShowDiffModal(true)}
+                        disabled={!isDirty || saving || restarting}
+                        className="flex-1 md:flex-none justify-center flex items-center gap-2 bg-card hover:bg-white/5 text-text px-5 py-2.5 rounded-xl font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed border border-border shadow-sm"
+                        title="Review unsaved changes"
+                    >
+                        <GitCompare className="w-4 h-4" />
+                        Review{isDirty && configDiffs.length ? ` (${configDiffs.length})` : ''}
+                    </button>
+                    <button
                         onClick={handleSave}
                         disabled={saving || restarting}
                         className="flex-1 md:flex-none justify-center flex items-center gap-2 bg-plex hover:bg-plex-hover text-background px-5 py-2.5 rounded-xl font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-plex/10 w-full md:w-40">
-                        <Save className="w-4 h-4" /> {saving ? 'Saving...' : 'Save Config'}
+                        <Save className="w-4 h-4" /> {saveLabel}
                     </button>
                 </div>
             </div>
+
+            {validationErrors.length > 0 && (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200/90 space-y-2 animate-in fade-in slide-in-from-top-2">
+                    <div className="flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                        <div className="min-w-0 flex-1 space-y-1">
+                            <p className="font-bold text-red-200">Fix these before saving</p>
+                            <ul className="space-y-1 text-xs list-disc list-inside text-red-100/80">
+                                {validationErrors.map(i => (
+                                    <li key={i.id}>{i.message}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {validationErrors.length === 0 && validationWarnings.length > 0 && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90 space-y-2 animate-in fade-in slide-in-from-top-2">
+                    <div className="flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                        <div className="min-w-0 flex-1 space-y-1">
+                            <p className="font-bold text-amber-200">Saved with warnings</p>
+                            <ul className="space-y-1 text-xs list-disc list-inside text-amber-100/80">
+                                {validationWarnings.slice(0, 6).map(i => (
+                                    <li key={i.id}>{i.message}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {importMessage && (
                 <div className="bg-card/60 border border-border text-text px-4 py-3 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-sm">
@@ -282,7 +412,7 @@ const ConfigPage: React.FC = () => {
                 </div>
             )}
 
-            {saveStatus === 'error' && (
+            {saveStatus === 'error' && validationErrors.length === 0 && (
                 <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
                     <AlertCircle className="w-5 h-5" /> Error saving configuration. Check console.
                 </div>
@@ -292,22 +422,126 @@ const ConfigPage: React.FC = () => {
                 <div className="bg-plex/10 border border-plex/30 text-plex px-4 py-3 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
                     <div className="flex items-center gap-2">
                         <ShieldAlert className="w-5 h-5 flex-shrink-0" />
-                        <span className="font-medium text-sm">You have unsaved changes.</span>
+                        <span className="font-medium text-sm">
+                            You have unsaved changes
+                            {configDiffs.length > 0 ? ` (${configDiffs.length} field${configDiffs.length === 1 ? '' : 's'})` : ''}.
+                        </span>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2 justify-end">
                         <button
-                            onClick={() => { setConfig(originalConfig!); }}
-                            className="px-4 py-1.5 rounded-lg text-sm font-bold text-muted hover:bg-white/5 hover:text-text transition-colors border border-border"
+                            type="button"
+                            onClick={() => setShowDiffModal(true)}
+                            className="px-4 py-1.5 rounded-lg text-sm font-bold text-plex hover:bg-plex/10 transition-colors border border-plex/40 inline-flex items-center gap-1.5"
                         >
-                            Discard
+                            <GitCompare className="w-3.5 h-3.5" />
+                            Review
                         </button>
                         <button
+                            type="button"
+                            onClick={() => { setConfig(originalConfig!); setShowDiffModal(false); }}
+                            className="px-4 py-1.5 rounded-lg text-sm font-bold text-muted hover:bg-white/5 hover:text-text transition-colors border border-border"
+                        >
+                            Discard all
+                        </button>
+                        <button
+                            type="button"
                             onClick={handleSave}
                             disabled={saving}
                             className="px-4 py-1.5 rounded-lg text-sm font-bold bg-plex text-background hover:bg-plex-hover transition-colors shadow-lg disabled:opacity-50"
                         >
-                            {saving ? 'Saving...' : 'Save Now'}
+                            {saving ? saveLabel : 'Save Now'}
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {showDiffModal && originalConfig && (
+                <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+                    <div className="w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-2xl border border-border bg-card shadow-2xl flex flex-col">
+                        <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-border">
+                            <div>
+                                <h3 className="text-lg font-bold text-text flex items-center gap-2">
+                                    <GitCompare className="w-5 h-5 text-plex" />
+                                    Review changes
+                                </h3>
+                                <p className="text-xs text-muted mt-1">
+                                    Compare your draft to the last saved config. Undo restores one field.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowDiffModal(false)}
+                                className="p-2 rounded-lg text-muted hover:text-text hover:bg-white/5"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+                            {configDiffs.length === 0 ? (
+                                <p className="text-sm text-muted text-center py-8">No differences.</p>
+                            ) : (
+                                configDiffs.map(entry => (
+                                    <div
+                                        key={String(entry.key)}
+                                        className="rounded-xl border border-border bg-background/40 p-3 space-y-2"
+                                    >
+                                        <div className="flex items-center justify-between gap-2">
+                                            <p className="text-sm font-bold text-text">{entry.label}</p>
+                                            <button
+                                                type="button"
+                                                onClick={() => setConfig(prev => revertConfigField(prev, originalConfig, entry.key))}
+                                                className="text-[11px] font-bold uppercase tracking-wide text-muted hover:text-plex inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-border hover:border-plex/40"
+                                                title="Restore this field to the saved value"
+                                            >
+                                                <Undo2 className="w-3 h-3" />
+                                                Undo
+                                            </button>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                            <div className="rounded-lg bg-red-500/5 border border-red-500/20 p-2 min-w-0">
+                                                <p className="text-[10px] font-bold uppercase tracking-wider text-red-300/80 mb-1">Before</p>
+                                                <pre className="whitespace-pre-wrap break-words text-muted font-mono text-[11px] leading-relaxed max-h-40 overflow-y-auto">
+                                                    {entry.before}
+                                                </pre>
+                                            </div>
+                                            <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/20 p-2 min-w-0">
+                                                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-300/80 mb-1">After</p>
+                                                <pre className="whitespace-pre-wrap break-words text-text font-mono text-[11px] leading-relaxed max-h-40 overflow-y-auto">
+                                                    {entry.after}
+                                                </pre>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                        <div className="flex flex-wrap items-center justify-end gap-2 px-5 py-4 border-t border-border">
+                            <button
+                                type="button"
+                                onClick={() => { setConfig(originalConfig); setShowDiffModal(false); }}
+                                className="px-4 py-2 rounded-lg text-sm font-bold text-muted border border-border hover:text-text hover:bg-white/5"
+                            >
+                                Discard all
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setShowDiffModal(false)}
+                                className="px-4 py-2 rounded-lg text-sm font-bold text-text border border-border hover:bg-white/5"
+                            >
+                                Keep editing
+                            </button>
+                            <button
+                                type="button"
+                                disabled={saving || configDiffs.length === 0}
+                                onClick={() => {
+                                    setShowDiffModal(false);
+                                    void handleSave();
+                                }}
+                                className="px-4 py-2 rounded-lg text-sm font-bold bg-plex text-background hover:bg-plex-hover disabled:opacity-50"
+                            >
+                                {saving ? saveLabel : 'Save changes'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

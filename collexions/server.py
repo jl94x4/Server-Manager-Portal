@@ -778,6 +778,108 @@ def config_endpoint():
     
     return jsonify(load_config())
 
+
+@app.route('/api/config/validate', methods=['POST'])
+@require_auth
+def validate_config_endpoint():
+    """Validate a draft config (does not save). Checks fields + live Plex libraries."""
+    data = request.json or {}
+    errors = []
+    warnings = []
+    available = []
+
+    url = str(data.get('plex_url') or '').strip()
+    token = str(data.get('plex_token') or '').strip()
+    if not url:
+        errors.append('Plex URL is required.')
+    elif not (url.startswith('http://') or url.startswith('https://')):
+        warnings.append('Plex URL should start with http:// or https://')
+    if not token:
+        errors.append('Plex token is required.')
+
+    libs_raw = data.get('library_names') or []
+    if not isinstance(libs_raw, list):
+        libs_raw = []
+    libs = [str(x).strip() for x in libs_raw if str(x).strip()]
+    if not libs:
+        errors.append('Add at least one Plex library.')
+
+    pins = data.get('number_of_collections_to_pin') or {}
+    if not isinstance(pins, dict):
+        pins = {}
+    total_pins = 0
+    for lib in libs:
+        try:
+            n = int(pins.get(lib, 0))
+        except (TypeError, ValueError):
+            errors.append(f'Pin limit for "{lib}" must be a whole number ≥ 0.')
+            continue
+        if n < 0:
+            errors.append(f'Pin limit for "{lib}" must be ≥ 0.')
+        else:
+            total_pins += n
+            if n == 0:
+                warnings.append(f'"{lib}" has 0 pin slots — nothing will be pinned there.')
+    if libs and total_pins == 0:
+        warnings.append('All libraries have 0 pin slots. The service will not pin anything.')
+
+    try:
+        interval = int(data.get('pinning_interval') or 0)
+        if interval < 1:
+            errors.append('Check interval must be at least 1 minute.')
+    except (TypeError, ValueError):
+        errors.append('Check interval must be a number.')
+
+    for pattern in (data.get('regex_exclusion_patterns') or []):
+        p = str(pattern or '').strip()
+        if not p:
+            continue
+        try:
+            re.compile(p)
+        except re.error:
+            errors.append(f'Invalid regex exclusion: {p}')
+
+    # Live Plex connection + library existence (draft credentials, not saved config)
+    if url and token:
+        try:
+            from plexapi.server import PlexServer
+            plex = PlexServer(url, token, timeout=10)
+            sections = list(plex.library.sections())
+            available = [s.title for s in sections]
+            available_set = set(available)
+            for lib in libs:
+                if lib not in available_set:
+                    # Suggest close matches by case
+                    lower_map = {a.lower(): a for a in available}
+                    hint = lower_map.get(lib.lower())
+                    if hint and hint != lib:
+                        errors.append(f'Library "{lib}" not found on Plex (did you mean "{hint}"?).')
+                    else:
+                        errors.append(f'Library "{lib}" was not found on this Plex server.')
+        except Exception as e:
+            errors.append(f'Cannot connect to Plex with these credentials: {e}')
+
+    # Dedupe while preserving order
+    def _uniq(items):
+        seen = set()
+        out = []
+        for x in items:
+            if x in seen:
+                continue
+            seen.add(x)
+            out.append(x)
+        return out
+
+    errors = _uniq(errors)
+    warnings = _uniq(warnings)
+    return jsonify({
+        'ok': len(errors) == 0,
+        'errors': errors,
+        'warnings': warnings,
+        'available_libraries': available,
+    })
+
+
 def sync_logs_to_history():
     """Parses LOG_FILE and appends new pin events to HISTORY_FILE."""
     if not os.path.exists(LOG_FILE):
