@@ -79,6 +79,8 @@ const Creator: React.FC = () => {
     const [templateCategories, setTemplateCategories] = useState<Array<{ id: string; label: string }>>([]);
     const [templateCategory, setTemplateCategory] = useState<string>('all');
     const [templateKeys, setTemplateKeys] = useState<{ tmdb: boolean; trakt: boolean }>({ tmdb: false, trakt: false });
+    /** When a library is selected, hide the other media type (toggle to show all). */
+    const [matchLibraryMedia, setMatchLibraryMedia] = useState(true);
     const [franchiseQuery, setFranchiseQuery] = useState('');
     const [franchiseResults, setFranchiseResults] = useState<any[]>([]);
     const [searchingFranchises, setSearchingFranchises] = useState(false);
@@ -175,10 +177,49 @@ const Creator: React.FC = () => {
         void loadData();
     }, []);
 
+    const selectedLibraryMedia = useMemo((): MediaKind | null => {
+        if (!targetLibrary) return null;
+        const lib = plexLibraries.find((l) => l.name === targetLibrary);
+        return normalizeMediaKind(lib?.type);
+    }, [targetLibrary, plexLibraries]);
+
+    const templateMediaOf = (tpl: JobTemplate): MediaKind | null =>
+        normalizeMediaKind(tpl.media) || mediaFromSourceType(tpl.source_type);
+
     const filteredTemplates = useMemo(() => {
-        if (templateCategory === 'all') return templates;
-        return templates.filter((t) => t.category === templateCategory);
-    }, [templates, templateCategory]);
+        let list = templates;
+        if (templateCategory !== 'all') {
+            list = list.filter((t) => t.category === templateCategory);
+        }
+        if (selectedLibraryMedia && matchLibraryMedia) {
+            list = list.filter((t) => {
+                const m = templateMediaOf(t);
+                return !m || m === selectedLibraryMedia;
+            });
+        } else if (selectedLibraryMedia) {
+            list = [...list].sort((a, b) => {
+                const am = templateMediaOf(a) === selectedLibraryMedia ? 0 : 1;
+                const bm = templateMediaOf(b) === selectedLibraryMedia ? 0 : 1;
+                return am - bm;
+            });
+        }
+        return list;
+    }, [templates, templateCategory, selectedLibraryMedia, matchLibraryMedia]);
+
+    const filteredTrendingPresets = useMemo(() => {
+        if (!selectedLibraryMedia || !matchLibraryMedia) {
+            if (!selectedLibraryMedia) return trendingPresets;
+            return [...trendingPresets].sort((a, b) => {
+                const am = (mediaFromSourceType(a.source_type) || mediaFromItems(a.items)) === selectedLibraryMedia ? 0 : 1;
+                const bm = (mediaFromSourceType(b.source_type) || mediaFromItems(b.items)) === selectedLibraryMedia ? 0 : 1;
+                return am - bm;
+            });
+        }
+        return trendingPresets.filter((p) => {
+            const m = mediaFromSourceType(p.source_type) || mediaFromItems(p.items);
+            return !m || m === selectedLibraryMedia;
+        });
+    }, [trendingPresets, selectedLibraryMedia, matchLibraryMedia]);
 
     const handleCreateTemplate = async (tpl: JobTemplate) => {
         if (!targetLibrary) {
@@ -399,6 +440,12 @@ const Creator: React.FC = () => {
     const [discoverResults, setDiscoverResults] = useState<any[]>([]);
     const [discovering, setDiscovering] = useState(false);
     const [showPoolDetails, setShowPoolDetails] = useState(false);
+
+    // Keep Discover media type aligned with the selected library.
+    useEffect(() => {
+        if (!selectedLibraryMedia) return;
+        setDiscoverType(selectedLibraryMedia === 'show' ? 'tv' : 'movie');
+    }, [selectedLibraryMedia]);
 
     useEffect(() => {
         if (activeSubTab === 'discover') {
@@ -1020,6 +1067,9 @@ const Creator: React.FC = () => {
                                     </h3>
                                     <p className="text-sm text-muted mt-1">
                                         Creates a real Plex collection from titles you already own, and registers an auto-sync Job.
+                                        {selectedLibraryMedia && matchLibraryMedia
+                                            ? ` Showing ${selectedLibraryMedia === 'show' ? 'TV' : 'movie'} templates for your selected library.`
+                                            : ''}
                                     </p>
                                 </div>
                                 <div className="flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-wider">
@@ -1031,7 +1081,7 @@ const Creator: React.FC = () => {
                                     </span>
                                 </div>
                             </div>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <button
                                     type="button"
                                     onClick={() => setTemplateCategory('all')}
@@ -1049,6 +1099,22 @@ const Creator: React.FC = () => {
                                         {cat.label}
                                     </button>
                                 ))}
+                                {selectedLibraryMedia && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setMatchLibraryMedia((v) => !v)}
+                                        className={`ml-auto px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                                            matchLibraryMedia
+                                                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                                                : 'border-border text-muted hover:text-text'
+                                        }`}
+                                        title={matchLibraryMedia ? 'Currently hiding the other media type' : 'Matching library type pinned to the top'}
+                                    >
+                                        {matchLibraryMedia
+                                            ? `${selectedLibraryMedia === 'show' ? 'TV' : 'Movies'} only`
+                                            : 'Show all media'}
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -1090,8 +1156,21 @@ const Creator: React.FC = () => {
                                 );
                             })}
                             {filteredTemplates.length === 0 && (
-                                <div className="md:col-span-2 xl:col-span-3 text-center text-muted py-10 border border-dashed border-border rounded-2xl">
-                                    No templates in this category.
+                                <div className="md:col-span-2 xl:col-span-3 text-center text-muted py-10 border border-dashed border-border rounded-2xl space-y-3">
+                                    <p>
+                                        {selectedLibraryMedia && matchLibraryMedia
+                                            ? `No ${selectedLibraryMedia === 'show' ? 'TV' : 'movie'} templates in this category.`
+                                            : 'No templates in this category.'}
+                                    </p>
+                                    {selectedLibraryMedia && matchLibraryMedia && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setMatchLibraryMedia(false)}
+                                            className="text-plex text-sm font-bold hover:underline"
+                                        >
+                                            Show all media types
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -1100,6 +1179,11 @@ const Creator: React.FC = () => {
                             <div className="space-y-4">
                                 <p className="text-sm text-muted">
                                     Find a TMDB movie collection (e.g. “Matrix”, “Batman”, “Despicable Me”) and create it as a managed Job.
+                                    {selectedLibraryMedia === 'show' && (
+                                        <span className="block mt-1 text-amber-300/90">
+                                            Franchises are movie collections — switch Target Library to a Movies library to create them.
+                                        </span>
+                                    )}
                                 </p>
                                 <div className="flex flex-col sm:flex-row gap-3">
                                     <input
@@ -1179,8 +1263,31 @@ const Creator: React.FC = () => {
                                 </div>
                             </Card>
                         ) : (
+                            <div className="space-y-4">
+                                {selectedLibraryMedia && (
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <p className="text-sm text-muted">
+                                            {matchLibraryMedia
+                                                ? `Showing ${selectedLibraryMedia === 'show' ? 'TV' : 'movie'} trending for “${targetLibrary}”.`
+                                                : 'Showing all trending — library type pinned first.'}
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => setMatchLibraryMedia((v) => !v)}
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                                                matchLibraryMedia
+                                                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                                                    : 'border-border text-muted hover:text-text'
+                                            }`}
+                                        >
+                                            {matchLibraryMedia
+                                                ? `${selectedLibraryMedia === 'show' ? 'TV' : 'Movies'} only`
+                                                : 'Show all media'}
+                                        </button>
+                                    </div>
+                                )}
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {trendingPresets.map(preset => (
+                                {filteredTrendingPresets.map(preset => (
                                     <div key={preset.id} className="bg-card/50 border border-border p-6 rounded-2xl flex flex-col justify-between hover:border-plex/30 transition-all group shadow-lg">
                                         <div>
                                             <div className="flex items-center justify-between mb-4">
@@ -1219,6 +1326,19 @@ const Creator: React.FC = () => {
                                         </button>
                                     </div>
                                 ))}
+                            </div>
+                            {filteredTrendingPresets.length === 0 && (
+                                <div className="text-center text-muted py-10 border border-dashed border-border rounded-2xl space-y-3">
+                                    <p>No trending presets for this library type.</p>
+                                    <button
+                                        type="button"
+                                        onClick={() => setMatchLibraryMedia(false)}
+                                        className="text-plex text-sm font-bold hover:underline"
+                                    >
+                                        Show all media types
+                                    </button>
+                                </div>
+                            )}
                             </div>
                         )}
                     </div>
