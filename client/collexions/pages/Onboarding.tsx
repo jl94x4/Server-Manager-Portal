@@ -404,7 +404,7 @@ const Onboarding: React.FC = () => {
                         return (
                             <div key={i} className={`flex flex-col items-center gap-2 relative z-10 min-w-[4.5rem] ${!isLast ? 'flex-1' : ''}`}>
                                 <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all border ${active
-                                    ? 'bg-plex border-plex text-white shadow-lg shadow-plex/20'
+                                    ? 'bg-plex border-plex text-text shadow-lg shadow-plex/20'
                                     : 'bg-background border-border text-muted'
                                     }`}>
                                     <Icon className="w-5 h-5" />

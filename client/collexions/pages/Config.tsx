@@ -173,8 +173,8 @@ const ConfigPage: React.FC = () => {
 
 
     if (loading) return (
-        <div className="flex h-96 items-center justify-center text-slate-400 flex-col gap-4">
-            <div className="w-8 h-8 border-2 border-slate-600 border-t-plex rounded-full animate-spin" />
+        <div className="flex h-96 items-center justify-center text-muted flex-col gap-4">
+            <div className="w-8 h-8 border-2 border-border border-t-plex rounded-full animate-spin" />
             <p>Loading Configuration...</p>
         </div>
     );
@@ -183,8 +183,8 @@ const ConfigPage: React.FC = () => {
         <div className="space-y-8 pb-20 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight">Configuration</h2>
-                    <p className="text-slate-400 mt-1 flex items-center gap-2 text-sm md:text-base">
+                    <h2 className="text-2xl md:text-3xl font-bold text-text tracking-tight">Configuration</h2>
+                    <p className="text-muted mt-1 flex items-center gap-2 text-sm md:text-base">
                         <Sliders className="w-4 h-4" />
                         Manage libraries, exclusions and scheduling
                     </p>
@@ -204,7 +204,7 @@ const ConfigPage: React.FC = () => {
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={saving || restarting}
-                        className="flex-1 md:flex-none justify-center flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-slate-200 px-5 py-2.5 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700 shadow-sm"
+                        className="flex-1 md:flex-none justify-center flex items-center gap-2 bg-card hover:bg-white/5 text-text px-5 py-2.5 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-border shadow-sm"
                         title="Import a standalone Collexions config.json"
                     >
                         <Upload className="w-4 h-4" />
@@ -214,7 +214,7 @@ const ConfigPage: React.FC = () => {
                         type="button"
                         onClick={exportConfigFile}
                         disabled={saving || restarting}
-                        className="flex-1 md:flex-none justify-center flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-slate-200 px-5 py-2.5 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700 shadow-sm"
+                        className="flex-1 md:flex-none justify-center flex items-center gap-2 bg-card hover:bg-white/5 text-text px-5 py-2.5 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-border shadow-sm"
                     >
                         <Download className="w-4 h-4" />
                         Export
@@ -223,7 +223,7 @@ const ConfigPage: React.FC = () => {
                         type="button"
                         onClick={() => importFromPortal()}
                         disabled={importingPortal || saving || restarting}
-                        className="flex-1 md:flex-none justify-center flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-slate-200 px-5 py-2.5 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700 shadow-sm"
+                        className="flex-1 md:flex-none justify-center flex items-center gap-2 bg-card hover:bg-white/5 text-text px-5 py-2.5 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-border shadow-sm"
                     >
                         <RefreshCw className={`w-4 h-4 ${importingPortal ? 'animate-spin' : ''}`} />
                         {importingPortal ? 'Importing…' : 'Import from portal'}
@@ -231,14 +231,14 @@ const ConfigPage: React.FC = () => {
                     <button
                         onClick={handleSave}
                         disabled={saving || restarting}
-                        className="flex-1 md:flex-none justify-center flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700 shadow-sm w-full md:w-40">
+                        className="flex-1 md:flex-none justify-center flex items-center gap-2 bg-plex hover:bg-plex-hover text-background px-5 py-2.5 rounded-xl font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-plex/10 w-full md:w-40">
                         <Save className="w-4 h-4" /> {saving ? 'Saving...' : 'Save Config'}
                     </button>
                 </div>
             </div>
 
             {importMessage && (
-                <div className="bg-slate-900/60 border border-slate-700 text-slate-200 px-4 py-3 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-sm">
+                <div className="bg-card/60 border border-border text-text px-4 py-3 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-sm">
                     <span>{importMessage}</span>
                     {importMessage.includes('already set') && (
                         <button
@@ -265,7 +265,7 @@ const ConfigPage: React.FC = () => {
                     <button
                         onClick={handleRestartService}
                         disabled={restarting}
-                        className="w-full md:w-auto bg-amber-600 hover:bg-amber-500 text-white px-6 py-2 rounded-lg font-bold shadow-lg transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
+                        className="w-full md:w-auto bg-amber-600 hover:bg-amber-500 text-text px-6 py-2 rounded-lg font-bold shadow-lg transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
                     >
                         {restarting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Power className="w-4 h-4" />}
                         {restarting ? 'Restarting...' : 'Restart Service Now'}
@@ -294,14 +294,14 @@ const ConfigPage: React.FC = () => {
                     <div className="flex gap-2">
                         <button
                             onClick={() => { setConfig(originalConfig!); }}
-                            className="px-4 py-1.5 rounded-lg text-sm font-bold text-slate-400 hover:bg-slate-800 hover:text-white transition-colors border border-slate-700"
+                            className="px-4 py-1.5 rounded-lg text-sm font-bold text-muted hover:bg-white/5 hover:text-text transition-colors border border-border"
                         >
                             Discard
                         </button>
                         <button
                             onClick={handleSave}
                             disabled={saving}
-                            className="px-4 py-1.5 rounded-lg text-sm font-bold bg-plex text-white hover:bg-orange-600 transition-colors shadow-lg disabled:opacity-50"
+                            className="px-4 py-1.5 rounded-lg text-sm font-bold bg-plex text-background hover:bg-plex-hover transition-colors shadow-lg disabled:opacity-50"
                         >
                             {saving ? 'Saving...' : 'Save Now'}
                         </button>
@@ -310,14 +310,14 @@ const ConfigPage: React.FC = () => {
             )}
 
             {/* Tabs - Make scrollable on mobile */}
-            <div className="border-b border-slate-800/60 flex overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+            <div className="border-b border-border flex overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
                 {['general', 'libraries', 'exclusions', 'specials', 'categories', 'integrations'].map(t => (
                     <button
                         key={t}
                         onClick={() => setActiveTab(t as any)}
                         className={`px-4 md:px-6 py-4 font-medium capitalize transition-all border-b-2 whitespace-nowrap text-sm md:text-base ${activeTab === t
-                            ? 'text-plex border-plex bg-slate-900/20'
-                            : 'text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-900/10'
+                            ? 'text-plex border-plex bg-card/30'
+                            : 'text-muted border-transparent hover:text-text hover:bg-white/5'
                             }`}
                     >
                         {t}
@@ -336,8 +336,8 @@ const ConfigPage: React.FC = () => {
                         </Card>
 
                         <Card title="Execution Controls">
-                            <div className={`border rounded-xl p-4 md:p-6 mb-6 transition-all duration-300 flex flex-col md:flex-row gap-4 items-start ${config.dry_run ? 'bg-plex/10 border-plex/30' : 'bg-slate-950/30 border-slate-800/60'}`}>
-                                <div className={`p-3 rounded-full hidden md:block ${config.dry_run ? 'bg-plex/20 text-plex' : 'bg-slate-900 text-slate-500'}`}>
+                            <div className={`border rounded-xl p-4 md:p-6 mb-6 transition-all duration-300 flex flex-col md:flex-row gap-4 items-start ${config.dry_run ? 'bg-plex/10 border-plex/30' : 'bg-background/30 border-border'}`}>
+                                <div className={`p-3 rounded-full hidden md:block ${config.dry_run ? 'bg-plex/20 text-plex' : 'bg-card text-muted'}`}>
                                     <ShieldAlert className="w-6 h-6" />
                                 </div>
                                 <div className="flex-1 w-full">
@@ -361,7 +361,7 @@ const ConfigPage: React.FC = () => {
                                 <Input label="Repeat Block (hours)" type="number" value={config.repeat_block_hours} onChange={e => updateField('repeat_block_hours', parseInt(e.target.value))} tooltip="Hours to wait before pinning the same collection again after it has been unpinned." />
                                 <Input label="Min Items in Collection" type="number" value={config.min_items_for_pinning} onChange={e => updateField('min_items_for_pinning', parseInt(e.target.value))} tooltip="Minimum number of items required in a collection for it to be considered for pinning." />
                             </div>
-                            <div className="space-y-4 pt-4 border-t border-slate-800/50">
+                            <div className="space-y-4 pt-4 border-t border-border">
                                 <Input label="Collection Label" value={config.collexions_label} onChange={e => updateField('collexions_label', e.target.value)} tooltip="The label added to all collections managed by ColleXions for easy identification." />
                                 <Input label="Discord Webhook URL" value={config.discord_webhook_url} onChange={e => updateField('discord_webhook_url', e.target.value)} placeholder="https://discord.com/api/webhooks/..." tooltip="Post notifications to a Discord channel when collections are pinned or unpinned." />
                             </div>
@@ -378,7 +378,7 @@ const ConfigPage: React.FC = () => {
                                 />
                                 <div className={`transition-opacity ${config.use_random_category_mode ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
                                     <div className="mb-2 flex justify-between">
-                                        <label className="text-sm font-medium text-slate-300">Skip Percent ({config.random_category_skip_percent}%)</label>
+                                        <label className="text-sm font-medium text-text">Skip Percent ({config.random_category_skip_percent}%)</label>
                                     </div>
                                     <input
                                         type="range" min="0" max="100"
@@ -386,7 +386,7 @@ const ConfigPage: React.FC = () => {
                                         onChange={e => updateField('random_category_skip_percent', parseInt(e.target.value))}
                                         className="w-full accent-plex cursor-pointer"
                                     />
-                                    <p className="text-xs text-slate-500 mt-1">Chance to skip selecting a category entirely in a cycle.</p>
+                                    <p className="text-xs text-muted mt-1">Chance to skip selecting a category entirely in a cycle.</p>
                                 </div>
                             </div>
                         </Card>
@@ -394,23 +394,23 @@ const ConfigPage: React.FC = () => {
                 )}
 
                 {activeTab === 'libraries' && (
-                    <Card title="Managed Libraries" actions={<button onClick={() => handleAddLibrary(setConfig)} className="text-plex hover:text-orange-400 text-sm font-bold flex items-center gap-1 transition-colors"><Plus className="w-4 h-4" /> Add Lib</button>}>
+                    <Card title="Managed Libraries" actions={<button onClick={() => handleAddLibrary(setConfig)} className="text-plex hover:text-plex text-sm font-bold flex items-center gap-1 transition-colors"><Plus className="w-4 h-4" /> Add Lib</button>}>
                         <div className="space-y-4">
-                            {libraries.length === 0 && <p className="text-slate-500 italic text-center py-4">No libraries added yet.</p>}
+                            {libraries.length === 0 && <p className="text-muted italic text-center py-4">No libraries added yet.</p>}
                             {libraries.map(lib => (
-                                <div key={lib} className="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-950/30 border border-slate-800/60 p-4 rounded-xl hover:border-slate-700/60 transition-colors gap-3">
-                                    <span className="font-medium text-slate-200 truncate">{lib}</span>
+                                <div key={lib} className="flex flex-col sm:flex-row sm:items-center justify-between bg-background/30 border border-border p-4 rounded-xl hover:border-border transition-colors gap-3">
+                                    <span className="font-medium text-text truncate">{lib}</span>
                                     <div className="flex items-center gap-4 self-end sm:self-auto">
-                                        <div className="flex items-center gap-2 bg-slate-900/50 px-3 py-1.5 rounded-lg border border-slate-800/50">
-                                            <span className="text-xs text-slate-500 uppercase font-bold tracking-wider">Pins</span>
+                                        <div className="flex items-center gap-2 bg-card/60 px-3 py-1.5 rounded-lg border border-border">
+                                            <span className="text-xs text-muted uppercase font-bold tracking-wider">Pins</span>
                                             <input
                                                 type="number"
-                                                className="w-12 bg-transparent border-none p-0 text-center text-white text-sm focus:ring-0"
+                                                className="w-12 bg-transparent border-none p-0 text-center text-text text-sm focus:ring-0"
                                                 value={pins[lib] || 0}
                                                 onChange={(e) => handlePinCountChange(lib, e.target.value, setConfig)}
                                             />
                                         </div>
-                                        <button onClick={() => handleRemoveLibrary(lib, setConfig)} className="text-slate-500 hover:text-red-500 p-2 hover:bg-red-500/10 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                        <button onClick={() => handleRemoveLibrary(lib, setConfig)} className="text-muted hover:text-red-500 p-2 hover:bg-red-500/10 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
                                     </div>
                                 </div>
                             ))}
@@ -422,12 +422,12 @@ const ConfigPage: React.FC = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <Card title="Global Exclusion List">
                             <div className="flex items-center gap-1.5 mb-4">
-                                <p className="text-xs text-slate-500">Exact collection names to never pin.</p>
+                                <p className="text-xs text-muted">Exact collection names to never pin.</p>
                                 <div className="relative">
-                                    <Info className="peer w-3 h-3 text-slate-600 hover:text-plex cursor-help transition-colors" />
-                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-900 border border-slate-700/50 rounded-lg text-[10px] text-slate-300 opacity-0 peer-hover:opacity-100 transition-all duration-200 pointer-events-none z-[100] shadow-2xl backdrop-blur-md">
+                                    <Info className="peer w-3 h-3 text-muted hover:text-plex cursor-help transition-colors" />
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-card border border-border rounded-lg text-[10px] text-text opacity-0 peer-hover:opacity-100 transition-all duration-200 pointer-events-none z-[100] shadow-2xl backdrop-blur-md">
                                         Use this to prevent specific collections from ever being pinned to your home screen, even if they match categories or trending data.
-                                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900" />
+                                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-card" />
                                     </div>
                                 </div>
                             </div>
@@ -439,12 +439,12 @@ const ConfigPage: React.FC = () => {
                         </Card>
                         <Card title="Regex Exclusions">
                             <div className="flex items-center gap-1.5 mb-4">
-                                <p className="text-xs text-slate-500">Python Regex patterns to exclude.</p>
+                                <p className="text-xs text-muted">Python Regex patterns to exclude.</p>
                                 <div className="relative">
-                                    <Info className="peer w-3 h-3 text-slate-600 hover:text-plex cursor-help transition-colors" />
-                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-900 border border-slate-700/50 rounded-lg text-[10px] text-slate-300 opacity-0 peer-hover:opacity-100 transition-all duration-200 pointer-events-none z-[100] shadow-2xl backdrop-blur-md">
+                                    <Info className="peer w-3 h-3 text-muted hover:text-plex cursor-help transition-colors" />
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-card border border-border rounded-lg text-[10px] text-text opacity-0 peer-hover:opacity-100 transition-all duration-200 pointer-events-none z-[100] shadow-2xl backdrop-blur-md">
                                         Exclude collections based on name patterns (e.g. ^.*-4K$ to exclude any collection ending with -4K).
-                                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900" />
+                                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-card" />
                                     </div>
                                 </div>
                             </div>
@@ -463,9 +463,9 @@ const ConfigPage: React.FC = () => {
 
                 {activeTab === 'categories' && (
                     <Card title="Library Categories">
-                        <div className="bg-blue-900/10 border border-blue-500/20 p-4 rounded-xl mb-6 flex items-start gap-4">
-                            <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                            <p className="text-sm text-blue-200/80 leading-relaxed">
+                        <div className="bg-plex/10 border border-plex/30 p-4 rounded-xl mb-6 flex items-start gap-4">
+                            <AlertCircle className="w-5 h-5 text-plex flex-shrink-0 mt-0.5" />
+                            <p className="text-sm text-muted leading-relaxed">
                                 Categories allow you to group collections and force specific numbers of pins from that group.
                                 In "Random Category Mode", the script will randomly pick one of these categories per run.
                             </p>
@@ -523,7 +523,7 @@ const ConfigPage: React.FC = () => {
                                 description="Automatically identify and pin collections that match global trending results from Trakt and TMDb."
                                 tooltip="Matches your local collections against current global trending data to elevate relevant content automatically."
                             />
-                            <p className="text-xs text-slate-500 mt-4 border-t border-slate-800 pt-4">
+                            <p className="text-xs text-muted mt-4 border-t border-border pt-4">
                                 Note: This will prioritize your local collections that match trending titles. It will NOT create new collections automatically yet.
                             </p>
                         </Card>
@@ -583,22 +583,22 @@ const ArrayEditor = ({ list = [], onChange, placeholder }: { list: string[], onC
         <div className="space-y-3">
             <div className="flex gap-2">
                 <input
-                    className="flex-1 bg-slate-950/50 border border-slate-700/60 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-plex/50 min-w-0"
+                    className="flex-1 bg-background/60 border border-border rounded px-3 py-2 text-sm text-text focus:outline-none focus:border-plex/50 min-w-0"
                     value={input}
                     onChange={e => setInput(e.target.value)}
                     placeholder={placeholder}
                     onKeyDown={e => e.key === 'Enter' && add()}
                 />
-                <button onClick={add} className="bg-slate-800 hover:bg-slate-700 text-white px-3 rounded border border-slate-700/50 flex-shrink-0"><Plus className="w-4 h-4" /></button>
+                <button onClick={add} className="bg-card hover:bg-white/10 text-text px-3 rounded border border-border flex-shrink-0"><Plus className="w-4 h-4" /></button>
             </div>
             <div className="flex flex-wrap gap-2">
                 {safeList.map((item, idx) => (
-                    <span key={idx} className="bg-slate-900/50 border border-slate-800 text-slate-300 text-xs md:text-sm px-2 py-1 rounded flex items-center gap-2 max-w-full truncate">
+                    <span key={idx} className="bg-card/60 border border-border text-text text-xs md:text-sm px-2 py-1 rounded flex items-center gap-2 max-w-full truncate">
                         <span className="truncate">{item}</span>
                         <button onClick={() => remove(idx)} className="text-red-400 hover:text-red-300 flex-shrink-0"><Trash2 className="w-3 h-3" /></button>
                     </span>
                 ))}
-                {safeList.length === 0 && <span className="text-slate-600 text-sm italic">No items</span>}
+                {safeList.length === 0 && <span className="text-muted text-sm italic">No items</span>}
             </div>
         </div>
     );
@@ -622,16 +622,16 @@ const SpecialEditor = ({ specials = [], setConfig }: { specials: SpecialCollecti
     };
 
     return (
-        <Card title="Special Event Collections" actions={<button onClick={handleAddSpecial} className="text-plex hover:text-orange-400 text-sm font-bold flex items-center gap-1"><Plus className="w-4 h-4" /> Add Event</button>}>
+        <Card title="Special Event Collections" actions={<button onClick={handleAddSpecial} className="text-plex hover:text-plex text-sm font-bold flex items-center gap-1"><Plus className="w-4 h-4" /> Add Event</button>}>
             <div className="space-y-4">
                 {specials.map((spec, idx) => (
-                    <div key={idx} className="bg-slate-950/30 border border-slate-800/60 p-4 md:p-6 rounded-xl space-y-4 relative group hover:border-slate-700/60 transition-colors">
+                    <div key={idx} className="bg-background/30 border border-border p-4 md:p-6 rounded-xl space-y-4 relative group hover:border-border transition-colors">
                         <button
                             onClick={() => {
                                 const updated = specials.filter((_, i) => i !== idx);
                                 setConfig(prev => ({ ...prev, special_collections: updated }));
                             }}
-                            className="absolute top-4 right-4 text-slate-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/10 rounded-lg">
+                            className="absolute top-4 right-4 text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/10 rounded-lg">
                             <Trash2 className="w-4 h-4" />
                         </button>
 
@@ -641,9 +641,9 @@ const SpecialEditor = ({ specials = [], setConfig }: { specials: SpecialCollecti
                                 <Input label="End Date (MM-DD)" value={spec.end_date} onChange={e => updateSpecial(idx, 'end_date', e.target.value)} />
                             </div>
                             <div className="md:w-2/3">
-                                <label className="block text-sm font-medium text-slate-300 mb-1.5">Collection Names (comma separated)</label>
+                                <label className="block text-sm font-medium text-text mb-1.5">Collection Names (comma separated)</label>
                                 <textarea
-                                    className="w-full bg-slate-950/50 border border-slate-700/60 rounded-lg p-3 text-sm text-slate-200 h-28 focus:outline-none focus:border-plex/50"
+                                    className="w-full bg-background/60 border border-border rounded-lg p-3 text-sm text-text h-28 focus:outline-none focus:border-plex/50"
                                     value={(spec.collection_names || []).join(',')}
                                     onChange={e => updateSpecialCollNames(idx, e.target.value)}
                                 />
@@ -651,7 +651,7 @@ const SpecialEditor = ({ specials = [], setConfig }: { specials: SpecialCollecti
                         </div>
                     </div>
                 ))}
-                {specials.length === 0 && <div className="text-center text-slate-500 py-8">No special events configured.</div>}
+                {specials.length === 0 && <div className="text-center text-muted py-8">No special events configured.</div>}
             </div>
         </Card>
     );
@@ -670,7 +670,7 @@ const CategoryEditor = ({ config, setConfig }: { config: AppConfig, setConfig: R
 
     const currentLib = selectedLib || safeLibs[0] || '';
 
-    if (!currentLib) return <div className="text-slate-500 italic p-6 text-center border border-slate-800/50 rounded bg-slate-900/30">Please add libraries in the "Libraries" tab first.</div>;
+    if (!currentLib) return <div className="text-muted italic p-6 text-center border border-border rounded bg-card/40">Please add libraries in the "Libraries" tab first.</div>;
 
     const safeCats = config.categories || {};
     const categories = safeCats[currentLib] || [];
@@ -704,16 +704,16 @@ const CategoryEditor = ({ config, setConfig }: { config: AppConfig, setConfig: R
                         tooltip="Choose which Plex library to manage categories for."
                     />
                 </div>
-                <button onClick={addCategory} className="w-full sm:w-auto mt-auto flex items-center justify-center gap-2 bg-plex text-white px-4 py-2 rounded-lg hover:bg-orange-600 shadow-lg shadow-orange-900/20 text-sm font-medium h-[42px]">
+                <button onClick={addCategory} className="w-full sm:w-auto mt-auto flex items-center justify-center gap-2 bg-plex text-background px-4 py-2 rounded-lg hover:bg-plex-hover shadow-lg shadow-plex/10 text-sm font-medium h-[42px]">
                     <Plus className="w-4 h-4" /> Add Category
                 </button>
             </div>
 
             <div className="space-y-4">
-                {categories.length === 0 && <div className="p-8 text-center bg-slate-900/30 rounded border border-slate-800/50 border-dashed text-slate-500">No categories defined for {currentLib}</div>}
+                {categories.length === 0 && <div className="p-8 text-center bg-card/40 rounded border border-border border-dashed text-muted">No categories defined for {currentLib}</div>}
 
                 {categories.map((cat, idx) => (
-                    <div key={`${currentLib}-cat-${idx}`} className="bg-slate-950/30 border border-slate-800/60 rounded-xl p-4 md:p-6 space-y-4">
+                    <div key={`${currentLib}-cat-${idx}`} className="bg-background/30 border border-border rounded-xl p-4 md:p-6 space-y-4">
                         <div className="flex gap-4 items-start">
                             <div className="flex-1 space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
@@ -733,17 +733,17 @@ const CategoryEditor = ({ config, setConfig }: { config: AppConfig, setConfig: R
                                 </div>
                                 <div>
                                     <div className="flex items-center gap-1.5 mb-1">
-                                        <label className="block text-sm font-medium text-slate-300">Collections (comma separated)</label>
+                                        <label className="block text-sm font-medium text-text">Collections (comma separated)</label>
                                         <div className="relative leading-none">
-                                            <HelpCircle className="peer w-3.5 h-3.5 text-slate-500 hover:text-plex cursor-help transition-colors" />
-                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-900/95 border border-slate-700/50 rounded-lg text-[10px] text-slate-300 opacity-0 peer-hover:opacity-100 transition-all duration-200 pointer-events-none z-[100] shadow-2xl backdrop-blur-md font-normal leading-normal">
+                                            <HelpCircle className="peer w-3.5 h-3.5 text-muted hover:text-plex cursor-help transition-colors" />
+                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-card/95 border border-border rounded-lg text-[10px] text-text opacity-0 peer-hover:opacity-100 transition-all duration-200 pointer-events-none z-[100] shadow-2xl backdrop-blur-md font-normal leading-normal">
                                                 Comma-separated list of collection names that belong to this category. Case sensitive.
-                                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900/95" />
+                                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-card" />
                                             </div>
                                         </div>
                                     </div>
                                     <textarea
-                                        className="w-full bg-slate-950/50 border border-slate-700/60 rounded-lg p-3 text-sm text-slate-200 focus:outline-none focus:border-plex/50"
+                                        className="w-full bg-background/60 border border-border rounded-lg p-3 text-sm text-text focus:outline-none focus:border-plex/50"
                                         rows={2}
                                         value={cat.collections.join(',')}
                                         onChange={e => {
@@ -752,7 +752,7 @@ const CategoryEditor = ({ config, setConfig }: { config: AppConfig, setConfig: R
                                     />
                                 </div>
                             </div>
-                            <button onClick={() => removeCategory(idx)} className="text-slate-500 hover:text-red-500 mt-2 p-2 hover:bg-red-500/10 rounded-lg transition-colors"><Trash2 className="w-5 h-5" /></button>
+                            <button onClick={() => removeCategory(idx)} className="text-muted hover:text-red-500 mt-2 p-2 hover:bg-red-500/10 rounded-lg transition-colors"><Trash2 className="w-5 h-5" /></button>
                         </div>
                     </div>
                 ))}

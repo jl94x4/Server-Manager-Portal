@@ -10,24 +10,24 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 export const Input: React.FC<InputProps> = ({ label, helperText, tooltip, className = '', ...props }) => (
   <div className="space-y-1.5">
     <div className="flex items-center gap-1.5">
-      <label className="block text-sm font-medium text-slate-300">
+      <label className="block text-sm font-medium text-text">
         {label}
       </label>
       {tooltip && (
         <div className="relative leading-none">
-          <HelpCircle className="peer w-3.5 h-3.5 text-slate-500 hover:text-plex cursor-help transition-colors" />
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-900/95 border border-slate-700/50 rounded-lg text-[10px] text-slate-300 opacity-0 peer-hover:opacity-100 transition-all duration-200 pointer-events-none z-[100] shadow-2xl backdrop-blur-md font-normal leading-normal">
+          <HelpCircle className="peer w-3.5 h-3.5 text-muted hover:text-plex cursor-help transition-colors" />
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-card border border-border rounded-lg text-[10px] text-muted opacity-0 peer-hover:opacity-100 transition-all duration-200 pointer-events-none z-[100] shadow-2xl font-normal leading-normal">
             {tooltip}
-            <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900/95" />
+            <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-card" />
           </div>
         </div>
       )}
     </div>
     <input
-      className={`w-full bg-slate-950/50 border border-slate-700/60 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-plex/50 focus:border-plex/50 transition-all placeholder-slate-600 ${className}`}
+      className={`w-full bg-background border border-border rounded-lg px-3 py-2 text-text focus:outline-none focus:ring-1 focus:ring-plex focus:border-plex transition-all placeholder:text-muted ${className}`}
       {...props}
     />
-    {helperText && <p className="text-xs text-slate-500">{helperText}</p>}
+    {helperText && <p className="text-xs text-muted">{helperText}</p>}
   </div>
 );
 
@@ -38,15 +38,15 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 
 export const Select: React.FC<SelectProps> = ({ label, options, className = '', ...props }) => (
   <div className="space-y-1.5">
-    <label className="block text-sm font-medium text-slate-300">
+    <label className="block text-sm font-medium text-text">
       {label}
     </label>
     <select
-      className={`w-full bg-slate-950/50 border border-slate-700/60 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-plex/50 focus:border-plex/50 transition-all cursor-pointer ${className}`}
+      className={`w-full bg-background border border-border rounded-lg px-3 py-2 text-text focus:outline-none focus:ring-1 focus:ring-plex focus:border-plex transition-all cursor-pointer ${className}`}
       {...props}
     >
       {options.map(opt => (
-        <option key={opt.value} value={opt.value} className="bg-slate-900">{opt.label}</option>
+        <option key={opt.value} value={opt.value} className="bg-card text-text">{opt.label}</option>
       ))}
     </select>
   </div>
@@ -82,15 +82,15 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({ label, value, option
     <div className={`space-y-1.5 relative ${className}`} ref={containerRef}>
       {label && (
         <div className="flex items-center gap-1.5">
-          <label className="block text-sm font-medium text-slate-300">
+          <label className="block text-sm font-medium text-text">
             {label}
           </label>
           {tooltip && (
             <div className="relative leading-none">
-              <HelpCircle className="peer w-3.5 h-3.5 text-slate-500 hover:text-plex cursor-help transition-colors" />
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-900/95 border border-slate-700/50 rounded-lg text-[10px] text-slate-300 opacity-0 peer-hover:opacity-100 transition-all duration-200 pointer-events-none z-[100] shadow-2xl backdrop-blur-md font-normal leading-normal">
+              <HelpCircle className="peer w-3.5 h-3.5 text-muted hover:text-plex cursor-help transition-colors" />
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-card border border-border rounded-lg text-[10px] text-muted opacity-0 peer-hover:opacity-100 transition-all duration-200 pointer-events-none z-[100] shadow-2xl font-normal leading-normal">
                 {tooltip}
-                <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900/95" />
+                <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-card" />
               </div>
             </div>
           )}
@@ -98,13 +98,13 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({ label, value, option
       )}
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full bg-slate-950/50 border ${isOpen ? 'border-plex/50 ring-2 ring-plex/50' : 'border-slate-700/60'} rounded-lg px-3 py-2 text-slate-100 flex items-center justify-between cursor-pointer transition-all hover:bg-slate-900/50`}
+        className={`w-full bg-background border ${isOpen ? 'border-plex ring-1 ring-plex' : 'border-border'} rounded-lg px-3 py-2 text-text flex items-center justify-between cursor-pointer transition-all hover:bg-white/5`}
       >
-        <span className={!selectedOption ? 'text-slate-500' : ''}>
+        <span className={!selectedOption ? 'text-muted' : ''}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <svg
-          className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180 text-plex' : 'text-slate-500'}`}
+          className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180 text-plex' : 'text-muted'}`}
           fill="none" viewBox="0 0 24 24" stroke="currentColor"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -112,7 +112,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({ label, value, option
       </div>
 
       {isOpen && (
-        <div className="absolute z-[100] mt-1 w-full bg-slate-900/95 border border-slate-700 rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="absolute z-[100] mt-1 w-full bg-card border border-border rounded-xl shadow-2xl overflow-hidden animate-fade-in">
           <div className="max-h-60 overflow-y-auto custom-scrollbar">
             {options.map((opt) => (
               <div
@@ -121,7 +121,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({ label, value, option
                   onChange(opt.value);
                   setIsOpen(false);
                 }}
-                className={`px-4 py-2.5 text-sm cursor-pointer transition-colors flex items-center justify-between ${value === opt.value ? 'bg-plex/20 text-plex font-bold' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                className={`px-4 py-2.5 text-sm cursor-pointer transition-colors flex items-center justify-between ${value === opt.value ? 'bg-plex/20 text-plex font-bold' : 'text-muted hover:bg-white/5 hover:text-text'
                   }`}
               >
                 <span>{opt.label}</span>
@@ -149,28 +149,28 @@ interface SwitchProps {
 }
 
 export const Switch: React.FC<SwitchProps> = ({ label, checked, onChange, description, tooltip }) => (
-  <div className="flex items-center justify-between py-2">
-    <div>
+  <div className="flex items-center justify-between py-2 gap-4">
+    <div className="min-w-0">
       <div className="flex items-center gap-1.5 flex-wrap">
-        <label className="text-sm font-medium text-slate-300 block">{label}</label>
+        <label className="text-sm font-medium text-text block">{label}</label>
         {tooltip && (
           <div className="relative leading-none">
-            <HelpCircle className="peer w-3.5 h-3.5 text-slate-500 hover:text-plex cursor-help transition-colors" />
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-900/95 border border-slate-700/50 rounded-lg text-[10px] text-slate-300 opacity-0 peer-hover:opacity-100 transition-all duration-200 pointer-events-none z-[100] shadow-2xl backdrop-blur-md font-normal leading-normal">
+            <HelpCircle className="peer w-3.5 h-3.5 text-muted hover:text-plex cursor-help transition-colors" />
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-card border border-border rounded-lg text-[10px] text-muted opacity-0 peer-hover:opacity-100 transition-all duration-200 pointer-events-none z-[100] shadow-2xl font-normal leading-normal">
               {tooltip}
-              <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900/95" />
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-card" />
             </div>
           </div>
         )}
       </div>
-      {description && <p className="text-xs text-slate-500 mt-0.5">{description}</p>}
+      {description && <p className="text-xs text-muted mt-0.5">{description}</p>}
     </div>
     <button
       type="button"
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-plex/50 focus:ring-offset-2 focus:ring-offset-slate-900 ${checked ? 'bg-plex' : 'bg-slate-700'
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-plex/50 focus:ring-offset-2 focus:ring-offset-background ${checked ? 'bg-plex' : 'bg-white/15'
         }`}
     >
       <span

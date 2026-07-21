@@ -32,8 +32,8 @@ export const CollexionsSubnav: React.FC = () => (
                     className={({ isActive }) =>
                         `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                             isActive
-                                ? 'bg-plex text-white'
-                                : 'text-muted hover:text-text hover:bg-card'
+                                ? 'bg-plex text-background'
+                                : 'text-muted hover:text-text hover:bg-white/5'
                         }`
                     }
                 >

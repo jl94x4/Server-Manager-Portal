@@ -319,18 +319,18 @@ const Dashboard: React.FC = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
+                    <h2 className="text-3xl font-bold text-text tracking-tight flex items-center gap-3">
                         Dashboard
                         {isOffline && <span className="text-xs bg-red-900/50 text-red-400 px-2 py-1 rounded border border-red-800">OFFLINE</span>}
                     </h2>
-                    <p className="text-slate-400 mt-1 flex items-center gap-2 text-sm">
+                    <p className="text-muted mt-1 flex items-center gap-2 text-sm">
                         <Activity className="w-4 h-4 text-plex" /> Real-time automation overview
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
                     <button
                         onClick={manualRefresh}
-                        className={`p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 transition-all ${isRefreshing ? 'animate-spin' : ''}`}
+                        className={`p-2.5 rounded-xl bg-card border border-border text-muted hover:text-text hover:border-border transition-all ${isRefreshing ? 'animate-spin' : ''}`}
                         title="Manual Refresh"
                     >
                         <RefreshCw className="w-5 h-5" />
@@ -349,7 +349,7 @@ const Dashboard: React.FC = () => {
                         <button
                             onClick={handleStartService}
                             disabled={loading || isOffline}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white border border-emerald-400/50 rounded-xl font-bold transition-all shadow-lg shadow-emerald-900/20 active:scale-95 disabled:opacity-50"
+                            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-text border border-emerald-400/50 rounded-xl font-bold transition-all shadow-lg shadow-emerald-900/20 active:scale-95 disabled:opacity-50"
                         >
                             <Play className="w-4 h-4 fill-current" />
                             START SERVICE
@@ -361,58 +361,58 @@ const Dashboard: React.FC = () => {
             {/* Premium Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Status Card */}
-                <Card className="p-6 border-slate-800/80 bg-slate-900/40 relative overflow-hidden group hover:border-slate-700/80 transition-all duration-300">
+                <Card className="p-6 border-border/80 bg-card/50 relative overflow-hidden group hover:border-border/80 transition-all duration-300">
                     <div className="flex flex-col h-full relative z-10">
                         <div className="flex justify-between items-start mb-6">
-                            <div className={`p-2.5 rounded-xl ${isOffline ? 'bg-slate-800 text-slate-500' : isWorking ? 'bg-emerald-500/20 text-emerald-400' : isLoopActive ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-400 shadow-lg shadow-amber-900/20'}`}>
+                            <div className={`p-2.5 rounded-xl ${isOffline ? 'bg-card text-muted' : isWorking ? 'bg-emerald-500/20 text-emerald-400' : isLoopActive ? 'bg-plex/20 text-plex' : 'bg-amber-500/20 text-amber-400 shadow-lg shadow-amber-900/20'}`}>
                                 {isOffline ? <WifiOff className="w-5 h-5" /> : isWorking ? <Cpu className="w-5 h-5 animate-spin" /> : isLoopActive ? <Hourglass className="w-5 h-5" /> : <Power className="w-5 h-5" />}
                             </div>
-                            <span className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-500 opacity-60">System</span>
+                            <span className="text-[9px] font-black uppercase tracking-[0.25em] text-muted opacity-60">System</span>
                         </div>
                         <div className="space-y-1">
                             <h3 className={`text-xl font-bold tracking-tight ${isWorking ? 'text-emerald-400' : 'text-white'}`}>
                                 {isOffline ? 'Offline' : isWorking ? 'Processing' : isLoopActive ? 'Service Active' : 'Service Stopped'}
                             </h3>
-                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                            <p className="text-[10px] text-muted font-bold uppercase tracking-wider">
                                 {isOffline ? 'Check connection' : isWorking ? 'Performing sync' : isLoopActive ? 'Idle & Monitoring' : 'Requires start'}
                             </p>
                         </div>
                     </div>
-                    <div className={`absolute -right-8 -bottom-8 w-32 h-32 blur-[80px] opacity-10 rounded-full transition-all duration-700 group-hover:opacity-30 ${isOffline ? 'bg-slate-500' : isWorking ? 'bg-emerald-500' : isLoopActive ? 'bg-blue-500' : 'bg-amber-500'}`}></div>
+                    <div className={`absolute -right-8 -bottom-8 w-32 h-32 blur-[80px] opacity-10 rounded-full transition-all duration-700 group-hover:opacity-30 ${isOffline ? 'bg-muted' : isWorking ? 'bg-emerald-500' : isLoopActive ? 'bg-plex' : 'bg-amber-500'}`}></div>
                 </Card>
 
                 {/* Last Activity Card */}
-                <Card className="p-6 border-slate-800/80 bg-slate-900/40 relative overflow-hidden group hover:border-slate-700/80 transition-all duration-300">
+                <Card className="p-6 border-border/80 bg-card/50 relative overflow-hidden group hover:border-border/80 transition-all duration-300">
                     <div className="flex flex-col h-full relative z-10">
                         <div className="flex justify-between items-start mb-6">
-                            <div className="p-2.5 bg-slate-800/50 text-slate-400 rounded-xl">
+                            <div className="p-2.5 bg-white/5 text-muted rounded-xl">
                                 <Clock className="w-5 h-5" />
                             </div>
-                            <span className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-500 opacity-60">Activity</span>
+                            <span className="text-[9px] font-black uppercase tracking-[0.25em] text-muted opacity-60">Activity</span>
                         </div>
                         <div className="space-y-1">
-                            <h3 className="text-xl font-bold font-mono tracking-tighter text-white tabular-nums">
+                            <h3 className="text-xl font-bold font-mono tracking-tighter text-text tabular-nums">
                                 {lastUpdateDate ? lastUpdateDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '--:--:--'}
                             </h3>
-                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Last Run</p>
+                            <p className="text-[10px] text-muted font-bold uppercase tracking-wider">Last Run</p>
                         </div>
                     </div>
                 </Card>
 
                 {/* Next Run Card */}
-                <Card className="p-6 border-slate-800/80 bg-slate-900/40 relative overflow-hidden group hover:border-slate-700/80 transition-all duration-300">
+                <Card className="p-6 border-border/80 bg-card/50 relative overflow-hidden group hover:border-border/80 transition-all duration-300">
                     <div className="flex flex-col h-full relative z-10">
                         <div className="flex justify-between items-start mb-6">
-                            <div className={`p-2.5 rounded-xl ${isLoopActive ? 'bg-plex/20 text-plex shadow-lg shadow-plex/10' : 'bg-slate-800/50 text-slate-600'}`}>
+                            <div className={`p-2.5 rounded-xl ${isLoopActive ? 'bg-plex/20 text-plex shadow-lg shadow-plex/10' : 'bg-white/5 text-muted'}`}>
                                 <CalendarClock className="w-5 h-5" />
                             </div>
-                            <span className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-500 opacity-60">Scheduling</span>
+                            <span className="text-[9px] font-black uppercase tracking-[0.25em] text-muted opacity-60">Scheduling</span>
                         </div>
                         <div className="space-y-1">
-                            <h3 className={`text-xl font-bold font-mono tracking-tighter tabular-nums ${isLoopActive ? 'text-plex' : 'text-slate-600'}`}>
+                            <h3 className={`text-xl font-bold font-mono tracking-tighter tabular-nums ${isLoopActive ? 'text-plex' : 'text-muted'}`}>
                                 {isLoopActive ? (nextRun.includes('(') ? nextRun.split(' (')[0] : nextRun) : 'Inactive'}
                             </h3>
-                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                            <p className="text-[10px] text-muted font-bold uppercase tracking-wider">
                                 {isLoopActive && nextRun.includes('in ') ? `Next Run in ${(nextRun.split('in ')[1] ?? '').replace(')', '')}` : 'Auto-Sync Paused'}
                             </p>
                         </div>
@@ -420,25 +420,25 @@ const Dashboard: React.FC = () => {
                 </Card>
 
                 {/* Frequency Card */}
-                <Card className="p-6 border-slate-800/80 bg-slate-900/40 relative overflow-hidden group hover:border-slate-700/80 transition-all duration-300">
+                <Card className="p-6 border-border/80 bg-card/50 relative overflow-hidden group hover:border-border/80 transition-all duration-300">
                     <div className="flex flex-col h-full relative z-10">
                         <div className="flex justify-between items-start mb-6">
-                            <div className="p-2.5 bg-slate-800/50 text-slate-400 rounded-xl">
+                            <div className="p-2.5 bg-white/5 text-muted rounded-xl">
                                 <Settings className="w-5 h-5" />
                             </div>
-                            <span className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-500 opacity-60">Frequency</span>
+                            <span className="text-[9px] font-black uppercase tracking-[0.25em] text-muted opacity-60">Frequency</span>
                         </div>
                         <div className="space-y-1">
                             <div className="flex items-baseline gap-1.5">
-                                <h3 className="text-xl font-bold font-mono tracking-tighter text-white">
+                                <h3 className="text-xl font-bold font-mono tracking-tighter text-text">
                                     {config?.pinning_interval || 0}
                                 </h3>
-                                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">min interval</span>
+                                <span className="text-[9px] font-black text-muted uppercase tracking-widest">min interval</span>
                             </div>
                             {analyzeLastRun?.intervalConfig ? (
-                                <p className="text-[10px] text-blue-400 font-black uppercase tracking-wider">Active: {analyzeLastRun?.intervalConfig}</p>
+                                <p className="text-[10px] text-plex font-black uppercase tracking-wider">Active: {analyzeLastRun?.intervalConfig}</p>
                             ) : (
-                                <p className="text-[10px] text-slate-600 font-bold uppercase tracking-wider">Standard Cycle</p>
+                                <p className="text-[10px] text-muted font-bold uppercase tracking-wider">Standard Cycle</p>
                             )}
                         </div>
                     </div>
@@ -448,26 +448,26 @@ const Dashboard: React.FC = () => {
             {/* --- RUN INSPECTOR --- */}
             {analyzeLastRun && (
                 <div className="animate-in slide-in-from-bottom-4 duration-500">
-                    <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Activity className="w-5 h-5 text-plex" /> Run Inspector <span className="text-xs font-normal text-slate-500 ml-2">(Analyzed from latest logs)</span></h3>
+                    <h3 className="text-xl font-bold text-text mb-4 flex items-center gap-2"><Activity className="w-5 h-5 text-plex" /> Run Inspector <span className="text-xs font-normal text-muted ml-2">(Analyzed from latest logs)</span></h3>
                     <div className="grid grid-cols-1 gap-6">
-                        <div className={`border rounded-xl overflow-hidden ${analyzeLastRun.status === 'FAILED' ? 'border-red-900/50 bg-red-950/10' : 'border-slate-800/80 bg-slate-900/40'}`}>
+                        <div className={`border rounded-xl overflow-hidden ${analyzeLastRun.status === 'FAILED' ? 'border-red-900/50 bg-red-950/10' : 'border-border/80 bg-card/50'}`}>
                             {/* Run Header */}
-                            <div className="p-4 border-b border-white/5 flex flex-wrap gap-4 items-center justify-between bg-slate-950/30">
+                            <div className="p-4 border-b border-white/5 flex flex-wrap gap-4 items-center justify-between bg-background/30">
                                 <div className="flex items-center gap-4">
                                     <div className={`px-3 py-1 rounded text-xs font-bold uppercase ${analyzeLastRun.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-400' :
-                                        analyzeLastRun.status === 'RUNNING' ? 'bg-blue-500/20 text-blue-400' :
+                                        analyzeLastRun.status === 'RUNNING' ? 'bg-plex/20 text-plex' :
                                             'bg-red-500/20 text-red-400'
                                         }`}>
                                         {analyzeLastRun.status}
                                     </div>
-                                    <div className="text-sm text-slate-400 flex items-center gap-2">
-                                        <Clock className="w-4 h-4" /> Started: <span className="text-slate-200 font-mono">{analyzeLastRun.startTime}</span>
+                                    <div className="text-sm text-muted flex items-center gap-2">
+                                        <Clock className="w-4 h-4" /> Started: <span className="text-text font-mono">{analyzeLastRun.startTime}</span>
                                     </div>
-                                    <div className="text-sm text-slate-400">
-                                        Duration: <span className="text-slate-200 font-mono">{analyzeLastRun.duration}</span>
+                                    <div className="text-sm text-muted">
+                                        Duration: <span className="text-text font-mono">{analyzeLastRun.duration}</span>
                                     </div>
                                 </div>
-                                <div className="text-sm font-bold text-white bg-slate-800 px-3 py-1 rounded-lg border border-slate-700">
+                                <div className="text-sm font-bold text-text bg-card px-3 py-1 rounded-lg border border-border">
                                     Total Pinned: {analyzeLastRun.totalPins}
                                 </div>
                             </div>
@@ -475,7 +475,7 @@ const Dashboard: React.FC = () => {
                             {/* Library Breakdown Table */}
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm text-left">
-                                    <thead className="text-xs text-slate-500 uppercase bg-slate-950/50 border-b border-slate-800">
+                                    <thead className="text-xs text-muted uppercase bg-background/60 border-b border-border">
                                         <tr>
                                             <th className="px-6 py-3">Library</th>
                                             <th className="px-6 py-3 text-center">Found</th>
@@ -484,13 +484,13 @@ const Dashboard: React.FC = () => {
                                             <th className="px-6 py-3">Status / Reason</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-slate-800/50">
+                                    <tbody className="divide-y divide-border">
                                         {analyzeLastRun.libraries.map((lib, idx) => (
-                                            <tr key={idx} className="hover:bg-slate-800/20 transition-colors">
-                                                <td className="px-6 py-4 font-medium text-slate-200">{lib.name}</td>
-                                                <td className="px-6 py-4 text-center text-slate-400">{lib.found}</td>
+                                            <tr key={idx} className="hover:bg-white/5 transition-colors">
+                                                <td className="px-6 py-4 font-medium text-text">{lib.name}</td>
+                                                <td className="px-6 py-4 text-center text-muted">{lib.found}</td>
                                                 <td className="px-6 py-4 text-center">
-                                                    <span className={`px-2 py-1 rounded ${lib.eligible > 0 ? 'bg-blue-900/30 text-blue-300' : 'bg-slate-800 text-slate-500'}`}>
+                                                    <span className={`px-2 py-1 rounded ${lib.eligible > 0 ? 'bg-plex/10 text-plex' : 'bg-card text-muted'}`}>
                                                         {lib.eligible}
                                                     </span>
                                                 </td>
@@ -498,29 +498,29 @@ const Dashboard: React.FC = () => {
                                                     {lib.pinned > 0 ? (
                                                         <span className="text-emerald-400 font-bold">{lib.pinned}</span>
                                                     ) : (
-                                                        <span className="text-slate-600">-</span>
+                                                        <span className="text-muted">-</span>
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     {lib.pinned > 0 ? (
                                                         <span className="text-emerald-400 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Success</span>
                                                     ) : lib.found === 0 ? (
-                                                        <span className="text-slate-500">Empty Library</span>
+                                                        <span className="text-muted">Empty Library</span>
                                                     ) : lib.blockedByTimer > 0 && lib.eligible === 0 ? (
                                                         <span className="text-amber-400 flex items-center gap-1"><Clock className="w-3 h-3" /> {lib.blockedByTimer} items blocked by timer</span>
                                                     ) : lib.eligible === 0 ? (
-                                                        <span className="text-slate-500">All filtered out (Exclusions)</span>
+                                                        <span className="text-muted">All filtered out (Exclusions)</span>
                                                     ) : lib.blockedByCategory ? (
-                                                        <span className="text-blue-400 flex items-center gap-1"><Filter className="w-3 h-3" /> Category Mode Restricted</span>
+                                                        <span className="text-plex flex items-center gap-1"><Filter className="w-3 h-3" /> Category Mode Restricted</span>
                                                     ) : (
-                                                        <span className="text-slate-500">Skipped (Random chance)</span>
+                                                        <span className="text-muted">Skipped (Random chance)</span>
                                                     )}
                                                 </td>
                                             </tr>
                                         ))}
                                         {analyzeLastRun.libraries.length === 0 && (
                                             <tr>
-                                                <td colSpan={5} className="px-6 py-8 text-center text-slate-500 italic">
+                                                <td colSpan={5} className="px-6 py-8 text-center text-muted italic">
                                                     No libraries processed yet in this run.
                                                 </td>
                                             </tr>
@@ -536,18 +536,18 @@ const Dashboard: React.FC = () => {
             {/* Log Console */}
             <Card
                 title="Live Logs"
-                className="flex flex-col min-h-[400px] border-slate-800/80 bg-slate-900/40"
+                className="flex flex-col min-h-[400px] border-border/80 bg-card/50"
                 actions={
                     <div className="flex gap-3">
-                        <button onClick={() => setLiveLogs(!liveLogs)} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${liveLogs ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
+                        <button onClick={() => setLiveLogs(!liveLogs)} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${liveLogs ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-card text-muted border-border'}`}>
                             {liveLogs ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
                             {liveLogs ? 'Live Stream ON' : 'Live Stream OFF'}
                         </button>
                     </div>
                 }
             >
-                <div ref={logContainerRef} className="bg-black/80 rounded-xl p-4 font-mono text-xs text-slate-300 overflow-y-auto h-80 border border-slate-800 shadow-inner leading-relaxed scrollbar-thin">
-                    {logs ? <pre className="whitespace-pre-wrap break-all">{logs}</pre> : <div className="h-full flex items-center justify-center text-slate-600 flex-col gap-3"><Terminal className="w-10 h-10 opacity-30" /><p>Waiting for logs...</p></div>}
+                <div ref={logContainerRef} className="bg-black/80 rounded-xl p-4 font-mono text-xs text-text overflow-y-auto h-80 border border-border shadow-inner leading-relaxed scrollbar-thin">
+                    {logs ? <pre className="whitespace-pre-wrap break-all">{logs}</pre> : <div className="h-full flex items-center justify-center text-muted flex-col gap-3"><Terminal className="w-10 h-10 opacity-30" /><p>Waiting for logs...</p></div>}
                 </div>
             </Card>
         </div>

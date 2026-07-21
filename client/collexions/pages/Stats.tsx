@@ -264,23 +264,23 @@ const StatsPage: React.FC = () => {
 
   const getLibraryColor = (lib: string) => {
     const l = lib.toLowerCase();
-    if (l.includes('movie')) return 'text-blue-400 bg-blue-900/30 border-blue-800';
-    if (l.includes('tv') || l.includes('show')) return 'text-purple-400 bg-purple-900/30 border-purple-800';
-    if (l.includes('music')) return 'text-pink-400 bg-pink-900/30 border-pink-800';
-    return 'text-slate-400 bg-slate-800 border-slate-700';
+    if (l.includes('movie')) return 'text-plex bg-plex/10 border-plex/30';
+    if (l.includes('tv') || l.includes('show')) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30';
+    if (l.includes('music')) return 'text-amber-400 bg-amber-500/10 border-amber-500/30';
+    return 'text-muted bg-card border-border';
   };
 
   const getProgressBarColor = (lib: string) => {
     const l = lib.toLowerCase();
-    if (l.includes('movie')) return 'bg-blue-600';
-    if (l.includes('tv') || l.includes('show')) return 'bg-purple-600';
-    if (l.includes('music')) return 'bg-pink-600';
-    return 'bg-slate-600';
+    if (l.includes('movie')) return 'bg-plex';
+    if (l.includes('tv') || l.includes('show')) return 'bg-emerald-500';
+    if (l.includes('music')) return 'bg-amber-500';
+    return 'bg-white/20';
   };
 
   if (loading && events.length === 0) {
     return (
-      <div className="flex flex-col h-96 items-center justify-center text-slate-500 animate-pulse">
+      <div className="flex flex-col h-96 items-center justify-center text-muted animate-pulse">
         <Activity className="w-12 h-12 mb-4 opacity-50" />
         <p>Loading History...</p>
       </div>
@@ -293,21 +293,21 @@ const StatsPage: React.FC = () => {
       {/* Header Area */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight">Data Hub</h2>
-          <p className="text-slate-400 mt-1 flex items-center gap-2 text-sm md:text-base">
+          <h2 className="text-2xl md:text-3xl font-bold text-text tracking-tight">Data Hub</h2>
+          <p className="text-muted mt-1 flex items-center gap-2 text-sm md:text-base">
             <BarChart3 className="w-4 h-4" />
             Cross-Device Statistics & Insights
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto flex-wrap">
 
-          <div className="px-3 py-2 text-xs text-slate-500 flex items-center gap-2 border border-slate-800 rounded-lg">
+          <div className="px-3 py-2 text-xs text-muted flex items-center gap-2 border border-border rounded-lg">
             <Clock className="w-3 h-3" /> Last Sync: {lastSyncTime || 'Pending'}
           </div>
 
           <button
             onClick={() => setIsLive(!isLive)}
-            className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-bold border transition-all ${isLive ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'}`}
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-bold border transition-all ${isLive ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-card text-muted border-border'}`}
           >
             {isLive ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
             {isLive ? 'Live' : 'Live OFF'}
@@ -315,7 +315,7 @@ const StatsPage: React.FC = () => {
 
           <button
             onClick={() => syncData(false)}
-            className="flex-1 md:flex-none justify-center flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2.5 rounded-lg transition-colors border border-slate-700/50"
+            className="flex-1 md:flex-none justify-center flex items-center gap-2 bg-card hover:bg-white/10 text-text px-4 py-2.5 rounded-lg transition-colors border border-border"
             title="Force refresh"
           >
             <RefreshCcw className="w-4 h-4" /> Refresh
@@ -323,7 +323,7 @@ const StatsPage: React.FC = () => {
 
           <button
             onClick={handleClearStats}
-            className="flex-1 md:flex-none justify-center flex items-center gap-2 bg-slate-900 hover:bg-red-950/50 text-slate-500 hover:text-red-400 border border-slate-800 hover:border-red-900 px-3 py-2.5 rounded-lg text-sm font-medium transition-all"
+            className="flex-1 md:flex-none justify-center flex items-center gap-2 bg-card hover:bg-red-950/50 text-muted hover:text-red-400 border border-border hover:border-red-900 px-3 py-2.5 rounded-lg text-sm font-medium transition-all"
             title="Reset Database"
           >
             <Database className="w-4 h-4" />
@@ -333,59 +333,59 @@ const StatsPage: React.FC = () => {
 
       {/* Top Level Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-slate-900/50 border border-slate-800 p-5 rounded-xl flex flex-col justify-between hover:border-slate-700 transition-colors group">
+        <div className="bg-card/60 border border-border p-5 rounded-xl flex flex-col justify-between hover:border-border transition-colors group">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Total Pins</span>
-            <div className="p-2 bg-slate-800 rounded-lg text-plex group-hover:bg-plex group-hover:text-white transition-colors">
+            <span className="text-muted text-xs font-bold uppercase tracking-wider">Total Pins</span>
+            <div className="p-2 bg-card rounded-lg text-plex group-hover:bg-plex group-hover:text-background transition-colors">
               <Zap className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-3xl font-bold text-white">{trueTotalPins}</div>
-          <div className="text-xs text-slate-500 mt-2">Cumulative lifetime rotations</div>
+          <div className="text-3xl font-bold text-text">{trueTotalPins}</div>
+          <div className="text-xs text-muted mt-2">Cumulative lifetime rotations</div>
         </div>
 
-        <div className="bg-slate-900/50 border border-slate-800 p-5 rounded-xl flex flex-col justify-between hover:border-slate-700 transition-colors group">
+        <div className="bg-card/60 border border-border p-5 rounded-xl flex flex-col justify-between hover:border-border transition-colors group">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Unique Items</span>
-            <div className="p-2 bg-slate-800 rounded-lg text-blue-500 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+            <span className="text-muted text-xs font-bold uppercase tracking-wider">Unique Items</span>
+            <div className="p-2 bg-card rounded-lg text-plex group-hover:bg-plex group-hover:text-background transition-colors">
               <Layers className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-3xl font-bold text-white">{trueUniqueCount || uniqueCount}</div>
-          <div className="text-xs text-slate-500 mt-2">Distinct collections pinned</div>
+          <div className="text-3xl font-bold text-text">{trueUniqueCount || uniqueCount}</div>
+          <div className="text-xs text-muted mt-2">Distinct collections pinned</div>
         </div>
 
-        <div className="bg-slate-900/50 border border-slate-800 p-5 rounded-xl flex flex-col justify-between hover:border-slate-700 transition-colors group">
+        <div className="bg-card/60 border border-border p-5 rounded-xl flex flex-col justify-between hover:border-border transition-colors group">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Top Library</span>
-            <div className="p-2 bg-slate-800 rounded-lg text-purple-500 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+            <span className="text-muted text-xs font-bold uppercase tracking-wider">Top Library</span>
+            <div className="p-2 bg-card rounded-lg text-emerald-400 group-hover:bg-emerald-500 group-hover:text-background transition-colors">
               <Trophy className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-xl font-bold text-white truncate">{mostActiveLibrary}</div>
-          <div className="text-xs text-slate-500 mt-2">Most frequently updated</div>
+          <div className="text-xl font-bold text-text truncate">{mostActiveLibrary}</div>
+          <div className="text-xs text-muted mt-2">Most frequently updated</div>
         </div>
 
-        <div className="bg-slate-900/50 border border-slate-800 p-5 rounded-xl flex flex-col justify-between hover:border-slate-700 transition-colors group">
+        <div className="bg-card/60 border border-border p-5 rounded-xl flex flex-col justify-between hover:border-border transition-colors group">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Last Run</span>
-            <div className="p-2 bg-slate-800 rounded-lg text-green-500 group-hover:bg-green-600 group-hover:text-white transition-colors">
+            <span className="text-muted text-xs font-bold uppercase tracking-wider">Last Run</span>
+            <div className="p-2 bg-card rounded-lg text-green-500 group-hover:bg-green-600 group-hover:text-background transition-colors">
               <Clock className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-lg font-bold text-white">
+          <div className="text-lg font-bold text-text">
             {sessions[0] ? (
               sessions[0].timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             ) : '--:--'}
           </div>
-          <div className="text-xs text-slate-500 mt-2">
+          <div className="text-xs text-muted mt-2">
             {sessions[0] ? sessions[0].timestamp.toLocaleDateString() : 'No activity yet'}
           </div>
         </div>
       </div>
 
       {/* --- DEEP INSIGHTS SECTION --- */}
-      <h3 className="text-xl font-bold text-white flex items-center gap-2 mt-8">
+      <h3 className="text-xl font-bold text-text flex items-center gap-2 mt-8">
         <PieChart className="w-5 h-5 text-plex" />
         Deep Insights
       </h3>
@@ -393,8 +393,8 @@ const StatsPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
         {/* 1. Run Performance */}
-        <div className="bg-slate-900/30 border border-slate-800 rounded-2xl p-5">
-          <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+        <div className="bg-card/40 border border-border rounded-2xl p-5">
+          <h4 className="text-sm font-bold text-text uppercase tracking-wider mb-4 flex items-center gap-2">
             <Timer className="w-4 h-4" /> Run Duration History
           </h4>
           <div className="flex items-end h-32 gap-1 overflow-hidden">
@@ -407,22 +407,22 @@ const StatsPage: React.FC = () => {
                   className="flex-1 bg-emerald-600/60 rounded-sm hover:bg-emerald-400 relative group transition-all"
                   style={{ height: `${height}%` }}
                 >
-                  <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-black text-white text-[10px] px-2 py-1 rounded border border-slate-700 whitespace-nowrap z-10">
+                  <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-card text-text text-[10px] px-2 py-1 rounded border border-border whitespace-nowrap z-10">
                     {run.durationSeconds.toFixed(1)}s <br /> {run.timestamp.toLocaleTimeString()}
                   </div>
                 </div>
               );
             })}
-            {runStats.length === 0 && <p className="text-slate-600 text-xs italic w-full text-center self-center">No run data yet</p>}
+            {runStats.length === 0 && <p className="text-muted text-xs italic w-full text-center self-center">No run data yet</p>}
           </div>
-          <div className="flex justify-between text-[10px] text-slate-600 mt-2 font-mono">
+          <div className="flex justify-between text-[10px] text-muted mt-2 font-mono">
             <span>Oldest</span><span>Latest</span>
           </div>
         </div>
 
         {/* 2. Hourly Activity Heatmap */}
-        <div className="bg-slate-900/30 border border-slate-800 rounded-2xl p-5">
-          <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+        <div className="bg-card/40 border border-border rounded-2xl p-5">
+          <h4 className="text-sm font-bold text-text uppercase tracking-wider mb-4 flex items-center gap-2">
             <Clock className="w-4 h-4" /> Hourly Activity (24h)
           </h4>
           <div className="flex items-end h-32 gap-1">
@@ -432,39 +432,39 @@ const StatsPage: React.FC = () => {
               return (
                 <div
                   key={hour}
-                  className={`flex-1 rounded-sm transition-all hover:bg-plex relative group ${count > 0 ? 'bg-blue-600/60' : 'bg-slate-800/30'}`}
+                  className={`flex-1 rounded-sm transition-all hover:bg-plex relative group ${count > 0 ? 'bg-plex/60' : 'bg-white/5'}`}
                   style={{ height: `${height}%` }}
                 >
-                  <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-black text-white text-[10px] px-1.5 py-0.5 rounded border border-slate-700 whitespace-nowrap z-10">
+                  <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-card text-text text-[10px] px-1.5 py-0.5 rounded border border-border whitespace-nowrap z-10">
                     {hour}:00 ({count})
                   </div>
                 </div>
               )
             })}
           </div>
-          <div className="flex justify-between text-[10px] text-slate-600 mt-2 font-mono">
+          <div className="flex justify-between text-[10px] text-muted mt-2 font-mono">
             <span>00</span><span>06</span><span>12</span><span>18</span><span>23</span>
           </div>
         </div>
 
         {/* 3. Library Distribution */}
-        <div className="bg-slate-900/30 border border-slate-800 rounded-2xl p-5">
-          <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+        <div className="bg-card/40 border border-border rounded-2xl p-5">
+          <h4 className="text-sm font-bold text-text uppercase tracking-wider mb-4 flex items-center gap-2">
             <Layers className="w-4 h-4" /> Library Distribution
           </h4>
           <div className="space-y-4">
             {libraryDistribution.slice(0, 5).map((lib) => (
               <div key={lib.name} className="group">
                 <div className="flex justify-between text-xs mb-1">
-                  <span className="text-slate-300 font-medium">{lib.name}</span>
-                  <span className="text-slate-500">{lib.count} ({Math.round(lib.count / totalPins * 100)}%)</span>
+                  <span className="text-text font-medium">{lib.name}</span>
+                  <span className="text-muted">{lib.count} ({Math.round(lib.count / totalPins * 100)}%)</span>
                 </div>
-                <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-card rounded-full overflow-hidden">
                   <div className={`h-full ${getProgressBarColor(lib.name)}`} style={{ width: `${(lib.count / totalPins * 100)}%` }}></div>
                 </div>
               </div>
             ))}
-            {libraryDistribution.length === 0 && <p className="text-slate-600 text-xs italic">No data yet</p>}
+            {libraryDistribution.length === 0 && <p className="text-muted text-xs italic">No data yet</p>}
           </div>
         </div>
       </div>
@@ -475,15 +475,15 @@ const StatsPage: React.FC = () => {
         {/* Left Column: Most Frequent */}
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+            <h3 className="text-xl font-bold text-text flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-plex" />
               Most Frequent Collections
             </h3>
           </div>
 
-          <div className="bg-slate-900/30 border border-slate-800 rounded-2xl p-4 md:p-6 space-y-6 max-h-[600px] overflow-y-auto scrollbar-thin">
+          <div className="bg-card/40 border border-border rounded-2xl p-4 md:p-6 space-y-6 max-h-[600px] overflow-y-auto scrollbar-thin">
             {collectionStats.length === 0 ? (
-              <div className="h-64 flex flex-col items-center justify-center text-slate-600">
+              <div className="h-64 flex flex-col items-center justify-center text-muted">
                 <BarChart3 className="w-12 h-12 mb-2 opacity-20" />
                 <p>Not enough data to generate charts</p>
               </div>
@@ -496,16 +496,16 @@ const StatsPage: React.FC = () => {
                   <div key={idx} className="group">
                     <div className="flex justify-between items-end mb-2">
                       <div className="min-w-0 pr-4">
-                        <div className="font-semibold text-slate-200 truncate">{item.name}</div>
-                        <div className="text-xs text-slate-500 font-medium uppercase tracking-wider flex items-center gap-1 mt-0.5">
+                        <div className="font-semibold text-text truncate">{item.name}</div>
+                        <div className="text-xs text-muted font-medium uppercase tracking-wider flex items-center gap-1 mt-0.5">
                           {item.library}
                         </div>
                       </div>
-                      <div className="text-xl font-bold text-slate-200 flex-shrink-0">
-                        {item.count} <span className="text-xs text-slate-500 font-normal">Pins</span>
+                      <div className="text-xl font-bold text-text flex-shrink-0">
+                        {item.count} <span className="text-xs text-muted font-normal">Pins</span>
                       </div>
                     </div>
-                    <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                    <div className="h-2 w-full bg-card rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full relative ${getProgressBarColor(item.library)}`}
                         style={{
@@ -526,39 +526,39 @@ const StatsPage: React.FC = () => {
         {/* Right Column: Timeline History */}
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold text-white flex items-center gap-2">
-              <History className="w-5 h-5 text-blue-500" />
+            <h3 className="text-xl font-bold text-text flex items-center gap-2">
+              <History className="w-5 h-5 text-plex" />
               Pinned History
             </h3>
           </div>
 
-          <div className="bg-slate-900/30 border border-slate-800 rounded-2xl p-4 md:p-6 h-[600px] overflow-y-auto scrollbar-thin">
+          <div className="bg-card/40 border border-border rounded-2xl p-4 md:p-6 h-[600px] overflow-y-auto scrollbar-thin">
             {sessions.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-slate-600">
+              <div className="h-full flex flex-col items-center justify-center text-muted">
                 <History className="w-12 h-12 mb-2 opacity-20" />
                 <p>No history available</p>
               </div>
             ) : (
               <div className="relative pl-2 md:pl-4 space-y-8">
                 {/* Vertical Timeline Line */}
-                <div className="absolute left-2 md:left-4 top-2 bottom-2 w-px bg-slate-800"></div>
+                <div className="absolute left-2 md:left-4 top-2 bottom-2 w-px bg-card"></div>
 
                 {sessions.slice(0, 100).map((session) => (
                   <div key={session.id} className="relative pl-6 md:pl-8 group">
                     {/* Timeline Dot */}
-                    <div className="absolute left-[5px] md:left-[11px] top-1.5 w-3 h-3 rounded-full bg-slate-800 border-2 border-slate-600 group-hover:border-plex group-hover:bg-plex transition-colors z-10"></div>
+                    <div className="absolute left-[5px] md:left-[11px] top-1.5 w-3 h-3 rounded-full bg-card border-2 border-border group-hover:border-plex group-hover:bg-plex transition-colors z-10"></div>
 
                     {/* Date Header */}
-                    <div className="text-xs font-mono text-slate-500 mb-1 flex items-center gap-2">
+                    <div className="text-xs font-mono text-muted mb-1 flex items-center gap-2">
                       {session.timestamp.toLocaleDateString()}
-                      <span className="w-1 h-1 rounded-full bg-slate-700"></span>
+                      <span className="w-1 h-1 rounded-full bg-white/10"></span>
                       {session.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
 
                     {/* Content Card */}
                     <div>
-                      <div className="text-slate-200 font-medium text-sm mb-2">
-                        Pinned <span className="text-white font-bold">{session.collections.length} collections</span> to <span className={getLibraryColor(session.library).split(' ')[0]}>{session.library}</span>
+                      <div className="text-text font-medium text-sm mb-2">
+                        Pinned <span className="text-text font-bold">{session.collections.length} collections</span> to <span className={getLibraryColor(session.library).split(' ')[0]}>{session.library}</span>
                       </div>
 
                       <div className="flex flex-wrap gap-2">

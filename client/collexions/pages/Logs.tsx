@@ -70,8 +70,8 @@ const LogsPage: React.FC = () => {
         <div className="h-[calc(100vh-80px)] flex flex-col animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold text-white tracking-tight">System Logs</h2>
-                    <p className="text-slate-400 mt-1 flex items-center gap-2">
+                    <h2 className="text-3xl font-bold text-text tracking-tight">System Logs</h2>
+                    <p className="text-muted mt-1 flex items-center gap-2">
                         <ScrollText className="w-4 h-4" />
                         Full script execution output
                     </p>
@@ -83,7 +83,7 @@ const LogsPage: React.FC = () => {
                     </div>
                     <button
                         onClick={() => setIsLive(!isLive)}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold border transition-all ${isLive ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'}`}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold border transition-all ${isLive ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-card text-muted border-border'}`}
                     >
                         {isLive ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
                         {isLive ? 'Live Tail ON' : 'Live Tail OFF'}
@@ -91,7 +91,7 @@ const LogsPage: React.FC = () => {
 
                     <button
                         onClick={() => setAutoScroll(!autoScroll)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${autoScroll ? 'bg-plex text-white border-transparent shadow-lg shadow-orange-900/20' : 'bg-transparent text-slate-400 border-slate-700 hover:text-white'}`}>
+                        className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${autoScroll ? 'bg-plex text-background border-transparent shadow-lg shadow-plex/10' : 'bg-transparent text-muted border-border hover:text-text'}`}>
                         Auto-scroll: {autoScroll ? 'ON' : 'OFF'}
                     </button>
                     <button onClick={async () => {
@@ -101,24 +101,24 @@ const LogsPage: React.FC = () => {
                     }} className="bg-red-500/10 hover:bg-red-500/20 text-red-500 px-3 py-2 rounded-lg text-sm transition-colors border border-red-500/30" title="Clear Logs">
                         <Ban className="w-4 h-4" />
                     </button>
-                    <button onClick={scrollToBottom} className="bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-lg text-sm transition-colors border border-slate-700" title="Jump to Bottom">
+                    <button onClick={scrollToBottom} className="bg-card hover:bg-white/10 text-text px-3 py-2 rounded-lg text-sm transition-colors border border-border" title="Jump to Bottom">
                         <ArrowDownCircle className="w-4 h-4" />
                     </button>
-                    <button onClick={downloadLogs} className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors border border-slate-700">
+                    <button onClick={downloadLogs} className="bg-card hover:bg-white/10 text-text px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors border border-border">
                         <Download className="w-4 h-4" /> Export
                     </button>
-                    <button onClick={fetchLogs} className="bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-lg text-sm transition-colors border border-slate-700">
+                    <button onClick={fetchLogs} className="bg-card hover:bg-white/10 text-text px-3 py-2 rounded-lg text-sm transition-colors border border-border">
                         <RefreshCw className="w-4 h-4" />
                     </button>
                 </div>
             </div>
 
-            <Card className="flex-1 overflow-hidden flex flex-col p-0 border-slate-800/60 shadow-2xl relative">
-                <div ref={containerRef} className="flex-1 overflow-y-auto bg-black/80 p-6 font-mono text-xs md:text-sm text-slate-300 scrollbar-thin leading-relaxed">
+            <Card className="flex-1 overflow-hidden flex flex-col p-0 border-border shadow-2xl relative">
+                <div ref={containerRef} className="flex-1 overflow-y-auto bg-black/80 p-6 font-mono text-xs md:text-sm text-text scrollbar-thin leading-relaxed">
                     {logs ? (
                         <pre className="whitespace-pre-wrap break-all">{logs}</pre>
                     ) : (
-                        <div className="h-full flex items-center justify-center text-slate-600 flex-col gap-4">
+                        <div className="h-full flex items-center justify-center text-muted flex-col gap-4">
                             <Terminal className="w-12 h-12 opacity-20" />
                             <p>No logs available</p>
                         </div>
@@ -127,7 +127,7 @@ const LogsPage: React.FC = () => {
                 </div>
                 {!autoScroll && logs.length > 2000 && (
                     <div className="absolute bottom-6 right-8 animate-bounce">
-                        <button onClick={scrollToBottom} className="bg-plex text-white p-3 rounded-full shadow-lg hover:bg-orange-600 transition-colors">
+                        <button onClick={scrollToBottom} className="bg-plex text-background p-3 rounded-full shadow-lg hover:bg-plex-hover transition-colors">
                             <ArrowDownCircle className="w-6 h-6" />
                         </button>
                     </div>

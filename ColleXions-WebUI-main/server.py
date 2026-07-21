@@ -784,12 +784,26 @@ def start_background_process():
         return False, f"Script {SCRIPT_NAME} not found."
 
     try:
-        # Start the script without redirection, as it handles its own logging to the same file
+        # Run with data-dir cwd so relative paths and COLLEXIONS_DATA_DIR stay aligned.
+        # Script path stays absolute under BASE_DIR (code), while config/logs live in _DATA_ROOT.
+        cmd = [sys.executable, "-u", script_path]
+        try:
+            cfg = load_config()
+            if cfg.get('dry_run'):
+                cmd.append('--dry-run')
+        except Exception:
+            pass
+
+        child_env = os.environ.copy()
+        if _DATA_ROOT:
+            child_env['COLLEXIONS_DATA_DIR'] = _DATA_ROOT
+
         process = subprocess.Popen(
-            [sys.executable, "-u", script_path],
-            cwd=BASE_DIR
+            cmd,
+            cwd=_DATA_ROOT,
+            env=child_env,
         )
-        logging.info(f"Background process started with PID: {process.pid}")
+        logging.info(f"Background process started with PID: {process.pid} (cwd={_DATA_ROOT})")
             
         return True, process.pid
     except Exception as e:

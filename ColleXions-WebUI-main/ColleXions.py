@@ -14,8 +14,10 @@ from datetime import datetime, timedelta
 import argparse # <--- ADDED FOR DRY-RUN ARGUMENT
 from jsonschema import validate, exceptions as jsonschema_exceptions # <--- ADDED FOR CONFIG VALIDATION
 
-# --- Configuration & Constants (Updated for Docker) ---
-APP_DIR = ''
+# --- Configuration & Constants (Updated for Docker / portal embed) ---
+# Portal sets COLLEXIONS_DATA_DIR to the persistent config volume. Fall back to the
+# script directory so standalone installs keep using ./config and ./logs next to the code.
+APP_DIR = (os.environ.get('COLLEXIONS_DATA_DIR') or '').strip() or os.path.dirname(os.path.abspath(__file__))
 CONFIG_DIR = os.path.join(APP_DIR, 'config')
 LOG_DIR = os.path.join(APP_DIR, 'logs')
 DATA_DIR = os.path.join(APP_DIR, 'data')
@@ -859,8 +861,13 @@ def main():
     try:
         config = load_config()
     except SystemExit:
+        # Propagate so run_continuously exits instead of sleeping as "Active" forever.
         update_status("CRITICAL: Config Error")
-        return
+        raise
+
+    # Config toggle mirrors CLI --dry-run (portal UI stores dry_run in config.json).
+    if config.get('dry_run'):
+        _DRY_RUN_MODE_ACTIVE = True
 
     pin_interval_minutes = config.get('pinning_interval', 180)
     next_run_calc_time = run_start_time + timedelta(minutes=pin_interval_minutes)
@@ -1024,6 +1031,10 @@ if __name__ == "__main__":
     _DRY_RUN_MODE_ACTIVE = args.dry_run
 
     update_status("Initializing")
+
+    logging.info(f"Data directory: {APP_DIR}")
+    logging.info(f"Config path: {CONFIG_PATH}")
+    logging.info(f"Log file: {LOG_FILE}")
 
     if _DRY_RUN_MODE_ACTIVE:
         logging.info(">>>>>>>>>> COLLECTIONS SCRIPT IS STARTING IN DRY-RUN MODE <<<<<<<<<<")

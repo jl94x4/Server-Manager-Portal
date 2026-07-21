@@ -319,7 +319,7 @@ const Creator: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex h-96 items-center justify-center text-slate-400 flex-col gap-4">
+            <div className="flex h-96 items-center justify-center text-muted flex-col gap-4">
                 <Loader2 className="w-8 h-8 border-t-plex animate-spin" />
                 <p>Connecting to external services... This may take a while on the first run.</p>
             </div>
@@ -334,37 +334,37 @@ const Creator: React.FC = () => {
             {toast && (
                 <div className={`fixed bottom-8 right-8 z-[110] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border animate-in slide-in-from-right-10 duration-500 ${toast.type === 'success' ? 'bg-emerald-950/90 border-emerald-500/50 text-emerald-100' :
                     toast.type === 'error' ? 'bg-rose-950/90 border-rose-500/50 text-rose-100' :
-                        'bg-slate-900/90 border-slate-700/50 text-slate-100'
+                        'bg-card/90 border-border text-text'
                     }`}>
                     {toast.type === 'success' && <div className="bg-emerald-500 rounded-full p-1"><Plus className="w-4 h-4 text-emerald-950 rotate-0" /></div>}
                     {toast.type === 'error' && <div className="bg-rose-500 rounded-full p-1"><Plus className="w-4 h-4 text-rose-950 rotate-45" /></div>}
                     <span className="font-bold">{toast.message}</span>
-                    <button onClick={() => setToast(null)} className="ml-4 text-white/50 hover:text-white transition-colors">
+                    <button onClick={() => setToast(null)} className="ml-4 text-white/50 hover:text-text transition-colors">
                         <Plus className="w-4 h-4 rotate-45" />
                     </button>
                 </div>
             )}
             {/* Modal for viewing all items in a preset */}
             {viewingPreset && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
-                    <div className="bg-slate-900 border border-slate-800 w-full max-w-4xl max-h-[80vh] rounded-3xl overflow-hidden shadow-2xl flex flex-col scale-in-center">
-                        <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-card border border-border w-full max-w-4xl max-h-[80vh] rounded-3xl overflow-hidden shadow-2xl flex flex-col scale-in-center">
+                        <div className="p-6 border-b border-border flex items-center justify-between bg-card/60">
                             <div>
-                                <h2 className="text-2xl font-bold text-white">{viewingPreset.name}</h2>
-                                <p className="text-slate-400">{viewingPreset.items.length} items to match</p>
+                                <h2 className="text-2xl font-bold text-text">{viewingPreset.name}</h2>
+                                <p className="text-muted">{viewingPreset.items.length} items to match</p>
                             </div>
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={() => handleCreatePreset(viewingPreset)}
                                     disabled={creating}
-                                    className="bg-plex hover:bg-plex/80 disabled:opacity-50 text-white px-6 py-2 rounded-xl font-bold transition-all shadow-lg flex items-center gap-2"
+                                    className="bg-plex hover:bg-plex/80 disabled:opacity-50 text-text px-6 py-2 rounded-xl font-bold transition-all shadow-lg flex items-center gap-2"
                                 >
                                     {creating ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Plus className="w-5 h-5" />}
                                     Create Collection
                                 </button>
                                 <button
                                     onClick={() => setViewingPreset(null)}
-                                    className="p-2 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition-all"
+                                    className="p-2 hover:bg-white/5 rounded-xl text-muted hover:text-text transition-all"
                                 >
                                     <Plus className="w-6 h-6 rotate-45" />
                                 </button>
@@ -374,25 +374,25 @@ const Creator: React.FC = () => {
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                                 {viewingPreset.items.map((itm: any, idx: number) => (
                                     <div key={idx} className="space-y-2 group">
-                                        <div className="aspect-[2/3] bg-slate-800 rounded-xl overflow-hidden ring-1 ring-slate-700/50 group-hover:ring-plex/50 transition-all">
+                                        <div className="aspect-[2/3] bg-card rounded-xl overflow-hidden ring-1 ring-border group-hover:ring-plex/50 transition-all">
                                             {itm.poster ? (
                                                 <img src={itm.poster} alt="" className="w-full h-full object-cover" />
                                             ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-slate-600">
+                                                <div className="w-full h-full flex items-center justify-center text-muted">
                                                     <Globe className="w-8 h-8 opacity-20" />
                                                 </div>
                                             )}
                                         </div>
-                                        <p className="text-xs font-bold text-slate-200 truncate px-1">{itm.title}</p>
-                                        <p className="text-[10px] text-slate-500 px-1">{itm.year || 'Unknown'}</p>
+                                        <p className="text-xs font-bold text-text truncate px-1">{itm.title}</p>
+                                        <p className="text-[10px] text-muted px-1">{itm.year || 'Unknown'}</p>
                                     </div>
                                 ))}
                             </div>
                         </div>
-                        <div className="p-6 border-t border-slate-800 bg-slate-900/50 flex justify-end gap-3">
+                        <div className="p-6 border-t border-border bg-card/60 flex justify-end gap-3">
                             <button
                                 onClick={() => setViewingPreset(null)}
-                                className="px-6 py-2 rounded-xl font-bold text-slate-300 hover:bg-slate-800 transition-colors"
+                                className="px-6 py-2 rounded-xl font-bold text-text hover:bg-white/5 transition-colors"
                             >
                                 Close
                             </button>
@@ -402,7 +402,7 @@ const Creator: React.FC = () => {
                                     setViewingPreset(null);
                                 }}
                                 disabled={creating || !targetLibrary}
-                                className="bg-plex hover:bg-orange-600 text-white px-8 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg disabled:opacity-50"
+                                className="bg-plex hover:bg-plex-hover text-text px-8 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg disabled:opacity-50"
                             >
                                 <Sparkles className="w-4 h-4" />
                                 Create Collection
@@ -413,8 +413,8 @@ const Creator: React.FC = () => {
             )}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight">Collection Creator</h2>
-                    <p className="text-slate-400 mt-1 flex items-center gap-2 text-sm md:text-base">
+                    <h2 className="text-2xl md:text-3xl font-bold text-text tracking-tight">Collection Creator</h2>
+                    <p className="text-muted mt-1 flex items-center gap-2 text-sm md:text-base">
                         <Plus className="w-5 h-5 text-plex" />
                         Create and sync collections from external sources or your library
                     </p>
@@ -422,15 +422,15 @@ const Creator: React.FC = () => {
             </div>
 
             {/* Global Creation Settings */}
-            <section className="bg-slate-900/60 border border-slate-800/60 p-6 rounded-2xl flex flex-col xl:flex-row items-center justify-between gap-6 shadow-xl sticky top-0 z-40 backdrop-blur-md">
+            <section className="bg-card/60 border border-border p-6 rounded-2xl flex flex-col xl:flex-row items-center justify-between gap-6 shadow-xl sticky top-0 z-40 backdrop-blur-md">
                 <div className="flex flex-wrap items-center gap-6 w-full xl:w-auto">
                     <div className="flex items-center gap-4">
                         <div className="bg-plex/20 p-3 rounded-xl text-plex">
                             <ListMusic className="w-6 h-6" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-white whitespace-nowrap">Target Library</h3>
-                            <p className="text-sm text-slate-400">Creation destination</p>
+                            <h3 className="text-lg font-bold text-text whitespace-nowrap">Target Library</h3>
+                            <p className="text-sm text-muted">Creation destination</p>
                         </div>
                     </div>
                     <CustomSelect
@@ -444,14 +444,14 @@ const Creator: React.FC = () => {
 
                 </div>
 
-                <div className="flex flex-wrap items-center gap-6 w-full xl:w-auto xl:border-l xl:border-slate-800 xl:pl-6">
+                <div className="flex flex-wrap items-center gap-6 w-full xl:w-auto xl:border-l xl:border-border xl:pl-6">
                     <div className="flex items-center gap-4">
-                        <div className="bg-blue-500/20 p-3 rounded-xl text-blue-400">
+                        <div className="bg-plex/20 p-3 rounded-xl text-plex">
                             <Sparkles className="w-6 h-6" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-white whitespace-nowrap">Sort Order</h3>
-                            <p className="text-sm text-slate-400">Plex collection sorting</p>
+                            <h3 className="text-lg font-bold text-text whitespace-nowrap">Sort Order</h3>
+                            <p className="text-sm text-muted">Plex collection sorting</p>
                         </div>
                     </div>
                     <CustomSelect
@@ -468,26 +468,26 @@ const Creator: React.FC = () => {
 
                 </div>
 
-                <div className="flex flex-wrap items-center gap-6 w-full xl:w-auto xl:border-l xl:border-slate-800 xl:pl-6">
+                <div className="flex flex-wrap items-center gap-6 w-full xl:w-auto xl:border-l xl:border-border xl:pl-6">
                     <div className="flex items-center gap-4">
                         <div className="bg-emerald-500/20 p-3 rounded-xl text-emerald-400">
                             <Clock className="w-6 h-6" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-white whitespace-nowrap">Auto-Sync</h3>
-                            <p className="text-sm text-slate-400">Sync every 6 hours</p>
+                            <h3 className="text-lg font-bold text-text whitespace-nowrap">Auto-Sync</h3>
+                            <p className="text-sm text-muted">Sync every 6 hours</p>
                         </div>
                     </div>
                     <button
                         onClick={() => setAutoSync(!autoSync)}
-                        className={`px-6 py-2 rounded-xl border font-bold transition-all ${autoSync ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-950/50 border-slate-700/60 text-slate-400'}`}
+                        className={`px-6 py-2 rounded-xl border font-bold transition-all ${autoSync ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-background/60 border-border text-muted'}`}
                     >
                         {autoSync ? 'Enabled' : 'Disabled'}
                     </button>
                 </div>
             </section>
 
-            <div className="flex border-b border-slate-800/60 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+            <div className="flex border-b border-border overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
                 {[
                     { id: 'trending', label: 'Trending', icon: <Globe className="w-4 h-4" /> },
                     { id: 'discover', label: 'Discover', icon: <Compass className="w-4 h-4" /> },
@@ -498,7 +498,7 @@ const Creator: React.FC = () => {
                     <button
                         key={tab.id}
                         onClick={() => setActiveSubTab(tab.id as any)}
-                        className={`px-6 py-4 font-medium capitalize transition-all border-b-2 whitespace-nowrap text-sm flex items-center gap-2 ${activeSubTab === tab.id ? 'text-plex border-plex bg-slate-900/20' : 'text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-900/10'
+                        className={`px-6 py-4 font-medium capitalize transition-all border-b-2 whitespace-nowrap text-sm flex items-center gap-2 ${activeSubTab === tab.id ? 'text-plex border-plex bg-card/30' : 'text-muted border-transparent hover:text-text hover:bg-white/5'
                             }`}
                     >
                         {tab.icon}
@@ -512,39 +512,39 @@ const Creator: React.FC = () => {
                     <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300">
                         {!hasKeys ? (
                             <Card title="Global Trending Integration">
-                                <div className="bg-slate-900/40 border border-slate-800/60 p-8 rounded-2xl text-center space-y-4">
-                                    <Globe className="w-12 h-12 text-slate-700 mx-auto" />
+                                <div className="bg-card/50 border border-border p-8 rounded-2xl text-center space-y-4">
+                                    <Globe className="w-12 h-12 text-muted mx-auto" />
                                     <div className="max-w-md mx-auto">
-                                        <h3 className="text-lg font-bold text-white">External Integration Required</h3>
-                                        <p className="text-slate-400 text-sm mt-2">Add your API keys in Settings to see what's trending.</p>
+                                        <h3 className="text-lg font-bold text-text">External Integration Required</h3>
+                                        <p className="text-muted text-sm mt-2">Add your API keys in Settings to see what's trending.</p>
                                     </div>
                                 </div>
                             </Card>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {trendingPresets.map(preset => (
-                                    <div key={preset.id} className="bg-slate-900/40 border border-slate-800/60 p-6 rounded-2xl flex flex-col justify-between hover:border-plex/30 transition-all group shadow-lg">
+                                    <div key={preset.id} className="bg-card/50 border border-border p-6 rounded-2xl flex flex-col justify-between hover:border-plex/30 transition-all group shadow-lg">
                                         <div>
                                             <div className="flex items-center justify-between mb-4">
                                                 <span className="text-[10px] font-bold uppercase tracking-widest text-plex bg-plex/10 px-2 py-1 rounded-md border border-plex/20">
                                                     {preset.source}
                                                 </span>
-                                                <span className="text-xs text-slate-500 font-medium">{preset.items.length} titles</span>
+                                                <span className="text-xs text-muted font-medium">{preset.items.length} titles</span>
                                             </div>
-                                            <h3 className="text-xl font-bold text-white group-hover:text-plex transition-colors">{preset.name}</h3>
-                                            <p className="text-slate-400 text-sm mt-2 leading-relaxed">{preset.description}</p>
+                                            <h3 className="text-xl font-bold text-text group-hover:text-plex transition-colors">{preset.name}</h3>
+                                            <p className="text-muted text-sm mt-2 leading-relaxed">{preset.description}</p>
 
                                             <div
                                                 className="mt-6 flex flex-wrap gap-3 cursor-pointer p-2 -m-2 rounded-xl hover:bg-white/5 transition-colors"
                                                 onClick={() => setViewingPreset(preset)}
                                             >
                                                 {preset.items.slice(0, 5).map((itm: any, idx: number) => (
-                                                    <div key={idx} className="w-12 h-18 bg-slate-800 rounded-lg overflow-hidden ring-1 ring-slate-700 shadow-sm transition-transform group-hover:scale-105">
+                                                    <div key={idx} className="w-12 h-18 bg-card rounded-lg overflow-hidden ring-1 ring-border shadow-sm transition-transform group-hover:scale-105">
                                                         {itm.poster && <img src={itm.poster} alt="" className="w-full h-full object-cover" />}
                                                     </div>
                                                 ))}
                                                 {preset.items.length > 5 && (
-                                                    <div className="w-12 h-18 bg-slate-800/50 rounded-lg flex items-center justify-center text-[10px] font-bold text-slate-500 border border-slate-700/50 transition-transform group-hover:scale-105">
+                                                    <div className="w-12 h-18 bg-white/5 rounded-lg flex items-center justify-center text-[10px] font-bold text-muted border border-border transition-transform group-hover:scale-105">
                                                         +{preset.items.length - 5}
                                                     </div>
                                                 )}
@@ -554,7 +554,7 @@ const Creator: React.FC = () => {
                                         <button
                                             onClick={() => handleCreatePreset(preset)}
                                             disabled={creating || !targetLibrary}
-                                            className="mt-8 w-full bg-slate-800 hover:bg-plex text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:hover:bg-slate-800 shadow-md transform group-hover:-translate-y-1"
+                                            className="mt-8 w-full bg-plex hover:bg-plex-hover text-background py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:hover:bg-plex shadow-md transform group-hover:-translate-y-1"
                                         >
                                             <Sparkles className="w-4 h-4" />
                                             Create Collection
@@ -700,7 +700,7 @@ const Creator: React.FC = () => {
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="block text-sm font-medium text-slate-300">Release Year</label>
+                                    <label className="block text-sm font-medium text-text">Release Year</label>
                                     <div className="flex gap-2">
                                         <div className="w-24">
                                             <CustomSelect
@@ -716,41 +716,41 @@ const Creator: React.FC = () => {
                                         </div>
                                         <input
                                             type="number" placeholder="1999"
-                                            className="flex-1 bg-slate-950/50 border border-slate-700/60 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:border-plex/50 transition-all placeholder-slate-600"
+                                            className="flex-1 bg-background/60 border border-border rounded-lg px-3 py-2 text-text focus:outline-none focus:border-plex/50 transition-all placeholder:text-muted"
                                             value={discoverYear} onChange={e => setDiscoverYear(e.target.value)}
                                         />
                                     </div>
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="block text-sm font-medium text-slate-300">Keywords / Text</label>
+                                    <label className="block text-sm font-medium text-text">Keywords / Text</label>
                                     <input
                                         type="text" placeholder="e.g. superhero, mystery"
-                                        className="w-full bg-slate-950/50 border border-slate-700/60 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:border-plex/50 transition-all placeholder-slate-600 font-mono"
+                                        className="w-full bg-background/60 border border-border rounded-lg px-3 py-2 text-text focus:outline-none focus:border-plex/50 transition-all placeholder:text-muted font-mono"
                                         value={discoverKeywords} onChange={e => setDiscoverKeywords(e.target.value)}
                                     />
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="block text-sm font-medium text-slate-300">Min Rating (0-10)</label>
+                                    <label className="block text-sm font-medium text-text">Min Rating (0-10)</label>
                                     <input
                                         type="number" step="0.1" min="0" max="10" placeholder="e.g. 7.5"
-                                        className="w-full bg-slate-950/50 border border-slate-700/60 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:border-plex/50 transition-all placeholder-slate-600"
+                                        className="w-full bg-background/60 border border-border rounded-lg px-3 py-2 text-text focus:outline-none focus:border-plex/50 transition-all placeholder:text-muted"
                                         value={discoverRating} onChange={e => setDiscoverRating(e.target.value)}
                                     />
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="block text-sm font-medium text-slate-300">Min Votes</label>
+                                    <label className="block text-sm font-medium text-text">Min Votes</label>
                                     <input
                                         type="number" step="10" min="0" placeholder="e.g. 500"
-                                        className="w-full bg-slate-950/50 border border-slate-700/60 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:border-plex/50 transition-all placeholder-slate-600"
+                                        className="w-full bg-background/60 border border-border rounded-lg px-3 py-2 text-text focus:outline-none focus:border-plex/50 transition-all placeholder:text-muted"
                                         value={discoverVoteCount} onChange={e => setDiscoverVoteCount(e.target.value)}
                                     />
                                 </div>
 
                                 <div className="md:col-span-2 lg:col-span-3 flex items-end">
-                                    <button onClick={handleDiscover} disabled={discovering} className="w-full bg-plex hover:bg-orange-600 text-white px-8 py-3 rounded-xl font-bold disabled:opacity-50 flex items-center justify-center gap-2 transition-transform active:scale-[0.98]">
+                                    <button onClick={handleDiscover} disabled={discovering} className="w-full bg-plex hover:bg-plex-hover text-text px-8 py-3 rounded-xl font-bold disabled:opacity-50 flex items-center justify-center gap-2 transition-transform active:scale-[0.98]">
                                         <Filter className="w-5 h-5" /> Search TMDb
                                     </button>
                                 </div>
@@ -767,7 +767,7 @@ const Creator: React.FC = () => {
                                             onClick={() => toggleSelection(item)}
                                             className={`group relative aspect-[2/3] rounded-2xl border-2 overflow-hidden cursor-pointer transition-all duration-300 ${isSelected
                                                 ? 'border-plex shadow-[0_0_20px_rgba(231,155,23,0.2)]'
-                                                : 'border-slate-800 hover:border-slate-700'
+                                                : 'border-border hover:border-border'
                                                 }`}
                                         >
                                             <img
@@ -776,11 +776,11 @@ const Creator: React.FC = () => {
                                                 className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${isSelected ? 'opacity-60' : ''}`}
                                             />
                                             <div className={`absolute inset-0 flex flex-col justify-end p-3 bg-gradient-to-t from-black/90 via-black/20 to-transparent transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                                                <h4 className="text-sm font-bold text-white truncate">{item.title}</h4>
-                                                <p className="text-[10px] text-slate-400 font-medium uppercase">{item.year}</p>
+                                                <h4 className="text-sm font-bold text-text truncate">{item.title}</h4>
+                                                <p className="text-[10px] text-muted font-medium uppercase">{item.year}</p>
                                             </div>
                                             {isSelected && (
-                                                <div className="absolute top-2 right-2 bg-plex text-white p-1 rounded-lg shadow-lg">
+                                                <div className="absolute top-2 right-2 bg-plex text-background p-1 rounded-lg shadow-lg">
                                                     <Plus className="w-4 h-4" />
                                                 </div>
                                             )}
@@ -793,20 +793,20 @@ const Creator: React.FC = () => {
                         {discoverResults.length > 0 && (
                             <div className="px-1 space-y-4">
                                 <div>
-                                    <label className="text-sm text-slate-400 mb-2 block font-medium">Collection Title</label>
+                                    <label className="text-sm text-muted mb-2 block font-medium">Collection Title</label>
                                     <input
                                         type="text"
                                         placeholder="e.g. Best Sci-Fi Movies..."
-                                        className="w-full md:w-96 bg-slate-950/50 border border-slate-700/60 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-plex/50 transition-colors"
+                                        className="w-full md:w-96 bg-background/60 border border-border rounded-xl px-4 py-3 text-text focus:outline-none focus:border-plex/50 transition-colors"
                                         value={collectionTitle}
                                         onChange={e => setCollectionTitle(e.target.value)}
                                     />
-                                    <p className="text-xs text-slate-500 mt-2">Set a Title & Target Library, then click to Create & Auto-Sync.</p>
+                                    <p className="text-xs text-muted mt-2">Set a Title & Target Library, then click to Create & Auto-Sync.</p>
                                 </div>
                                 <button
                                     onClick={() => handleCreateFromExternal()}
                                     disabled={creating || !targetLibrary || !collectionTitle}
-                                    className="bg-plex hover:bg-orange-600 text-white px-8 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 w-full md:w-auto"
+                                    className="bg-plex hover:bg-plex-hover text-text px-8 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 w-full md:w-auto"
                                 >
                                     <Sparkles className="w-5 h-5" />
                                     {creating ? 'Creating...' : 'Create Auto-Syncing Collection'}
@@ -821,22 +821,22 @@ const Creator: React.FC = () => {
                         <Card title="Global Content Search">
                             <div className="flex gap-2">
                                 <div className="relative flex-1">
-                                    <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-                                    <input className="w-full bg-slate-950/50 border border-slate-700/60 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-plex/50" placeholder="Search TMDb..." value={externalQuery} onChange={(e) => setExternalQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleExternalSearch()} />
+                                    <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted" />
+                                    <input className="w-full bg-background/60 border border-border rounded-lg pl-10 pr-4 py-2 text-sm text-text focus:outline-none focus:border-plex/50" placeholder="Search TMDb..." value={externalQuery} onChange={(e) => setExternalQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleExternalSearch()} />
                                 </div>
-                                <button onClick={handleExternalSearch} disabled={searchingExternal || !externalQuery} className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-2 rounded-lg border border-slate-700 disabled:opacity-50">Search</button>
+                                <button onClick={handleExternalSearch} disabled={searchingExternal || !externalQuery} className="bg-card hover:bg-white/10 text-text px-6 py-2 rounded-lg border border-border disabled:opacity-50">Search</button>
                             </div>
                         </Card>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {externalResults.map(item => (
-                                <div key={item.id} className="bg-slate-900/40 border border-slate-800/60 rounded-2xl overflow-hidden group hover:border-plex/40 transition-all">
+                                <div key={item.id} className="bg-card/50 border border-border rounded-2xl overflow-hidden group hover:border-plex/40 transition-all">
                                     <div className="aspect-[2/3] relative">
                                         {item.poster && <img src={item.poster} alt="" className="w-full h-full object-cover" />}
-                                        <button onClick={() => setImportedItems(prev => [...prev, item])} className="absolute top-3 right-3 p-2 bg-slate-900/80 backdrop-blur-md rounded-xl text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-plex"><Plus className="w-5 h-5" /></button>
+                                        <button onClick={() => setImportedItems(prev => [...prev, item])} className="absolute top-3 right-3 p-2 bg-card/80 backdrop-blur-md rounded-xl text-text opacity-0 group-hover:opacity-100 transition-all hover:bg-plex"><Plus className="w-5 h-5" /></button>
                                     </div>
                                     <div className="p-4">
-                                        <h4 className="font-bold text-slate-100 truncate">{item.title}</h4>
-                                        <p className="text-xs text-slate-500 mt-1 uppercase">{item.year} • {item.type}</p>
+                                        <h4 className="font-bold text-text truncate">{item.title}</h4>
+                                        <p className="text-xs text-muted mt-1 uppercase">{item.year} • {item.type}</p>
                                     </div>
                                 </div>
                             ))}
@@ -849,10 +849,10 @@ const Creator: React.FC = () => {
                         <Card title="Import from Trakt.tv or MDBList.com">
                             <div className="flex gap-2">
                                 <div className="relative flex-1">
-                                    <ExternalLink className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-                                    <input className="w-full bg-slate-950/50 border border-slate-700/60 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-plex/50" placeholder="Trakt or MDBList URL..." value={importUrl} onChange={(e) => setImportUrl(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleListImport()} />
+                                    <ExternalLink className="absolute left-3 top-2.5 w-4 h-4 text-muted" />
+                                    <input className="w-full bg-background/60 border border-border rounded-lg pl-10 pr-4 py-2 text-sm text-text focus:outline-none focus:border-plex/50" placeholder="Trakt or MDBList URL..." value={importUrl} onChange={(e) => setImportUrl(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleListImport()} />
                                 </div>
-                                <button onClick={handleListImport} disabled={importing || !importUrl} className="bg-plex hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50">Fetch</button>
+                                <button onClick={handleListImport} disabled={importing || !importUrl} className="bg-plex hover:bg-plex-hover text-text px-6 py-2 rounded-lg font-bold disabled:opacity-50">Fetch</button>
                             </div>
                         </Card>
                         {importedItems.length > 0 && (
@@ -861,7 +861,7 @@ const Creator: React.FC = () => {
                                 actions={
                                     <button
                                         onClick={() => setImportedItems([])}
-                                        className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-white transition-all"
+                                        className="p-1.5 hover:bg-white/5 rounded-lg text-muted hover:text-text transition-all"
                                         title="Clear Import"
                                     >
                                         <Plus className="w-5 h-5 rotate-45" />
@@ -870,9 +870,9 @@ const Creator: React.FC = () => {
                             >
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
                                     {importedItems.map((item, idx) => (
-                                        <div key={idx} className="p-3 bg-slate-950/30 border border-slate-800 rounded-xl flex items-center justify-between group">
-                                            <div className="min-w-0"><h4 className="text-sm font-bold text-slate-200 truncate">{item.title}</h4><p className="text-xs text-slate-500">{item.year} • {item.type}</p></div>
-                                            <button onClick={() => setImportedItems(prev => prev.filter((_, i) => i !== idx))} className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100"><Plus className="w-4 h-4 rotate-45" /></button>
+                                        <div key={idx} className="p-3 bg-background/30 border border-border rounded-xl flex items-center justify-between group">
+                                            <div className="min-w-0"><h4 className="text-sm font-bold text-text truncate">{item.title}</h4><p className="text-xs text-muted">{item.year} • {item.type}</p></div>
+                                            <button onClick={() => setImportedItems(prev => prev.filter((_, i) => i !== idx))} className="text-muted hover:text-red-400 opacity-0 group-hover:opacity-100"><Plus className="w-4 h-4 rotate-45" /></button>
                                         </div>
                                     ))}
                                 </div>
@@ -887,9 +887,9 @@ const Creator: React.FC = () => {
                             <div className="flex flex-col gap-4">
                                 <div className="flex gap-2">
                                     <div className="relative flex-1">
-                                        <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                                        <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted" />
                                         <input
-                                            className="w-full bg-slate-950/50 border border-slate-700/60 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-plex/50"
+                                            className="w-full bg-background/60 border border-border rounded-lg pl-10 pr-4 py-2 text-sm text-text focus:outline-none focus:border-plex/50"
                                             placeholder="Search title..."
                                             value={localSearchQuery}
                                             onChange={(e) => setLocalSearchQuery(e.target.value)}
@@ -899,7 +899,7 @@ const Creator: React.FC = () => {
                                     <button
                                         onClick={handleLocalSearch}
                                         disabled={searching || !targetLibrary || (!localSearchQuery && !localSearchYear && !localSearchGenre)}
-                                        className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50 transition-all border border-slate-700"
+                                        className="bg-card hover:bg-white/10 text-text px-6 py-2 rounded-lg font-bold disabled:opacity-50 transition-all border border-border"
                                     >
                                         {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
                                     </button>
@@ -907,20 +907,20 @@ const Creator: React.FC = () => {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
-                                        <label className="text-xs text-slate-500 font-medium ml-1">Year</label>
+                                        <label className="text-xs text-muted font-medium ml-1">Year</label>
                                         <input
                                             type="number"
                                             placeholder="e.g. 2024"
-                                            className="w-full bg-slate-950/50 border border-slate-700/60 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-plex/50"
+                                            className="w-full bg-background/60 border border-border rounded-lg px-4 py-2 text-sm text-text focus:outline-none focus:border-plex/50"
                                             value={localSearchYear}
                                             onChange={(e) => setLocalSearchYear(e.target.value)}
                                         />
                                     </div>
                                     <div className="space-y-1.5">
-                                        <label className="text-xs text-slate-500 font-medium ml-1">Genre</label>
+                                        <label className="text-xs text-muted font-medium ml-1">Genre</label>
                                         <input
                                             placeholder="e.g. Action"
-                                            className="w-full bg-slate-950/50 border border-slate-700/60 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-plex/50"
+                                            className="w-full bg-background/60 border border-border rounded-lg px-4 py-2 text-sm text-text focus:outline-none focus:border-plex/50"
                                             value={localSearchGenre}
                                             onChange={(e) => setLocalSearchGenre(e.target.value)}
                                         />
@@ -939,7 +939,7 @@ const Creator: React.FC = () => {
                                                 const toAdd = localResults.filter(r => !selectionPool.find(p => p.ratingKey === r.ratingKey));
                                                 setSelectionPool(prev => [...prev, ...toAdd]);
                                             }}
-                                            className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 transition-all font-medium"
+                                            className="text-xs bg-card hover:bg-white/10 text-text px-3 py-1.5 rounded-lg border border-border transition-all font-medium"
                                         >
                                             Select All
                                         </button>
@@ -948,7 +948,7 @@ const Creator: React.FC = () => {
                                                 const resultKeys = localResults.map(r => r.ratingKey);
                                                 setSelectionPool(prev => prev.filter(p => !resultKeys.includes(p.ratingKey)));
                                             }}
-                                            className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 transition-all font-medium"
+                                            className="text-xs bg-card hover:bg-white/10 text-text px-3 py-1.5 rounded-lg border border-border transition-all font-medium"
                                         >
                                             Clear Results
                                         </button>
@@ -965,7 +965,7 @@ const Creator: React.FC = () => {
                                                 onClick={() => toggleSelection(item)}
                                                 className={`group relative aspect-[2/3] rounded-2xl border-2 overflow-hidden cursor-pointer transition-all duration-300 ${isSelected
                                                     ? 'border-plex shadow-[0_0_20px_rgba(231,155,23,0.2)]'
-                                                    : 'border-slate-800 hover:border-slate-700'
+                                                    : 'border-border hover:border-border'
                                                     }`}
                                             >
                                                 {item.thumb ? (
@@ -975,18 +975,18 @@ const Creator: React.FC = () => {
                                                         className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${isSelected ? 'opacity-60' : ''}`}
                                                     />
                                                 ) : (
-                                                    <div className="w-full h-full bg-slate-900 flex items-center justify-center">
-                                                        <Search className="w-8 h-8 text-slate-800" />
+                                                    <div className="w-full h-full bg-card flex items-center justify-center">
+                                                        <Search className="w-8 h-8 text-muted" />
                                                     </div>
                                                 )}
 
                                                 <div className={`absolute inset-0 flex flex-col justify-end p-3 bg-gradient-to-t from-black/90 via-black/20 to-transparent transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                                                    <h4 className="text-sm font-bold text-white truncate">{item.title}</h4>
-                                                    <p className="text-[10px] text-slate-400 font-medium uppercase">{item.year} • {item.type}</p>
+                                                    <h4 className="text-sm font-bold text-text truncate">{item.title}</h4>
+                                                    <p className="text-[10px] text-muted font-medium uppercase">{item.year} • {item.type}</p>
                                                 </div>
 
                                                 {isSelected && (
-                                                    <div className="absolute top-2 right-2 bg-plex text-white p-1 rounded-lg shadow-lg">
+                                                    <div className="absolute top-2 right-2 bg-plex text-background p-1 rounded-lg shadow-lg">
                                                         <Plus className="w-4 h-4" />
                                                     </div>
                                                 )}
@@ -1003,37 +1003,37 @@ const Creator: React.FC = () => {
 
             {showPoolDetails && selectionPool.length > 0 && (
                 <div className="fixed inset-x-0 bottom-[120px] max-w-2xl mx-auto px-4 z-[45] animate-in slide-in-from-bottom-4">
-                    <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
-                        <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
-                            <h4 className="font-bold text-white flex items-center gap-2 text-sm">
+                    <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-2xl">
+                        <div className="p-4 border-b border-border flex justify-between items-center bg-white/5">
+                            <h4 className="font-bold text-text flex items-center gap-2 text-sm">
                                 <List className="w-4 h-4 text-plex" />
                                 Current Selection ({selectionPool.length})
                             </h4>
-                            <button onClick={() => setSelectionPool([])} className="text-[10px] text-slate-400 hover:text-red-400 transition-colors uppercase font-bold tracking-wider">
+                            <button onClick={() => setSelectionPool([])} className="text-[10px] text-muted hover:text-red-400 transition-colors uppercase font-bold tracking-wider">
                                 Clear All
                             </button>
                         </div>
                         <div className="max-h-60 overflow-y-auto p-2 custom-scrollbar grid grid-cols-1 gap-1">
                             {selectionPool.map((item, idx) => (
-                                <div key={idx} className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-800/80 transition-colors group">
+                                <div key={idx} className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5/80 transition-colors group">
                                     <div className="flex items-center gap-3 min-w-0">
-                                        <div className="w-8 h-12 rounded bg-slate-800 flex-shrink-0 overflow-hidden">
+                                        <div className="w-8 h-12 rounded bg-card flex-shrink-0 overflow-hidden">
                                             {item.poster || item.thumb ? (
                                                 <img
                                                     src={item.poster || collexionsImageUrl(item.thumb)}
                                                     alt=""
                                                     className="w-full h-full object-cover"
                                                 />
-                                            ) : <ListMusic className="w-4 h-4 m-2 text-slate-600" />}
+                                            ) : <ListMusic className="w-4 h-4 m-2 text-muted" />}
                                         </div>
                                         <div className="min-w-0">
-                                            <p className="text-sm font-bold text-slate-200 truncate">{item.title}</p>
-                                            <p className="text-[10px] text-slate-500 uppercase">{item.year} • {item.type || (item.id ? 'External' : 'Library')}</p>
+                                            <p className="text-sm font-bold text-text truncate">{item.title}</p>
+                                            <p className="text-[10px] text-muted uppercase">{item.year} • {item.type || (item.id ? 'External' : 'Library')}</p>
                                         </div>
                                     </div>
                                     <button
                                         onClick={() => toggleSelection(item)}
-                                        className="p-1.5 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                                        className="p-1.5 text-muted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
                                     >
                                         <Trash2 className="w-4 h-4" />
                                     </button>
@@ -1046,20 +1046,20 @@ const Creator: React.FC = () => {
 
             {selectionPool.length > 0 && (
                 <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-50 animate-in slide-in-from-bottom-8">
-                    <div className="bg-slate-900/90 backdrop-blur-xl border border-plex/30 p-4 rounded-2xl shadow-2xl flex flex-col sm:flex-row items-center gap-4">
+                    <div className="bg-card/90 backdrop-blur-xl border border-plex/30 p-4 rounded-2xl shadow-2xl flex flex-col sm:flex-row items-center gap-4">
                         <div className="flex-1 flex gap-4 items-center">
                             <div className="bg-plex/20 p-2 rounded-lg text-plex cursor-pointer hover:bg-plex/30 transition-colors" onClick={() => setShowPoolDetails(!showPoolDetails)}>
                                 <ListMusic className={`w-6 h-6 transition-transform ${showPoolDetails ? 'rotate-180' : ''}`} />
                             </div>
                             <div>
-                                <p className="text-white font-bold">{selectionPool.length} items selected</p>
-                                <p className="text-xs text-slate-400">{targetLibrary ? `Library: ${targetLibrary}` : 'Select a library above'}</p>
+                                <p className="text-text font-bold">{selectionPool.length} items selected</p>
+                                <p className="text-xs text-muted">{targetLibrary ? `Library: ${targetLibrary}` : 'Select a library above'}</p>
                             </div>
                         </div>
                         <div className="flex gap-2 w-full sm:w-auto">
-                            <input className="flex-1 sm:w-48 bg-slate-950/50 border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-plex/50" placeholder="Collection Title..." value={collectionTitle} onChange={(e) => setCollectionTitle(e.target.value)} />
+                            <input className="flex-1 sm:w-48 bg-background/60 border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-plex/50" placeholder="Collection Title..." value={collectionTitle} onChange={(e) => setCollectionTitle(e.target.value)} />
                             <div className="flex gap-2">
-                                <button onClick={handleCreate} disabled={creating || !collectionTitle || !targetLibrary} className="bg-plex hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50 flex items-center gap-2">
+                                <button onClick={handleCreate} disabled={creating || !collectionTitle || !targetLibrary} className="bg-plex hover:bg-plex-hover text-text px-6 py-2 rounded-lg font-bold disabled:opacity-50 flex items-center gap-2">
                                     {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                                     Create
                                 </button>
@@ -1069,7 +1069,7 @@ const Creator: React.FC = () => {
                                         setCollectionTitle('');
                                         setShowPoolDetails(false);
                                     }}
-                                    className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-all"
+                                    className="p-2 hover:bg-white/5 rounded-lg text-muted hover:text-text transition-all"
                                     title="Clear All"
                                 >
                                     <Plus className="w-6 h-6 rotate-45" />
