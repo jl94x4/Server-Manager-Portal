@@ -101,6 +101,7 @@ const Gallery: React.FC = () => {
     const [gridSize, setGridSize] = useState<UpgraderGridSize>('medium');
     const [pinningId, setPinningId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [fixingArtId, setFixingArtId] = useState<string | null>(null);
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
     const [selectMode, setSelectMode] = useState(false);
     const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
@@ -252,6 +253,22 @@ const Gallery: React.FC = () => {
         }
     };
 
+    const handleFixArt = async (coll: PlexCollection) => {
+        const id = collId(coll);
+        setFixingArtId(id);
+        try {
+            const res = await api.fixCollectionArt(coll.library, coll.title, true);
+            if (!res.ok_count) {
+                alert('Could not find a poster source for this collection (need TMDB key or items with artwork).');
+            }
+            await fetchCollections(true);
+        } catch (e: any) {
+            alert(e?.message || 'Failed to set collection art.');
+        } finally {
+            setFixingArtId(null);
+        }
+    };
+
     const toggleSelect = (coll: PlexCollection) => {
         const key = collKey(coll);
         setSelectedKeys(prev => {
@@ -290,6 +307,32 @@ const Gallery: React.FC = () => {
 
     const selectAllVisible = () => {
         setSelectedKeys(new Set(filteredCollections.map(collKey)));
+    };
+
+    const handleBulkFixArt = async () => {
+        const items = collections.filter(c => selectedKeys.has(collKey(c)));
+        if (!items.length) return;
+        setBulkBusy(true);
+        try {
+            let okCount = 0;
+            for (const coll of items) {
+                try {
+                    const res = await api.fixCollectionArt(coll.library, coll.title, true);
+                    if (res.ok_count) okCount += 1;
+                } catch {
+                    /* continue */
+                }
+            }
+            exitSelectMode();
+            await fetchCollections(true);
+            if (okCount < items.length) {
+                alert(`Set posters on ${okCount} of ${items.length}. Some need a TMDB key or items with artwork.`);
+            }
+        } catch (e: any) {
+            alert(e?.message || 'Bulk fix art failed.');
+        } finally {
+            setBulkBusy(false);
+        }
     };
 
     const handleBulk = async (action: 'pin' | 'unpin' | 'delete') => {
@@ -451,6 +494,15 @@ const Gallery: React.FC = () => {
                     </button>
                     <button
                         type="button"
+                        disabled={bulkBusy || selectedKeys.size === 0}
+                        onClick={() => void handleBulkFixArt()}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-plex/15 text-plex border border-plex/30 hover:bg-plex/25 disabled:opacity-50 inline-flex items-center gap-1.5"
+                    >
+                        {bulkBusy ? <RefreshCw className="w-3 h-3 animate-spin" /> : <ImageIcon className="w-3 h-3" />}
+                        Fix posters
+                    </button>
+                    <button
+                        type="button"
                         onClick={exitSelectMode}
                         className="ml-auto p-1.5 rounded-lg text-muted hover:text-text"
                         title="Exit select mode"
@@ -544,8 +596,9 @@ const Gallery: React.FC = () => {
                     const id = collId(coll);
                     const key = collKey(coll);
                     const uniqueKey = `${id}-${idx}`;
-                    const isProcessing = pinningId === id || deletingId === id;
+                    const isProcessing = pinningId === id || deletingId === id || fixingArtId === id;
                     const isDeleting = deletingId === id;
+                    const isFixingArt = fixingArtId === id;
                     const isSelected = selectedKeys.has(key);
                     const pinPending = coll.pin_resolved === false;
 
@@ -715,17 +768,30 @@ const Gallery: React.FC = () => {
                                 )}
                                 {!selectMode && (
                                     <div className="absolute top-2 right-2 z-[1] flex flex-col items-end gap-1">
-                                        <button
-                                            type="button"
-                                            onClick={() => handleDelete(coll)}
-                                            disabled={isProcessing}
-                                            className={`bg-black/70 hover:bg-red-600 text-white rounded flex items-center justify-center shadow-lg ring-1 ring-white/20 transition-colors disabled:opacity-50 ${isCompact ? 'px-1 py-0.5' : 'px-2 py-1'}`}
-                                            title="Delete collection from Plex"
-                                        >
-                                            {isDeleting
-                                                ? <RefreshCw className={`${isCompact ? 'w-2.5 h-2.5' : 'w-3 h-3'} animate-spin`} />
-                                                : <Trash2 className={isCompact ? 'w-2.5 h-2.5' : 'w-3 h-3'} />}
-                                        </button>
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleFixArt(coll)}
+                                                disabled={isProcessing}
+                                                className={`bg-black/70 hover:bg-plex text-white rounded flex items-center justify-center shadow-lg ring-1 ring-white/20 transition-colors disabled:opacity-50 ${isCompact ? 'px-1 py-0.5' : 'px-2 py-1'}`}
+                                                title="Set / refresh collection poster"
+                                            >
+                                                {isFixingArt
+                                                    ? <RefreshCw className={`${isCompact ? 'w-2.5 h-2.5' : 'w-3 h-3'} animate-spin`} />
+                                                    : <ImageIcon className={isCompact ? 'w-2.5 h-2.5' : 'w-3 h-3'} />}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDelete(coll)}
+                                                disabled={isProcessing}
+                                                className={`bg-black/70 hover:bg-red-600 text-white rounded flex items-center justify-center shadow-lg ring-1 ring-white/20 transition-colors disabled:opacity-50 ${isCompact ? 'px-1 py-0.5' : 'px-2 py-1'}`}
+                                                title="Delete collection from Plex"
+                                            >
+                                                {isDeleting
+                                                    ? <RefreshCw className={`${isCompact ? 'w-2.5 h-2.5' : 'w-3 h-3'} animate-spin`} />
+                                                    : <Trash2 className={isCompact ? 'w-2.5 h-2.5' : 'w-3 h-3'} />}
+                                            </button>
+                                        </div>
                                         {pinPending ? (
                                             <div className={`bg-black/60 text-muted font-bold rounded flex items-center gap-1 ${isCompact ? 'px-1 py-0.5 text-[8px]' : 'px-2 py-1 text-[10px]'}`}>
                                                 <RefreshCw className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} animate-spin`} />
@@ -813,6 +879,7 @@ const Gallery: React.FC = () => {
                     <p><b className="text-text">Tracked</b>: Has the script label but currently hidden from Home.</p>
                     <p><b className="text-text">Manual Pinning</b>: Overrides schedule until the next run unpins it (unless excluded).</p>
                     <p><b className="text-text">Delete</b>: Permanently removes the collection from Plex (movies/shows stay). Also removes any matching Collexions auto-sync job.</p>
+                    <p><b className="text-text">Poster</b> (image icon): Pulls TMDB/franchise art or a title poster into Plex. New creates/syncs do this automatically; use this to fix older blank collections.</p>
                 </div>
             </div>
         </div>

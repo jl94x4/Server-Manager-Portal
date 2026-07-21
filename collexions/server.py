@@ -730,6 +730,157 @@ def _create_plex_collection(library, title, matched_items, sort_order='custom', 
     return collection
 
 
+def get_tmdb_poster(tmdb_id, media_type='movie'):
+    """Resolves a TMDB ID to a full poster URL by fetching the poster_path."""
+    if not tmdb_id:
+        return None
+
+    cache_key = f"{media_type}_{tmdb_id}"
+    if cache_key in TMDB_POSTER_CACHE:
+        return TMDB_POSTER_CACHE[cache_key]
+
+    config = load_config()
+    api_key = config.get('tmdb_api_key')
+    if not api_key:
+        return None
+
+    try:
+        url = f"https://api.themoviedb.org/3/{media_type}/{tmdb_id}?api_key={api_key}"
+        resp = requests.get(url, timeout=5)
+        if resp.status_code == 200:
+            data = resp.json()
+            poster_path = data.get('poster_path')
+            if poster_path:
+                full_url = f"https://image.tmdb.org/t/p/w500{poster_path}"
+                TMDB_POSTER_CACHE[cache_key] = full_url
+                return full_url
+    except Exception as e:
+        logging.error(f"Error resolving TMDB poster: {e}")
+
+    return None
+
+
+def _tmdb_collection_poster_url(collection_id, config=None):
+    """TMDB franchise/collection poster (best choice for franchise Jobs)."""
+    config = config or load_config()
+    tmdb_key = config.get('tmdb_api_key')
+    cid = str(collection_id or '').strip()
+    if not tmdb_key or not cid:
+        return None
+    try:
+        url = f"https://api.themoviedb.org/3/collection/{cid}?api_key={tmdb_key}"
+        resp = requests.get(url, timeout=10)
+        if resp.status_code == 200:
+            path = resp.json().get('poster_path')
+            if path:
+                return f"https://image.tmdb.org/t/p/w780{path}"
+    except Exception as e:
+        logging.warning(f"TMDB collection poster lookup failed for {cid}: {e}")
+    return None
+
+
+def _resolve_collection_poster_url(source_type='', source_id='', external_items=None, matched_items=None, config=None, plex=None):
+    """
+    Pick a poster URL for a collection:
+    1) TMDB collection poster (franchises)
+    2) First external item with a TMDB id
+    3) First matched Plex item's poster
+    """
+    config = config or load_config()
+    st = normalize_source_type(source_type, source_id)
+
+    if st == 'tmdb_collection' and source_id:
+        url = _tmdb_collection_poster_url(source_id, config)
+        if url:
+            return url
+
+    for it in external_items or []:
+        tid = it.get('tmdb_id') or it.get('id')
+        if not tid:
+            continue
+        try:
+            tid_int = int(tid)
+        except Exception:
+            continue
+        media = 'tv' if str(it.get('type') or '') in ('show', 'tv', 'series') else 'movie'
+        url = get_tmdb_poster(tid_int, media)
+        if url:
+            # Prefer slightly larger art for collection posters
+            return url.replace('/w500', '/w780') if '/w500' in url else url
+
+    for item in matched_items or []:
+        try:
+            url = getattr(item, 'posterUrl', None)
+            if url:
+                return url
+            thumb = getattr(item, 'thumb', None)
+            if thumb and plex:
+                return plex.url(thumb, includeToken=True)
+        except Exception:
+            continue
+    return None
+
+
+def _collection_has_custom_poster(coll):
+    """True if a user/tool-uploaded poster is currently selected."""
+    try:
+        for poster in coll.posters() or []:
+            rk = str(getattr(poster, 'ratingKey', '') or '')
+            if getattr(poster, 'selected', False) and rk.startswith('upload://'):
+                return True
+    except Exception:
+        pass
+    return False
+
+
+def _ensure_collection_art(coll, source_type='', source_id='', external_items=None, matched_items=None, config=None, force=False):
+    """
+    Upload a poster when the collection has no custom art (or force=True).
+    Returns True if a poster was uploaded.
+    """
+    if coll is None:
+        return False
+    config = config or load_config()
+    try:
+        coll.reload()
+    except Exception:
+        pass
+
+    if not force and _collection_has_custom_poster(coll):
+        return False
+
+    plex = getattr(coll, '_server', None) or get_plex_instance()
+    if not matched_items:
+        try:
+            matched_items = coll.items()
+        except Exception:
+            matched_items = []
+
+    url = _resolve_collection_poster_url(
+        source_type=source_type,
+        source_id=source_id,
+        external_items=external_items,
+        matched_items=matched_items,
+        config=config,
+        plex=plex,
+    )
+    if not url:
+        logging.info(f"No poster source found for collection '{getattr(coll, 'title', '?')}'")
+        return False
+
+    try:
+        coll.uploadPoster(url=url)
+        try:
+            coll.lockPoster()
+        except Exception:
+            pass
+        log_action(f"Set poster for collection '{coll.title}'.")
+        return True
+    except Exception as e:
+        logging.warning(f"Failed to upload poster for '{getattr(coll, 'title', '?')}': {e}")
+        return False
+
+
 def create_collection_from_source(library_name, title, source_type, source_id='', sort_order='custom', auto_sync=True, external_items=None):
     """
     Fetch source (or use provided items), match to Plex, create collection, optionally register Job.
@@ -765,6 +916,7 @@ def create_collection_from_source(library_name, title, source_type, source_id=''
 
         # If a collection with this title already exists, update it instead of failing.
         existing = library.collections(title=title)
+        created_fresh = False
         if existing:
             coll = existing[0]
             is_smart = getattr(coll, 'smart', False)
@@ -773,7 +925,8 @@ def create_collection_from_source(library_name, title, source_type, source_id=''
                     coll.delete()
                 except Exception:
                     pass
-                _create_plex_collection(library, title, matched_items, sort_order=sort_order, label=label)
+                coll = _create_plex_collection(library, title, matched_items, sort_order=sort_order, label=label)
+                created_fresh = True
             else:
                 current_items = coll.items()
                 current_titles = {i.title for i in current_items}
@@ -792,7 +945,18 @@ def create_collection_from_source(library_name, title, source_type, source_id=''
                 except Exception:
                     pass
         else:
-            _create_plex_collection(library, title, matched_items, sort_order=sort_order, label=label)
+            coll = _create_plex_collection(library, title, matched_items, sort_order=sort_order, label=label)
+            created_fresh = True
+
+        art_set = _ensure_collection_art(
+            coll,
+            source_type=source_type,
+            source_id=source_id,
+            external_items=items,
+            matched_items=matched_items,
+            config=config,
+            force=created_fresh,
+        )
 
         job_id = None
         if auto_sync and source_type:
@@ -806,6 +970,7 @@ def create_collection_from_source(library_name, title, source_type, source_id=''
             "total": len(items),
             "job_id": job_id,
             "title": title,
+            "art_set": bool(art_set),
         }
     except Exception as e:
         logging.error(f"create_collection_from_source error: {e}", exc_info=True)
@@ -901,7 +1066,16 @@ def run_sync_job(job_id=None):
             collections = library.collections(title=coll_name)
             if not collections:
                 log_action(f"Auto-Sync: Collection '{coll_name}' missing — recreating with {len(plex_items)} items.")
-                _create_plex_collection(library, coll_name, plex_items, sort_order=sort_order, label=label)
+                coll = _create_plex_collection(library, coll_name, plex_items, sort_order=sort_order, label=label)
+                _ensure_collection_art(
+                    coll,
+                    source_type=source_type,
+                    source_id=source_id,
+                    external_items=items,
+                    matched_items=plex_items,
+                    config=config,
+                    force=True,
+                )
                 GALLERY_CACHE['data'] = None
                 continue
 
@@ -914,7 +1088,16 @@ def run_sync_job(job_id=None):
                     coll.delete()
                 except Exception as e:
                     logging.warning(f"Failed to delete collection before recreate: {e}")
-                _create_plex_collection(library, coll_name, plex_items, sort_order=sort_order if sort_order == 'random' else 'custom', label=label)
+                coll = _create_plex_collection(library, coll_name, plex_items, sort_order=sort_order if sort_order == 'random' else 'custom', label=label)
+                _ensure_collection_art(
+                    coll,
+                    source_type=source_type,
+                    source_id=source_id,
+                    external_items=items,
+                    matched_items=plex_items,
+                    config=config,
+                    force=True,
+                )
                 log_action(f"Auto-Sync: Successfully recreated '{coll_name}'.")
             else:
                 current_items = coll.items()
@@ -938,6 +1121,17 @@ def run_sync_job(job_id=None):
                 if not new_items and not items_to_remove:
                     log_action(f"Auto-Sync: '{coll_name}' is already up to date.")
 
+                # Fill blank posters for existing managed collections (won't overwrite custom uploads).
+                _ensure_collection_art(
+                    coll,
+                    source_type=source_type,
+                    source_id=source_id,
+                    external_items=items,
+                    matched_items=plex_items,
+                    config=config,
+                    force=False,
+                )
+
         except Exception as e:
             log_action(f"Auto-Sync error for '{coll_name}': {e}")
 
@@ -955,35 +1149,6 @@ def background_sync_loop():
 
 # Start the background thread
 threading.Thread(target=background_sync_loop, daemon=True).start()
-
-def get_tmdb_poster(tmdb_id, media_type='movie'):
-    """Resolves a TMDB ID to a full poster URL by fetching the poster_path."""
-    if not tmdb_id:
-        return None
-        
-    cache_key = f"{media_type}_{tmdb_id}"
-    if cache_key in TMDB_POSTER_CACHE:
-        return TMDB_POSTER_CACHE[cache_key]
-        
-    config = load_config()
-    api_key = config.get('tmdb_api_key')
-    if not api_key:
-        return None
-        
-    try:
-        url = f"https://api.themoviedb.org/3/{media_type}/{tmdb_id}?api_key={api_key}"
-        resp = requests.get(url, timeout=5)
-        if resp.status_code == 200:
-            data = resp.json()
-            poster_path = data.get('poster_path')
-            if poster_path:
-                full_url = f"https://image.tmdb.org/t/p/w500{poster_path}"
-                TMDB_POSTER_CACHE[cache_key] = full_url
-                return full_url
-    except Exception as e:
-        logging.error(f"Error resolving TMDB poster: {e}")
-        
-    return None
 
 def log_action(message):
     """Logs a message to collexions.log in the standard format."""
@@ -2504,6 +2669,79 @@ def delete_collection():
     return jsonify({"success": True, "removed_jobs": removed_jobs})
 
 
+@app.route('/api/collections/fix-art', methods=['POST'])
+@require_auth
+def fix_collection_art():
+    """
+    Set/replace poster for one collection, or all missing-art collections in a library.
+    Body: { title?, library, force?: bool }
+    If title omitted, scans the library and fills collections without a custom uploaded poster.
+    """
+    data = request.json or {}
+    library_name = str(data.get('library') or '').strip()
+    title = str(data.get('title') or '').strip()
+    force = bool(data.get('force'))
+    if not library_name:
+        return jsonify({"success": False, "error": "Missing library"}), 400
+
+    plex = get_plex_instance()
+    if not plex:
+        return jsonify({"success": False, "error": "Plex connection failed"}), 500
+
+    config = load_config()
+    managed = load_managed_collections()
+    # Map library+name → job for source-aware posters
+    job_by_key = {}
+    for job in managed.values():
+        if not isinstance(job, dict):
+            continue
+        job_by_key[f"{job.get('library')}\0{job.get('name')}"] = job
+
+    try:
+        library = plex.library.section(library_name)
+        targets = []
+        if title:
+            targets = [library.collection(title)]
+        else:
+            targets = list(library.collections())
+
+        results = []
+        ok_count = 0
+        for coll in targets[:200]:
+            job = job_by_key.get(f"{library_name}\0{coll.title}") or {}
+            source_type = job.get('source_type') or ''
+            source_id = job.get('source_id') or ''
+            external_items = None
+            if source_type:
+                try:
+                    external_items = fetch_source_items(source_type, source_id, config)
+                except Exception:
+                    external_items = None
+            changed = _ensure_collection_art(
+                coll,
+                source_type=source_type,
+                source_id=source_id,
+                external_items=external_items,
+                matched_items=None,
+                config=config,
+                force=force or bool(title),
+            )
+            if changed:
+                ok_count += 1
+            results.append({"title": coll.title, "library": library_name, "ok": bool(changed)})
+
+        GALLERY_CACHE['data'] = None
+        GALLERY_CACHE['timestamp'] = 0
+        try:
+            IMAGE_CACHE.clear()
+        except Exception:
+            pass
+        return jsonify({"success": True, "ok_count": ok_count, "results": results})
+    except Exception as e:
+        logging.error(f"fix_collection_art error: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/api/stop', methods=['POST'])
 @require_auth
 def stop_script():
@@ -2569,13 +2807,20 @@ def create_custom_collection():
             collection.addLabel(label)
         except Exception as e:
             logging.warning(f"Failed to set label: {e}")
+
+        art_set = _ensure_collection_art(
+            collection,
+            matched_items=items,
+            config=config,
+            force=True,
+        )
         
         log_action(f"Created collection '{title}' with {len(items)} items in {library_name} (Sort: {sort_order}).")
         
         # Clear cache since library changed
         GALLERY_CACHE['data'] = None
         
-        return jsonify({"success": True})
+        return jsonify({"success": True, "art_set": bool(art_set)})
     except Exception as e:
         logging.error(f"Error creating collection: {e}")
         return jsonify({"success": False, "error": str(e)}), 500

@@ -393,6 +393,21 @@ class CollexionsApiService {
         });
     }
 
+    async fixCollectionArt(
+        library: string,
+        title?: string,
+        force = false,
+    ): Promise<{ success: boolean; ok_count?: number; results?: Array<{ title: string; library: string; ok: boolean }> }> {
+        return withTimeout(
+            apiFetch(base('/collections/fix-art'), {
+                method: 'POST',
+                body: JSON.stringify({ library, title, force }),
+            }),
+            180000,
+            'Fixing collection art',
+        );
+    }
+
     async getPlexLibraries(): Promise<any[]> {
         return apiFetch(base('/plex/libraries'));
     }
