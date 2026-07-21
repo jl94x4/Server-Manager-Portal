@@ -378,8 +378,6 @@ const Onboarding: React.FC = () => {
         }
     };
 
-    if (isSetup === null) return null;
-
     return (
         <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 relative overflow-hidden">
             <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-plex/5 rounded-full blur-[140px] -z-10" />

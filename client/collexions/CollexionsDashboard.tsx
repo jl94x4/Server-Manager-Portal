@@ -35,7 +35,7 @@ const CollexionsRoutes: React.FC = () => {
                 if (!cancelled) setNeedsOnboarding(!!status.needs_onboarding);
             } catch (e: any) {
                 if (!cancelled) {
-                    setBootError(e?.message || 'Collexions sidecar is unreachable. Check Settings → Collexions.');
+                    setBootError(e?.message || 'Collexions worker is unreachable. Enable it in Settings → Collexions and Save.');
                     setNeedsOnboarding(false);
                 }
             }
