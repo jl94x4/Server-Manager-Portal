@@ -3815,7 +3815,28 @@ const fetchWithTimeout = async (url, options = {}, timeoutMs = 15000) => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-        return await fetch(url, { ...options, signal: controller.signal });
+        const urlStr = String(url || '');
+        const existing = options.headers || {};
+        const hasPlexId = !!(existing['X-Plex-Client-Identifier'] || existing['x-plex-client-identifier']);
+        // Safety net: any tokenised PMS/plex.tv URL must carry our stable device identity
+        // (otherwise Plex names the device after the Docker container hostname).
+        const needsPlexIdentity = !hasPlexId && (
+            urlStr.includes('X-Plex-Token=')
+            || urlStr.includes('plex.tv/')
+            || (existing['X-Plex-Token'] || existing['x-plex-token'])
+        );
+        let headers = existing;
+        if (needsPlexIdentity) {
+            let token = existing['X-Plex-Token'] || existing['x-plex-token'] || '';
+            if (!token) {
+                const match = urlStr.match(/[?&]X-Plex-Token=([^&]+)/i);
+                if (match) {
+                    try { token = decodeURIComponent(match[1]); } catch { token = match[1]; }
+                }
+            }
+            headers = { ...plexClientHeaders(token), ...existing };
+        }
+        return await fetch(url, { ...options, headers, signal: controller.signal });
     } finally {
         clearTimeout(timer);
     }
@@ -4102,7 +4123,7 @@ app.get('/api/plex/image', requireAuth, requireMember, async (req, res) => {
             url = `${uri}${thumbPath}?X-Plex-Token=${config.plexToken}`;
         }
 
-        const response = await fetchWithTimeout(url, {}, 15000);
+        const response = await fetchWithTimeout(url, { headers: plexClientHeaders(config.plexToken) }, 15000);
         if (!response.ok) throw new Error('fetch failed');
         const buffer = Buffer.from(await response.arrayBuffer());
         res.setHeader('Content-Type', response.headers.get('content-type') || 'image/jpeg');
@@ -4428,7 +4449,7 @@ const fetchImageBuffer = async (config, thumbPath) => {
         const uri = await getPlexConnectionUri(config);
         const transcodeUrl = `/photo/:/transcode?width=150&height=225&minSize=1&upscale=1&url=${encodeURIComponent(thumbPath)}`;
         const url = `${uri}${transcodeUrl}&X-Plex-Token=${config.plexToken}`;
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: plexClientHeaders(config.plexToken) });
         if (res.ok) {
             return Buffer.from(await res.arrayBuffer());
         }
@@ -7777,7 +7798,7 @@ app.get('/api/public/pwa-icon', publicReadRateLimit, async (req, res) => {
             const uri = await getPlexConnectionUri(config);
             if (uri) {
                 const url = `${uri}/photo/:/transcode?url=${encodeURIComponent(thumb)}&width=${size}&height=${size}&minSize=1&X-Plex-Token=${config.plexToken}`;
-                const response = await fetchWithTimeout(url, {}, iconTimeoutMs).catch(() => null);
+                const response = await fetchWithTimeout(url, { headers: plexClientHeaders(config.plexToken) }, iconTimeoutMs).catch(() => null);
                 if (response?.ok) {
                     const buffer = Buffer.from(await response.arrayBuffer());
                     if (buffer.length) {
@@ -7862,7 +7883,7 @@ app.get('/api/public/branding-icon', publicReadRateLimit, async (req, res) => {
                 const width = Math.min(Math.max(parseInt(req.query.width, 10) || 180, 32), 1024);
                 const height = Math.min(Math.max(parseInt(req.query.height, 10) || 180, 32), 1024);
                 const url = `${uri}/photo/:/transcode?url=${encodeURIComponent(thumb)}&width=${width}&height=${height}&minSize=1&X-Plex-Token=${config.plexToken}`;
-                const response = await fetchWithTimeout(url, {}, 15000).catch(() => null);
+                const response = await fetchWithTimeout(url, { headers: plexClientHeaders(config.plexToken) }, 15000).catch(() => null);
                 if (response?.ok) {
                     const buffer = Buffer.from(await response.arrayBuffer());
                     if (buffer.length) {
@@ -11112,6 +11133,41 @@ async function performSingleProbe(service) {
     if (service?.type === 'download-client') {
         return performDownloadClientProbe(service);
     }
+
+    // Plex status checks must use our stable client identity — a bare HTTP GET is
+    // reported as "<container-id> (Linux)" and triggers "new device" pushes on restart.
+    const isPlexService = String(service?.id || '') === 'plex'
+        || String(service?.name || '').toLowerCase() === 'plex';
+    if (isPlexService) {
+        const start = Date.now();
+        try {
+            const config = await loadFile(CONFIG_PATH, {});
+            if (!config?.plexToken || config.plexToken === SECRET_MASK) {
+                // Fall through to generic URL probe without a token.
+            } else {
+                let uri = '';
+                try {
+                    uri = await getPlexConnectionUri(config);
+                } catch {
+                    uri = String(service.url || config.plexServerUrl || '').replace(/\/+$/, '');
+                }
+                if (uri) {
+                    const res = await fetchWithTimeout(`${uri}/identity`, {
+                        headers: plexClientHeaders(config.plexToken),
+                    }, 8000);
+                    const latency = Math.round(Date.now() - start);
+                    const code = res.status || 0;
+                    const status = (code >= 200 && code < 400) || code === 401 || code === 403
+                        ? 'online'
+                        : (code >= 500 ? 'degraded' : 'offline');
+                    return { status, latency, httpCode: code };
+                }
+            }
+        } catch {
+            return { status: 'offline', latency: Math.round(Date.now() - start), httpCode: 0 };
+        }
+    }
+
     return new Promise((resolve) => {
         const rawUrl = service.url;
         if (!rawUrl) return resolve({ status: 'offline', latency: 0, httpCode: 0 });
@@ -11139,9 +11195,24 @@ async function performSingleProbe(service) {
 
         const lib = parsedUrl.protocol === 'https:' ? https : http;
         const start = Date.now();
+        const urlHasPlexToken = /[?&]X-Plex-Token=/i.test(targetUrl);
+        const probeHeaders = urlHasPlexToken
+            ? {
+                ...plexClientHeaders((() => {
+                    try {
+                        return decodeURIComponent((targetUrl.match(/[?&]X-Plex-Token=([^&]+)/i) || [])[1] || '');
+                    } catch {
+                        return '';
+                    }
+                })()),
+                'User-Agent': 'Server Manager Portal',
+                'Cache-Control': 'no-cache',
+                Connection: 'close',
+            }
+            : { 'User-Agent': 'Server Manager Portal', 'Cache-Control': 'no-cache', Connection: 'close' };
 
         const request = lib.get(targetUrl, {
-            headers: { 'User-Agent': 'SubZero-Monitor/1.0', 'Cache-Control': 'no-cache', 'Connection': 'close' },
+            headers: probeHeaders,
             timeout: 8000,
             rejectUnauthorized: true
         }, (response) => {
