@@ -637,8 +637,8 @@ const Creator: React.FC = () => {
                 </div>
             </div>
 
-            {/* Global Creation Settings — not sticky on mobile (portal chrome + tall card covered content) */}
-            <section className="bg-card/60 border border-border p-4 md:p-6 rounded-2xl flex flex-col xl:flex-row xl:items-center justify-between gap-4 md:gap-6 shadow-xl relative z-10 lg:sticky lg:top-2 lg:z-30 lg:backdrop-blur-md">
+            {/* Global Creation Settings — stay in document flow (sticky overlapped cards on scroll) */}
+            <section className="bg-card/60 border border-border p-4 md:p-6 rounded-2xl flex flex-col xl:flex-row xl:items-center justify-between gap-4 md:gap-6 shadow-xl relative z-10">
                 <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 md:gap-6 w-full xl:w-auto">
                     <div className="hidden sm:flex items-center gap-4">
                         <div className="bg-plex/20 p-3 rounded-xl text-plex">
