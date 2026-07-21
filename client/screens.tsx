@@ -5536,7 +5536,7 @@ export const DiscoverPosterCard: React.FC<{
             )}
             {overlay}
             {showQualityBadges && item.tags && item.tags.length > 0 && (
-                <div className="absolute bottom-1 left-1 right-1 flex flex-wrap gap-0.5 pointer-events-none z-10">
+                <div className={`absolute left-1 right-1 flex flex-wrap gap-0.5 pointer-events-none z-20 ${overlay ? 'bottom-7' : 'bottom-1'}`}>
                     {item.tags.map((tag) => (
                         <span key={tag} className="text-[8px] font-bold px-1 py-px rounded bg-black/85 text-white/95 border border-white/15 uppercase tracking-wide">
                             {tag}
@@ -5606,8 +5606,10 @@ export const DiscoverPosterCard: React.FC<{
 };
 
 const discoverViewsOverlay = (views: number) => (
-    <div className="absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30 z-10 pointer-events-none">
-        {views} Views
+    <div className="absolute inset-x-0 bottom-0 z-10 pointer-events-none bg-gradient-to-t from-black/85 via-black/45 to-transparent pt-6 pb-1.5 px-1.5">
+        <span className="text-[10px] font-semibold text-white/90 tracking-wide">
+            {views} {views === 1 ? 'view' : 'views'}
+        </span>
     </div>
 );
 
