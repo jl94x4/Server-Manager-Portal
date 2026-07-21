@@ -288,6 +288,56 @@ class CollexionsApiService {
         });
     }
 
+    async getTemplates(): Promise<{
+        templates: Array<{
+            id: string;
+            name: string;
+            description: string;
+            category: string;
+            media: string;
+            source_type: string;
+            source_id: string;
+            default_sort: string;
+            requires: string[];
+            available: boolean;
+        }>;
+        categories: Array<{ id: string; label: string }>;
+        keys: { tmdb: boolean; trakt: boolean };
+    }> {
+        return withTimeout(apiFetch(base('/templates')), 15000, 'Templates');
+    }
+
+    async searchFranchises(query: string): Promise<Array<{
+        id: number;
+        name: string;
+        overview: string;
+        poster: string | null;
+        source_type: string;
+        source_id: string;
+    }>> {
+        return withTimeout(
+            apiFetch(base(`/templates/franchise-search?q=${encodeURIComponent(query)}`)),
+            15000,
+            'Franchise search',
+        );
+    }
+
+    async createFromTemplate(payload: {
+        library: string;
+        template_id?: string;
+        title?: string;
+        source_type?: string;
+        source_id?: string;
+        sort_order?: string;
+        auto_sync?: boolean;
+    }): Promise<{ success: boolean; matched?: number; total?: number; job_id?: string; title?: string; error?: string }> {
+        return withTimeout(
+            apiFetch(base('/templates/create'), { method: 'POST', body: JSON.stringify(payload) }),
+            120000,
+            'Creating collection',
+        );
+    }
+
     async getJobs(): Promise<any> {
         return apiFetch(base('/jobs'));
     }

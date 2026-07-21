@@ -1,12 +1,27 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card } from '../components/ui/Card';
-import { Plus, Search, ListMusic, Globe, Loader2, List, Trash2, Sparkles, Filter, ExternalLink, Compass, Clock } from 'lucide-react';
+import { Plus, Search, ListMusic, Globe, Loader2, List, Trash2, Sparkles, Filter, ExternalLink, Compass, Clock, LayoutTemplate } from 'lucide-react';
 import { api, collexionsImageUrl } from '../api';
 import { CustomSelect } from '../components/ui/Inputs';
 import { AppConfig } from '../types';
 
+type CreatorTab = 'templates' | 'trending' | 'discover' | 'search' | 'import' | 'manual';
+
+type JobTemplate = {
+    id: string;
+    name: string;
+    description: string;
+    category: string;
+    media: string;
+    source_type: string;
+    source_id: string;
+    default_sort: string;
+    requires: string[];
+    available: boolean;
+};
+
 const Creator: React.FC = () => {
-    const [activeSubTab, setActiveSubTab] = useState<'trending' | 'discover' | 'search' | 'import' | 'manual'>('trending');
+    const [activeSubTab, setActiveSubTab] = useState<CreatorTab>('templates');
     const [config, setConfig] = useState<AppConfig | null>(null);
     // Trending State
     const [trendingPresets, setTrendingPresets] = useState<any[]>([]);
@@ -14,30 +29,15 @@ const Creator: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
 
-    const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
-        setToast({ message, type });
-        setTimeout(() => setToast(null), 5000);
-    };
-
-    useEffect(() => {
-        loadData();
-    }, []);
-
-    const loadData = async () => {
-        setLoading(true);
-        try {
-            const [cfg, presets] = await Promise.all([
-                api.getConfig(),
-                api.getTrending()
-            ]);
-            setConfig(cfg);
-            setTrendingPresets(presets);
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-        }
-    };
+    // Templates
+    const [templates, setTemplates] = useState<JobTemplate[]>([]);
+    const [templateCategories, setTemplateCategories] = useState<Array<{ id: string; label: string }>>([]);
+    const [templateCategory, setTemplateCategory] = useState<string>('all');
+    const [templateKeys, setTemplateKeys] = useState<{ tmdb: boolean; trakt: boolean }>({ tmdb: false, trakt: false });
+    const [franchiseQuery, setFranchiseQuery] = useState('');
+    const [franchiseResults, setFranchiseResults] = useState<any[]>([]);
+    const [searchingFranchises, setSearchingFranchises] = useState(false);
+    const [creatingTemplateId, setCreatingTemplateId] = useState<string | null>(null);
 
     // Shared State
     const [targetLibrary, setTargetLibrary] = useState<string>('');
@@ -45,6 +45,130 @@ const Creator: React.FC = () => {
     const [sortOrder, setSortOrder] = useState<'custom' | 'random' | 'release'>('custom');
     const [autoSync, setAutoSync] = useState(true);
     const [creating, setCreating] = useState(false);
+
+    const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 5000);
+    };
+
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            const [cfg, presets, tplPayload] = await Promise.all([
+                api.getConfig(),
+                api.getTrending().catch(() => []),
+                api.getTemplates().catch(() => ({ templates: [], categories: [], keys: { tmdb: false, trakt: false } })),
+            ]);
+            setConfig(cfg);
+            setTrendingPresets(presets);
+            setTemplates(tplPayload.templates || []);
+            setTemplateCategories(tplPayload.categories || []);
+            setTemplateKeys(tplPayload.keys || { tmdb: false, trakt: false });
+            if (cfg?.library_names?.length === 1) {
+                setTargetLibrary(cfg.library_names[0]);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        void loadData();
+    }, []);
+
+    const filteredTemplates = useMemo(() => {
+        if (templateCategory === 'all') return templates;
+        return templates.filter((t) => t.category === templateCategory);
+    }, [templates, templateCategory]);
+
+    const handleCreateTemplate = async (tpl: JobTemplate) => {
+        if (!targetLibrary) {
+            showToast('Please select a target library first!', 'error');
+            return;
+        }
+        if (!tpl.available) {
+            showToast(`Add required API keys in Settings (${(tpl.requires || []).join(', ')}).`, 'error');
+            return;
+        }
+        setCreatingTemplateId(tpl.id);
+        setCreating(true);
+        try {
+            const res = await api.createFromTemplate({
+                library: targetLibrary,
+                template_id: tpl.id,
+                sort_order: sortOrder || tpl.default_sort,
+                auto_sync: autoSync,
+            });
+            if (res.success) {
+                showToast(
+                    `Created '${res.title || tpl.name}' — matched ${res.matched}/${res.total} titles.${autoSync ? ' Auto-sync job registered.' : ''}`,
+                    'success',
+                );
+            } else {
+                showToast(res.error || 'Failed to create collection.', 'error');
+            }
+        } catch (e: any) {
+            showToast(e?.message || 'Failed to create collection.', 'error');
+        } finally {
+            setCreating(false);
+            setCreatingTemplateId(null);
+        }
+    };
+
+    const handleFranchiseSearch = async () => {
+        if (!franchiseQuery.trim()) return;
+        setSearchingFranchises(true);
+        try {
+            const results = await api.searchFranchises(franchiseQuery.trim());
+            setFranchiseResults(Array.isArray(results) ? results : []);
+            if (!Array.isArray(results) || results.length === 0) {
+                showToast('No franchises found for that search.', 'info');
+            }
+        } catch (e: any) {
+            showToast(e?.message || 'Franchise search failed.', 'error');
+            setFranchiseResults([]);
+        } finally {
+            setSearchingFranchises(false);
+        }
+    };
+
+    const handleCreateFranchise = async (franchise: { name: string; source_type: string; source_id: string }) => {
+        if (!targetLibrary) {
+            showToast('Please select a target library first!', 'error');
+            return;
+        }
+        if (!templateKeys.tmdb) {
+            showToast('TMDB API key required in Settings.', 'error');
+            return;
+        }
+        setCreatingTemplateId(`franchise-${franchise.source_id}`);
+        setCreating(true);
+        try {
+            const res = await api.createFromTemplate({
+                library: targetLibrary,
+                title: franchise.name,
+                source_type: franchise.source_type,
+                source_id: franchise.source_id,
+                sort_order: sortOrder === 'custom' ? 'release' : sortOrder,
+                auto_sync: autoSync,
+            });
+            if (res.success) {
+                showToast(
+                    `Created '${res.title || franchise.name}' — matched ${res.matched}/${res.total} titles.`,
+                    'success',
+                );
+            } else {
+                showToast(res.error || 'Failed to create franchise collection.', 'error');
+            }
+        } catch (e: any) {
+            showToast(e?.message || 'Failed to create franchise collection.', 'error');
+        } finally {
+            setCreating(false);
+            setCreatingTemplateId(null);
+        }
+    };
 
     const handleCreatePreset = async (preset: any) => {
         if (!targetLibrary) {
@@ -489,6 +613,7 @@ const Creator: React.FC = () => {
 
             <div className="flex border-b border-border overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
                 {[
+                    { id: 'templates', label: 'Templates', icon: <LayoutTemplate className="w-4 h-4" /> },
                     { id: 'trending', label: 'Trending', icon: <Globe className="w-4 h-4" /> },
                     { id: 'discover', label: 'Discover', icon: <Compass className="w-4 h-4" /> },
                     { id: 'search', label: 'Global Search', icon: <Search className="w-4 h-4" /> },
@@ -497,7 +622,7 @@ const Creator: React.FC = () => {
                 ].map(tab => (
                     <button
                         key={tab.id}
-                        onClick={() => setActiveSubTab(tab.id as any)}
+                        onClick={() => setActiveSubTab(tab.id as CreatorTab)}
                         className={`px-6 py-4 font-medium capitalize transition-all border-b-2 whitespace-nowrap text-sm flex items-center gap-2 ${activeSubTab === tab.id ? 'text-plex border-plex bg-card/30' : 'text-muted border-transparent hover:text-text hover:bg-white/5'
                             }`}
                     >
@@ -508,6 +633,156 @@ const Creator: React.FC = () => {
             </div>
 
             <div className="grid gap-6">
+                {activeSubTab === 'templates' && (
+                    <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300">
+                        <div className="rounded-2xl border border-border bg-card/40 p-5 space-y-3">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                                <div>
+                                    <h3 className="text-lg font-bold text-text flex items-center gap-2">
+                                        <LayoutTemplate className="w-5 h-5 text-plex" />
+                                        One-click collections
+                                    </h3>
+                                    <p className="text-sm text-muted mt-1">
+                                        Creates a real Plex collection from titles you already own, and registers an auto-sync Job.
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-wider">
+                                    <span className={`px-2 py-1 rounded-lg border ${templateKeys.tmdb ? 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10' : 'border-border text-muted'}`}>
+                                        TMDB {templateKeys.tmdb ? 'ready' : 'missing'}
+                                    </span>
+                                    <span className={`px-2 py-1 rounded-lg border ${templateKeys.trakt ? 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10' : 'border-border text-muted'}`}>
+                                        Trakt {templateKeys.trakt ? 'ready' : 'missing'}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setTemplateCategory('all')}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${templateCategory === 'all' ? 'bg-plex/20 border-plex/40 text-plex' : 'border-border text-muted hover:text-text'}`}
+                                >
+                                    All
+                                </button>
+                                {templateCategories.map((cat) => (
+                                    <button
+                                        key={cat.id}
+                                        type="button"
+                                        onClick={() => setTemplateCategory(cat.id)}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${templateCategory === cat.id ? 'bg-plex/20 border-plex/40 text-plex' : 'border-border text-muted hover:text-text'}`}
+                                    >
+                                        {cat.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                            {filteredTemplates.map((tpl) => {
+                                const busy = creatingTemplateId === tpl.id;
+                                return (
+                                    <div
+                                        key={tpl.id}
+                                        className={`bg-card/50 border rounded-2xl p-5 flex flex-col justify-between shadow-lg transition-all ${tpl.available ? 'border-border hover:border-plex/30' : 'border-border/60 opacity-70'}`}
+                                    >
+                                        <div>
+                                            <div className="flex items-center justify-between gap-2 mb-3">
+                                                <span className="text-[10px] font-bold uppercase tracking-widest text-plex bg-plex/10 px-2 py-1 rounded-md border border-plex/20">
+                                                    {tpl.category}
+                                                </span>
+                                                <span className="text-[10px] font-bold uppercase text-muted">
+                                                    {tpl.media}
+                                                </span>
+                                            </div>
+                                            <h3 className="text-lg font-bold text-text">{tpl.name}</h3>
+                                            <p className="text-muted text-sm mt-2 leading-relaxed">{tpl.description}</p>
+                                            {!tpl.available && (
+                                                <p className="text-amber-300/90 text-xs mt-3">
+                                                    Needs {(tpl.requires || []).join(' + ')} key in Settings.
+                                                </p>
+                                            )}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => void handleCreateTemplate(tpl)}
+                                            disabled={creating || !targetLibrary || !tpl.available}
+                                            className="mt-5 w-full bg-plex hover:bg-plex-hover text-background py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                                        >
+                                            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                                            {busy ? 'Creating…' : 'Create in Plex'}
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                            {filteredTemplates.length === 0 && (
+                                <div className="md:col-span-2 xl:col-span-3 text-center text-muted py-10 border border-dashed border-border rounded-2xl">
+                                    No templates in this category.
+                                </div>
+                            )}
+                        </div>
+
+                        <Card title="Search any franchise">
+                            <div className="space-y-4">
+                                <p className="text-sm text-muted">
+                                    Find a TMDB movie collection (e.g. “Matrix”, “Batman”, “Despicable Me”) and create it as a managed Job.
+                                </p>
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <input
+                                        value={franchiseQuery}
+                                        onChange={(e) => setFranchiseQuery(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') void handleFranchiseSearch(); }}
+                                        placeholder="Search franchises…"
+                                        className="flex-1 bg-background/60 border border-border rounded-xl px-4 py-2.5 text-sm text-text outline-none focus:border-plex/50"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => void handleFranchiseSearch()}
+                                        disabled={searchingFranchises || !franchiseQuery.trim() || !templateKeys.tmdb}
+                                        className="px-5 py-2.5 rounded-xl bg-card border border-border font-bold text-sm text-text hover:border-plex/40 disabled:opacity-50 flex items-center justify-center gap-2"
+                                    >
+                                        {searchingFranchises ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                                        Search
+                                    </button>
+                                </div>
+                                {!templateKeys.tmdb && (
+                                    <p className="text-xs text-amber-300/90">Add a TMDB API key in Settings to search franchises.</p>
+                                )}
+                                {franchiseResults.length > 0 && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {franchiseResults.map((fr) => {
+                                            const id = `franchise-${fr.source_id}`;
+                                            const busy = creatingTemplateId === id;
+                                            return (
+                                                <div key={fr.id} className="flex gap-3 border border-border rounded-xl p-3 bg-background/40">
+                                                    <div className="w-14 h-20 rounded-lg overflow-hidden bg-card shrink-0 border border-border">
+                                                        {fr.poster ? (
+                                                            <img src={fr.poster} alt="" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-muted text-[10px]">N/A</div>
+                                                        )}
+                                                    </div>
+                                                    <div className="min-w-0 flex-1 flex flex-col">
+                                                        <h4 className="font-bold text-text text-sm truncate">{fr.name}</h4>
+                                                        <p className="text-xs text-muted mt-1 line-clamp-2 flex-1">{fr.overview || 'TMDB franchise collection'}</p>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => void handleCreateFranchise(fr)}
+                                                            disabled={creating || !targetLibrary}
+                                                            className="mt-2 self-start text-xs font-bold px-3 py-1.5 rounded-lg bg-plex/20 text-plex border border-plex/30 hover:bg-plex/30 disabled:opacity-50 flex items-center gap-1.5"
+                                                        >
+                                                            {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                                                            Create
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        </Card>
+                    </div>
+                )}
+
                 {activeSubTab === 'trending' && (
                     <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300">
                         {!hasKeys ? (

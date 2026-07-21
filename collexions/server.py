@@ -362,10 +362,234 @@ def fetch_source_items(source_type, source_id, config):
                                     })
             except Exception as e:
                 logging.error(f"Error parse/fetch mdblist: {e}")
+        elif source_type == 'tmdb_collection':
+            # Franchise / TMDB collection parts (movies only).
+            collection_id = str(source_id or '').strip()
+            if tmdb_key and collection_id:
+                url = f"https://api.themoviedb.org/3/collection/{collection_id}?api_key={tmdb_key}"
+                resp = requests.get(url, timeout=10)
+                if resp.status_code == 200:
+                    for part in resp.json().get('parts') or []:
+                        if not part.get('id'):
+                            continue
+                        items.append({
+                            'title': part.get('title') or part.get('name'),
+                            'tmdb_id': part.get('id'),
+                            'type': 'movie',
+                            'year': (part.get('release_date') or '')[:4],
+                        })
+                else:
+                    logging.warning(f"TMDB collection {collection_id} returned HTTP {resp.status_code}")
     except Exception as e:
         logging.error(f"Error fetching source items for {source_type}: {e}")
             
     return items
+
+
+# Curated one-click templates (Creator → Templates). source_type must exist in fetch_source_items.
+JOB_TEMPLATES = [
+    # Trending
+    {"id": "tmdb_trending_movies", "name": "Trending Movies", "description": "What's hot on TMDB this week.", "category": "trending", "media": "movie", "source_type": "tmdb_trending_movie", "source_id": "", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_trending_tv", "name": "Trending TV", "description": "What's hot on TMDB this week.", "category": "trending", "media": "tv", "source_type": "tmdb_trending_tv", "source_id": "", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "trakt_trending_movies", "name": "Trending Movies (Trakt)", "description": "Trakt community trending movies.", "category": "trending", "media": "movie", "source_type": "trakt_trending_movie", "source_id": "", "default_sort": "custom", "requires": ["trakt"]},
+    {"id": "trakt_trending_tv", "name": "Trending TV (Trakt)", "description": "Trakt community trending shows.", "category": "trending", "media": "tv", "source_type": "trakt_trending_show", "source_id": "", "default_sort": "custom", "requires": ["trakt"]},
+    {"id": "trakt_anticipated_movies", "name": "Most Anticipated Movies", "description": "Upcoming movies people are waiting for.", "category": "trending", "media": "movie", "source_type": "trakt_anticipated_movie", "source_id": "", "default_sort": "custom", "requires": ["trakt"]},
+    {"id": "trakt_anticipated_tv", "name": "Most Anticipated TV", "description": "Upcoming shows people are waiting for.", "category": "trending", "media": "tv", "source_type": "trakt_anticipated_show", "source_id": "", "default_sort": "custom", "requires": ["trakt"]},
+    {"id": "trakt_recommended_movies", "name": "Recommended Movies", "description": "Weekly Trakt recommendations.", "category": "trending", "media": "movie", "source_type": "trakt_recommended_movie", "source_id": "", "default_sort": "custom", "requires": ["trakt"]},
+    {"id": "trakt_recommended_tv", "name": "Recommended TV", "description": "Weekly Trakt recommendations.", "category": "trending", "media": "tv", "source_type": "trakt_recommended_show", "source_id": "", "default_sort": "custom", "requires": ["trakt"]},
+    # Quality / awards-style
+    {"id": "tmdb_top_rated_movies", "name": "Top Rated Movies", "description": "Highest-rated movies on TMDB.", "category": "quality", "media": "movie", "source_type": "tmdb_movie_top_rated", "source_id": "", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_popular_tv", "name": "Popular TV", "description": "Currently popular TV on TMDB.", "category": "quality", "media": "tv", "source_type": "tmdb_tv_popular", "source_id": "", "default_sort": "custom", "requires": ["tmdb"]},
+    # Genre
+    {"id": "tmdb_horror", "name": "Horror Movies", "description": "Popular horror from TMDB discover.", "category": "genre", "media": "movie", "source_type": "tmdb_horror", "source_id": "", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_scifi", "name": "Sci-Fi Movies", "description": "Popular science fiction from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_scifi", "source_id": "", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_kids", "name": "Family & Kids", "description": "Family-friendly movies from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_kids", "source_id": "", "default_sort": "custom", "requires": ["tmdb"]},
+    {"id": "tmdb_docs", "name": "Documentaries", "description": "Popular documentaries from TMDB.", "category": "genre", "media": "movie", "source_type": "tmdb_docs", "source_id": "", "default_sort": "custom", "requires": ["tmdb"]},
+    # Franchises (TMDB collection IDs)
+    {"id": "franchise_star_wars", "name": "Star Wars", "description": "The Star Wars saga collection.", "category": "franchise", "media": "movie", "source_type": "tmdb_collection", "source_id": "10", "default_sort": "release", "requires": ["tmdb"]},
+    {"id": "franchise_harry_potter", "name": "Harry Potter", "description": "Wizarding World films.", "category": "franchise", "media": "movie", "source_type": "tmdb_collection", "source_id": "1241", "default_sort": "release", "requires": ["tmdb"]},
+    {"id": "franchise_lotr", "name": "The Lord of the Rings", "description": "Middle-earth trilogy.", "category": "franchise", "media": "movie", "source_type": "tmdb_collection", "source_id": "119", "default_sort": "release", "requires": ["tmdb"]},
+    {"id": "franchise_hobbit", "name": "The Hobbit", "description": "The Hobbit trilogy.", "category": "franchise", "media": "movie", "source_type": "tmdb_collection", "source_id": "121938", "default_sort": "release", "requires": ["tmdb"]},
+    {"id": "franchise_jurassic", "name": "Jurassic Park", "description": "Jurassic Park / World films.", "category": "franchise", "media": "movie", "source_type": "tmdb_collection", "source_id": "328", "default_sort": "release", "requires": ["tmdb"]},
+    {"id": "franchise_fast", "name": "Fast & Furious", "description": "The Fast Saga.", "category": "franchise", "media": "movie", "source_type": "tmdb_collection", "source_id": "9485", "default_sort": "release", "requires": ["tmdb"]},
+    {"id": "franchise_bond", "name": "James Bond", "description": "007 collection.", "category": "franchise", "media": "movie", "source_type": "tmdb_collection", "source_id": "645", "default_sort": "release", "requires": ["tmdb"]},
+    {"id": "franchise_indiana_jones", "name": "Indiana Jones", "description": "Indy adventure films.", "category": "franchise", "media": "movie", "source_type": "tmdb_collection", "source_id": "84", "default_sort": "release", "requires": ["tmdb"]},
+    {"id": "franchise_mission_impossible", "name": "Mission: Impossible", "description": "Ethan Hunt films.", "category": "franchise", "media": "movie", "source_type": "tmdb_collection", "source_id": "87359", "default_sort": "release", "requires": ["tmdb"]},
+    {"id": "franchise_john_wick", "name": "John Wick", "description": "John Wick films.", "category": "franchise", "media": "movie", "source_type": "tmdb_collection", "source_id": "404609", "default_sort": "release", "requires": ["tmdb"]},
+    {"id": "franchise_alien", "name": "Alien", "description": "Alien saga.", "category": "franchise", "media": "movie", "source_type": "tmdb_collection", "source_id": "8091", "default_sort": "release", "requires": ["tmdb"]},
+    {"id": "franchise_terminator", "name": "Terminator", "description": "Terminator films.", "category": "franchise", "media": "movie", "source_type": "tmdb_collection", "source_id": "528", "default_sort": "release", "requires": ["tmdb"]},
+    {"id": "franchise_toy_story", "name": "Toy Story", "description": "Toy Story films.", "category": "franchise", "media": "movie", "source_type": "tmdb_collection", "source_id": "10194", "default_sort": "release", "requires": ["tmdb"]},
+    {"id": "franchise_shrek", "name": "Shrek", "description": "Shrek films.", "category": "franchise", "media": "movie", "source_type": "tmdb_collection", "source_id": "2150", "default_sort": "release", "requires": ["tmdb"]},
+    {"id": "franchise_avengers", "name": "The Avengers", "description": "Avengers team-up films.", "category": "franchise", "media": "movie", "source_type": "tmdb_collection", "source_id": "86311", "default_sort": "release", "requires": ["tmdb"]},
+    {"id": "franchise_pirates", "name": "Pirates of the Caribbean", "description": "PotC films.", "category": "franchise", "media": "movie", "source_type": "tmdb_collection", "source_id": "295", "default_sort": "release", "requires": ["tmdb"]},
+]
+
+
+def get_template_by_id(template_id):
+    tid = str(template_id or '').strip()
+    for tpl in JOB_TEMPLATES:
+        if tpl['id'] == tid:
+            return dict(tpl)
+    return None
+
+
+def _build_library_tmdb_cache(library):
+    """Map tmdb id string → Plex item for fast matching."""
+    cache = {}
+    for item in library.all():
+        try:
+            for guid in getattr(item, 'guids', []) or []:
+                gid = getattr(guid, 'id', '') or ''
+                if 'tmdb' in gid:
+                    tid = gid.split('tmdb://')[-1]
+                    if tid:
+                        cache[str(tid)] = item
+        except Exception:
+            pass
+    return cache
+
+
+def _match_external_to_plex(library, external_items, tmdb_cache=None):
+    """Match external {tmdb_id/id, title} items to local Plex items."""
+    if tmdb_cache is None:
+        tmdb_cache = _build_library_tmdb_cache(library)
+    matched = []
+    seen_keys = set()
+    for ext in external_items or []:
+        tmdb_id_val = ext.get('tmdb_id') or ext.get('id')
+        if not tmdb_id_val:
+            continue
+        local_item = tmdb_cache.get(str(tmdb_id_val))
+        if not local_item:
+            continue
+        key = getattr(local_item, 'ratingKey', None)
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        matched.append(local_item)
+    return matched
+
+
+def _register_managed_job(library_name, title, source_type, source_id, sort_order='custom', auto_sync=True):
+    managed = load_managed_collections()
+    job_id = f"{library_name}_{title}".replace(' ', '_').lower()
+    managed[job_id] = {
+        "name": title,
+        "library": library_name,
+        "source_type": source_type,
+        "source_id": source_id or '',
+        "sort_order": sort_order,
+        "auto_sync": bool(auto_sync),
+        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "last_run": "Never",
+        "next_run": (datetime.now() + timedelta(hours=6)).strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    save_managed_collections(managed)
+    log_action(f"Registered Auto-Sync job for '{title}' (Source: {source_type})")
+    return job_id
+
+
+def _create_plex_collection(library, title, matched_items, sort_order='custom', label='Collexions'):
+    """Create a Plex collection from matched items. Returns the collection object."""
+    if sort_order == 'random':
+        collection = library.createCollection(
+            title=title,
+            smart=True,
+            sort='random',
+            filters={'id': [itm.ratingKey for itm in matched_items]},
+        )
+    else:
+        collection = library.createCollection(title, items=matched_items)
+        if sort_order == 'release':
+            try:
+                collection.sortUpdate('release')
+            except Exception as e:
+                logging.warning(f"Failed to set release sort: {e}")
+    try:
+        collection.addLabel(label)
+    except Exception as e:
+        logging.warning(f"Failed to set label: {e}")
+    return collection
+
+
+def create_collection_from_source(library_name, title, source_type, source_id='', sort_order='custom', auto_sync=True, external_items=None):
+    """
+    Fetch source (or use provided items), match to Plex, create collection, optionally register Job.
+    Returns dict: success, matched, total, job_id, title, error?
+    """
+    config = load_config()
+    label = config.get('collexions_label', 'Collexions')
+    plex = get_plex_instance()
+    if not plex:
+        return {"success": False, "error": "Plex connection failed"}
+
+    items = list(external_items or [])
+    if source_type:
+        try:
+            full_items = fetch_source_items(source_type, source_id, config)
+            if full_items:
+                items = full_items
+        except Exception as e:
+            logging.error(f"Failed to fetch upstream source items: {e}")
+
+    if not items:
+        return {"success": False, "error": "No items found for this source"}
+
+    try:
+        library = plex.library.section(library_name)
+        logging.info(f"Matching {len(items)} source items against library '{library_name}'...")
+        matched_items = _match_external_to_plex(library, items)
+        if not matched_items:
+            return {"success": False, "error": "No items matched your local library", "matched": 0, "total": len(items)}
+
+        # If a collection with this title already exists, update it instead of failing.
+        existing = library.collections(title=title)
+        if existing:
+            coll = existing[0]
+            is_smart = getattr(coll, 'smart', False)
+            if is_smart or sort_order == 'random':
+                try:
+                    coll.delete()
+                except Exception:
+                    pass
+                _create_plex_collection(library, title, matched_items, sort_order=sort_order, label=label)
+            else:
+                current_items = coll.items()
+                current_titles = {i.title for i in current_items}
+                target_titles = {i.title for i in matched_items}
+                to_add = [i for i in matched_items if i.title not in current_titles]
+                to_remove = [i for i in current_items if i.title not in target_titles]
+                if to_add:
+                    coll.addItems(to_add)
+                if to_remove:
+                    try:
+                        coll.removeItems(to_remove)
+                    except Exception as e:
+                        logging.warning(f"Failed to remove old items from '{title}': {e}")
+                try:
+                    coll.addLabel(label)
+                except Exception:
+                    pass
+        else:
+            _create_plex_collection(library, title, matched_items, sort_order=sort_order, label=label)
+
+        job_id = None
+        if auto_sync and source_type:
+            job_id = _register_managed_job(library_name, title, source_type, source_id, sort_order, auto_sync=True)
+
+        GALLERY_CACHE['data'] = None
+        log_action(f"Created/updated collection '{title}' with {len(matched_items)}/{len(items)} items matched.")
+        return {
+            "success": True,
+            "matched": len(matched_items),
+            "total": len(items),
+            "job_id": job_id,
+            "title": title,
+        }
+    except Exception as e:
+        logging.error(f"create_collection_from_source error: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+
 
 def run_sync_job(job_id=None):
     """Refreshes managed collections. If job_id is provided, only syncs that specific job."""
@@ -426,79 +650,72 @@ def run_sync_job(job_id=None):
             log_action(f"Auto-Sync: No items found for '{coll_name}'. Skipping.")
             continue
             
-        # 2. Update Plex Collection
+        # 2. Update Plex Collection (recreate if missing)
         try:
             library = plex.library.section(lib_name)
-            # Find collection or create it (it should already exist, but let's be safe)
-            collections = library.collections(title=coll_name)
-            if not collections:
-                log_action(f"Auto-Sync: Collection '{coll_name}' not found in '{lib_name}'. Marking for re-creation next run or just skipping.")
-                # We won't re-create here because sorting/labels might be complex.
-                continue
-                
-            coll = collections[0]
-            
-            # Resolve items in Plex
-            plex_items = []
-            for itm in items:
-                search_type = 'movie' if itm['type'] == 'movie' else 'show'
-                results = library.search(title=itm['title'], libtype=search_type)
-                if results:
-                    plex_items.append(results[0])
-            
+            label = config.get('collexions_label', 'Collexions')
+            tmdb_cache = _build_library_tmdb_cache(library)
+            plex_items = _match_external_to_plex(library, items, tmdb_cache=tmdb_cache)
+
+            # Fallback: title search for items without TMDB guid match
+            if len(plex_items) < max(1, len(items) // 4):
+                matched_keys = {getattr(i, 'ratingKey', None) for i in plex_items}
+                for itm in items:
+                    search_type = 'movie' if itm.get('type') == 'movie' else 'show'
+                    results = library.search(title=itm.get('title'), libtype=search_type)
+                    if results and results[0].ratingKey not in matched_keys:
+                        plex_items.append(results[0])
+                        matched_keys.add(results[0].ratingKey)
+
             if not plex_items:
                 log_action(f"Auto-Sync: No matching Plex items found for '{coll_name}'.")
                 continue
 
-            # Check if it's a smart collection
+            collections = library.collections(title=coll_name)
+            if not collections:
+                log_action(f"Auto-Sync: Collection '{coll_name}' missing — recreating with {len(plex_items)} items.")
+                _create_plex_collection(library, coll_name, plex_items, sort_order=sort_order, label=label)
+                GALLERY_CACHE['data'] = None
+                continue
+
+            coll = collections[0]
             is_smart = getattr(coll, 'smart', False)
-            
-            if is_smart:
-                log_action(f"Auto-Sync: '{coll_name}' is a smart collection. Deleting and recreating to update.")
-                coll.delete()
-                item_keys = [str(itm.ratingKey) for itm in plex_items]
-                new_coll = library.createCollection(
-                    title=coll_name,
-                    smart=True,
-                    sort='random',
-                    filters={'id': item_keys}
-                )
-                
-                # Re-apply label
-                label = config.get('collexions_label', 'Collexions')
+
+            if is_smart or sort_order == 'random':
+                log_action(f"Auto-Sync: Recreating '{coll_name}' ({'smart' if is_smart else 'random'}).")
                 try:
-                    new_coll.addLabel(label)
+                    coll.delete()
                 except Exception as e:
-                    logging.warning(f"Failed to set label on recreated collection: {e}")
-                    
-                log_action(f"Auto-Sync: Successfully recreated smart collection '{coll_name}'.")
+                    logging.warning(f"Failed to delete collection before recreate: {e}")
+                _create_plex_collection(library, coll_name, plex_items, sort_order=sort_order if sort_order == 'random' else 'custom', label=label)
+                log_action(f"Auto-Sync: Successfully recreated '{coll_name}'.")
             else:
                 current_items = coll.items()
                 current_titles = [i.title for i in current_items]
                 target_titles = [i.title for i in plex_items]
-                
+
                 new_items = [i for i in plex_items if i.title not in current_titles]
                 items_to_remove = [i for i in current_items if i.title not in target_titles]
-                
+
                 if new_items:
                     coll.addItems(new_items)
                     log_action(f"Auto-Sync: Added {len(new_items)} new items to '{coll_name}'.")
-                    
+
                 if items_to_remove:
                     try:
                         coll.removeItems(items_to_remove)
                         log_action(f"Auto-Sync: Removed {len(items_to_remove)} items from '{coll_name}'.")
                     except Exception as e:
                         logging.warning(f"Failed to remove old items from '{coll_name}': {e}")
-                        
+
                 if not new_items and not items_to_remove:
                     log_action(f"Auto-Sync: '{coll_name}' is already up to date.")
 
         except Exception as e:
             log_action(f"Auto-Sync error for '{coll_name}': {e}")
-            
-    
+
     save_managed_collections(managed)
+    GALLERY_CACHE['data'] = None
 
 def background_sync_loop():
     """Background thread that checks for due jobs every 10 minutes."""
@@ -2143,113 +2360,152 @@ def search_discover():
 @app.route('/api/collections/create-from-external', methods=['POST'])
 @require_auth
 def create_from_external():
-    data = request.json
+    data = request.json or {}
     library_name = data.get('library')
     title = data.get('title')
-    external_items = data.get('items', []) # List of { id, title, type }
+    external_items = data.get('items', [])
     sort_order = data.get('sort_order', 'custom')
     auto_sync = data.get('auto_sync', False)
-    source_type = data.get('source_type') # e.g. 'trakt_trending_movie'
-    source_id = data.get('source_id') # e.g. category id or trakt path
-    
-    if not library_name or not title or not external_items:
+    source_type = data.get('source_type')
+    source_id = data.get('source_id')
+
+    if not library_name or not title or (not external_items and not source_type):
         return jsonify({"success": False, "error": "Missing fields"}), 400
-        
-    # Register for auto-sync if requested
-    if auto_sync and source_type:
-        managed = load_managed_collections()
-        job_id = f"{library_name}_{title}".replace(' ', '_').lower()
-        managed[job_id] = {
-            "name": title,
-            "library": library_name,
-            "source_type": source_type,
-            "source_id": source_id,
-            "sort_order": sort_order,
-            "auto_sync": True,
-            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "last_run": "Never",
-            "next_run": (datetime.now() + timedelta(hours=6)).strftime("%Y-%m-%d %H:%M:%S")
-        }
-        save_managed_collections(managed)
-        log_action(f"Registered Auto-Sync job for '{title}' (Source: {source_type})")
-        
-    plex = get_plex_instance()
-    if not plex:
-        return jsonify({"success": False, "error": "Plex connection failed"}), 500
-        
+
+    result = create_collection_from_source(
+        library_name=library_name,
+        title=title,
+        source_type=source_type,
+        source_id=source_id or '',
+        sort_order=sort_order,
+        auto_sync=bool(auto_sync),
+        external_items=external_items,
+    )
+    status = 200 if result.get('success') else (404 if 'matched' in result else 500)
+    if result.get('error') == 'Plex connection failed':
+        status = 500
+    elif result.get('error') == 'No items matched your local library':
+        status = 404
+    elif not result.get('success'):
+        status = 400
+    return jsonify(result), status
+
+
+@app.route('/api/templates')
+@require_auth
+def list_templates():
+    """Curated one-click collection templates + which API keys are available."""
+    config = load_config()
+    has_tmdb = bool(str(config.get('tmdb_api_key') or '').strip())
+    has_trakt = bool(str(config.get('trakt_client_id') or '').strip())
+    templates = []
+    for tpl in JOB_TEMPLATES:
+        requires = tpl.get('requires') or []
+        available = True
+        if 'tmdb' in requires and not has_tmdb:
+            available = False
+        if 'trakt' in requires and not has_trakt:
+            available = False
+        templates.append({**tpl, 'available': available})
+    return jsonify({
+        'templates': templates,
+        'categories': [
+            {'id': 'trending', 'label': 'Trending'},
+            {'id': 'quality', 'label': 'Top & Popular'},
+            {'id': 'genre', 'label': 'Genres'},
+            {'id': 'franchise', 'label': 'Franchises'},
+        ],
+        'keys': {'tmdb': has_tmdb, 'trakt': has_trakt},
+    })
+
+
+@app.route('/api/templates/franchise-search')
+@require_auth
+def franchise_search():
+    """Search TMDB collections (franchises) by name."""
+    config = load_config()
+    tmdb_key = str(config.get('tmdb_api_key') or '').strip()
+    query = str(request.args.get('q') or '').strip()
+    if not tmdb_key:
+        return jsonify({'error': 'TMDB API key required in Settings'}), 400
+    if len(query) < 2:
+        return jsonify([])
     try:
-        library = plex.library.section(library_name)
-        matched_items = []
-        
-        config = load_config()
-        if source_type:
-            try:
-                full_items = fetch_source_items(source_type, source_id, config)
-                if full_items:
-                    external_items = full_items
-                    logging.info(f"Overriding frontend items with full source fetch: got {len(full_items)} items")
-            except Exception as e:
-                logging.error(f"Failed to fetch upstream source items: {e}")
-        
-        logging.info(f"Caching library {library_name} for fast matching of {len(external_items)} items...")
-        local_items_cache = {}
-        for item in library.all():
-            try:
-                for guid in getattr(item, 'guids', []):
-                    if 'tmdb' in guid.id:
-                        tid = guid.id.split('tmdb://')[-1]
-                        local_items_cache[tid] = item
-            except:
-                pass
-                
-        for ext in external_items:
-            tmdb_id_val = ext.get('tmdb_id') or ext.get('id')
-            if not tmdb_id_val: continue
-            tmdb_id = str(tmdb_id_val)
-            item_title = ext.get('title')
-            
-            local_item = local_items_cache.get(tmdb_id)
-            if local_item:
-                matched_items.append(local_item)
-            else:
-                logging.warning(f"Could not match external item: {item_title} (ID: {tmdb_id})")
-                
-        if not matched_items:
-            return jsonify({"success": False, "error": "No items matched your local library"}), 404
-            
-        # Add label and sort with soft failure handling
-        try:
-            label = config.get('collexions_label', 'Collexions')
-            
-            if sort_order == 'random':
-                # Create a SMART collection for true persistent randomness
-                collection = library.createCollection(
-                    title=title,
-                    smart=True,
-                    sort='random',
-                    filters={'id': [itm.ratingKey for itm in matched_items]}
-                )
-            else:
-                # Regular collection
-                collection = library.createCollection(title, items=matched_items)
-                if sort_order == 'release':
-                    collection.sortUpdate('release')
-            
-            collection.addLabel(label)
-        except Exception as e:
-            logging.warning(f"Failed to create/set label on collection: {e}")
-        
-        log_action(f"Created external collection '{title}' with {len(matched_items)}/{len(external_items)} items matched (Sort: {sort_order}).")
-        GALLERY_CACHE['data'] = None
-        
-        return jsonify({
-            "success": True, 
-            "matched": len(matched_items), 
-            "total": len(external_items)
-        })
+        resp = requests.get(
+            "https://api.themoviedb.org/3/search/collection",
+            params={'api_key': tmdb_key, 'query': query},
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            return jsonify({'error': f'TMDB returned HTTP {resp.status_code}'}), 400
+        results = []
+        for r in resp.json().get('results') or []:
+            results.append({
+                'id': r.get('id'),
+                'name': r.get('name'),
+                'overview': (r.get('overview') or '')[:240],
+                'poster': f"https://image.tmdb.org/t/p/w342{r['poster_path']}" if r.get('poster_path') else None,
+                'source_type': 'tmdb_collection',
+                'source_id': str(r.get('id')),
+            })
+        return jsonify(results[:20])
     except Exception as e:
-        logging.error(f"Error in create-from-external: {e}", exc_info=True)
-        return jsonify({"success": False, "error": str(e)}), 500
+        logging.error(f"Franchise search error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/templates/create', methods=['POST'])
+@require_auth
+def create_from_template():
+    """One-click: create Plex collection + Job from a curated template or ad-hoc franchise."""
+    data = request.json or {}
+    library_name = str(data.get('library') or '').strip()
+    if not library_name:
+        return jsonify({'success': False, 'error': 'Select a target library first.'}), 400
+
+    template_id = str(data.get('template_id') or '').strip()
+    title = str(data.get('title') or '').strip()
+    source_type = str(data.get('source_type') or '').strip()
+    source_id = str(data.get('source_id') or '').strip()
+    sort_order = str(data.get('sort_order') or 'custom').strip() or 'custom'
+    auto_sync = data.get('auto_sync', True)
+
+    if template_id:
+        tpl = get_template_by_id(template_id)
+        if not tpl:
+            return jsonify({'success': False, 'error': 'Unknown template.'}), 404
+        title = title or tpl['name']
+        source_type = tpl['source_type']
+        source_id = tpl.get('source_id') or ''
+        if not data.get('sort_order'):
+            sort_order = tpl.get('default_sort') or 'custom'
+        requires = tpl.get('requires') or []
+        config = load_config()
+        if 'tmdb' in requires and not str(config.get('tmdb_api_key') or '').strip():
+            return jsonify({'success': False, 'error': 'TMDB API key required in Settings.'}), 400
+        if 'trakt' in requires and not str(config.get('trakt_client_id') or '').strip():
+            return jsonify({'success': False, 'error': 'Trakt client ID required in Settings.'}), 400
+    elif source_type and title:
+        # Ad-hoc (e.g. franchise search result)
+        if source_type == 'tmdb_collection' and not source_id:
+            return jsonify({'success': False, 'error': 'Missing franchise collection id.'}), 400
+    else:
+        return jsonify({'success': False, 'error': 'Provide template_id or source_type + title.'}), 400
+
+    result = create_collection_from_source(
+        library_name=library_name,
+        title=title,
+        source_type=source_type,
+        source_id=source_id,
+        sort_order=sort_order,
+        auto_sync=bool(auto_sync),
+    )
+    if result.get('success'):
+        return jsonify(result)
+    status = 404 if 'matched' in (result.get('error') or '').lower() or result.get('matched') == 0 else 400
+    if result.get('error') == 'Plex connection failed':
+        status = 500
+    return jsonify(result), status
 
 @app.route('/api/trakt/list')
 @require_auth
