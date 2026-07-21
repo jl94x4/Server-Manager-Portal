@@ -23,6 +23,10 @@ except ImportError:
 # Configure logging for the API
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Patch plexapi BEFORE any PlexServer() so Docker hostname is never the device name.
+from plex_identity import configure_plex_identity, plex_request_headers
+configure_plex_identity()
+
 app = Flask(__name__)
 CORS(app)
 
@@ -555,7 +559,7 @@ def _check_plex_quick(config, timeout=3):
     try:
         resp = requests.get(
             f'{url}/identity',
-            headers={'X-Plex-Token': token, 'Accept': 'application/json'},
+            headers=plex_request_headers(token),
             timeout=timeout,
             verify=False,
         )
@@ -1690,7 +1694,10 @@ def proxy_image():
     )
 
     try:
-        headers = {'User-Agent': 'CollexionsManager/1.0', 'Accept': 'image/*,*/*'}
+        headers = plex_request_headers(token, {
+            'User-Agent': 'Server Manager Portal',
+            'Accept': 'image/*,*/*',
+        })
         upstream = requests.get(plex_url, timeout=8, verify=False, headers=headers)
 
         if upstream.status_code != 200 or not upstream.content:

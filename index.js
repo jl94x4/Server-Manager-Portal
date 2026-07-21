@@ -979,6 +979,36 @@ const plexClientHeaders = (token = '', extra = {}) => ({
     ...extra,
 });
 
+/** Global safety net: bare fetch() to PMS/plex.tv must never omit client identity. */
+const _nativeFetch = globalThis.fetch.bind(globalThis);
+globalThis.fetch = async (input, init = {}) => {
+    const urlStr = typeof input === 'string' ? input : (input?.url || String(input || ''));
+    const existing = { ...(init.headers || {}) };
+    // Normalize Headers / array form into a plain object
+    let headerObj = existing;
+    if (typeof Headers !== 'undefined' && init.headers instanceof Headers) {
+        headerObj = {};
+        init.headers.forEach((v, k) => { headerObj[k] = v; });
+    } else if (Array.isArray(init.headers)) {
+        headerObj = Object.fromEntries(init.headers);
+    }
+    const lower = Object.fromEntries(Object.entries(headerObj).map(([k, v]) => [String(k).toLowerCase(), v]));
+    const hasPlexId = !!(lower['x-plex-client-identifier']);
+    const hasToken = !!(lower['x-plex-token'] || /[?&]X-Plex-Token=/i.test(urlStr));
+    const isPlexHost = /(?:^|[/.])plex\.tv(?:[:/]|$)/i.test(urlStr) || /[?&]X-Plex-Token=/i.test(urlStr);
+    if (!hasPlexId && (hasToken || isPlexHost)) {
+        let token = lower['x-plex-token'] || '';
+        if (!token) {
+            const match = urlStr.match(/[?&]X-Plex-Token=([^&]+)/i);
+            if (match) {
+                try { token = decodeURIComponent(match[1]); } catch { token = match[1]; }
+            }
+        }
+        init = { ...init, headers: { ...plexClientHeaders(token), ...headerObj } };
+    }
+    return _nativeFetch(input, init);
+};
+
 const apiFetch = (url, token, options = {}) => {
     const headers = {
         ...plexClientHeaders(token),
@@ -17613,7 +17643,6 @@ app.listen(PORT, BIND_HOST, async () => {
     // Ensure unique, *stable* CLIENT_ID per installation (survives Docker recreates).
     // Without this, PMS may register the container hostname (e.g. 151a94f8…) as a new device each restart.
     let config = await loadFile(CONFIG_PATH, {});
-    await syncAdminPlexIdFromConfigToken(config, { persist: true });
     if (!config.clientId || config.clientId.startsWith('smp-') || config.clientId === 'plex-expiry-manager-client-id') {
         config.clientId = randomUUID();
         await saveFile(CONFIG_PATH, config);
@@ -17629,6 +17658,7 @@ app.listen(PORT, BIND_HOST, async () => {
         }
     }
     log(`Plex client identity: product=Server Manager Portal clientId=${String(CLIENT_ID).slice(0, 8)}…`);
+    await syncAdminPlexIdFromConfigToken(config, { persist: true });
 
     await loadStatusState();
     runMonitorCycle();
@@ -17638,7 +17668,9 @@ app.listen(PORT, BIND_HOST, async () => {
     startBackgroundService();
     loadFile(CONFIG_PATH, {}).then(async (bootConfig) => {
         try {
-            const { config: withCollexions, changed } = applyCollexionsBundledDefaults(bootConfig || {}, {
+            // Prefer the in-memory CLIENT_ID so Collexions shares the same Plex device identity.
+            const bootWithId = { ...(bootConfig || {}), clientId: CLIENT_ID || bootConfig?.clientId };
+            const { config: withCollexions, changed } = applyCollexionsBundledDefaults(bootWithId, {
                 configDir: CONFIG_DIR,
                 log,
             });

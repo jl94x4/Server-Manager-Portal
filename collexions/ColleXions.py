@@ -14,6 +14,10 @@ from datetime import datetime, timedelta
 import argparse # <--- ADDED FOR DRY-RUN ARGUMENT
 from jsonschema import validate, exceptions as jsonschema_exceptions # <--- ADDED FOR CONFIG VALIDATION
 
+# Stable identity before any PlexServer() — avoid Docker hostname as device name.
+from plex_identity import configure_plex_identity
+configure_plex_identity()
+
 # --- Configuration & Constants (Updated for Docker / portal embed) ---
 # Portal sets COLLEXIONS_DATA_DIR to the persistent config volume. Fall back to the
 # script directory so standalone installs keep using ./config and ./logs next to the code.
@@ -337,6 +341,7 @@ def connect_to_plex(config):
     if not plex_url or not token:
         logging.error("Plex URL/Token missing in config."); return None
     try:
+        configure_plex_identity()
         logging.info(f"Connecting to Plex: {plex_url}...");
         plex = PlexServer(plex_url, token, timeout=90)
         server_name = plex.friendlyName
