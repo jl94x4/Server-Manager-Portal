@@ -2473,6 +2473,9 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
         mediaServerType: config.mediaServerType || 'plex',
         requestUrl,
         navOrder,
+        navHiddenKeys: Array.isArray(config.navHiddenKeys)
+            ? config.navHiddenKeys.filter((key) => typeof key === 'string' && key && key !== 'home' && key !== 'settings' && key !== 'logout')
+            : [],
         navFeatures,
         impersonation: impersonating ? {
             active: true,
@@ -2774,6 +2777,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 announcement: config.announcement || '',
                 hideStreamUsers: config.hideStreamUsers === true ? 'anonymous' : (config.hideStreamUsers || 'false'),
                 navOrder: config.navOrder || ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'collexions', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'],
+                navHiddenKeys: Array.isArray(config.navHiddenKeys) ? config.navHiddenKeys : [],
                 downloadsVisibleToMembers: config.downloadsVisibleToMembers !== false,
                 defaultLibraryIds: config.defaultLibraryIds || null,
                 use24HourClock: !!config.use24HourClock,
@@ -2870,6 +2874,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 announcement: '',
                 hideStreamUsers: 'false',
                 navOrder: ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'collexions', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'],
+                navHiddenKeys: [],
                 downloadsVisibleToMembers: true,
                 defaultLibraryIds: null,
                 use24HourClock: false,
@@ -2914,7 +2919,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         requestAppType, requestAppUrl, requestAppFetchUrl, requestAppApiKey,
         requestDiscoverRegion, requestDiscoverLanguage, requestHideAvailableMedia,
         inactiveCleanupEnabled, inactiveCleanupDays,
-        primaryColor, customLogoUrl, brandingTheme, sidebarIdentityPosition, pwaIconSource, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges, showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds,
+        primaryColor, customLogoUrl, brandingTheme, sidebarIdentityPosition, pwaIconSource, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, navHiddenKeys, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges, showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds,
         showPublicStatusMonitor, showPublicLibraryStats,
         autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, upgraderEnabled, collexionsEnabled, collexionsAutostart, collexionsInternalUrl, collexionsServiceKey, upgraderDefaultPreset, upgraderMinSizeGB, upgraderAutomationEnabled, upgraderProfileMap, upgraderMaxActionsPerHour, upgraderDefaultSort, upgraderDrawerPosition, dashboardLayout,
         showUsernamesInAnalytics, useTrendingSlideshowOnLogin, downloadsVisibleToMembers
@@ -3084,6 +3089,20 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         announcement: announcement || '',
         hideStreamUsers: hideStreamUsers === true ? 'anonymous' : (hideStreamUsers === false ? 'false' : (hideStreamUsers || 'false')),
         navOrder: Array.isArray(navOrder) ? navOrder : existingConfig.navOrder || ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'collexions', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'],
+        navHiddenKeys: (() => {
+            const ALWAYS = new Set(['home', 'settings', 'logout']);
+            const incoming = Array.isArray(navHiddenKeys) ? navHiddenKeys : existingConfig.navHiddenKeys;
+            if (!Array.isArray(incoming)) return [];
+            const seen = new Set();
+            const result = [];
+            for (const raw of incoming) {
+                const key = String(raw || '').trim();
+                if (!key || ALWAYS.has(key) || seen.has(key)) continue;
+                seen.add(key);
+                result.push(key);
+            }
+            return result;
+        })(),
         downloadsVisibleToMembers: downloadsVisibleToMembers !== undefined
             ? !!downloadsVisibleToMembers
             : (existingConfig.downloadsVisibleToMembers !== false),

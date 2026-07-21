@@ -9263,6 +9263,7 @@ interface NavigationProps {
     customLogoUrl?: string | null;
     requestUrl: string;
     navOrder: string[];
+    navHiddenKeys?: string[];
     navFeatures?: NavFeatureFlags;
     appVersion?: string;
     activeTheme: string;
@@ -9276,7 +9277,7 @@ interface NavigationProps {
     sidebarIdentityPosition?: 'top' | 'bottom';
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, customLogoUrl, requestUrl, navOrder, navFeatures, appVersion, activeTheme, setActiveTheme, pendingRequestCount = 0, watchingCount = 0, downloadCount = 0, showDashboardWatchingBadge = false, sessionInfo, mediaServerType = 'plex', sidebarIdentityPosition = 'bottom' }) => {
+export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, customLogoUrl, requestUrl, navOrder, navHiddenKeys, navFeatures, appVersion, activeTheme, setActiveTheme, pendingRequestCount = 0, watchingCount = 0, downloadCount = 0, showDashboardWatchingBadge = false, sessionInfo, mediaServerType = 'plex', sidebarIdentityPosition = 'bottom' }) => {
     const serverIcon = customLogoUrl ? resolvePortalAssetUrl(customLogoUrl) : (adminThumb ? (adminThumb.startsWith('http') ? adminThumb : portalUrl(`/api/plex/image?path=${encodeURIComponent(adminThumb)}&width=256&height=256`)) : logoUrl());
     const providerName = String(mediaServerType || 'plex').toLowerCase() === 'jellyfin'
         ? 'Jellyfin'
@@ -9455,8 +9456,8 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
     };
     const normalizedNavOrder = useMemo(() => {
         const order = ensureCompleteNavOrder(navOrder);
-        return filterNavOrder(order, { isAdmin, features: navFeatures });
-    }, [navOrder, isAdmin, navFeatures]);
+        return filterNavOrder(order, { isAdmin, features: navFeatures, hiddenKeys: navHiddenKeys });
+    }, [navOrder, navHiddenKeys, isAdmin, navFeatures]);
 
     const isNavCurrent = (key: string, route: string) => (
         ['admin', 'user'].includes(currentRoute) && key === 'home' ? true : currentRoute === route

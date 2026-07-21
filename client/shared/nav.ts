@@ -158,9 +158,27 @@ export const isRequestNavEnabled = (requestAppType?: string | null, requestUrl?:
     return true;
 };
 
+/** Keys that cannot be hidden via Settings → Navigation (prevents lockout). */
+export const ALWAYS_VISIBLE_NAV_KEYS = new Set(['home', 'settings', 'logout']);
+
+/** Normalize a saved hidden-keys list; strips always-visible keys. */
+export const normalizeNavHiddenKeys = (keys?: string[] | null): string[] => {
+    if (!Array.isArray(keys)) return [];
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const raw of keys) {
+        const key = String(raw || '').trim();
+        if (!key || ALWAYS_VISIBLE_NAV_KEYS.has(key) || seen.has(key)) continue;
+        if (!(key in NAV_ITEM_LABELS) && key !== 'logs') continue;
+        seen.add(key);
+        result.push(key);
+    }
+    return result;
+};
+
 export const filterNavOrder = (
     order: string[],
-    options: { isAdmin: boolean; features?: NavFeatureFlags },
+    options: { isAdmin: boolean; features?: NavFeatureFlags; hiddenKeys?: string[] },
 ) => {
     const features = options.features || {};
     const maintenanceEnabled = features.maintenance !== false;
@@ -168,9 +186,11 @@ export const filterNavOrder = (
     const collexionsEnabled = !!features.collexions;
     const requestsQueueEnabled = !!features.requestsQueue;
     const requestEnabled = features.request !== false || requestsQueueEnabled;
+    const hidden = new Set(normalizeNavHiddenKeys(options.hiddenKeys));
 
     return (Array.isArray(order) ? order : []).filter((key) => {
         if (key === 'logout' || key === 'logs') return false;
+        if (hidden.has(key) && !ALWAYS_VISIBLE_NAV_KEYS.has(key)) return false;
         if ((key === 'users' || key === 'settings' || key === 'maintenance' || key === 'upgrader' || key === 'collexions' || key === 'requests') && !options.isAdmin) return false;
         if (key === 'downloads' && !options.isAdmin && features.downloads === false) return false;
         if (key === 'maintenance' && !maintenanceEnabled) return false;

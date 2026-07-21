@@ -44,7 +44,7 @@ import { NavigationOrderSettings } from './NavigationOrderSettings';
 import { ArrInstancesPanel } from './ArrInstancesPanel';
 import { DISCOVER_LANGUAGE_OPTIONS, DISCOVER_REGION_OPTIONS } from './discoverySettingsOptions';
 import { DEFAULT_DASHBOARD_LAYOUT, normalizeSectionLayout, type DashboardLayoutConfig } from '../shared/dashboardLayout';
-import { DEFAULT_NAV_ORDER, ensureCompleteNavOrder } from '../shared/nav';
+import { DEFAULT_NAV_ORDER, ensureCompleteNavOrder, normalizeNavHiddenKeys } from '../shared/nav';
 import {
     SETTINGS_TAB_GROUPS,
     buildSettingsHash,
@@ -472,6 +472,7 @@ export const SettingsDashboard: React.FC = () => {
     const [showPublicLibraryStats, setShowPublicLibraryStats] = useState(initialSettings?.showPublicLibraryStats !== false);
     const [allowTemporaryAccess, setAllowTemporaryAccess] = useState(initialSettings?.allowTemporaryAccess || false);
     const [navOrder, setNavOrder] = useState<string[]>(() => ensureCompleteNavOrder([...DEFAULT_NAV_ORDER]));
+    const [navHiddenKeys, setNavHiddenKeys] = useState<string[]>([]);
     const [downloadsVisibleToMembers, setDownloadsVisibleToMembers] = useState(true);
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
@@ -982,6 +983,7 @@ export const SettingsDashboard: React.FC = () => {
             setReferralRewardDays(initialSettings.referralRewardDays || 7);
             setAnnouncement(initialSettings.announcement || '');
             if (initialSettings.navOrder) setNavOrder(ensureCompleteNavOrder(initialSettings.navOrder));
+            setNavHiddenKeys(normalizeNavHiddenKeys(initialSettings.navHiddenKeys));
             if (initialSettings.downloadsVisibleToMembers !== undefined) {
                 setDownloadsVisibleToMembers(!!initialSettings.downloadsVisibleToMembers);
             }
@@ -1215,6 +1217,7 @@ export const SettingsDashboard: React.FC = () => {
             referralRewardDays,
             announcement,
             navOrder: ensureCompleteNavOrder(navOrder),
+            navHiddenKeys: normalizeNavHiddenKeys(navHiddenKeys),
             downloadsVisibleToMembers,
             hideStreamUsers,
             showUsernamesInAnalytics,
@@ -2329,6 +2332,8 @@ export const SettingsDashboard: React.FC = () => {
                         <NavigationOrderSettings
                             navOrder={navOrder}
                             onChange={setNavOrder}
+                            navHiddenKeys={navHiddenKeys}
+                            onHiddenKeysChange={setNavHiddenKeys}
                             downloadsVisibleToMembers={downloadsVisibleToMembers}
                             onDownloadsVisibleToMembersChange={setDownloadsVisibleToMembers}
                         />

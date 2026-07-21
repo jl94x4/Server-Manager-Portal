@@ -101,6 +101,8 @@ export interface AppSettings {
     sidebarIdentityPosition?: 'top' | 'bottom';
     backgroundImageUrl?: string;
     navOrder?: string[];
+    /** Server-wide nav keys hidden from the sidebar/mobile bar (Settings → Navigation). */
+    navHiddenKeys?: string[];
 }
 
 export interface PlexServer {

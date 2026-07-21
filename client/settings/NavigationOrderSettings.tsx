@@ -1,12 +1,14 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, GripVertical, MoreHorizontal } from 'lucide-react';
-import { getNavItemLabel, MOBILE_NAV_PRIMARY_SLOTS } from '../shared/nav';
+import { ChevronDown, ChevronUp, Eye, EyeOff, GripVertical, MoreHorizontal } from 'lucide-react';
+import { ALWAYS_VISIBLE_NAV_KEYS, getNavItemLabel, MOBILE_NAV_PRIMARY_SLOTS, normalizeNavHiddenKeys } from '../shared/nav';
 import { SettingsToggleRow } from '../shared/ui';
 import { SettingHint } from './SettingHint';
 
 type Props = {
     navOrder: string[];
     onChange: (next: string[]) => void;
+    navHiddenKeys: string[];
+    onHiddenKeysChange: (next: string[]) => void;
     downloadsVisibleToMembers: boolean;
     onDownloadsVisibleToMembersChange: (next: boolean) => void;
 };
@@ -35,6 +37,8 @@ const vibrate = (pattern: number | number[]) => {
 export const NavigationOrderSettings: React.FC<Props> = ({
     navOrder,
     onChange,
+    navHiddenKeys,
+    onHiddenKeysChange,
     downloadsVisibleToMembers,
     onDownloadsVisibleToMembersChange,
 }) => {
@@ -45,6 +49,7 @@ export const NavigationOrderSettings: React.FC<Props> = ({
     const dropIndexRef = useRef<number | null>(null);
     const itemRefs = useRef<Array<HTMLDivElement | null>>([]);
 
+    const hiddenSet = useMemo(() => new Set(normalizeNavHiddenKeys(navHiddenKeys)), [navHiddenKeys]);
     const mobileKeys = useMemo(() => navOrder.filter(isMobileNavKey), [navOrder]);
     const moreStartsAtMobileIndex = mobileKeys.length > MOBILE_NAV_PRIMARY_SLOTS
         ? MOBILE_NAV_PRIMARY_SLOTS
@@ -60,6 +65,15 @@ export const NavigationOrderSettings: React.FC<Props> = ({
         if (from === to) return;
         onChange(reorder(navOrder, from, to));
         if (haptic) vibrate(18);
+    };
+
+    const toggleHidden = (key: string) => {
+        if (ALWAYS_VISIBLE_NAV_KEYS.has(key)) return;
+        const next = new Set(hiddenSet);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        onHiddenKeysChange(normalizeNavHiddenKeys([...next]));
+        vibrate(10);
     };
 
     const indexFromClientY = (clientY: number) => {
@@ -139,7 +153,7 @@ export const NavigationOrderSettings: React.FC<Props> = ({
                 Drag the handle to reorder the desktop sidebar. On phones, press and drag the grip — or use the arrows. The first {MOBILE_NAV_PRIMARY_SLOTS} items stay in the bottom bar; the rest move into More.
             </p>
             <p className="text-xs text-muted mb-4 max-w-2xl">
-                Labels match the live sidebar. Logout stays in this list for desktop config but is not shown in the mobile bar.
+                Use the eye icon to hide items from navigation for everyone. Home, Settings, and Logout always stay visible. Hidden items remain here so you can unhide or reorder them.
             </p>
 
             <div className="mb-6 max-w-xl rounded-xl border border-border/70 p-4 bg-background/30">
@@ -169,6 +183,8 @@ export const NavigationOrderSettings: React.FC<Props> = ({
                         && mobileIndex >= moreStartsAtMobileIndex;
                     const showMoreDivider = moreStartsAtMobileIndex !== null
                         && mobileIndex === moreStartsAtMobileIndex;
+                    const isAlwaysVisible = ALWAYS_VISIBLE_NAV_KEYS.has(key);
+                    const isHidden = hiddenSet.has(key);
 
                     const isDragging = dragIndex === index;
                     const isDropTarget = dropIndex === index && dragIndex !== null && dragIndex !== index;
@@ -195,6 +211,7 @@ export const NavigationOrderSettings: React.FC<Props> = ({
                                     ${isDragging ? 'opacity-40 border-plex/50 bg-plex/5 scale-[0.985] shadow-inner' : 'border-border/40'}
                                     ${isDropTarget ? 'border-plex ring-2 ring-plex/35 bg-plex/10' : ''}
                                     ${inMoreMenu && !isDropTarget ? 'border-dashed border-border/50 bg-white/[0.02]' : ''}
+                                    ${isHidden && !isDropTarget ? 'opacity-55 border-dashed border-border/50' : ''}
                                     ${!isMobileNavKey(key) ? 'opacity-70' : ''}`}
                             >
                                 {insertBefore && (
@@ -224,22 +241,47 @@ export const NavigationOrderSettings: React.FC<Props> = ({
                                             downloadsMembersVisible: downloadsVisibleToMembers,
                                         })}
                                     </div>
-                                    {!isMobileNavKey(key) && (
+                                    {isHidden ? (
+                                        <p className="text-[11px] text-yellow-300/90 mt-0.5">Hidden from navigation</p>
+                                    ) : !isMobileNavKey(key) ? (
                                         <p className="text-[11px] text-muted mt-0.5">Not shown in the mobile bottom bar</p>
-                                    )}
+                                    ) : null}
                                 </div>
 
                                 <div className="flex items-center gap-1 shrink-0">
-                                    {inMobileBar && moreStartsAtMobileIndex !== null && (
+                                    {inMobileBar && moreStartsAtMobileIndex !== null && !isHidden && (
                                         <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wider text-plex/90 bg-plex/10 border border-plex/25 rounded-md px-2 py-1">
                                             Mobile bar
                                         </span>
                                     )}
-                                    {inMoreMenu && (
+                                    {inMoreMenu && !isHidden && (
                                         <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wider text-muted bg-white/5 border border-border/60 rounded-md px-2 py-1">
                                             More
                                         </span>
                                     )}
+                                    <button
+                                        type="button"
+                                        aria-label={
+                                            isAlwaysVisible
+                                                ? `${getNavItemLabel(key)} cannot be hidden`
+                                                : (isHidden ? `Show ${getNavItemLabel(key)}` : `Hide ${getNavItemLabel(key)}`)
+                                        }
+                                        title={
+                                            isAlwaysVisible
+                                                ? 'Always visible'
+                                                : (isHidden ? 'Show in navigation' : 'Hide from navigation')
+                                        }
+                                        disabled={isAlwaysVisible}
+                                        onClick={() => toggleHidden(key)}
+                                        className={`w-8 h-8 inline-flex items-center justify-center rounded-lg border transition-colors
+                                            ${isAlwaysVisible
+                                                ? 'border-border/40 bg-white/[0.02] text-muted/40 cursor-not-allowed'
+                                                : isHidden
+                                                    ? 'border-yellow-500/35 bg-yellow-500/10 text-yellow-300 hover:bg-yellow-500/15'
+                                                    : 'border-border/60 bg-white/[0.03] text-muted hover:text-text hover:border-plex/40 active:scale-90'}`}
+                                    >
+                                        {isHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    </button>
                                     <button
                                         type="button"
                                         aria-label={`Move ${getNavItemLabel(key)} up`}
