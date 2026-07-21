@@ -129,6 +129,7 @@ class CollexionsApiService {
     async getSummary(): Promise<{
         status: string;
         last_update: string;
+        last_run_at?: string | null;
         next_run_timestamp?: number;
         pinned_count?: number | null;
         labeled_count?: number;

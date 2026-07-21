@@ -5,6 +5,7 @@ import { api } from './api';
 export type CollexionsSummary = {
     status?: string;
     last_update?: string;
+    last_run_at?: string | null;
     next_run_timestamp?: number;
     pinned_count?: number | null;
     labeled_count?: number;
@@ -109,7 +110,7 @@ export const CollexionsHomeWidget: React.FC<Props> = ({ onOpen }) => {
                     <div className="rounded-xl bg-background/50 border border-white/5 p-2.5 text-center">
                         <Clock className="w-3.5 h-3.5 text-plex mx-auto mb-1 opacity-80" />
                         <p className="text-[11px] font-bold text-text leading-snug mt-0.5">
-                            {formatLastRun(summary?.last_update)}
+                            {formatLastRun(summary?.last_run_at || summary?.last_update)}
                         </p>
                         <p className="text-[9px] uppercase tracking-wider font-bold text-muted mt-1">Last run</p>
                     </div>

@@ -20,9 +20,19 @@ import {
     Settings
 } from 'lucide-react';
 import { api, type CollexionsHealth } from '../api';
-import { AppConfig, AppStatus } from '../types';
+import { AppConfig, AppStatus, LibraryRunStats, PinFairness } from '../types';
 
-interface LibraryRunStats {
+const SKIP_LABELS: Record<string, string> = {
+    recent_pin: 'Repeat block',
+    explicit_exclusion: 'Exclusion list',
+    regex: 'Regex exclusion',
+    inactive_special: 'Inactive special',
+    low_item_count: 'Below min items',
+    item_count_error: 'Item count error',
+    no_title: 'Missing title',
+};
+
+interface LogLibraryStats {
     name: string;
     found: number;
     eligible: number;
@@ -37,9 +47,66 @@ interface RunAnalysis {
     duration: string;
     intervalConfig: string;
     totalPins: number;
-    libraries: LibraryRunStats[];
+    libraries: LibraryRunStats[] | LogLibraryStats[];
     errors: string[];
+    fairness?: PinFairness;
+    source: 'status.json' | 'logs';
+    pinSlots?: number;
 }
+
+const formatSkipBreakdown = (lib: LibraryRunStats): string => {
+    const skips = lib.skips || {};
+    const parts = Object.entries(skips)
+        .filter(([, n]) => Number(n) > 0)
+        .map(([key, n]) => `${SKIP_LABELS[key] || key}: ${n}`);
+    if (lib.withheld_by_category) {
+        parts.push(`Category-held: ${lib.withheld_by_category}`);
+    }
+    if (lib.category_skipped_by_chance) {
+        parts.push('Category roll skipped');
+    }
+    return parts.join(' · ') || '—';
+};
+
+const libraryReason = (lib: LibraryRunStats | LogLibraryStats): React.ReactNode => {
+    if ('skips' in lib || 'notes' in lib) {
+        const structured = lib as LibraryRunStats;
+        if ((structured.pinned || 0) > 0) {
+            return (
+                <span className="text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    {structured.pinned}/{structured.pin_limit ?? '?'} slots
+                    {(structured.specials_picked || structured.categories_picked || structured.random_picked) ? (
+                        <span className="text-muted font-normal normal-case tracking-normal">
+                            {' '}(S{structured.specials_picked || 0}/C{structured.categories_picked || 0}/R{structured.random_picked || 0})
+                        </span>
+                    ) : null}
+                </span>
+            );
+        }
+        if (structured.notes?.length) {
+            return <span className="text-amber-300/90">{structured.notes[0]}</span>;
+        }
+        if ((structured.eligible || 0) === 0 && (structured.found || 0) > 0) {
+            return <span className="text-muted">All filtered out — {formatSkipBreakdown(structured)}</span>;
+        }
+        return <span className="text-muted">{formatSkipBreakdown(structured)}</span>;
+    }
+
+    const legacy = lib as LogLibraryStats;
+    if (legacy.pinned > 0) {
+        return <span className="text-emerald-400 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Success</span>;
+    }
+    if (legacy.found === 0) return <span className="text-muted">Empty Library</span>;
+    if (legacy.blockedByTimer > 0 && legacy.eligible === 0) {
+        return <span className="text-amber-400 flex items-center gap-1"><Clock className="w-3 h-3" /> {legacy.blockedByTimer} items blocked by timer</span>;
+    }
+    if (legacy.eligible === 0) return <span className="text-muted">All filtered out (Exclusions)</span>;
+    if (legacy.blockedByCategory) {
+        return <span className="text-plex flex items-center gap-1"><Filter className="w-3 h-3" /> Category Mode Restricted</span>;
+    }
+    return <span className="text-muted">Skipped (Random chance)</span>;
+};
 
 const Dashboard: React.FC = () => {
     const [status, setStatus] = useState<AppStatus | null>(null);
@@ -117,21 +184,47 @@ const Dashboard: React.FC = () => {
         }
     };
 
-    // --- Deep Log Analysis ---
+    // Prefer structured status.json from the worker; fall back to log scraping.
     const analyzeLastRun = useMemo((): RunAnalysis | null => {
+        const structuredLibs = Array.isArray(status?.libraries) ? status!.libraries! : [];
+        if (structuredLibs.length > 0 || status?.last_run_at) {
+            const durationSec = Number(status?.last_run_duration_seconds);
+            const duration = Number.isFinite(durationSec) && durationSec >= 0
+                ? (durationSec >= 60
+                    ? `${Math.floor(durationSec / 60)}m ${Math.round(durationSec % 60)}s`
+                    : `${durationSec.toFixed(1)}s`)
+                : '—';
+            const statusLower = String(status?.status || '').toLowerCase();
+            let runStatus: RunAnalysis['status'] = 'COMPLETED';
+            if (/crash|error|fatal|critical/.test(statusLower)) runStatus = 'FAILED';
+            else if (/processing|running|pinning/.test(statusLower) && status?.process_alive) runStatus = 'RUNNING';
+
+            return {
+                status: runStatus,
+                startTime: status?.last_run_started_at || status?.last_run_at || 'Unknown',
+                duration,
+                intervalConfig: status?.fairness?.pinning_interval_minutes
+                    ? `${status.fairness.pinning_interval_minutes} min`
+                    : (config?.pinning_interval ? `${config.pinning_interval} min` : '?'),
+                totalPins: Number(status?.last_run_pinned) || structuredLibs.reduce((n, l) => n + (l.pinned || 0), 0),
+                libraries: structuredLibs,
+                errors: [],
+                fairness: status?.fairness,
+                source: 'status.json',
+                pinSlots: status?.pin_slots,
+            };
+        }
+
         if (!logs) return null;
 
         const lines = logs.split('\n');
         let startIndex = -1;
-
-        // Find start of last run
         for (let i = lines.length - 1; i >= 0; i--) {
             if (lines[i].includes('====== Starting')) {
                 startIndex = i;
                 break;
             }
         }
-
         if (startIndex === -1) return null;
 
         const runLines = lines.slice(startIndex);
@@ -142,13 +235,14 @@ const Dashboard: React.FC = () => {
             intervalConfig: '?',
             totalPins: 0,
             libraries: [],
-            errors: []
+            errors: [],
+            source: 'logs',
         };
 
         const startMatch = runLines[0].match(/(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})/);
         if (startMatch) analysis.startTime = startMatch[1];
 
-        let currentLib: LibraryRunStats | null = null;
+        let currentLib: LogLibraryStats | null = null;
 
         runLines.forEach(line => {
             if (line.includes('====== Run Finished') || line.includes('====== Collexions Script Run Finished')) {
@@ -171,8 +265,6 @@ const Dashboard: React.FC = () => {
             }
 
             if (line.includes('Sleeping for approximately')) {
-                // We no longer overwrite intervalConfig with the transient sleep duration
-                // unless we want to show it elsewhere. For now, we prioritize the CONFIG line.
                 const match = line.match(/maintain (\d+)m frequency/);
                 if (match) analysis.intervalConfig = match[1] + ' min';
             }
@@ -186,13 +278,13 @@ const Dashboard: React.FC = () => {
                     eligible: 0,
                     pinned: 0,
                     blockedByTimer: 0,
-                    blockedByCategory: false
+                    blockedByCategory: false,
                 };
             }
 
             if (currentLib) {
                 const foundMatch = line.match(/Found (\d+) collections/);
-                if (foundMatch) currentLib.found = parseInt(foundMatch[1]);
+                if (foundMatch) currentLib.found = parseInt(foundMatch[1], 10);
 
                 if (line.includes('excluded due to') && line.includes('block')) {
                     const listContent = line.match(/\[(.*?)\]/);
@@ -202,7 +294,7 @@ const Dashboard: React.FC = () => {
                 }
 
                 const eligMatch = line.match(/Found (\d+) eligible collections/);
-                if (eligMatch) currentLib.eligible = parseInt(eligMatch[1]);
+                if (eligMatch) currentLib.eligible = parseInt(eligMatch[1], 10);
 
                 if (line.includes("Pinned '")) {
                     currentLib.pinned++;
@@ -216,9 +308,8 @@ const Dashboard: React.FC = () => {
         });
 
         if (currentLib) analysis.libraries.push(currentLib);
-
         return analysis;
-    }, [logs]);
+    }, [status, logs, config?.pinning_interval]);
 
     useEffect(() => {
         const loadConfig = async () => {
@@ -289,10 +380,11 @@ const Dashboard: React.FC = () => {
     // --- Actions ---
     const currentStatus = status?.status || 'Connecting...';
     const statusLower = currentStatus.toLowerCase();
-    const isLoopActive = statusLower.includes('running') || statusLower.includes('sleeping') || statusLower.includes('processing') || statusLower.includes('waiting');
+    const isLoopActive = !!status?.process_alive
+        || /running|sleeping|processing|waiting|run complete/.test(statusLower);
     const isWorking = statusLower.includes('processing') || statusLower.includes('pinning');
     const isOffline = statusLower === 'offline' || status === null;
-    const lastUpdateDate = status?.last_update ? safeParseDate(status.last_update) : null;
+    const lastUpdateDate = safeParseDate(status?.last_run_at || status?.last_update || '');
     const isDryRun = config?.dry_run === true;
 
     const handleStartService = async () => {
@@ -498,87 +590,124 @@ const Dashboard: React.FC = () => {
 
             {/* --- RUN INSPECTOR --- */}
             {analyzeLastRun && (
-                <div className="animate-in slide-in-from-bottom-4 duration-500">
-                    <h3 className="text-xl font-bold text-text mb-4 flex items-center gap-2"><Activity className="w-5 h-5 text-plex" /> Run Inspector <span className="text-xs font-normal text-muted ml-2">(Analyzed from latest logs)</span></h3>
-                    <div className="grid grid-cols-1 gap-6">
-                        <div className={`border rounded-xl overflow-hidden ${analyzeLastRun.status === 'FAILED' ? 'border-red-900/50 bg-red-950/10' : 'border-border/80 bg-card/50'}`}>
-                            {/* Run Header */}
-                            <div className="p-4 border-b border-white/5 flex flex-wrap gap-4 items-center justify-between bg-background/30">
-                                <div className="flex items-center gap-4">
-                                    <div className={`px-3 py-1 rounded text-xs font-bold uppercase ${analyzeLastRun.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-400' :
-                                        analyzeLastRun.status === 'RUNNING' ? 'bg-plex/20 text-plex' :
-                                            'bg-red-500/20 text-red-400'
-                                        }`}>
-                                        {analyzeLastRun.status}
-                                    </div>
-                                    <div className="text-sm text-muted flex items-center gap-2">
-                                        <Clock className="w-4 h-4" /> Started: <span className="text-text font-mono">{analyzeLastRun.startTime}</span>
-                                    </div>
-                                    <div className="text-sm text-muted">
-                                        Duration: <span className="text-text font-mono">{analyzeLastRun.duration}</span>
-                                    </div>
-                                </div>
-                                <div className="text-sm font-bold text-text bg-card px-3 py-1 rounded-lg border border-border">
-                                    Total Pinned: {analyzeLastRun.totalPins}
-                                </div>
-                            </div>
+                <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-4">
+                    <h3 className="text-xl font-bold text-text flex items-center gap-2 flex-wrap">
+                        <Activity className="w-5 h-5 text-plex" /> Run Inspector
+                        <span className="text-xs font-normal text-muted">
+                            ({analyzeLastRun.source === 'status.json' ? 'from status.json' : 'analyzed from logs'})
+                        </span>
+                    </h3>
 
-                            {/* Library Breakdown Table */}
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm text-left">
-                                    <thead className="text-xs text-muted uppercase bg-background/60 border-b border-border">
-                                        <tr>
-                                            <th className="px-6 py-3">Library</th>
-                                            <th className="px-6 py-3 text-center">Found</th>
-                                            <th className="px-6 py-3 text-center">Eligible</th>
-                                            <th className="px-6 py-3 text-center">Pinned</th>
-                                            <th className="px-6 py-3">Status / Reason</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-border">
-                                        {analyzeLastRun.libraries.map((lib, idx) => (
-                                            <tr key={idx} className="hover:bg-white/5 transition-colors">
-                                                <td className="px-6 py-4 font-medium text-text">{lib.name}</td>
-                                                <td className="px-6 py-4 text-center text-muted">{lib.found}</td>
-                                                <td className="px-6 py-4 text-center">
-                                                    <span className={`px-2 py-1 rounded ${lib.eligible > 0 ? 'bg-plex/10 text-plex' : 'bg-card text-muted'}`}>
-                                                        {lib.eligible}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 text-center">
-                                                    {lib.pinned > 0 ? (
-                                                        <span className="text-emerald-400 font-bold">{lib.pinned}</span>
-                                                    ) : (
-                                                        <span className="text-muted">-</span>
-                                                    )}
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    {lib.pinned > 0 ? (
-                                                        <span className="text-emerald-400 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Success</span>
-                                                    ) : lib.found === 0 ? (
-                                                        <span className="text-muted">Empty Library</span>
-                                                    ) : lib.blockedByTimer > 0 && lib.eligible === 0 ? (
-                                                        <span className="text-amber-400 flex items-center gap-1"><Clock className="w-3 h-3" /> {lib.blockedByTimer} items blocked by timer</span>
-                                                    ) : lib.eligible === 0 ? (
-                                                        <span className="text-muted">All filtered out (Exclusions)</span>
-                                                    ) : lib.blockedByCategory ? (
-                                                        <span className="text-plex flex items-center gap-1"><Filter className="w-3 h-3" /> Category Mode Restricted</span>
-                                                    ) : (
-                                                        <span className="text-muted">Skipped (Random chance)</span>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {analyzeLastRun.libraries.length === 0 && (
-                                            <tr>
-                                                <td colSpan={5} className="px-6 py-8 text-center text-muted italic">
-                                                    No libraries processed yet in this run.
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
+                    {analyzeLastRun.fairness && (
+                        <div className="flex flex-wrap gap-2 text-[11px]">
+                            <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-muted">
+                                Repeat block <span className="text-text font-bold">{analyzeLastRun.fairness.repeat_block_hours ?? '—'}h</span>
+                            </span>
+                            <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-muted">
+                                Min items <span className="text-text font-bold">{analyzeLastRun.fairness.min_items_for_pinning ?? '—'}</span>
+                            </span>
+                            <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-muted">
+                                Category mode{' '}
+                                <span className="text-text font-bold">
+                                    {analyzeLastRun.fairness.use_random_category_mode
+                                        ? `random (${analyzeLastRun.fairness.random_category_skip_percent ?? 0}% skip)`
+                                        : 'default'}
+                                </span>
+                            </span>
+                            {typeof analyzeLastRun.pinSlots === 'number' && (
+                                <span className="px-2.5 py-1 rounded-lg bg-plex/10 border border-plex/30 text-plex font-bold">
+                                    Caps {analyzeLastRun.totalPins}/{analyzeLastRun.pinSlots} slots filled
+                                </span>
+                            )}
+                        </div>
+                    )}
+
+                    <div className={`border rounded-xl overflow-hidden ${analyzeLastRun.status === 'FAILED' ? 'border-red-900/50 bg-red-950/10' : 'border-border/80 bg-card/50'}`}>
+                        <div className="p-4 border-b border-white/5 flex flex-wrap gap-4 items-center justify-between bg-background/30">
+                            <div className="flex items-center gap-4 flex-wrap">
+                                <div className={`px-3 py-1 rounded text-xs font-bold uppercase ${analyzeLastRun.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-400' :
+                                    analyzeLastRun.status === 'RUNNING' ? 'bg-plex/20 text-plex' :
+                                        'bg-red-500/20 text-red-400'
+                                    }`}>
+                                    {analyzeLastRun.status}
+                                </div>
+                                <div className="text-sm text-muted flex items-center gap-2">
+                                    <Clock className="w-4 h-4" /> Started:{' '}
+                                    <span className="text-text font-mono">
+                                        {safeParseDate(analyzeLastRun.startTime)?.toLocaleString() || analyzeLastRun.startTime}
+                                    </span>
+                                </div>
+                                <div className="text-sm text-muted">
+                                    Duration: <span className="text-text font-mono">{analyzeLastRun.duration}</span>
+                                </div>
                             </div>
+                            <div className="text-sm font-bold text-text bg-card px-3 py-1 rounded-lg border border-border">
+                                Total Pinned: {analyzeLastRun.totalPins}
+                                {typeof analyzeLastRun.pinSlots === 'number' ? ` / ${analyzeLastRun.pinSlots}` : ''}
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left">
+                                <thead className="text-xs text-muted uppercase bg-background/60 border-b border-border">
+                                    <tr>
+                                        <th className="px-6 py-3">Library</th>
+                                        <th className="px-6 py-3 text-center">Found</th>
+                                        <th className="px-6 py-3 text-center">Eligible</th>
+                                        <th className="px-6 py-3 text-center">Pinned</th>
+                                        <th className="px-6 py-3">Why / fairness</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border">
+                                    {analyzeLastRun.libraries.map((lib, idx) => (
+                                        <tr key={`${lib.name}-${idx}`} className="hover:bg-white/5 transition-colors align-top">
+                                            <td className="px-6 py-4 font-medium text-text">{lib.name}</td>
+                                            <td className="px-6 py-4 text-center text-muted">{lib.found}</td>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className={`px-2 py-1 rounded ${(lib.eligible || 0) > 0 ? 'bg-plex/10 text-plex' : 'bg-card text-muted'}`}>
+                                                    {lib.eligible}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                {(lib.pinned || 0) > 0 ? (
+                                                    <span className="text-emerald-400 font-bold">
+                                                        {lib.pinned}
+                                                        {'pin_limit' in lib && lib.pin_limit != null ? `/${lib.pin_limit}` : ''}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-muted">-</span>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4 text-xs space-y-1.5">
+                                                <div>{libraryReason(lib)}</div>
+                                                {'skips' in lib && formatSkipBreakdown(lib as LibraryRunStats) !== '—' && (
+                                                    <div className="text-muted/80 font-mono text-[10px] leading-relaxed">
+                                                        {formatSkipBreakdown(lib as LibraryRunStats)}
+                                                    </div>
+                                                )}
+                                                {'skip_samples' in lib && (lib as LibraryRunStats).skip_samples && (
+                                                    <div className="text-muted/70 text-[10px] space-y-0.5">
+                                                        {Object.entries((lib as LibraryRunStats).skip_samples || {}).map(([reason, titles]) => (
+                                                            <div key={reason}>
+                                                                <span className="text-muted">{SKIP_LABELS[reason] || reason}: </span>
+                                                                {(titles || []).slice(0, 3).join(', ')}
+                                                                {(titles || []).length > 3 ? '…' : ''}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {analyzeLastRun.libraries.length === 0 && (
+                                        <tr>
+                                            <td colSpan={5} className="px-6 py-8 text-center text-muted italic">
+                                                No libraries processed yet in this run.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>

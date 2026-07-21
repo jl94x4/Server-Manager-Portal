@@ -129,7 +129,19 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 # --- Status Update Function ---
-def update_status(status_message="Running", next_run_timestamp=None):
+def _load_status_file():
+    if not os.path.exists(STATUS_FILE):
+        return {}
+    try:
+        with open(STATUS_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def update_status(status_message="Running", next_run_timestamp=None, **extra):
+    """Write status.json, merging with previous fields so next_run / last run stats survive mid-run updates."""
     global _DRY_RUN_MODE_ACTIVE
     if not os.path.exists(DATA_DIR):
         try:
@@ -140,15 +152,20 @@ def update_status(status_message="Running", next_run_timestamp=None):
             return
 
     effective_status_message = status_message
-    if _DRY_RUN_MODE_ACTIVE:
+    if _DRY_RUN_MODE_ACTIVE and not str(status_message).startswith('[DRY-RUN]'):
         effective_status_message = f"[DRY-RUN] {status_message}"
 
-    status_data = {"status": effective_status_message, "last_update": datetime.now().isoformat()}
-    if next_run_timestamp:
-        if isinstance(next_run_timestamp, (int, float)):
-             status_data["next_run_timestamp"] = next_run_timestamp
+    status_data = _load_status_file()
+    status_data["status"] = effective_status_message
+    status_data["last_update"] = datetime.now().isoformat()
+    if next_run_timestamp is not None:
+        if isinstance(next_run_timestamp, (int, float)) and next_run_timestamp > 0:
+            status_data["next_run_timestamp"] = float(next_run_timestamp)
         else:
-             logging.warning(f"Invalid next_run_timestamp type ({type(next_run_timestamp)}), skipping.")
+            logging.warning(f"Invalid next_run_timestamp type ({type(next_run_timestamp)}), skipping.")
+    for key, value in extra.items():
+        if value is not None:
+            status_data[key] = value
     try:
         with open(STATUS_FILE, 'w', encoding='utf-8') as f:
             json.dump(status_data, f, ensure_ascii=False, indent=4)
@@ -809,9 +826,34 @@ def filter_collections(config, all_collections_in_library, active_special_titles
             "not a failure to load the library."
         )
 
+    lib_stats = {
+        "name": library_name,
+        "pin_limit": library_pin_limit,
+        "found": total_found,
+        "eligible": len(eligible_pool),
+        "pinned": 0,
+        "skips": dict(skip_counts),
+        "skip_samples": {k: list(v) for k, v in sample_skipped.items() if v},
+        "repeat_block_hours": repeat_block_hours,
+        "min_items": min_items,
+        "category_mode": bool(use_random_category_mode),
+        "category_skip_percent": skip_perc if use_random_category_mode else 0,
+        "category_skipped_by_chance": False,
+        "specials_picked": 0,
+        "categories_picked": 0,
+        "random_picked": 0,
+        "withheld_by_category": 0,
+        "notes": [],
+    }
+    if total_found > 0 and len(eligible_pool) < max(1, total_found // 4):
+        lib_stats["notes"].append(
+            "Most collections were filtered before selection (repeat block, exclusions, min items, or inactive specials)."
+        )
+
     if not eligible_pool:
         logging.info(f"No collections eligible for pinning in '{library_name}'. Skipping priority selection.")
-        return []
+        lib_stats["notes"].append("No eligible collections left after filters.")
+        return [], lib_stats
 
     collections_to_pin = []
     pinned_titles_this_run = set()
@@ -873,6 +915,10 @@ def filter_collections(config, all_collections_in_library, active_special_titles
 
                 if random.random() < (skip_perc / 100.0):
                     logging.info(f"  Category selection SKIPPED for '{library_name}' due to {skip_perc}% chance.")
+                    lib_stats["category_skipped_by_chance"] = True
+                    lib_stats["notes"].append(
+                        f"Category pick skipped this cycle ({skip_perc}% chance) — random fill used instead."
+                    )
                 else:
                     chosen_category_config = random.choice(valid_categories_for_lib)
                     cat_name = chosen_category_config.get('category_name', 'Unnamed Random Category')
@@ -945,11 +991,12 @@ def filter_collections(config, all_collections_in_library, active_special_titles
     logging.info(f"  Available for random fill:        {len(final_random_candidates)}")
     logging.info(f"  Remaining pin slots:              {remaining_slots}")
     if withheld_by_category > 0 and len(final_random_candidates) < len(eligible_pool) // 2:
-        logging.info(
-            "  NOTE: Category mode holds category-listed titles out of random fill. "
-            "If most of your library is listed under categories, the random pool will look small even though "
-            f"{len(eligible_pool)} collections passed the earlier filters."
+        note = (
+            "Category mode holds category-listed titles out of random fill, so the random pool can look small "
+            f"even though {len(eligible_pool)} collections passed earlier filters."
         )
+        logging.info(f"  NOTE: {note}")
+        lib_stats["notes"].append(note)
 
     if remaining_slots > 0:
         logging.info(f"Selection Step 3: Filling remaining {remaining_slots} slot(s) randomly for '{library_name}'.")
@@ -961,6 +1008,29 @@ def filter_collections(config, all_collections_in_library, active_special_titles
         random_selected_now = []
 
     final_selected_titles = [getattr(c, 'title', 'Untitled') for c in collections_to_pin]
+    lib_stats["pinned"] = len(final_selected_titles)
+    lib_stats["specials_picked"] = len(specials_selected_now)
+    lib_stats["categories_picked"] = len(category_collections_selected_now)
+    lib_stats["random_picked"] = len(random_selected_now)
+    lib_stats["withheld_by_category"] = withheld_by_category
+    lib_stats["selected_titles"] = final_selected_titles
+    if lib_stats["pinned"] < library_pin_limit:
+        reasons = []
+        if skip_counts.get('recent_pin'):
+            reasons.append(f"{skip_counts['recent_pin']} in repeat block ({repeat_block_hours}h)")
+        if skip_counts.get('explicit_exclusion') or skip_counts.get('regex'):
+            reasons.append("exclusions")
+        if skip_counts.get('low_item_count'):
+            reasons.append(f"below min items (<{min_items})")
+        if withheld_by_category:
+            reasons.append(f"{withheld_by_category} withheld for category fairness")
+        if lib_stats["category_skipped_by_chance"]:
+            reasons.append("category roll skipped")
+        if not reasons and lib_stats["eligible"] < library_pin_limit:
+            reasons.append("not enough eligible collections")
+        if reasons:
+            lib_stats["notes"].append("Filled " + f"{lib_stats['pinned']}/{library_pin_limit} slots — " + ", ".join(reasons) + ".")
+
     logging.info(f"--- Filtering and Selection Complete for '{library_name}' ---")
     logging.info(
         f"Pinned this run: {len(final_selected_titles)}/{library_pin_limit} slots "
@@ -968,7 +1038,7 @@ def filter_collections(config, all_collections_in_library, active_special_titles
         f"random={len(random_selected_now)}): "
         f"{final_selected_titles if final_selected_titles else 'None'}"
     )
-    return collections_to_pin
+    return collections_to_pin, lib_stats
 
 # --- Main Function ---
 def main():
@@ -1010,6 +1080,7 @@ def main():
 
     collections_per_library_config = config.get('number_of_collections_to_pin', {})
     all_newly_pinned_titles_this_run = []
+    run_library_stats = []
 
     for library_name in library_names:
         if not isinstance(library_name, str) or not library_name.strip():
@@ -1022,6 +1093,15 @@ def main():
 
         if pin_limit == 0:
             logging.info(f"{'[DRY-RUN] ' if _DRY_RUN_MODE_ACTIVE else ''}Skipping library '{library_name}' as its pin limit is set to 0.")
+            run_library_stats.append({
+                "name": library_name,
+                "pin_limit": 0,
+                "found": 0,
+                "eligible": 0,
+                "pinned": 0,
+                "skips": {},
+                "notes": ["Pin limit is 0 — library skipped."],
+            })
             continue
 
         logging.info(f"{'[DRY-RUN] ' if _DRY_RUN_MODE_ACTIVE else ''}===== Processing Library: '{library_name}' (Pin Limit: {pin_limit}) =====")
@@ -1031,19 +1111,31 @@ def main():
         all_colls_in_lib = get_collections_from_library(plex, library_name)
         if not all_colls_in_lib:
             logging.info(f"{'[DRY-RUN] ' if _DRY_RUN_MODE_ACTIVE else ''}No collections found or retrieved from library '{library_name}'. Skipping pinning for this library.")
+            run_library_stats.append({
+                "name": library_name,
+                "pin_limit": pin_limit,
+                "found": 0,
+                "eligible": 0,
+                "pinned": 0,
+                "skips": {},
+                "notes": ["No collections found in library."],
+            })
             continue
 
         active_specials = get_active_special_collections(config)
-        colls_to_pin_for_library = filter_collections(
+        colls_to_pin_for_library, lib_stats = filter_collections(
             config, all_colls_in_lib, active_specials, pin_limit, library_name, selected_collections_history, trending_titles=trending_titles
         )
 
         if colls_to_pin_for_library:
             successfully_pinned_titles = pin_collections(colls_to_pin_for_library, config, plex, library_name)
             all_newly_pinned_titles_this_run.extend(successfully_pinned_titles)
+            lib_stats["pinned"] = len(successfully_pinned_titles)
+            lib_stats["selected_titles"] = successfully_pinned_titles
         else:
             logging.info(f"{'[DRY-RUN] ' if _DRY_RUN_MODE_ACTIVE else ''}No collections were selected for pinning in '{library_name}' after filtering.")
 
+        run_library_stats.append(lib_stats)
         logging.info(f"{'[DRY-RUN] ' if _DRY_RUN_MODE_ACTIVE else ''}Finished processing library '{library_name}' in {time.time() - library_process_start_time:.2f} seconds.")
         logging.info(f"{'[DRY-RUN] ' if _DRY_RUN_MODE_ACTIVE else ''}===== Completed Library: '{library_name}' =====")
 
@@ -1067,8 +1159,32 @@ def main():
          logging.info(f"{'[DRY-RUN] ' if _DRY_RUN_MODE_ACTIVE else ''}Nothing was {'processed for pinning' if _DRY_RUN_MODE_ACTIVE else 'successfully pinned'} this cycle. History file not updated.")
 
     run_end_time = datetime.now()
+    duration = run_end_time - run_start_time
     logging.info(f"====== Collexions Script Run Finished at {run_end_time.strftime('%Y-%m-%d %H:%M:%S')}{' (DRY RUN)' if _DRY_RUN_MODE_ACTIVE else ''} ======")
-    logging.info(f"Total run duration: {run_end_time - run_start_time}")
+    logging.info(f"Total run duration: {duration}")
+
+    total_pinned = sum(int(lib.get('pinned') or 0) for lib in run_library_stats)
+    pin_slots_total = sum(
+        int(v or 0) for v in (collections_per_library_config or {}).values()
+        if isinstance(v, (int, float))
+    )
+    update_status(
+        "Run complete",
+        next_run_calc_time.timestamp(),
+        last_run_at=run_end_time.isoformat(),
+        last_run_started_at=run_start_time.isoformat(),
+        last_run_duration_seconds=round(duration.total_seconds(), 2),
+        last_run_pinned=total_pinned,
+        pin_slots=pin_slots_total,
+        libraries=run_library_stats,
+        fairness={
+            "repeat_block_hours": config.get('repeat_block_hours', 12),
+            "min_items_for_pinning": config.get('min_items_for_pinning', 1),
+            "use_random_category_mode": bool(config.get('use_random_category_mode')),
+            "random_category_skip_percent": config.get('random_category_skip_percent', 70),
+            "pinning_interval_minutes": pin_interval_minutes,
+        },
+    )
 
 
 # --- Continuous Loop ---

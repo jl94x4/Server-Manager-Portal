@@ -36,10 +36,46 @@ export interface AppConfig {
   enable_trending_pinning?: boolean;
 }
 
+export interface LibraryRunStats {
+  name: string;
+  pin_limit?: number;
+  found: number;
+  eligible: number;
+  pinned: number;
+  skips?: Record<string, number>;
+  skip_samples?: Record<string, string[]>;
+  notes?: string[];
+  specials_picked?: number;
+  categories_picked?: number;
+  random_picked?: number;
+  withheld_by_category?: number;
+  category_skipped_by_chance?: boolean;
+  repeat_block_hours?: number;
+  min_items?: number;
+  selected_titles?: string[];
+}
+
+export interface PinFairness {
+  repeat_block_hours?: number;
+  min_items_for_pinning?: number;
+  use_random_category_mode?: boolean;
+  random_category_skip_percent?: number;
+  pinning_interval_minutes?: number;
+}
+
 export interface AppStatus {
   status: string;
   last_update: string;
+  last_run_at?: string | null;
+  last_run_started_at?: string;
+  last_run_duration_seconds?: number;
+  last_run_pinned?: number;
   next_run_timestamp?: number;
+  pin_slots?: number;
+  libraries?: LibraryRunStats[];
+  fairness?: PinFairness;
+  process_alive?: boolean;
+  status_source?: string;
 }
 
 export interface PlexCollection {

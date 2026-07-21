@@ -54,11 +54,14 @@ HISTORY_FILE = os.path.join(_DATA_ROOT, "config", "history.json")
 MANAGED_COLLECTIONS_FILE = os.path.join(_DATA_ROOT, "config", "managed_collections.json")
 LOGS_DIR = os.path.join(_DATA_ROOT, "logs")
 LOG_FILE = os.path.join(LOGS_DIR, "collexions.log")
+DATA_DIR = os.path.join(_DATA_ROOT, "data")
+STATUS_FILE = os.path.join(DATA_DIR, "status.json")
 DIST_DIR = os.path.join(BASE_DIR, "dist")  # Built frontend (production only)
 
 # Ensure config and logs directories exist
 os.makedirs(os.path.join(_DATA_ROOT, "config"), exist_ok=True)
 os.makedirs(LOGS_DIR, exist_ok=True)
+os.makedirs(DATA_DIR, exist_ok=True)
 # Stores the subprocess object of the running script
 process = None
 
@@ -628,58 +631,99 @@ def health():
     })
 
 
+def _read_status_file():
+    """Read worker-written status.json (same path ColleXions.py uses under COLLEXIONS_DATA_DIR)."""
+    if not os.path.exists(STATUS_FILE):
+        return {}
+    try:
+        with open(STATUS_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            return data if isinstance(data, dict) else {}
+    except Exception as e:
+        logging.warning(f"Failed to read status file: {e}")
+        return {}
+
+
+def _next_run_from_logs():
+    """Legacy fallback when status.json has no next_run_timestamp."""
+    if not os.path.exists(LOG_FILE):
+        return 0
+    try:
+        with open(LOG_FILE, 'r', encoding='utf-8', errors='replace') as f:
+            lines = f.readlines()[-100:]
+        for line in reversed(lines):
+            if "Sleeping for approximately" not in line:
+                continue
+            match = re.search(
+                r'(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}).*?Sleeping\sfor\sapproximately\s(\d+(?:\.\d+)?)',
+                line,
+            )
+            if not match:
+                continue
+            log_time = time.strptime(match.group(1), "%Y-%m-%d %H:%M:%S")
+            return time.mktime(log_time) + int(float(match.group(2)))
+    except Exception as e:
+        logging.warning(f"Status log parse error: {e}")
+    return 0
+
+
 @app.route('/api/status')
 @require_auth
 def get_status():
     global process
-    status = "Idle"
-    
-    # Check if the managed process is running
-    if process is not None:
-        if process.poll() is None:
-            status = "Running"
-        else:
-            status = "Idle" if process.returncode == 0 else "Error (Check Logs)"
-    
-    # Fallback: even if we have no managed process, check if the script is running externally
-    if status == "Idle" and is_script_already_running():
-        status = "Running"
-    
-    # Get last update and next run from logs
-    last_update = ""
-    next_run_timestamp = 0
-    
-    if os.path.exists(LOG_FILE):
-        try:
-            mtime = os.path.getmtime(LOG_FILE)
-            last_update = time.ctime(mtime)
-            
-            # Parse last 100 lines for sleep message
-            with open(LOG_FILE, 'r') as f:
-                lines = f.readlines()[-100:]
-                for line in reversed(lines):
-                    # 2026-03-12 01:02:35 - INFO - [run_continuously] Sleeping for approximately 1477 seconds...
-                    if "Sleeping for approximately" in line:
-                        # Improved regex to handle different spacing, decimal points, and trailing characters
-                        match = re.search(r'(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}).*?Sleeping\sfor\sapproximately\s(\d+(?:\.\d+)?)', line)
-                        if match:
-                            log_time_str = match.group(1)
-                            # Convert to float first to handle potential decimals, then int
-                            sleep_duration = int(float(match.group(2)))
-                            
-                            # Parse log timestamp
-                            log_time = time.strptime(log_time_str, "%Y-%m-%d %H:%M:%S")
-                            log_ts = time.mktime(log_time)
-                            next_run_timestamp = log_ts + sleep_duration
-                            break
-        except Exception as e:
-            print(f"Status parse error: {e}")
+    process_alive = False
+    if process is not None and process.poll() is None:
+        process_alive = True
+    elif is_script_already_running():
+        process_alive = True
 
-    return jsonify({
+    file_status = _read_status_file()
+    file_msg = str(file_status.get('status') or '').strip()
+
+    # Prefer the detailed message from status.json while the pin script is alive
+    # (e.g. "Sleeping (30 min)", "Processing: Movies").
+    if process_alive and file_msg:
+        status = file_msg
+    elif process_alive:
+        status = "Running"
+    elif process is not None and process.poll() is not None and process.returncode not in (0, None):
+        status = file_msg or "Error (Check Logs)"
+    else:
+        status = file_msg if file_msg and file_msg.lower() not in ('running', 'initializing') else "Idle"
+
+    next_run_timestamp = 0
+    raw_next = file_status.get('next_run_timestamp')
+    try:
+        if raw_next is not None:
+            next_run_timestamp = float(raw_next)
+    except (TypeError, ValueError):
+        next_run_timestamp = 0
+    if next_run_timestamp <= 0:
+        next_run_timestamp = _next_run_from_logs() or 0
+
+    last_run_at = str(file_status.get('last_run_at') or '').strip()
+    last_update = last_run_at or str(file_status.get('last_update') or '').strip()
+    if not last_update and os.path.exists(LOG_FILE):
+        try:
+            last_update = time.ctime(os.path.getmtime(LOG_FILE))
+        except OSError:
+            last_update = ""
+
+    payload = {
         "status": status,
         "last_update": last_update,
-        "next_run_timestamp": next_run_timestamp
-    })
+        "last_run_at": last_run_at or None,
+        "last_run_started_at": file_status.get('last_run_started_at'),
+        "last_run_duration_seconds": file_status.get('last_run_duration_seconds'),
+        "last_run_pinned": file_status.get('last_run_pinned'),
+        "next_run_timestamp": next_run_timestamp,
+        "pin_slots": file_status.get('pin_slots'),
+        "libraries": file_status.get('libraries') if isinstance(file_status.get('libraries'), list) else [],
+        "fairness": file_status.get('fairness') if isinstance(file_status.get('fairness'), dict) else {},
+        "process_alive": process_alive,
+        "status_source": "status.json" if file_status else ("logs" if next_run_timestamp else "none"),
+    }
+    return jsonify(payload)
 
 
 @app.route('/api/summary')
@@ -737,11 +781,19 @@ def get_summary():
                 logging.warning(f"summary pin count failed: {e}")
                 pinned_count = None
 
+    # Prefer slots from the last completed run when present; else config sum.
+    status_slots = status_payload.get('pin_slots')
+    try:
+        status_slots = int(status_slots) if status_slots is not None else None
+    except (TypeError, ValueError):
+        status_slots = None
+
     payload = {
         **status_payload,
         "pinned_count": pinned_count,
         "labeled_count": labeled_count,
-        "pin_slots": pin_slots,
+        "pin_slots": status_slots if status_slots is not None else pin_slots,
+        "last_run_at": status_payload.get('last_run_at') or status_payload.get('last_update'),
     }
     SUMMARY_CACHE['data'] = payload
     SUMMARY_CACHE['timestamp'] = time.time()
