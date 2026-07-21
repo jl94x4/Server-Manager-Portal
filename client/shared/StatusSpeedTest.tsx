@@ -11,9 +11,13 @@ type SpeedResults = {
     uploadMbps: number;
 };
 
-const DOWNLOAD_BYTES = 4 * 1024 * 1024;
-const UPLOAD_BYTES = 2 * 1024 * 1024;
-const PING_SAMPLES = 4;
+/** Per-stream download size — 4 parallel × 25MB ≈ 100MB total per wave. */
+const DOWNLOAD_BYTES_PER_STREAM = 25 * 1024 * 1024;
+const DOWNLOAD_PARALLEL = 4;
+const DOWNLOAD_WAVES = 2;
+const UPLOAD_BYTES = 16 * 1024 * 1024;
+const UPLOAD_PARALLEL = 2;
+const PING_SAMPLES = 5;
 
 const speedHeaders = (extra: HeadersInit = {}): HeadersInit => ({
     [PORTAL_CSRF_HEADER]: PORTAL_CSRF_VALUE,
@@ -24,9 +28,10 @@ const speedHeaders = (extra: HeadersInit = {}): HeadersInit => ({
 
 const formatMbps = (mbps: number) => {
     if (!Number.isFinite(mbps)) return '—';
-    if (mbps >= 100) return mbps.toFixed(0);
-    if (mbps >= 10) return mbps.toFixed(1);
-    return mbps.toFixed(2);
+    if (mbps >= 1000) return `${(mbps / 1000).toFixed(2)} Gbps`;
+    if (mbps >= 100) return `${mbps.toFixed(0)} Mbps`;
+    if (mbps >= 10) return `${mbps.toFixed(1)} Mbps`;
+    return `${mbps.toFixed(2)} Mbps`;
 };
 
 const median = (values: number[]) => {
@@ -36,14 +41,8 @@ const median = (values: number[]) => {
     return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 };
 
-const average = (values: number[]) => {
-    if (!values.length) return 0;
-    return values.reduce((a, b) => a + b, 0) / values.length;
-};
-
 const buildUploadPayload = (bytes: number) => {
     const buffer = new Uint8Array(bytes);
-    // Randomish payload so proxies/CDNs are less likely to compress the body.
     if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
         const chunk = new Uint8Array(65536);
         for (let offset = 0; offset < bytes; offset += chunk.length) {
@@ -58,7 +57,6 @@ const buildUploadPayload = (bytes: number) => {
 
 async function measurePing(): Promise<number> {
     const samples: number[] = [];
-    // Warm-up (discard)
     await fetch(portalUrl(`/api/speedtest/ping?t=${Date.now()}`), {
         credentials: 'same-origin',
         headers: speedHeaders(),
@@ -78,40 +76,64 @@ async function measurePing(): Promise<number> {
     return median(samples);
 }
 
+async function downloadOne(bytes: number, tag: string): Promise<number> {
+    const res = await fetch(portalUrl(`/api/speedtest/download?bytes=${bytes}&t=${tag}`), {
+        credentials: 'same-origin',
+        headers: speedHeaders(),
+        cache: 'no-store',
+    });
+    if (!res.ok) throw new Error('Download test failed');
+    const buf = await res.arrayBuffer();
+    return buf.byteLength;
+}
+
+/** Parallel streams timed together — closer to how multi-gig clients saturate a link. */
+async function measureDownloadWave(parallel: number, bytesPerStream: number, waveTag: string): Promise<number> {
+    const start = performance.now();
+    const sizes = await Promise.all(
+        Array.from({ length: parallel }, (_, i) => downloadOne(bytesPerStream, `${waveTag}-${i}`)),
+    );
+    const seconds = Math.max(0.001, (performance.now() - start) / 1000);
+    const totalBytes = sizes.reduce((a, b) => a + b, 0);
+    return (totalBytes * 8) / (seconds * 1_000_000);
+}
+
 async function measureDownload(): Promise<number> {
-    const runs: number[] = [];
-    for (let i = 0; i < 2; i += 1) {
-        const start = performance.now();
-        const res = await fetch(portalUrl(`/api/speedtest/download?bytes=${DOWNLOAD_BYTES}&t=${Date.now()}-${i}`), {
-            credentials: 'same-origin',
-            headers: speedHeaders(),
-            cache: 'no-store',
-        });
-        if (!res.ok) throw new Error('Download test failed');
-        const buf = await res.arrayBuffer();
-        const seconds = Math.max(0.001, (performance.now() - start) / 1000);
-        runs.push((buf.byteLength * 8) / (seconds * 1_000_000));
+    // Small warm-up so TCP / TLS is primed before the timed waves.
+    await downloadOne(2 * 1024 * 1024, `warmup-${Date.now()}`);
+    const waves: number[] = [];
+    for (let w = 0; w < DOWNLOAD_WAVES; w += 1) {
+        waves.push(await measureDownloadWave(DOWNLOAD_PARALLEL, DOWNLOAD_BYTES_PER_STREAM, `dl-${Date.now()}-w${w}`));
     }
-    return average(runs);
+    // Prefer the better wave (first often still warming the pipe).
+    return Math.max(...waves);
+}
+
+async function uploadOne(payload: Uint8Array, tag: string): Promise<number> {
+    const start = performance.now();
+    const res = await fetch(portalUrl(`/api/speedtest/upload?t=${tag}`), {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: speedHeaders({ 'Content-Type': 'application/octet-stream' }),
+        body: payload,
+        cache: 'no-store',
+    });
+    if (!res.ok) throw new Error('Upload test failed');
+    const seconds = Math.max(0.001, (performance.now() - start) / 1000);
+    return (payload.byteLength * 8) / (seconds * 1_000_000);
 }
 
 async function measureUpload(): Promise<number> {
     const payload = buildUploadPayload(UPLOAD_BYTES);
-    const runs: number[] = [];
-    for (let i = 0; i < 2; i += 1) {
-        const start = performance.now();
-        const res = await fetch(portalUrl(`/api/speedtest/upload?t=${Date.now()}-${i}`), {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: speedHeaders({ 'Content-Type': 'application/octet-stream' }),
-            body: payload,
-            cache: 'no-store',
-        });
-        if (!res.ok) throw new Error('Upload test failed');
-        const seconds = Math.max(0.001, (performance.now() - start) / 1000);
-        runs.push((UPLOAD_BYTES * 8) / (seconds * 1_000_000));
-    }
-    return average(runs);
+    // Warm-up single stream
+    await uploadOne(payload, `ul-warmup-${Date.now()}`);
+    const start = performance.now();
+    await Promise.all(
+        Array.from({ length: UPLOAD_PARALLEL }, (_, i) => uploadOne(payload, `ul-${Date.now()}-${i}`)),
+    );
+    const seconds = Math.max(0.001, (performance.now() - start) / 1000);
+    const totalBytes = UPLOAD_BYTES * UPLOAD_PARALLEL;
+    return (totalBytes * 8) / (seconds * 1_000_000);
 }
 
 const phaseLabel = (phase: SpeedPhase) => {
@@ -160,7 +182,7 @@ export const StatusSpeedTest: React.FC = () => {
                         <h3 className="text-lg font-bold text-text">Connection to this server</h3>
                     </div>
                     <p className="text-sm text-muted max-w-xl">
-                        Tests your device’s link to this portal (latency, download, upload) — not a general internet speed test, and not a direct Plex/Jellyfin stream path if media is on another host.
+                        Multi-stream test (~100 MB download, ~32 MB upload) from your device to this portal — not a general internet speed test, and not a direct Plex/Jellyfin path if media is on another host. May take 10–20 seconds.
                     </p>
                 </div>
                 <button
@@ -184,13 +206,13 @@ export const StatusSpeedTest: React.FC = () => {
                         },
                         {
                             label: 'Download',
-                            value: results ? `${formatMbps(results.downloadMbps)} Mbps` : (phase === 'download' ? '…' : '—'),
-                            hint: 'Server → your device',
+                            value: results ? formatMbps(results.downloadMbps) : (phase === 'download' ? '…' : '—'),
+                            hint: '4 parallel streams → your device',
                         },
                         {
                             label: 'Upload',
-                            value: results ? `${formatMbps(results.uploadMbps)} Mbps` : (phase === 'upload' ? '…' : '—'),
-                            hint: 'Your device → server',
+                            value: results ? formatMbps(results.uploadMbps) : (phase === 'upload' ? '…' : '—'),
+                            hint: '2 parallel streams → server',
                         },
                     ].map((card) => (
                         <div key={card.label} className="rounded-xl border border-white/5 bg-black/20 px-4 py-3">
@@ -206,7 +228,7 @@ export const StatusSpeedTest: React.FC = () => {
                 <p className="mt-3 text-sm text-status-expired">{error}</p>
             )}
             {running && (
-                <p className="mt-3 text-xs text-muted">{phaseLabel(phase)} This may take a few seconds.</p>
+                <p className="mt-3 text-xs text-muted">{phaseLabel(phase)} Larger transfers — hang tight.</p>
             )}
         </div>
     );

@@ -56,7 +56,14 @@ const normalizePlexBandwidthKbps = (raw) => {
 };
 
 const app = express();
-app.use(compression());
+app.use(compression({
+    filter: (req, res) => {
+        // Speed tests must stay uncompressed — gzip of repetitive payloads skews Mbps badly.
+        const url = String(req.originalUrl || req.url || '');
+        if (url.includes('/api/speedtest/')) return false;
+        return compression.filter(req, res);
+    },
+}));
 const PORT = parseInt(process.env.PORT || '2121', 10);
 const BIND_HOST = process.env.BIND_HOST || '0.0.0.0';
 const SETUP_TOKEN = process.env.SETUP_TOKEN || '';
@@ -177,7 +184,7 @@ const authRateLimit = createRateLimiter(15 * 60 * 1000, 10); // Reduced from 20 
 const authCallbackRateLimit = createRateLimiter(15 * 60 * 1000, 40);
 const jellyfinQuickConnectPollRateLimit = createRateLimiter(5 * 60 * 1000, 140);
 const publicReadRateLimit = createRateLimiter(60 * 1000, 120);
-const speedtestRateLimit = createRateLimiter(60 * 1000, 12);
+const speedtestRateLimit = createRateLimiter(60 * 1000, 48); // parallel multi-gig transfers need headroom
 const setupRateLimit = createRateLimiter(15 * 60 * 1000, 30);
 
 const isLoopbackAddress = (ip = '') => {
@@ -433,7 +440,10 @@ let statusConfig = {
 
 let healthData = {};
 const SPEED_TEST_CHUNK_SIZE = 1024 * 1024;
-const SPEED_TEST_BUFFER = Buffer.alloc(SPEED_TEST_CHUNK_SIZE, 'x');
+/** Incompressible chunk so transfer size ≈ measured bytes (also gzip-excluded above). */
+const SPEED_TEST_BUFFER = randomBytes(SPEED_TEST_CHUNK_SIZE);
+const SPEED_TEST_MAX_DOWNLOAD_BYTES = 100 * 1024 * 1024;
+const SPEED_TEST_MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 const createDefaultStatusConfig = (config = {}) => {
     const groups = [
@@ -10381,10 +10391,11 @@ app.get('/api/plex/analytics/user/:id', requireAdmin, async (req, res) => {
 app.get('/api/speedtest/ping', requireAuth, requireMember, speedtestRateLimit, (req, res) => { res.set('Cache-Control', 'no-store'); res.send('pong'); });
 app.get('/api/speedtest/download', requireAuth, requireMember, speedtestRateLimit, (req, res) => {
     const parsedBytes = parseInt(req.query.bytes, 10) || SPEED_TEST_CHUNK_SIZE;
-    const bytes = Math.max(1, Math.min(parsedBytes, 10 * 1024 * 1024));
+    const bytes = Math.max(1, Math.min(parsedBytes, SPEED_TEST_MAX_DOWNLOAD_BYTES));
     res.set('Content-Type', 'application/octet-stream');
-    res.set('Content-Length', bytes);
-    res.set('Cache-Control', 'no-store');
+    res.set('Content-Length', String(bytes));
+    res.set('Cache-Control', 'no-store, no-transform');
+    res.set('Content-Encoding', 'identity');
     let sent = 0;
     const streamData = () => {
         if (sent >= bytes) return res.end();
@@ -10397,7 +10408,17 @@ app.get('/api/speedtest/download', requireAuth, requireMember, speedtestRateLimi
     };
     streamData();
 });
-app.post('/api/speedtest/upload', requireAuth, requireMember, speedtestRateLimit, express.raw({ type: '*/*', limit: '10mb' }), (req, res) => res.sendStatus(200));
+app.post(
+    '/api/speedtest/upload',
+    requireAuth,
+    requireMember,
+    speedtestRateLimit,
+    express.raw({ type: '*/*', limit: SPEED_TEST_MAX_UPLOAD_BYTES }),
+    (req, res) => {
+        res.set('Cache-Control', 'no-store');
+        res.sendStatus(200);
+    },
+);
 
 // --- Static File Serving ---
 const staticDir = path.join(process.cwd(), 'static');
