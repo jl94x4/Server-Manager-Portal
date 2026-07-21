@@ -184,7 +184,7 @@ const authRateLimit = createRateLimiter(15 * 60 * 1000, 10); // Reduced from 20 
 const authCallbackRateLimit = createRateLimiter(15 * 60 * 1000, 40);
 const jellyfinQuickConnectPollRateLimit = createRateLimiter(5 * 60 * 1000, 140);
 const publicReadRateLimit = createRateLimiter(60 * 1000, 120);
-const speedtestRateLimit = createRateLimiter(60 * 1000, 48); // parallel multi-gig transfers need headroom
+const speedtestRateLimit = createRateLimiter(60 * 1000, 80); // parallel duration streams need headroom
 const setupRateLimit = createRateLimiter(15 * 60 * 1000, 30);
 
 const isLoopbackAddress = (ip = '') => {
@@ -439,11 +439,12 @@ let statusConfig = {
 };
 
 let healthData = {};
-const SPEED_TEST_CHUNK_SIZE = 1024 * 1024;
+const SPEED_TEST_CHUNK_SIZE = 4 * 1024 * 1024;
 /** Incompressible chunk so transfer size ≈ measured bytes (also gzip-excluded above). */
 const SPEED_TEST_BUFFER = randomBytes(SPEED_TEST_CHUNK_SIZE);
-const SPEED_TEST_MAX_DOWNLOAD_BYTES = 100 * 1024 * 1024;
-const SPEED_TEST_MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+const SPEED_TEST_MAX_DOWNLOAD_BYTES = 512 * 1024 * 1024;
+/** Per-request upload cap for duration tests (client aborts sooner; needs room for multi-gig). */
+const SPEED_TEST_MAX_UPLOAD_BYTES = 4 * 1024 * 1024 * 1024;
 
 const createDefaultStatusConfig = (config = {}) => {
     const groups = [
@@ -10390,35 +10391,63 @@ app.get('/api/plex/analytics/user/:id', requireAdmin, async (req, res) => {
 
 app.get('/api/speedtest/ping', requireAuth, requireMember, speedtestRateLimit, (req, res) => { res.set('Cache-Control', 'no-store'); res.send('pong'); });
 app.get('/api/speedtest/download', requireAuth, requireMember, speedtestRateLimit, (req, res) => {
-    const parsedBytes = parseInt(req.query.bytes, 10) || SPEED_TEST_CHUNK_SIZE;
-    const bytes = Math.max(1, Math.min(parsedBytes, SPEED_TEST_MAX_DOWNLOAD_BYTES));
+    const streamForever = String(req.query.stream || '') === '1';
+    const parsedBytes = parseInt(req.query.bytes, 10);
+    const bytes = streamForever
+        ? null
+        : Math.max(1, Math.min(Number.isFinite(parsedBytes) ? parsedBytes : SPEED_TEST_CHUNK_SIZE, SPEED_TEST_MAX_DOWNLOAD_BYTES));
+
     res.set('Content-Type', 'application/octet-stream');
-    res.set('Content-Length', String(bytes));
     res.set('Cache-Control', 'no-store, no-transform');
     res.set('Content-Encoding', 'identity');
+    res.set('X-Content-Type-Options', 'nosniff');
+    if (bytes != null) res.set('Content-Length', String(bytes));
+
+    let destroyed = false;
     let sent = 0;
-    const streamData = () => {
-        if (sent >= bytes) return res.end();
-        const remaining = bytes - sent;
-        const chunk = remaining >= SPEED_TEST_CHUNK_SIZE ? SPEED_TEST_BUFFER : SPEED_TEST_BUFFER.subarray(0, remaining);
-        const canContinue = res.write(chunk);
-        sent += chunk.length;
-        if (canContinue) setImmediate(streamData);
-        else res.once('drain', streamData);
+    const cleanup = () => { destroyed = true; };
+    req.on('close', cleanup);
+    res.on('close', cleanup);
+
+    // Tight write loop — avoid setImmediate between every chunk so Node can push multi-gig.
+    const pump = () => {
+        if (destroyed || res.writableEnded) return;
+        let ok = true;
+        while (ok && !destroyed && !res.writableEnded) {
+            if (bytes != null && sent >= bytes) {
+                res.end();
+                return;
+            }
+            const chunk = (bytes != null && (bytes - sent) < SPEED_TEST_CHUNK_SIZE)
+                ? SPEED_TEST_BUFFER.subarray(0, bytes - sent)
+                : SPEED_TEST_BUFFER;
+            ok = res.write(chunk);
+            sent += chunk.length;
+        }
+        if (!destroyed && !res.writableEnded) res.once('drain', pump);
     };
-    streamData();
+
+    pump();
 });
-app.post(
-    '/api/speedtest/upload',
-    requireAuth,
-    requireMember,
-    speedtestRateLimit,
-    express.raw({ type: '*/*', limit: SPEED_TEST_MAX_UPLOAD_BYTES }),
-    (req, res) => {
-        res.set('Cache-Control', 'no-store');
-        res.sendStatus(200);
-    },
-);
+/** Streaming upload sink — discard body without buffering (supports long duration tests). */
+app.post('/api/speedtest/upload', requireAuth, requireMember, speedtestRateLimit, (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    let received = 0;
+    const maxBytes = SPEED_TEST_MAX_UPLOAD_BYTES;
+    req.on('data', (chunk) => {
+        received += chunk.length;
+        if (received > maxBytes) {
+            req.destroy();
+            if (!res.headersSent) res.status(413).end();
+        }
+    });
+    req.on('end', () => {
+        if (!res.headersSent) res.sendStatus(200);
+    });
+    req.on('error', () => {
+        if (!res.headersSent) res.sendStatus(499);
+    });
+});
 
 // --- Static File Serving ---
 const staticDir = path.join(process.cwd(), 'static');
