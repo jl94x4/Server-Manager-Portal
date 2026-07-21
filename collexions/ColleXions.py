@@ -676,10 +676,18 @@ def filter_collections(config, all_collections_in_library, active_special_titles
     min_items = config.get('min_items_for_pinning', 10) # Default from schema
     # Schema ensures min_items is int >= 0
     titles_excluded = get_fully_excluded_collections(config, active_special_titles)
+    explicit_exclusion_set = {
+        name.strip()
+        for name in (config.get('exclusion_list') or [])
+        if isinstance(name, str) and name.strip()
+    }
+    all_special_titles = get_all_special_collection_names(config)
+    inactive_special_set = all_special_titles - set(active_special_titles)
     recent_pins = get_recently_pinned_collections(selected_collections_history, config)
     regex_patterns = config.get('regex_exclusion_patterns', []) # Default from schema
     use_random_category_mode = config.get('use_random_category_mode', False) # Default from schema
     skip_perc = config.get('random_category_skip_percent', 70) # Default and range from schema
+    repeat_block_hours = config.get('repeat_block_hours', 12)
 
     try:
         raw_categories_for_library = config.get('categories', {}).get(library_name, [])
@@ -688,40 +696,105 @@ def filter_collections(config, all_collections_in_library, active_special_titles
         logging.error(f"Error deepcopying categories for '{library_name}': {e}. Proceeding with empty categories.")
         library_categories_config = []
 
-    logging.info(f"Filtering for '{library_name}': Min Items={min_items}, Random Cat Mode={use_random_category_mode}, Cat Skip Chance={skip_perc}%")
+    logging.info(
+        f"Filtering for '{library_name}': Min Items={min_items}, "
+        f"Repeat Block={repeat_block_hours}h, Random Cat Mode={use_random_category_mode}, "
+        f"Cat Skip Chance={skip_perc}%, Pin Limit={library_pin_limit}"
+    )
+
+    total_found = len(all_collections_in_library)
+    skip_counts = {
+        'no_title': 0,
+        'explicit_exclusion': 0,
+        'inactive_special': 0,
+        'regex': 0,
+        'recent_pin': 0,
+        'low_item_count': 0,
+        'item_count_error': 0,
+    }
+    sample_skipped = {k: [] for k in skip_counts}  # up to a few titles per reason
+    SAMPLE_LIMIT = 5
+
+    def _note_skip(reason, title):
+        skip_counts[reason] += 1
+        if title and len(sample_skipped[reason]) < SAMPLE_LIMIT:
+            sample_skipped[reason].append(title)
 
     eligible_pool = []
-    logging.info(f"Processing {len(all_collections_in_library)} collections found in '{library_name}' through initial filters...")
+    logging.info(f"Processing {total_found} collections found in '{library_name}' through initial filters...")
     for c in all_collections_in_library:
         if not hasattr(c, 'title') or not c.title:
             logging.debug(f"Skipping collection with missing title: {c}")
+            _note_skip('no_title', None)
             continue
         title = c.title
         is_special = title in active_special_titles
 
+        if title in explicit_exclusion_set:
+            logging.debug(f" Excluding '{title}' (Reason: Explicit exclusion list).")
+            _note_skip('explicit_exclusion', title)
+            continue
+        if title in inactive_special_set:
+            logging.debug(f" Excluding '{title}' (Reason: Inactive special — outside date range).")
+            _note_skip('inactive_special', title)
+            continue
+        # Fallback for any other combined exclusion (should already be covered above)
         if title in titles_excluded:
             logging.debug(f" Excluding '{title}' (Reason: Explicit or Inactive Special Title Exclusion).")
+            _note_skip('explicit_exclusion', title)
             continue
         if is_regex_excluded(title, regex_patterns):
+            _note_skip('regex', title)
             continue
         if not is_special and title in recent_pins:
             logging.debug(f" Excluding '{title}' (Reason: Recently pinned non-special item within repeat block).")
+            _note_skip('recent_pin', title)
             continue
         if not is_special:
             try:
                 item_count = c.childCount
+                if item_count is None:
+                    logging.warning(f" Excluding '{title}' (Reason: childCount is None — cannot verify min items).")
+                    _note_skip('item_count_error', title)
+                    continue
                 if item_count < min_items:
                     logging.debug(f" Excluding '{title}' (Reason: Low item count: {item_count} < {min_items}).")
+                    _note_skip('low_item_count', title)
                     continue
             except AttributeError:
                 logging.warning(f" Excluding '{title}' due to AttributeError when getting item count (childCount).")
+                _note_skip('item_count_error', title)
                 continue
             except Exception as e:
                 logging.warning(f" Excluding '{title}' due to error getting item count: {e}")
+                _note_skip('item_count_error', title)
                 continue
         eligible_pool.append(c)
 
-    logging.info(f"Found {len(eligible_pool)} eligible collections in '{library_name}' after initial filtering.")
+    total_skipped = sum(skip_counts.values())
+    logging.info(f"=== Eligibility breakdown for '{library_name}' ===")
+    logging.info(f"  Total collections in library:     {total_found}")
+    logging.info(f"  - Explicit exclusion list:        {skip_counts['explicit_exclusion']}")
+    logging.info(f"  - Inactive specials (off-season): {skip_counts['inactive_special']}")
+    logging.info(f"  - Regex exclusions:               {skip_counts['regex']}")
+    logging.info(f"  - Repeat block (last {repeat_block_hours}h):   {skip_counts['recent_pin']}")
+    logging.info(f"  - Below min items (<{min_items}):   {skip_counts['low_item_count']}")
+    logging.info(f"  - Item count unavailable/error:   {skip_counts['item_count_error']}")
+    if skip_counts['no_title']:
+        logging.info(f"  - Missing title:                  {skip_counts['no_title']}")
+    logging.info(f"  = Eligible after initial filters: {len(eligible_pool)}  (skipped {total_skipped})")
+    for reason, samples in sample_skipped.items():
+        if samples:
+            more = skip_counts[reason] - len(samples)
+            suffix = f" (+{more} more)" if more > 0 else ""
+            logging.info(f"    examples [{reason}]: {samples}{suffix}")
+    if total_found > 0 and len(eligible_pool) < max(1, total_found // 4):
+        logging.info(
+            "  NOTE: Most collections were filtered out before selection. "
+            "This is usually expected (repeat block, inactive specials, categories later, or min items) — "
+            "not a failure to load the library."
+        )
+
     if not eligible_pool:
         logging.info(f"No collections eligible for pinning in '{library_name}'. Skipping priority selection.")
         return []
@@ -778,7 +851,11 @@ def filter_collections(config, all_collections_in_library, active_special_titles
             if use_random_category_mode:
                 for cat_conf in valid_categories_for_lib:
                     titles_from_served_categories_for_random_exclusion.update(cat_conf.get('collections', []))
-                logging.info(f"  Random Category Mode: {len(titles_from_served_categories_for_random_exclusion)} titles from all defined valid categories in '{library_name}' will be excluded from random fill.")
+                logging.info(
+                    f"  Random Category Mode: {len(titles_from_served_categories_for_random_exclusion)} "
+                    f"titles listed in ANY category for '{library_name}' are withheld from random fill "
+                    f"(only category picks + non-category titles remain)."
+                )
 
                 if random.random() < (skip_perc / 100.0):
                     logging.info(f"  Category selection SKIPPED for '{library_name}' due to {skip_perc}% chance.")
@@ -834,10 +911,31 @@ def filter_collections(config, all_collections_in_library, active_special_titles
         pool_for_random_fill = list(pool_after_specials_processing)
 
     final_random_candidates = []
+    withheld_by_category = 0
+    already_pinned_skip = 0
     for item in pool_for_random_fill:
-        if item.title not in pinned_titles_this_run and item.title not in titles_from_served_categories_for_random_exclusion:
-            final_random_candidates.append(item)
-    logging.info(f"Pool for random fill (after category exclusions & already pinned items): {len(final_random_candidates)} items. Titles excluded due to category service: {len(titles_from_served_categories_for_random_exclusion)}")
+        if item.title in pinned_titles_this_run:
+            already_pinned_skip += 1
+            continue
+        if item.title in titles_from_served_categories_for_random_exclusion:
+            withheld_by_category += 1
+            continue
+        final_random_candidates.append(item)
+
+    logging.info(f"=== Selection pool summary for '{library_name}' ===")
+    logging.info(f"  Eligible after initial filters:   {len(eligible_pool)}")
+    logging.info(f"  Picked as active specials:        {len(specials_selected_now)}")
+    logging.info(f"  Picked from categories:           {len(category_collections_selected_now)}")
+    logging.info(f"  Withheld from random (in categories): {withheld_by_category}")
+    logging.info(f"  Already selected this run:        {already_pinned_skip}")
+    logging.info(f"  Available for random fill:        {len(final_random_candidates)}")
+    logging.info(f"  Remaining pin slots:              {remaining_slots}")
+    if withheld_by_category > 0 and len(final_random_candidates) < len(eligible_pool) // 2:
+        logging.info(
+            "  NOTE: Category mode holds category-listed titles out of random fill. "
+            "If most of your library is listed under categories, the random pool will look small even though "
+            f"{len(eligible_pool)} collections passed the earlier filters."
+        )
 
     if remaining_slots > 0:
         logging.info(f"Selection Step 3: Filling remaining {remaining_slots} slot(s) randomly for '{library_name}'.")
@@ -846,10 +944,16 @@ def filter_collections(config, all_collections_in_library, active_special_titles
         remaining_slots -= len(random_selected_now)
     else:
         logging.info(f"Skipping random selection for '{library_name}' (no remaining slots).")
+        random_selected_now = []
 
     final_selected_titles = [getattr(c, 'title', 'Untitled') for c in collections_to_pin]
     logging.info(f"--- Filtering and Selection Complete for '{library_name}' ---")
-    logging.info(f"Final list of {len(final_selected_titles)} collections selected for pinning: {final_selected_titles if final_selected_titles else 'None'}")
+    logging.info(
+        f"Pinned this run: {len(final_selected_titles)}/{library_pin_limit} slots "
+        f"(specials={len(specials_selected_now)}, categories={len(category_collections_selected_now)}, "
+        f"random={len(random_selected_now)}): "
+        f"{final_selected_titles if final_selected_titles else 'None'}"
+    )
     return collections_to_pin
 
 # --- Main Function ---

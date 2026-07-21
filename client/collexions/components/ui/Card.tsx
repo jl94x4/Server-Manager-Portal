@@ -5,9 +5,11 @@ interface CardProps {
   children: React.ReactNode;
   className?: string;
   actions?: React.ReactNode;
+  /** Skip default body padding — use when the parent supplies its own (e.g. compact stats). */
+  compact?: boolean;
 }
 
-export const Card: React.FC<CardProps> = ({ title, children, className = '', actions }) => {
+export const Card: React.FC<CardProps> = ({ title, children, className = '', actions, compact = false }) => {
   return (
     <div className={`glass-card shadow-xl transition-all hover:border-plex/40 group ${className}`}>
       {title && (
@@ -16,7 +18,7 @@ export const Card: React.FC<CardProps> = ({ title, children, className = '', act
           {actions && <div>{actions}</div>}
         </div>
       )}
-      <div className="p-5 md:p-6">
+      <div className={compact ? '' : 'p-5 md:p-6'}>
         {children}
       </div>
     </div>

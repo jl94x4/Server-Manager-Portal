@@ -410,18 +410,18 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* Premium Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {/* Status Card */}
-                <Card className="p-6 border-border/80 bg-card/50 relative overflow-hidden group hover:border-border/80 transition-all duration-300">
-                    <div className="flex flex-col h-full relative z-10">
-                        <div className="flex justify-between items-start mb-6">
-                            <div className={`p-2.5 rounded-xl ${isOffline ? 'bg-card text-muted' : isWorking ? 'bg-emerald-500/20 text-emerald-400' : isLoopActive ? 'bg-plex/20 text-plex' : 'bg-amber-500/20 text-amber-400 shadow-lg shadow-amber-900/20'}`}>
-                                {isOffline ? <WifiOff className="w-5 h-5" /> : isWorking ? <Cpu className="w-5 h-5 animate-spin" /> : isLoopActive ? <Hourglass className="w-5 h-5" /> : <Power className="w-5 h-5" />}
+                <Card compact className="p-3.5 border-border/80 bg-card/50 relative overflow-hidden group hover:border-border/80 transition-all duration-300">
+                    <div className="flex flex-col relative z-10">
+                        <div className="flex justify-between items-center mb-2.5">
+                            <div className={`p-1.5 rounded-lg ${isOffline ? 'bg-card text-muted' : isWorking ? 'bg-emerald-500/20 text-emerald-400' : isLoopActive ? 'bg-plex/20 text-plex' : 'bg-amber-500/20 text-amber-400 shadow-lg shadow-amber-900/20'}`}>
+                                {isOffline ? <WifiOff className="w-4 h-4" /> : isWorking ? <Cpu className="w-4 h-4 animate-spin" /> : isLoopActive ? <Hourglass className="w-4 h-4" /> : <Power className="w-4 h-4" />}
                             </div>
                             <span className="text-[9px] font-black uppercase tracking-[0.25em] text-muted opacity-60">System</span>
                         </div>
-                        <div className="space-y-1">
-                            <h3 className={`text-xl font-bold tracking-tight ${isWorking ? 'text-emerald-400' : 'text-white'}`}>
+                        <div className="space-y-0.5">
+                            <h3 className={`text-base font-bold tracking-tight ${isWorking ? 'text-emerald-400' : 'text-white'}`}>
                                 {isOffline ? 'Offline' : isWorking ? 'Processing' : isLoopActive ? 'Service Active' : 'Service Stopped'}
                             </h3>
                             <p className="text-[10px] text-muted font-bold uppercase tracking-wider">
@@ -429,20 +429,20 @@ const Dashboard: React.FC = () => {
                             </p>
                         </div>
                     </div>
-                    <div className={`absolute -right-8 -bottom-8 w-32 h-32 blur-[80px] opacity-10 rounded-full transition-all duration-700 group-hover:opacity-30 ${isOffline ? 'bg-muted' : isWorking ? 'bg-emerald-500' : isLoopActive ? 'bg-plex' : 'bg-amber-500'}`}></div>
+                    <div className={`absolute -right-8 -bottom-8 w-24 h-24 blur-[60px] opacity-10 rounded-full transition-all duration-700 group-hover:opacity-30 ${isOffline ? 'bg-muted' : isWorking ? 'bg-emerald-500' : isLoopActive ? 'bg-plex' : 'bg-amber-500'}`}></div>
                 </Card>
 
                 {/* Last Activity Card */}
-                <Card className="p-6 border-border/80 bg-card/50 relative overflow-hidden group hover:border-border/80 transition-all duration-300">
-                    <div className="flex flex-col h-full relative z-10">
-                        <div className="flex justify-between items-start mb-6">
-                            <div className="p-2.5 bg-white/5 text-muted rounded-xl">
-                                <Clock className="w-5 h-5" />
+                <Card compact className="p-3.5 border-border/80 bg-card/50 relative overflow-hidden group hover:border-border/80 transition-all duration-300">
+                    <div className="flex flex-col relative z-10">
+                        <div className="flex justify-between items-center mb-2.5">
+                            <div className="p-1.5 bg-white/5 text-muted rounded-lg">
+                                <Clock className="w-4 h-4" />
                             </div>
                             <span className="text-[9px] font-black uppercase tracking-[0.25em] text-muted opacity-60">Activity</span>
                         </div>
-                        <div className="space-y-1">
-                            <h3 className="text-xl font-bold font-mono tracking-tighter text-text tabular-nums">
+                        <div className="space-y-0.5">
+                            <h3 className="text-base font-bold font-mono tracking-tighter text-text tabular-nums">
                                 {lastUpdateDate ? lastUpdateDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '--:--:--'}
                             </h3>
                             <p className="text-[10px] text-muted font-bold uppercase tracking-wider">Last Run</p>
@@ -451,16 +451,16 @@ const Dashboard: React.FC = () => {
                 </Card>
 
                 {/* Next Run Card */}
-                <Card className="p-6 border-border/80 bg-card/50 relative overflow-hidden group hover:border-border/80 transition-all duration-300">
-                    <div className="flex flex-col h-full relative z-10">
-                        <div className="flex justify-between items-start mb-6">
-                            <div className={`p-2.5 rounded-xl ${isLoopActive ? 'bg-plex/20 text-plex shadow-lg shadow-plex/10' : 'bg-white/5 text-muted'}`}>
-                                <CalendarClock className="w-5 h-5" />
+                <Card compact className="p-3.5 border-border/80 bg-card/50 relative overflow-hidden group hover:border-border/80 transition-all duration-300">
+                    <div className="flex flex-col relative z-10">
+                        <div className="flex justify-between items-center mb-2.5">
+                            <div className={`p-1.5 rounded-lg ${isLoopActive ? 'bg-plex/20 text-plex shadow-lg shadow-plex/10' : 'bg-white/5 text-muted'}`}>
+                                <CalendarClock className="w-4 h-4" />
                             </div>
                             <span className="text-[9px] font-black uppercase tracking-[0.25em] text-muted opacity-60">Scheduling</span>
                         </div>
-                        <div className="space-y-1">
-                            <h3 className={`text-xl font-bold font-mono tracking-tighter tabular-nums ${isLoopActive ? 'text-plex' : 'text-muted'}`}>
+                        <div className="space-y-0.5">
+                            <h3 className={`text-base font-bold font-mono tracking-tighter tabular-nums ${isLoopActive ? 'text-plex' : 'text-muted'}`}>
                                 {isLoopActive ? (nextRun.includes('(') ? nextRun.split(' (')[0] : nextRun) : 'Inactive'}
                             </h3>
                             <p className="text-[10px] text-muted font-bold uppercase tracking-wider">
@@ -471,17 +471,17 @@ const Dashboard: React.FC = () => {
                 </Card>
 
                 {/* Frequency Card */}
-                <Card className="p-6 border-border/80 bg-card/50 relative overflow-hidden group hover:border-border/80 transition-all duration-300">
-                    <div className="flex flex-col h-full relative z-10">
-                        <div className="flex justify-between items-start mb-6">
-                            <div className="p-2.5 bg-white/5 text-muted rounded-xl">
-                                <Settings className="w-5 h-5" />
+                <Card compact className="p-3.5 border-border/80 bg-card/50 relative overflow-hidden group hover:border-border/80 transition-all duration-300">
+                    <div className="flex flex-col relative z-10">
+                        <div className="flex justify-between items-center mb-2.5">
+                            <div className="p-1.5 bg-white/5 text-muted rounded-lg">
+                                <Settings className="w-4 h-4" />
                             </div>
                             <span className="text-[9px] font-black uppercase tracking-[0.25em] text-muted opacity-60">Frequency</span>
                         </div>
-                        <div className="space-y-1">
+                        <div className="space-y-0.5">
                             <div className="flex items-baseline gap-1.5">
-                                <h3 className="text-xl font-bold font-mono tracking-tighter text-text">
+                                <h3 className="text-base font-bold font-mono tracking-tighter text-text">
                                     {config?.pinning_interval || 0}
                                 </h3>
                                 <span className="text-[9px] font-black text-muted uppercase tracking-widest">min interval</span>
