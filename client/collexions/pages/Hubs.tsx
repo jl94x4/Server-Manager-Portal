@@ -7,9 +7,36 @@ import {
     ChevronDown,
     Info,
     Library,
+    Check,
 } from 'lucide-react';
 import { api } from '../api';
 import { CustomSelect } from '../components/ui/Inputs';
+
+const HubToggle: React.FC<{
+    label: string;
+    checked: boolean;
+    disabled?: boolean;
+    onChange: (next: boolean) => void;
+}> = ({ label, checked, disabled, onChange }) => (
+    <label className="flex md:justify-center items-center gap-2 text-sm text-muted cursor-pointer select-none">
+        <span className="md:hidden text-xs font-bold uppercase tracking-wider">{label}</span>
+        <button
+            type="button"
+            role="checkbox"
+            aria-checked={checked}
+            aria-label={label}
+            disabled={disabled}
+            onClick={() => onChange(!checked)}
+            className={`h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-colors disabled:opacity-50 ${
+                checked
+                    ? 'bg-plex border-plex text-background'
+                    : 'bg-background border-border hover:border-plex/50'
+            }`}
+        >
+            {checked ? <Check className="w-3 h-3" strokeWidth={3} /> : null}
+        </button>
+    </label>
+);
 
 type ManagedHub = {
     identifier: string;
@@ -178,7 +205,7 @@ const HubsPage: React.FC = () => {
                         Reorder library rows and toggle visibility — same controls as Plex Settings → Libraries.
                     </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-end gap-3">
                     <CustomSelect
                         label="Library"
                         className="w-full md:w-64"
@@ -191,7 +218,7 @@ const HubsPage: React.FC = () => {
                         type="button"
                         onClick={() => void loadHubs(library)}
                         disabled={loading || !library}
-                        className="p-2.5 rounded-lg bg-card border border-border text-muted hover:text-text transition-colors disabled:opacity-50"
+                        className="h-[42px] w-[42px] inline-flex items-center justify-center rounded-lg bg-card border border-border text-muted hover:text-text transition-colors disabled:opacity-50"
                         title="Refresh"
                     >
                         <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
@@ -289,36 +316,24 @@ const HubsPage: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <label className="flex md:justify-center items-center gap-2 text-sm text-muted cursor-pointer select-none">
-                                        <span className="md:hidden text-xs font-bold uppercase tracking-wider">Library Rec.</span>
-                                        <input
-                                            type="checkbox"
-                                            className="w-4 h-4 accent-[var(--color-plex,#e5a00d)]"
-                                            checked={hub.promoted_to_recommended}
-                                            disabled={busy}
-                                            onChange={(e) => void toggleVisibility(hub, 'recommended', e.target.checked)}
-                                        />
-                                    </label>
-                                    <label className="flex md:justify-center items-center gap-2 text-sm text-muted cursor-pointer select-none">
-                                        <span className="md:hidden text-xs font-bold uppercase tracking-wider">Home</span>
-                                        <input
-                                            type="checkbox"
-                                            className="w-4 h-4 accent-[var(--color-plex,#e5a00d)]"
-                                            checked={hub.promoted_to_home}
-                                            disabled={busy}
-                                            onChange={(e) => void toggleVisibility(hub, 'home', e.target.checked)}
-                                        />
-                                    </label>
-                                    <label className="flex md:justify-center items-center gap-2 text-sm text-muted cursor-pointer select-none">
-                                        <span className="md:hidden text-xs font-bold uppercase tracking-wider">Friends</span>
-                                        <input
-                                            type="checkbox"
-                                            className="w-4 h-4 accent-[var(--color-plex,#e5a00d)]"
-                                            checked={hub.promoted_to_shared}
-                                            disabled={busy}
-                                            onChange={(e) => void toggleVisibility(hub, 'shared', e.target.checked)}
-                                        />
-                                    </label>
+                                    <HubToggle
+                                        label="Library Rec."
+                                        checked={hub.promoted_to_recommended}
+                                        disabled={busy}
+                                        onChange={(v) => void toggleVisibility(hub, 'recommended', v)}
+                                    />
+                                    <HubToggle
+                                        label="Home"
+                                        checked={hub.promoted_to_home}
+                                        disabled={busy}
+                                        onChange={(v) => void toggleVisibility(hub, 'home', v)}
+                                    />
+                                    <HubToggle
+                                        label="Friends"
+                                        checked={hub.promoted_to_shared}
+                                        disabled={busy}
+                                        onChange={(v) => void toggleVisibility(hub, 'shared', v)}
+                                    />
                                 </div>
                             );
                         })}
