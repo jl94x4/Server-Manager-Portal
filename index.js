@@ -3124,6 +3124,13 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
     const becameConfigured = !isConfigured && isPortalConfigured(config);
     const maintenanceJustEnabled = !wasMaintenanceEnabled && !!config.maintenanceExperimentalEnabled;
     const upgraderJustEnabled = !wasUpgraderEnabled && !!config.upgraderEnabled;
+    const upgraderJustDisabled = wasUpgraderEnabled && !config.upgraderEnabled;
+    if (upgraderJustDisabled) {
+        idleUpgraderIndexJob('Library Upgrader disabled in settings');
+    } else if (upgraderJustEnabled) {
+        clearUpgraderIndexDisabledError();
+        scheduleUpgraderIndexRebuild(0);
+    }
     if ((becameConfigured || maintenanceJustEnabled || upgraderJustEnabled) && isMediaQualityIndexEnabled(config)) {
         // Kick an immediate index build after setup/enablement so rules/upgrader are usable right away.
         setTimeout(async () => {
@@ -6800,7 +6807,9 @@ const decorateTaskForConfig = (task, config = {}) => {
 const getTasksSnapshot = (config = {}) => {
     const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
     const systemJobList = Object.values(systemJobs)
-        .filter(job => !(mediaServerType !== 'plex' && job.id === 'plexStats'));
+        .filter(job => !(mediaServerType !== 'plex' && job.id === 'plexStats'))
+        // Hide Upgrader Index entirely while the feature is off — idle, not failing.
+        .filter(job => !(job.id === 'upgraderIndex' && !config.upgraderEnabled));
     return [
         ...tasksInfo.map(task => decorateTaskForConfig(task, config)),
         ...systemJobList.map(job => ({ ...job }))
@@ -12604,8 +12613,27 @@ const startAnalyticsStatsBackgroundTask = async () => {
     scheduleAnalyticsRebuild(INITIAL_CACHE_BUILD_DELAY_MS + 5000);
 };
 
+const isUpgraderEnabled = (config) => !!config?.upgraderEnabled;
+
 const UPGRADER_INDEX_INTERVAL_MS = 4 * 60 * 60 * 1000;
 let upgraderIndexTimer = null;
+
+const clearUpgraderIndexDisabledError = () => {
+    const err = String(systemJobs.upgraderIndex.lastError || '');
+    if (!err || /upgrader is disabled/i.test(err)) {
+        systemJobs.upgraderIndex.lastError = null;
+    }
+};
+
+const idleUpgraderIndexJob = (reason = 'Library Upgrader is disabled') => {
+    systemJobs.upgraderIndex.running = false;
+    systemJobs.upgraderIndex.nextRun = null;
+    clearUpgraderIndexDisabledError();
+    if (systemJobs.upgraderIndex._startedAt) {
+        delete systemJobs.upgraderIndex._startedAt;
+    }
+    log(`[UpgraderIndex] Idle — ${reason}.`);
+};
 
 const scheduleUpgraderIndexRebuild = (delayMs) => {
     if (upgraderIndexTimer) clearTimeout(upgraderIndexTimer);
@@ -12614,10 +12642,11 @@ const scheduleUpgraderIndexRebuild = (delayMs) => {
     upgraderIndexTimer = setTimeout(async () => {
         try {
             const config = await loadFile(CONFIG_PATH, {});
-            if (isUpgraderEnabled(config)) {
-                await buildUpgraderArrIndex(config, { actor: { username: 'System', email: 'system@local' } });
+            if (!isUpgraderEnabled(config)) {
+                // Feature off is not a failure — keep the job idle and re-check later.
+                idleUpgraderIndexJob();
             } else {
-                markTaskEnd(systemJobs.upgraderIndex, 'Upgrader is disabled.');
+                await buildUpgraderArrIndex(config, { actor: { username: 'System', email: 'system@local' } });
             }
         } catch (e) {
             log(`[UpgraderIndex] Scheduled rebuild failed: ${e.message}`);
@@ -12627,6 +12656,18 @@ const scheduleUpgraderIndexRebuild = (delayMs) => {
 };
 
 const startUpgraderIndexBackgroundTask = async () => {
+    let config = {};
+    try {
+        config = await loadFile(CONFIG_PATH, {});
+    } catch { /* defaults */ }
+
+    if (!isUpgraderEnabled(config)) {
+        idleUpgraderIndexJob();
+        // Quiet re-check so enabling Upgrader without a full restart still wakes the job.
+        scheduleUpgraderIndexRebuild(UPGRADER_INDEX_INTERVAL_MS);
+        return;
+    }
+
     let existing = null;
     try {
         const loaded = await loadFile(UPGRADER_INDEX_PATH, null);
@@ -12677,7 +12718,6 @@ const MAINTENANCE_DEFAULTS = {
     requireConfirmForDestructive: true
 };
 const isMaintenanceExperimentalEnabled = (config) => !!config?.maintenanceExperimentalEnabled;
-const isUpgraderEnabled = (config) => !!config?.upgraderEnabled;
 const isMediaQualityIndexEnabled = (config) => isMaintenanceExperimentalEnabled(config) || isUpgraderEnabled(config);
 
 const isHevcVideoCodec = (codec = '') => /hevc|h265|x265/.test(String(codec || '').toLowerCase());
