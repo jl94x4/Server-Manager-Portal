@@ -48,6 +48,7 @@ import {
     uptimeForPeriod,
     type StatusPeriod,
 } from './shared/statusHealth';
+import { StatusSpeedTest } from './shared/StatusSpeedTest';
 import { ANALYTICS_PERIOD_OPTIONS } from './shared/analyticsPeriodOptions';
 import { UserDashboardLayout } from './home/UserDashboardLayout';
 import { createBazarrToolsSectionRenderer, createMainGridWidgetRenderer, createPendingRequestsSectionRenderer, createRecentlyAddedWidgetRenderer } from './home/userDashboardWidgetRenderers';
@@ -7012,6 +7013,8 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
                                 </div>
                             ))}
                         </div>
+
+                        {!isPublic && <StatusSpeedTest />}
 
                         {config.announcement && config.announcement.enabled && (
                             <div className="status-announcement">
