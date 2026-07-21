@@ -965,12 +965,24 @@ const saveFile = async (path, data) => {
 };
 
 // --- Plex API Functions (Server-side only) ---
+/** Stable identity so Docker hostname (container ID) is never reported as a "new device". */
+const plexClientHeaders = (token = '', extra = {}) => ({
+    Accept: 'application/json',
+    ...(token ? { 'X-Plex-Token': String(token) } : {}),
+    'X-Plex-Client-Identifier': CLIENT_ID,
+    'X-Plex-Product': 'Server Manager Portal',
+    'X-Plex-Device': 'Server',
+    'X-Plex-Device-Name': 'Server Manager Portal',
+    'X-Plex-Platform': 'Server Manager Portal',
+    'X-Plex-Platform-Version': String(appVersion || '1'),
+    'X-Plex-Provides': 'controller',
+    ...extra,
+});
+
 const apiFetch = (url, token, options = {}) => {
     const headers = {
-        'Accept': 'application/json',
+        ...plexClientHeaders(token),
         ...(options.headers || {}),
-        'X-Plex-Token': token,
-        'X-Plex-Client-Identifier': CLIENT_ID
     };
     return fetch(url, { ...options, headers });
 };
@@ -1917,11 +1929,9 @@ app.post('/api/auth/plex/login', authRateLimit, async (req, res) => {
     try {
         const response = await fetch('https://plex.tv/api/v2/pins?strong=true', {
             method: 'POST',
-            headers: {
-                'Accept': 'application/json',
+            headers: plexClientHeaders('', {
                 'X-Plex-Product': 'Server Manager Portal',
-                'X-Plex-Client-Identifier': CLIENT_ID
-            }
+            }),
         });
         if (!response.ok) throw new Error('Failed to generate Plex PIN');
         const data = await response.json();
@@ -2121,10 +2131,7 @@ const fetchPlexPinAuthToken = async (pinId, { attempts = 10, delayMs = 800 } = {
     let lastData = null;
     for (let attempt = 1; attempt <= attempts; attempt++) {
         const pinRes = await fetch(`https://plex.tv/api/v2/pins/${pinId}`, {
-            headers: {
-                Accept: 'application/json',
-                'X-Plex-Client-Identifier': CLIENT_ID,
-            },
+            headers: plexClientHeaders(),
         });
         lastData = await pinRes.json();
         if (lastData?.authToken) {
@@ -3626,7 +3633,7 @@ app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
             const testConfig = { ...stored, plexToken, serverIdentifier: serverId, ...(directUrl ? { plexServerUrl: directUrl } : {}) };
             const uri = await getPlexConnectionUri(testConfig);
             const identityRes = await fetchWithTimeout(`${uri}/identity?X-Plex-Token=${encodeURIComponent(plexToken)}`, {
-                headers: { Accept: 'application/json' },
+                headers: plexClientHeaders(plexToken),
             }, 12000);
             if (!identityRes.ok) throw new Error(`Plex server returned HTTP ${identityRes.status}`);
             const identity = await identityRes.json().catch(() => ({}));
@@ -3839,11 +3846,7 @@ const resolvePlexServerUrlForVerification = async (plexToken, config = {}, serve
 
     try {
         const response = await fetchWithTimeout('https://plex.tv/api/v2/resources?includeHttps=1', {
-            headers: {
-                'X-Plex-Token': token,
-                'X-Plex-Client-Identifier': CLIENT_ID,
-                Accept: 'application/json',
-            },
+            headers: plexClientHeaders(token),
         }, 10000);
         if (!response.ok) return configured;
         const resources = await response.json();
@@ -3863,10 +3866,7 @@ const resolvePlexServerUrlForVerification = async (plexToken, config = {}, serve
 
 const fetchOwnedPlexServers = async (plexToken) => {
     const response = await fetch('https://plex.tv/pms/servers', {
-        headers: {
-            'X-Plex-Token': plexToken,
-            'Accept': 'application/xml',
-        },
+        headers: plexClientHeaders(plexToken, { Accept: 'application/xml' }),
     });
     if (!response.ok) {
         const errorText = await response.text();
@@ -3891,7 +3891,7 @@ const validatePlexServerAdminToken = async (plexToken, plexServerUrl) => {
     if (!token || !directUrl) return false;
     try {
         const res = await fetchWithTimeout(`${directUrl}/library/sections?X-Plex-Container-Size=1`, {
-            headers: { 'X-Plex-Token': token, Accept: 'application/json' },
+            headers: plexClientHeaders(token),
         }, 6000);
         return res.ok;
     } catch {
@@ -3920,7 +3920,7 @@ const verifyInitialSetupPlexOwner = async (plexToken, serverIdentifier, plexServ
         try {
             const baseUrl = resolveIntegrationUrlForFetch(directUrl);
             const identityRes = await fetchWithTimeout(`${baseUrl}/identity`, {
-                headers: { 'X-Plex-Token': token, Accept: 'application/json' },
+                headers: plexClientHeaders(token),
             }, 6000);
             if (!identityRes.ok) return false;
 
@@ -3956,7 +3956,7 @@ const fetchPlexServerAccounts = async (uri, config) => {
         return cachedPlexAccounts;
     }
     const accountsRes = await fetchWithTimeout(`${uri}/accounts?X-Plex-Token=${config.plexToken}`, {
-        headers: { Accept: 'application/json' },
+        headers: plexClientHeaders(config.plexToken),
     }, 8000).then(r => r.json()).catch(() => null);
 
     const accounts = accountsRes?.MediaContainer?.Account || [];
@@ -4022,7 +4022,7 @@ const getPlexConnectionUri = async (config) => {
         if (normalized) {
             try {
                 const probe = await fetchWithTimeout(`${normalized}/identity`, {
-                    headers: { 'X-Plex-Token': config.plexToken, Accept: 'application/json' },
+                    headers: plexClientHeaders(config.plexToken),
                 }, 4000);
                 if (probe.ok) {
                     cachedPlexConnectionUri = normalized;
@@ -4037,11 +4037,7 @@ const getPlexConnectionUri = async (config) => {
     }
 
     const response = await fetchWithTimeout('https://plex.tv/api/v2/resources?includeHttps=1', {
-        headers: {
-            'X-Plex-Token': config.plexToken,
-            'X-Plex-Client-Identifier': CLIENT_ID,
-            'Accept': 'application/json'
-        }
+        headers: plexClientHeaders(config.plexToken)
     }, 20000);
     if (!response.ok) throw new Error('Failed to fetch resources from Plex.tv');
     const resources = await response.json();
@@ -4065,7 +4061,7 @@ const listPlexLibrariesForConfig = async (config) => {
 
     const sectionsRes = await fetchWithTimeout(
         `${uri}/library/sections?X-Plex-Token=${encodeURIComponent(token)}`,
-        { headers: { Accept: 'application/json' } },
+        { headers: plexClientHeaders(config.plexToken) },
         15000,
     ).then((r) => r.json()).catch(() => null);
 
@@ -4167,7 +4163,7 @@ const buildPlexStatsCache = async () => {
         const timer = setTimeout(() => controller.abort(), 600000); // 10 min hard cap
 
         const sectionsRes = await fetch(`${uri}/library/sections`, {
-            headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' },
+            headers: plexClientHeaders(config.plexToken),
             signal: controller.signal
         });
         if (!sectionsRes.ok) throw new Error(`Sections request failed: ${sectionsRes.status}`);
@@ -4194,7 +4190,7 @@ const buildPlexStatsCache = async () => {
                 // ── Item count (single zero-size request) ──
                 const countRes = await fetch(
                     `${uri}/library/sections/${dir.key}/all?X-Plex-Container-Start=0&X-Plex-Container-Size=0`,
-                    { headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' }, signal: controller.signal }
+                    { headers: plexClientHeaders(config.plexToken), signal: controller.signal }
                 );
                 if (countRes.ok) {
                     const { MediaContainer: mc } = await countRes.json();
@@ -4209,7 +4205,7 @@ const buildPlexStatsCache = async () => {
                         // Also fetch album count (type 9)
                         const albCountRes = await fetch(
                             `${uri}/library/sections/${dir.key}/all?type=9&X-Plex-Container-Start=0&X-Plex-Container-Size=1`,
-                            { headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' }, signal: controller.signal }
+                            { headers: plexClientHeaders(config.plexToken), signal: controller.signal }
                         );
                         if (albCountRes.ok) {
                             const { MediaContainer: albMc } = await albCountRes.json();
@@ -4227,7 +4223,7 @@ const buildPlexStatsCache = async () => {
                 while (true) {
                     const pageRes = await fetch(
                         `${uri}/library/sections/${dir.key}/all${typeParam}&X-Plex-Container-Start=${start}&X-Plex-Container-Size=${PAGE}`,
-                        { headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' }, signal: controller.signal }
+                        { headers: plexClientHeaders(config.plexToken), signal: controller.signal }
                     );
                     if (!pageRes.ok) break;
                     const { MediaContainer: { Metadata: items = [] } } = await pageRes.json();
@@ -4540,7 +4536,7 @@ const resolveNewsletterTestRecipient = async (config, actor = {}) => {
     if (String(config?.mediaServerType || 'plex').toLowerCase() !== 'plex') return '';
     try {
         const userRes = await fetch('https://plex.tv/api/v2/user', {
-            headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' }
+            headers: plexClientHeaders(config.plexToken)
         });
         if (userRes.ok) {
             const userData = await userRes.json();
@@ -4582,7 +4578,7 @@ const generateNewsletterHtml = async (config, options = {}) => {
         } else {
             try {
             const serverRes = await fetch(`${uri}/?X-Plex-Token=${config.plexToken}`, {
-                headers: { 'Accept': 'application/json' }
+                headers: plexClientHeaders(config.plexToken)
             });
             const serverData = await serverRes.json();
             if (serverData?.MediaContainer?.friendlyName) {
@@ -4642,7 +4638,7 @@ const generateNewsletterHtml = async (config, options = {}) => {
             }));
         } else {
             const recentRes = await fetch(`${uri}/library/recentlyAdded?X-Plex-Container-Start=0&X-Plex-Container-Size=100`, {
-                headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' }
+                headers: plexClientHeaders(config.plexToken)
             });
             const recentData = await recentRes.json();
             const items = recentData.MediaContainer.Metadata || [];
@@ -4992,7 +4988,7 @@ app.post('/api/plex/servers', setupRateLimit, async (req, res) => {
             try {
                 const baseUrl = resolveIntegrationUrlForFetch(directUrl);
                 const identityRes = await fetchWithTimeout(`${baseUrl}/identity`, {
-                    headers: { 'X-Plex-Token': normalizedToken, Accept: 'application/json' },
+                    headers: plexClientHeaders(normalizedToken),
                 }, 6000);
                 if (identityRes.ok) {
                     const identityText = await identityRes.text();
@@ -6336,7 +6332,7 @@ app.get('/api/discovery/library-link', requireAuth, requireMember, async (req, r
 
         for (const guid of guidCandidates) {
             const lookupUrl = `${uri}/library/all?type=${plexType}&guid=${encodeURIComponent(guid)}&includeGuids=1&X-Plex-Token=${encodeURIComponent(config.plexToken)}`;
-            const response = await fetchWithTimeout(lookupUrl, { headers: { Accept: 'application/json' } }, 12000).catch(() => null);
+            const response = await fetchWithTimeout(lookupUrl, { headers: plexClientHeaders(config.plexToken) }, 12000).catch(() => null);
             if (!response?.ok) continue;
             const payload = await response.json().catch(() => null);
             const meta = payload?.MediaContainer?.Metadata?.[0];
@@ -6349,7 +6345,7 @@ app.get('/api/discovery/library-link', requireAuth, requireMember, async (req, r
         if (!ratingKey) {
             const sectionsRes = await fetchWithTimeout(
                 `${uri}/library/sections?X-Plex-Token=${encodeURIComponent(config.plexToken)}`,
-                { headers: { Accept: 'application/json' } },
+                { headers: plexClientHeaders(config.plexToken) },
                 12000,
             ).catch(() => null);
             const sections = sectionsRes?.ok ? (await sectionsRes.json().catch(() => null))?.MediaContainer?.Directory || [] : [];
@@ -6358,7 +6354,7 @@ app.get('/api/discovery/library-link', requireAuth, requireMember, async (req, r
                 if (String(section?.type || '') !== wantedType) continue;
                 for (const guid of guidCandidates) {
                     const sectionLookup = `${uri}/library/sections/${encodeURIComponent(section.key)}/all?type=${plexType}&guid=${encodeURIComponent(guid)}&includeGuids=1&X-Plex-Token=${encodeURIComponent(config.plexToken)}`;
-                    const response = await fetchWithTimeout(sectionLookup, { headers: { Accept: 'application/json' } }, 12000).catch(() => null);
+                    const response = await fetchWithTimeout(sectionLookup, { headers: plexClientHeaders(config.plexToken) }, 12000).catch(() => null);
                     if (!response?.ok) continue;
                     const payload = await response.json().catch(() => null);
                     const meta = payload?.MediaContainer?.Metadata?.[0];
@@ -6374,7 +6370,7 @@ app.get('/api/discovery/library-link', requireAuth, requireMember, async (req, r
         // Title search fallback (availability can come from Sonarr before Seerr has a ratingKey)
         if (!ratingKey && title) {
             const searchUrl = `${uri}/hubs/search?query=${encodeURIComponent(title)}&limit=30&includeGuids=1&X-Plex-Token=${encodeURIComponent(config.plexToken)}`;
-            const searchRes = await fetchWithTimeout(searchUrl, { headers: { Accept: 'application/json' } }, 15000).catch(() => null);
+            const searchRes = await fetchWithTimeout(searchUrl, { headers: plexClientHeaders(config.plexToken) }, 15000).catch(() => null);
             const hubs = searchRes?.ok
                 ? ((await searchRes.json().catch(() => null))?.MediaContainer?.Hub || [])
                 : [];
@@ -6770,10 +6766,7 @@ app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
 
     try {
         const pinRes = await fetch(`https://plex.tv/api/v2/pins/${pinId}`, {
-            headers: {
-                'Accept': 'application/json',
-                'X-Plex-Client-Identifier': CLIENT_ID
-            }
+            headers: plexClientHeaders()
         });
         const pinData = await pinRes.json();
 
@@ -6784,10 +6777,7 @@ app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
         const config = await loadFile(CONFIG_PATH, {});
         // Validate user with Plex
         const plexRes = await fetch('https://plex.tv/api/v2/user', {
-            headers: {
-                'X-Plex-Token': pinData.authToken,
-                'Accept': 'application/json'
-            }
+            headers: plexClientHeaders(pinData.authToken)
         });
         if (!plexRes.ok) return res.status(401).json({ error: 'Invalid Plex token' });
 
@@ -7602,12 +7592,12 @@ async function getAdminProfile(config) {
     }
 
     try {
-        const userRes = await fetch('https://plex.tv/api/v2/user', { headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' } }).then(r => r.json());
+        const userRes = await fetch('https://plex.tv/api/v2/user', { headers: plexClientHeaders(config.plexToken) }).then(r => r.json());
 
         let serverName = 'Server Portal';
         const uri = await getPlexConnectionUri(config);
         if (uri) {
-            const serverRes = await fetch(`${uri}/?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+            const serverRes = await fetch(`${uri}/?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
             if (serverRes && serverRes.MediaContainer && serverRes.MediaContainer.friendlyName) {
                 serverName = serverRes.MediaContainer.friendlyName;
             }
@@ -8068,7 +8058,7 @@ app.get('/api/plex/item/:ratingKey', requireAuth, requireMember, async (req, res
         const uri = await getPlexConnectionUri(config);
         if (!uri) return res.status(503).json({ error: 'Cannot connect to Plex' });
 
-        const metaRes = await fetch(`${uri}/library/metadata/${encodeURIComponent(ratingKey)}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+        const metaRes = await fetch(`${uri}/library/metadata/${encodeURIComponent(ratingKey)}?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
         
         if (!metaRes || !metaRes.MediaContainer || !metaRes.MediaContainer.Metadata || !metaRes.MediaContainer.Metadata[0]) {
             return res.status(404).json({ error: 'Item not found' });
@@ -8197,7 +8187,7 @@ const fetchPlexMetadataMap = async (uri, config, ratingKeys = []) => {
     for (let i = 0; i < unique.length; i += chunkSize) {
         const chunk = unique.slice(i, i + chunkSize);
         const res = await fetch(`${uri}/library/metadata/${chunk.join(',')}?X-Plex-Token=${config.plexToken}`, {
-            headers: { Accept: 'application/json' }
+            headers: plexClientHeaders(config.plexToken)
         }).then((r) => r.json()).catch(() => null);
         const metas = res?.MediaContainer?.Metadata || [];
         for (const meta of metas) {
@@ -8246,8 +8236,8 @@ app.get('/api/plex/dashboard', requireAuth, requireMember, async (req, res) => {
 
         const cacheKey = `plex_dashboard_data_${limit}`;
         const cachedData = await withCache(cacheKey, 800, async () => {
-            const sessionsPromise = fetch(`${uri}/status/sessions?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
-            const sectionsPromise = fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+            const sessionsPromise = fetch(`${uri}/status/sessions?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
+            const sectionsPromise = fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
             const [sessionsData, sectionsData] = await Promise.all([sessionsPromise, sectionsPromise]);
             return { sessionsData, sectionsData };
         });
@@ -8313,7 +8303,7 @@ app.get('/api/plex/dashboard', requireAuth, requireMember, async (req, res) => {
         if (sectionsData && sectionsData.MediaContainer && sectionsData.MediaContainer.Directory) {
             const sections = sectionsData.MediaContainer.Directory;
             const sectionPromises = sections.map(section =>
-                fetch(`${uri}/library/sections/${section.key}/recentlyAdded?X-Plex-Token=${config.plexToken}&X-Plex-Container-Start=0&X-Plex-Container-Size=${limit}`, { headers: { 'Accept': 'application/json' } })
+                fetch(`${uri}/library/sections/${section.key}/recentlyAdded?X-Plex-Token=${config.plexToken}&X-Plex-Container-Start=0&X-Plex-Container-Size=${limit}`, { headers: plexClientHeaders(config.plexToken) })
                     .then(r => r.json())
                     .then(data => ({ sectionType: section.type, data }))
                     .catch(() => ({ sectionType: section.type, data: null }))
@@ -8392,7 +8382,7 @@ app.get('/api/plex/discover-search', requireAuth, requireAdmin, async (req, res)
         if (!query) return res.json({ results: [] });
 
         // Search Plex Hubs
-        const searchRes = await fetch(`${uri}/hubs/search?query=${encodeURIComponent(query)}&limit=20&X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json());
+        const searchRes = await fetch(`${uri}/hubs/search?query=${encodeURIComponent(query)}&limit=20&X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json());
         
         let searchResults = [];
         if (searchRes && searchRes.MediaContainer && searchRes.MediaContainer.Hub) {
@@ -8442,7 +8432,7 @@ app.get('/api/plex/discover-search', requireAuth, requireAdmin, async (req, res)
                 } else {
                     const filterKey = item.type === 'show' ? 'grandparentID' : 'metadataItemID';
                     const fetchUrl = `${uri}/status/sessions/history/all?sort=viewedAt%3Adesc&${filterKey}=${item.ratingKey}&X-Plex-Token=${config.plexToken}`;
-                    const resData = await fetch(fetchUrl, { headers: { 'Accept': 'application/json' } }).then(r => r.json());
+                    const resData = await fetch(fetchUrl, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json());
                     if (resData && resData.MediaContainer && resData.MediaContainer.Metadata) {
                         item.history = resData.MediaContainer.Metadata.map(h => ({
                             user: (h.User && h.User.title) ? h.User.title : 'Unknown User',
@@ -8718,7 +8708,7 @@ app.get('/api/streams/watching-count', requireAuth, requireMember, async (req, r
         if (!uri) return res.json({ count: 0, available: false });
 
         const count = await withCache('plex_watching_count', 8000, async () => {
-            const sessionsData = await fetch(`${uri}/status/sessions?X-Plex-Token=${config.plexToken}`, { headers: { Accept: 'application/json' } })
+            const sessionsData = await fetch(`${uri}/status/sessions?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) })
                 .then((r) => r.json())
                 .catch(() => null);
             const activeSessions = Array.isArray(sessionsData?.MediaContainer?.Metadata)
@@ -8743,7 +8733,7 @@ app.post('/api/streams/kill', requireAdmin, async (req, res) => {
 
         const response = await fetch(`${uri}/status/sessions/terminate?sessionId=${encodeURIComponent(sessionId)}&reason=${encodeURIComponent(reason || 'Admin terminated session')}&X-Plex-Token=${config.plexToken}`, {
             method: 'GET',
-            headers: { 'Accept': 'application/json' }
+            headers: plexClientHeaders(config.plexToken)
         });
 
         if (response.ok) {
@@ -9660,7 +9650,7 @@ const fetchPlexAccountHistory = async (uri, config, accountID, { maxItems = 2500
     while (start < maxItems) {
         const pageRes = await fetch(
             `${uri}/status/sessions/history/all?accountID=${accountID}&X-Plex-Token=${config.plexToken}&sort=viewedAt:desc&X-Plex-Container-Start=${start}&X-Plex-Container-Size=${pageSize}`,
-            { headers: { Accept: 'application/json' } },
+            { headers: plexClientHeaders(config.plexToken) },
         ).then((r) => r.json()).catch(() => null);
 
         const pageContainer = pageRes?.MediaContainer;
@@ -9794,7 +9784,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
         }
 
         const historyItems = await fetchPlexAccountHistory(uri, config, accountID);
-        const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+        const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
 
         if (!historyItems.length) {
             return res.json({ totalPlays: 0, topLibraries: [], topWatched: [], topMusic: [], recentHistory: [] });
@@ -9952,7 +9942,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
 
                 let data = plexMetadataCache.get(metaPath);
                 if (!data) {
-                    const metaRes = await fetch(`${uri}${metaPath}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+                    const metaRes = await fetch(`${uri}${metaPath}?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
                     if (metaRes && metaRes.MediaContainer && metaRes.MediaContainer.Metadata && metaRes.MediaContainer.Metadata[0]) {
                         data = metaRes.MediaContainer.Metadata[0];
                         plexMetadataCache.set(metaPath, data);
@@ -10004,7 +9994,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
 
                 let data = plexMetadataCache.get(metaPath);
                 if (!data) {
-                    const metaRes = await fetch(`${uri}${metaPath}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+                    const metaRes = await fetch(`${uri}${metaPath}?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
                     if (metaRes && metaRes.MediaContainer && metaRes.MediaContainer.Metadata && metaRes.MediaContainer.Metadata[0]) {
                         data = metaRes.MediaContainer.Metadata[0];
                         plexMetadataCache.set(metaPath, data);
@@ -10273,8 +10263,8 @@ app.get('/api/plex/analytics/user/:id', requireAdmin, async (req, res) => {
         const accountID = req.params.id;
         const limit = req.query.days === 'all' ? 999999 : 5000;
 
-        const historyRes = await fetch(`${uri}/status/sessions/history/all?accountID=${accountID}&X-Plex-Token=${config.plexToken}&sort=viewedAt:desc&limit=${limit}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
-        const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+        const historyRes = await fetch(`${uri}/status/sessions/history/all?accountID=${accountID}&X-Plex-Token=${config.plexToken}&sort=viewedAt:desc&limit=${limit}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
+        const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
 
         if (!historyRes || !historyRes.MediaContainer || !historyRes.MediaContainer.Metadata) {
             return res.json({ totalPlays: 0, topLibraries: [], topWatched: [], topMusic: [], recentHistory: [] });
@@ -10845,7 +10835,7 @@ const checkAndCleanupInactive = async (config) => {
 
         try {
             // Get last session from Plex directly
-            const historyRes = await fetch(`${uri}/status/sessions/history/all?X-Plex-Token=${config.plexToken}&accountID=${plexUserId}&sort=viewedAt:desc&limit=1`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+            const historyRes = await fetch(`${uri}/status/sessions/history/all?X-Plex-Token=${config.plexToken}&accountID=${plexUserId}&sort=viewedAt:desc&limit=1`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
 
             let lastWatchedMs = 0;
             if (historyRes && historyRes.MediaContainer && historyRes.MediaContainer.Metadata && historyRes.MediaContainer.Metadata.length > 0) {
@@ -12470,7 +12460,7 @@ async function calculateAnalyticsStats() {
         while (start < maxHistoryItems) {
             const pageRes = await fetch(
                 `${uri}/status/sessions/history/all?X-Plex-Token=${config.plexToken}&sort=viewedAt:desc&X-Plex-Container-Start=${start}&X-Plex-Container-Size=${pageSize}`,
-                { headers: { 'Accept': 'application/json' } }
+                { headers: plexClientHeaders(config.plexToken) }
             ).then(r => r.json()).catch(() => null);
 
             const pageContainer = pageRes && pageRes.MediaContainer ? pageRes.MediaContainer : null;
@@ -12488,9 +12478,9 @@ async function calculateAnalyticsStats() {
             log(`Analytics history fetch reached safety cap (${maxHistoryItems}). Results may be truncated.`);
         }
 
-        const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
-        const accountsRes = await fetch(`${uri}/accounts?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
-        const devicesRes = await fetch(`${uri}/devices?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+        const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
+        const accountsRes = await fetch(`${uri}/accounts?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
+        const devicesRes = await fetch(`${uri}/devices?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
         const users = await loadFile(USERS_PATH, []);
 
         if (!Array.isArray(historyItems) || historyItems.length === 0) {
@@ -12517,7 +12507,7 @@ async function calculateAnalyticsStats() {
             if (c.thumb) c.thumbUrl = plexImageUrl(c.thumb);
             try {
                 const metadataId = c.key.split('/').pop();
-                const metaRes = await fetch(`${uri}/library/metadata/${metadataId}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+                const metaRes = await fetch(`${uri}/library/metadata/${metadataId}?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
                 if (metaRes && metaRes.MediaContainer && metaRes.MediaContainer.Metadata && metaRes.MediaContainer.Metadata.length > 0) {
                     const meta = metaRes.MediaContainer.Metadata[0];
                     c.summary = meta.summary || '';
@@ -12609,7 +12599,7 @@ async function calculateTrendingStats() {
         log('Starting background calculation of Plex Trending Stats...');
 
         // Fetch up to 10,000 most recent history items
-        const response = await fetch(`${uri}/status/sessions/history/all?sort=viewedAt%3Adesc&limit=10000&X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).catch(() => null);
+        const response = await fetch(`${uri}/status/sessions/history/all?sort=viewedAt%3Adesc&limit=10000&X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).catch(() => null);
         if (!response) {
             markTaskEnd(systemJobs.trendingCache, null);
             return;
@@ -13138,7 +13128,7 @@ const enrichShowItemsWithEpisodeStats = async (uri, config, items = []) => {
     for (const show of shows) {
         try {
             const res = await fetch(`${uri}/library/metadata/${show.ratingKey}/allLeaves?X-Plex-Token=${config.plexToken}`, {
-                headers: { Accept: 'application/json' },
+                headers: plexClientHeaders(config.plexToken),
             }).then((r) => r.json()).catch(() => null);
             const leaves = res?.MediaContainer?.Metadata || [];
             let nonHevc = 0;
@@ -13325,7 +13315,7 @@ const mapPlexEpisodeLeaf = (config, leaf = {}, showTitle = '') => {
 const fetchPlexShowEpisodes = async (config, uri, showItem = {}) => {
     const response = await fetchWithTimeout(
         `${uri}/library/metadata/${showItem.ratingKey}/allLeaves?X-Plex-Token=${config.plexToken}`,
-        { headers: { Accept: 'application/json' } },
+        { headers: plexClientHeaders(config.plexToken) },
         20000,
     ).catch(() => null);
     const res = response?.ok ? await response.json().catch(() => null) : null;
@@ -15112,7 +15102,7 @@ const fetchMaintenanceWatchStats = async (config, uri) => {
     while (start < maxHistoryItems) {
         const pageRes = await fetch(
             `${uri}/status/sessions/history/all?X-Plex-Token=${config.plexToken}&sort=viewedAt:desc&X-Plex-Container-Start=${start}&X-Plex-Container-Size=${pageSize}`,
-            { headers: { Accept: 'application/json' } }
+            { headers: plexClientHeaders(config.plexToken) }
         ).then(r => r.json()).catch(() => null);
 
         const pageContainer = pageRes?.MediaContainer || {};
@@ -15184,7 +15174,7 @@ const extractMaintenanceRatings = (media = {}) => {
 
 const fetchPlexLibraryItemsForMaintenance = async (config, uri) => {
     const watchStats = await fetchMaintenanceWatchStats(config, uri);
-    const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { Accept: 'application/json' } })
+    const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) })
         .then(r => r.json())
         .catch(() => null);
     const sections = sectionsRes?.MediaContainer?.Directory || [];
@@ -15199,7 +15189,7 @@ const fetchPlexLibraryItemsForMaintenance = async (config, uri) => {
         let total = Infinity;
         while (start < total) {
             const listRes = await fetch(`${uri}/library/sections/${sectionKey}/all?X-Plex-Token=${config.plexToken}&X-Plex-Container-Start=${start}&X-Plex-Container-Size=${pageSize}`, {
-                headers: { Accept: 'application/json' }
+                headers: plexClientHeaders(config.plexToken)
             }).then(r => r.json()).catch(() => null);
             const container = listRes?.MediaContainer || {};
             const page = container.Metadata || [];
@@ -15552,7 +15542,7 @@ const applyArrActions = async (config, resolved, actions = {}) => {
 const resolveCollectionRatingKey = async (config, uri, libraryId, title) => {
     try {
         const payload = await fetch(`${uri}/library/sections/${encodeURIComponent(libraryId)}/collections?X-Plex-Token=${encodeURIComponent(config.plexToken)}`, {
-            headers: { Accept: 'application/json' }
+            headers: plexClientHeaders(config.plexToken)
         }).then(r => r.json()).catch(() => null);
         const collections = Array.isArray(payload?.MediaContainer?.Metadata) ? payload.MediaContainer.Metadata : [];
         const needle = String(title || '').trim().toLowerCase();
@@ -15568,7 +15558,7 @@ const pinCollectionToHome = async (config, uri, libraryId, collectionRatingKey, 
     if (!pinToHomeForAllUsers || !libraryId || !collectionRatingKey) return { pinned: false };
     try {
         const hubManageUrl = `${uri}/hubs/sections/${encodeURIComponent(libraryId)}/manage?metadataItemId=${encodeURIComponent(collectionRatingKey)}&promotedToRecommended=1&promotedToOwnHome=1&promotedToSharedHome=1&X-Plex-Token=${encodeURIComponent(config.plexToken)}`;
-        const res = await fetch(hubManageUrl, { method: 'PUT', headers: { Accept: 'application/json' } }).catch(() => null);
+        const res = await fetch(hubManageUrl, { method: 'PUT', headers: plexClientHeaders(config.plexToken) }).catch(() => null);
         return { pinned: !!(res && res.ok), status: res?.status || null };
     } catch (e) {
         return { pinned: false, error: e.message };
@@ -15598,7 +15588,7 @@ const syncRulePlexCollection = async (config, uri, rule, items, options = {}) =>
         if (!uniqueKeys.length) continue;
         const sourceUri = `server://${config.serverIdentifier}/com.plexapp.plugins.library/library/metadata/${uniqueKeys.join(',')}`;
         const targetUrl = `${uri}/library/collections?title=${encodeURIComponent(title)}&type=${typeId}&smart=0&sectionId=${encodeURIComponent(libraryId)}&uri=${encodeURIComponent(sourceUri)}&X-Plex-Token=${encodeURIComponent(config.plexToken)}`;
-        const createRes = await fetch(targetUrl, { method: 'POST', headers: { Accept: 'application/json' } }).catch(() => null);
+        const createRes = await fetch(targetUrl, { method: 'POST', headers: plexClientHeaders(config.plexToken) }).catch(() => null);
         if (createRes && (createRes.ok || createRes.status === 201 || createRes.status === 200)) {
             updated += 1;
             if (pinToHomeForAllUsers) {
@@ -17386,7 +17376,7 @@ async function evaluateKillRules(config, uri, sessions) {
                 const msg = killMessage || `Your stream has been stopped by the server administrator (Rule: ${name || 'Unnamed'}).`;
                 try {
                     const killRes = await fetch(`${uri}/status/sessions/terminate?sessionId=${encodeURIComponent(session.sessionId)}&reason=${encodeURIComponent(msg)}&X-Plex-Token=${config.plexToken}`, {
-                        method: 'GET', headers: { 'Accept': 'application/json' }
+                        method: 'GET', headers: plexClientHeaders(config.plexToken)
                     });
                     if (killRes.ok || killRes.status === 204) {
                         log(`[KillRules] Terminated session for "${session.user || 'Unknown'}" via rule "${name || 'Unnamed'}". Reason: ${msg}`);
@@ -17454,7 +17444,7 @@ async function monitorConcurrentSessions() {
         const uri = await getPlexConnectionUri(config);
         if (!uri) return;
 
-        const sessionsRes = await fetch(`${uri}/status/sessions?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+        const sessionsRes = await fetch(`${uri}/status/sessions?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
 
         if (sessionsRes && sessionsRes.MediaContainer) {
             const currentStreams = sessionsRes.MediaContainer.size || 0;
@@ -17549,16 +17539,25 @@ app.listen(PORT, BIND_HOST, async () => {
 
     await migrateConfigFiles((message) => log(`[config] ${message}`));
 
-    // Ensure unique CLIENT_ID per installation to avoid Plex Auth blocking
+    // Ensure unique, *stable* CLIENT_ID per installation (survives Docker recreates).
+    // Without this, PMS may register the container hostname (e.g. 151a94f8…) as a new device each restart.
     let config = await loadFile(CONFIG_PATH, {});
     await syncAdminPlexIdFromConfigToken(config, { persist: true });
-    if (!config.clientId || config.clientId.startsWith('smp-')) {
+    if (!config.clientId || config.clientId.startsWith('smp-') || config.clientId === 'plex-expiry-manager-client-id') {
         config.clientId = randomUUID();
         await saveFile(CONFIG_PATH, config);
+        log(`Generated stable Plex clientId ${config.clientId}`);
     }
     if (!process.env.CLIENT_ID) {
         CLIENT_ID = config.clientId;
+    } else {
+        CLIENT_ID = process.env.CLIENT_ID;
+        if (config.clientId !== CLIENT_ID) {
+            config.clientId = CLIENT_ID;
+            await saveFile(CONFIG_PATH, config);
+        }
     }
+    log(`Plex client identity: product=Server Manager Portal clientId=${String(CLIENT_ID).slice(0, 8)}…`);
 
     await loadStatusState();
     runMonitorCycle();
