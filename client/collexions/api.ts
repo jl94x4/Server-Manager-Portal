@@ -19,6 +19,17 @@ class CollexionsApiService {
         return apiFetch(base('/auth/status'));
     }
 
+    /** Real portal Plex/TMDB values for seeding Collexions (admin-only; not masked). */
+    async getPortalDefaults(): Promise<{
+        plex_url: string;
+        plex_token: string;
+        tmdb_api_key: string;
+        mediaServerType?: string;
+        sources: { plex: boolean; tmdb: boolean; trakt: boolean; mdblist: boolean };
+    }> {
+        return apiFetch(base('/portal-defaults'));
+    }
+
     async getConfig(): Promise<AppConfig> {
         const data = await apiFetch(base('/config'));
         return { ...DEFAULT_CONFIG, ...(data || {}) };

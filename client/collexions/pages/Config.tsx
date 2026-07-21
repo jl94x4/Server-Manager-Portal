@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Card } from '../components/ui/Card';
 import { Input, Switch, CustomSelect } from '../components/ui/Inputs';
 import { AppConfig, CategoryConfig, SpecialCollection } from '../types';
 import { api } from '../api';
-import { Save, Plus, Trash2, AlertCircle, ShieldAlert, CheckCircle, Sliders, RefreshCw, Power, Info, HelpCircle } from 'lucide-react';
+import { Save, Plus, Trash2, AlertCircle, ShieldAlert, CheckCircle, Sliders, RefreshCw, Power, Info, HelpCircle, Upload, Download } from 'lucide-react';
 import { DEFAULT_CONFIG } from '../constants';
+import { buildExportableConfig, parseCollexionsConfigText } from '../configImport';
 
 const ConfigPage: React.FC = () => {
     const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
@@ -15,6 +16,9 @@ const ConfigPage: React.FC = () => {
     const [showRestartBanner, setShowRestartBanner] = useState(false);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [activeTab, setActiveTab] = useState<'general' | 'libraries' | 'exclusions' | 'specials' | 'categories' | 'integrations'>('general');
+    const [importingPortal, setImportingPortal] = useState(false);
+    const [importMessage, setImportMessage] = useState('');
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const isDirty = originalConfig && JSON.stringify(config) !== JSON.stringify(originalConfig);
 
@@ -91,6 +95,71 @@ const ConfigPage: React.FC = () => {
         setRestarting(false);
     };
 
+    const importFromPortal = async (opts?: { overwrite?: boolean }) => {
+        const overwrite = !!opts?.overwrite;
+        setImportingPortal(true);
+        setImportMessage('');
+        try {
+            const defaults = await api.getPortalDefaults();
+            const updates: Partial<AppConfig> = {};
+            const imported: string[] = [];
+            if (defaults.plex_url && (overwrite || !config.plex_url)) {
+                updates.plex_url = defaults.plex_url;
+                imported.push('Plex URL');
+            }
+            if (defaults.plex_token && (overwrite || !config.plex_token)) {
+                updates.plex_token = defaults.plex_token;
+                imported.push('Plex token');
+            }
+            if (defaults.tmdb_api_key && (overwrite || !config.tmdb_api_key)) {
+                updates.tmdb_api_key = defaults.tmdb_api_key;
+                imported.push('TMDB');
+            }
+            if (imported.length === 0) {
+                setImportMessage(defaults.sources?.plex || defaults.sources?.tmdb
+                    ? 'Nothing to import — fields already set. Use overwrite if you want to replace them.'
+                    : 'Portal has no Plex URL/token or TMDB key saved yet.');
+            } else {
+                setConfig((prev) => ({ ...prev, ...updates }));
+                setImportMessage(`Imported from portal: ${imported.join(', ')}. Save Config to apply.`);
+            }
+        } catch (e: any) {
+            setImportMessage(e?.message || 'Failed to import portal settings.');
+        } finally {
+            setImportingPortal(false);
+        }
+    };
+
+    const applyImportedConfigFile = async (file: File) => {
+        setImportMessage('');
+        try {
+            const text = await file.text();
+            const { config: imported, importedKeys, skippedKeys } = parseCollexionsConfigText(text);
+            setConfig(imported);
+            const skipNote = skippedKeys.length
+                ? ` Skipped: ${skippedKeys.slice(0, 6).join(', ')}${skippedKeys.length > 6 ? '…' : ''} (password/unknown fields).`
+                : '';
+            setImportMessage(
+                `Loaded ${importedKeys.length} settings from ${file.name}.${skipNote} Review the tabs, then Save Config to write them to the sidecar.`
+            );
+            setActiveTab('general');
+        } catch (e: any) {
+            setImportMessage(e?.message || 'Failed to import config.json.');
+        } finally {
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const exportConfigFile = () => {
+        const blob = new Blob([JSON.stringify(buildExportableConfig(config), null, 4)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'collexions-config.json';
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
     const updateField = (field: keyof AppConfig, value: any) => {
         setConfig(prev => ({ ...prev, [field]: value }));
     };
@@ -120,7 +189,45 @@ const ConfigPage: React.FC = () => {
                         Manage libraries, exclusions and scheduling
                     </p>
                 </div>
-                <div className="flex flex-col sm:flex-row w-full md:w-auto gap-3">
+                <div className="flex flex-col sm:flex-row w-full md:w-auto gap-3 flex-wrap justify-end">
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="application/json,.json"
+                        className="hidden"
+                        onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) void applyImportedConfigFile(file);
+                        }}
+                    />
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={saving || restarting}
+                        className="flex-1 md:flex-none justify-center flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-slate-200 px-5 py-2.5 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700 shadow-sm"
+                        title="Import a standalone Collexions config.json"
+                    >
+                        <Upload className="w-4 h-4" />
+                        Import config.json
+                    </button>
+                    <button
+                        type="button"
+                        onClick={exportConfigFile}
+                        disabled={saving || restarting}
+                        className="flex-1 md:flex-none justify-center flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-slate-200 px-5 py-2.5 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700 shadow-sm"
+                    >
+                        <Download className="w-4 h-4" />
+                        Export
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => importFromPortal()}
+                        disabled={importingPortal || saving || restarting}
+                        className="flex-1 md:flex-none justify-center flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-slate-200 px-5 py-2.5 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700 shadow-sm"
+                    >
+                        <RefreshCw className={`w-4 h-4 ${importingPortal ? 'animate-spin' : ''}`} />
+                        {importingPortal ? 'Importing…' : 'Import from portal'}
+                    </button>
                     <button
                         onClick={handleSave}
                         disabled={saving || restarting}
@@ -129,6 +236,21 @@ const ConfigPage: React.FC = () => {
                     </button>
                 </div>
             </div>
+
+            {importMessage && (
+                <div className="bg-slate-900/60 border border-slate-700 text-slate-200 px-4 py-3 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-sm">
+                    <span>{importMessage}</span>
+                    {importMessage.includes('already set') && (
+                        <button
+                            type="button"
+                            onClick={() => importFromPortal({ overwrite: true })}
+                            className="text-plex font-semibold hover:underline whitespace-nowrap"
+                        >
+                            Overwrite from portal
+                        </button>
+                    )}
+                </div>
+            )}
 
             {/* Alerts / Feedback Banners */}
             {showRestartBanner && (

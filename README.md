@@ -206,7 +206,7 @@ A powerful, built-in tool for server admins to identify and upgrade sub-optimal 
 
 ### Collexions
 
-Admin-only Plex collection automation. The portal ships the React UI; a **Collexions Flask sidecar** runs the worker (`ColleXions.py`). Enable under **Settings → Collexions**, point Internal URL at the sidecar (typically `http://collexions:5000`), and set a shared service key. Portal SSO replaces Collexions login — configure Plex and integrations in onboarding/config only.
+Admin-only Plex collection automation. The portal ships the React UI; a **Collexions Flask sidecar** runs the worker (`ColleXions.py`). Enable under **Settings → Collexions**, point Internal URL at the sidecar (typically `http://collexions:5000`), and set a shared service key. Portal SSO replaces Collexions login. Onboarding (and Config → Import from portal) auto-fills Plex URL/token and TMDB from portal Settings when available; Trakt/MDBList are still entered in Collexions if you use them. Migrating from standalone Collexions: use **Config → Import config.json** with your existing file, review, then **Save Config**.
 
 ---
 

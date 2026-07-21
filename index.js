@@ -15670,6 +15670,31 @@ const requireCollexions = async (req, res, next) => {
     }
 };
 
+/** Seed Collexions forms from portal-stored Plex/TMDB credentials (admin only). Must be registered before the catch-all proxy. */
+app.get('/api/collexions/portal-defaults', requireAdmin, requireCollexions, async (req, res) => {
+    try {
+        const config = req.collexionsConfig || await loadFile(CONFIG_PATH, {});
+        const plexUrl = resolveConfiguredPlexServerUrl(config);
+        const plexToken = String(config.plexToken || '').trim();
+        const tmdbApiKey = String(config.tmdbApiKey || '').trim();
+        const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
+        return res.json({
+            plex_url: plexUrl || '',
+            plex_token: plexToken || '',
+            tmdb_api_key: tmdbApiKey || '',
+            mediaServerType,
+            sources: {
+                plex: !!(plexUrl && plexToken && mediaServerType === 'plex'),
+                tmdb: !!tmdbApiKey,
+                trakt: false,
+                mdblist: false,
+            },
+        });
+    } catch (e) {
+        return res.status(500).json({ error: e.message || 'Failed to load portal defaults.' });
+    }
+});
+
 /** Proxy /api/collexions/* → Collexions Flask sidecar with portal admin SSO. */
 app.all('/api/collexions/*', requireAdmin, requireCollexions, async (req, res) => {
     try {

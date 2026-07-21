@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Server,
@@ -33,6 +33,41 @@ const Onboarding: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
+    const [importedFromPortal, setImportedFromPortal] = useState<string[]>([]);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const defaults = await api.getPortalDefaults();
+                if (cancelled) return;
+                const imported: string[] = [];
+                const updates: Partial<AppConfig> = {};
+                const emptyUrl = !config.plex_url || config.plex_url === 'http://';
+                if (emptyUrl && defaults.plex_url) {
+                    updates.plex_url = defaults.plex_url;
+                    imported.push('Plex URL');
+                }
+                if (!config.plex_token && defaults.plex_token) {
+                    updates.plex_token = defaults.plex_token;
+                    imported.push('Plex token');
+                }
+                if (!config.tmdb_api_key && defaults.tmdb_api_key) {
+                    updates.tmdb_api_key = defaults.tmdb_api_key;
+                    imported.push('TMDB');
+                }
+                if (Object.keys(updates).length) {
+                    setConfig((prev) => ({ ...prev, ...updates }));
+                    setImportedFromPortal(imported);
+                }
+            } catch {
+                // Portal defaults are optional; user can still enter values manually.
+            }
+        })();
+        return () => { cancelled = true; };
+        // Seed once on mount from portal settings.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const steps = [
         { title: 'Welcome', icon: Shield },
@@ -134,6 +169,15 @@ const Onboarding: React.FC = () => {
                                 You're just a few steps away from automating your Plex collections and bringing trending content directly to your home screen.
                             </p>
                         </div>
+                        {importedFromPortal.length > 0 && (
+                            <div className="flex items-start gap-3 p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-200 text-sm">
+                                <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                                <p>
+                                    Pre-filled from portal settings: <span className="font-semibold">{importedFromPortal.join(', ')}</span>.
+                                    Trakt and MDBList still need to be entered if you use them.
+                                </p>
+                            </div>
+                        )}
                         <div className="grid grid-cols-1 gap-4 mt-8">
                             {[
                                 { title: 'Automated Sync', desc: 'Sync Trakt and TMDb lists to Plex effortlessly.', color: 'text-plex' },
@@ -156,6 +200,12 @@ const Onboarding: React.FC = () => {
             case 'plex':
                 return (
                     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                        {importedFromPortal.some((label) => label.startsWith('Plex')) && (
+                            <div className="flex items-start gap-3 p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-200 text-xs">
+                                <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                <p>Plex URL/token were copied from portal Settings. Confirm they’re reachable from the Collexions sidecar, then test connection.</p>
+                            </div>
+                        )}
                         <div className="space-y-2">
                             <label className="text-sm font-semibold text-slate-300 ml-1">Plex Server URL</label>
                             <input
@@ -226,6 +276,12 @@ const Onboarding: React.FC = () => {
                             <h3 className="text-lg font-bold text-white">External Integrations</h3>
                             <p className="text-sm text-slate-400">These are optional, but required for trending lists and the Collection Creator.</p>
                         </div>
+                        {importedFromPortal.includes('TMDB') && (
+                            <div className="flex items-start gap-3 p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-200 text-xs">
+                                <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                <p>TMDB key was copied from portal Settings. Trakt Client ID and MDBList are not stored in the portal — add those here if needed.</p>
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-1 gap-4">
                             <div className="space-y-2 p-4 bg-slate-900/50 rounded-2xl border border-slate-800">
