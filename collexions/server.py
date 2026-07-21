@@ -433,6 +433,19 @@ def get_template_by_id(template_id):
     return None
 
 
+def franchise_collection_title(name):
+    """Normalize franchise names to 'The X Collection' when TMDB/template omits it."""
+    title = str(name or '').strip()
+    if not title:
+        return title
+    # TMDB often already returns "Shrek Collection" / "The Dark Knight Collection"
+    if re.search(r'\bcollections?\b', title, re.I):
+        return title
+    if re.match(r'^the\s+', title, re.I):
+        return f'{title} Collection'
+    return f'The {title} Collection'
+
+
 def _build_library_tmdb_cache(library):
     """Map tmdb id string → Plex item for fast matching (full library scan — expensive)."""
     cache = {}
@@ -2565,6 +2578,7 @@ def create_from_template():
     sort_order = str(data.get('sort_order') or 'custom').strip() or 'custom'
     auto_sync = data.get('auto_sync', True)
 
+    is_franchise = False
     if template_id:
         tpl = get_template_by_id(template_id)
         if not tpl:
@@ -2572,6 +2586,7 @@ def create_from_template():
         title = title or tpl['name']
         source_type = tpl['source_type']
         source_id = tpl.get('source_id') or ''
+        is_franchise = tpl.get('category') == 'franchise' or source_type == 'tmdb_collection'
         if not data.get('sort_order'):
             sort_order = tpl.get('default_sort') or 'custom'
         requires = tpl.get('requires') or []
@@ -2584,8 +2599,13 @@ def create_from_template():
         # Ad-hoc (e.g. franchise search result)
         if source_type == 'tmdb_collection' and not source_id:
             return jsonify({'success': False, 'error': 'Missing franchise collection id.'}), 400
+        is_franchise = source_type == 'tmdb_collection'
     else:
         return jsonify({'success': False, 'error': 'Provide template_id or source_type + title.'}), 400
+
+    # Franchises should read as collections in Plex ("The Shrek Collection"), not bare "Shrek".
+    if is_franchise:
+        title = franchise_collection_title(title)
 
     result = create_collection_from_source(
         library_name=library_name,
