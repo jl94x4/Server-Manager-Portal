@@ -29,15 +29,17 @@ CORS(app)
 # --- Configuration ---
 SCRIPT_NAME = "ColleXions.py"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE = os.path.join(BASE_DIR, "config", "config.json")
-HISTORY_FILE = os.path.join(BASE_DIR, "config", "history.json")
-MANAGED_COLLECTIONS_FILE = os.path.join(BASE_DIR, "config", "managed_collections.json")
-LOGS_DIR = os.path.join(BASE_DIR, "logs")
+# Portal embeds the worker and sets COLLEXIONS_DATA_DIR to persist under the portal config volume.
+_DATA_ROOT = os.environ.get('COLLEXIONS_DATA_DIR', '').strip() or BASE_DIR
+CONFIG_FILE = os.path.join(_DATA_ROOT, "config", "config.json")
+HISTORY_FILE = os.path.join(_DATA_ROOT, "config", "history.json")
+MANAGED_COLLECTIONS_FILE = os.path.join(_DATA_ROOT, "config", "managed_collections.json")
+LOGS_DIR = os.path.join(_DATA_ROOT, "logs")
 LOG_FILE = os.path.join(LOGS_DIR, "collexions.log")
 DIST_DIR = os.path.join(BASE_DIR, "dist")  # Built frontend (production only)
 
 # Ensure config and logs directories exist
-os.makedirs(os.path.join(BASE_DIR, "config"), exist_ok=True)
+os.makedirs(os.path.join(_DATA_ROOT, "config"), exist_ok=True)
 os.makedirs(LOGS_DIR, exist_ok=True)
 # Stores the subprocess object of the running script
 process = None

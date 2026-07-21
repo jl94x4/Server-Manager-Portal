@@ -363,6 +363,12 @@ import {
     migrateConfigFiles,
 } from './lib/data-paths.js';
 import {
+    applyCollexionsBundledDefaults,
+    getCollexionsEmbeddedStatus,
+    isCollexionsBundledAvailable,
+    syncCollexionsEmbeddedWorker,
+} from './lib/collexions-embedded.js';
+import {
     normalizeArrConfig,
     migrateArrConfig,
     syncLegacyArrFields,
@@ -2394,15 +2400,26 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
     }
     let navOrder = Array.isArray(config.navOrder) && config.navOrder.length
         ? [...config.navOrder]
-        : ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'];
+        : ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'collexions', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'];
     // Migrate known legacy stock defaults to the current default without clobbering custom orders
     const legacyNavOrders = [
         ['home', 'discover', 'users', 'status', 'analytics', 'downloads', 'mediastack', 'maintenance', 'request', 'about', 'settings', 'logout'],
         ['home', 'discover', 'users', 'analytics', 'downloads', 'mediastack', 'upgrader', 'requests', 'status', 'maintenance', 'request', 'about', 'logs', 'settings', 'logout'],
         ['home', 'discover', 'status', 'analytics', 'request', 'users', 'downloads', 'mediastack', 'maintenance', 'about', 'settings', 'logout'],
+        ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'],
     ];
     if (legacyNavOrders.some((legacy) => legacy.length === navOrder.length && legacy.every((key, i) => key === navOrder[i]))) {
-        navOrder = ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'];
+        navOrder = ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'collexions', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'];
+    }
+    // Ensure newly added stock items appear for custom orders too.
+    if (!navOrder.includes('collexions')) {
+        const upgraderIdx = navOrder.indexOf('upgrader');
+        if (upgraderIdx >= 0) navOrder.splice(upgraderIdx + 1, 0, 'collexions');
+        else {
+            const downloadsIdx = navOrder.indexOf('downloads');
+            if (downloadsIdx >= 0) navOrder.splice(downloadsIdx + 1, 0, 'collexions');
+            else navOrder.splice(Math.max(0, navOrder.length - 2), 0, 'collexions');
+        }
     }
     try {
         if (isJellyfinPortal && config?.jellyfinUrl && config?.jellyfinApiKey) {
@@ -2441,7 +2458,7 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
     const navFeatures = {
         maintenance: !!config.maintenanceExperimentalEnabled,
         upgrader: !!config.upgraderEnabled,
-        collexions: !!(config.collexionsEnabled && String(config.collexionsInternalUrl || '').trim()),
+        collexions: !!config.collexionsEnabled,
         request: !!(requestAppType && requestAppType !== 'none' && resolvedRequestUrl && resolvedRequestUrl !== 'https://yourdomain.com'),
         requestsQueue: requestAppService.isRequestAppConfigured(config),
         downloads: config.downloadsVisibleToMembers !== false,
@@ -2755,7 +2772,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 referralRewardDays: config.referralRewardDays || 7,
                 announcement: config.announcement || '',
                 hideStreamUsers: config.hideStreamUsers === true ? 'anonymous' : (config.hideStreamUsers || 'false'),
-                navOrder: config.navOrder || ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'],
+                navOrder: config.navOrder || ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'collexions', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'],
                 downloadsVisibleToMembers: config.downloadsVisibleToMembers !== false,
                 defaultLibraryIds: config.defaultLibraryIds || null,
                 use24HourClock: !!config.use24HourClock,
@@ -2773,6 +2790,8 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 collexionsEnabled: !!config.collexionsEnabled,
                 collexionsInternalUrl: config.collexionsInternalUrl || '',
                 collexionsServiceKey: config.collexionsServiceKey ? '********' : '',
+                collexionsBundled: isCollexionsBundledAvailable(),
+                collexionsEmbedded: getCollexionsEmbeddedStatus(),
                 upgraderDefaultPreset: config.upgraderDefaultPreset || 'non_hevc',
                 upgraderMinSizeGB: Number(config.upgraderMinSizeGB) > 0 ? Number(config.upgraderMinSizeGB) : 5,
                 upgraderAutomationEnabled: !!config.upgraderAutomationEnabled,
@@ -2848,7 +2867,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 referralRewardDays: 7,
                 announcement: '',
                 hideStreamUsers: 'false',
-                navOrder: ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'],
+                navOrder: ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'collexions', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'],
                 downloadsVisibleToMembers: true,
                 defaultLibraryIds: null,
                 use24HourClock: false,
@@ -2866,6 +2885,8 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 collexionsEnabled: false,
                 collexionsInternalUrl: '',
                 collexionsServiceKey: '',
+                collexionsBundled: isCollexionsBundledAvailable(),
+                collexionsEmbedded: getCollexionsEmbeddedStatus(),
                 upgraderDefaultPreset: 'non_hevc',
                 upgraderMinSizeGB: 5,
                 upgraderAutomationEnabled: false,
@@ -3059,7 +3080,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         referralRewardDays: parseInt(referralRewardDays, 10) || 7,
         announcement: announcement || '',
         hideStreamUsers: hideStreamUsers === true ? 'anonymous' : (hideStreamUsers === false ? 'false' : (hideStreamUsers || 'false')),
-        navOrder: Array.isArray(navOrder) ? navOrder : existingConfig.navOrder || ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'],
+        navOrder: Array.isArray(navOrder) ? navOrder : existingConfig.navOrder || ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'collexions', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'],
         downloadsVisibleToMembers: downloadsVisibleToMembers !== undefined
             ? !!downloadsVisibleToMembers
             : (existingConfig.downloadsVisibleToMembers !== false),
@@ -3082,7 +3103,8 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
             const incoming = String(collexionsInternalUrl || '').trim();
             if (!incoming) return '';
             try {
-                return sanitizeIntegrationUrl(incoming);
+                // Localhost / private is expected for the bundled worker.
+                return normalizeExternalBaseUrl(incoming, { allowPrivate: true, allowHttp: true });
             } catch {
                 return existingConfig.collexionsInternalUrl || '';
             }
@@ -3113,14 +3135,18 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
             : normalizeSectionLayout(existingConfig.dashboardLayout)
     };
     const config = migrateArrConfig(configDraft);
-    await saveFile(CONFIG_PATH, config);
-    syncIntegrationServicesInStatusConfig(config);
+    const { config: collexionsConfig, changed: collexionsDefaultsChanged } = applyCollexionsBundledDefaults(config, {
+        configDir: CONFIG_DIR,
+        log,
+    });
+    await saveFile(CONFIG_PATH, collexionsConfig);
+    syncIntegrationServicesInStatusConfig(collexionsConfig);
     try {
         await saveFile(STATUS_CONFIG_PATH, statusConfig);
     } catch (e) {
         log(`Failed to sync integration services into status config: ${e.message}`);
     }
-    await syncAdminPlexIdFromConfigToken(config, { persist: true });
+    await syncAdminPlexIdFromConfigToken(collexionsConfig, { persist: true });
     // Invalidate caches tied to the Plex token/server so changes take effect immediately.
     cachedPlexConnectionUri = null;
     lastPlexConnectionUriFetch = 0;
@@ -3130,11 +3156,19 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
     lastAdminProfileFetch = 0;
     cachedArrCatalog = null;
     cachedArrCatalogAt = 0;
-    systemJobs.autoBackup.nextRun = config.autoBackupEnabled ? computeNextBackupRun(config) : null;
+    systemJobs.autoBackup.nextRun = collexionsConfig.autoBackupEnabled ? computeNextBackupRun(collexionsConfig) : null;
     log('Configuration saved successfully.');
+    if (collexionsDefaultsChanged) {
+        log('[collexions] Applied bundled worker defaults (internal URL / service key).');
+    }
+    try {
+        await syncCollexionsEmbeddedWorker(collexionsConfig, { configDir: CONFIG_DIR, log });
+    } catch (e) {
+        log(`[collexions] Embedded worker sync failed: ${e.message}`);
+    }
     let seerrDiscoverySync = { ok: false, skipped: true };
     try {
-        seerrDiscoverySync = await syncSeerrDiscoverySettings(config, requestAppService.rawFetch);
+        seerrDiscoverySync = await syncSeerrDiscoverySettings(collexionsConfig, requestAppService.rawFetch);
         if (seerrDiscoverySync.ok) {
             log('Request app discovery settings synced.');
         } else if (!seerrDiscoverySync.skipped && seerrDiscoverySync.error) {
@@ -3145,17 +3179,17 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         log(`Request app discovery settings sync failed: ${e.message}`);
     }
     startBackgroundService(); // (Re)start service with new config
-    const becameConfigured = !isConfigured && isPortalConfigured(config);
-    const maintenanceJustEnabled = !wasMaintenanceEnabled && !!config.maintenanceExperimentalEnabled;
-    const upgraderJustEnabled = !wasUpgraderEnabled && !!config.upgraderEnabled;
-    const upgraderJustDisabled = wasUpgraderEnabled && !config.upgraderEnabled;
+    const becameConfigured = !isConfigured && isPortalConfigured(collexionsConfig);
+    const maintenanceJustEnabled = !wasMaintenanceEnabled && !!collexionsConfig.maintenanceExperimentalEnabled;
+    const upgraderJustEnabled = !wasUpgraderEnabled && !!collexionsConfig.upgraderEnabled;
+    const upgraderJustDisabled = wasUpgraderEnabled && !collexionsConfig.upgraderEnabled;
     if (upgraderJustDisabled) {
         idleUpgraderIndexJob('Library Upgrader disabled in settings');
     } else if (upgraderJustEnabled) {
         clearUpgraderIndexDisabledError();
         scheduleUpgraderIndexRebuild(0);
     }
-    if ((becameConfigured || maintenanceJustEnabled || upgraderJustEnabled) && isMediaQualityIndexEnabled(config)) {
+    if ((becameConfigured || maintenanceJustEnabled || upgraderJustEnabled) && isMediaQualityIndexEnabled(collexionsConfig)) {
         // Kick an immediate index build after setup/enablement so rules/upgrader are usable right away.
         setTimeout(async () => {
             try {
@@ -17202,8 +17236,20 @@ app.listen(PORT, BIND_HOST, async () => {
     monitorConcurrentSessions();
     setInterval(monitorConcurrentSessions, 15000);
     startBackgroundService();
-    loadFile(CONFIG_PATH, {}).then((config) => {
-        ensureSeerrDiscoverySettings(config, requestAppService.rawFetch).catch((e) => {
+    loadFile(CONFIG_PATH, {}).then(async (bootConfig) => {
+        try {
+            const { config: withCollexions, changed } = applyCollexionsBundledDefaults(bootConfig || {}, {
+                configDir: CONFIG_DIR,
+                log,
+            });
+            if (changed) {
+                await saveFile(CONFIG_PATH, withCollexions);
+            }
+            await syncCollexionsEmbeddedWorker(withCollexions, { configDir: CONFIG_DIR, log });
+        } catch (e) {
+            log(`[collexions] Startup embedded worker sync failed: ${e.message}`);
+        }
+        ensureSeerrDiscoverySettings(bootConfig, requestAppService.rawFetch).catch((e) => {
             log(`Request app discovery settings startup sync failed: ${e.message}`);
         });
     });

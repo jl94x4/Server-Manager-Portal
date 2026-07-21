@@ -92,7 +92,7 @@ A comprehensive control panel for the server owner:
 - **Pending Requests Widget** - Surface open Seerr/Jellyseerr requests on the home dashboard with quick review actions, fanart-backed cards, and a count badge in the sidebar
 - **Library Maintenance** - Scan libraries for missing or empty media, manage exclusions, and run cleanup tasks from the Maintenance page
 - **Library Upgrader (Plex / Jellyfin)** — Find non-HEVC titles, browse a poster grid with codec/HDR badges, drill into show episodes, open Plex/Jellyfin or Sonarr/Radarr deep links, snooze titles, and optionally switch ARR quality profiles with search triggers (dry-run preview, bulk select, history tab, rate limits). Enable in **Settings → Library Upgrader**.
-- **Collexions (admin)** — Automated Plex collection pinning via a Flask sidecar. Portal hosts the UI at `/collexions` and proxies APIs with service-key SSO (no Collexions password). Enable in **Settings → Collexions**.
+- **Collexions (admin)** — Automated Plex collection pinning. UI lives in the portal; the Python worker is **bundled in the portal image**. Enable in **Settings → Collexions** (no second container).
 
 ---
 
@@ -206,7 +206,9 @@ A powerful, built-in tool for server admins to identify and upgrade sub-optimal 
 
 ### Collexions
 
-Admin-only Plex collection automation. The portal ships the React UI; a **Collexions Flask sidecar** runs the worker (`ColleXions.py`). Enable under **Settings → Collexions**, point Internal URL at the sidecar (typically `http://collexions:5000`), and set a shared service key. Portal SSO replaces Collexions login. Onboarding (and Config → Import from portal) auto-fills Plex URL/token and TMDB from portal Settings when available; Trakt/MDBList are still entered in Collexions if you use them. Migrating from standalone Collexions: use **Config → Import config.json** with your existing file, review, then **Save Config**.
+Admin-only Plex collection automation. The portal ships the React UI and **bundles** the Flask/`ColleXions.py` worker inside the same Docker image. Enable under **Settings → Collexions** and save — the portal starts the worker on localhost automatically (service key and internal URL are generated for you).
+
+Onboarding (and Config → Import from portal) auto-fills Plex URL/token and TMDB from portal Settings when available; Trakt/MDBList are still entered in Collexions if you use them. Migrating from standalone Collexions: use **Config → Import config.json** with your existing file, review, then **Save Config**. Worker state lives under `config/collexions/` on the portal volume.
 
 ---
 
@@ -414,36 +416,15 @@ On first startup, any legacy JSON files still in the project root are automatica
 - View logs: `docker compose logs -f portal`
 - Update: `git pull && docker compose up -d --build`
 
-### Optional: Collexions sidecar
+### Collexions (bundled)
 
-Collexions runs as a **second container** on the same Docker network. The portal UI talks to it through `/api/collexions/*` (admin session + shared service key).
+Collexions is built into the portal image. No second container is required.
 
-**1. Start both services**
+1. Rebuild/redeploy the portal image so it includes the Python worker.
+2. In **Settings → Collexions**, turn **Enable** ON and click **Save Settings**.
+3. Open **Collexions** in the nav — import your old `config.json` if migrating, or complete onboarding.
 
-```bash
-# Generate a shared key, then put it in .env as COLLEXIONS_SERVICE_KEY=
-docker compose --profile collexions up -d --build
-```
-
-The compose profile builds the sidecar from `ColleXions-WebUI-main/` (includes portal service-key auth). Keep that folder in sync if you customize the worker.
-
-**2. Configure the portal**
-
-In **Settings → Collexions**:
-
-| Setting | Example |
-|---|---|
-| Enable Collexions | ON |
-| Internal URL | `http://collexions:5000` |
-| Service key | Same value as `COLLEXIONS_SERVICE_KEY` on both containers |
-
-**3. Sidecar env (already in compose profile)**
-
-- `COLLEXIONS_SERVICE_KEY` — must match the portal
-- `COLLEXIONS_PORTAL_MODE=true` — skip password setup; onboarding is Plex/integrations only
-- Volumes `./collexions-config` and `./collexions-logs` hold pinning state and logs
-
-**Smoke checklist:** enable flag → open **Collexions** in the nav → complete onboarding if needed → start/stop worker → gallery pin/unpin → creator/search → jobs → stats → config save → logs → posters load.
+Worker data persists under `./config/collexions/` (config + logs). Advanced: set `COLLEXIONS_EMBEDDED_PORT` if you need a different localhost port (default `15755`).
 
 ### Build the image manually
 
@@ -605,7 +586,7 @@ Server-Manager-Portal/
 │   ├── home/           # User dashboard layout and widget renderers
 │   ├── requests/       # Seerr-style request review UI (admin panel, approval modal, home widget)
 │   ├── upgrader/       # Library Upgrader poster browse (non-HEVC scan)
-│   ├── collexions/     # Collexions admin UI (proxied Flask sidecar)
+│   ├── collexions/     # Collexions admin UI (bundled Flask worker proxied locally)
 │   ├── settings/       # Settings UI (Media Server, Home Layout, System, Background Tasks)
 │   ├── shared/         # API helpers, types, theme, skeletons, wrap-up cards
 │   ├── setup/          # First-time setup wizard

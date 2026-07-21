@@ -28,9 +28,11 @@ ENV NODE_ENV=production
 ENV BIND_HOST=0.0.0.0
 ENV PORT=2121
 ENV FORCE_SECURE_COOKIES=false
+ENV COLLEXIONS_APP_DIR=/app/collexions
+ENV COLLEXIONS_EMBEDDED_PORT=15755
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends gosu \
+    && apt-get install -y --no-install-recommends gosu python3 python3-venv python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
@@ -41,6 +43,16 @@ COPY --from=builder /app/style.css ./
 COPY --from=builder /app/version.txt ./
 COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/static ./static
+
+# Bundled Collexions worker (Flask + ColleXions.py) — no second container required.
+COPY ColleXions-WebUI-main/requirements.txt /app/collexions/requirements.txt
+COPY ColleXions-WebUI-main/server.py /app/collexions/server.py
+COPY ColleXions-WebUI-main/ColleXions.py /app/collexions/ColleXions.py
+RUN python3 -m venv /opt/collexions-venv \
+    && /opt/collexions-venv/bin/pip install --no-cache-dir -r /app/collexions/requirements.txt \
+    && /opt/collexions-venv/bin/pip install --no-cache-dir bcrypt werkzeug \
+    && chown -R node:node /app/collexions /opt/collexions-venv
+
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 

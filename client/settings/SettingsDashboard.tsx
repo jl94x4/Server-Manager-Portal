@@ -2951,41 +2951,56 @@ export const SettingsDashboard: React.FC = () => {
                             <section id={getSettingsSectionElementId('collexions')} className="space-y-3 scroll-mt-24">
                                 <SettingsToggleRow
                                     title="Enable Collexions"
-                                    hint={<SettingHint>Admin-only collections manager. Requires a Collexions Flask sidecar on the same Docker network. OFF by default.</SettingHint>}
+                                    hint={<SettingHint>
+                                        {initialSettings.collexionsBundled
+                                            ? 'Admin-only collections manager. Runs inside the portal image — just enable and save. OFF by default.'
+                                            : 'Admin-only collections manager. This build has no bundled worker; set an internal URL to an external Collexions sidecar. OFF by default.'}
+                                    </SettingHint>}
                                     checked={collexionsEnabled}
                                     onChange={setCollexionsEnabled}
                                     border={false}
                                 />
-                                <p className={`text-xs mt-2 font-semibold ${collexionsEnabled && collexionsInternalUrl.trim() ? 'text-green-300' : 'text-yellow-300'}`}>
-                                    Current status: {collexionsEnabled && collexionsInternalUrl.trim() ? 'ON (nav visible)' : collexionsEnabled ? 'Enabled (set internal URL)' : 'OFF'}
+                                <p className={`text-xs mt-2 font-semibold ${collexionsEnabled ? 'text-green-300' : 'text-yellow-300'}`}>
+                                    Current status: {collexionsEnabled
+                                        ? (initialSettings.collexionsBundled
+                                            ? (initialSettings.collexionsEmbedded?.running ? 'ON (worker running)' : 'ON (worker starts after Save)')
+                                            : (collexionsInternalUrl.trim() ? 'ON (external URL set)' : 'Enabled (set internal URL)'))
+                                        : 'OFF'}
                                 </p>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-                                    <div>
-                                        <label className="font-semibold text-sm block mb-2">Internal URL</label>
-                                        <input
-                                            type="text"
-                                            className="w-full p-2 rounded border border-border bg-background text-text"
-                                            placeholder="http://collexions:5000"
-                                            value={collexionsInternalUrl}
-                                            onChange={(e) => setCollexionsInternalUrl(e.target.value)}
-                                            disabled={!collexionsEnabled}
-                                        />
-                                        <p className="text-[11px] text-muted mt-1">Docker service hostname preferred (e.g. http://collexions:5000).</p>
+                                {!initialSettings.collexionsBundled && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                                        <div>
+                                            <label className="font-semibold text-sm block mb-2">Internal URL</label>
+                                            <input
+                                                type="text"
+                                                className="w-full p-2 rounded border border-border bg-background text-text"
+                                                placeholder="http://collexions:5000"
+                                                value={collexionsInternalUrl}
+                                                onChange={(e) => setCollexionsInternalUrl(e.target.value)}
+                                                disabled={!collexionsEnabled}
+                                            />
+                                            <p className="text-[11px] text-muted mt-1">Docker service hostname preferred (e.g. http://collexions:5000).</p>
+                                        </div>
+                                        <div>
+                                            <label className="font-semibold text-sm block mb-2">Service key</label>
+                                            <input
+                                                type="password"
+                                                className="w-full p-2 rounded border border-border bg-background text-text"
+                                                placeholder={collexionsServiceKey === '********' ? '•••••••• (unchanged)' : 'Shared with sidecar COLLEXIONS_SERVICE_KEY'}
+                                                value={collexionsServiceKey === '********' ? '' : collexionsServiceKey}
+                                                onChange={(e) => setCollexionsServiceKey(e.target.value)}
+                                                disabled={!collexionsEnabled}
+                                                autoComplete="new-password"
+                                            />
+                                            <p className="text-[11px] text-muted mt-1">Must match the sidecar env. Leave blank to keep the saved key.</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label className="font-semibold text-sm block mb-2">Service key</label>
-                                        <input
-                                            type="password"
-                                            className="w-full p-2 rounded border border-border bg-background text-text"
-                                            placeholder={collexionsServiceKey === '********' ? '•••••••• (unchanged)' : 'Shared with sidecar COLLEXIONS_SERVICE_KEY'}
-                                            value={collexionsServiceKey === '********' ? '' : collexionsServiceKey}
-                                            onChange={(e) => setCollexionsServiceKey(e.target.value)}
-                                            disabled={!collexionsEnabled}
-                                            autoComplete="new-password"
-                                        />
-                                        <p className="text-[11px] text-muted mt-1">Must match the sidecar env. Leave blank to keep the saved key. Never exposed to browsers.</p>
-                                    </div>
-                                </div>
+                                )}
+                                {initialSettings.collexionsBundled && (
+                                    <p className="text-[11px] text-muted mt-2">
+                                        Worker data lives under the portal config volume (`config/collexions/`). Import your standalone `config.json` from Collexions → Config after enabling.
+                                    </p>
+                                )}
                                 <p className="text-[11px] text-muted mt-2">After changing these options, click Save Settings. Admins use portal login — no Collexions password.</p>
                             </section>
                         </div>

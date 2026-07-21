@@ -76,6 +76,7 @@ const LEGACY_DEFAULT_NAV_ORDERS = [
     ['home', 'discover', 'users', 'analytics', 'downloads', 'mediastack', 'upgrader', 'requests', 'status', 'maintenance', 'request', 'about', 'logs', 'settings', 'logout'],
     ['home', 'discover', 'status', 'analytics', 'mediastack', 'request', 'about', 'settings', 'logout'],
     ['home', 'discover', 'status', 'analytics', 'request', 'users', 'downloads', 'mediastack', 'maintenance', 'about', 'settings', 'logout'],
+    ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'],
 ];
 
 const sameOrder = (a: string[], b: string[]) => (
