@@ -8,10 +8,32 @@ const base = (path: string) => {
     return `/api/collexions${clean}`;
 };
 
-export const collexionsImageUrl = (rawUrl: string) => {
+export const collexionsImageUrl = (
+    rawUrl: string,
+    size: { width?: number; height?: number } = {},
+) => {
     if (!rawUrl) return '';
     if (rawUrl.startsWith('data:') || rawUrl.startsWith('blob:')) return rawUrl;
-    return portalUrl(`/api/collexions/proxy/image?thumb=${encodeURIComponent(rawUrl)}`);
+
+    let path = rawUrl;
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+        try {
+            path = new URL(path).pathname;
+        } catch {
+            /* keep original */
+        }
+    }
+    const q = path.indexOf('?');
+    if (q >= 0) path = path.slice(0, q);
+    if (!path.startsWith('/')) path = `/${path}`;
+
+    // Use the portal Plex image proxy (transcoded + 24h browser cache) — one hop,
+    // much faster than full-res through the Collexions Flask proxy.
+    const width = size.width ?? 320;
+    const height = size.height ?? 480;
+    return portalUrl(
+        `/api/plex/image?path=${encodeURIComponent(path)}&width=${width}&height=${height}`,
+    );
 };
 
 class CollexionsApiService {

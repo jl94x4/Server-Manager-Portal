@@ -80,7 +80,8 @@ def require_auth(f):
 GALLERY_CACHE = {
     'data': None,
     'timestamp': 0,
-    'ttl': 300 # 5 minutes
+    'ttl': 300, # 5 minutes
+    'version': 2,  # bump when thumb shape/fallback changes
 }
 PRESETS_CACHE = {
     'data': None,
@@ -863,10 +864,14 @@ def list_collections():
     
     # Return from cache if valid and not forcing refresh
     now = time.time()
-    if not force_refresh and GALLERY_CACHE['data'] is not None:
-        if now - GALLERY_CACHE['timestamp'] < GALLERY_CACHE['ttl']:
-            print("Serving collections from cache")
-            return jsonify(GALLERY_CACHE['data'])
+    if (
+        not force_refresh
+        and GALLERY_CACHE['data'] is not None
+        and GALLERY_CACHE.get('version') == 2
+        and now - GALLERY_CACHE['timestamp'] < GALLERY_CACHE['ttl']
+    ):
+        print("Serving collections from cache")
+        return jsonify(GALLERY_CACHE['data'])
             
     plex = get_plex_instance()
     if not plex:
@@ -905,22 +910,21 @@ def list_collections():
                     pass
 
                 thumb = getattr(coll, 'thumb', None)
-                # Fallback 1: composite (the auto-generated mosaic — used by music collections)
+                # Prefer explicit art; composite mosaics cover music + many auto collections.
+                # Never call coll.items() — that loads the whole collection and stalls the gallery.
                 if not thumb:
-                    thumb = getattr(coll, 'composite', None)
-                # Fallback 2: first item's thumb
-                if not thumb:
-                    try:
-                        items = coll.items()
-                        if items:
-                            thumb = getattr(items[0], 'thumb', None) or getattr(items[0], 'composite', None)
-                    except:
-                        pass
+                    thumb = getattr(coll, 'composite', None) or getattr(coll, 'art', None)
 
-                # Normalise: strip host prefix so the image proxy always gets a clean /path
-                if thumb and thumb.startswith('http'):
+                # Normalise: strip host prefix so proxies always get a clean /path
+                if thumb and isinstance(thumb, str) and thumb.startswith('http'):
                     from urllib.parse import urlparse
-                    thumb = urlparse(thumb).path
+                    parsed = urlparse(thumb)
+                    thumb = parsed.path
+
+                # Last resort: Plex serves a mosaic at /library/collections/{id}/composite
+                # even when the Metadata object has no thumb attribute.
+                if not thumb and getattr(coll, 'ratingKey', None):
+                    thumb = f'/library/collections/{coll.ratingKey}/composite'
 
                 meta_key = getattr(coll, 'key', None) or f'/library/metadata/{coll.ratingKey}'
                 plex_url = ''
@@ -946,6 +950,7 @@ def list_collections():
     # Update Cache
     GALLERY_CACHE['data'] = all_collections
     GALLERY_CACHE['timestamp'] = time.time()
+    GALLERY_CACHE['version'] = 2
     
     return jsonify(all_collections)
 
@@ -1297,62 +1302,78 @@ def get_trending():
 
 @app.route('/api/proxy/image')
 def proxy_image():
+    """Proxy collection artwork from Plex via photo transcode (small, cacheable)."""
     global IMAGE_CACHE
+    from urllib.parse import quote
+
     thumb = request.args.get('thumb')
     if not thumb:
-        return "Missing thumb", 400
-        
-    if thumb in IMAGE_CACHE:
-        return Response(
-            IMAGE_CACHE[thumb]['data'],
-            mimetype=IMAGE_CACHE[thumb]['mimetype'],
-            status=200
-        )
-        
-    config = load_config()
-    url = config.get('plex_url')
-    token = config.get('plex_token')
-    
-    if not url or not token:
-        return "Plex not configured", 400
-        
-    plex_base = url.rstrip('/')
-    
+        return Response(status=404)
+
+    try:
+        width = max(40, min(800, int(request.args.get('width') or 320)))
+        height = max(40, min(1200, int(request.args.get('height') or 480)))
+    except (TypeError, ValueError):
+        width, height = 320, 480
+
     # If thumb is already a full URL, extract only the path
     if thumb.startswith('http'):
         from urllib.parse import urlparse
-        thumb = urlparse(thumb).path
-    
+        parsed = urlparse(thumb)
+        thumb = parsed.path
+
     thumb_path = thumb if thumb.startswith('/') else f'/{thumb}'
-    
-    connector = '&' if '?' in thumb_path else '?'
-    plex_url = f"{plex_base}{thumb_path}{connector}X-Plex-Token={token}"
-    
+    # Drop any leftover querystring for the transcode url= param
+    if '?' in thumb_path:
+        thumb_path = thumb_path.split('?', 1)[0]
+
+    cache_key = f'{thumb_path}|{width}x{height}'
+    if cache_key in IMAGE_CACHE:
+        cached = IMAGE_CACHE[cache_key]
+        if cached.get('missing'):
+            return Response(status=404)
+        resp = Response(cached['data'], mimetype=cached['mimetype'], status=200)
+        resp.headers['Cache-Control'] = 'public, max-age=86400'
+        return resp
+
+    config = load_config()
+    url = config.get('plex_url')
+    token = config.get('plex_token')
+    if not url or not token:
+        return Response(status=404)
+
+    plex_base = url.rstrip('/')
+    # Ask Plex for a resized JPEG — much faster than full-resolution thumbs.
+    plex_url = (
+        f"{plex_base}/photo/:/transcode"
+        f"?url={quote(thumb_path)}"
+        f"&width={width}&height={height}&minSize=1&upscale=1"
+        f"&X-Plex-Token={token}"
+    )
+
     try:
-        logging.debug(f"Proxying image from: {plex_url}")
-        headers = {'User-Agent': 'CollexionsManager/1.0'}
-        resp = requests.get(plex_url, timeout=10, verify=False, headers=headers)
-        
-        if resp.status_code != 200:
-            logging.error(f"Plex image proxy error {resp.status_code} for URL: {plex_url}")
-            return f"Plex returned {resp.status_code}", resp.status_code
-            
-        mimetype = resp.headers.get('Content-Type', 'image/jpeg')
-        data = resp.content
-        
-        # Simple cache management: clear if too large
-        if len(IMAGE_CACHE) > 200:
+        headers = {'User-Agent': 'CollexionsManager/1.0', 'Accept': 'image/*,*/*'}
+        upstream = requests.get(plex_url, timeout=8, verify=False, headers=headers)
+
+        if upstream.status_code != 200 or not upstream.content:
+            logging.warning(f"Plex image proxy miss {upstream.status_code} for: {thumb_path}")
+            IMAGE_CACHE[cache_key] = {'missing': True}
+            return Response(status=404)
+
+        mimetype = upstream.headers.get('Content-Type', 'image/jpeg')
+        data = upstream.content
+
+        if len(IMAGE_CACHE) > 400:
             IMAGE_CACHE = {}
-            
-        IMAGE_CACHE[thumb] = {
-            'data': data,
-            'mimetype': mimetype
-        }
-        
-        return Response(data, mimetype=mimetype, status=200)
+
+        IMAGE_CACHE[cache_key] = {'data': data, 'mimetype': mimetype}
+        resp = Response(data, mimetype=mimetype, status=200)
+        resp.headers['Cache-Control'] = 'public, max-age=86400'
+        return resp
     except Exception as e:
-        logging.error(f"Image proxy exception for {plex_url}: {e}")
-        return str(e), 500
+        logging.warning(f"Image proxy exception for {thumb_path}: {e}")
+        IMAGE_CACHE[cache_key] = {'missing': True}
+        return Response(status=404)
 
 @app.route('/api/collections/pin', methods=['POST'])
 @require_auth

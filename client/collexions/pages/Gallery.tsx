@@ -32,6 +32,7 @@ const LEGACY_GRID_MAP: Record<string, UpgraderGridSize> = {
 const Gallery: React.FC = () => {
     const [collections, setCollections] = useState<PlexCollection[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedLibrary, setSelectedLibrary] = useState<string>('All');
     const [showPinnedOnly, setShowPinnedOnly] = useState(false);
@@ -77,11 +78,14 @@ const Gallery: React.FC = () => {
 
     const fetchCollections = async (isManual = false) => {
         setLoading(true);
+        setLoadError('');
         try {
             const data = await api.getCollections(isManual);
-            setCollections(data);
-        } catch (e) {
+            setCollections(Array.isArray(data) ? data : []);
+        } catch (e: any) {
             console.error('Failed to fetch collections', e);
+            setLoadError(e?.message || 'Failed to load collections from Plex.');
+            setCollections([]);
         } finally {
             setLoading(false);
         }
@@ -116,12 +120,38 @@ const Gallery: React.FC = () => {
 
     const isCompact = gridSize === 'small';
     const isList = gridSize === 'list';
+    const imageSize = useMemo(() => {
+        switch (gridSize) {
+            case 'small': return { width: 160, height: 240 };
+            case 'medium': return { width: 240, height: 360 };
+            case 'large': return { width: 320, height: 480 };
+            case 'xlarge': return { width: 400, height: 600 };
+            case 'list': return { width: 96, height: 144 };
+            default: return { width: 320, height: 480 };
+        }
+    }, [gridSize]);
 
     if (loading && collections.length === 0) {
         return (
             <div className="flex flex-col h-96 items-center justify-center text-muted animate-pulse">
                 <ImageIcon className="w-12 h-12 mb-4 opacity-50" />
                 <p>Scanning Plex Libraries...</p>
+            </div>
+        );
+    }
+
+    if (loadError && collections.length === 0) {
+        return (
+            <div className="flex flex-col h-96 items-center justify-center text-muted gap-3">
+                <ImageIcon className="w-12 h-12 opacity-40" />
+                <p className="text-sm text-red-300">{loadError}</p>
+                <button
+                    type="button"
+                    onClick={() => fetchCollections(true)}
+                    className="px-4 py-2 rounded-lg bg-plex text-background text-sm font-bold hover:bg-plex-hover transition-colors"
+                >
+                    Retry
+                </button>
             </div>
         );
     }
@@ -236,10 +266,11 @@ const Gallery: React.FC = () => {
                                 <div className="w-14 h-[84px] shrink-0 rounded-lg overflow-hidden bg-card">
                                     {coll.thumb ? (
                                         <img
-                                            src={collexionsImageUrl(coll.thumb)}
+                                            src={collexionsImageUrl(coll.thumb, imageSize)}
                                             alt={coll.title}
                                             className="w-full h-full object-cover"
                                             loading="lazy"
+                                            decoding="async"
                                             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                         />
                                     ) : (
@@ -330,10 +361,11 @@ const Gallery: React.FC = () => {
                                     >
                                         {coll.thumb ? (
                                             <img
-                                                src={collexionsImageUrl(coll.thumb)}
+                                                src={collexionsImageUrl(coll.thumb, imageSize)}
                                                 alt={coll.title}
                                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                                 loading="lazy"
+                                                decoding="async"
                                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                             />
                                         ) : (
@@ -344,10 +376,11 @@ const Gallery: React.FC = () => {
                                     </a>
                                 ) : coll.thumb ? (
                                     <img
-                                        src={collexionsImageUrl(coll.thumb)}
+                                        src={collexionsImageUrl(coll.thumb, imageSize)}
                                         alt={coll.title}
                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                         loading="lazy"
+                                        decoding="async"
                                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                     />
                                 ) : (
