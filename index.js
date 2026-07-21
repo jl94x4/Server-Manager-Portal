@@ -7952,13 +7952,49 @@ app.get('/api/status', publicReadRateLimit, async (req, res) => {
         description: service.description || ''
     }));
     const groups = (statusConfig.groups || []).map(group => ({ id: group.id, name: group.name, order: group.order }));
+
+    // Downsample recentChecks for the public payload (keep full resolution on disk).
+    const slimHealth = {};
+    for (const [key, record] of Object.entries(healthData || {})) {
+        if (key === '_meta') {
+            slimHealth[key] = record;
+            continue;
+        }
+        if (!record || typeof record !== 'object') continue;
+        const recent = Array.isArray(record.recentChecks) ? record.recentChecks : [];
+        const bucketMs = 5 * 60 * 1000;
+        const buckets = new Map();
+        for (const sample of recent) {
+            if (!sample || !sample.t) continue;
+            const slot = Math.floor(sample.t / bucketMs) * bucketMs;
+            if (!buckets.has(slot)) buckets.set(slot, []);
+            buckets.get(slot).push(sample);
+        }
+        const downsampled = [];
+        for (const [slot, samples] of [...buckets.entries()].sort((a, b) => a[0] - b[0])) {
+            const online = samples.filter((s) => s.status === 'online');
+            const latencies = online.map((s) => Number(s.latency)).filter((n) => Number.isFinite(n) && n > 0);
+            downsampled.push({
+                t: slot,
+                status: online.length >= samples.length / 2 ? 'online' : (samples[samples.length - 1]?.status || 'offline'),
+                latency: latencies.length ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) : 0,
+                _n: samples.length,
+                _up: online.length,
+            });
+        }
+        slimHealth[key] = {
+            ...record,
+            recentChecks: downsampled,
+        };
+    }
+
     res.json({
         config: {
             services: publicServices,
             groups,
             announcement: statusConfig.announcement || null
         },
-        healthData
+        healthData: slimHealth
     });
 });
 app.get('/api/status/config', requireAuth, requireAdmin, (req, res) => res.json(statusConfig));
@@ -11081,11 +11117,143 @@ async function performSingleProbe(service) {
     });
 }
 
+const STATUS_RECENT_CHECKS_MAX = 5760; // ~24h at 15s
+const STATUS_HOURLY_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
+const STATUS_DAILY_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+const STATUS_INCIDENT_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+const STATUS_INCIDENTS_MAX = 200;
+
+const statusHourKey = (ts) => {
+    const d = new Date(ts);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    const h = String(d.getUTCHours()).padStart(2, '0');
+    return `${y}-${m}-${day}T${h}`;
+};
+
+const ensureHealthRecord = (serviceId) => {
+    if (!healthData[serviceId]) {
+        healthData[serviceId] = {
+            serviceId,
+            currentStatus: 'unknown',
+            lastCheck: 0,
+            dailyHistory: {},
+            hourlyHistory: {},
+            recentChecks: [],
+            incidents: [],
+            uptimePercentage: 100,
+            lastLatency: null,
+            lastHttpCode: null,
+        };
+    }
+    const record = healthData[serviceId];
+    if (!record.dailyHistory) record.dailyHistory = {};
+    if (!record.hourlyHistory) record.hourlyHistory = {};
+    if (!Array.isArray(record.recentChecks)) record.recentChecks = [];
+    if (!Array.isArray(record.incidents)) record.incidents = [];
+    return record;
+};
+
+const bumpHourlyBucket = (record, hourKey, { up = 0, down = 0, latency = null } = {}) => {
+    if (!record.hourlyHistory[hourKey]) {
+        record.hourlyHistory[hourKey] = { up: 0, down: 0, total: 0, latencySum: 0, latencyCount: 0 };
+    }
+    const bucket = record.hourlyHistory[hourKey];
+    bucket.up += up;
+    bucket.down += down;
+    bucket.total += up + down;
+    if (latency != null && Number.isFinite(latency) && latency > 0) {
+        bucket.latencySum += latency;
+        bucket.latencyCount += 1;
+    }
+};
+
+const isUnhealthyStatus = (status) => status === 'offline' || status === 'degraded';
+
+const recordStatusIncident = (record, previousStatus, nextStatus, now) => {
+    if (!previousStatus || previousStatus === 'unknown' || previousStatus === nextStatus) return;
+
+    const wasUnhealthy = isUnhealthyStatus(previousStatus);
+    const isUnhealthy = isUnhealthyStatus(nextStatus);
+
+    if (!wasUnhealthy && isUnhealthy) {
+        record.incidents.push({
+            id: `inc-${now}-${Math.random().toString(36).slice(2, 8)}`,
+            from: previousStatus,
+            to: nextStatus,
+            startedAt: now,
+            endedAt: null,
+            durationMs: null,
+        });
+        if (record.incidents.length > STATUS_INCIDENTS_MAX) {
+            record.incidents = record.incidents.slice(-STATUS_INCIDENTS_MAX);
+        }
+        return;
+    }
+
+    if (wasUnhealthy && !isUnhealthy) {
+        for (let i = record.incidents.length - 1; i >= 0; i -= 1) {
+            const incident = record.incidents[i];
+            if (incident && incident.endedAt == null) {
+                incident.endedAt = now;
+                incident.durationMs = Math.max(0, now - (incident.startedAt || now));
+                break;
+            }
+        }
+        return;
+    }
+
+    if (wasUnhealthy && isUnhealthy && previousStatus !== nextStatus) {
+        for (let i = record.incidents.length - 1; i >= 0; i -= 1) {
+            const incident = record.incidents[i];
+            if (incident && incident.endedAt == null) {
+                incident.to = nextStatus;
+                break;
+            }
+        }
+    }
+};
+
+const pruneHealthRecord = (record, now) => {
+    const dailyCutoff = now - STATUS_DAILY_RETENTION_MS;
+    for (const dateStr of Object.keys(record.dailyHistory || {})) {
+        if (new Date(`${dateStr}T00:00:00.000Z`).getTime() < dailyCutoff) {
+            delete record.dailyHistory[dateStr];
+        }
+    }
+
+    const hourlyCutoff = now - STATUS_HOURLY_RETENTION_MS;
+    for (const hourKey of Object.keys(record.hourlyHistory || {})) {
+        const hourTs = new Date(`${hourKey}:00:00.000Z`).getTime();
+        if (!Number.isFinite(hourTs) || hourTs < hourlyCutoff) {
+            delete record.hourlyHistory[hourKey];
+        }
+    }
+
+    const recentCutoff = now - (24 * 60 * 60 * 1000);
+    record.recentChecks = (record.recentChecks || []).filter((sample) => sample && sample.t >= recentCutoff);
+    if (record.recentChecks.length > STATUS_RECENT_CHECKS_MAX) {
+        record.recentChecks = record.recentChecks.slice(-STATUS_RECENT_CHECKS_MAX);
+    }
+
+    const incidentCutoff = now - STATUS_INCIDENT_RETENTION_MS;
+    record.incidents = (record.incidents || []).filter((incident) => {
+        if (!incident) return false;
+        const end = incident.endedAt != null ? incident.endedAt : now;
+        return end >= incidentCutoff;
+    });
+    if (record.incidents.length > STATUS_INCIDENTS_MAX) {
+        record.incidents = record.incidents.slice(-STATUS_INCIDENTS_MAX);
+    }
+};
+
 async function runMonitorCycle() {
     if (!statusConfig.services || statusConfig.services.length === 0) return;
 
     const now = Date.now();
     const todayStr = new Date(now).toISOString().split('T')[0];
+    const hourKey = statusHourKey(now);
 
     if (!healthData._meta) {
         healthData._meta = { lastCheck: now };
@@ -11098,49 +11266,53 @@ async function runMonitorCycle() {
         const missedChecks = Math.floor(gapMs / cycleMs);
 
         for (const service of statusConfig.services) {
-            if (!healthData[service.id]) {
-                healthData[service.id] = { serviceId: service.id, currentStatus: 'unknown', lastCheck: 0, dailyHistory: {}, uptimePercentage: 100 };
-            }
-            const record = healthData[service.id];
-            if (!record.dailyHistory) record.dailyHistory = {};
+            const record = ensureHealthRecord(service.id);
             if (!record.dailyHistory[todayStr]) record.dailyHistory[todayStr] = { up: 0, down: 0, total: 0 };
 
             record.dailyHistory[todayStr].down += missedChecks;
             record.dailyHistory[todayStr].total += missedChecks;
+            bumpHourlyBucket(record, hourKey, { down: missedChecks });
         }
     }
 
     for (const service of statusConfig.services) {
         const result = await performSingleProbe(service);
-        if (!healthData[service.id]) {
-            healthData[service.id] = { serviceId: service.id, currentStatus: 'unknown', lastCheck: 0, dailyHistory: {}, uptimePercentage: 100 };
-        }
-        const record = healthData[service.id];
-        if (!record.dailyHistory) record.dailyHistory = {};
+        const record = ensureHealthRecord(service.id);
         if (!record.dailyHistory[todayStr]) record.dailyHistory[todayStr] = { up: 0, down: 0, total: 0 };
 
+        const previousStatus = record.currentStatus;
         record.currentStatus = result.status;
         record.lastCheck = now;
+        record.lastLatency = Number.isFinite(result.latency) ? result.latency : null;
+        record.lastHttpCode = Number.isFinite(result.httpCode) ? result.httpCode : null;
 
-        if (result.status === 'online') {
+        const isOnline = result.status === 'online';
+        if (isOnline) {
             record.dailyHistory[todayStr].up += 1;
+            bumpHourlyBucket(record, hourKey, { up: 1, latency: result.latency });
         } else {
             record.dailyHistory[todayStr].down += 1;
+            bumpHourlyBucket(record, hourKey, { down: 1 });
         }
         record.dailyHistory[todayStr].total += 1;
 
-        const ninetyDaysAgo = now - (90 * 24 * 60 * 60 * 1000);
-        for (const dateStr of Object.keys(record.dailyHistory)) {
-            if (new Date(dateStr).getTime() < ninetyDaysAgo) {
-                delete record.dailyHistory[dateStr];
-            }
+        record.recentChecks.push({
+            t: now,
+            status: result.status,
+            latency: Number.isFinite(result.latency) ? result.latency : 0,
+        });
+        if (record.recentChecks.length > STATUS_RECENT_CHECKS_MAX) {
+            record.recentChecks = record.recentChecks.slice(-STATUS_RECENT_CHECKS_MAX);
         }
+
+        recordStatusIncident(record, previousStatus, result.status, now);
+        pruneHealthRecord(record, now);
 
         let totalUp = 0;
         let totalChecks = 0;
         for (const stat of Object.values(record.dailyHistory)) {
-            totalUp += stat.up;
-            totalChecks += stat.total;
+            totalUp += stat.up || 0;
+            totalChecks += stat.total || 0;
         }
         record.uptimePercentage = totalChecks > 0 ? Math.round((totalUp / totalChecks) * 100) : 100;
     }

@@ -34,6 +34,20 @@ import { DiscoverGridSizeSelect } from './discovery/DiscoverGridSizeSelect';
 import { useDiscoverGridSize } from './discovery/useDiscoverGridSize';
 import { DiscoverLocaleSelect } from './discovery/i18n/DiscoverLocaleSelect';
 import { filterNavOrder, ensureCompleteNavOrder, MOBILE_NAV_PRIMARY_SLOTS, type NavFeatureFlags } from './shared/nav';
+import {
+    STATUS_PERIODS,
+    barsForPeriod,
+    fleetUptimeForPeriod,
+    formatDurationShort,
+    formatLatencyMs,
+    historyRowsForPeriod,
+    incidentsForPeriod,
+    latencySeriesForPeriod,
+    periodStats,
+    statusToneFromPct,
+    uptimeForPeriod,
+    type StatusPeriod,
+} from './shared/statusHealth';
 import { ANALYTICS_PERIOD_OPTIONS } from './shared/analyticsPeriodOptions';
 import { UserDashboardLayout } from './home/UserDashboardLayout';
 import { createBazarrToolsSectionRenderer, createMainGridWidgetRenderer, createPendingRequestsSectionRenderer, createRecentlyAddedWidgetRenderer } from './home/userDashboardWidgetRenderers';
@@ -6850,6 +6864,7 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
     const [hasError, setHasError] = useState(false);
     const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'analytics'>('overview');
     const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+    const [period, setPeriod] = useState<StatusPeriod>('90d');
 
     const fetchStatus = useCallback(async () => {
         try {
@@ -6872,9 +6887,9 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
 
     useEffect(() => {
         if (statusData && !selectedServiceId) {
-            const services = statusData.config?.services || [];
-            if (services.length > 0) {
-                setSelectedServiceId(services[0].id);
+            const nextServices = statusData.config?.services || [];
+            if (nextServices.length > 0) {
+                setSelectedServiceId(nextServices[0].id);
             }
         }
     }, [statusData, selectedServiceId]);
@@ -6890,11 +6905,10 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
                     )}
                     <h2 className="text-2xl font-bold text-text">Server Status</h2>
                 </header>
-                {!isLoading && hasError ? (
-                    <div className="w-full bg-red-500/10 border border-red-500 text-red-400 p-6 rounded-xl flex flex-col items-center gap-3 mt-4">
-                        <AlertCircle className="w-8 h-8" />
-                        <p className="font-semibold">Failed to load server status.</p>
-                        <button onClick={() => { setIsLoading(true); fetchStatus(); }} className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-text text-sm font-medium transition-colors">Retry</button>
+                {hasError ? (
+                    <div className="text-center p-8">
+                        <p className="text-status-expired mb-4">Failed to load status data.</p>
+                        <button onClick={fetchStatus} className="px-4 py-2 bg-plex text-background rounded-lg font-bold">Retry</button>
                     </div>
                 ) : (
                     <Loader isLoading={true} />
@@ -6906,22 +6920,60 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
     const { config, healthData } = statusData;
     const services = config?.services || [];
     const groups = config?.groups || [];
+    const serviceIds = services.map((s: any) => s.id);
     const statusCounts = services.reduce((acc: any, service: any) => {
         const status = healthData[service.id]?.currentStatus || 'unknown';
         acc.total += 1;
         acc[status] = (acc[status] || 0) + 1;
         return acc;
     }, { total: 0, online: 0, degraded: 0, offline: 0, unknown: 0 });
+    const fleetPct = fleetUptimeForPeriod(healthData, serviceIds, period);
+    const periodLabel = STATUS_PERIODS.find((p) => p.id === period)?.label || period;
+    const selectedService = services.find((s: any) => s.id === selectedServiceId) || services[0];
+    const selectedHealth = selectedService ? healthData[selectedService.id] : null;
+    const selectedStats = periodStats(selectedHealth, period);
+    const selectedBars = barsForPeriod(selectedHealth, period);
+    const selectedLatencySeries = latencySeriesForPeriod(selectedHealth, period);
+
+    const barClassForTone = (tone: string) => {
+        if (tone === 'online') return 'bg-status-active hover:shadow-[0_0_8px_rgba(35,134,54,0.6)]';
+        if (tone === 'offline') return 'bg-status-expired hover:shadow-[0_0_8px_rgba(218,54,51,0.6)]';
+        if (tone === 'degraded') return 'bg-status-expiring hover:shadow-[0_0_8px_rgba(210,153,34,0.6)]';
+        return 'bg-border';
+    };
+
+    const heightForTone = (tone: string) => {
+        if (tone === 'online') return 'h-full';
+        if (tone === 'degraded') return 'h-2/3';
+        if (tone === 'offline') return 'h-1/3';
+        return 'h-1/5';
+    };
 
     return (
         <div className="w-full flex flex-col">
-            <header className="flex items-center gap-4 w-full mb-8 pb-4 border-b border-border">
-                {isPublic && (
-                    <button onClick={onBack} className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors flex items-center justify-center text-muted hover:text-text">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-                    </button>
-                )}
-                <h2 className="text-2xl font-bold text-text">Server Status</h2>
+            <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between w-full mb-6 pb-4 border-b border-border">
+                <div className="flex items-center gap-4">
+                    {isPublic && (
+                        <button onClick={onBack} className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors flex items-center justify-center text-muted hover:text-text">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                        </button>
+                    )}
+                    <h2 className="text-2xl font-bold text-text">Server Status</h2>
+                </div>
+                <div className="flex flex-wrap gap-1.5 p-1 bg-black/20 rounded-xl border border-border w-fit">
+                    {STATUS_PERIODS.map((p) => (
+                        <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => setPeriod(p.id)}
+                            className={`px-3.5 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all border-none outline-none cursor-pointer ${
+                                period === p.id ? 'bg-plex text-background' : 'bg-transparent text-muted hover:text-text hover:bg-white/5'
+                            }`}
+                        >
+                            {p.label}
+                        </button>
+                    ))}
+                </div>
             </header>
 
             <div className="flex flex-wrap gap-2 mb-8 p-1.5 bg-black/20 rounded-xl border border-border w-fit mx-auto md:mx-0">
@@ -6946,12 +6998,13 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
             <main className="user-content">
                 {activeTab === 'overview' && (
                     <>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
                             {[
                                 { label: 'Services', value: statusCounts.total, tone: 'text-text' },
                                 { label: 'Online', value: statusCounts.online, tone: 'text-status-active' },
                                 { label: 'Degraded', value: statusCounts.degraded, tone: 'text-status-expiring' },
                                 { label: 'Offline', value: statusCounts.offline, tone: 'text-status-expired' },
+                                { label: `${periodLabel} uptime`, value: `${fleetPct.toFixed(1)}%`, tone: 'text-plex' },
                             ].map((item) => (
                                 <div key={item.label} className="rounded-xl border border-white/5 bg-card p-4 shadow-lg">
                                     <p className="text-[10px] uppercase tracking-widest font-bold text-muted">{item.label}</p>
@@ -6996,6 +7049,11 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                         {groupServices.map((service: any, index: number) => {
                                             const health = healthData[service.id] || { currentStatus: 'unknown', uptimePercentage: 100, dailyHistory: {} };
+                                            const uptime = uptimeForPeriod(health, period);
+                                            const bars = barsForPeriod(health, period);
+                                            const latency = health.lastLatency;
+                                            const avgLatency = periodStats(health, period).latency.avg;
+                                            const rangeLeft = period === '24h' ? '24h ago' : period === '7d' ? '7 days ago' : period === '30d' ? '30 days ago' : '90 days ago';
                                             return (
                                                 <div key={service.id} className="bg-card rounded-xl p-4 md:p-6 border border-white/5 shadow-lg flex flex-col gap-4 animate-fade-in hover:-translate-y-1 hover:shadow-plex/10 hover:shadow-2xl hover:border-plex/30 transition-all duration-300" style={{ animationFillMode: 'both', animationDelay: `${index * 75}ms` }}>
                                                     <div className="flex justify-between items-start mb-2 gap-4">
@@ -7010,45 +7068,35 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
                                                             {health.currentStatus === 'online' && <span className="w-1.5 h-1.5 rounded-full bg-status-active animate-pulse shadow-[0_0_5px_rgba(35,134,54,0.8)]" />}
                                                             {health.currentStatus === 'offline' && <span className="w-1.5 h-1.5 rounded-full bg-[#D32F2F] animate-ping" />}
                                                             {health.currentStatus === 'degraded' && <span className="w-1.5 h-1.5 rounded-full bg-status-expiring animate-pulse shadow-[0_0_5px_rgba(210,153,34,0.8)]" />}
-                                                            {health.currentStatus.toUpperCase()}
+                                                            {(health.currentStatus || 'unknown').toUpperCase()}
                                                         </span>
                                                     </div>
-                                                    <div className="text-sm text-muted font-medium">
-                                                        <span>Uptime: {health.uptimePercentage}%</span>
+                                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted font-medium">
+                                                        <span>{periodLabel} uptime: <span className="text-text font-bold tabular-nums">{uptime.pct.toFixed(1)}%</span></span>
+                                                        <span>Latency: <span className="text-text font-bold tabular-nums">{formatLatencyMs(latency)}</span>
+                                                            {avgLatency != null && <span className="text-muted font-normal"> avg {formatLatencyMs(avgLatency)}</span>}
+                                                        </span>
                                                     </div>
                                                     <div className="flex gap-[2px] h-12 mt-auto items-end pt-4 group/bars relative">
-                                                        {Array.from({ length: 90 }).map((_, i) => {
-                                                            const d = new Date();
-                                                            d.setDate(d.getDate() - (89 - i));
-                                                            const dateStr = d.toISOString().split('T')[0];
-                                                            const stat = health.dailyHistory?.[dateStr];
-
-                                                            let barClass = 'unknown';
-                                                            let title = `${dateStr}: No data`;
-                                                            let hClass = 'h-1/5';
-
-                                                            if (stat && stat.total > 0) {
-                                                                const pct = (stat.up / stat.total) * 100;
-                                                                title = `${dateStr}: ${pct.toFixed(1)}% uptime`;
-                                                                if (pct >= 99) { barClass = 'online'; hClass = 'h-full'; }
-                                                                else if (pct >= 90) { barClass = 'degraded'; hClass = 'h-2/3'; }
-                                                                else { barClass = 'offline'; hClass = 'h-1/3'; }
-                                                            }
-
+                                                        {bars.map((bar, i) => {
+                                                            const tone = statusToneFromPct(bar.pct);
+                                                            const title = bar.pct == null
+                                                                ? `${bar.label}: No data`
+                                                                : `${bar.label}: ${bar.pct.toFixed(1)}% uptime${bar.avgLatency != null ? ` · ${formatLatencyMs(bar.avgLatency)} avg` : ''}`;
                                                             return (
                                                                 <div
-                                                                    key={i}
-                                                                    className={`flex-1 rounded-sm transition-all duration-300 hover:opacity-100 opacity-60 cursor-pointer animate-fade-in ${barClass === 'online' ? 'bg-status-active hover:shadow-[0_0_8px_rgba(35,134,54,0.6)]' : barClass === 'offline' ? 'bg-status-expired hover:shadow-[0_0_8px_rgba(218,54,51,0.6)]' : barClass === 'degraded' ? 'bg-status-expiring hover:shadow-[0_0_8px_rgba(210,153,34,0.6)]' : 'bg-border'} ${hClass}`}
-                                                                    style={{ animationFillMode: 'both', animationDelay: `${i * 10}ms` }}
+                                                                    key={bar.key}
+                                                                    className={`flex-1 rounded-sm transition-all duration-300 hover:opacity-100 opacity-60 cursor-pointer animate-fade-in ${barClassForTone(tone)} ${heightForTone(tone)}`}
+                                                                    style={{ animationFillMode: 'both', animationDelay: `${Math.min(i, 40) * 10}ms` }}
                                                                     title={title}
                                                                 />
                                                             );
                                                         })}
                                                     </div>
-                                                    <div className="flex justify-between text-[10px] text-muted font-bold tracking-wider mt-1 opacity-50">
-                                                        <span>90 DAYS AGO</span>
-                                                        <span className="text-center flex-1">{health.uptimePercentage}%</span>
-                                                        <span>TODAY</span>
+                                                    <div className="flex justify-between text-[10px] text-muted font-bold tracking-wider mt-1 opacity-50 uppercase">
+                                                        <span>{rangeLeft}</span>
+                                                        <span className="text-center flex-1 tabular-nums">{uptime.pct.toFixed(1)}%</span>
+                                                        <span>Now</span>
                                                     </div>
                                                 </div>
                                             );
@@ -7062,105 +7110,219 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
 
                 {activeTab === 'history' && (
                     <div className="flex flex-col gap-8 animate-fade-in">
-                        {services.map((service: any) => (
-                            <div key={service.id} className="bg-card border border-white/5 shadow-2xl rounded-2xl overflow-hidden mt-4">
-                                <div className="p-4 bg-black/20 border-b border-border/50">
-                                    <h3 className="text-lg font-bold text-plex uppercase tracking-wider">{service.name}</h3>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left border-collapse">
-                                        <thead className="bg-black/40 border-b border-border text-muted text-xs uppercase tracking-wider">
-                                            <tr>
-                                                <th className="px-6 py-4 font-bold whitespace-nowrap">Date</th>
-                                                <th className="px-6 py-4 font-bold whitespace-nowrap">Uptime %</th>
-                                                <th className="px-6 py-4 font-bold whitespace-nowrap">Checks (Up / Total)</th>
-                                                <th className="px-6 py-4 font-bold text-right whitespace-nowrap">Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-border/50">
-                                            {Object.entries(healthData[service.id]?.dailyHistory || {})
-                                                .sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime())
-                                                .map(([dateStr, stat]: [string, any]) => {
-                                                    const pct = stat.total > 0 ? (stat.up / stat.total) * 100 : 0;
+                        {services.map((service: any) => {
+                            const health = healthData[service.id];
+                            const rows = historyRowsForPeriod(health, period);
+                            const incidents = incidentsForPeriod(health, period);
+                            return (
+                                <div key={service.id} className="bg-card border border-white/5 shadow-2xl rounded-2xl overflow-hidden mt-4">
+                                    <div className="p-4 bg-black/20 border-b border-border/50 flex flex-wrap items-center justify-between gap-2">
+                                        <h3 className="text-lg font-bold text-plex uppercase tracking-wider">{service.name}</h3>
+                                        <span className="text-xs text-muted font-bold uppercase tracking-wider">{periodLabel} history</span>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead className="bg-black/40 border-b border-border text-muted text-xs uppercase tracking-wider">
+                                                <tr>
+                                                    <th className="px-6 py-4 font-bold whitespace-nowrap">{period === '24h' || period === '7d' ? 'Hour (UTC)' : 'Date'}</th>
+                                                    <th className="px-6 py-4 font-bold whitespace-nowrap">Uptime %</th>
+                                                    <th className="px-6 py-4 font-bold whitespace-nowrap">Checks (Up / Total)</th>
+                                                    {(period === '24h' || period === '7d') && (
+                                                        <th className="px-6 py-4 font-bold whitespace-nowrap">Avg latency</th>
+                                                    )}
+                                                    <th className="px-6 py-4 font-bold text-right whitespace-nowrap">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-border/50">
+                                                {rows.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={period === '24h' || period === '7d' ? 5 : 4} className="px-6 py-8 text-center text-muted text-sm">
+                                                            No history for this period yet. Data builds as probes run.
+                                                        </td>
+                                                    </tr>
+                                                ) : rows.map((row) => {
+                                                    const tone = statusToneFromPct(row.pct);
                                                     return (
-                                                        <tr key={dateStr} className="hover:bg-white/5 transition-colors">
-                                                            <td className="px-6 py-4 font-medium whitespace-nowrap text-text">{dateStr}</td>
-                                                            <td className="px-6 py-4 font-mono whitespace-nowrap text-muted">{pct.toFixed(2)}%</td>
-                                                            <td className="px-6 py-4 text-muted text-sm whitespace-nowrap">{stat.up} / {stat.total} checks</td>
+                                                        <tr key={row.key} className="hover:bg-white/5 transition-colors">
+                                                            <td className="px-6 py-4 font-medium whitespace-nowrap text-text">{row.label}</td>
+                                                            <td className="px-6 py-4 font-mono whitespace-nowrap text-muted">{row.pct.toFixed(2)}%</td>
+                                                            <td className="px-6 py-4 text-muted text-sm whitespace-nowrap">{row.up} / {row.total} checks</td>
+                                                            {(period === '24h' || period === '7d') && (
+                                                                <td className="px-6 py-4 text-muted text-sm whitespace-nowrap tabular-nums">{formatLatencyMs(row.avgLatency)}</td>
+                                                            )}
                                                             <td className="px-6 py-4 text-right whitespace-nowrap">
-                                                                <span className={`px-2.5 py-1 rounded-full text-[10px] uppercase font-bold tracking-widest border ${pct >= 99 ? 'bg-status-active/10 text-status-active border-status-active/30' : pct >= 90 ? 'bg-status-expiring/10 text-status-expiring border-status-expiring/30' : 'bg-status-expired/10 text-status-expired border-status-expired/30'}`}>
-                                                                    {pct >= 99 ? 'Healthy' : pct >= 90 ? 'Degraded' : 'Outage'}
+                                                                <span className={`px-2.5 py-1 rounded-full text-[10px] uppercase font-bold tracking-widest border ${tone === 'online' ? 'bg-status-active/10 text-status-active border-status-active/30' : tone === 'degraded' ? 'bg-status-expiring/10 text-status-expiring border-status-expiring/30' : tone === 'offline' ? 'bg-status-expired/10 text-status-expired border-status-expired/30' : 'bg-white/5 text-muted border-border'}`}>
+                                                                    {tone === 'online' ? 'Healthy' : tone === 'degraded' ? 'Degraded' : tone === 'offline' ? 'Outage' : 'Unknown'}
                                                                 </span>
                                                             </td>
                                                         </tr>
                                                     );
                                                 })}
-                                        </tbody>
-                                    </table>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div className="border-t border-border/50 p-4 bg-black/10">
+                                        <h4 className="text-xs font-bold uppercase tracking-widest text-muted mb-3">Incidents ({periodLabel})</h4>
+                                        {incidents.length === 0 ? (
+                                            <p className="text-sm text-muted">No incidents in this window.</p>
+                                        ) : (
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-left border-collapse text-sm">
+                                                    <thead className="text-muted text-[10px] uppercase tracking-wider">
+                                                        <tr>
+                                                            <th className="pb-2 pr-4 font-bold">Started</th>
+                                                            <th className="pb-2 pr-4 font-bold">Ended</th>
+                                                            <th className="pb-2 pr-4 font-bold">Duration</th>
+                                                            <th className="pb-2 font-bold text-right">Severity</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-border/40">
+                                                        {incidents.map((incident) => {
+                                                            const duration = incident.endedAt != null
+                                                                ? (incident.durationMs ?? Math.max(0, incident.endedAt - incident.startedAt))
+                                                                : Math.max(0, Date.now() - incident.startedAt);
+                                                            const severity = incident.to === 'offline' ? 'Offline' : 'Degraded';
+                                                            return (
+                                                                <tr key={incident.id}>
+                                                                    <td className="py-2.5 pr-4 text-text whitespace-nowrap">{formatDateTime(new Date(incident.startedAt).toISOString())}</td>
+                                                                    <td className="py-2.5 pr-4 text-muted whitespace-nowrap">{incident.endedAt != null ? formatDateTime(new Date(incident.endedAt).toISOString()) : 'Ongoing'}</td>
+                                                                    <td className="py-2.5 pr-4 text-muted tabular-nums">{formatDurationShort(duration)}</td>
+                                                                    <td className="py-2.5 text-right">
+                                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-widest border ${severity === 'Offline' ? 'bg-status-expired/10 text-status-expired border-status-expired/30' : 'bg-status-expiring/10 text-status-expiring border-status-expiring/30'}`}>
+                                                                            {severity}
+                                                                        </span>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
 
                 {activeTab === 'analytics' && (
-                    <div className="flex flex-col gap-8 animate-fade-in">
-                        {services.map((service: any) => (
-                            <div key={service.id} className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 md:p-10 mt-4">
-                                <h3 className="text-xl font-bold mb-10 text-center text-muted tracking-widest uppercase">{service.name} - 90-Day Uptime Trend</h3>
-                                <div className="relative h-64 md:h-80 flex items-end gap-1 w-full pl-12 pr-4 md:pr-8">
-                                    {/* Grid lines */}
-                                    <div className="absolute inset-0 pl-12 pr-4 md:pr-8 flex flex-col justify-between pointer-events-none pb-8">
-                                        <div className="w-full border-t border-white/5 h-0 relative">
-                                            <span className="absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right">100%</span>
-                                        </div>
-                                        <div className="w-full border-t border-white/5 h-0 relative">
-                                            <span className="absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right">75%</span>
-                                        </div>
-                                        <div className="w-full border-t border-white/5 h-0 relative">
-                                            <span className="absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right">50%</span>
-                                        </div>
-                                        <div className="w-full border-t border-white/5 h-0 relative">
-                                            <span className="absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right">25%</span>
-                                        </div>
-                                        <div className="w-full border-t border-white/20 h-0 relative">
-                                            <span className="absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right">0%</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Bars */}
-                                    <div className="w-full h-full flex items-end gap-[2px] pb-8 z-10">
-                                        {Array.from({ length: 90 }).map((_, i) => {
-                                            const d = new Date();
-                                            d.setDate(d.getDate() - (89 - i));
-                                            const dateStr = d.toISOString().split('T')[0];
-                                            const stat = healthData[service.id]?.dailyHistory?.[dateStr];
-                                            const pct = stat && stat.total > 0 ? (stat.up / stat.total) * 100 : 0;
-
-                                            return (
-                                                <div
-                                                    key={i}
-                                                    className="flex-1 flex flex-col justify-end h-full relative group/chart cursor-crosshair"
-                                                >
-                                                    <div
-                                                        className={`w-full rounded-t-sm transition-all duration-300 opacity-80 group-hover/chart:opacity-100 ${pct >= 99 ? 'bg-status-active' : pct >= 90 ? 'bg-status-expiring' : stat && stat.total > 0 ? 'bg-status-expired' : 'bg-white/10'}`}
-                                                        style={{ height: `${Math.max(1, pct)}%` }}
-                                                    />
-                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-3 bg-card border border-border shadow-2xl text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/chart:opacity-100 pointer-events-none transition-opacity z-50 flex flex-col items-center">
-                                                        <strong className="text-plex mb-1 tracking-wider uppercase text-[10px]">{dateStr}</strong>
-                                                        <span className="text-lg font-mono font-bold">{stat && stat.total > 0 ? `${pct.toFixed(2)}%` : 'No data'}</span>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                                <div className="flex justify-between text-[10px] text-muted font-bold tracking-widest mt-2 px-12 uppercase">
-                                    <span>90 days ago</span>
-                                    <span>Today</span>
-                                </div>
+                    <div className="flex flex-col gap-6 animate-fade-in">
+                        {services.length > 1 && (
+                            <div className="flex flex-wrap gap-2">
+                                {services.map((service: any) => (
+                                    <button
+                                        key={service.id}
+                                        type="button"
+                                        onClick={() => setSelectedServiceId(service.id)}
+                                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors border ${
+                                            selectedService?.id === service.id
+                                                ? 'bg-plex text-background border-plex'
+                                                : 'bg-card text-muted border-border hover:text-text hover:border-plex/40'
+                                        }`}
+                                    >
+                                        {service.name}
+                                    </button>
+                                ))}
                             </div>
-                        ))}
+                        )}
+
+                        {selectedService && (
+                            <>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    {[
+                                        { label: 'Uptime', value: `${selectedStats.pct.toFixed(2)}%` },
+                                        { label: 'Checks', value: selectedStats.total.toLocaleString() },
+                                        { label: 'Avg latency', value: formatLatencyMs(selectedStats.latency.avg) },
+                                        { label: 'p95 latency', value: formatLatencyMs(selectedStats.latency.p95) },
+                                        { label: 'Incidents', value: String(selectedStats.incidentCount) },
+                                        { label: 'Longest outage', value: formatDurationShort(selectedStats.longestOutageMs) },
+                                        { label: 'Healthy streak', value: selectedStats.currentStreakHours ? `${selectedStats.currentStreakHours}h` : '—' },
+                                        { label: 'Worst day', value: selectedStats.worstDay ? `${selectedStats.worstDay.pct.toFixed(1)}%` : '—' },
+                                    ].map((chip) => (
+                                        <div key={chip.label} className="rounded-xl border border-white/5 bg-card p-4 shadow-lg">
+                                            <p className="text-[10px] uppercase tracking-widest font-bold text-muted">{chip.label}</p>
+                                            <p className="text-xl font-black mt-1 text-text tabular-nums">{chip.value}</p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 md:p-10">
+                                    <h3 className="text-xl font-bold mb-10 text-center text-muted tracking-widest uppercase">
+                                        {selectedService.name} — {periodLabel} Uptime Trend
+                                    </h3>
+                                    <div className="relative h-64 md:h-80 flex items-end gap-1 w-full pl-12 pr-4 md:pr-8">
+                                        <div className="absolute inset-0 pl-12 pr-4 md:pr-8 flex flex-col justify-between pointer-events-none pb-8">
+                                            {['100%', '75%', '50%', '25%', '0%'].map((label) => (
+                                                <div key={label} className={`w-full border-t ${label === '0%' ? 'border-white/20' : 'border-white/5'} h-0 relative`}>
+                                                    <span className="absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right">{label}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="w-full h-full flex items-end gap-[2px] pb-8 z-10">
+                                            {selectedBars.map((bar) => {
+                                                const pct = bar.pct ?? 0;
+                                                const hasData = bar.pct != null && bar.total > 0;
+                                                return (
+                                                    <div key={bar.key} className="flex-1 flex flex-col justify-end h-full relative group/chart cursor-crosshair">
+                                                        <div
+                                                            className={`w-full rounded-t-sm transition-all duration-300 opacity-80 group-hover/chart:opacity-100 ${
+                                                                !hasData ? 'bg-white/10' : pct >= 99 ? 'bg-status-active' : pct >= 90 ? 'bg-status-expiring' : 'bg-status-expired'
+                                                            }`}
+                                                            style={{ height: `${Math.max(1, hasData ? pct : 1)}%` }}
+                                                        />
+                                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-3 bg-card border border-border shadow-2xl text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/chart:opacity-100 pointer-events-none transition-opacity z-50 flex flex-col items-center">
+                                                            <strong className="text-plex mb-1 tracking-wider uppercase text-[10px]">{bar.label}</strong>
+                                                            <span className="text-lg font-mono font-bold">{hasData ? `${pct.toFixed(2)}%` : 'No data'}</span>
+                                                            {bar.avgLatency != null && (
+                                                                <span className="text-muted mt-0.5">{formatLatencyMs(bar.avgLatency)} avg</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-between text-[10px] text-muted font-bold tracking-widest mt-2 px-12 uppercase">
+                                        <span>{period === '24h' ? '24h ago' : `${periodLabel} ago`}</span>
+                                        <span>Now</span>
+                                    </div>
+                                </div>
+
+                                <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 md:p-10">
+                                    <h3 className="text-xl font-bold mb-8 text-center text-muted tracking-widest uppercase">
+                                        {selectedService.name} — {periodLabel} Latency
+                                    </h3>
+                                    {selectedLatencySeries.some((p) => p.avg != null) ? (
+                                        <div className="h-56 md:h-72 w-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <AreaChart data={selectedLatencySeries.filter((p) => p.avg != null)} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                                                    <XAxis dataKey="label" tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 10 }} interval="preserveStartEnd" minTickGap={28} />
+                                                    <YAxis tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 10 }} width={48} tickFormatter={(v) => `${v}ms`} />
+                                                    <RechartsTooltip
+                                                        contentStyle={{ background: 'var(--card, #1a1a1a)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }}
+                                                        labelStyle={{ color: '#e5a00d' }}
+                                                        formatter={(value: any) => [formatLatencyMs(Number(value)), 'Avg latency']}
+                                                    />
+                                                    <Area type="monotone" dataKey="avg" stroke="#e5a00d" fill="rgba(229,160,13,0.2)" strokeWidth={2} />
+                                                </AreaChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    ) : (
+                                        <p className="text-center text-muted text-sm py-12">
+                                            Latency history will appear after probes collect response times for this period.
+                                        </p>
+                                    )}
+                                    {selectedStats.bestDay && selectedStats.worstDay && period !== '24h' && (
+                                        <div className="flex flex-wrap justify-center gap-6 mt-6 text-sm text-muted">
+                                            <span>Best: <strong className="text-status-active">{selectedStats.bestDay.key}</strong> ({selectedStats.bestDay.pct.toFixed(1)}%)</span>
+                                            <span>Worst: <strong className="text-status-expired">{selectedStats.worstDay.key}</strong> ({selectedStats.worstDay.pct.toFixed(1)}%)</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
             </main>
