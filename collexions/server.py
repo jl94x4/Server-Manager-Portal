@@ -202,8 +202,49 @@ def save_managed_collections(data):
     except Exception as e:
         logging.error(f"Failed to save managed collections: {e}")
 
+# Trending-tab preset ids → fetch_source_items source_type
+TRENDING_PRESET_SOURCE_TYPES = {
+    'tmdb_movie_week': 'tmdb_trending_movie',
+    'tmdb_tv_week': 'tmdb_trending_tv',
+    'tmdb_tv_popular': 'tmdb_tv_popular',
+    'tmdb_movie_top': 'tmdb_movie_top',
+    'tmdb_kids': 'tmdb_kids',
+    'tmdb_horror': 'tmdb_horror',
+    'tmdb_docs': 'tmdb_docs',
+    'tmdb_scifi': 'tmdb_scifi',
+    'trakt_movie_trending': 'trakt_trending_movie',
+    'trakt_show_trending': 'trakt_trending_show',
+    'trakt_movie_anticipated': 'trakt_anticipated_movie',
+    'trakt_show_anticipated': 'trakt_anticipated_show',
+}
+
+def normalize_source_type(source_type, source_id=''):
+    """Fix legacy jobs that stored tmdb_trending_undefined when preset.type was missing."""
+    st = (source_type or '').strip()
+    sid = (source_id or '').strip()
+    if ('undefined' in st or not st) and sid in TRENDING_PRESET_SOURCE_TYPES:
+        return TRENDING_PRESET_SOURCE_TYPES[sid]
+    if st in TRENDING_PRESET_SOURCE_TYPES:
+        return TRENDING_PRESET_SOURCE_TYPES[st]
+    return st
+
+def heal_managed_job_sources(managed):
+    """Persist corrected source_type for jobs created with the trending undefined bug."""
+    changed = False
+    for job in managed.values():
+        if not isinstance(job, dict):
+            continue
+        fixed = normalize_source_type(job.get('source_type'), job.get('source_id'))
+        if fixed and fixed != job.get('source_type'):
+            job['source_type'] = fixed
+            changed = True
+    if changed:
+        save_managed_collections(managed)
+    return managed
+
 def fetch_source_items(source_type, source_id, config):
     """Fetches the latest items for a specific source."""
+    source_type = normalize_source_type(source_type, source_id)
     tmdb_key = config.get('tmdb_api_key')
     trakt_id = config.get('trakt_client_id')
     headers = {'Content-Type': 'application/json', 'trakt-api-version': '2', 'trakt-api-key': trakt_id}
@@ -692,8 +733,10 @@ def run_sync_job(job_id=None):
             
         coll_name = job.get('name')
         lib_name = job.get('library')
-        source_type = job.get('source_type')
         source_id = job.get('source_id')
+        source_type = normalize_source_type(job.get('source_type'), source_id)
+        if source_type and source_type != job.get('source_type'):
+            job['source_type'] = source_type
         sort_order = job.get('sort_order', 'custom')
         
         # Respect schedule if not run manually
@@ -1720,6 +1763,7 @@ def get_trending():
 
             presets.append({
                 'id': 'tmdb_movie_week',
+                'source_type': TRENDING_PRESET_SOURCE_TYPES['tmdb_movie_week'],
                 'name': 'TMDb Weekly Trending Movies',
                 'description': 'The most popular movies on TMDb this week.',
                 'source': 'TMDb',
@@ -1745,6 +1789,7 @@ def get_trending():
 
             presets.append({
                 'id': 'tmdb_tv_week',
+                'source_type': TRENDING_PRESET_SOURCE_TYPES['tmdb_tv_week'],
                 'name': 'TMDb Weekly Trending Shows',
                 'description': 'The most watched TV series on TMDb this week.',
                 'source': 'TMDb',
@@ -1770,6 +1815,7 @@ def get_trending():
 
             presets.append({
                 'id': 'tmdb_tv_popular',
+                'source_type': TRENDING_PRESET_SOURCE_TYPES['tmdb_tv_popular'],
                 'name': 'Popular TV Shows',
                 'description': 'The most popular TV shows on TMDb right now.',
                 'source': 'TMDb',
@@ -1795,6 +1841,7 @@ def get_trending():
 
             presets.append({
                 'id': 'tmdb_movie_top',
+                'source_type': TRENDING_PRESET_SOURCE_TYPES['tmdb_movie_top'],
                 'name': 'Top Rated Movies',
                 'description': 'All-time highest rated movies on TMDb.',
                 'source': 'TMDb',
@@ -1820,6 +1867,7 @@ def get_trending():
 
             presets.append({
                 'id': 'tmdb_kids',
+                'source_type': TRENDING_PRESET_SOURCE_TYPES['tmdb_kids'],
                 'name': 'Kids & Family Hits',
                 'description': 'Top animated and family-friendly movies.',
                 'source': 'TMDb',
@@ -1845,6 +1893,7 @@ def get_trending():
 
             presets.append({
                 'id': 'tmdb_horror',
+                'source_type': TRENDING_PRESET_SOURCE_TYPES['tmdb_horror'],
                 'name': 'Horror Hits',
                 'description': 'Top trending horror movies for spooky season.',
                 'source': 'TMDb',
@@ -1870,6 +1919,7 @@ def get_trending():
 
             presets.append({
                 'id': 'tmdb_docs',
+                'source_type': TRENDING_PRESET_SOURCE_TYPES['tmdb_docs'],
                 'name': 'Top Documentaries',
                 'description': 'Highly rated and popular documentaries.',
                 'source': 'TMDb',
@@ -1895,6 +1945,7 @@ def get_trending():
 
             presets.append({
                 'id': 'tmdb_scifi',
+                'source_type': TRENDING_PRESET_SOURCE_TYPES['tmdb_scifi'],
                 'name': 'Sci-Fi Classics',
                 'description': 'Out-of-this-world science fiction favorites.',
                 'source': 'TMDb',
@@ -1923,6 +1974,7 @@ def get_trending():
                 data = resp.json()
                 presets.append({
                     'id': 'trakt_movie_trending',
+                    'source_type': TRENDING_PRESET_SOURCE_TYPES['trakt_movie_trending'],
                     'name': 'Trakt Trending Movies',
                     'description': 'Movies being watched right now across the Trakt community.',
                     'source': 'Trakt',
@@ -1942,6 +1994,7 @@ def get_trending():
                 data = resp.json()
                 presets.append({
                     'id': 'trakt_show_trending',
+                    'source_type': TRENDING_PRESET_SOURCE_TYPES['trakt_show_trending'],
                     'name': 'Trakt Trending Shows',
                     'description': 'Most watched TV shows right now.',
                     'source': 'Trakt',
@@ -1961,6 +2014,7 @@ def get_trending():
                 data = resp.json()
                 presets.append({
                     'id': 'trakt_movie_anticipated',
+                    'source_type': TRENDING_PRESET_SOURCE_TYPES['trakt_movie_anticipated'],
                     'name': 'Trakt Most Anticipated',
                     'description': 'Movies people are most looking forward to.',
                     'source': 'Trakt',
@@ -1980,6 +2034,7 @@ def get_trending():
                 data = resp.json()
                 presets.append({
                     'id': 'trakt_show_anticipated',
+                    'source_type': TRENDING_PRESET_SOURCE_TYPES['trakt_show_anticipated'],
                     'name': 'Most Anticipated Shows',
                     'description': 'Upcoming TV shows with the most hype.',
                     'source': 'Trakt',
@@ -2115,7 +2170,7 @@ def pin_collection():
 @app.route('/api/jobs', methods=['GET'])
 @require_auth
 def get_jobs():
-    managed = load_managed_collections()
+    managed = heal_managed_job_sources(load_managed_collections())
     return jsonify(managed)
 
 @app.route('/api/jobs/run', methods=['POST'])

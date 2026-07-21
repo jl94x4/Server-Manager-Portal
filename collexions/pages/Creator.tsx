@@ -53,14 +53,29 @@ const Creator: React.FC = () => {
         }
         setCreating(true);
         try {
-            // Source ID for trending is the preset ID
+            const sourceType = preset.source_type
+                || ({
+                    tmdb_movie_week: 'tmdb_trending_movie',
+                    tmdb_tv_week: 'tmdb_trending_tv',
+                    tmdb_tv_popular: 'tmdb_tv_popular',
+                    tmdb_movie_top: 'tmdb_movie_top',
+                    tmdb_kids: 'tmdb_kids',
+                    tmdb_horror: 'tmdb_horror',
+                    tmdb_docs: 'tmdb_docs',
+                    tmdb_scifi: 'tmdb_scifi',
+                    trakt_movie_trending: 'trakt_trending_movie',
+                    trakt_show_trending: 'trakt_trending_show',
+                    trakt_movie_anticipated: 'trakt_anticipated_movie',
+                    trakt_show_anticipated: 'trakt_anticipated_show',
+                } as Record<string, string>)[preset.id]
+                || preset.id;
             const res = await api.createFromExternal(
                 targetLibrary,
                 preset.name,
                 preset.items,
                 sortOrder,
                 autoSync,
-                `tmdb_trending_${preset.type}`,
+                sourceType,
                 preset.id
             );
 
