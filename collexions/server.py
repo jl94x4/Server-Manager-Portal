@@ -2943,53 +2943,129 @@ def create_from_template():
         status = 500
     return jsonify(result), status
 
+def _trakt_headers(trakt_id):
+    return {
+        'Content-Type': 'application/json',
+        'trakt-api-version': '2',
+        'trakt-api-key': trakt_id,
+        'User-Agent': 'CollexionsManager/1.0',
+    }
+
+
+def _parse_trakt_list_url(url):
+    """Parse https://trakt.tv/users/{user}/lists/{slug} → (username, slug)."""
+    parts = [p for p in str(url or '').strip().split('/') if p]
+    try:
+        u_idx = parts.index('users')
+        return parts[u_idx + 1], parts[u_idx + 3]
+    except Exception:
+        return None, None
+
+
+def _fetch_trakt_list_items(trakt_id, username, slug, max_pages=10):
+    """Fetch Trakt list items with pagination (up to max_pages * 100)."""
+    headers = _trakt_headers(trakt_id)
+    api_url = f"https://api.trakt.tv/users/{username}/lists/{slug}/items"
+    items = []
+    for page in range(1, max_pages + 1):
+        resp = requests.get(
+            api_url,
+            headers=headers,
+            params={'page': page, 'limit': 100},
+            timeout=20,
+        )
+        if resp.status_code != 200:
+            if page == 1:
+                raise RuntimeError(f"Trakt API error: {resp.status_code}")
+            break
+        data = resp.json() or []
+        if not data:
+            break
+        for itm in data:
+            m = itm.get('movie') or itm.get('show')
+            if not m:
+                continue
+            media_type = itm.get('type') or ('movie' if itm.get('movie') else 'show')
+            tmdb_id = m.get('ids', {}).get('tmdb')
+            items.append({
+                'title': m.get('title'),
+                'year': m.get('year'),
+                'id': tmdb_id or m.get('ids', {}).get('trakt'),
+                'poster': get_tmdb_poster(tmdb_id, 'tv' if media_type == 'show' else 'movie'),
+                'type': media_type,
+            })
+        if len(data) < 100:
+            break
+    return items
+
+
+@app.route('/api/trakt/lists/search')
+@require_auth
+def search_trakt_lists():
+    """Search public Trakt lists by name."""
+    config = load_config()
+    trakt_id = config.get('trakt_client_id')
+    query = str(request.args.get('q') or '').strip()
+    if not trakt_id:
+        return jsonify({'error': 'Trakt client ID required in Settings.'}), 400
+    if not query:
+        return jsonify({'error': 'Missing search query'}), 400
+    try:
+        resp = requests.get(
+            'https://api.trakt.tv/search/list',
+            headers=_trakt_headers(trakt_id),
+            params={'query': query, 'limit': 25},
+            timeout=15,
+        )
+        if resp.status_code != 200:
+            return jsonify({'error': f'Trakt API error: {resp.status_code}'}), 400
+        results = []
+        for row in resp.json() or []:
+            lst = row.get('list') or {}
+            user = lst.get('user') or row.get('user') or {}
+            username = user.get('username') or user.get('ids', {}).get('slug') or ''
+            slug = (lst.get('ids') or {}).get('slug') or ''
+            if not username or not slug:
+                continue
+            url = f"https://trakt.tv/users/{username}/lists/{slug}"
+            results.append({
+                'name': lst.get('name') or slug,
+                'description': lst.get('description') or '',
+                'username': username,
+                'slug': slug,
+                'url': url,
+                'item_count': lst.get('item_count'),
+                'likes': lst.get('likes'),
+                'trakt_id': (lst.get('ids') or {}).get('trakt'),
+                'score': row.get('score'),
+            })
+        return jsonify(results)
+    except Exception as e:
+        logging.error(f"Trakt list search error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/trakt/list')
 @require_auth
 def get_trakt_list():
     config = load_config()
     trakt_id = config.get('trakt_client_id')
     url = request.args.get('url')
-    
-    if not trakt_id or not url:
-        return jsonify({"error": "Missing Trakt ID or URL"}), 400
-        
-    try:
-        # Simple regex/split to get user and slug from https://trakt.tv/users/[user]/lists/[slug]
-        parts = url.strip().split('/')
-        # find 'users' index
-        try:
-            u_idx = parts.index('users')
-            username = parts[u_idx + 1]
-            slug = parts[u_idx + 3]
-        except:
-             return jsonify({"error": "Invalid Trakt list URL format"}), 400
+    username = str(request.args.get('username') or '').strip()
+    slug = str(request.args.get('slug') or '').strip()
 
-        headers = {
-            'Content-Type': 'application/json',
-            'trakt-api-version': '2',
-            'trakt-api-key': trakt_id
-        }
-        api_url = f"https://api.trakt.tv/users/{username}/lists/{slug}/items"
-        resp = requests.get(api_url, headers=headers, timeout=5)
-        
-        if resp.status_code == 200:
-            data = resp.json()
-            items = []
-            for itm in data:
-                m = itm.get('movie') or itm.get('show')
-                if m:
-                    tmdb_id = m.get('ids', {}).get('tmdb')
-                    items.append({
-                        'title': m.get('title'),
-                        'year': m.get('year'),
-                        'id': tmdb_id or m.get('ids', {}).get('trakt'),
-                        'poster': get_tmdb_poster(tmdb_id, itm.get('type', 'movie')),
-                        'type': itm.get('type')
-                    })
-            return jsonify(items)
-        else:
-            return jsonify({"error": f"Trakt API error: {resp.status_code}"}), 400
-            
+    if not trakt_id:
+        return jsonify({"error": "Missing Trakt ID"}), 400
+    if not username or not slug:
+        if not url:
+            return jsonify({"error": "Missing Trakt list URL"}), 400
+        username, slug = _parse_trakt_list_url(url)
+    if not username or not slug:
+        return jsonify({"error": "Invalid Trakt list URL format"}), 400
+
+    try:
+        items = _fetch_trakt_list_items(trakt_id, username, slug)
+        return jsonify(items)
     except Exception as e:
         logging.error(f"Trakt list error: {e}")
         return jsonify({"error": str(e)}), 500

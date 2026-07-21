@@ -356,6 +356,24 @@ class CollexionsApiService {
         return apiFetch(base(`/trakt/list?url=${encodeURIComponent(url)}`));
     }
 
+    async searchTraktLists(query: string): Promise<Array<{
+        name: string;
+        description: string;
+        username: string;
+        slug: string;
+        url: string;
+        item_count?: number | null;
+        likes?: number | null;
+        trakt_id?: number | null;
+        score?: number | null;
+    }>> {
+        return withTimeout(
+            apiFetch(base(`/trakt/lists/search?q=${encodeURIComponent(query)}`)),
+            30000,
+            'Trakt list search',
+        );
+    }
+
     async getMdbList(url: string): Promise<any[]> {
         return apiFetch(base(`/mdblist/list?url=${encodeURIComponent(url)}`));
     }

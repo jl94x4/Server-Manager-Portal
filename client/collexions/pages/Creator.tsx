@@ -304,6 +304,18 @@ const Creator: React.FC = () => {
     const [importUrl, setImportUrl] = useState('');
     const [importedItems, setImportedItems] = useState<any[]>([]);
     const [importing, setImporting] = useState(false);
+    const [traktListQuery, setTraktListQuery] = useState('');
+    const [traktListResults, setTraktListResults] = useState<Array<{
+        name: string;
+        description: string;
+        username: string;
+        slug: string;
+        url: string;
+        item_count?: number | null;
+        likes?: number | null;
+    }>>([]);
+    const [searchingTraktLists, setSearchingTraktLists] = useState(false);
+    const [loadingTraktListUrl, setLoadingTraktListUrl] = useState<string | null>(null);
 
     // Global Search State
     const [externalQuery, setExternalQuery] = useState('');
@@ -359,45 +371,114 @@ const Creator: React.FC = () => {
     };
 
 
+    const titleFromSlug = (slug: string) =>
+        slug.replace(/-/g, ' ').split(' ').filter(Boolean)
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+    const loadImportedList = async (url: string, preferredTitle?: string) => {
+        let items: any[] = [];
+        if (url.includes('mdblist.com')) {
+            items = await api.getMdbList(url);
+        } else {
+            items = await api.getTraktList(url);
+        }
+        setImportedItems(items);
+        setImportUrl(url);
+        if (preferredTitle) {
+            setCollectionTitle(preferredTitle);
+        } else if (!collectionTitle) {
+            const urlParts = url.split('/').filter(Boolean);
+            const listIndex = urlParts.indexOf('lists');
+            const slugPart = listIndex !== -1 && urlParts.length > listIndex + 2
+                ? urlParts[listIndex + 2]
+                : urlParts[urlParts.length - 1];
+            if (slugPart) setCollectionTitle(titleFromSlug(slugPart));
+        }
+        return items;
+    };
+
     const handleListImport = async () => {
         if (!importUrl) return;
         setImporting(true);
         try {
-            let items = [];
-            let sourceType = '';
-
-            if (importUrl.includes('mdblist.com')) {
-                items = await api.getMdbList(importUrl);
-                sourceType = 'mdblist';
-            } else {
-                items = await api.getTraktList(importUrl);
-                sourceType = 'trakt';
-            }
-
-            setImportedItems(items);
-
-            // Extract a reasonable title from the URL
-            const urlParts = importUrl.split('/').filter(Boolean);
-            let slug = '';
-
-            if (sourceType === 'mdblist') {
-                // e.g. https://mdblist.com/lists/mojoard_pk/vintage-british-tv/
-                const listIndex = urlParts.indexOf('lists');
-                if (listIndex !== -1 && urlParts.length > listIndex + 2) {
-                    slug = urlParts[listIndex + 2].replace(/-/g, ' ');
-                }
-            } else {
-                // e.g. https://trakt.tv/users/mojoard_pk/lists/vintage-british-tv
-                slug = urlParts[urlParts.length - 1].replace(/-/g, ' ');
-            }
-
-            if (slug && !collectionTitle) {
-                setCollectionTitle(slug.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '));
-            }
-        } catch (e) {
-            showToast("Failed to fetch list. Check URL or API keys.", "error");
+            const items = await loadImportedList(importUrl);
+            showToast(`Loaded ${items.length} titles from list.`, 'success');
+        } catch (e: any) {
+            showToast(e?.message || 'Failed to fetch list. Check URL or API keys.', 'error');
         } finally {
             setImporting(false);
+        }
+    };
+
+    const handleTraktListSearch = async () => {
+        if (!traktListQuery.trim()) return;
+        if (!config?.trakt_client_id && !templateKeys.trakt) {
+            showToast('Add a Trakt client ID in Settings to search lists.', 'error');
+            return;
+        }
+        setSearchingTraktLists(true);
+        try {
+            const results = await api.searchTraktLists(traktListQuery.trim());
+            setTraktListResults(Array.isArray(results) ? results : []);
+            if (!Array.isArray(results) || results.length === 0) {
+                showToast('No public Trakt lists found for that search.', 'info');
+            }
+        } catch (e: any) {
+            showToast(e?.message || 'Trakt list search failed.', 'error');
+            setTraktListResults([]);
+        } finally {
+            setSearchingTraktLists(false);
+        }
+    };
+
+    const handleSelectTraktList = async (list: {
+        name: string;
+        url: string;
+    }) => {
+        setLoadingTraktListUrl(list.url);
+        setImporting(true);
+        try {
+            const items = await loadImportedList(list.url, list.name);
+            showToast(`Loaded “${list.name}” (${items.length} titles).`, 'success');
+        } catch (e: any) {
+            showToast(e?.message || 'Failed to load that Trakt list.', 'error');
+        } finally {
+            setImporting(false);
+            setLoadingTraktListUrl(null);
+        }
+    };
+
+    const handleCreateTraktList = async (list: { name: string; url: string }) => {
+        if (!targetLibrary) {
+            showToast('Please select a target library first!', 'error');
+            return;
+        }
+        setLoadingTraktListUrl(list.url);
+        setCreating(true);
+        try {
+            const items = await loadImportedList(list.url, list.name);
+            if (!ensureLibraryMatchesMedia(mediaFromItems(items))) return;
+            const res = await api.createFromExternal(
+                targetLibrary,
+                list.name,
+                items,
+                sortOrder,
+                autoSync,
+                'trakt_list',
+                list.url,
+            );
+            if (res.success) {
+                showToast(`Created '${list.name}' — matched ${res.matched}/${res.total} titles.`, 'success');
+                setImportedItems([]);
+                setCollectionTitle('');
+            } else {
+                showToast(res.error || 'Failed to create collection.', 'error');
+            }
+        } catch (e: any) {
+            showToast(e?.message || 'Failed to create collection from Trakt list.', 'error');
+        } finally {
+            setCreating(false);
+            setLoadingTraktListUrl(null);
         }
     };
 
@@ -1233,7 +1314,86 @@ const Creator: React.FC = () => {
 
                 {activeSubTab === 'import' && (
                     <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300">
-                        <Card title="Import from Trakt.tv or MDBList.com">
+                        <Card title="Search Trakt lists">
+                            <div className="space-y-4">
+                                <p className="text-sm text-muted">
+                                    Find a public Trakt list (e.g. “Oscar winners”, “Marvel”) and create a managed Plex collection from it.
+                                </p>
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <div className="relative flex-1">
+                                        <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted" />
+                                        <input
+                                            className="w-full bg-background/60 border border-border rounded-lg pl-10 pr-4 py-2 text-sm text-text focus:outline-none focus:border-plex/50"
+                                            placeholder="Search Trakt lists…"
+                                            value={traktListQuery}
+                                            onChange={(e) => setTraktListQuery(e.target.value)}
+                                            onKeyDown={(e) => { if (e.key === 'Enter') void handleTraktListSearch(); }}
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => void handleTraktListSearch()}
+                                        disabled={searchingTraktLists || !traktListQuery.trim()}
+                                        className="px-5 py-2 rounded-lg bg-card border border-border font-bold text-sm text-text hover:border-plex/40 disabled:opacity-50 flex items-center justify-center gap-2"
+                                    >
+                                        {searchingTraktLists ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                                        Search
+                                    </button>
+                                </div>
+                                {!templateKeys.trakt && !config?.trakt_client_id && (
+                                    <p className="text-xs text-amber-300/90">Add a Trakt client ID in Settings to search lists.</p>
+                                )}
+                                {traktListResults.length > 0 && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {traktListResults.map((list) => {
+                                            const busy = loadingTraktListUrl === list.url;
+                                            return (
+                                                <div key={list.url} className="border border-border rounded-xl p-4 bg-background/40 flex flex-col gap-3">
+                                                    <div className="min-w-0">
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <h4 className="font-bold text-text text-sm truncate">{list.name}</h4>
+                                                            {typeof list.item_count === 'number' && (
+                                                                <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-500/15 text-red-300 border border-red-500/30">
+                                                                    {list.item_count} titles
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs text-muted mt-1">
+                                                            by <span className="text-text/80">{list.username}</span>
+                                                            {typeof list.likes === 'number' ? ` · ${list.likes} likes` : ''}
+                                                        </p>
+                                                        {list.description && (
+                                                            <p className="text-xs text-muted mt-2 line-clamp-2">{list.description}</p>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2 mt-auto">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => void handleSelectTraktList(list)}
+                                                            disabled={busy || importing}
+                                                            className="flex-1 px-3 py-2 rounded-lg border border-border text-xs font-bold text-muted hover:text-text hover:border-plex/40 disabled:opacity-50"
+                                                        >
+                                                            {busy && !creating ? 'Loading…' : 'Preview'}
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => void handleCreateTraktList(list)}
+                                                            disabled={busy || creating || !targetLibrary}
+                                                            className="flex-1 px-3 py-2 rounded-lg bg-plex hover:bg-plex-hover text-background text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                                        >
+                                                            {busy && creating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                                                            Create in Plex
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        </Card>
+
+                        <Card title="Or paste a Trakt / MDBList URL">
                             <div className="flex gap-2">
                                 <div className="relative flex-1">
                                     <ExternalLink className="absolute left-3 top-2.5 w-4 h-4 text-muted" />
@@ -1243,27 +1403,51 @@ const Creator: React.FC = () => {
                             </div>
                         </Card>
                         {importedItems.length > 0 && (
-                            <Card
-                                title={`Import Preview (${importedItems.length} items)`}
-                                actions={
+                            <>
+                                <Card
+                                    title={`Import Preview (${importedItems.length} items)`}
+                                    actions={
+                                        <button
+                                            onClick={() => setImportedItems([])}
+                                            className="p-1.5 hover:bg-white/5 rounded-lg text-muted hover:text-text transition-all"
+                                            title="Clear Import"
+                                        >
+                                            <Plus className="w-5 h-5 rotate-45" />
+                                        </button>
+                                    }
+                                >
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
+                                        {importedItems.map((item, idx) => (
+                                            <div key={idx} className="p-3 bg-background/30 border border-border rounded-xl flex items-center justify-between group">
+                                                <div className="min-w-0"><h4 className="text-sm font-bold text-text truncate">{item.title}</h4><p className="text-xs text-muted">{item.year} • {item.type}</p></div>
+                                                <button onClick={() => setImportedItems(prev => prev.filter((_, i) => i !== idx))} className="text-muted hover:text-red-400 opacity-0 group-hover:opacity-100"><Plus className="w-4 h-4 rotate-45" /></button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </Card>
+                                <div className="px-1 space-y-4">
+                                    <div>
+                                        <label className="text-sm text-muted mb-2 block font-medium">Collection Title</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. Oscar Winners..."
+                                            className="w-full md:w-96 bg-background/60 border border-border rounded-xl px-4 py-3 text-text focus:outline-none focus:border-plex/50 transition-colors"
+                                            value={collectionTitle}
+                                            onChange={(e) => setCollectionTitle(e.target.value)}
+                                        />
+                                        <p className="text-xs text-muted mt-2">Creates a Plex collection from titles you already own{autoSync ? ', and registers an auto-sync Job.' : '.'}</p>
+                                    </div>
                                     <button
-                                        onClick={() => setImportedItems([])}
-                                        className="p-1.5 hover:bg-white/5 rounded-lg text-muted hover:text-text transition-all"
-                                        title="Clear Import"
+                                        type="button"
+                                        onClick={() => void handleCreateFromExternal()}
+                                        disabled={creating || !targetLibrary || !collectionTitle || importedItems.length === 0}
+                                        className="bg-plex hover:bg-plex-hover text-text px-8 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 w-full md:w-auto"
                                     >
-                                        <Plus className="w-5 h-5 rotate-45" />
+                                        <Sparkles className="w-5 h-5" />
+                                        {creating ? 'Creating...' : 'Create Auto-Syncing Collection'}
                                     </button>
-                                }
-                            >
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
-                                    {importedItems.map((item, idx) => (
-                                        <div key={idx} className="p-3 bg-background/30 border border-border rounded-xl flex items-center justify-between group">
-                                            <div className="min-w-0"><h4 className="text-sm font-bold text-text truncate">{item.title}</h4><p className="text-xs text-muted">{item.year} • {item.type}</p></div>
-                                            <button onClick={() => setImportedItems(prev => prev.filter((_, i) => i !== idx))} className="text-muted hover:text-red-400 opacity-0 group-hover:opacity-100"><Plus className="w-4 h-4 rotate-45" /></button>
-                                        </div>
-                                    ))}
                                 </div>
-                            </Card>
+                            </>
                         )}
                     </div>
                 )}
