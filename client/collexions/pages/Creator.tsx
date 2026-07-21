@@ -1,11 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Card } from '../components/ui/Card';
-import { Plus, Search, ListMusic, Globe, Loader2, List, Trash2, Sparkles, Filter, ExternalLink, Compass, Clock, LayoutTemplate } from 'lucide-react';
+import { Plus, Search, ListMusic, Globe, Loader2, List, Trash2, Sparkles, Filter, ExternalLink, Compass, Clock, LayoutTemplate, Check } from 'lucide-react';
 import { api, collexionsImageUrl } from '../api';
 import { CustomSelect } from '../components/ui/Inputs';
 import { AppConfig } from '../types';
 
 type CreatorTab = 'templates' | 'trending' | 'discover' | 'search' | 'import' | 'manual';
+
+type BusyOverlay = {
+    headline: string;
+    detail?: string;
+    steps: string[];
+};
 
 const CREATOR_TABS: Array<{ id: CreatorTab; label: string }> = [
     { id: 'templates', label: 'Templates' },
@@ -84,11 +90,32 @@ const Creator: React.FC = () => {
     const [sortOrder, setSortOrder] = useState<'custom' | 'random' | 'release'>('custom');
     const [autoSync, setAutoSync] = useState(true);
     const [creating, setCreating] = useState(false);
+    const [busyOverlay, setBusyOverlay] = useState<BusyOverlay | null>(null);
+    const [busyStep, setBusyStep] = useState(0);
 
     const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
         setToast({ message, type });
         setTimeout(() => setToast(null), 5000);
     };
+
+    const startBusy = (overlay: BusyOverlay) => {
+        setBusyStep(0);
+        setBusyOverlay(overlay);
+    };
+
+    const stopBusy = () => {
+        setBusyOverlay(null);
+        setBusyStep(0);
+    };
+
+    useEffect(() => {
+        if (!busyOverlay) return;
+        if (busyOverlay.steps.length <= 1) return;
+        const id = window.setInterval(() => {
+            setBusyStep((s) => Math.min(s + 1, busyOverlay.steps.length - 1));
+        }, 4000);
+        return () => window.clearInterval(id);
+    }, [busyOverlay]);
 
     const ensureLibraryMatchesMedia = (media?: string | null): boolean => {
         const expected = normalizeMediaKind(media);
@@ -165,6 +192,17 @@ const Creator: React.FC = () => {
         if (!ensureLibraryMatchesMedia(tpl.media || mediaFromSourceType(tpl.source_type))) return;
         setCreatingTemplateId(tpl.id);
         setCreating(true);
+        const mediaLabel = normalizeMediaKind(tpl.media) === 'show' ? 'shows' : 'movies';
+        startBusy({
+            headline: `Creating “${tpl.name}”`,
+            detail: `Collecting ${mediaLabel} into ${targetLibrary}`,
+            steps: [
+                `Fetching ${mediaLabel} from the source…`,
+                'Matching titles to your Plex library…',
+                'Building the collection in Plex…',
+                'Finishing up — please don’t refresh…',
+            ],
+        });
         try {
             const res = await api.createFromTemplate({
                 library: targetLibrary,
@@ -183,6 +221,7 @@ const Creator: React.FC = () => {
         } catch (e: any) {
             showToast(e?.message || 'Failed to create collection.', 'error');
         } finally {
+            stopBusy();
             setCreating(false);
             setCreatingTemplateId(null);
         }
@@ -217,6 +256,16 @@ const Creator: React.FC = () => {
         if (!ensureLibraryMatchesMedia(mediaFromSourceType(franchise.source_type) || 'movie')) return;
         setCreatingTemplateId(`franchise-${franchise.source_id}`);
         setCreating(true);
+        startBusy({
+            headline: `Creating “${franchise.name}”`,
+            detail: `Collecting franchise films into ${targetLibrary}`,
+            steps: [
+                'Fetching the franchise from TMDB…',
+                'Matching titles to your Plex library…',
+                'Building the collection in Plex…',
+                'Finishing up — please don’t refresh…',
+            ],
+        });
         try {
             const res = await api.createFromTemplate({
                 library: targetLibrary,
@@ -237,6 +286,7 @@ const Creator: React.FC = () => {
         } catch (e: any) {
             showToast(e?.message || 'Failed to create franchise collection.', 'error');
         } finally {
+            stopBusy();
             setCreating(false);
             setCreatingTemplateId(null);
         }
@@ -266,6 +316,16 @@ const Creator: React.FC = () => {
             || preset.id;
         if (!ensureLibraryMatchesMedia(mediaFromSourceType(sourceType) || mediaFromItems(preset.items))) return;
         setCreating(true);
+        startBusy({
+            headline: `Creating “${preset.name}”`,
+            detail: `Matching into ${targetLibrary}`,
+            steps: [
+                'Collecting titles from the source…',
+                'Matching titles to your Plex library…',
+                'Building the collection in Plex…',
+                'Finishing up — please don’t refresh…',
+            ],
+        });
         try {
             const res = await api.createFromExternal(
                 targetLibrary,
@@ -286,6 +346,7 @@ const Creator: React.FC = () => {
         } catch (e) {
             showToast("Failed to create collection.", "error");
         } finally {
+            stopBusy();
             setCreating(false);
         }
     };
@@ -382,6 +443,9 @@ const Creator: React.FC = () => {
         } else {
             items = await api.getTraktList(url);
         }
+        if (!Array.isArray(items)) {
+            throw new Error((items as any)?.error || 'List response was invalid.');
+        }
         setImportedItems(items);
         setImportUrl(url);
         if (preferredTitle) {
@@ -437,12 +501,35 @@ const Creator: React.FC = () => {
     }) => {
         setLoadingTraktListUrl(list.url);
         setImporting(true);
+        startBusy({
+            headline: `Loading “${list.name}”`,
+            detail: 'Pulling the full Trakt list for preview',
+            steps: [
+                'Contacting Trakt…',
+                'Downloading every title from the list…',
+                'Preparing your preview…',
+            ],
+        });
         try {
             const items = await loadImportedList(list.url, list.name);
+            if (!items.length) {
+                showToast(
+                    `“${list.name}” returned 0 titles from Trakt (list may be private or empty).`,
+                    'error',
+                );
+                return;
+            }
             showToast(`Loaded “${list.name}” (${items.length} titles).`, 'success');
         } catch (e: any) {
-            showToast(e?.message || 'Failed to load that Trakt list.', 'error');
+            const msg = String(e?.message || '');
+            showToast(
+                /504|timeout/i.test(msg)
+                    ? 'Preview timed out loading that list. Try again — large lists can take a moment.'
+                    : (msg || 'Failed to load that Trakt list.'),
+                'error',
+            );
         } finally {
+            stopBusy();
             setImporting(false);
             setLoadingTraktListUrl(null);
         }
@@ -455,9 +542,30 @@ const Creator: React.FC = () => {
         }
         setLoadingTraktListUrl(list.url);
         setCreating(true);
+        startBusy({
+            headline: `Creating “${list.name}”`,
+            detail: `Matching into ${targetLibrary} — large lists can take a minute`,
+            steps: [
+                'Fetching titles from Trakt…',
+                'Matching titles to your Plex library…',
+                'Building the collection in Plex…',
+                'Finishing up — please don’t refresh…',
+            ],
+        });
         try {
-            const items = await loadImportedList(list.url, list.name);
-            if (!ensureLibraryMatchesMedia(mediaFromItems(items))) return;
+            let items: any[] = [];
+            try {
+                items = await loadImportedList(list.url, list.name);
+            } catch (loadErr: any) {
+                // Fall through — server can still fetch via source_type + URL.
+                console.warn('Trakt preview load failed; creating via server fetch', loadErr);
+            }
+            if (items.length && !ensureLibraryMatchesMedia(mediaFromItems(items))) return;
+            // For unknown/mixed media, assume show lists need a TV library when name hints TV.
+            if (!items.length && /tv|show|series/i.test(list.name)) {
+                if (!ensureLibraryMatchesMedia('show')) return;
+            }
+            setBusyStep((s) => Math.min(s + 1, 3));
             const res = await api.createFromExternal(
                 targetLibrary,
                 list.name,
@@ -477,6 +585,7 @@ const Creator: React.FC = () => {
         } catch (e: any) {
             showToast(e?.message || 'Failed to create collection from Trakt list.', 'error');
         } finally {
+            stopBusy();
             setCreating(false);
             setLoadingTraktListUrl(null);
         }
@@ -521,6 +630,16 @@ const Creator: React.FC = () => {
     const handleCreate = async () => {
         if (!targetLibrary || !collectionTitle || selectionPool.length === 0) return;
         setCreating(true);
+        startBusy({
+            headline: `Creating “${collectionTitle}”`,
+            detail: `Matching ${selectionPool.length} titles into ${targetLibrary}`,
+            steps: [
+                'Preparing your selected titles…',
+                'Matching titles to your Plex library…',
+                'Building the collection in Plex…',
+                'Finishing up — please don’t refresh…',
+            ],
+        });
         try {
             // Check if items are from library (ratingKey) or external (id)
             const hasExternal = selectionPool.some(i => i.id && !i.ratingKey);
@@ -555,6 +674,7 @@ const Creator: React.FC = () => {
         } catch (e) {
             showToast("Failed to create collection.", "error");
         } finally {
+            stopBusy();
             setCreating(false);
         }
     };
@@ -572,6 +692,16 @@ const Creator: React.FC = () => {
             : (mediaFromSourceType(sourceType) || mediaFromItems(itemsToUse));
         if (!ensureLibraryMatchesMedia(expectedMedia)) return;
         setCreating(true);
+        startBusy({
+            headline: `Creating “${collectionTitle}”`,
+            detail: `Matching into ${targetLibrary}`,
+            steps: [
+                'Collecting titles from the source…',
+                'Matching titles to your Plex library…',
+                'Building the collection in Plex…',
+                'Finishing up — please don’t refresh…',
+            ],
+        });
         try {
             const sourceId = activeSubTab === 'import' ? importUrl :
                 (isDiscover ? JSON.stringify({
@@ -610,6 +740,7 @@ const Creator: React.FC = () => {
         } catch (e) {
             showToast("Failed to create collection.", "error");
         } finally {
+            stopBusy();
             setCreating(false);
         }
     };
@@ -641,6 +772,65 @@ const Creator: React.FC = () => {
                     </button>
                 </div>
             )}
+
+            {busyOverlay && (
+                <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-background/75 backdrop-blur-md animate-in fade-in duration-200">
+                    <div className="w-full max-w-md rounded-3xl border border-border bg-card shadow-2xl p-6 sm:p-8 animate-in zoom-in-95 duration-300">
+                        <div className="flex flex-col items-center text-center gap-4">
+                            <div className="relative w-16 h-16">
+                                <div className="absolute inset-0 rounded-full border-2 border-plex/20" />
+                                <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-plex animate-spin" />
+                                <div className="absolute inset-0 flex items-center justify-center text-plex">
+                                    <Sparkles className="w-6 h-6 animate-pulse" />
+                                </div>
+                            </div>
+                            <div className="space-y-1.5">
+                                <h3 className="text-xl font-bold text-text">{busyOverlay.headline}</h3>
+                                {busyOverlay.detail && (
+                                    <p className="text-sm text-muted">{busyOverlay.detail}</p>
+                                )}
+                            </div>
+                            <div className="w-full space-y-2.5 pt-1">
+                                {busyOverlay.steps.map((step, idx) => {
+                                    const done = idx < busyStep;
+                                    const active = idx === busyStep;
+                                    return (
+                                        <div
+                                            key={step}
+                                            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 border transition-all duration-500 ${
+                                                active
+                                                    ? 'border-plex/40 bg-plex/10 text-text'
+                                                    : done
+                                                        ? 'border-border/60 bg-background/30 text-muted'
+                                                        : 'border-transparent text-muted/50'
+                                            }`}
+                                        >
+                                            <div className="w-5 h-5 shrink-0 flex items-center justify-center">
+                                                {done ? (
+                                                    <div className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                                                        <Check className="w-3 h-3" />
+                                                    </div>
+                                                ) : active ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin text-plex" />
+                                                ) : (
+                                                    <div className="w-2 h-2 rounded-full bg-muted/40" />
+                                                )}
+                                            </div>
+                                            <span className={`text-sm text-left ${active ? 'font-semibold' : ''}`}>
+                                                {step}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <p className="text-xs text-muted pt-1">
+                                This can take a while for big lists. Don’t refresh the page.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Modal for viewing all items in a preset */}
             {viewingPreset && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-300">
@@ -1370,19 +1560,20 @@ const Creator: React.FC = () => {
                                                         <button
                                                             type="button"
                                                             onClick={() => void handleSelectTraktList(list)}
-                                                            disabled={busy || importing}
-                                                            className="flex-1 px-3 py-2 rounded-lg border border-border text-xs font-bold text-muted hover:text-text hover:border-plex/40 disabled:opacity-50"
+                                                            disabled={!!loadingTraktListUrl}
+                                                            className="flex-1 px-3 py-2 rounded-lg border border-border text-xs font-bold text-muted hover:text-text hover:border-plex/40 disabled:opacity-50 flex items-center justify-center gap-1.5"
                                                         >
+                                                            {busy && !creating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
                                                             {busy && !creating ? 'Loading…' : 'Preview'}
                                                         </button>
                                                         <button
                                                             type="button"
                                                             onClick={() => void handleCreateTraktList(list)}
-                                                            disabled={busy || creating || !targetLibrary}
+                                                            disabled={!!loadingTraktListUrl || !targetLibrary}
                                                             className="flex-1 px-3 py-2 rounded-lg bg-plex hover:bg-plex-hover text-background text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1.5"
                                                         >
                                                             {busy && creating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                                                            Create in Plex
+                                                            {busy && creating ? 'Creating…' : 'Create in Plex'}
                                                         </button>
                                                     </div>
                                                 </div>

@@ -456,22 +456,20 @@ def fetch_source_items(source_type, source_id, config):
             if resp.status_code == 200:
                 items = [{'title': itm['show']['title'], 'tmdb_id': itm['show']['ids']['tmdb'], 'type': 'show'} for itm in resp.json()]
         elif source_type == 'trakt_list':
-            api_path = source_id
-            if 'trakt.tv' in source_id:
-                parts = source_id.strip().split('/')
-                try:
-                    u_idx = parts.index('users')
-                    username = parts[u_idx + 1]
-                    slug = parts[u_idx + 3]
-                    api_path = f"{username}/lists/{slug}"
-                except Exception:
-                    pass
-            resp = requests.get(f"https://api.trakt.tv/users/{api_path}/items?limit=1000", headers=headers, timeout=5)
-            if resp.status_code == 200:
-                data = resp.json()
-                for itm in data:
-                    if 'movie' in itm: items.append({'title': itm['movie']['title'], 'tmdb_id': itm['movie']['ids']['tmdb'], 'type': 'movie'})
-                    elif 'show' in itm: items.append({'title': itm['show']['title'], 'tmdb_id': itm['show']['ids']['tmdb'], 'type': 'show'})
+            username, slug = _parse_trakt_list_url(source_id)
+            if not username or not slug:
+                # Allow bare "user/lists/slug" paths too
+                parts = [p for p in str(source_id or '').strip().split('/') if p]
+                if len(parts) >= 3 and parts[-2] == 'lists':
+                    username, slug = parts[-3], parts[-1]
+            if username and slug and trakt_id:
+                for itm in _fetch_trakt_list_items(trakt_id, username, slug):
+                    items.append({
+                        'title': itm.get('title'),
+                        'tmdb_id': itm.get('tmdb_id') or itm.get('id'),
+                        'type': itm.get('type') or 'movie',
+                        'year': itm.get('year'),
+                    })
         elif source_type == 'mdblist':
             try:
                 api_key = config.get('mdblist_api_key')
@@ -941,17 +939,29 @@ def create_collection_from_source(library_name, title, source_type, source_id=''
     if not plex:
         return {"success": False, "error": "Plex connection failed"}
 
-    items = list(external_items or [])
-    if source_type:
+    # Prefer caller-provided items (Preview already loaded them). Only fetch when
+    # empty — and never replace a good payload with a failed/empty re-fetch.
+    items = [it for it in (external_items or []) if isinstance(it, dict)]
+    fetch_error = None
+    if source_type and not items:
         try:
-            full_items = fetch_source_items(source_type, source_id, config)
+            items = fetch_source_items(source_type, source_id, config) or []
+        except Exception as e:
+            fetch_error = str(e)
+            logging.error(f"Failed to fetch upstream source items: {e}")
+    elif source_type and items:
+        try:
+            full_items = fetch_source_items(source_type, source_id, config) or []
             if full_items:
                 items = full_items
         except Exception as e:
-            logging.error(f"Failed to fetch upstream source items: {e}")
+            logging.warning(f"Upstream re-fetch failed; using provided items: {e}")
 
     if not items:
-        return {"success": False, "error": "No items found for this source"}
+        err = "No items found for this source"
+        if fetch_error:
+            err = f"Could not load titles from source ({fetch_error})"
+        return {"success": False, "error": err}
 
     try:
         library = plex.library.section(library_name)
@@ -3256,8 +3266,12 @@ def _parse_trakt_list_url(url):
         return None, None
 
 
-def _fetch_trakt_list_items(trakt_id, username, slug, max_pages=10):
-    """Fetch Trakt list items with pagination (up to max_pages * 100)."""
+def _fetch_trakt_list_items(trakt_id, username, slug, max_pages=20):
+    """Fetch Trakt list items with pagination (up to max_pages * 100).
+
+    Posters are intentionally omitted — resolving TMDB art per title is too slow
+    for large lists and caused gateway timeouts on Preview.
+    """
     headers = _trakt_headers(trakt_id)
     api_url = f"https://api.trakt.tv/users/{username}/lists/{slug}/items"
     items = []
@@ -3285,7 +3299,7 @@ def _fetch_trakt_list_items(trakt_id, username, slug, max_pages=10):
                 'title': m.get('title'),
                 'year': m.get('year'),
                 'id': tmdb_id or m.get('ids', {}).get('trakt'),
-                'poster': get_tmdb_poster(tmdb_id, 'tv' if media_type == 'show' else 'movie'),
+                'tmdb_id': tmdb_id,
                 'type': media_type,
             })
         if len(data) < 100:
@@ -3317,7 +3331,13 @@ def search_trakt_lists():
         for row in resp.json() or []:
             lst = row.get('list') or {}
             user = lst.get('user') or row.get('user') or {}
-            username = user.get('username') or user.get('ids', {}).get('slug') or ''
+            # Trakt list URLs must use the user slug, not the display name.
+            user_ids = user.get('ids') or {}
+            username = (
+                user_ids.get('slug')
+                or user.get('username')
+                or ''
+            )
             slug = (lst.get('ids') or {}).get('slug') or ''
             if not username or not slug:
                 continue
@@ -3403,13 +3423,14 @@ def get_mdblist():
             data = resp.json()
             items = []
             for itm in data:
-                # MDBList items usually have these fields directly
+                tmdb_id = itm.get('tmdb_id') or itm.get('id')
+                # Skip per-item TMDB poster lookups — too slow for large lists / Preview.
                 items.append({
                     'title': itm.get('title'),
                     'year': str(itm.get('year', '')),
-                    'id': itm.get('tmdb_id') or itm.get('id'), # Usually provides tmdb_id directly
-                    'poster': get_tmdb_poster(itm.get('tmdb_id'), itm.get('mediatype', 'movie')),
-                    'type': itm.get('mediatype', 'movie')
+                    'id': tmdb_id,
+                    'tmdb_id': tmdb_id,
+                    'type': itm.get('mediatype', 'movie'),
                 })
             return jsonify(items)
         else:

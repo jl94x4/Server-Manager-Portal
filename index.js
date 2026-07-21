@@ -16180,7 +16180,7 @@ app.all('/api/collexions/*', requireAdmin, requireCollexions, async (req, res) =
             }
         }
 
-        // Gallery / create / template jobs can take a while on large libraries.
+        // Gallery / create / template jobs / large Trakt lists can take a while.
         const longSuffix =
             suffix === 'collections'
             || suffix.startsWith('collections?')
@@ -16188,7 +16188,9 @@ app.all('/api/collexions/*', requireAdmin, requireCollexions, async (req, res) =
             || suffix === 'collections/create-from-external'
             || suffix === 'templates/create'
             || suffix.startsWith('templates/franchise-search')
-            || suffix === 'trending';
+            || suffix === 'trending'
+            || suffix === 'trakt/list'
+            || suffix.startsWith('trakt/list?');
         const timeoutMs = longSuffix ? 180000 : 20000;
         const upstream = await fetchWithTimeout(targetUrl.toString(), init, timeoutMs);
         const contentType = upstream.headers.get('content-type') || '';
