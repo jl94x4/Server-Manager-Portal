@@ -8,11 +8,13 @@ import {
     BarChart3,
     Settings,
     ScrollText,
+    Rows3,
 } from 'lucide-react';
 
 const navItems = [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
     { to: '/gallery', label: 'Gallery', icon: Image },
+    { to: '/hubs', label: 'Hubs', icon: Rows3 },
     { to: '/creator', label: 'Creator', icon: Sparkles },
     { to: '/jobs', label: 'Jobs', icon: Clock },
     { to: '/stats', label: 'Stats', icon: BarChart3 },

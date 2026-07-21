@@ -16,6 +16,7 @@ import {
     Square,
     CheckSquare,
     X,
+    Trash2,
 } from 'lucide-react';
 import { CustomSelect } from '../../shared/ui';
 import { NoPosterPlaceholder } from '../../shared/NoPosterPlaceholder';
@@ -99,6 +100,7 @@ const Gallery: React.FC = () => {
     const [sortMode, setSortMode] = useState<SortMode>('title');
     const [gridSize, setGridSize] = useState<UpgraderGridSize>('medium');
     const [pinningId, setPinningId] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
     const [selectMode, setSelectMode] = useState(false);
     const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
@@ -228,6 +230,28 @@ const Gallery: React.FC = () => {
         }
     };
 
+    const handleDelete = async (coll: PlexCollection) => {
+        const ok = window.confirm(
+            `Delete "${coll.title}" from Plex?\n\nThis permanently removes the collection from "${coll.library}" (titles stay in your library). Any Collexions auto-sync job for it will also be removed.`,
+        );
+        if (!ok) return;
+        const id = collId(coll);
+        setDeletingId(id);
+        try {
+            await api.deleteCollection(coll.title, coll.library);
+            setCollections(prev => prev.filter(c => collKey(c) !== collKey(coll)));
+            setSelectedKeys(prev => {
+                const next = new Set(prev);
+                next.delete(collKey(coll));
+                return next;
+            });
+        } catch (e: any) {
+            alert(e?.message || 'Delete failed. Check Plex connection.');
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
     const toggleSelect = (coll: PlexCollection) => {
         const key = collKey(coll);
         setSelectedKeys(prev => {
@@ -268,11 +292,17 @@ const Gallery: React.FC = () => {
         setSelectedKeys(new Set(filteredCollections.map(collKey)));
     };
 
-    const handleBulk = async (action: 'pin' | 'unpin') => {
+    const handleBulk = async (action: 'pin' | 'unpin' | 'delete') => {
         const items = collections
             .filter(c => selectedKeys.has(collKey(c)))
             .map(c => ({ title: c.title, library: c.library }));
         if (!items.length) return;
+        if (action === 'delete') {
+            const ok = window.confirm(
+                `Permanently delete ${items.length} collection${items.length === 1 ? '' : 's'} from Plex?\n\nTitles stay in your libraries. Matching Collexions auto-sync jobs will also be removed.`,
+            );
+            if (!ok) return;
+        }
         setBulkBusy(true);
         try {
             const result = await api.bulkPinCollections(action, items);
@@ -281,18 +311,22 @@ const Gallery: React.FC = () => {
                     .filter(r => r.ok)
                     .map(r => collKey({ title: r.title, library: r.library })),
             );
-            setCollections(prev => prev.map(c => {
-                if (!okKeys.has(collKey(c))) return c;
-                return {
-                    ...c,
-                    is_pinned: action === 'pin',
-                    pin_resolved: true,
-                    has_label: action === 'pin',
-                };
-            }));
+            if (action === 'delete') {
+                setCollections(prev => prev.filter(c => !okKeys.has(collKey(c))));
+            } else {
+                setCollections(prev => prev.map(c => {
+                    if (!okKeys.has(collKey(c))) return c;
+                    return {
+                        ...c,
+                        is_pinned: action === 'pin',
+                        pin_resolved: true,
+                        has_label: action === 'pin',
+                    };
+                }));
+            }
             exitSelectMode();
             if (result.ok_count < items.length) {
-                alert(`Updated ${result.ok_count} of ${items.length}. Some actions failed.`);
+                alert(`${action === 'delete' ? 'Deleted' : 'Updated'} ${result.ok_count} of ${items.length}. Some actions failed.`);
             }
         } catch (e) {
             alert('Bulk action failed. Check Plex connection.');
@@ -408,6 +442,15 @@ const Gallery: React.FC = () => {
                     </button>
                     <button
                         type="button"
+                        disabled={bulkBusy || selectedKeys.size === 0}
+                        onClick={() => handleBulk('delete')}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600/20 text-red-300 border border-red-600/40 hover:bg-red-600/30 disabled:opacity-50 inline-flex items-center gap-1.5"
+                    >
+                        {bulkBusy ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                        Delete selected
+                    </button>
+                    <button
+                        type="button"
                         onClick={exitSelectMode}
                         className="ml-auto p-1.5 rounded-lg text-muted hover:text-text"
                         title="Exit select mode"
@@ -501,7 +544,8 @@ const Gallery: React.FC = () => {
                     const id = collId(coll);
                     const key = collKey(coll);
                     const uniqueKey = `${id}-${idx}`;
-                    const isProcessing = pinningId === id;
+                    const isProcessing = pinningId === id || deletingId === id;
+                    const isDeleting = deletingId === id;
                     const isSelected = selectedKeys.has(key);
                     const pinPending = coll.pin_resolved === false;
 
@@ -582,7 +626,7 @@ const Gallery: React.FC = () => {
                                                 : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
                                                 } disabled:opacity-50`}
                                         >
-                                            {isProcessing ? (
+                                            {isProcessing && !isDeleting ? (
                                                 <RefreshCw className="w-3 h-3 animate-spin" />
                                             ) : coll.is_pinned ? (
                                                 <>
@@ -595,6 +639,17 @@ const Gallery: React.FC = () => {
                                                     Pin
                                                 </>
                                             )}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDelete(coll)}
+                                            disabled={isProcessing}
+                                            className="rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 p-2 transition-colors disabled:opacity-50"
+                                            title="Delete collection from Plex"
+                                        >
+                                            {isDeleting
+                                                ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                                : <Trash2 className="w-3.5 h-3.5" />}
                                         </button>
                                     </div>
                                 )}
@@ -699,30 +754,43 @@ const Gallery: React.FC = () => {
                                 </div>
 
                                 {!selectMode && (
-                                    <button
-                                        type="button"
-                                        onClick={() => handlePinToggle(coll)}
-                                        disabled={isProcessing || pinPending}
-                                        className={`w-full rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all border whitespace-nowrap ${isCompact ? 'py-1 text-[10px]' : 'py-2 text-xs'} ${coll.is_pinned
-                                            ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'
-                                            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-                                            } disabled:opacity-50`}
-                                    >
-                                        {isProcessing ? (
-                                            <RefreshCw className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0 animate-spin`} />
-                                        ) : coll.is_pinned ? (
-                                            <>
-                                                <PinOff className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0`} />
-                                                <span>Unpin</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Pin className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0`} />
-                                                <span className={isCompact ? 'hidden' : ''}>Pin to Home</span>
-                                                {isCompact && <span>Pin</span>}
-                                            </>
-                                        )}
-                                    </button>
+                                    <div className={`flex ${isCompact ? 'gap-1' : 'gap-2'}`}>
+                                        <button
+                                            type="button"
+                                            onClick={() => handlePinToggle(coll)}
+                                            disabled={isProcessing || pinPending}
+                                            className={`flex-1 rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all border whitespace-nowrap ${isCompact ? 'py-1 text-[10px]' : 'py-2 text-xs'} ${coll.is_pinned
+                                                ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'
+                                                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                                                } disabled:opacity-50`}
+                                        >
+                                            {isProcessing && !isDeleting ? (
+                                                <RefreshCw className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0 animate-spin`} />
+                                            ) : coll.is_pinned ? (
+                                                <>
+                                                    <PinOff className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0`} />
+                                                    <span>Unpin</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Pin className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0`} />
+                                                    <span className={isCompact ? 'hidden' : ''}>Pin to Home</span>
+                                                    {isCompact && <span>Pin</span>}
+                                                </>
+                                            )}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDelete(coll)}
+                                            disabled={isProcessing}
+                                            className={`rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50 flex items-center justify-center ${isCompact ? 'px-1.5 py-1' : 'px-2.5 py-2'}`}
+                                            title="Delete collection from Plex"
+                                        >
+                                            {isDeleting
+                                                ? <RefreshCw className={`${isCompact ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'} animate-spin`} />
+                                                : <Trash2 className={isCompact ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'} />}
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -743,6 +811,7 @@ const Gallery: React.FC = () => {
                     <p><b className="text-text">Pinned</b>: Visible on your Plex Home Screen and Shared Home Screens.</p>
                     <p><b className="text-text">Tracked</b>: Has the script label but currently hidden from Home.</p>
                     <p><b className="text-text">Manual Pinning</b>: Overrides schedule until the next run unpins it (unless excluded).</p>
+                    <p><b className="text-text">Delete</b>: Permanently removes the collection from Plex (movies/shows stay). Also removes any matching Collexions auto-sync job.</p>
                 </div>
             </div>
         </div>

@@ -7,6 +7,15 @@ import { AppConfig } from '../types';
 
 type CreatorTab = 'templates' | 'trending' | 'discover' | 'search' | 'import' | 'manual';
 
+const CREATOR_TABS: Array<{ id: CreatorTab; label: string }> = [
+    { id: 'templates', label: 'Templates' },
+    { id: 'trending', label: 'Trending' },
+    { id: 'discover', label: 'Discover' },
+    { id: 'search', label: 'Global Search' },
+    { id: 'import', label: 'Import List' },
+    { id: 'manual', label: 'Manual Build' },
+];
+
 type JobTemplate = {
     id: string;
     name: string;
@@ -20,9 +29,39 @@ type JobTemplate = {
     available: boolean;
 };
 
+type PlexLibraryInfo = { name: string; type: string };
+
+type MediaKind = 'movie' | 'show';
+
+const normalizeMediaKind = (value?: string | null): MediaKind | null => {
+    const v = String(value || '').trim().toLowerCase();
+    if (v === 'movie' || v === 'movies' || v === 'film' || v === 'films') return 'movie';
+    if (v === 'show' || v === 'shows' || v === 'tv' || v === 'television' || v === 'series') return 'show';
+    return null;
+};
+
+const mediaFromSourceType = (sourceType?: string): MediaKind | null => {
+    const st = String(sourceType || '').toLowerCase();
+    if (!st) return null;
+    if (st.includes('show') || st.endsWith('_tv') || st.includes('_tv_') || st.startsWith('tmdb_tv')) return 'show';
+    if (st.includes('movie') || st === 'tmdb_collection') return 'movie';
+    return null;
+};
+
+const mediaFromItems = (items?: Array<{ type?: string }>): MediaKind | null => {
+    const kinds = new Set<MediaKind>();
+    for (const it of items || []) {
+        const kind = normalizeMediaKind(it?.type);
+        if (kind) kinds.add(kind);
+    }
+    if (kinds.size === 1) return [...kinds][0];
+    return null;
+};
+
 const Creator: React.FC = () => {
     const [activeSubTab, setActiveSubTab] = useState<CreatorTab>('templates');
     const [config, setConfig] = useState<AppConfig | null>(null);
+    const [plexLibraries, setPlexLibraries] = useState<PlexLibraryInfo[]>([]);
     // Trending State
     const [trendingPresets, setTrendingPresets] = useState<any[]>([]);
     const [viewingPreset, setViewingPreset] = useState<any | null>(null);
@@ -51,19 +90,50 @@ const Creator: React.FC = () => {
         setTimeout(() => setToast(null), 5000);
     };
 
+    const ensureLibraryMatchesMedia = (media?: string | null): boolean => {
+        const expected = normalizeMediaKind(media);
+        if (!expected || !targetLibrary) return true;
+        const lib = plexLibraries.find((l) => l.name === targetLibrary);
+        const libType = normalizeMediaKind(lib?.type);
+        if (!libType || libType === expected) return true;
+        showToast(
+            expected === 'movie'
+                ? `"${targetLibrary}" is a TV Shows library — pick a Movies library for this collection.`
+                : `"${targetLibrary}" is a Movies library — pick a TV Shows library for this collection.`,
+            'error',
+        );
+        return false;
+    };
+
+    const librarySelectOptions = useMemo(() => {
+        const names = config?.library_names || [];
+        return names.map((name) => {
+            const info = plexLibraries.find((l) => l.name === name);
+            const kind = normalizeMediaKind(info?.type);
+            const suffix = kind === 'show' ? 'TV' : kind === 'movie' ? 'Movies' : null;
+            return { value: name, label: suffix ? `${name} (${suffix})` : name };
+        });
+    }, [config?.library_names, plexLibraries]);
+
     const loadData = async () => {
         setLoading(true);
         try {
-            const [cfg, presets, tplPayload] = await Promise.all([
+            const [cfg, presets, tplPayload, libs] = await Promise.all([
                 api.getConfig(),
                 api.getTrending().catch(() => []),
                 api.getTemplates().catch(() => ({ templates: [], categories: [], keys: { tmdb: false, trakt: false } })),
+                api.getPlexLibraries().catch(() => []),
             ]);
             setConfig(cfg);
             setTrendingPresets(presets);
             setTemplates(tplPayload.templates || []);
             setTemplateCategories(tplPayload.categories || []);
             setTemplateKeys(tplPayload.keys || { tmdb: false, trakt: false });
+            setPlexLibraries(
+                Array.isArray(libs)
+                    ? libs.map((l: any) => ({ name: String(l.name || ''), type: String(l.type || '') })).filter((l) => l.name)
+                    : [],
+            );
             if (cfg?.library_names?.length === 1) {
                 setTargetLibrary(cfg.library_names[0]);
             }
@@ -92,6 +162,7 @@ const Creator: React.FC = () => {
             showToast(`Add required API keys in Settings (${(tpl.requires || []).join(', ')}).`, 'error');
             return;
         }
+        if (!ensureLibraryMatchesMedia(tpl.media || mediaFromSourceType(tpl.source_type))) return;
         setCreatingTemplateId(tpl.id);
         setCreating(true);
         try {
@@ -143,6 +214,7 @@ const Creator: React.FC = () => {
             showToast('TMDB API key required in Settings.', 'error');
             return;
         }
+        if (!ensureLibraryMatchesMedia(mediaFromSourceType(franchise.source_type) || 'movie')) return;
         setCreatingTemplateId(`franchise-${franchise.source_id}`);
         setCreating(true);
         try {
@@ -175,25 +247,26 @@ const Creator: React.FC = () => {
             showToast("Please select a target library first!", "error");
             return;
         }
+        // source_type comes from the API (falls back for older cached presets)
+        const sourceType = preset.source_type
+            || ({
+                tmdb_movie_week: 'tmdb_trending_movie',
+                tmdb_tv_week: 'tmdb_trending_tv',
+                tmdb_tv_popular: 'tmdb_tv_popular',
+                tmdb_movie_top: 'tmdb_movie_top',
+                tmdb_kids: 'tmdb_kids',
+                tmdb_horror: 'tmdb_horror',
+                tmdb_docs: 'tmdb_docs',
+                tmdb_scifi: 'tmdb_scifi',
+                trakt_movie_trending: 'trakt_trending_movie',
+                trakt_show_trending: 'trakt_trending_show',
+                trakt_movie_anticipated: 'trakt_anticipated_movie',
+                trakt_show_anticipated: 'trakt_anticipated_show',
+            } as Record<string, string>)[preset.id]
+            || preset.id;
+        if (!ensureLibraryMatchesMedia(mediaFromSourceType(sourceType) || mediaFromItems(preset.items))) return;
         setCreating(true);
         try {
-            // source_type comes from the API (falls back for older cached presets)
-            const sourceType = preset.source_type
-                || ({
-                    tmdb_movie_week: 'tmdb_trending_movie',
-                    tmdb_tv_week: 'tmdb_trending_tv',
-                    tmdb_tv_popular: 'tmdb_tv_popular',
-                    tmdb_movie_top: 'tmdb_movie_top',
-                    tmdb_kids: 'tmdb_kids',
-                    tmdb_horror: 'tmdb_horror',
-                    tmdb_docs: 'tmdb_docs',
-                    tmdb_scifi: 'tmdb_scifi',
-                    trakt_movie_trending: 'trakt_trending_movie',
-                    trakt_show_trending: 'trakt_trending_show',
-                    trakt_movie_anticipated: 'trakt_anticipated_movie',
-                    trakt_show_anticipated: 'trakt_anticipated_show',
-                } as Record<string, string>)[preset.id]
-                || preset.id;
             const res = await api.createFromExternal(
                 targetLibrary,
                 preset.name,
@@ -408,12 +481,17 @@ const Creator: React.FC = () => {
 
     const handleCreateFromExternal = async () => {
         if (!targetLibrary || !collectionTitle) return;
+        const isDiscover = activeSubTab === 'discover';
+        const isMdbList = importUrl.includes('mdblist.com');
+        const sourceType = activeSubTab === 'import' ? (isMdbList ? 'mdblist' : 'trakt_list') :
+            (isDiscover ? 'tmdb_discover' : 'trakt_trending_movie');
+        const itemsToUse = isDiscover ? discoverResults : importedItems;
+        const expectedMedia = isDiscover
+            ? normalizeMediaKind(discoverType)
+            : (mediaFromSourceType(sourceType) || mediaFromItems(itemsToUse));
+        if (!ensureLibraryMatchesMedia(expectedMedia)) return;
         setCreating(true);
         try {
-            const isDiscover = activeSubTab === 'discover';
-            const isMdbList = importUrl.includes('mdblist.com');
-            const sourceType = activeSubTab === 'import' ? (isMdbList ? 'mdblist' : 'trakt_list') :
-                (isDiscover ? 'tmdb_discover' : 'trakt_trending_movie');
             const sourceId = activeSubTab === 'import' ? importUrl :
                 (isDiscover ? JSON.stringify({
                     type: discoverType,
@@ -427,8 +505,6 @@ const Creator: React.FC = () => {
                     with_companies: discoverType === 'movie' ? discoverCompany : undefined,
                     sort_by: discoverSort
                 }) : externalQuery);
-
-            const itemsToUse = isDiscover ? discoverResults : importedItems;
 
             const res = await api.createFromExternal(
                 targetLibrary,
@@ -561,10 +637,10 @@ const Creator: React.FC = () => {
                 </div>
             </div>
 
-            {/* Global Creation Settings */}
-            <section className="bg-card/60 border border-border p-6 rounded-2xl flex flex-col xl:flex-row items-center justify-between gap-6 shadow-xl sticky top-0 z-40 backdrop-blur-md">
-                <div className="flex flex-wrap items-center gap-6 w-full xl:w-auto">
-                    <div className="flex items-center gap-4">
+            {/* Global Creation Settings — not sticky on mobile (portal chrome + tall card covered content) */}
+            <section className="bg-card/60 border border-border p-4 md:p-6 rounded-2xl flex flex-col xl:flex-row xl:items-center justify-between gap-4 md:gap-6 shadow-xl relative z-10 lg:sticky lg:top-2 lg:z-30 lg:backdrop-blur-md">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 md:gap-6 w-full xl:w-auto">
+                    <div className="hidden sm:flex items-center gap-4">
                         <div className="bg-plex/20 p-3 rounded-xl text-plex">
                             <ListMusic className="w-6 h-6" />
                         </div>
@@ -575,17 +651,16 @@ const Creator: React.FC = () => {
                     </div>
                     <CustomSelect
                         label="Target Library"
-                        className="w-full md:w-56"
+                        className="w-full sm:w-56"
                         value={targetLibrary}
-                        options={config?.library_names.map(lib => ({ value: lib, label: lib })) || []}
+                        options={librarySelectOptions}
                         onChange={setTargetLibrary}
                         placeholder="Select a library..."
                     />
-
                 </div>
 
-                <div className="flex flex-wrap items-center gap-6 w-full xl:w-auto xl:border-l xl:border-border xl:pl-6">
-                    <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 md:gap-6 w-full xl:w-auto xl:border-l xl:border-border xl:pl-6">
+                    <div className="hidden sm:flex items-center gap-4">
                         <div className="bg-plex/20 p-3 rounded-xl text-plex">
                             <Sparkles className="w-6 h-6" />
                         </div>
@@ -596,7 +671,7 @@ const Creator: React.FC = () => {
                     </div>
                     <CustomSelect
                         label="Sort Order"
-                        className="w-full md:w-48"
+                        className="w-full sm:w-48"
                         value={sortOrder}
                         options={[
                             { value: 'custom', label: 'Manual (Default)' },
@@ -605,50 +680,64 @@ const Creator: React.FC = () => {
                         ]}
                         onChange={setSortOrder}
                     />
-
                 </div>
 
-                <div className="flex flex-wrap items-center gap-6 w-full xl:w-auto xl:border-l xl:border-border xl:pl-6">
-                    <div className="flex items-center gap-4">
-                        <div className="bg-emerald-500/20 p-3 rounded-xl text-emerald-400">
+                <div className="flex items-center justify-between gap-3 w-full xl:w-auto xl:border-l xl:border-border xl:pl-6">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="hidden sm:flex bg-emerald-500/20 p-3 rounded-xl text-emerald-400">
                             <Clock className="w-6 h-6" />
                         </div>
-                        <div>
-                            <h3 className="text-lg font-bold text-text whitespace-nowrap">Auto-Sync</h3>
-                            <p className="text-sm text-muted">Sync every 6 hours</p>
+                        <div className="min-w-0">
+                            <h3 className="text-sm sm:text-lg font-bold text-text whitespace-nowrap">Auto-Sync</h3>
+                            <p className="text-xs sm:text-sm text-muted">Sync every 6 hours</p>
                         </div>
                     </div>
                     <button
+                        type="button"
                         onClick={() => setAutoSync(!autoSync)}
-                        className={`px-6 py-2 rounded-xl border font-bold transition-all ${autoSync ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-background/60 border-border text-muted'}`}
+                        className={`shrink-0 px-5 py-2 rounded-xl border font-bold transition-all ${autoSync ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-background/60 border-border text-muted'}`}
                     >
                         {autoSync ? 'Enabled' : 'Disabled'}
                     </button>
                 </div>
             </section>
 
-            <div className="flex border-b border-border overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
-                {[
-                    { id: 'templates', label: 'Templates', icon: <LayoutTemplate className="w-4 h-4" /> },
-                    { id: 'trending', label: 'Trending', icon: <Globe className="w-4 h-4" /> },
-                    { id: 'discover', label: 'Discover', icon: <Compass className="w-4 h-4" /> },
-                    { id: 'search', label: 'Global Search', icon: <Search className="w-4 h-4" /> },
-                    { id: 'import', label: 'Import List', icon: <ExternalLink className="w-4 h-4" /> },
-                    { id: 'manual', label: 'Manual Build', icon: <ListMusic className="w-4 h-4" /> }
-                ].map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveSubTab(tab.id as CreatorTab)}
-                        className={`px-6 py-4 font-medium capitalize transition-all border-b-2 whitespace-nowrap text-sm flex items-center gap-2 ${activeSubTab === tab.id ? 'text-plex border-plex bg-card/30' : 'text-muted border-transparent hover:text-text hover:bg-white/5'
-                            }`}
-                    >
-                        {tab.icon}
-                        {tab.label}
-                    </button>
-                ))}
+            {/* Mobile: mode dropdown · Desktop: tab row */}
+            <div className="md:hidden">
+                <CustomSelect
+                    label="Creator mode"
+                    className="w-full"
+                    value={activeSubTab}
+                    options={CREATOR_TABS.map((t) => ({ value: t.id, label: t.label }))}
+                    onChange={(v) => setActiveSubTab(v as CreatorTab)}
+                />
+            </div>
+            <div className="hidden md:flex border-b border-border overflow-x-auto no-scrollbar">
+                {CREATOR_TABS.map((tab) => {
+                    const icon = {
+                        templates: <LayoutTemplate className="w-4 h-4" />,
+                        trending: <Globe className="w-4 h-4" />,
+                        discover: <Compass className="w-4 h-4" />,
+                        search: <Search className="w-4 h-4" />,
+                        import: <ExternalLink className="w-4 h-4" />,
+                        manual: <ListMusic className="w-4 h-4" />,
+                    }[tab.id];
+                    return (
+                        <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setActiveSubTab(tab.id)}
+                            className={`px-6 py-4 font-medium transition-all border-b-2 whitespace-nowrap text-sm flex items-center gap-2 ${activeSubTab === tab.id ? 'text-plex border-plex bg-card/30' : 'text-muted border-transparent hover:text-text hover:bg-white/5'
+                                }`}
+                        >
+                            {icon}
+                            {tab.label}
+                        </button>
+                    );
+                })}
             </div>
 
-            <div className="grid gap-6">
+            <div className="grid gap-6 relative z-0">
                 {activeSubTab === 'templates' && (
                     <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300">
                         <div className="rounded-2xl border border-border bg-card/40 p-5 space-y-3">
@@ -819,7 +908,7 @@ const Creator: React.FC = () => {
                                 </div>
                             </Card>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {trendingPresets.map(preset => (
                                     <div key={preset.id} className="bg-card/50 border border-border p-6 rounded-2xl flex flex-col justify-between hover:border-plex/30 transition-all group shadow-lg">
                                         <div>
@@ -865,7 +954,7 @@ const Creator: React.FC = () => {
                 )}
 
                 {activeSubTab === 'discover' && (
-                    <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 relative z-30">
+                    <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300">
                         <Card title="Discover Curated Collections">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <div className="relative z-50">

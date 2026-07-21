@@ -242,6 +242,76 @@ def heal_managed_job_sources(managed):
         save_managed_collections(managed)
     return managed
 
+# Expected Plex library type ('movie' | 'show') for known source_types.
+SOURCE_TYPE_MEDIA = {
+    'tmdb_trending_movie': 'movie',
+    'tmdb_trending_tv': 'show',
+    'tmdb_tv_popular': 'show',
+    'tmdb_movie_top': 'movie',
+    'tmdb_movie_top_rated': 'movie',
+    'tmdb_kids': 'movie',
+    'tmdb_horror': 'movie',
+    'tmdb_docs': 'movie',
+    'tmdb_scifi': 'movie',
+    'tmdb_collection': 'movie',
+    'trakt_trending_movie': 'movie',
+    'trakt_trending_show': 'show',
+    'trakt_anticipated_movie': 'movie',
+    'trakt_anticipated_show': 'show',
+    'trakt_recommended_movie': 'movie',
+    'trakt_recommended_show': 'show',
+}
+
+def normalize_media_kind(value):
+    v = str(value or '').strip().lower()
+    if v in ('movie', 'movies', 'film', 'films'):
+        return 'movie'
+    if v in ('show', 'shows', 'tv', 'television', 'series'):
+        return 'show'
+    return None
+
+def infer_media_from_items(items):
+    kinds = set()
+    for it in items or []:
+        kind = normalize_media_kind((it or {}).get('type'))
+        if kind:
+            kinds.add(kind)
+    if len(kinds) == 1:
+        return next(iter(kinds))
+    return None
+
+def expected_media_for_source(source_type, source_id='', items=None):
+    """Return 'movie' or 'show' when we can tell what media a source targets."""
+    st = normalize_source_type(source_type, source_id)
+    if st in SOURCE_TYPE_MEDIA:
+        return SOURCE_TYPE_MEDIA[st]
+    if st == 'tmdb_discover':
+        try:
+            params = json.loads(source_id or '{}')
+            return normalize_media_kind(params.get('type', 'movie')) or 'movie'
+        except Exception:
+            return 'movie'
+    st_l = (st or '').lower()
+    if 'show' in st_l or st_l.endswith('_tv') or '_tv_' in st_l or st_l.startswith('tmdb_tv'):
+        return 'show'
+    if 'movie' in st_l:
+        return 'movie'
+    return infer_media_from_items(items)
+
+def library_media_mismatch_error(library, source_type, source_id='', items=None):
+    """Human-readable error when target library type doesn't match source media."""
+    lib_type = normalize_media_kind(getattr(library, 'type', None))
+    expected = expected_media_for_source(source_type, source_id, items)
+    if not lib_type or not expected or lib_type == expected:
+        return None
+    lib_label = 'Movies' if lib_type == 'movie' else 'TV Shows'
+    want_label = 'Movies' if expected == 'movie' else 'TV Shows'
+    title = getattr(library, 'title', None) or 'That library'
+    return (
+        f'"{title}" is a {lib_label} library, but this collection is for {want_label}. '
+        f'Select a matching Target Library.'
+    )
+
 def fetch_source_items(source_type, source_id, config):
     """Fetches the latest items for a specific source."""
     source_type = normalize_source_type(source_type, source_id)
@@ -600,6 +670,43 @@ def _register_managed_job(library_name, title, source_type, source_id, sort_orde
     return job_id
 
 
+def _unregister_jobs_for_collection(library_name, title):
+    """Remove any Auto-Sync jobs tied to this library + collection title."""
+    managed = load_managed_collections()
+    removed = []
+    for jid, job in list(managed.items()):
+        if not isinstance(job, dict):
+            continue
+        if job.get('library') == library_name and job.get('name') == title:
+            del managed[jid]
+            removed.append(jid)
+    if removed:
+        save_managed_collections(managed)
+        log_action(f"Removed {len(removed)} Auto-Sync job(s) for '{title}' in '{library_name}'.")
+    return removed
+
+
+def _delete_plex_collection(library_name, title):
+    """
+    Permanently delete a collection from Plex and drop matching managed jobs.
+    Returns (ok: bool, error: str|None, removed_jobs: list).
+    """
+    plex = get_plex_instance()
+    if not plex:
+        return False, "Plex connection failed", []
+    if not library_name or not title:
+        return False, "Missing title/library", []
+    try:
+        library = plex.library.section(library_name)
+        collection = library.collection(title)
+        collection.delete()
+        removed_jobs = _unregister_jobs_for_collection(library_name, title)
+        log_action(f"Deleted collection '{title}' from '{library_name}'.")
+        return True, None, removed_jobs
+    except Exception as e:
+        return False, str(e), []
+
+
 def _create_plex_collection(library, title, matched_items, sort_order='custom', label='Collexions'):
     """Create a Plex collection from matched items. Returns the collection object."""
     if sort_order == 'random':
@@ -648,6 +755,9 @@ def create_collection_from_source(library_name, title, source_type, source_id=''
 
     try:
         library = plex.library.section(library_name)
+        mismatch = library_media_mismatch_error(library, source_type, source_id, items)
+        if mismatch:
+            return {"success": False, "error": mismatch, "matched": 0, "total": len(items)}
         logging.info(f"Matching {len(items)} source items against library '{library_name}'...")
         matched_items = _match_external_to_plex(library, items)
         if not matched_items:
@@ -766,6 +876,10 @@ def run_sync_job(job_id=None):
         # 2. Update Plex Collection (recreate if missing)
         try:
             library = plex.library.section(lib_name)
+            mismatch = library_media_mismatch_error(library, source_type, source_id, items)
+            if mismatch:
+                log_action(f"Auto-Sync: Skipping '{coll_name}' — {mismatch}")
+                continue
             label = config.get('collexions_label', 'Collexions')
             tmdb_cache = _build_library_tmdb_cache(library)
             plex_items = _match_external_to_plex(library, items, tmdb_cache=tmdb_cache)
@@ -1642,7 +1756,7 @@ def resolve_collection_pins():
 @app.route('/api/collections/bulk', methods=['POST'])
 @require_auth
 def bulk_pin_collections():
-    """Pin or unpin many collections in one request."""
+    """Pin, unpin, or delete many collections in one request."""
     global GALLERY_CACHE
     plex = get_plex_instance()
     config = load_config()
@@ -1651,8 +1765,8 @@ def bulk_pin_collections():
     action = str(data.get('action') or '').lower()
     items = data.get('items') or []
 
-    if action not in ('pin', 'unpin'):
-        return jsonify({"success": False, "error": "action must be pin or unpin"}), 400
+    if action not in ('pin', 'unpin', 'delete'):
+        return jsonify({"success": False, "error": "action must be pin, unpin, or delete"}), 400
     if not plex or not isinstance(items, list) or not items:
         return jsonify({"success": False, "error": "Invalid request"}), 400
 
@@ -1663,6 +1777,16 @@ def bulk_pin_collections():
         library_name = str(item.get('library') or '').strip()
         if not title or not library_name:
             results.append({"title": title, "library": library_name, "ok": False, "error": "Missing title/library"})
+            continue
+        if action == 'delete':
+            ok, err, removed_jobs = _delete_plex_collection(library_name, title)
+            results.append({
+                "title": title,
+                "library": library_name,
+                "ok": ok,
+                "error": err,
+                "removed_jobs": removed_jobs,
+            })
             continue
         try:
             library = plex.library.section(library_name)
@@ -1729,8 +1853,127 @@ def plex_libraries():
         logging.error(f"Failed to fetch Plex libraries: {e}")
         return jsonify({"error": str(e)}), 500
 
-# Assuming PRESETS_CACHE is defined globally, similar to GALLERY_CACHE
-# PRESETS_CACHE = {'data': None, 'timestamp': 0, 'ttl': 3600} # Cache for 1 hour
+
+def _hub_to_dict(hub):
+    identifier = getattr(hub, 'identifier', None) or ''
+    return {
+        'identifier': identifier,
+        'title': getattr(hub, 'title', '') or identifier,
+        'promoted_to_recommended': bool(getattr(hub, 'promotedToRecommended', False)),
+        'promoted_to_home': bool(getattr(hub, 'promotedToOwnHome', False)),
+        'promoted_to_shared': bool(getattr(hub, 'promotedToSharedHome', False)),
+        'deletable': bool(getattr(hub, 'deletable', False)),
+        'is_collection': str(identifier).startswith('custom.collection.'),
+    }
+
+
+def _find_managed_hub(library, identifier):
+    for hub in library.managedHubs():
+        if getattr(hub, 'identifier', None) == identifier:
+            return hub
+    return None
+
+
+@app.route('/api/hubs', methods=['GET'])
+@require_auth
+def list_managed_hubs():
+    """List Managed Recommendations for a library (same order as Plex Settings → Libraries)."""
+    library_name = str(request.args.get('library') or '').strip()
+    if not library_name:
+        return jsonify({'error': 'Missing library'}), 400
+    plex = get_plex_instance()
+    if not plex:
+        return jsonify({'error': 'Plex connection failed'}), 500
+    try:
+        library = plex.library.section(library_name)
+        hubs = [_hub_to_dict(h) for h in library.managedHubs()]
+        return jsonify({
+            'library': library.title,
+            'library_type': library.type,
+            'section_id': library.key,
+            'hubs': hubs,
+        })
+    except Exception as e:
+        logging.error(f"list_managed_hubs error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/hubs/move', methods=['POST'])
+@require_auth
+def move_managed_hub():
+    """Reorder a managed hub (drag-and-drop equivalent of Plex Manage Library)."""
+    data = request.json or {}
+    library_name = str(data.get('library') or '').strip()
+    identifier = str(data.get('identifier') or '').strip()
+    after = data.get('after')
+    after_identifier = str(after).strip() if after else ''
+
+    if not library_name or not identifier:
+        return jsonify({'success': False, 'error': 'Missing library/identifier'}), 400
+
+    plex = get_plex_instance()
+    if not plex:
+        return jsonify({'success': False, 'error': 'Plex connection failed'}), 500
+    try:
+        library = plex.library.section(library_name)
+        hub = _find_managed_hub(library, identifier)
+        if not hub:
+            return jsonify({'success': False, 'error': 'Hub not found in managed list'}), 404
+        after_hub = None
+        if after_identifier:
+            after_hub = _find_managed_hub(library, after_identifier)
+            if not after_hub:
+                return jsonify({'success': False, 'error': 'After hub not found'}), 404
+        hub.move(after=after_hub)
+        log_action(f"Moved hub '{hub.title}' in '{library_name}'.")
+        hubs = [_hub_to_dict(h) for h in library.managedHubs()]
+        return jsonify({'success': True, 'hubs': hubs})
+    except Exception as e:
+        logging.error(f"move_managed_hub error: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/hubs/visibility', methods=['POST'])
+@require_auth
+def update_managed_hub_visibility():
+    """Toggle Library Recommended / Home / Friends' Home for a managed hub."""
+    data = request.json or {}
+    library_name = str(data.get('library') or '').strip()
+    identifier = str(data.get('identifier') or '').strip()
+    if not library_name or not identifier:
+        return jsonify({'success': False, 'error': 'Missing library/identifier'}), 400
+
+    plex = get_plex_instance()
+    if not plex:
+        return jsonify({'success': False, 'error': 'Plex connection failed'}), 500
+    try:
+        library = plex.library.section(library_name)
+        hub = _find_managed_hub(library, identifier)
+        if not hub:
+            return jsonify({'success': False, 'error': 'Hub not found in managed list'}), 404
+
+        kwargs = {}
+        if 'recommended' in data:
+            kwargs['recommended'] = bool(data.get('recommended'))
+        if 'home' in data:
+            kwargs['home'] = bool(data.get('home'))
+        if 'shared' in data:
+            kwargs['shared'] = bool(data.get('shared'))
+        if not kwargs:
+            return jsonify({'success': False, 'error': 'Provide recommended, home, and/or shared'}), 400
+
+        hub.updateVisibility(**kwargs)
+        log_action(f"Updated hub visibility for '{hub.title}' in '{library_name}'.")
+        GALLERY_CACHE['data'] = None
+        GALLERY_CACHE['timestamp'] = 0
+        SUMMARY_CACHE['data'] = None
+        SUMMARY_CACHE['timestamp'] = 0
+        refreshed = _find_managed_hub(library, identifier) or hub
+        return jsonify({'success': True, 'hub': _hub_to_dict(refreshed)})
+    except Exception as e:
+        logging.error(f"update_managed_hub_visibility error: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @app.route('/api/trending', methods=['GET'])
 @require_auth
@@ -2237,6 +2480,29 @@ def unpin_collection():
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/collections/delete', methods=['POST'])
+@require_auth
+def delete_collection():
+    """Permanently delete a Plex collection (and any matching Auto-Sync job)."""
+    data = request.json or {}
+    title = str(data.get('title') or '').strip()
+    library_name = str(data.get('library') or '').strip()
+    if not title or not library_name:
+        return jsonify({"success": False, "error": "Missing title/library"}), 400
+
+    ok, err, removed_jobs = _delete_plex_collection(library_name, title)
+    if not ok:
+        status = 500 if err == "Plex connection failed" else 400
+        return jsonify({"success": False, "error": err or "Delete failed"}), status
+
+    GALLERY_CACHE['data'] = None
+    GALLERY_CACHE['timestamp'] = 0
+    SUMMARY_CACHE['data'] = None
+    SUMMARY_CACHE['timestamp'] = 0
+    return jsonify({"success": True, "removed_jobs": removed_jobs})
+
 
 @app.route('/api/stop', methods=['POST'])
 @require_auth

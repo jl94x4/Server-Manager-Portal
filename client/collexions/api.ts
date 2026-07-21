@@ -220,16 +220,17 @@ class CollexionsApiService {
     }
 
     async bulkPinCollections(
-        action: 'pin' | 'unpin',
+        action: 'pin' | 'unpin' | 'delete',
         items: Array<{ title: string; library: string }>,
     ): Promise<{ success: boolean; ok_count: number; results: Array<{ ok: boolean; title: string; library: string; error?: string }> }> {
+        const label = action === 'pin' ? 'Bulk pin' : action === 'unpin' ? 'Bulk unpin' : 'Bulk delete';
         return withTimeout(
             apiFetch(base('/collections/bulk'), {
                 method: 'POST',
                 body: JSON.stringify({ action, items }),
             }),
             120000,
-            action === 'pin' ? 'Bulk pin' : 'Bulk unpin',
+            label,
         );
     }
 
@@ -367,8 +368,66 @@ class CollexionsApiService {
         await apiFetch(base('/collections/unpin'), { method: 'POST', body: JSON.stringify({ title, library }) });
     }
 
+    async deleteCollection(title: string, library: string): Promise<{ success: boolean; removed_jobs?: string[] }> {
+        return apiFetch(base('/collections/delete'), {
+            method: 'POST',
+            body: JSON.stringify({ title, library }),
+        });
+    }
+
     async getPlexLibraries(): Promise<any[]> {
         return apiFetch(base('/plex/libraries'));
+    }
+
+    async getManagedHubs(library: string): Promise<{
+        library: string;
+        library_type: string;
+        section_id: number | string;
+        hubs: Array<{
+            identifier: string;
+            title: string;
+            promoted_to_recommended: boolean;
+            promoted_to_home: boolean;
+            promoted_to_shared: boolean;
+            deletable: boolean;
+            is_collection: boolean;
+        }>;
+    }> {
+        return withTimeout(
+            apiFetch(base(`/hubs?library=${encodeURIComponent(library)}`)),
+            60000,
+            'Loading hubs',
+        );
+    }
+
+    async moveManagedHub(
+        library: string,
+        identifier: string,
+        after: string | null,
+    ): Promise<{ success: boolean; hubs?: any[]; error?: string }> {
+        return withTimeout(
+            apiFetch(base('/hubs/move'), {
+                method: 'POST',
+                body: JSON.stringify({ library, identifier, after }),
+            }),
+            60000,
+            'Reordering hub',
+        );
+    }
+
+    async updateHubVisibility(
+        library: string,
+        identifier: string,
+        visibility: { recommended?: boolean; home?: boolean; shared?: boolean },
+    ): Promise<{ success: boolean; hub?: any; error?: string }> {
+        return withTimeout(
+            apiFetch(base('/hubs/visibility'), {
+                method: 'POST',
+                body: JSON.stringify({ library, identifier, ...visibility }),
+            }),
+            60000,
+            'Updating hub visibility',
+        );
     }
 }
 

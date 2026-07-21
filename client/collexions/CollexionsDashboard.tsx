@@ -5,6 +5,7 @@ import { api } from './api';
 import { CollexionsSubnav } from './CollexionsSubnav';
 import Dashboard from './pages/Dashboard';
 import Gallery from './pages/Gallery';
+import HubsPage from './pages/Hubs';
 import Creator from './pages/Creator';
 import JobsPage from './pages/Jobs';
 import StatsPage from './pages/Stats';
@@ -123,6 +124,7 @@ const CollexionsRoutes: React.FC = () => {
                     }
                 />
                 <Route path="gallery" element={<Gallery />} />
+                <Route path="hubs" element={<HubsPage />} />
                 <Route path="creator" element={<Creator />} />
                 <Route path="jobs" element={<JobsPage />} />
                 <Route path="stats" element={<StatsPage />} />
