@@ -6434,7 +6434,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     const renderRecentlyAddedWidget = useMemo(() => createRecentlyAddedWidgetRenderer(widgetDeps), [widgetDeps]);
 
     return (
-        <div className="w-full flex flex-col gap-1.5 md:gap-2">
+        <div className="w-full flex flex-col gap-3 md:gap-4">
             <Loader isLoading={isLoading} isCinematic={!!publicConfig?.useCinematicLoading} />
             {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
             {layoutEditorOpen && (
