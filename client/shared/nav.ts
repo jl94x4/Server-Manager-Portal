@@ -39,7 +39,7 @@ export const NAV_ITEM_LABELS: Record<string, string> = {
     users: 'Users',
     downloads: 'Downloads',
     upgrader: 'Upgrader',
-    collexions: 'Collexions',
+    collexions: 'ColleXions',
     mediastack: 'Calendar',
     requests: 'Requests',
     status: 'Status',
