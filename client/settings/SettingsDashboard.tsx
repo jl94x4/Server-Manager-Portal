@@ -425,6 +425,7 @@ export const SettingsDashboard: React.FC = () => {
     const [maintenanceExperimentalEnabled, setMaintenanceExperimentalEnabled] = useState(false);
     const [upgraderEnabled, setUpgraderEnabled] = useState(false);
     const [collexionsEnabled, setCollexionsEnabled] = useState(false);
+    const [collexionsAutostart, setCollexionsAutostart] = useState(false);
     const [collexionsInternalUrl, setCollexionsInternalUrl] = useState('');
     const [collexionsServiceKey, setCollexionsServiceKey] = useState('');
     const [upgraderDefaultPreset, setUpgraderDefaultPreset] = useState('non_hevc');
@@ -1003,6 +1004,7 @@ export const SettingsDashboard: React.FC = () => {
             if (initialSettings.maintenanceExperimentalEnabled !== undefined) setMaintenanceExperimentalEnabled(!!initialSettings.maintenanceExperimentalEnabled);
             if (initialSettings.upgraderEnabled !== undefined) setUpgraderEnabled(!!initialSettings.upgraderEnabled);
             if (initialSettings.collexionsEnabled !== undefined) setCollexionsEnabled(!!initialSettings.collexionsEnabled);
+            if (initialSettings.collexionsAutostart !== undefined) setCollexionsAutostart(!!initialSettings.collexionsAutostart);
             if (initialSettings.collexionsInternalUrl !== undefined) setCollexionsInternalUrl(String(initialSettings.collexionsInternalUrl || ''));
             if (initialSettings.collexionsServiceKey !== undefined) setCollexionsServiceKey(String(initialSettings.collexionsServiceKey || ''));
             if (initialSettings.upgraderDefaultPreset) setUpgraderDefaultPreset(initialSettings.upgraderDefaultPreset);
@@ -1231,6 +1233,7 @@ export const SettingsDashboard: React.FC = () => {
             maintenanceExperimentalEnabled,
             upgraderEnabled,
             collexionsEnabled,
+            collexionsAutostart,
             collexionsInternalUrl,
             collexionsServiceKey,
             upgraderDefaultPreset,
@@ -2957,7 +2960,20 @@ export const SettingsDashboard: React.FC = () => {
                                             : 'Admin-only collections manager. This build has no bundled worker; set an internal URL to an external Collexions sidecar. OFF by default.'}
                                     </SettingHint>}
                                     checked={collexionsEnabled}
-                                    onChange={setCollexionsEnabled}
+                                    onChange={(next) => {
+                                        setCollexionsEnabled(next);
+                                        if (!next) setCollexionsAutostart(false);
+                                    }}
+                                    border={false}
+                                />
+                                <SettingsToggleRow
+                                    title="Auto-start pinning service"
+                                    hint={<SettingHint>
+                                        When ON, the ColleXions pinning loop starts automatically whenever the portal (and Collexions worker) starts — no need to click Start Service on the Dashboard. Requires Collexions enabled and Plex configured in Collexions. OFF by default.
+                                    </SettingHint>}
+                                    checked={collexionsAutostart}
+                                    onChange={setCollexionsAutostart}
+                                    disabled={!collexionsEnabled}
                                     border={false}
                                 />
                                 <p className={`text-xs mt-2 font-semibold ${collexionsEnabled ? 'text-green-300' : 'text-yellow-300'}`}>
@@ -2966,6 +2982,7 @@ export const SettingsDashboard: React.FC = () => {
                                             ? (initialSettings.collexionsEmbedded?.running ? 'ON (worker running)' : 'ON (worker starts after Save)')
                                             : (collexionsInternalUrl.trim() ? 'ON (external URL set)' : 'Enabled (set internal URL)'))
                                         : 'OFF'}
+                                    {collexionsEnabled && collexionsAutostart ? ' · auto-start pinning ON' : ''}
                                 </p>
                                 {!initialSettings.collexionsBundled && (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">

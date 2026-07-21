@@ -145,13 +145,15 @@ export const SettingsSwitch: React.FC<{
     onChange: (checked: boolean) => void;
     className?: string;
     id?: string;
-}> = ({ checked, onChange, className = '', id }) => (
-    <label className={`relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0 ${className}`}>
+    disabled?: boolean;
+}> = ({ checked, onChange, className = '', id, disabled = false }) => (
+    <label className={`relative inline-flex items-center ml-4 flex-shrink-0 ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${className}`}>
         <input
             id={id}
             type="checkbox"
             className="sr-only peer"
             checked={checked}
+            disabled={disabled}
             onChange={(e) => onChange(e.target.checked)}
         />
         <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex" />
@@ -166,9 +168,10 @@ export const SettingsToggleRow: React.FC<{
     onChange: (checked: boolean) => void;
     className?: string;
     border?: boolean;
+    disabled?: boolean;
     children?: React.ReactNode;
-}> = ({ title, description, hint, checked, onChange, className = '', border = true, children }) => (
-    <div className={`${border ? 'py-4 border-b border-border/40' : 'py-4'} ${className}`}>
+}> = ({ title, description, hint, checked, onChange, className = '', border = true, disabled = false, children }) => (
+    <div className={`${border ? 'py-4 border-b border-border/40' : 'py-4'} ${disabled ? 'opacity-70' : ''} ${className}`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="min-w-0">
                 <h4 className="font-bold text-text inline-flex items-center gap-1.5 flex-wrap">
@@ -176,7 +179,7 @@ export const SettingsToggleRow: React.FC<{
                     {hint || (description ? <SettingHint>{description}</SettingHint> : null)}
                 </h4>
             </div>
-            <SettingsSwitch checked={checked} onChange={onChange} />
+            <SettingsSwitch checked={checked} onChange={onChange} disabled={disabled} />
         </div>
         {children}
     </div>

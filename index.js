@@ -2788,6 +2788,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 maintenanceExperimentalEnabled: !!config.maintenanceExperimentalEnabled,
                 upgraderEnabled: !!config.upgraderEnabled,
                 collexionsEnabled: !!config.collexionsEnabled,
+                collexionsAutostart: !!config.collexionsAutostart,
                 collexionsInternalUrl: config.collexionsInternalUrl || '',
                 collexionsServiceKey: config.collexionsServiceKey ? '********' : '',
                 collexionsBundled: isCollexionsBundledAvailable(),
@@ -2883,6 +2884,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 maintenanceExperimentalEnabled: false,
                 upgraderEnabled: false,
                 collexionsEnabled: false,
+                collexionsAutostart: false,
                 collexionsInternalUrl: '',
                 collexionsServiceKey: '',
                 collexionsBundled: isCollexionsBundledAvailable(),
@@ -2913,7 +2915,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         inactiveCleanupEnabled, inactiveCleanupDays,
         primaryColor, customLogoUrl, brandingTheme, sidebarIdentityPosition, pwaIconSource, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges, showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds,
         showPublicStatusMonitor, showPublicLibraryStats,
-        autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, upgraderEnabled, collexionsEnabled, collexionsInternalUrl, collexionsServiceKey, upgraderDefaultPreset, upgraderMinSizeGB, upgraderAutomationEnabled, upgraderProfileMap, upgraderMaxActionsPerHour, upgraderDefaultSort, upgraderDrawerPosition, dashboardLayout,
+        autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, upgraderEnabled, collexionsEnabled, collexionsAutostart, collexionsInternalUrl, collexionsServiceKey, upgraderDefaultPreset, upgraderMinSizeGB, upgraderAutomationEnabled, upgraderProfileMap, upgraderMaxActionsPerHour, upgraderDefaultSort, upgraderDrawerPosition, dashboardLayout,
         showUsernamesInAnalytics, useTrendingSlideshowOnLogin, downloadsVisibleToMembers
     } = req.body;
 
@@ -3098,6 +3100,11 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         maintenanceExperimentalEnabled: maintenanceExperimentalEnabled !== undefined ? !!maintenanceExperimentalEnabled : !!existingConfig.maintenanceExperimentalEnabled,
         upgraderEnabled: upgraderEnabled !== undefined ? !!upgraderEnabled : !!existingConfig.upgraderEnabled,
         collexionsEnabled: collexionsEnabled !== undefined ? !!collexionsEnabled : !!existingConfig.collexionsEnabled,
+        collexionsAutostart: (() => {
+            const enabled = collexionsEnabled !== undefined ? !!collexionsEnabled : !!existingConfig.collexionsEnabled;
+            if (!enabled) return false;
+            return collexionsAutostart !== undefined ? !!collexionsAutostart : !!existingConfig.collexionsAutostart;
+        })(),
         collexionsInternalUrl: (() => {
             if (collexionsInternalUrl === undefined) return existingConfig.collexionsInternalUrl || '';
             const incoming = String(collexionsInternalUrl || '').trim();
