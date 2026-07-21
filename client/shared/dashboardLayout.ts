@@ -10,6 +10,7 @@ export type MainGridWidgetId =
     | 'newsletterPrefs'
     | 'support'
     | 'libraryStats'
+    | 'collexions'
     | 'analytics';
 
 export type RecentlyAddedWidgetId = 'recentMovies' | 'recentShows' | 'recentMusic';
@@ -49,6 +50,7 @@ export const MAIN_GRID_WIDGET_META: Record<MainGridWidgetId, { label: string; co
     newsletterPrefs: { label: 'Newsletter preferences', column: 'left', userOnly: true },
     support: { label: 'Need Help / contact', column: 'left', userOnly: true },
     libraryStats: { label: 'Server Library Size', column: 'right' },
+    collexions: { label: 'ColleXions', column: 'right', adminOnly: true },
     analytics: { label: 'Your Analytics', column: 'right' },
 };
 
@@ -70,6 +72,7 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayoutConfig = {
         'newsletterPrefs',
         'support',
         'libraryStats',
+        'collexions',
         'analytics',
     ],
     recentlyAddedOrder: ['recentMovies', 'recentShows', 'recentMusic'],
@@ -161,6 +164,7 @@ export type DashboardLayoutContext = {
     hasUser: boolean;
     referralEnabled?: boolean;
     requestsQueueEnabled?: boolean;
+    collexionsEnabled?: boolean;
     mediaServerType?: string;
 };
 
@@ -173,6 +177,7 @@ export const isMainGridWidgetAvailable = (id: MainGridWidgetId, ctx: DashboardLa
     if (id === 'accessStatus' && (ctx.isAdmin || !ctx.hasUser)) return false;
     if (id === 'adminBadge' && !ctx.isAdmin) return false;
     if (id === 'quickActions' && !ctx.isAdmin) return false;
+    if (id === 'collexions' && !ctx.collexionsEnabled) return false;
     if (id === 'analytics') {
         const isJellyfin = String(ctx.mediaServerType || '').toLowerCase() === 'jellyfin';
         if (!isJellyfin) return false;

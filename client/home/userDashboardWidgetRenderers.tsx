@@ -22,6 +22,7 @@ import { PeriodDropdown } from '../shared/PeriodDropdown';
 import { ScrollReveal } from '../shared/ui';
 import { ANALYTICS_PERIOD_OPTIONS } from '../shared/analyticsPeriodOptions';
 import { PendingRequestsHomeWidget } from '../requests/PendingRequestsHomeWidget';
+import { CollexionsHomeWidget } from '../collexions/CollexionsHomeWidget';
 
 type PosterCardProps = {
     item: { title: string; thumb?: string; plexUrl: string; tags?: string[]; year?: number | string; parentTitle?: string };
@@ -57,6 +58,7 @@ export type UserDashboardWidgetDeps = {
     onViewAdmin: () => void;
     onViewSettings?: () => void;
     onViewLogs?: () => void;
+    onViewCollexions?: () => void;
     onViewRequests?: (reviewId?: number) => void;
     onPendingRequestsChange?: () => void;
     setToast: (toast: { id: number; message: string; type: 'success' | 'error' }) => void;
@@ -205,6 +207,7 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
         onViewAdmin,
         onViewSettings,
         onViewLogs,
+        onViewCollexions,
         onViewRequests,
         onPendingRequestsChange,
         setToast,
@@ -429,6 +432,8 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                         )}
                     </div>
                 );
+            case 'collexions':
+                return <CollexionsHomeWidget onOpen={onViewCollexions} />;
             case 'analytics':
                 if (!sessionInfo.session.isAdmin && !user) return null;
                 if (!isJellyfinPortal) return null;

@@ -1,12 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Card } from '../components/ui/Card';
 import { Input, Switch, CustomSelect } from '../components/ui/Inputs';
 import { AppConfig, CategoryConfig, SpecialCollection } from '../types';
 import { api } from '../api';
-import { Save, Plus, Trash2, AlertCircle, ShieldAlert, CheckCircle, Sliders, RefreshCw, Power, Info, HelpCircle, Upload, Download } from 'lucide-react';
+import { Save, Plus, Trash2, AlertCircle, ShieldAlert, CheckCircle, Sliders, RefreshCw, Power, Info, HelpCircle, Upload, Download, AlertTriangle } from 'lucide-react';
 import { DEFAULT_CONFIG } from '../constants';
 import { buildExportableConfig, parseCollexionsConfigText } from '../configImport';
-
+import { conflictsForTab, findConfigConflicts } from '../configConflicts';
 const ConfigPage: React.FC = () => {
     const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
     const [originalConfig, setOriginalConfig] = useState<AppConfig | null>(null);
@@ -21,6 +21,9 @@ const ConfigPage: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const isDirty = originalConfig && JSON.stringify(config) !== JSON.stringify(originalConfig);
+    const conflicts = useMemo(() => findConfigConflicts(config), [config]);
+    const tabConflicts = useMemo(() => conflictsForTab(conflicts, activeTab), [conflicts, activeTab]);
+    const warningCount = conflicts.filter(c => c.severity === 'warning').length;
 
     // Handle browser refresh/close
     useEffect(() => {
@@ -309,21 +312,71 @@ const ConfigPage: React.FC = () => {
                 </div>
             )}
 
+            {conflicts.length > 0 && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90 space-y-2 animate-in fade-in slide-in-from-top-2">
+                    <div className="flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                        <div className="min-w-0 flex-1 space-y-1">
+                            <p className="font-bold text-amber-200">
+                                {warningCount > 0
+                                    ? `${warningCount} config conflict${warningCount === 1 ? '' : 's'} may affect pinning`
+                                    : `${conflicts.length} config note${conflicts.length === 1 ? '' : 's'}`}
+                            </p>
+                            <ul className="space-y-1 text-xs text-amber-100/80 list-disc list-inside">
+                                {conflicts.slice(0, 6).map(c => (
+                                    <li key={c.id}>
+                                        <button
+                                            type="button"
+                                            className="text-left hover:underline hover:text-amber-50"
+                                            onClick={() => setActiveTab(c.tabs[0])}
+                                        >
+                                            {c.message}
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                            {conflicts.length > 6 && (
+                                <p className="text-[11px] text-amber-200/60">+{conflicts.length - 6} more — open the highlighted tabs for details.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Tabs - Make scrollable on mobile */}
             <div className="border-b border-border flex overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
-                {['general', 'libraries', 'exclusions', 'specials', 'categories', 'integrations'].map(t => (
-                    <button
-                        key={t}
-                        onClick={() => setActiveTab(t as any)}
-                        className={`px-4 md:px-6 py-4 font-medium capitalize transition-all border-b-2 whitespace-nowrap text-sm md:text-base ${activeTab === t
-                            ? 'text-plex border-plex bg-card/30'
-                            : 'text-muted border-transparent hover:text-text hover:bg-white/5'
-                            }`}
-                    >
-                        {t}
-                    </button>
-                ))}
+                {(['general', 'libraries', 'exclusions', 'specials', 'categories', 'integrations'] as const).map(t => {
+                    const n = conflictsForTab(conflicts, t).length;
+                    return (
+                        <button
+                            key={t}
+                            onClick={() => setActiveTab(t)}
+                            className={`px-4 md:px-6 py-4 font-medium capitalize transition-all border-b-2 whitespace-nowrap text-sm md:text-base inline-flex items-center gap-2 ${activeTab === t
+                                ? 'text-plex border-plex bg-card/30'
+                                : 'text-muted border-transparent hover:text-text hover:bg-white/5'
+                                }`}
+                        >
+                            {t}
+                            {n > 0 && (
+                                <span className="text-[10px] font-bold uppercase tracking-wide bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded px-1.5 py-0.5">
+                                    {n}
+                                </span>
+                            )}
+                        </button>
+                    );
+                })}
             </div>
+
+            {tabConflicts.length > 0 && (
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-100/80 space-y-1.5">
+                    <p className="font-bold text-amber-200/90 text-sm">On this tab</p>
+                    <ul className="space-y-1 list-disc list-inside">
+                        {tabConflicts.map(c => (
+                            <li key={c.id}>{c.message}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
 
             <div className="animate-in fade-in duration-300">
                 {activeTab === 'general' && (

@@ -111,6 +111,18 @@ class CollexionsApiService {
         }
     }
 
+    /** Home widget: last/next run + labeled pin count (cached ~2m on worker). */
+    async getSummary(): Promise<{
+        status: string;
+        last_update: string;
+        next_run_timestamp?: number;
+        pinned_count?: number | null;
+        labeled_count?: number;
+        pin_slots?: number;
+    }> {
+        return withTimeout(apiFetch(base('/summary')), 20000, 'Collexions summary');
+    }
+
     async getLogs(): Promise<string> {
         try {
             const response = await fetch(portalUrl(base('/logs')), {

@@ -5971,7 +5971,7 @@ const PortalWidgetEditorModal: React.FC<{
     );
 };
 
-export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: () => void; refreshSession: () => void; onViewAdmin: () => void; onViewStatus: () => void; onViewDashboard: () => void; onViewSettings?: () => void; onViewLogs?: () => void; onViewRequests?: (reviewId?: number) => void; onPendingRequestsChange?: () => void }> = ({ sessionInfo, publicConfig, onLogout, refreshSession, onViewAdmin, onViewStatus, onViewDashboard, onViewSettings, onViewLogs, onViewRequests, onPendingRequestsChange }) => {
+export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: () => void; refreshSession: () => void; onViewAdmin: () => void; onViewStatus: () => void; onViewDashboard: () => void; onViewSettings?: () => void; onViewLogs?: () => void; onViewCollexions?: () => void; onViewRequests?: (reviewId?: number) => void; onPendingRequestsChange?: () => void }> = ({ sessionInfo, publicConfig, onLogout, refreshSession, onViewAdmin, onViewStatus, onViewDashboard, onViewSettings, onViewLogs, onViewCollexions, onViewRequests, onPendingRequestsChange }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [toast, setToast] = useState<ToastMessage | null>(null);
     const [analytics, setAnalytics] = useState<any>(null);
@@ -6389,8 +6389,9 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
         hasUser: !!user,
         referralEnabled: !!publicConfig?.referralEnabled,
         requestsQueueEnabled: !!sessionInfo?.navFeatures?.requestsQueue,
+        collexionsEnabled: !!sessionInfo?.navFeatures?.collexions,
         mediaServerType: publicConfig?.mediaServerType || 'plex',
-    }), [sessionInfo.session.isAdmin, user, publicConfig?.referralEnabled, publicConfig?.mediaServerType, sessionInfo?.navFeatures?.requestsQueue]);
+    }), [sessionInfo.session.isAdmin, user, publicConfig?.referralEnabled, publicConfig?.mediaServerType, sessionInfo?.navFeatures?.requestsQueue, sessionInfo?.navFeatures?.collexions]);
 
     const widgetDeps = useMemo(() => ({
         sessionInfo,
@@ -6417,6 +6418,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
         onViewAdmin,
         onViewSettings,
         onViewLogs,
+        onViewCollexions,
         onViewRequests,
         onPendingRequestsChange,
         setToast,
@@ -6425,7 +6427,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     }), [
         sessionInfo, publicConfig, user, isRevoked, isExpiringSoon, daysLeft, progressPct, optOutNewsletter,
         serverStats, serverDataLoading, analytics, analyticsLoading, analyticsDays, analyticsDaysOpen,
-        showQualityBadges, dashboardData, bazarrWidgets, onViewAdmin, onViewSettings, onViewLogs, onViewRequests, onPendingRequestsChange,
+        showQualityBadges, dashboardData, bazarrWidgets, onViewAdmin, onViewSettings, onViewLogs, onViewCollexions, onViewRequests, onPendingRequestsChange,
     ]);
 
     const renderMainGridWidget = useMemo(() => createMainGridWidgetRenderer(widgetDeps), [widgetDeps]);

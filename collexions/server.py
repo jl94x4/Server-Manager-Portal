@@ -90,6 +90,11 @@ PRESETS_CACHE = {
     'ttl': 21600 # 6 hours
 }
 IMAGE_CACHE = {} # Cache for proxied posters: { thumb_path: { 'data': binary, 'mimetype': type } }
+SUMMARY_CACHE = {
+    'data': None,
+    'timestamp': 0,
+    'ttl': 120,  # seconds — home widget pinned count
+}
 TMDB_POSTER_CACHE = {} # Cache for TMDB IDs to poster paths
 
 
@@ -657,6 +662,73 @@ def get_status():
         "next_run_timestamp": next_run_timestamp
     })
 
+
+@app.route('/api/summary')
+@require_auth
+def get_summary():
+    """Compact status for the portal home widget (last/next run + labeled pin count)."""
+    global SUMMARY_CACHE, GALLERY_CACHE
+
+    now = time.time()
+    if SUMMARY_CACHE['data'] is not None and now - SUMMARY_CACHE['timestamp'] < SUMMARY_CACHE['ttl']:
+        return jsonify(SUMMARY_CACHE['data'])
+
+    # Reuse status fields
+    status_resp = get_status()
+    status_payload = status_resp.get_json() if hasattr(status_resp, 'get_json') else {}
+    if not isinstance(status_payload, dict):
+        status_payload = {}
+
+    config = load_config()
+    pin_slots = sum(int(v or 0) for v in (config.get('number_of_collections_to_pin') or {}).values())
+    label = str(config.get('collexions_label') or 'Collexions').lower()
+    lib_names = config.get('library_names') or []
+
+    pinned_count = None
+    labeled_count = 0
+
+    # Prefer a full gallery cache (pins already resolved)
+    cache_data = GALLERY_CACHE.get('data')
+    cache_ver = GALLERY_CACHE.get('version')
+    if isinstance(cache_data, list) and cache_ver == 4:
+        pinned_count = sum(1 for c in cache_data if c.get('is_pinned'))
+        labeled_count = sum(1 for c in cache_data if c.get('has_label'))
+    else:
+        plex = get_plex_instance()
+        if plex and lib_names:
+            pinned = 0
+            try:
+                for lib_name in lib_names:
+                    try:
+                        library = plex.library.section(lib_name)
+                        for coll in library.collections():
+                            has_label = any(
+                                getattr(l, 'tag', '').lower() == label
+                                for l in getattr(coll, 'labels', []) or []
+                            )
+                            if not has_label:
+                                continue
+                            labeled_count += 1
+                            if _collection_is_pinned(coll):
+                                pinned += 1
+                    except Exception as e:
+                        logging.warning(f"summary library '{lib_name}' failed: {e}")
+                pinned_count = pinned
+            except Exception as e:
+                logging.warning(f"summary pin count failed: {e}")
+                pinned_count = None
+
+    payload = {
+        **status_payload,
+        "pinned_count": pinned_count,
+        "labeled_count": labeled_count,
+        "pin_slots": pin_slots,
+    }
+    SUMMARY_CACHE['data'] = payload
+    SUMMARY_CACHE['timestamp'] = time.time()
+    return jsonify(payload)
+
+
 @app.route('/api/logs')
 @require_auth
 def get_logs():
@@ -1110,6 +1182,8 @@ def bulk_pin_collections():
 
     GALLERY_CACHE['data'] = None
     GALLERY_CACHE['timestamp'] = 0
+    SUMMARY_CACHE['data'] = None
+    SUMMARY_CACHE['timestamp'] = 0
     ok_count = sum(1 for r in results if r.get('ok'))
     return jsonify({"success": True, "ok_count": ok_count, "results": results})
 
@@ -1118,9 +1192,11 @@ def bulk_pin_collections():
 @require_auth
 def clear_cache():
     """Force-clears all server-side caches so the next request re-fetches fresh data."""
-    global GALLERY_CACHE, IMAGE_CACHE, _plex_cache
+    global GALLERY_CACHE, IMAGE_CACHE, SUMMARY_CACHE, _plex_cache
     GALLERY_CACHE['data'] = None
     GALLERY_CACHE['timestamp'] = 0
+    SUMMARY_CACHE['data'] = None
+    SUMMARY_CACHE['timestamp'] = 0
     IMAGE_CACHE = {}
     _plex_cache = None  # also reset the Plex connection so composite paths reload cleanly
     return jsonify({"success": True, "message": "Gallery, image, and Plex caches cleared."})
@@ -1565,6 +1641,8 @@ def pin_collection():
         log_action(f"Pinned '{title}' successfully.")
         GALLERY_CACHE['data'] = None
         GALLERY_CACHE['timestamp'] = 0
+        SUMMARY_CACHE['data'] = None
+        SUMMARY_CACHE['timestamp'] = 0
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -1634,6 +1712,8 @@ def unpin_collection():
         log_action(f"Unpinned '{title}' successfully.")
         GALLERY_CACHE['data'] = None
         GALLERY_CACHE['timestamp'] = 0
+        SUMMARY_CACHE['data'] = None
+        SUMMARY_CACHE['timestamp'] = 0
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500

@@ -18,6 +18,7 @@ import {
     X,
 } from 'lucide-react';
 import { CustomSelect } from '../../shared/ui';
+import { NoPosterPlaceholder } from '../../shared/NoPosterPlaceholder';
 import {
     normalizeUpgraderGridSize,
     UPGRADER_GRID_SIZE_OPTIONS,
@@ -37,6 +38,43 @@ type SortMode = 'title' | 'library';
 
 const collKey = (c: { library: string; title: string }) => `${c.library}\0${c.title}`;
 const collId = (c: { library: string; title: string }) => `${c.library}-${c.title}`;
+
+/** Collection art with Discover-style placeholder when missing or load fails. */
+const GalleryCollectionArt: React.FC<{
+    thumb?: string | null;
+    title: string;
+    imageSize: { width: number; height: number };
+    compact?: boolean;
+    imgClassName?: string;
+    onClick?: () => void;
+}> = ({ thumb, title, imageSize, compact = false, imgClassName = '', onClick }) => {
+    const src = thumb ? collexionsImageUrl(thumb, imageSize) : '';
+    const [failed, setFailed] = useState(false);
+
+    useEffect(() => {
+        setFailed(false);
+    }, [src]);
+
+    if (!src || failed) {
+        return (
+            <div className="w-full h-full" onClick={onClick} role={onClick ? 'button' : undefined}>
+                <NoPosterPlaceholder compact={compact} />
+            </div>
+        );
+    }
+
+    return (
+        <img
+            src={src}
+            alt={title}
+            className={imgClassName || 'w-full h-full object-cover'}
+            loading="lazy"
+            decoding="async"
+            onClick={onClick}
+            onError={() => setFailed(true)}
+        />
+    );
+};
 
 const STATUS_FILTER_OPTIONS = [
     { value: 'all', label: 'All status' },
@@ -486,20 +524,13 @@ const Gallery: React.FC = () => {
                                     </button>
                                 )}
                                 <div className="w-14 h-[84px] shrink-0 rounded-lg overflow-hidden bg-card">
-                                    {coll.thumb ? (
-                                        <img
-                                            src={collexionsImageUrl(coll.thumb, imageSize)}
-                                            alt={coll.title}
-                                            className="w-full h-full object-cover"
-                                            loading="lazy"
-                                            decoding="async"
-                                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-muted">
-                                            <ImageIcon className="w-5 h-5 opacity-30" />
-                                        </div>
-                                    )}
+                                    <GalleryCollectionArt
+                                        thumb={coll.thumb}
+                                        title={coll.title}
+                                        imageSize={imageSize}
+                                        compact
+                                        imgClassName="w-full h-full object-cover"
+                                    />
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2 flex-wrap">
@@ -597,38 +628,23 @@ const Gallery: React.FC = () => {
                                         className="block w-full h-full"
                                         title="Open in Plex"
                                     >
-                                        {coll.thumb ? (
-                                            <img
-                                                src={collexionsImageUrl(coll.thumb, imageSize)}
-                                                alt={coll.title}
-                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                                loading="lazy"
-                                                decoding="async"
-                                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center bg-card text-muted">
-                                                <ImageIcon className="w-10 h-10 opacity-30" />
-                                            </div>
-                                        )}
+                                        <GalleryCollectionArt
+                                            thumb={coll.thumb}
+                                            title={coll.title}
+                                            imageSize={imageSize}
+                                            compact={isCompact}
+                                            imgClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                        />
                                     </a>
-                                ) : coll.thumb ? (
-                                    <img
-                                        src={collexionsImageUrl(coll.thumb, imageSize)}
-                                        alt={coll.title}
-                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                        loading="lazy"
-                                        decoding="async"
-                                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                ) : (
+                                    <GalleryCollectionArt
+                                        thumb={coll.thumb}
+                                        title={coll.title}
+                                        imageSize={imageSize}
+                                        compact={isCompact}
+                                        imgClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                         onClick={selectMode ? () => toggleSelect(coll) : undefined}
                                     />
-                                ) : (
-                                    <div
-                                        className="w-full h-full flex items-center justify-center bg-card text-muted"
-                                        onClick={selectMode ? () => toggleSelect(coll) : undefined}
-                                    >
-                                        <ImageIcon className="w-10 h-10 opacity-30" />
-                                    </div>
                                 )}
                                 {coll.plexUrl && !selectMode && (
                                     <a
