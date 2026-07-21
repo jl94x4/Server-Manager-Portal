@@ -648,8 +648,6 @@ const Gallery: React.FC = () => {
                                         )}
                                         {pinPending ? (
                                             <span className="text-[10px] font-bold uppercase bg-white/5 text-muted px-1.5 py-0.5 rounded">…</span>
-                                        ) : coll.is_pinned ? (
-                                            <span className="text-[10px] font-bold uppercase bg-plex text-background px-1.5 py-0.5 rounded">Pinned</span>
                                         ) : null}
                                         {coll.has_label && !coll.is_pinned && !pinPending && (
                                             <span className="text-[10px] font-bold uppercase bg-white/10 text-muted px-1.5 py-0.5 rounded">Tracked</span>
@@ -796,11 +794,7 @@ const Gallery: React.FC = () => {
                                             <div className={`bg-black/60 text-muted font-bold rounded flex items-center gap-1 ${isCompact ? 'px-1 py-0.5 text-[8px]' : 'px-2 py-1 text-[10px]'}`}>
                                                 <RefreshCw className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} animate-spin`} />
                                             </div>
-                                        ) : coll.is_pinned ? (
-                                            <div className={`bg-plex text-background font-bold rounded flex items-center gap-1 shadow-lg ring-1 ring-white/20 ${isCompact ? 'px-1 py-0.5 text-[8px]' : 'px-2 py-1 text-[10px]'}`}>
-                                                <Pin className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} fill-current`} /> PINNED
-                                            </div>
-                                        ) : coll.has_label ? (
+                                        ) : coll.has_label && !coll.is_pinned ? (
                                             <div className={`bg-plex/90 text-background font-bold rounded flex items-center gap-1 shadow-lg ring-1 ring-white/20 ${isCompact ? 'px-1 py-0.5 text-[8px]' : 'px-2 py-1 text-[10px]'}`}>
                                                 <CheckCircle2 className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'}`} /> TRACKED
                                             </div>
