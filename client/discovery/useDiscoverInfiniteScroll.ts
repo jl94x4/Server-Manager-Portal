@@ -119,7 +119,6 @@ export function useDiscoverInfiniteScroll({
         try {
             const payload = await fetchPage(nextPage);
             const batch = Array.isArray(payload.results) ? payload.results : [];
-            const batch = Array.isArray(payload.results) ? payload.results : [];
             const filteredBatch = filterDiscoverBrowseItems(batch, filterOptionsRef.current || {});
             setResults((prev) => mergeDiscoverResults(prev, filteredBatch));
             setLoadedPage(payload.lastFetchedPage ?? nextPage);
