@@ -29,6 +29,8 @@ Server-Manager-Portal/
 
 `index.js` contains the Express API, authentication, Plex and Jellyfin integrations, email handling, security headers, rate limiting, background jobs, and static asset serving.
 
+`lib/portal-request/` holds seams for the portal-native Discover/request engine (replacing Seerr over time). See [seerr-uncouple-inventory.md](./seerr-uncouple-inventory.md).
+
 ## Frontend
 
 `index.tsx` mounts the React application. The app source lives in `client/`:
