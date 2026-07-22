@@ -11,7 +11,7 @@ import {
     TV_GENRES,
     buildGenreSliderImage,
 } from './discoverConstants';
-import { normalizeRawDiscoveryItem } from './discoverItemUtils';
+import { enrichDiscoveryItems, normalizeRawDiscoveryItem } from './discoverItemUtils';
 import { portalRequestToDiscoveryRowItem } from './myRequestUtils';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
 import { fetchDiscoverHomeRowResults } from './discoverFetchUtils';
@@ -167,10 +167,10 @@ export const DiscoverHome: React.FC<{
                         ? reqRes.results.map(portalRequestToDiscoveryRowItem)
                         : [];
 
-                    // Normalize only — avoid per-title detail fan-out on home.
+                    // Normalize library/requests; enrich watchlist posters (Seerr payloads are often poster-sparse).
                     const recentlyAdded = (addedRes?.results || []).map(normalizeRawDiscoveryItem);
-                    const recentRequests = myRequestItems.map(normalizeRawDiscoveryItem);
-                    const plexWatchlist = (watchlistRes?.results || []).map(normalizeRawDiscoveryItem);
+                    const recentRequests = await enrichDiscoveryItems(myRequestItems);
+                    const plexWatchlist = await enrichDiscoveryItems(watchlistRes?.results || []);
 
                     setRows((prev) => ({
                         ...prev,

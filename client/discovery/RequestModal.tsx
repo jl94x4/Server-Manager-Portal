@@ -107,6 +107,7 @@ export const RequestModal: React.FC<Props> = ({
         const folders = Array.isArray(data.rootFolders) ? data.rootFolders : [];
         const languageProfiles = Array.isArray(data.languageProfiles) ? data.languageProfiles : [];
         const isAnime = !!opts.isAnime;
+        const resolvedType = opts.mediaType === 'tv' || mediaType === 'tv' ? 'tv' : 'movie';
 
         let nextProfileId = defaults?.profileId != null ? Number(defaults.profileId) : Number.NaN;
         if (!Number.isFinite(nextProfileId)) {
@@ -127,7 +128,7 @@ export const RequestModal: React.FC<Props> = ({
         let nextLanguageProfileId = defaults?.languageProfileId != null
             ? Number(defaults.languageProfileId)
             : Number.NaN;
-        if (opts.mediaType === 'tv' && !Number.isFinite(nextLanguageProfileId)) {
+        if (resolvedType === 'tv' && !Number.isFinite(nextLanguageProfileId)) {
             const activeLang = isAnime && server.activeAnimeLanguageProfileId != null
                 ? Number(server.activeAnimeLanguageProfileId)
                 : (server.activeLanguageProfileId != null ? Number(server.activeLanguageProfileId) : Number.NaN);
@@ -151,7 +152,7 @@ export const RequestModal: React.FC<Props> = ({
             languageProfileId: Number.isFinite(nextLanguageProfileId) ? nextLanguageProfileId : null,
             selectedTags: nextTags,
         };
-    }, []);
+    }, [mediaType]);
 
     const loadServiceOptions = useCallback(async (
         opts: RequestOptionsPayload,
@@ -162,9 +163,13 @@ export const RequestModal: React.FC<Props> = ({
     ) => {
         updateQualityForm(quality, { loading: true });
         try {
-            const segment = opts.mediaType === 'tv' ? 'sonarr' : 'radarr';
+            // Prefer the modal prop — portal stubs once omitted mediaType and loaded Radarr folders for TV.
+            const resolvedType = (opts.mediaType === 'tv' || opts.mediaType === 'movie')
+                ? opts.mediaType
+                : mediaType;
+            const segment = resolvedType === 'tv' ? 'sonarr' : 'radarr';
             const data = await apiFetch(`/api/discovery/request-services/${segment}/${nextServerId}`) as PortalServiceOptions;
-            const applied = applyServiceDefaults(opts, data, defaults);
+            const applied = applyServiceDefaults({ ...opts, mediaType: resolvedType }, data, defaults);
             setQualityForms((prev) => {
                 const current = prev[quality];
                 return {
@@ -193,7 +198,7 @@ export const RequestModal: React.FC<Props> = ({
             onErrorRef.current(e?.message || 'Failed to load request options');
             updateQualityForm(quality, { serviceOptions: null, loading: false, loaded: false });
         }
-    }, [applyServiceDefaults, updateQualityForm]);
+    }, [applyServiceDefaults, mediaType, updateQualityForm]);
 
     const qualityFormsRef = useRef(qualityForms);
     qualityFormsRef.current = qualityForms;
@@ -227,7 +232,7 @@ export const RequestModal: React.FC<Props> = ({
             defaults = await apiFetch('/api/discovery/request-override-defaults', {
                 method: 'POST',
                 body: JSON.stringify({
-                    mediaType: opts.mediaType,
+                    mediaType: opts.mediaType || mediaType,
                     tmdbId: opts.tmdbId,
                     is4k,
                 }),
@@ -248,7 +253,7 @@ export const RequestModal: React.FC<Props> = ({
         } else {
             updateQualityForm(quality, { loading: false, loaded: true });
         }
-    }, [loadServiceOptions, updateQualityForm]);
+    }, [loadServiceOptions, mediaType, updateQualityForm]);
 
     const loadOptions = useCallback(async () => {
         const gen = ++loadGenRef.current;
@@ -261,7 +266,12 @@ export const RequestModal: React.FC<Props> = ({
             );
             if (gen !== loadGenRef.current) return;
             if (data?.error) throw new Error(data.error);
-            const payload = data as RequestOptionsPayload;
+            const payload = {
+                ...(data as RequestOptionsPayload),
+                mediaType: (data?.mediaType === 'tv' || data?.mediaType === 'movie')
+                    ? data.mediaType
+                    : mediaType,
+            } as RequestOptionsPayload;
             setOptions(payload);
 
             const initial = new Set<QualityKey>();
@@ -269,6 +279,7 @@ export const RequestModal: React.FC<Props> = ({
                 && !(payload.standardQuotaBlocked
                     || (payload.quota?.standard && payload.quota.standard.limit > 0 && payload.quota.standard.remaining === 0));
             const fourKOk = !!payload.canRequest4k
+                && !!payload.has4kServer
                 && !(payload.fourKQuotaBlocked
                     || (payload.quota?.fourK && payload.quota.fourK.limit > 0 && payload.quota.fourK.remaining === 0));
             if (hdOk) initial.add('hd');
@@ -289,7 +300,7 @@ export const RequestModal: React.FC<Props> = ({
             if (payload.canRequestAdvanced) {
                 const toLoad: QualityKey[] = [];
                 if (payload.hasHdServer !== false) toLoad.push('hd');
-                if (payload.canRequest4k) toLoad.push('4k');
+                if (payload.canRequest4k && payload.has4kServer) toLoad.push('4k');
                 await Promise.all(toLoad.map((q) => loadAdvancedForQuality(payload, q, { force: true })));
             }
         } catch (e: any) {
@@ -453,7 +464,7 @@ export const RequestModal: React.FC<Props> = ({
             const created = await apiFetch('/api/discovery/request-tags', {
                 method: 'POST',
                 body: JSON.stringify({
-                    mediaType: options.mediaType,
+                    mediaType: options.mediaType || mediaType,
                     label,
                     serverName,
                 }),
@@ -590,7 +601,10 @@ export const RequestModal: React.FC<Props> = ({
     const overview = (options?.overview || '').trim();
     const posterUrl = options?.posterPath ? `https://image.tmdb.org/t/p/w342${options.posterPath}` : '';
     const showAdvancedSection = !!options?.canRequestAdvanced;
-    const showQualityPicker = !!(options?.canRequest4k || options?.has4kServer);
+    const showQualityPicker = !!(
+        (options?.canRequest4k && options?.has4kServer)
+        || options?.has4kServer
+    );
     const advancedLoading = showAdvancedSection && activeForm.loading && !activeForm.loaded;
     const bothQualitiesSelected = selectedQualities.has('hd') && selectedQualities.has('4k');
 
@@ -656,7 +670,7 @@ export const RequestModal: React.FC<Props> = ({
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-5 flex flex-col gap-5">
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar p-5 flex flex-col gap-5">
                     {loading ? (
                         <div className="flex items-center justify-center py-12">
                             <Loader2 className="w-8 h-8 text-plex animate-spin" />
@@ -750,7 +764,7 @@ export const RequestModal: React.FC<Props> = ({
                                 </div>
                             )}
 
-                            {mediaType === 'tv' && options.seasons.length > 0 && (
+                            {mediaType === 'tv' && (options.seasons?.length || 0) > 0 && (
                                 <div>
                                     <div className="flex items-center justify-between gap-3 mb-3">
                                         <p className="text-xs font-bold uppercase tracking-wider text-white/40">Seasons</p>

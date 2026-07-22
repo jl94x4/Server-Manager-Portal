@@ -440,6 +440,7 @@ import {
     getPortalRequestQuotaSettings,
     normalizeRequestQuotaLimit,
     normalizeRequestQuotaDays,
+    importSeerrHistoryToPortal,
 } from './lib/portal-request/index.js';
 const PLEX_API = 'https://plex.tv/api';
 
@@ -5641,27 +5642,11 @@ app.get('/api/discovery/request-options', requireAuth, requireMember, async (req
 
         if (getRequestEngine(config) === 'portal') {
             const portalRequests = getPortalRequestService(config);
-            const records = await portalRequests.store.list({ userId: String(req.user?.id || '') });
-            const quotaEval = evaluatePortalMemberQuota(config, records, { is4k: false });
-            const servers = portalRequests.listPortalArrServers(mediaType);
-            return res.json({
-                canRequest: true,
-                canRequest4k: true,
-                canRequestAdvanced: servers.length > 0,
-                canCreateIssues: true,
-                blockReason: null,
-                standardQuotaBlocked: quotaEval.standardQuotaBlocked,
-                fourKQuotaBlocked: quotaEval.fourKQuotaBlocked,
-                quota: quotaEval.quota,
-                servers,
-                seasons: [],
-                permissions: {
-                    request: true,
-                    request4k: true,
-                    requestAdvanced: servers.length > 0,
-                    createIssues: true,
-                },
+            const payload = await portalRequests.getMemberRequestOptions(req.user, {
+                mediaType,
+                mediaId,
             });
+            return res.json(payload);
         }
 
         const gate = getRequestAppGate(config);
@@ -7203,6 +7188,31 @@ app.get('/api/requests', requireAdmin, async (req, res) => {
     }
 });
 
+app.post('/api/requests/import-from-seerr', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) {
+            return res.status(400).json({ error: gate.error || 'Request app not configured' });
+        }
+        const portalUsers = await loadFile(USERS_PATH, []);
+        const includeIssues = req.body?.includeIssues !== false;
+        const summary = await importSeerrHistoryToPortal({
+            config,
+            fetchSeerrJson: requestAppService.rawFetch,
+            requestsDir: REQUESTS_DIR,
+            issuesDir: ISSUES_DIR,
+            portalUsers,
+            includeIssues,
+        });
+        log(`[SeerrImport] requests imported=${summary.requests.imported} skippedExisting=${summary.requests.skippedExisting} unmapped=${summary.requests.skippedUnmapped}; issues imported=${summary.issues.imported}`);
+        res.json({ ok: true, ...summary });
+    } catch (error) {
+        log(`[SeerrImport] failed: ${error.message}`);
+        res.status(502).json({ error: error.message || 'Failed to import Seerr history' });
+    }
+});
+
 app.post('/api/requests/override-defaults', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
@@ -7678,6 +7688,7 @@ app.post('/api/tasks/run/:taskId', requireAdmin, async (req, res) => {
                     case 'autoBackup': await runAutoBackupCycle('manual', { force: true }); break;
                     case 'maintenanceIndex': await buildMaintenanceMediaIndex({ actor: req.user, force: true }); break;
                     case 'requestStatusSync': await runPortalRequestStatusSync('manual'); break;
+                    case 'seerrHistoryImport': await runSeerrHistoryImport('manual'); break;
                 }
             }
         } catch (e) {
@@ -11607,6 +11618,16 @@ const systemJobs = {
         lastDurationMs: null,
         lastError: null,
     },
+    seerrHistoryImport: {
+        id: 'seerrHistoryImport',
+        name: 'Import Seerr History',
+        description: 'Copies Seerr/Overseerr request and issue history into portal JSON stores (idempotent).',
+        lastRun: null,
+        nextRun: null,
+        running: false,
+        lastDurationMs: null,
+        lastError: null,
+    },
 };
 
 const markTaskStart = (task) => {
@@ -11650,6 +11671,36 @@ const runPortalRequestStatusSync = async (reason = 'scheduled') => {
         markTaskEnd(job, error);
         log(`[RequestStatusSync] failed: ${error.message}`);
         job.nextRun = new Date(Date.now() + REQUEST_STATUS_SYNC_INTERVAL_MS).toISOString();
+        return null;
+    }
+};
+
+const runSeerrHistoryImport = async (reason = 'manual') => {
+    const job = systemJobs.seerrHistoryImport;
+    if (job.running) return null;
+    markTaskStart(job);
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) {
+            markTaskEnd(job, new Error(gate.error || 'Request app not configured'));
+            return { skipped: true, reason: gate.error || 'Request app not configured' };
+        }
+        const portalUsers = await loadFile(USERS_PATH, []);
+        const summary = await importSeerrHistoryToPortal({
+            config,
+            fetchSeerrJson: requestAppService.rawFetch,
+            requestsDir: REQUESTS_DIR,
+            issuesDir: ISSUES_DIR,
+            portalUsers,
+            includeIssues: true,
+        });
+        markTaskEnd(job, null);
+        log(`[SeerrImport] ${reason}: requests imported=${summary.requests.imported} issues imported=${summary.issues.imported} unmapped=${summary.requests.skippedUnmapped}`);
+        return summary;
+    } catch (error) {
+        markTaskEnd(job, error);
+        log(`[SeerrImport] failed: ${error.message}`);
         return null;
     }
 };

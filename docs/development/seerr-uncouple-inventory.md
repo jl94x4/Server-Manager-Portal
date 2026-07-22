@@ -124,7 +124,7 @@ Stubs are wired; Phase 4 defaults Discover metadata to TMDB (`discoverySource` d
 - [x] Phase 6 — Approve/decline + *arr push
 - [x] Phase 7 — Status sync from *arr/Plex
 - [x] Phase 8 — Issues + quotas
-- [ ] Phase 9 — Watchlist/blocklist + migration
+- [ ] Phase 9 — Watchlist/blocklist + migration *(migration: Seerr→portal import shipped; watchlist/blocklist still Seerr)*
 - [ ] Phase 10 — Hard cut + cleanup
 
 ## Phase 2 notes
@@ -181,3 +181,9 @@ Stubs are wired; Phase 4 defaults Discover metadata to TMDB (`discoverySource` d
 - Global portal quotas: `requestQuotaLimit` / `requestQuotaDays` / `requestQuotaLimit4k` (0 = unlimited).
 - Auto-approve: `autoApproveMovies` / `autoApproveTv` push to *arr on create via Phase 6 approve path.
 - `/api/discovery/me` + `request-options` dual-run portal quota/permission DTOs when engine=portal.
+
+## Phase 9 notes (partial)
+
+- **Migration:** `POST /api/requests/import-from-seerr` + Tasks → **Import Seerr History** copies Seerr requests/issues into `config/requests` / `config/issues` (dedupe by `meta.seerrRequestId` / `meta.seerrIssueId`). Maps users by email / username / Plex id. Settings → Request Engine has an **Import Seerr history** button.
+- Watchlist still reads Seerr; Discover home now enriches sparse watchlist posters via TMDB proxy (same as Watchlist page).
+- Blocklist + portal-owned watchlist remain.

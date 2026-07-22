@@ -64,12 +64,21 @@ export const mergeDiscoverResults = <T,>(existing: T[], incoming: T[]): T[] => (
     dedupeDiscoverResults([...existing, ...incoming])
 );
 
+const resolveEnrichMediaType = (item: any): 'movie' | 'tv' | null => {
+    const raw = item?.mediaType ?? item?.type;
+    if (raw === 2 || raw === '2' || raw === 'tv' || raw === 'show') return 'tv';
+    if (raw === 1 || raw === '1' || raw === 'movie') return 'movie';
+    if (item?.firstAirDate) return 'tv';
+    if (item?.releaseDate) return 'movie';
+    return null;
+};
+
 const needsEnrichment = (item: any) => {
     const normalized = normalizeRawDiscoveryItem(item);
     if (normalized.posterPath || normalized.profilePath) return false;
-    const mediaType = normalized.mediaType;
-    const tmdbId = Number(normalized.tmdbId);
-    return (mediaType === 'movie' || mediaType === 'tv') && Number.isFinite(tmdbId) && tmdbId > 0;
+    const mediaType = resolveEnrichMediaType(normalized);
+    const tmdbId = Number(normalized.tmdbId ?? normalized.id);
+    return !!mediaType && Number.isFinite(tmdbId) && tmdbId > 0;
 };
 
 /** Fetch TMDB poster/title for library media, requests, and watchlist rows. */
@@ -101,10 +110,13 @@ export const enrichDiscoveryItems = async (items: any[]): Promise<any[]> => {
 
     return mapWithConcurrency(items, ENRICH_CONCURRENCY, async (raw) => {
         const item = normalizeRawDiscoveryItem(raw);
-        if (!needsEnrichment(item)) return item;
+        if (!needsEnrichment(item)) {
+            const mediaType = resolveEnrichMediaType(item);
+            return mediaType ? { ...item, mediaType, tmdbId: Number(item.tmdbId ?? item.id) || item.tmdbId } : item;
+        }
 
-        const mediaType = item.mediaType as 'movie' | 'tv';
-        const tmdbId = Number(item.tmdbId);
+        const mediaType = resolveEnrichMediaType(item) as 'movie' | 'tv';
+        const tmdbId = Number(item.tmdbId ?? item.id);
         try {
             const details = await apiFetch(`/api/discovery/proxy/${mediaType}/${tmdbId}`);
             return {
@@ -115,7 +127,7 @@ export const enrichDiscoveryItems = async (items: any[]): Promise<any[]> => {
                 tmdbId,
             };
         } catch {
-            return item;
+            return { ...item, mediaType, tmdbId };
         }
     });
 };

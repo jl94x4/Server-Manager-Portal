@@ -431,6 +431,7 @@ export const SettingsDashboard: React.FC = () => {
     const [requestHideAvailableMedia, setRequestHideAvailableMedia] = useState(false);
     const [discoverySource, setDiscoverySource] = useState('tmdb');
     const [requestEngine, setRequestEngine] = useState('seerr');
+    const [importingSeerrHistory, setImportingSeerrHistory] = useState(false);
     const [requestQuotaLimit, setRequestQuotaLimit] = useState(0);
     const [requestQuotaDays, setRequestQuotaDays] = useState(7);
     const [requestQuotaLimit4k, setRequestQuotaLimit4k] = useState(0);
@@ -2319,6 +2320,39 @@ export const SettingsDashboard: React.FC = () => {
                                         { value: 'portal', label: 'Portal JSON store (beta)' },
                                     ]}
                                 />
+                                <div className="mt-3 flex flex-wrap items-center gap-3">
+                                    <button
+                                        type="button"
+                                        disabled={importingSeerrHistory}
+                                        onClick={async () => {
+                                            setImportingSeerrHistory(true);
+                                            try {
+                                                const summary = await apiFetch('/api/requests/import-from-seerr', {
+                                                    method: 'POST',
+                                                    body: JSON.stringify({ includeIssues: true }),
+                                                });
+                                                const req = summary?.requests || {};
+                                                const iss = summary?.issues || {};
+                                                addToast(
+                                                    `Imported ${req.imported || 0} requests` +
+                                                    (req.skippedUnmapped ? ` (${req.skippedUnmapped} unmapped users)` : '') +
+                                                    `, ${iss.imported || 0} issues.`,
+                                                    'success',
+                                                );
+                                            } catch (e: any) {
+                                                addToast(e?.message || 'Seerr import failed', 'error');
+                                            } finally {
+                                                setImportingSeerrHistory(false);
+                                            }
+                                        }}
+                                        className="inline-flex items-center rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 px-3 py-2 text-sm font-semibold disabled:opacity-50"
+                                    >
+                                        {importingSeerrHistory ? 'Importing…' : 'Import Seerr history'}
+                                    </button>
+                                    <p className="text-xs text-white/45 max-w-md">
+                                        Copies existing Seerr requests/issues into portal JSON (safe to re-run). Match users by email / Plex id. Also available under Tasks.
+                                    </p>
+                                </div>
                             </div>
 
                             {requestEngine === 'portal' && (
