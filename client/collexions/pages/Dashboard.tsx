@@ -591,22 +591,22 @@ const Dashboard: React.FC = () => {
             {/* --- RUN INSPECTOR --- */}
             {analyzeLastRun && (
                 <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-4">
-                    <h3 className="text-xl font-bold text-text flex items-center gap-2 flex-wrap">
-                        <Activity className="w-5 h-5 text-plex" /> Run Inspector
-                        <span className="text-xs font-normal text-muted">
+                    <h3 className="text-lg sm:text-xl font-bold text-text flex items-center gap-2 flex-wrap">
+                        <Activity className="w-5 h-5 text-plex shrink-0" /> Run Inspector
+                        <span className="text-xs font-normal text-muted w-full sm:w-auto">
                             ({analyzeLastRun.source === 'status.json' ? 'from status.json' : 'analyzed from logs'})
                         </span>
                     </h3>
 
                     {analyzeLastRun.fairness && (
-                        <div className="flex flex-wrap gap-2 text-[11px]">
-                            <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-muted">
+                        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 text-[11px]">
+                            <span className="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-muted">
                                 Repeat block <span className="text-text font-bold">{analyzeLastRun.fairness.repeat_block_hours ?? '—'}h</span>
                             </span>
-                            <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-muted">
+                            <span className="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-muted">
                                 Min items <span className="text-text font-bold">{analyzeLastRun.fairness.min_items_for_pinning ?? '—'}</span>
                             </span>
-                            <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-muted">
+                            <span className="col-span-2 sm:col-span-1 px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-muted">
                                 Category mode{' '}
                                 <span className="text-text font-bold">
                                     {analyzeLastRun.fairness.use_random_category_mode
@@ -615,7 +615,7 @@ const Dashboard: React.FC = () => {
                                 </span>
                             </span>
                             {typeof analyzeLastRun.pinSlots === 'number' && (
-                                <span className="px-2.5 py-1 rounded-lg bg-plex/10 border border-plex/30 text-plex font-bold">
+                                <span className="col-span-2 sm:col-span-1 px-2.5 py-1.5 rounded-lg bg-plex/10 border border-plex/30 text-plex font-bold">
                                     Caps {analyzeLastRun.totalPins}/{analyzeLastRun.pinSlots} slots filled
                                 </span>
                             )}
@@ -623,31 +623,90 @@ const Dashboard: React.FC = () => {
                     )}
 
                     <div className={`border rounded-xl overflow-hidden ${analyzeLastRun.status === 'FAILED' ? 'border-red-900/50 bg-red-950/10' : 'border-border/80 bg-card/50'}`}>
-                        <div className="p-4 border-b border-white/5 flex flex-wrap gap-4 items-center justify-between bg-background/30">
-                            <div className="flex items-center gap-4 flex-wrap">
-                                <div className={`px-3 py-1 rounded text-xs font-bold uppercase ${analyzeLastRun.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-400' :
+                        <div className="p-3 sm:p-4 border-b border-white/5 flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-4 sm:items-center sm:justify-between bg-background/30">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 min-w-0">
+                                <div className={`self-start px-3 py-1 rounded text-xs font-bold uppercase ${analyzeLastRun.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-400' :
                                     analyzeLastRun.status === 'RUNNING' ? 'bg-plex/20 text-plex' :
                                         'bg-red-500/20 text-red-400'
                                     }`}>
                                     {analyzeLastRun.status}
                                 </div>
-                                <div className="text-sm text-muted flex items-center gap-2">
-                                    <Clock className="w-4 h-4" /> Started:{' '}
-                                    <span className="text-text font-mono">
-                                        {safeParseDate(analyzeLastRun.startTime)?.toLocaleString() || analyzeLastRun.startTime}
+                                <div className="text-sm text-muted flex items-start sm:items-center gap-2 min-w-0">
+                                    <Clock className="w-4 h-4 shrink-0 mt-0.5 sm:mt-0" />
+                                    <span className="min-w-0">
+                                        Started:{' '}
+                                        <span className="text-text font-mono break-all">
+                                            {safeParseDate(analyzeLastRun.startTime)?.toLocaleString() || analyzeLastRun.startTime}
+                                        </span>
                                     </span>
                                 </div>
                                 <div className="text-sm text-muted">
                                     Duration: <span className="text-text font-mono">{analyzeLastRun.duration}</span>
                                 </div>
                             </div>
-                            <div className="text-sm font-bold text-text bg-card px-3 py-1 rounded-lg border border-border">
+                            <div className="self-start text-sm font-bold text-text bg-card px-3 py-1 rounded-lg border border-border">
                                 Total Pinned: {analyzeLastRun.totalPins}
                                 {typeof analyzeLastRun.pinSlots === 'number' ? ` / ${analyzeLastRun.pinSlots}` : ''}
                             </div>
                         </div>
 
-                        <div className="overflow-x-auto">
+                        {/* Mobile: stacked library cards */}
+                        <div className="md:hidden divide-y divide-border">
+                            {analyzeLastRun.libraries.length === 0 ? (
+                                <div className="px-4 py-8 text-center text-muted italic text-sm">
+                                    No libraries processed yet in this run.
+                                </div>
+                            ) : (
+                                analyzeLastRun.libraries.map((lib, idx) => (
+                                    <div key={`${lib.name}-${idx}`} className="p-4 space-y-3">
+                                        <div className="font-semibold text-text break-words">{lib.name}</div>
+                                        <div className="grid grid-cols-3 gap-2 text-center">
+                                            <div className="rounded-lg border border-border/70 bg-background/40 px-2 py-2">
+                                                <div className="text-[10px] uppercase tracking-wider text-muted font-bold">Found</div>
+                                                <div className="text-sm text-text font-mono mt-0.5">{lib.found}</div>
+                                            </div>
+                                            <div className="rounded-lg border border-border/70 bg-background/40 px-2 py-2">
+                                                <div className="text-[10px] uppercase tracking-wider text-muted font-bold">Eligible</div>
+                                                <div className={`text-sm font-mono mt-0.5 ${(lib.eligible || 0) > 0 ? 'text-plex' : 'text-muted'}`}>
+                                                    {lib.eligible}
+                                                </div>
+                                            </div>
+                                            <div className="rounded-lg border border-border/70 bg-background/40 px-2 py-2">
+                                                <div className="text-[10px] uppercase tracking-wider text-muted font-bold">Pinned</div>
+                                                <div className={`text-sm font-mono mt-0.5 ${(lib.pinned || 0) > 0 ? 'text-emerald-400 font-bold' : 'text-muted'}`}>
+                                                    {(lib.pinned || 0) > 0
+                                                        ? `${lib.pinned}${'pin_limit' in lib && lib.pin_limit != null ? `/${lib.pin_limit}` : ''}`
+                                                        : '—'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="rounded-lg border border-border/60 bg-background/30 px-3 py-2.5 text-xs space-y-1.5">
+                                            <div className="text-[10px] uppercase tracking-wider text-muted font-bold">Why / decisions</div>
+                                            <div className="text-text/90 leading-relaxed">{libraryReason(lib)}</div>
+                                            {'skips' in lib && formatSkipBreakdown(lib as LibraryRunStats) !== '—' && (
+                                                <div className="text-muted/80 font-mono text-[10px] leading-relaxed break-words">
+                                                    {formatSkipBreakdown(lib as LibraryRunStats)}
+                                                </div>
+                                            )}
+                                            {'skip_samples' in lib && (lib as LibraryRunStats).skip_samples && (
+                                                <div className="text-muted/70 text-[10px] space-y-1 pt-0.5">
+                                                    {Object.entries((lib as LibraryRunStats).skip_samples || {}).map(([reason, titles]) => (
+                                                        <div key={reason} className="break-words">
+                                                            <span className="text-muted">{SKIP_LABELS[reason] || reason}: </span>
+                                                            {(titles || []).slice(0, 3).join(', ')}
+                                                            {(titles || []).length > 3 ? '…' : ''}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        {/* Desktop: table */}
+                        <div className="hidden md:block overflow-x-auto">
                             <table className="w-full text-sm text-left">
                                 <thead className="text-xs text-muted uppercase bg-background/60 border-b border-border">
                                     <tr>
@@ -678,7 +737,7 @@ const Dashboard: React.FC = () => {
                                                     <span className="text-muted">-</span>
                                                 )}
                                             </td>
-                                            <td className="px-6 py-4 text-xs space-y-1.5">
+                                            <td className="px-6 py-4 text-xs space-y-1.5 max-w-md">
                                                 <div>{libraryReason(lib)}</div>
                                                 {'skips' in lib && formatSkipBreakdown(lib as LibraryRunStats) !== '—' && (
                                                     <div className="text-muted/80 font-mono text-[10px] leading-relaxed">

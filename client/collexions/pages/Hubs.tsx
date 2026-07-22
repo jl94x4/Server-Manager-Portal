@@ -14,12 +14,19 @@ import { CustomSelect } from '../components/ui/Inputs';
 
 const HubToggle: React.FC<{
     label: string;
+    shortLabel?: string;
     checked: boolean;
     disabled?: boolean;
     onChange: (next: boolean) => void;
-}> = ({ label, checked, disabled, onChange }) => (
-    <label className="flex md:justify-center items-center gap-2 text-sm text-muted cursor-pointer select-none">
-        <span className="md:hidden text-xs font-bold uppercase tracking-wider">{label}</span>
+    /** Show label above the checkbox (mobile cards). Desktop table uses column headers instead. */
+    showLabel?: boolean;
+}> = ({ label, shortLabel, checked, disabled, onChange, showLabel = false }) => (
+    <label className={`flex items-center justify-center cursor-pointer select-none min-w-0 ${showLabel ? 'flex-col gap-1.5' : ''}`}>
+        {showLabel && (
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted text-center leading-tight">
+                {shortLabel || label}
+            </span>
+        )}
         <button
             type="button"
             role="checkbox"
@@ -27,13 +34,13 @@ const HubToggle: React.FC<{
             aria-label={label}
             disabled={disabled}
             onClick={() => onChange(!checked)}
-            className={`h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-colors disabled:opacity-50 ${
+            className={`h-5 w-5 shrink-0 rounded border flex items-center justify-center transition-colors disabled:opacity-50 ${
                 checked
                     ? 'bg-plex border-plex text-background'
                     : 'bg-background border-border hover:border-plex/50'
             }`}
         >
-            {checked ? <Check className="w-3 h-3" strokeWidth={3} /> : null}
+            {checked ? <Check className="w-3.5 h-3.5" strokeWidth={3} /> : null}
         </button>
     </label>
 );
@@ -195,20 +202,20 @@ const HubsPage: React.FC = () => {
 
     return (
         <div className="space-y-6 animate-fade-in">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div className="flex flex-col gap-4">
                 <div>
                     <h2 className="text-2xl md:text-3xl font-bold text-text tracking-tight flex items-center gap-2">
-                        <Rows3 className="w-7 h-7 text-plex" />
+                        <Rows3 className="w-7 h-7 text-plex shrink-0" />
                         Manage Hubs
                     </h2>
                     <p className="text-sm text-muted mt-1">
                         Reorder library rows and toggle visibility — same controls as Plex Settings → Libraries.
                     </p>
                 </div>
-                <div className="flex flex-wrap items-end gap-3">
+                <div className="flex items-end gap-2 sm:gap-3">
                     <CustomSelect
                         label="Library"
-                        className="w-full md:w-64"
+                        className="flex-1 min-w-0"
                         value={library}
                         options={libraryOptions}
                         onChange={setLibrary}
@@ -218,7 +225,7 @@ const HubsPage: React.FC = () => {
                         type="button"
                         onClick={() => void loadHubs(library)}
                         disabled={loading || !library}
-                        className="h-[42px] w-[42px] inline-flex items-center justify-center rounded-lg bg-card border border-border text-muted hover:text-text transition-colors disabled:opacity-50"
+                        className="h-[42px] w-[42px] shrink-0 inline-flex items-center justify-center rounded-lg bg-card border border-border text-muted hover:text-text transition-colors disabled:opacity-50"
                         title="Refresh"
                     >
                         <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
@@ -233,7 +240,7 @@ const HubsPage: React.FC = () => {
             )}
 
             {!library ? (
-                <div className="h-64 flex flex-col items-center justify-center text-muted border-2 border-dashed border-border rounded-3xl">
+                <div className="h-64 flex flex-col items-center justify-center text-muted border-2 border-dashed border-border rounded-3xl px-4 text-center">
                     <Library className="w-12 h-12 mb-2 opacity-20" />
                     <p>Select a Movies or TV library to manage hubs.</p>
                 </div>
@@ -243,13 +250,14 @@ const HubsPage: React.FC = () => {
                     <p className="text-sm">Loading hubs from Plex…</p>
                 </div>
             ) : hubs.length === 0 ? (
-                <div className="h-64 flex flex-col items-center justify-center text-muted border-2 border-dashed border-border rounded-3xl">
+                <div className="h-64 flex flex-col items-center justify-center text-muted border-2 border-dashed border-border rounded-3xl px-4 text-center">
                     <Rows3 className="w-12 h-12 mb-2 opacity-20" />
                     <p>No managed hubs found for this library.</p>
                 </div>
             ) : (
                 <div className="bg-card/40 border border-border rounded-2xl overflow-hidden">
-                    <div className="hidden md:grid grid-cols-[minmax(0,1fr)_7rem_5.5rem_6.5rem] gap-2 px-4 py-3 border-b border-border text-[10px] font-bold uppercase tracking-widest text-muted">
+                    {/* Desktop column headers */}
+                    <div className="hidden md:grid grid-cols-[minmax(0,1fr)_5.5rem_4.5rem_4.5rem] gap-2 px-4 py-3 border-b border-border text-[10px] font-bold uppercase tracking-widest text-muted">
                         <span>Hub</span>
                         <span className="text-center">Library Rec.</span>
                         <span className="text-center">Home</span>
@@ -280,60 +288,100 @@ const HubsPage: React.FC = () => {
                                         e.preventDefault();
                                         void handleDrop(index);
                                     }}
-                                    className={`flex flex-col md:grid md:grid-cols-[minmax(0,1fr)_7rem_5.5rem_6.5rem] gap-3 md:gap-2 items-stretch md:items-center px-4 py-3 transition-all
+                                    className={`px-3 sm:px-4 py-3 transition-all
                                         ${isDragging ? 'opacity-50 bg-plex/5 scale-[0.99]' : 'bg-transparent hover:bg-white/[0.03]'}
                                         ${isDropTarget ? 'ring-1 ring-inset ring-plex/40 bg-plex/10' : ''}
                                         ${busy ? 'opacity-70' : ''}`}
                                 >
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <GripVertical className="w-5 h-5 text-muted shrink-0 cursor-grab active:cursor-grabbing" aria-hidden />
-                                        <div className="min-w-0 flex-1">
-                                            <div className="font-semibold text-text truncate">{hub.title}</div>
-                                            <div className="text-[10px] text-muted uppercase tracking-wide mt-0.5">
-                                                {hub.is_collection ? 'Collection' : 'Built-in hub'}
-                                                {busy && <span className="ml-2 text-plex">Saving…</span>}
+                                    {/* Mobile card layout */}
+                                    <div className="md:hidden space-y-3">
+                                        <div className="flex items-start gap-2">
+                                            <GripVertical className="w-5 h-5 text-muted shrink-0 mt-0.5 cursor-grab active:cursor-grabbing" aria-hidden />
+                                            <div className="min-w-0 flex-1">
+                                                <div className="font-semibold text-text leading-snug break-words">{hub.title}</div>
+                                                <div className="text-[10px] text-muted uppercase tracking-wide mt-0.5">
+                                                    {hub.is_collection ? 'Collection' : 'Built-in hub'}
+                                                    {busy && <span className="ml-2 text-plex">Saving…</span>}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <button
+                                                    type="button"
+                                                    disabled={busy || index === 0}
+                                                    onClick={() => void moveToIndex(index, index - 1)}
+                                                    className="p-2 rounded-lg border border-border text-muted hover:text-text disabled:opacity-30"
+                                                    title="Move up"
+                                                >
+                                                    <ChevronUp className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    disabled={busy || index === hubs.length - 1}
+                                                    onClick={() => void moveToIndex(index, index + 1)}
+                                                    className="p-2 rounded-lg border border-border text-muted hover:text-text disabled:opacity-30"
+                                                    title="Move down"
+                                                >
+                                                    <ChevronDown className="w-4 h-4" />
+                                                </button>
                                             </div>
                                         </div>
-                                        <div className="flex md:hidden items-center gap-1 shrink-0">
-                                            <button
-                                                type="button"
-                                                disabled={busy || index === 0}
-                                                onClick={() => void moveToIndex(index, index - 1)}
-                                                className="p-1.5 rounded-lg border border-border text-muted hover:text-text disabled:opacity-30"
-                                                title="Move up"
-                                            >
-                                                <ChevronUp className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                disabled={busy || index === hubs.length - 1}
-                                                onClick={() => void moveToIndex(index, index + 1)}
-                                                className="p-1.5 rounded-lg border border-border text-muted hover:text-text disabled:opacity-30"
-                                                title="Move down"
-                                            >
-                                                <ChevronDown className="w-4 h-4" />
-                                            </button>
+                                        <div className="grid grid-cols-3 gap-2 rounded-xl border border-border/70 bg-background/40 px-2 py-2.5">
+                                            <HubToggle
+                                                label="Library Rec."
+                                                shortLabel="Lib Rec"
+                                                showLabel
+                                                checked={hub.promoted_to_recommended}
+                                                disabled={busy}
+                                                onChange={(v) => void toggleVisibility(hub, 'recommended', v)}
+                                            />
+                                            <HubToggle
+                                                label="Home"
+                                                showLabel
+                                                checked={hub.promoted_to_home}
+                                                disabled={busy}
+                                                onChange={(v) => void toggleVisibility(hub, 'home', v)}
+                                            />
+                                            <HubToggle
+                                                label="Friends"
+                                                showLabel
+                                                checked={hub.promoted_to_shared}
+                                                disabled={busy}
+                                                onChange={(v) => void toggleVisibility(hub, 'shared', v)}
+                                            />
                                         </div>
                                     </div>
 
-                                    <HubToggle
-                                        label="Library Rec."
-                                        checked={hub.promoted_to_recommended}
-                                        disabled={busy}
-                                        onChange={(v) => void toggleVisibility(hub, 'recommended', v)}
-                                    />
-                                    <HubToggle
-                                        label="Home"
-                                        checked={hub.promoted_to_home}
-                                        disabled={busy}
-                                        onChange={(v) => void toggleVisibility(hub, 'home', v)}
-                                    />
-                                    <HubToggle
-                                        label="Friends"
-                                        checked={hub.promoted_to_shared}
-                                        disabled={busy}
-                                        onChange={(v) => void toggleVisibility(hub, 'shared', v)}
-                                    />
+                                    {/* Desktop row layout */}
+                                    <div className="hidden md:grid md:grid-cols-[minmax(0,1fr)_5.5rem_4.5rem_4.5rem] gap-2 items-center">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <GripVertical className="w-5 h-5 text-muted shrink-0 cursor-grab active:cursor-grabbing" aria-hidden />
+                                            <div className="min-w-0 flex-1">
+                                                <div className="font-semibold text-text truncate">{hub.title}</div>
+                                                <div className="text-[10px] text-muted uppercase tracking-wide mt-0.5">
+                                                    {hub.is_collection ? 'Collection' : 'Built-in hub'}
+                                                    {busy && <span className="ml-2 text-plex">Saving…</span>}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <HubToggle
+                                            label="Library Rec."
+                                            checked={hub.promoted_to_recommended}
+                                            disabled={busy}
+                                            onChange={(v) => void toggleVisibility(hub, 'recommended', v)}
+                                        />
+                                        <HubToggle
+                                            label="Home"
+                                            checked={hub.promoted_to_home}
+                                            disabled={busy}
+                                            onChange={(v) => void toggleVisibility(hub, 'home', v)}
+                                        />
+                                        <HubToggle
+                                            label="Friends"
+                                            checked={hub.promoted_to_shared}
+                                            disabled={busy}
+                                            onChange={(v) => void toggleVisibility(hub, 'shared', v)}
+                                        />
+                                    </div>
                                 </div>
                             );
                         })}
@@ -343,9 +391,14 @@ const HubsPage: React.FC = () => {
 
             <div className="p-4 bg-card/30 border border-border rounded-2xl flex items-start gap-3 text-xs text-muted">
                 <Info className="w-4 h-4 text-plex flex-shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                    <p><b className="text-text">Drag</b> the handle to change home/library row order (saved to Plex immediately).</p>
-                    <p><b className="text-text">Library Rec.</b> = Recommended tab · <b className="text-text">Home</b> = your home · <b className="text-text">Friends</b> = shared users&apos; home.</p>
+                <div className="space-y-1 min-w-0">
+                    <p>
+                        <b className="text-text">Reorder</b> with the arrows on mobile, or drag the handle on desktop.
+                    </p>
+                    <p>
+                        <b className="text-text">Lib Rec</b> = Recommended · <b className="text-text">Home</b> = your home ·{' '}
+                        <b className="text-text">Friends</b> = shared users&apos; home.
+                    </p>
                     <p>Pinning a collection in Gallery promotes it into this list so you can place it exactly where you want.</p>
                 </div>
             </div>
