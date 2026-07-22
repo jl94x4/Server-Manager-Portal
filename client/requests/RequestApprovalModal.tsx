@@ -98,9 +98,14 @@ export const RequestApprovalModal: React.FC<Props> = ({
 
                 const allServers: PortalServiceServer[] = Array.isArray(serversData?.servers) ? serversData.servers : [];
                 const filtered = allServers.filter((s) => s.is4k === nextDetail.is4k);
-                setServers(filtered);
+                // Portal *arr instances are not HD/4K-split; fall back so approve still works.
+                const serversForRequest = filtered.length ? filtered : allServers;
+                setServers(serversForRequest);
 
-                const initialServerId = nextDetail.serverId ?? filtered.find((s) => s.isDefault)?.id ?? filtered[0]?.id ?? null;
+                const initialServerId = nextDetail.serverId
+                    ?? serversForRequest.find((s) => s.isDefault)?.id
+                    ?? serversForRequest[0]?.id
+                    ?? null;
                 let nextServerId = initialServerId;
                 let nextProfileId = nextDetail.profileId ?? null;
                 let nextRootFolder = nextDetail.rootFolder || '';

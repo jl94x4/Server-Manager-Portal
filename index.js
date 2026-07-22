@@ -5272,6 +5272,19 @@ const createDiscoveryLibraryAvailability = (config) => createLibraryAvailability
     catalogTimeoutMs: 8000,
 });
 
+const getPortalRequestService = (config) => createPortalRequestService({
+    dataDir: REQUESTS_DIR,
+    config,
+    resolveUrl: resolveIntegrationUrlForFetch,
+    fetchImpl: fetchWithTimeout,
+    listUsers: async () => loadFile(USERS_PATH, []),
+    resolveUser: async (userId) => {
+        const users = await loadFile(USERS_PATH, []);
+        const key = String(userId || '');
+        return users.find((user) => String(user?.id) === key || String(user?.plexId) === key) || null;
+    },
+});
+
 /** Batch library (+ optional portal request) availability for Discover card badges. */
 app.post('/api/discovery/availability-batch', requireAuth, requireMember, async (req, res) => {
     try {
@@ -5310,7 +5323,7 @@ app.post('/api/discovery/availability-batch', requireAuth, requireMember, async 
         let pendingByKey = new Map();
         if (getRequestEngine(config) === 'portal') {
             try {
-                const portalRequests = createPortalRequestService({ dataDir: REQUESTS_DIR, config });
+                const portalRequests = getPortalRequestService(config);
                 const listed = await portalRequests.listMemberRequests(req.user, {
                     filter: 'pending',
                     take: 100,
@@ -5615,16 +5628,27 @@ app.get('/api/discovery/me', requireAuth, requireMember, async (req, res) => {
 app.get('/api/discovery/request-services/:type/:serverId', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
         const type = String(req.params.type || '').toLowerCase();
-        const serverId = Number(req.params.serverId);
-        if ((type !== 'radarr' && type !== 'sonarr') || !Number.isFinite(serverId)) {
+        const serverId = String(req.params.serverId || '').trim();
+        if ((type !== 'radarr' && type !== 'sonarr') || !serverId) {
             return res.status(400).json({ error: 'Invalid service type or server id' });
         }
 
-        const data = await requestAppService.getServiceOptions(config, type, serverId);
+        if (getRequestEngine(config) === 'portal') {
+            const portalRequests = getPortalRequestService(config);
+            const data = await portalRequests.getPortalArrServiceOptions(type, serverId);
+            return res.json(data);
+        }
+
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const numericId = Number(serverId);
+        if (!Number.isFinite(numericId)) {
+            return res.status(400).json({ error: 'Invalid service type or server id' });
+        }
+
+        const data = await requestAppService.getServiceOptions(config, type, numericId);
         res.json(data);
     } catch (e) {
         log(`Discovery request services error: ${e.message}`);
@@ -5635,12 +5659,23 @@ app.get('/api/discovery/request-services/:type/:serverId', requireAuth, requireM
 app.post('/api/discovery/request-tags', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
-        const { mediaType, label, serverName } = req.body || {};
+        const { mediaType, label, serverName, serverId } = req.body || {};
         const type = mediaType === 'tv' ? 'tv' : (mediaType === 'movie' ? 'movie' : '');
         if (!type || !label) return res.status(400).json({ error: 'Missing mediaType or label' });
+
+        if (getRequestEngine(config) === 'portal') {
+            const portalRequests = getPortalRequestService(config);
+            const tag = await portalRequests.createPortalTag({
+                mediaType: type,
+                label,
+                serverName: serverName || '',
+                serverId: serverId ?? null,
+            });
+            return res.status(201).json(tag);
+        }
+
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
 
         const tag = await requestAppService.createMemberRequestTag(config, req.user, {
             mediaType: type,
@@ -5687,7 +5722,7 @@ app.get('/api/discovery/my-requests/count', requireAuth, requireMember, async (r
     try {
         const config = await loadFile(CONFIG_PATH, {});
         if (getRequestEngine(config) === 'portal') {
-            const portalRequests = createPortalRequestService({ dataDir: REQUESTS_DIR, config });
+            const portalRequests = getPortalRequestService(config);
             const counts = await portalRequests.getMemberRequestCounts(req.user);
             return res.json({ configured: true, ...counts });
         }
@@ -5711,7 +5746,7 @@ app.get('/api/discovery/my-requests', requireAuth, requireMember, async (req, re
         const skip = Math.max(0, Number(req.query.skip) || 0);
 
         if (getRequestEngine(config) === 'portal') {
-            const portalRequests = createPortalRequestService({ dataDir: REQUESTS_DIR, config });
+            const portalRequests = getPortalRequestService(config);
             const payload = await portalRequests.listMemberRequests(req.user, { filter, take, skip });
             return res.json({ configured: true, ...payload });
         }
@@ -5734,7 +5769,7 @@ app.delete('/api/discovery/my-requests/:id', requireAuth, requireMember, async (
         if (!requestId) return res.status(400).json({ error: 'Request ID is required' });
 
         if (getRequestEngine(config) === 'portal') {
-            const portalRequests = createPortalRequestService({ dataDir: REQUESTS_DIR, config });
+            const portalRequests = getPortalRequestService(config);
             await portalRequests.cancelMemberRequest(req.user, requestId);
             return res.json({ success: true, message: 'Request cancelled.' });
         }
@@ -5755,17 +5790,23 @@ app.delete('/api/discovery/my-requests/:id', requireAuth, requireMember, async (
 app.post('/api/discovery/my-requests/:id/retry', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
         const requestId = String(req.params.id || '').trim();
         if (!requestId) return res.status(400).json({ error: 'Request ID is required' });
+
+        if (getRequestEngine(config) === 'portal') {
+            const portalRequests = getPortalRequestService(config);
+            await portalRequests.retryMemberRequest(req.user, requestId);
+            return res.json({ success: true, message: 'Request retry submitted.' });
+        }
+
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
 
         await requestAppService.retryMemberRequest(config, req.user, requestId);
         res.json({ success: true, message: 'Request retry submitted.' });
     } catch (e) {
         log(`Discovery retry request error: ${e.message}`);
-        res.status(e.message?.includes('not linked') || e.message?.includes('only manage') ? 403 : 502).json({ error: e.message });
+        res.status(e.status || (e.message?.includes('not linked') || e.message?.includes('only manage') ? 403 : 502)).json({ error: e.message });
     }
 });
 
@@ -6213,7 +6254,7 @@ app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) 
                 }
             }
 
-            const portalRequests = createPortalRequestService({ dataDir: REQUESTS_DIR, config });
+            const portalRequests = getPortalRequestService(config);
             const created = await portalRequests.createMemberRequest(req.user, {
                 mediaType: type,
                 mediaId: tmdbId,
@@ -6851,11 +6892,45 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
 app.get('/api/requests/pending', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
+        const take = Math.min(10, Math.max(1, Number(req.query.take) || 5));
+
+        if (getRequestEngine(config) === 'portal') {
+            try {
+                const portalRequests = getPortalRequestService(config);
+                const [counts, list] = await Promise.all([
+                    portalRequests.getAdminRequestCounts(),
+                    portalRequests.listAdminRequests({ filter: 'pending', take, skip: 0 }),
+                ]);
+                const pendingFromList = list.results.length;
+                const pending = Math.max(counts.pending, pendingFromList);
+                return res.json({
+                    configured: true,
+                    supported: true,
+                    connected: true,
+                    engine: 'portal',
+                    pending,
+                    approved: counts.approved,
+                    declined: counts.declined,
+                    total: counts.total,
+                    results: list.results,
+                });
+            } catch (error) {
+                return res.json({
+                    configured: true,
+                    supported: true,
+                    connected: false,
+                    engine: 'portal',
+                    ...emptyRequestCounts(),
+                    error: error.message || 'Failed to load portal requests',
+                    results: [],
+                });
+            }
+        }
+
         const gate = getRequestAppGate(config);
         if (!gate.ready) {
             return res.json({ ...buildRequestAppStatusPayload(config), results: [] });
         }
-        const take = Math.min(10, Math.max(1, Number(req.query.take) || 5));
         try {
             const [counts, list] = await Promise.all([
                 requestAppService.getRequestCounts(config),
@@ -6891,6 +6966,23 @@ app.get('/api/requests/pending', requireAdmin, async (req, res) => {
 app.get('/api/requests/count', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
+        if (getRequestEngine(config) === 'portal') {
+            try {
+                const portalRequests = getPortalRequestService(config);
+                const counts = await portalRequests.getAdminRequestCounts();
+                return res.json({ configured: true, supported: true, connected: true, engine: 'portal', ...counts });
+            } catch (error) {
+                return res.json({
+                    configured: true,
+                    supported: true,
+                    connected: false,
+                    engine: 'portal',
+                    ...emptyRequestCounts(),
+                    error: error.message || 'Failed to load portal request counts',
+                });
+            }
+        }
+
         const gate = getRequestAppGate(config);
         if (!gate.ready) {
             return res.json(buildRequestAppStatusPayload(config));
@@ -6915,6 +7007,28 @@ app.get('/api/requests/count', requireAdmin, async (req, res) => {
 app.get('/api/requests', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
+        const filter = REQUEST_LIST_FILTERS.has(String(req.query.filter || '')) ? String(req.query.filter) : 'pending';
+        const take = Math.min(50, Math.max(1, Number(req.query.take) || 20));
+        const skip = Math.max(0, Number(req.query.skip) || 0);
+
+        if (getRequestEngine(config) === 'portal') {
+            try {
+                const portalRequests = getPortalRequestService(config);
+                const payload = await portalRequests.listAdminRequests({ filter, take, skip });
+                return res.json({ configured: true, supported: true, connected: true, engine: 'portal', ...payload });
+            } catch (error) {
+                return res.json({
+                    configured: true,
+                    supported: true,
+                    connected: false,
+                    engine: 'portal',
+                    error: error.message || 'Failed to load portal requests',
+                    results: [],
+                    pageInfo: { pages: 1, results: 0, page: 1 },
+                });
+            }
+        }
+
         const gate = getRequestAppGate(config);
         if (!gate.ready) {
             return res.json({
@@ -6923,9 +7037,6 @@ app.get('/api/requests', requireAdmin, async (req, res) => {
                 pageInfo: { pages: 1, results: 0, page: 1 },
             });
         }
-        const filter = REQUEST_LIST_FILTERS.has(String(req.query.filter || '')) ? String(req.query.filter) : 'pending';
-        const take = Math.min(50, Math.max(1, Number(req.query.take) || 20));
-        const skip = Math.max(0, Number(req.query.skip) || 0);
         try {
             const payload = await requestAppService.listRequests(config, { filter, take, skip });
             res.json({ configured: true, supported: true, connected: true, ...payload });
@@ -6948,6 +7059,10 @@ app.get('/api/requests', requireAdmin, async (req, res) => {
 app.post('/api/requests/override-defaults', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
+        if (getRequestEngine(config) === 'portal') {
+            // Seerr override rules are unavailable; portal approve uses *arr defaults.
+            return res.json({});
+        }
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: gate.error || 'Request app not configured' });
         const defaults = await requestAppService.getAdvancedRequestDefaults(config, {
@@ -6966,6 +7081,11 @@ app.post('/api/requests/override-defaults', requireAdmin, async (req, res) => {
 app.get('/api/requests/users', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
+        if (getRequestEngine(config) === 'portal') {
+            const portalRequests = getPortalRequestService(config);
+            const users = await portalRequests.listPortalRequestUsers();
+            return res.json({ users });
+        }
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: gate.error || 'Request app not configured' });
         const users = await requestAppService.listRequestUsers(config);
@@ -6978,9 +7098,13 @@ app.get('/api/requests/users', requireAdmin, async (req, res) => {
 app.get('/api/requests/services/:type', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
+        const type = String(req.params.type || '').toLowerCase() === 'radarr' ? 'movie' : 'tv';
+        if (getRequestEngine(config) === 'portal') {
+            const portalRequests = getPortalRequestService(config);
+            return res.json({ servers: portalRequests.listPortalArrServers(type) });
+        }
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: gate.error || 'Request app not configured' });
-        const type = String(req.params.type || '').toLowerCase() === 'radarr' ? 'movie' : 'tv';
         const servers = await requestAppService.listServiceServers(config, type);
         res.json({ servers });
     } catch (error) {
@@ -6991,11 +7115,16 @@ app.get('/api/requests/services/:type', requireAdmin, async (req, res) => {
 app.get('/api/requests/services/:type/:serverId', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: gate.error || 'Request app not configured' });
         const type = String(req.params.type || '').toLowerCase() === 'radarr' ? 'movie' : 'tv';
         const serverId = String(req.params.serverId || '').trim();
         if (!serverId) return res.status(400).json({ error: 'Server ID is required' });
+        if (getRequestEngine(config) === 'portal') {
+            const portalRequests = getPortalRequestService(config);
+            const options = await portalRequests.getPortalArrServiceOptions(type, serverId);
+            return res.json(options);
+        }
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: gate.error || 'Request app not configured' });
         const options = await requestAppService.getServiceOptions(config, type, serverId);
         res.json(options);
     } catch (error) {
@@ -7006,14 +7135,19 @@ app.get('/api/requests/services/:type/:serverId', requireAdmin, async (req, res)
 app.get('/api/requests/:id', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: gate.error || 'Request app not configured' });
         const requestId = String(req.params.id || '').trim();
         if (!requestId) return res.status(400).json({ error: 'Request ID is required' });
+        if (getRequestEngine(config) === 'portal') {
+            const portalRequests = getPortalRequestService(config);
+            const detail = await portalRequests.getAdminRequest(requestId);
+            return res.json({ configured: true, connected: true, engine: 'portal', ...detail });
+        }
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: gate.error || 'Request app not configured' });
         const detail = await requestAppService.getRequest(config, requestId);
         res.json({ configured: true, connected: true, ...detail });
     } catch (error) {
-        res.status(502).json({ error: error.message || 'Failed to fetch request' });
+        res.status(error.status || 502).json({ error: error.message || 'Failed to fetch request' });
     }
 });
 
@@ -7023,12 +7157,19 @@ app.put('/api/requests/:id', requireAdmin, async (req, res) => {
         const requestId = String(req.params.id || '').trim();
         if (!requestId) return res.status(400).json({ error: 'Request ID is required' });
         const overrides = req.body?.overrides || req.body || {};
+        if (getRequestEngine(config) === 'portal') {
+            const portalRequests = getPortalRequestService(config);
+            const result = await portalRequests.updateAdminRequest(requestId, overrides, req.user);
+            const title = result?.title || overrides?.title || `Request #${requestId}`;
+            await appendAuditLog('request_updated', req.user, null, { requestId, title, overrides, engine: 'portal' });
+            return res.json({ success: true, title });
+        }
         const result = await requestAppService.updateRequest(config, requestId, overrides);
         const title = result?.media?.title || result?.media?.name || overrides?.title || `Request #${requestId}`;
         await appendAuditLog('request_updated', req.user, null, { requestId, title, overrides });
         res.json({ success: true, title });
     } catch (error) {
-        res.status(502).json({ error: error.message || 'Failed to update request' });
+        res.status(error.status || 502).json({ error: error.message || 'Failed to update request' });
     }
 });
 
@@ -7037,12 +7178,19 @@ app.delete('/api/requests/:id', requireAdmin, async (req, res) => {
         const config = await loadFile(CONFIG_PATH, {});
         const requestId = String(req.params.id || '').trim();
         if (!requestId) return res.status(400).json({ error: 'Request ID is required' });
+        if (getRequestEngine(config) === 'portal') {
+            const portalRequests = getPortalRequestService(config);
+            await portalRequests.deleteAdminRequest(requestId);
+            const title = String(req.body?.title || req.query?.title || `Request #${requestId}`);
+            await appendAuditLog('request_deleted', req.user, null, { requestId, title, engine: 'portal' });
+            return res.json({ success: true, title });
+        }
         await requestAppService.deleteRequest(config, requestId);
         const title = String(req.body?.title || req.query?.title || `Request #${requestId}`);
         await appendAuditLog('request_deleted', req.user, null, { requestId, title });
         res.json({ success: true, title });
     } catch (error) {
-        res.status(502).json({ error: error.message || 'Failed to delete request' });
+        res.status(error.status || 502).json({ error: error.message || 'Failed to delete request' });
     }
 });
 
@@ -7051,12 +7199,19 @@ app.post('/api/requests/:id/retry', requireAdmin, async (req, res) => {
         const config = await loadFile(CONFIG_PATH, {});
         const requestId = String(req.params.id || '').trim();
         if (!requestId) return res.status(400).json({ error: 'Request ID is required' });
+        if (getRequestEngine(config) === 'portal') {
+            const portalRequests = getPortalRequestService(config);
+            const result = await portalRequests.retryAdminRequest(requestId, req.user);
+            const title = result?.title || req.body?.title || `Request #${requestId}`;
+            await appendAuditLog('request_retried', req.user, null, { requestId, title, engine: 'portal' });
+            return res.json({ success: true, title });
+        }
         const result = await requestAppService.retryRequest(config, requestId);
         const title = result?.media?.title || result?.media?.name || req.body?.title || `Request #${requestId}`;
         await appendAuditLog('request_retried', req.user, null, { requestId, title });
         res.json({ success: true, title });
     } catch (error) {
-        res.status(502).json({ error: error.message || 'Failed to retry request' });
+        res.status(error.status || 502).json({ error: error.message || 'Failed to retry request' });
     }
 });
 
@@ -7066,6 +7221,19 @@ app.post('/api/requests/:id/approve', requireAdmin, async (req, res) => {
         const requestId = String(req.params.id || '').trim();
         if (!requestId) return res.status(400).json({ error: 'Request ID is required' });
         const overrides = req.body?.overrides || null;
+        if (getRequestEngine(config) === 'portal') {
+            const portalRequests = getPortalRequestService(config);
+            const result = await portalRequests.approveAdminRequest(requestId, overrides, req.user);
+            const title = result?.title || req.body?.title || `Request #${requestId}`;
+            await appendAuditLog('request_approved', req.user, null, {
+                requestId,
+                title,
+                overrides: overrides || null,
+                engine: 'portal',
+                arrInstanceId: result?.arrInstanceId || null,
+            });
+            return res.json({ success: true, title, engine: 'portal' });
+        }
         const result = overrides
             ? await requestAppService.approveRequestWithOptions(config, requestId, overrides)
             : await requestAppService.approveRequest(config, requestId);
@@ -7073,7 +7241,7 @@ app.post('/api/requests/:id/approve', requireAdmin, async (req, res) => {
         await appendAuditLog('request_approved', req.user, null, { requestId, title, overrides: overrides || null });
         res.json({ success: true, title });
     } catch (error) {
-        res.status(502).json({ error: error.message || 'Failed to approve request' });
+        res.status(error.status || 502).json({ error: error.message || 'Failed to approve request' });
     }
 });
 
@@ -7083,6 +7251,19 @@ app.post('/api/requests/:id/decline', requireAdmin, async (req, res) => {
         const requestId = String(req.params.id || '').trim();
         if (!requestId) return res.status(400).json({ error: 'Request ID is required' });
         const reason = String(req.body?.reason || '').trim();
+        if (getRequestEngine(config) === 'portal') {
+            const portalRequests = getPortalRequestService(config);
+            const result = await portalRequests.declineAdminRequest(requestId, reason, req.user);
+            const title = result?.title || req.body?.title || `Request #${requestId}`;
+            await appendAuditLog('request_declined', req.user, null, {
+                requestId,
+                title,
+                reason: reason || null,
+                engine: 'portal',
+            });
+            // Portal blocklist is Phase 9 — decline succeeds without Seerr blocklist.
+            return res.json({ success: true, title, blacklisted: false });
+        }
         const result = await requestAppService.declineRequest(config, requestId, reason);
         const title = result?.media?.title || result?.media?.name || req.body?.title || `Request #${requestId}`;
         await appendAuditLog('request_declined', req.user, null, { requestId, title, reason: reason || null });
@@ -7112,7 +7293,7 @@ app.post('/api/requests/:id/decline', requireAdmin, async (req, res) => {
 
         res.json({ success: true, title, blacklisted: !!req.body?.blacklist });
     } catch (error) {
-        res.status(502).json({ error: error.message || 'Failed to decline request' });
+        res.status(error.status || 502).json({ error: error.message || 'Failed to decline request' });
     }
 });
 

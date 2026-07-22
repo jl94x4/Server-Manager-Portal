@@ -2289,8 +2289,8 @@ export const SettingsDashboard: React.FC = () => {
                                     hint={(
                                         <SettingHint>
                                             Seerr (default) creates requests in your request app.
-                                            Portal stores pending requests as JSON under config/requests — admin approve and *arr push arrive in Phase 6.
-                                            Request options (servers/profiles) still read from Seerr when connected.
+                                            Portal stores requests as JSON under config/requests and pushes to Sonarr/Radarr on admin approve.
+                                            Member request options still prefer Seerr when connected; admin services always use portal *arr instances in portal mode.
                                         </SettingHint>
                                     )}
                                 >

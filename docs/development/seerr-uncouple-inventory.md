@@ -121,7 +121,7 @@ Stubs are wired; Phase 4 defaults Discover metadata to TMDB (`discoverySource` d
 - [x] Phase 3 — Portal library availability
 - [x] Phase 4 — Flip Discover off Seerr proxy
 - [x] Phase 5 — JSON RequestStore + create/list
-- [ ] Phase 6 — Approve/decline + *arr push
+- [x] Phase 6 — Approve/decline + *arr push
 - [ ] Phase 7 — Status sync from *arr/Plex
 - [ ] Phase 8 — Issues + quotas
 - [ ] Phase 9 — Watchlist/blocklist + migration
@@ -155,5 +155,12 @@ Stubs are wired; Phase 4 defaults Discover metadata to TMDB (`discoverySource` d
 - Flag: `requestEngine: 'seerr' | 'portal'` (Settings → Request → Request Engine). Default remains **seerr**.
 - Portal path stores pending requests under `config/requests/` (`index.json` + `<id>.json`).
 - Wired: `POST /api/discovery/request`, `GET/DELETE /api/discovery/my-requests*`.
-- No auto-approve / *arr push yet (Phase 6). Request-options and admin approve stay on Seerr.
-- Portal My Requests shows only portal JSON history (not Seerr) when engine=portal.
+- Phase 6 adds admin approve → *arr push.
+
+## Phase 6 notes
+
+- Admin `/api/requests*` dual-runs when `requestEngine=portal`: list/count/detail/approve/decline/retry/delete against JSON store.
+- Approve looks up movie/series in Radarr/Sonarr, POSTs add+search, sets status **approved** (or **failed** with `meta.arrError`).
+- Service options (`/api/requests/services*`, `/api/discovery/request-services*`) read profiles/root folders/tags from portal Arr instances.
+- Requester identity uses portal account id / users file (no Seerr user sync).
+- Status sync downloading→available remains Phase 7. Auto-approve / quotas remain Phase 8.
