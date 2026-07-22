@@ -126,13 +126,13 @@ export const DiscoverHome: React.FC<{
             const hideAvailable = preferences.hideAvailableMedia;
             const languageFilterActive = Boolean(preferences.discoverLanguage);
             const rowBackfill = { needsBackfill: hideAvailable || languageFilterActive };
+            // Load poster rows first — genre sliders must not block the home skeleton.
             const [
                 addedRes, reqRes, watchlistRes, trendingRes,
                 popularMovies,
                 upcomingMovies,
                 popularSeries,
                 upcomingSeries,
-                movieGenreRes, tvGenreRes,
             ] = await Promise.all([
                 hideAvailable
                     ? Promise.resolve(null)
@@ -164,8 +164,6 @@ export const DiscoverHome: React.FC<{
                     hideAvailable,
                     rowBackfill,
                 ).catch(() => []),
-                apiFetch('/api/discovery/proxy/discover/genreslider/movie').catch(() => null),
-                apiFetch('/api/discovery/proxy/discover/genreslider/tv').catch(() => null),
             ]);
 
             const myRequestItems = Array.isArray(reqRes?.results)
@@ -192,21 +190,32 @@ export const DiscoverHome: React.FC<{
                 popularSeries,
                 upcomingSeries,
             });
+            setLoading(false);
 
-            let mappedMovies = mapGenreSliderResponse(movieGenreRes);
-            let mappedTv = mapGenreSliderResponse(tvGenreRes);
-            if (!mappedMovies.some((g) => g.image)) {
-                mappedMovies = await enrichGenreFallbacks(MOVIE_GENRES, 'movie');
+            // Genre sliders after rows are visible (best-effort).
+            try {
+                const [movieGenreRes, tvGenreRes] = await Promise.all([
+                    apiFetch('/api/discovery/proxy/discover/genreslider/movie').catch(() => null),
+                    apiFetch('/api/discovery/proxy/discover/genreslider/tv').catch(() => null),
+                ]);
+                let mappedMovies = mapGenreSliderResponse(movieGenreRes);
+                let mappedTv = mapGenreSliderResponse(tvGenreRes);
+                if (!mappedMovies.some((g) => g.image)) {
+                    mappedMovies = await enrichGenreFallbacks(MOVIE_GENRES, 'movie');
+                }
+                if (!mappedTv.some((g) => g.image)) {
+                    mappedTv = await enrichGenreFallbacks(TV_GENRES, 'tv');
+                }
+                setMovieGenres(mappedMovies);
+                setTvGenres(mappedTv);
+            } catch {
+                setMovieGenres(MOVIE_GENRES.map((g) => ({ id: g.id, name: g.name })));
+                setTvGenres(TV_GENRES.map((g) => ({ id: g.id, name: g.name })));
             }
-            if (!mappedTv.some((g) => g.image)) {
-                mappedTv = await enrichGenreFallbacks(TV_GENRES, 'tv');
-            }
-            setMovieGenres(mappedMovies);
-            setTvGenres(mappedTv);
         } catch (e) {
             console.error(e);
+            setLoading(false);
         }
-        setLoading(false);
     }, [loaded, preferences.hideAvailableMedia, preferences.discoverLanguage, preferences.discoverRegion, locale]);
 
     useEffect(() => {

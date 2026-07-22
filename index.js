@@ -5306,7 +5306,10 @@ app.get('/api/discovery/search', requireAuth, requireMember, async (req, res) =>
             let results = Array.isArray(data.results) ? data.results : [];
             try {
                 const library = await createDiscoveryLibraryAvailability(config);
-                results = await library.enrichItems(results);
+                results = await Promise.race([
+                    library.enrichItems(results),
+                    new Promise((resolve) => setTimeout(() => resolve(results), 10000)),
+                ]);
             } catch (enrichError) {
                 log(`Discovery TMDB search library enrich skipped: ${enrichError.message}`);
             }
@@ -5380,9 +5383,13 @@ app.get('/api/discovery/trending', requireAuth, requireMember, async (req, res) 
             let data = await client.trending({ language: metadataLanguage, page: 1 });
             try {
                 const library = await createDiscoveryLibraryAvailability(config);
+                const enrichedResults = await Promise.race([
+                    library.enrichItems(Array.isArray(data?.results) ? data.results : []),
+                    new Promise((resolve) => setTimeout(() => resolve(Array.isArray(data?.results) ? data.results : []), 10000)),
+                ]);
                 data = {
                     ...data,
-                    results: await library.enrichItems(Array.isArray(data?.results) ? data.results : []),
+                    results: enrichedResults,
                 };
             } catch (enrichError) {
                 log(`Discovery TMDB trending library enrich skipped: ${enrichError.message}`);
@@ -6616,14 +6623,18 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
                 const library = await createDiscoveryLibraryAvailability(config);
                 const isMovieDetail = /^\/movie\/\d+$/i.test(path);
                 const isTvDetail = /^\/tv\/\d+$/i.test(path);
-                if ((isMovieDetail || isTvDetail) && data && typeof data === 'object' && !Array.isArray(data)) {
-                    data = await library.enrichDetails(data);
-                } else if (Array.isArray(data?.results)) {
-                    data = {
-                        ...data,
-                        results: await library.enrichItems(data.results),
-                    };
-                }
+                const enrichPromise = ((isMovieDetail || isTvDetail) && data && typeof data === 'object' && !Array.isArray(data))
+                    ? library.enrichDetails(data)
+                    : (Array.isArray(data?.results)
+                        ? library.enrichItems(data.results).then((results) => ({ ...data, results }))
+                        : Promise.resolve(data));
+                // Never let *arr catalog hangs brick Discover browse.
+                data = await Promise.race([
+                    enrichPromise,
+                    new Promise((resolve) => {
+                        setTimeout(() => resolve(data), 10000);
+                    }),
+                ]);
             } catch (enrichError) {
                 log(`Discovery TMDB library enrich skipped for ${path}: ${enrichError.message}`);
             }
