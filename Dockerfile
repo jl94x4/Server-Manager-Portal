@@ -14,8 +14,12 @@ COPY package.json package-lock.json ./
 RUN npm install --no-audit --no-fund
 
 COPY . .
+# Stamp assets + version.txt (gitignored). Re-run build-version explicitly so the
+# runner COPY never fails when build:version is skipped or release-notes fails mid-script.
 RUN npm run build \
-    && test -f style.css || printf '/* Legacy stylesheet placeholder */\n' > style.css \
+    && node build-version.js \
+    && test -s version.txt \
+    && (test -f style.css || printf '/* Legacy stylesheet placeholder */\n' > style.css) \
     && npm prune --omit=dev \
     && npm cache clean --force
 
