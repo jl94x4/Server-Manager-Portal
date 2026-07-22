@@ -263,7 +263,12 @@ const Gallery: React.FC = () => {
             }
             await fetchCollections(true);
         } catch (e: any) {
-            alert(e?.message || 'Failed to set collection art.');
+            const msg = String(e?.message || '');
+            if (/504|timed out|timeout/i.test(msg)) {
+                alert('Poster refresh timed out. Try again — large collections can take a moment.');
+            } else {
+                alert(msg || 'Failed to set collection art.');
+            }
         } finally {
             setFixingArtId(null);
         }

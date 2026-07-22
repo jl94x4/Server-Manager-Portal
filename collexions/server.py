@@ -899,7 +899,7 @@ def _collect_mosaic_poster_urls(matched_items=None, external_items=None, plex=No
     return urls[:limit]
 
 
-def _download_poster_image(url, timeout=20):
+def _download_poster_image(url, timeout=12):
     """Download image bytes from a poster URL. Returns PIL Image or None."""
     try:
         from PIL import Image
@@ -923,20 +923,31 @@ def _build_poster_mosaic(poster_urls, cell_w=500, cell_h=750):
     try:
         from PIL import Image
         import io
+        from concurrent.futures import ThreadPoolExecutor, as_completed
     except ImportError:
         logging.warning('Pillow is required to build mosaic collection posters.')
         return None
 
-    images = []
-    for url in poster_urls[:4]:
-        img = _download_poster_image(url)
-        if img is not None:
-            images.append(img)
+    urls = list(poster_urls[:4])
+    images_by_url = {}
+    with ThreadPoolExecutor(max_workers=min(4, len(urls))) as pool:
+        futures = {pool.submit(_download_poster_image, url): url for url in urls}
+        for fut in as_completed(futures):
+            url = futures[fut]
+            try:
+                img = fut.result()
+            except Exception:
+                img = None
+            if img is not None:
+                images_by_url[url] = img
+
+    images = [images_by_url[u] for u in urls if u in images_by_url]
     if not images:
         return None
 
     canvas = Image.new('RGB', (cell_w * 2, cell_h * 2), (18, 18, 22))
     positions = [(0, 0), (cell_w, 0), (0, cell_h), (cell_w, cell_h)]
+    resample = getattr(getattr(Image, 'Resampling', Image), 'LANCZOS', Image.LANCZOS)
 
     for img, (x, y) in zip(images, positions):
         try:
@@ -946,7 +957,6 @@ def _build_poster_mosaic(poster_urls, cell_w=500, cell_h=750):
             scale = max(cell_w / src_w, cell_h / src_h)
             new_w = max(1, int(src_w * scale))
             new_h = max(1, int(src_h * scale))
-            resample = getattr(getattr(Image, 'Resampling', Image), 'LANCZOS', Image.LANCZOS)
             resized = img.resize((new_w, new_h), resample)
             left = max(0, (new_w - cell_w) // 2)
             top = max(0, (new_h - cell_h) // 2)
@@ -993,9 +1003,14 @@ def _ensure_collection_art(coll, source_type='', source_id='', external_items=No
     plex = getattr(coll, '_server', None) or get_plex_instance()
     if not matched_items:
         try:
-            matched_items = coll.items()
+            # Mosaic only needs a handful of posters — cap the Plex fetch.
+            key = getattr(coll, 'key', None) or f'/library/metadata/{coll.ratingKey}'
+            matched_items = coll.fetchItems(f'{key}/children', maxresults=24)
         except Exception:
-            matched_items = []
+            try:
+                matched_items = list(coll.items())[:24]
+            except Exception:
+                matched_items = []
 
     title = getattr(coll, 'title', '?')
 
@@ -2886,17 +2901,13 @@ def fix_collection_art():
             job = job_by_key.get(f"{library_name}\0{coll.title}") or {}
             source_type = job.get('source_type') or ''
             source_id = job.get('source_id') or ''
-            external_items = None
-            if source_type:
-                try:
-                    external_items = fetch_source_items(source_type, source_id, config)
-                except Exception:
-                    external_items = None
+            # Mosaic uses local Plex artwork. Skip re-fetching Trakt/MDBList/etc.
+            # (that was the main cause of gallery refresh 504 timeouts).
             changed = _ensure_collection_art(
                 coll,
                 source_type=source_type,
                 source_id=source_id,
-                external_items=external_items,
+                external_items=None,
                 matched_items=None,
                 config=config,
                 force=force or bool(title),

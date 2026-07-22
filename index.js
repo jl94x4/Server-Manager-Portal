@@ -16195,12 +16195,13 @@ app.all('/api/collexions/*', requireAdmin, requireCollexions, async (req, res) =
             }
         }
 
-        // Gallery / create / template jobs / large Trakt lists can take a while.
+        // Gallery / create / template jobs / large Trakt lists / poster mosaics can take a while.
         const longSuffix =
             suffix === 'collections'
             || suffix.startsWith('collections?')
             || suffix === 'collections/create'
             || suffix === 'collections/create-from-external'
+            || suffix === 'collections/fix-art'
             || suffix === 'templates/create'
             || suffix.startsWith('templates/franchise-search')
             || suffix === 'trending'
