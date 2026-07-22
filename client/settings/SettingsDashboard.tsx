@@ -307,7 +307,14 @@ export const SettingsDashboard: React.FC = () => {
     });
     const [highlightMaintenanceToggle, setHighlightMaintenanceToggle] = useState(false);
 
-    const settingsTabGroups = SETTINGS_TAB_GROUPS;
+    const settingsTabGroups = useMemo(() => {
+        // Collexions is Plex-only — hide the settings tab for Jellyfin/Emby.
+        if (mediaServerType === 'plex') return SETTINGS_TAB_GROUPS;
+        return SETTINGS_TAB_GROUPS.map((group) => ({
+            ...group,
+            tabs: group.tabs.filter((tab) => tab.id !== 'collexions'),
+        })).filter((group) => group.tabs.length > 0);
+    }, [mediaServerType]);
     const settingsTabsFlat = settingsTabGroups.flatMap((group) => group.tabs);
     const visibleTabGroups = settingsTabGroups;
 
@@ -1474,7 +1481,16 @@ export const SettingsDashboard: React.FC = () => {
                                     <CustomSelect
                                         id="mediaServerType"
                                         value={mediaServerType}
-                                        onChange={(val) => setMediaServerType(val === 'emby' ? 'emby' : val === 'jellyfin' ? 'jellyfin' : 'plex')}
+                                        onChange={(val) => {
+                                            const next = val === 'emby' ? 'emby' : val === 'jellyfin' ? 'jellyfin' : 'plex';
+                                            setMediaServerType(next);
+                                            // Collexions is Plex-only — turn it off when leaving Plex.
+                                            if (next !== 'plex') {
+                                                setCollexionsEnabled(false);
+                                                setCollexionsAutostart(false);
+                                                if (activeTab === 'collexions') setActiveTab('plex');
+                                            }
+                                        }}
                                         options={[
                                             { label: 'Plex', value: 'plex' },
                                             { label: 'Jellyfin', value: 'jellyfin' },
@@ -2953,16 +2969,19 @@ export const SettingsDashboard: React.FC = () => {
                             </section>
                         </div>
                     )}
-                    {activeTab === 'collexions' && (
+                    {activeTab === 'collexions' && mediaServerType === 'plex' && (
                         <div className="mb-8 animate-fade-in space-y-6">
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Collexions</h3>
                             <section id={getSettingsSectionElementId('collexions')} className="space-y-3 scroll-mt-24">
+                                <p className="text-xs text-muted -mt-2 mb-1">
+                                    Plex-only integration — hidden when Media Server Type is Jellyfin or Emby.
+                                </p>
                                 <SettingsToggleRow
                                     title="Enable Collexions"
                                     hint={<SettingHint>
                                         {initialSettings.collexionsBundled
-                                            ? 'Admin-only collections manager. Runs inside the portal image — just enable and save. OFF by default.'
-                                            : 'Admin-only collections manager. This build has no bundled worker; set an internal URL to an external Collexions sidecar. OFF by default.'}
+                                            ? 'Admin-only Plex collections manager. Runs inside the portal image — just enable and save. OFF by default.'
+                                            : 'Admin-only Plex collections manager. This build has no bundled worker; set an internal URL to an external Collexions sidecar. OFF by default.'}
                                     </SettingHint>}
                                     checked={collexionsEnabled}
                                     onChange={(next) => {

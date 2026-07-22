@@ -2504,10 +2504,12 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
 
     const requestAppType = config.requestAppType === 'overseerr' ? 'seerr' : (config.requestAppType || 'none');
     const resolvedRequestUrl = requestUrl;
+    const isPlexMediaServer = String(config.mediaServerType || 'plex').toLowerCase() === 'plex';
     const navFeatures = {
         maintenance: !!config.maintenanceExperimentalEnabled,
         upgrader: !!config.upgraderEnabled,
-        collexions: !!config.collexionsEnabled,
+        // Collexions is Plex-only — hide for Jellyfin/Emby even if the flag is on.
+        collexions: !!config.collexionsEnabled && isPlexMediaServer,
         request: !!(requestAppType && requestAppType !== 'none' && resolvedRequestUrl && resolvedRequestUrl !== 'https://yourdomain.com'),
         requestsQueue: requestAppService.isRequestAppConfigured(config),
         downloads: config.downloadsVisibleToMembers !== false,
@@ -3167,8 +3169,13 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         autoBackupRetentionCount: Math.max(1, parseInt(autoBackupRetentionCount, 10) || 10),
         maintenanceExperimentalEnabled: maintenanceExperimentalEnabled !== undefined ? !!maintenanceExperimentalEnabled : !!existingConfig.maintenanceExperimentalEnabled,
         upgraderEnabled: upgraderEnabled !== undefined ? !!upgraderEnabled : !!existingConfig.upgraderEnabled,
-        collexionsEnabled: collexionsEnabled !== undefined ? !!collexionsEnabled : !!existingConfig.collexionsEnabled,
+        collexionsEnabled: (() => {
+            // Plex-only integration — never leave enabled for Jellyfin/Emby.
+            if (normalizedMediaServerType !== 'plex') return false;
+            return collexionsEnabled !== undefined ? !!collexionsEnabled : !!existingConfig.collexionsEnabled;
+        })(),
         collexionsAutostart: (() => {
+            if (normalizedMediaServerType !== 'plex') return false;
             const enabled = collexionsEnabled !== undefined ? !!collexionsEnabled : !!existingConfig.collexionsEnabled;
             if (!enabled) return false;
             return collexionsAutostart !== undefined ? !!collexionsAutostart : !!existingConfig.collexionsAutostart;
@@ -16041,12 +16048,17 @@ app.get('/api/maintenance/library-items', requireAdmin, async (req, res) => {
 });
 
 const isCollexionsEnabled = (config) => (
-    !!config?.collexionsEnabled && !!String(config?.collexionsInternalUrl || '').trim()
+    !!config?.collexionsEnabled
+    && String(config?.mediaServerType || 'plex').toLowerCase() === 'plex'
+    && !!String(config?.collexionsInternalUrl || '').trim()
 );
 
 const requireCollexions = async (req, res, next) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
+        if (String(config?.mediaServerType || 'plex').toLowerCase() !== 'plex') {
+            return res.status(403).json({ error: 'Collexions is a Plex-only integration. Switch Media Server Type to Plex in Settings.' });
+        }
         if (!isCollexionsEnabled(config)) {
             return res.status(403).json({ error: 'Collexions is disabled. Enable it and set the internal URL in Settings first.' });
         }
@@ -16068,6 +16080,9 @@ app.get('/api/collexions/health', requireAdmin, async (req, res) => {
         const serviceKey = String(config.collexionsServiceKey || process.env.COLLEXIONS_SERVICE_KEY || '').trim();
         const issues = [];
 
+        if (String(config.mediaServerType || 'plex').toLowerCase() !== 'plex') {
+            issues.push('Collexions requires Media Server Type = Plex.');
+        }
         if (!enabled) issues.push('Collexions is disabled in Settings.');
         if (enabled && !base) issues.push('Internal URL is not configured.');
         if (enabled && !serviceKey) issues.push('Service key is missing.');

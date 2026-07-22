@@ -298,7 +298,16 @@ export const MainApp: React.FC = () => {
             else if (path.startsWith('/downloads')) setCurrentRoute('downloads');
             else if (path.startsWith('/maintenance') && data.session.isAdmin) setCurrentRoute('maintenance');
             else if (path.startsWith('/upgrader') && data.session.isAdmin) setCurrentRoute('upgrader');
-            else if (path.startsWith('/collexions') && data.session.isAdmin) setCurrentRoute('collexions');
+            else if (
+                path.startsWith('/collexions')
+                && data.session.isAdmin
+                && data.navFeatures?.collexions
+                && String(data.mediaServerType || 'plex').toLowerCase() === 'plex'
+            ) setCurrentRoute('collexions');
+            else if (path.startsWith('/collexions')) {
+                window.history.replaceState({}, '', portalUrl('/portal'));
+                setCurrentRoute('user');
+            }
             else if (path.startsWith('/requests') && data.session.isAdmin) setCurrentRoute('requests');
             else if (path.startsWith('/discovery')) setCurrentRoute('discovery');
             else if (path.startsWith('/about')) setCurrentRoute('about');
@@ -403,7 +412,12 @@ export const MainApp: React.FC = () => {
         if (currentRoute === 'settings' && isAdmin) return <SettingsDashboard />;
         if (currentRoute === 'maintenance' && isAdmin) return <MaintenanceDashboard />;
         if (currentRoute === 'upgrader' && isAdmin) return <UpgraderDashboard />;
-        if (currentRoute === 'collexions' && isAdmin) return <CollexionsDashboard />;
+        if (
+            currentRoute === 'collexions'
+            && isAdmin
+            && sessionInfo?.navFeatures?.collexions
+            && String(sessionInfo?.mediaServerType || publicConfig?.mediaServerType || 'plex').toLowerCase() === 'plex'
+        ) return <CollexionsDashboard />;
         if (currentRoute === 'requests' && isAdmin) {
             return (
                 <RequestQueueDashboard

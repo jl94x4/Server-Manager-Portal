@@ -177,7 +177,11 @@ export const isMainGridWidgetAvailable = (id: MainGridWidgetId, ctx: DashboardLa
     if (id === 'accessStatus' && (ctx.isAdmin || !ctx.hasUser)) return false;
     if (id === 'adminBadge' && !ctx.isAdmin) return false;
     if (id === 'quickActions' && !ctx.isAdmin) return false;
-    if (id === 'collexions' && !ctx.collexionsEnabled) return false;
+    if (id === 'collexions') {
+        if (!ctx.collexionsEnabled) return false;
+        // Collexions is a Plex-only integration.
+        if (String(ctx.mediaServerType || 'plex').toLowerCase() !== 'plex') return false;
+    }
     if (id === 'analytics') {
         const isJellyfin = String(ctx.mediaServerType || '').toLowerCase() === 'jellyfin';
         if (!isJellyfin) return false;
