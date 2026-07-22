@@ -7526,6 +7526,7 @@ app.post('/api/tasks/run/:taskId', requireAdmin, async (req, res) => {
                     case 'plexStats': await buildPlexStatsCache(); break;
                     case 'autoBackup': await runAutoBackupCycle('manual', { force: true }); break;
                     case 'maintenanceIndex': await buildMaintenanceMediaIndex({ actor: req.user, force: true }); break;
+                    case 'requestStatusSync': await runPortalRequestStatusSync('manual'); break;
                 }
             }
         } catch (e) {
@@ -11445,6 +11446,16 @@ const systemJobs = {
     autoBackup: { id: 'autoBackup', name: 'Auto Rolling Backup', description: 'Creates rolling backup snapshots on configured interval.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null },
     maintenanceIndex: { id: 'maintenanceIndex', name: 'Media Quality Index', description: 'Builds per-item media quality index for Cleaner and Upgrader.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null },
     upgraderIndex: { id: 'upgraderIndex', name: 'Upgrader Index', description: 'Rebuilds Sonarr/Radarr library index for Upgrader browse.', lastRun: null, nextRun: null, running: false, lastDurationMs: null, lastError: null },
+    requestStatusSync: {
+        id: 'requestStatusSync',
+        name: 'Portal Request Status Sync',
+        description: 'Updates portal request downloading/available status from Sonarr/Radarr (requestEngine=portal).',
+        lastRun: null,
+        nextRun: null,
+        running: false,
+        lastDurationMs: null,
+        lastError: null,
+    },
 };
 
 const markTaskStart = (task) => {
@@ -11461,6 +11472,45 @@ const markTaskEnd = (task, error = null) => {
         delete task._startedAt;
     }
     task.lastError = error ? (error.message || String(error)) : null;
+};
+
+const REQUEST_STATUS_SYNC_INTERVAL_MS = 60 * 1000;
+
+const runPortalRequestStatusSync = async (reason = 'scheduled') => {
+    const job = systemJobs.requestStatusSync;
+    if (job.running) return null;
+    markTaskStart(job);
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        if (getRequestEngine(config) !== 'portal') {
+            job.nextRun = null;
+            markTaskEnd(job, null);
+            return { skipped: true, reason: 'requestEngine is not portal' };
+        }
+        const portalRequests = getPortalRequestService(config);
+        const summary = await portalRequests.syncRequestStatuses();
+        job.nextRun = new Date(Date.now() + REQUEST_STATUS_SYNC_INTERVAL_MS).toISOString();
+        markTaskEnd(job, null);
+        if (summary?.updated > 0 || reason === 'manual') {
+            log(`[RequestStatusSync] ${reason}: checked=${summary.checked} updated=${summary.updated} available=${summary.available} downloading=${summary.downloading} errors=${summary.errors}`);
+        }
+        return summary;
+    } catch (error) {
+        markTaskEnd(job, error);
+        log(`[RequestStatusSync] failed: ${error.message}`);
+        job.nextRun = new Date(Date.now() + REQUEST_STATUS_SYNC_INTERVAL_MS).toISOString();
+        return null;
+    }
+};
+
+const startPortalRequestStatusSyncBackgroundTask = () => {
+    systemJobs.requestStatusSync.nextRun = new Date(Date.now() + 15 * 1000).toISOString();
+    setTimeout(() => {
+        runPortalRequestStatusSync('startup').catch(() => {});
+    }, 15 * 1000);
+    setInterval(() => {
+        runPortalRequestStatusSync('scheduled').catch(() => {});
+    }, REQUEST_STATUS_SYNC_INTERVAL_MS);
 };
 
 const computeNextBackupRun = (config) => {
@@ -18215,6 +18265,7 @@ app.listen(PORT, BIND_HOST, async () => {
     startTrendingStatsBackgroundTask();
     startAnalyticsStatsBackgroundTask();
     startUpgraderIndexBackgroundTask();
+    startPortalRequestStatusSyncBackgroundTask();
     systemJobs.maintenanceIndex.nextRun = new Date(Date.now() + (20 * 1000)).toISOString();
     setTimeout(async () => {
         try {

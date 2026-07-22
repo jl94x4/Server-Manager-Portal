@@ -122,7 +122,7 @@ Stubs are wired; Phase 4 defaults Discover metadata to TMDB (`discoverySource` d
 - [x] Phase 4 — Flip Discover off Seerr proxy
 - [x] Phase 5 — JSON RequestStore + create/list
 - [x] Phase 6 — Approve/decline + *arr push
-- [ ] Phase 7 — Status sync from *arr/Plex
+- [x] Phase 7 — Status sync from *arr/Plex
 - [ ] Phase 8 — Issues + quotas
 - [ ] Phase 9 — Watchlist/blocklist + migration
 - [ ] Phase 10 — Hard cut + cleanup
@@ -164,3 +164,11 @@ Stubs are wired; Phase 4 defaults Discover metadata to TMDB (`discoverySource` d
 - Service options (`/api/requests/services*`, `/api/discovery/request-services*`) read profiles/root folders/tags from portal Arr instances.
 - Requester identity uses portal account id / users file (no Seerr user sync).
 - Status sync downloading→available remains Phase 7. Auto-approve / quotas remain Phase 8.
+
+## Phase 7 notes
+
+- Background job `requestStatusSync` (60s) when `requestEngine=portal`: refreshes approved request `meta.mediaStatus` / `meta.isDownloading` from Sonarr/Radarr via `libraryAvailability.getMediaStatus`.
+- Admin Available / Processing tabs + counts use synced media status (no Seerr download APIs).
+- Member My Requests labels already read `mediaStatus` / `isDownloading` — they update after sync.
+- Manual run: Tasks → Portal Request Status Sync.
+- Plex GUID match for “in library” can refine further later; *arr on-disk / queue is the Phase 7 source of truth.
