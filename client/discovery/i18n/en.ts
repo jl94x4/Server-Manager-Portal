@@ -95,7 +95,7 @@ export const en = {
         noRequestsBody: 'Find something good and send it to the queue.',
         browseMovies: 'Browse movies',
         watchlistEmptyTitle: 'Watchlist is empty',
-        watchlistEmptyBody: 'Sync from {provider} in Seerr, or start from trending titles.',
+        watchlistEmptyBody: 'Add titles in {provider}, then sign in again — or start from trending.',
         seeTrending: 'See trending',
         browse: 'Browse',
         whatsPopular: 'What’s popular',
@@ -256,7 +256,7 @@ export const en = {
     watchlist: {
         title: 'Your {provider} Watchlist',
         emptyTitle: 'Your {provider} watchlist is empty',
-        emptyBody: 'Add movies and shows to your {provider} watchlist — they will appear here once Seerr syncs.',
+        emptyBody: 'Add movies and shows to your {provider} watchlist — they appear here after you sign in.',
         loadFailed: 'Failed to load watchlist',
     },
     person: {

@@ -148,7 +148,7 @@ export const WatchlistPanel: React.FC<Props> = ({
             <div>
                 <h2 className="text-xl font-bold text-text">Your {providerLabel} Watchlist</h2>
                 <p className="text-xs text-muted mt-1">
-                    Auto-sync from {providerLabel} is managed in Seerr settings.
+                    Synced live from your {providerLabel} watchlist when you sign in.
                     {quotaSummary ? ` ${quotaSummary}.` : ''}
                 </p>
             </div>

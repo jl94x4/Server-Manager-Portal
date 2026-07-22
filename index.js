@@ -369,6 +369,8 @@ import {
     PLEX_STATS_CACHE_PATH,
     REQUESTS_DIR,
     ISSUES_DIR,
+    BLOCKLIST_DIR,
+    WATCHLIST_DIR,
     migrateConfigFiles,
 } from './lib/data-paths.js';
 import {
@@ -435,6 +437,8 @@ import {
     createLibraryAvailability,
     createPortalRequestService,
     createPortalIssueService,
+    createPortalBlocklistService,
+    createPortalWatchlistService,
     evaluatePortalMemberQuota,
     shouldPortalAutoApprove,
     getPortalRequestQuotaSettings,
@@ -1120,12 +1124,13 @@ const findLocalUserForSession = (users, sessionUser) => {
 };
 
 /** Record portal last-login using the same identity matching as membership checks. */
-const touchUserLastLogin = (users, sessionUser, at = new Date().toISOString()) => {
+const touchUserLastLogin = (users, sessionUser, at = new Date().toISOString(), extras = {}) => {
     const existingUser = findLocalUserForSession(users, sessionUser);
     if (!existingUser) return null;
     existingUser.lastLogin = at;
     if (!existingUser.plexId && sessionUser.plexId) existingUser.plexId = sessionUser.plexId;
     if (!existingUser.jellyfinId && sessionUser.jellyfinId) existingUser.jellyfinId = sessionUser.jellyfinId;
+    if (extras.plexAuthToken) existingUser.plexAuthToken = String(extras.plexAuthToken);
     return existingUser;
 };
 
@@ -2288,7 +2293,9 @@ const handlePlexPinLogin = async (req, res, pinId, ref, { redirectOnSuccess = fa
 
     if (!isAdmin) {
         const users = await loadFile(USERS_PATH, []);
-        if (touchUserLastLogin(users, sessionUser)) {
+        if (touchUserLastLogin(users, sessionUser, new Date().toISOString(), {
+            plexAuthToken: pinData.authToken,
+        })) {
             await saveFile(USERS_PATH, users);
         }
     }
@@ -5306,6 +5313,16 @@ const createDiscoveryLibraryAvailability = (config) => createLibraryAvailability
     catalogTimeoutMs: 8000,
 });
 
+const getPortalBlocklistService = (config) => createPortalBlocklistService({
+    dataDir: BLOCKLIST_DIR,
+    config,
+    resolveUser: async (userId) => {
+        const users = await loadFile(USERS_PATH, []);
+        const key = String(userId || '');
+        return users.find((user) => String(user?.id) === key || String(user?.plexId) === key) || null;
+    },
+});
+
 const getPortalRequestService = (config) => createPortalRequestService({
     dataDir: REQUESTS_DIR,
     config,
@@ -5317,6 +5334,36 @@ const getPortalRequestService = (config) => createPortalRequestService({
         const key = String(userId || '');
         return users.find((user) => String(user?.id) === key || String(user?.plexId) === key) || null;
     },
+    isBlocked: async (mediaType, tmdbId) => {
+        const blocklist = getPortalBlocklistService(config);
+        return blocklist.isBlocked(mediaType, tmdbId);
+    },
+});
+
+const getPortalWatchlistService = (config) => createPortalWatchlistService({
+    dataDir: WATCHLIST_DIR,
+    config,
+    resolveUrl: resolveIntegrationUrlForFetch,
+    fetchImpl: fetchWithTimeout,
+    plexHeaders: plexClientHeaders,
+    resolvePlexToken: async (sessionUser) => {
+        if (sessionUser?.isAdmin && config?.plexToken && config.plexToken !== SECRET_MASK) {
+            return String(config.plexToken);
+        }
+        const users = await loadFile(USERS_PATH, []);
+        const key = String(sessionUser?.id || '');
+        const plexId = String(sessionUser?.plexId || '');
+        const local = users.find((user) => (
+            String(user?.id) === key || String(user?.plexId) === plexId
+        ));
+        if (local?.plexAuthToken) return String(local.plexAuthToken);
+        // Admin token as last resort only for admin sessions.
+        if (sessionUser?.isAdmin && config?.plexToken && config.plexToken !== SECRET_MASK) {
+            return String(config.plexToken);
+        }
+        return null;
+    },
+    requestService: getPortalRequestService(config),
 });
 
 const getPortalIssueService = (config) => createPortalIssueService({
@@ -6207,6 +6254,11 @@ app.delete('/api/issues/:id', requireAdmin, async (req, res) => {
 app.get('/api/blocklist/count', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
+        if (getRequestEngine(config) === 'portal') {
+            const portalBlocklist = getPortalBlocklistService(config);
+            const total = await portalBlocklist.getBlocklistCount();
+            return res.json({ configured: true, supported: true, connected: true, engine: 'portal', total });
+        }
         const gate = getRequestAppGate(config);
         if (!gate.ready) {
             return res.json(buildRequestAppStatusPayload(config));
@@ -6232,29 +6284,40 @@ app.get('/api/blocklist/count', requireAdmin, async (req, res) => {
 app.get('/api/blocklist/search', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
+        const query = String(req.query.query || '').trim();
+        if (getRequestEngine(config) === 'portal') {
+            const portalBlocklist = getPortalBlocklistService(config);
+            const results = await portalBlocklist.searchBlocklistCandidates(query);
+            return res.json({ configured: true, engine: 'portal', results });
+        }
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
 
-        const query = String(req.query.query || '').trim();
         const results = await requestAppService.searchBlocklistCandidates(config, query);
         res.json({ configured: true, results });
     } catch (error) {
-        res.status(502).json({ error: error.message || 'Failed to search titles' });
+        res.status(error.status || 502).json({ error: error.message || 'Failed to search titles' });
     }
 });
 
 app.get('/api/blocklist', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) {
-            return res.json({ ...buildRequestAppStatusPayload(config), results: [] });
-        }
-
         const take = Math.min(50, Math.max(1, Number(req.query.take) || 30));
         const skip = Math.max(0, Number(req.query.skip) || 0);
         const search = String(req.query.search || '').trim();
         const filter = String(req.query.filter || 'manual').toLowerCase();
+
+        if (getRequestEngine(config) === 'portal') {
+            const portalBlocklist = getPortalBlocklistService(config);
+            const payload = await portalBlocklist.listBlocklist({ take, skip, search, filter });
+            return res.json({ configured: true, supported: true, connected: true, engine: 'portal', ...payload });
+        }
+
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) {
+            return res.json({ ...buildRequestAppStatusPayload(config), results: [] });
+        }
 
         try {
             const payload = await requestAppService.listBlocklist(config, { take, skip, search, filter });
@@ -6277,15 +6340,26 @@ app.get('/api/blocklist', requireAdmin, async (req, res) => {
 app.post('/api/blocklist', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
+        const { tmdbId, mediaType, title } = req.body || {};
+        if (getRequestEngine(config) === 'portal') {
+            const portalBlocklist = getPortalBlocklistService(config);
+            const item = await portalBlocklist.addToBlocklist(req.user, { tmdbId, mediaType, title });
+            await appendAuditLog('blocklist_added', req.user, null, {
+                tmdbId,
+                mediaType,
+                title: title || item?.title || null,
+                engine: 'portal',
+            });
+            return res.status(201).json({ success: true, item });
+        }
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
 
-        const { tmdbId, mediaType, title } = req.body || {};
         const item = await requestAppService.addToBlocklist(config, req.user, { tmdbId, mediaType, title });
         await appendAuditLog('blocklist_added', req.user, null, { tmdbId, mediaType, title: title || item?.title || null });
         res.status(201).json({ success: true, item });
     } catch (error) {
-        const status = /already blocklisted/i.test(error.message || '') ? 409 : 502;
+        const status = /already blocklisted/i.test(error.message || '') ? 409 : (error.status || 502);
         res.status(status).json({ error: error.message || 'Failed to blocklist title' });
     }
 });
@@ -6293,9 +6367,6 @@ app.post('/api/blocklist', requireAdmin, async (req, res) => {
 app.delete('/api/blocklist/:tmdbId', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
         const tmdbId = String(req.params.tmdbId || '').trim();
         const mediaType = String(req.query.mediaType || '').toLowerCase();
         if (!tmdbId) return res.status(400).json({ error: 'TMDB ID is required' });
@@ -6303,17 +6374,32 @@ app.delete('/api/blocklist/:tmdbId', requireAdmin, async (req, res) => {
             return res.status(400).json({ error: 'mediaType must be movie or tv' });
         }
 
+        if (getRequestEngine(config) === 'portal') {
+            const portalBlocklist = getPortalBlocklistService(config);
+            await portalBlocklist.removeFromBlocklist(tmdbId, mediaType);
+            await appendAuditLog('blocklist_removed', req.user, null, { tmdbId, mediaType, engine: 'portal' });
+            return res.json({ success: true, message: 'Title removed from blocklist.' });
+        }
+
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
         await requestAppService.removeFromBlocklist(config, tmdbId, mediaType);
         await appendAuditLog('blocklist_removed', req.user, null, { tmdbId, mediaType });
         res.json({ success: true, message: 'Title removed from blocklist.' });
     } catch (error) {
-        res.status(502).json({ error: error.message || 'Failed to remove blocklist entry' });
+        res.status(error.status || 502).json({ error: error.message || 'Failed to remove blocklist entry' });
     }
 });
 
 app.get('/api/discovery/watchlist', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
+        if (getRequestEngine(config) === 'portal') {
+            const portalWatchlist = getPortalWatchlistService(config);
+            const payload = await portalWatchlist.getMemberWatchlist(req.user);
+            return res.json(payload);
+        }
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
 
@@ -6328,10 +6414,19 @@ app.get('/api/discovery/watchlist', requireAuth, requireMember, async (req, res)
 app.post('/api/discovery/watchlist/request', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
+        const { all, items, is4k } = req.body || {};
+        if (getRequestEngine(config) === 'portal') {
+            const portalWatchlist = getPortalWatchlistService(config);
+            const summary = await portalWatchlist.requestMemberWatchlist(req.user, {
+                all: !!all,
+                items: Array.isArray(items) ? items : [],
+                is4k: !!is4k,
+            });
+            return res.status(summary.submitted > 0 ? 201 : 200).json(summary);
+        }
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
 
-        const { all, items, is4k } = req.body || {};
         const summary = await requestAppService.requestMemberWatchlist(config, req.user, {
             all: !!all,
             items: Array.isArray(items) ? items : [],
@@ -7197,15 +7292,18 @@ app.post('/api/requests/import-from-seerr', requireAdmin, async (req, res) => {
         }
         const portalUsers = await loadFile(USERS_PATH, []);
         const includeIssues = req.body?.includeIssues !== false;
+        const includeBlocklist = req.body?.includeBlocklist !== false;
         const summary = await importSeerrHistoryToPortal({
             config,
             fetchSeerrJson: requestAppService.rawFetch,
             requestsDir: REQUESTS_DIR,
             issuesDir: ISSUES_DIR,
+            blocklistDir: BLOCKLIST_DIR,
             portalUsers,
             includeIssues,
+            includeBlocklist,
         });
-        log(`[SeerrImport] requests imported=${summary.requests.imported} skippedExisting=${summary.requests.skippedExisting} unmapped=${summary.requests.skippedUnmapped}; issues imported=${summary.issues.imported}`);
+        log(`[SeerrImport] requests imported=${summary.requests.imported} skippedExisting=${summary.requests.skippedExisting} unmapped=${summary.requests.skippedUnmapped}; issues imported=${summary.issues.imported}; blocklist imported=${summary.blocklist.imported}`);
         res.json({ ok: true, ...summary });
     } catch (error) {
         log(`[SeerrImport] failed: ${error.message}`);
@@ -7418,8 +7516,40 @@ app.post('/api/requests/:id/decline', requireAdmin, async (req, res) => {
                 reason: reason || null,
                 engine: 'portal',
             });
-            // Portal blocklist is Phase 9 — decline succeeds without Seerr blocklist.
-            return res.json({ success: true, title, blacklisted: false });
+
+            let blacklisted = false;
+            if (req.body?.blacklist) {
+                const tmdbId = Number(req.body?.tmdbId ?? result?.tmdbId);
+                const mediaType = String(req.body?.mediaType || result?.type || '').toLowerCase();
+                if (Number.isFinite(tmdbId) && tmdbId > 0 && (mediaType === 'movie' || mediaType === 'tv')) {
+                    try {
+                        const portalBlocklist = getPortalBlocklistService(config);
+                        await portalBlocklist.addToBlocklist(req.user, {
+                            tmdbId,
+                            mediaType,
+                            title,
+                            source: 'decline',
+                        });
+                        blacklisted = true;
+                        await appendAuditLog('blocklist_added', req.user, null, {
+                            tmdbId,
+                            mediaType,
+                            title,
+                            source: 'decline_request',
+                            requestId,
+                            engine: 'portal',
+                        });
+                    } catch (blockError) {
+                        if (!/already blocklisted/i.test(blockError?.message || '')) {
+                            return res.status(502).json({
+                                error: `Request declined, but blocklisting failed: ${blockError.message}`,
+                            });
+                        }
+                        blacklisted = true;
+                    }
+                }
+            }
+            return res.json({ success: true, title, blacklisted });
         }
         const result = await requestAppService.declineRequest(config, requestId, reason);
         const title = result?.media?.title || result?.media?.name || req.body?.title || `Request #${requestId}`;
@@ -11621,7 +11751,7 @@ const systemJobs = {
     seerrHistoryImport: {
         id: 'seerrHistoryImport',
         name: 'Import Seerr History',
-        description: 'Copies Seerr/Overseerr request and issue history into portal JSON stores (idempotent).',
+        description: 'Copies Seerr/Overseerr request, issue, and blocklist history into portal JSON stores (idempotent).',
         lastRun: null,
         nextRun: null,
         running: false,
@@ -11692,11 +11822,13 @@ const runSeerrHistoryImport = async (reason = 'manual') => {
             fetchSeerrJson: requestAppService.rawFetch,
             requestsDir: REQUESTS_DIR,
             issuesDir: ISSUES_DIR,
+            blocklistDir: BLOCKLIST_DIR,
             portalUsers,
             includeIssues: true,
+            includeBlocklist: true,
         });
         markTaskEnd(job, null);
-        log(`[SeerrImport] ${reason}: requests imported=${summary.requests.imported} issues imported=${summary.issues.imported} unmapped=${summary.requests.skippedUnmapped}`);
+        log(`[SeerrImport] ${reason}: requests imported=${summary.requests.imported} issues imported=${summary.issues.imported} blocklist imported=${summary.blocklist.imported} unmapped=${summary.requests.skippedUnmapped}`);
         return summary;
     } catch (error) {
         markTaskEnd(job, error);

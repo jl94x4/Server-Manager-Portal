@@ -2336,7 +2336,8 @@ export const SettingsDashboard: React.FC = () => {
                                                 addToast(
                                                     `Imported ${req.imported || 0} requests` +
                                                     (req.skippedUnmapped ? ` (${req.skippedUnmapped} unmapped users)` : '') +
-                                                    `, ${iss.imported || 0} issues.`,
+                                                    `, ${iss.imported || 0} issues` +
+                                                    `, ${summary?.blocklist?.imported || 0} blocklist.`,
                                                     'success',
                                                 );
                                             } catch (e: any) {
@@ -2350,7 +2351,7 @@ export const SettingsDashboard: React.FC = () => {
                                         {importingSeerrHistory ? 'Importing…' : 'Import Seerr history'}
                                     </button>
                                     <p className="text-xs text-white/45 max-w-md">
-                                        Copies existing Seerr requests/issues into portal JSON (safe to re-run). Match users by email / Plex id. Also available under Tasks.
+                                        Copies existing Seerr requests/issues/blocklist into portal JSON (safe to re-run). Match users by email / Plex id. Also available under Tasks. Watchlist syncs live from Plex after members log in.
                                     </p>
                                 </div>
                             </div>
