@@ -367,6 +367,7 @@ import {
     UPGRADER_PREFS_PATH,
     UPGRADER_INDEX_PATH,
     PLEX_STATS_CACHE_PATH,
+    REQUESTS_DIR,
     migrateConfigFiles,
 } from './lib/data-paths.js';
 import {
@@ -413,11 +414,13 @@ import {
     filterDiscoveryPayload,
     getDiscoveryPreferences,
     getDiscoverySource,
+    getRequestEngine,
     isAllowedDiscoveryProxyPath,
     normalizeDiscoveryProxyPath,
     normalizeDiscoverySource,
     normalizeDiscoverLanguage,
     normalizeDiscoverRegion,
+    normalizeRequestEngine,
     resolveDiscoverMetadataLanguage,
 } from './lib/discovery-settings.js';
 import { buildDiscoveryFacts } from './lib/discovery-facts.js';
@@ -425,7 +428,12 @@ import { fetchDiscoveryHeroBackdrops } from './lib/discovery-hero.js';
 import { fetchDiscoveryCombinedRatings, fetchImdbRatingsFromRadarr } from './lib/discovery-ratings.js';
 import { enrichTvDetailsWithSonarrLibraryStatus, fetchSonarrLibraryStatusForShow } from './lib/sonarr-library-status.js';
 import { enrichSessionsWithGeo } from './lib/geoip-lookup.js';
-import { createTmdbClient, createTmdbDiscoverRouter, createLibraryAvailability } from './lib/portal-request/index.js';
+import {
+    createTmdbClient,
+    createTmdbDiscoverRouter,
+    createLibraryAvailability,
+    createPortalRequestService,
+} from './lib/portal-request/index.js';
 const PLEX_API = 'https://plex.tv/api';
 
 // --- Status App Global State ---
@@ -2812,6 +2820,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 requestDiscoverLanguage: config.requestDiscoverLanguage || '',
                 requestHideAvailableMedia: !!config.requestHideAvailableMedia,
                 discoverySource: getDiscoverySource(config),
+                requestEngine: getRequestEngine(config),
                 primaryColor: config.primaryColor || '#F7C600',
                 customLogoUrl: config.customLogoUrl || '',
                 brandingTheme: config.brandingTheme || 'plex',
@@ -2910,6 +2919,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 requestDiscoverLanguage: '',
                 requestHideAvailableMedia: false,
                 discoverySource: 'tmdb',
+                requestEngine: 'seerr',
                 primaryColor: '#F7C600',
                 customLogoUrl: '',
                 brandingTheme: 'plex',
@@ -2971,7 +2981,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         newsletterFrequency, newsletterDay, publicDomain, requestUrl, contactUrl, contactWhatsApp, contactEmail,
         sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, arrInstances, downloadClients, tautulliUrl, tautulliApiKey, jellystatUrl, jellystatApiKey,
         requestAppType, requestAppUrl, requestAppFetchUrl, requestAppApiKey,
-        requestDiscoverRegion, requestDiscoverLanguage, requestHideAvailableMedia, discoverySource,
+        requestDiscoverRegion, requestDiscoverLanguage, requestHideAvailableMedia, discoverySource, requestEngine,
         inactiveCleanupEnabled, inactiveCleanupDays,
         primaryColor, customLogoUrl, brandingTheme, sidebarIdentityPosition, pwaIconSource, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, navHiddenKeys, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges, showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds,
         showPublicStatusMonitor, showPublicLibraryStats,
@@ -3127,6 +3137,9 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
             : !!existingConfig.requestHideAvailableMedia,
         discoverySource: normalizeDiscoverySource(
             discoverySource !== undefined ? discoverySource : existingConfig.discoverySource
+        ),
+        requestEngine: normalizeRequestEngine(
+            requestEngine !== undefined ? requestEngine : existingConfig.requestEngine
         ),
         primaryColor: primaryColor || '#F7C600',
         customLogoUrl: customLogoUrl || '',
@@ -5252,20 +5265,12 @@ app.get('/api/discovery/preferences', requireAuth, requireMember, async (req, re
     }
 });
 
-const createDiscoveryLibraryAvailability = async (config) => {
-    let upgraderItems = [];
-    try {
-        const upgraderIndex = await loadUpgraderIndex();
-        upgraderItems = upgraderIndex?.items || [];
-    } catch {
-        upgraderItems = [];
-    }
-    return createLibraryAvailability(config, {
-        resolveUrl: resolveIntegrationUrlForFetch,
-        fetchImpl: fetch,
-        upgraderItems,
-    });
-};
+const createDiscoveryLibraryAvailability = (config) => createLibraryAvailability(config, {
+    resolveUrl: resolveIntegrationUrlForFetch,
+    fetchImpl: fetch,
+    upgraderItems: [],
+    catalogTimeoutMs: 8000,
+});
 
 app.get('/api/discovery/search', requireAuth, requireMember, async (req, res) => {
     try {
@@ -5305,11 +5310,8 @@ app.get('/api/discovery/search', requireAuth, requireMember, async (req, res) =>
             }
             let results = Array.isArray(data.results) ? data.results : [];
             try {
-                const library = await createDiscoveryLibraryAvailability(config);
-                results = await Promise.race([
-                    library.enrichItems(results),
-                    new Promise((resolve) => setTimeout(() => resolve(results), 10000)),
-                ]);
+                const library = createDiscoveryLibraryAvailability(config);
+                results = await library.enrichItems(results);
             } catch (enrichError) {
                 log(`Discovery TMDB search library enrich skipped: ${enrichError.message}`);
             }
@@ -5382,14 +5384,10 @@ app.get('/api/discovery/trending', requireAuth, requireMember, async (req, res) 
             });
             let data = await client.trending({ language: metadataLanguage, page: 1 });
             try {
-                const library = await createDiscoveryLibraryAvailability(config);
-                const enrichedResults = await Promise.race([
-                    library.enrichItems(Array.isArray(data?.results) ? data.results : []),
-                    new Promise((resolve) => setTimeout(() => resolve(Array.isArray(data?.results) ? data.results : []), 10000)),
-                ]);
+                const library = createDiscoveryLibraryAvailability(config);
                 data = {
                     ...data,
-                    results: enrichedResults,
+                    results: await library.enrichItems(Array.isArray(data?.results) ? data.results : []),
                 };
             } catch (enrichError) {
                 log(`Discovery TMDB trending library enrich skipped: ${enrichError.message}`);
@@ -5599,6 +5597,12 @@ app.post('/api/discovery/request-override-defaults', requireAuth, requireMember,
 app.get('/api/discovery/my-requests/count', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
+        if (getRequestEngine(config) === 'portal') {
+            const portalRequests = createPortalRequestService({ dataDir: REQUESTS_DIR, config });
+            const counts = await portalRequests.getMemberRequestCounts(req.user);
+            return res.json({ configured: true, ...counts });
+        }
+
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
 
@@ -5613,12 +5617,18 @@ app.get('/api/discovery/my-requests/count', requireAuth, requireMember, async (r
 app.get('/api/discovery/my-requests', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
         const filter = String(req.query.filter || 'all').toLowerCase();
         const take = Math.min(50, Math.max(1, Number(req.query.take) || 20));
         const skip = Math.max(0, Number(req.query.skip) || 0);
+
+        if (getRequestEngine(config) === 'portal') {
+            const portalRequests = createPortalRequestService({ dataDir: REQUESTS_DIR, config });
+            const payload = await portalRequests.listMemberRequests(req.user, { filter, take, skip });
+            return res.json({ configured: true, ...payload });
+        }
+
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
 
         const payload = await requestAppService.listMemberRequests(config, req.user, { filter, take, skip });
         res.json({ configured: true, ...payload });
@@ -5631,17 +5641,25 @@ app.get('/api/discovery/my-requests', requireAuth, requireMember, async (req, re
 app.delete('/api/discovery/my-requests/:id', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
         const requestId = String(req.params.id || '').trim();
         if (!requestId) return res.status(400).json({ error: 'Request ID is required' });
+
+        if (getRequestEngine(config) === 'portal') {
+            const portalRequests = createPortalRequestService({ dataDir: REQUESTS_DIR, config });
+            await portalRequests.cancelMemberRequest(req.user, requestId);
+            return res.json({ success: true, message: 'Request cancelled.' });
+        }
+
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
 
         await requestAppService.cancelMemberRequest(config, req.user, requestId);
         res.json({ success: true, message: 'Request cancelled.' });
     } catch (e) {
         log(`Discovery cancel request error: ${e.message}`);
-        res.status(e.message?.includes('not linked') || e.message?.includes('only manage') ? 403 : 502).json({ error: e.message });
+        const status = e.status
+            || (e.message?.includes('not linked') || e.message?.includes('only manage') ? 403 : 502);
+        res.status(status).json({ error: e.message });
     }
 });
 
@@ -6056,9 +6074,6 @@ app.post('/api/discovery/watchlist/request', requireAuth, requireMember, async (
 app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
         const {
             mediaType,
             mediaId,
@@ -6074,6 +6089,59 @@ app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) 
 
         const type = mediaType === 'tv' ? 'tv' : 'movie';
         const tmdbId = Number(mediaId);
+
+        // Phase 5: portal engine persists pending JSON requests (no *arr push yet).
+        if (getRequestEngine(config) === 'portal') {
+            const gate = getRequestAppGate(config);
+            // Prefer Seerr permission/quota checks when available; otherwise allow create.
+            if (gate.ready) {
+                try {
+                    const options = await requestAppService.getMemberRequestOptions(config, req.user, {
+                        mediaType: type,
+                        mediaId: tmdbId,
+                    });
+                    if (!options.canRequest) {
+                        return res.status(403).json({ error: options.blockReason || 'You cannot request this title.' });
+                    }
+                    if (is4k && !options.canRequest4k) {
+                        return res.status(403).json({ error: 'You do not have permission to request 4K media.' });
+                    }
+                    if (is4k) {
+                        const fourKQuota = options.quota?.fourK;
+                        if (fourKQuota?.limit > 0 && fourKQuota.remaining === 0) {
+                            return res.status(429).json({ error: `You have used all ${fourKQuota.limit} 4K requests for this period.` });
+                        }
+                    } else if (options.standardQuotaBlocked) {
+                        const limit = options.quota?.standard?.limit;
+                        return res.status(429).json({
+                            error: limit
+                                ? `You have used all ${limit} requests for this period.`
+                                : 'You have reached your request quota for this period.',
+                        });
+                    }
+                } catch (optionsError) {
+                    log(`Portal request options check skipped: ${optionsError.message}`);
+                }
+            }
+
+            const portalRequests = createPortalRequestService({ dataDir: REQUESTS_DIR, config });
+            const created = await portalRequests.createMemberRequest(req.user, {
+                mediaType: type,
+                mediaId: tmdbId,
+                is4k: !!is4k,
+                seasons,
+                serverId,
+                profileId,
+                rootFolder,
+                languageProfileId,
+                tags,
+            });
+            return res.status(201).json(created);
+        }
+
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
         const options = await requestAppService.getMemberRequestOptions(config, req.user, {
             mediaType: type,
             mediaId: tmdbId,
@@ -6159,7 +6227,7 @@ app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) 
     } catch (e) {
         const mapped = mapSeerrClientError(e.message, e.status);
         log(`Discovery request error: ${e.message}`);
-        res.status(mapped.status || 500).json({ error: mapped.error });
+        res.status(e.status || mapped.status || 500).json({ error: mapped.error || e.message });
     }
 });
 
@@ -6620,21 +6688,22 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
             data = await router.fetchPath(path, params);
 
             try {
-                const library = await createDiscoveryLibraryAvailability(config);
+                const library = createDiscoveryLibraryAvailability(config);
                 const isMovieDetail = /^\/movie\/\d+$/i.test(path);
                 const isTvDetail = /^\/tv\/\d+$/i.test(path);
-                const enrichPromise = ((isMovieDetail || isTvDetail) && data && typeof data === 'object' && !Array.isArray(data))
-                    ? library.enrichDetails(data)
-                    : (Array.isArray(data?.results)
-                        ? library.enrichItems(data.results).then((results) => ({ ...data, results }))
-                        : Promise.resolve(data));
-                // Never let *arr catalog hangs brick Discover browse.
-                data = await Promise.race([
-                    enrichPromise,
-                    new Promise((resolve) => {
-                        setTimeout(() => resolve(data), 10000);
-                    }),
-                ]);
+                if ((isMovieDetail || isTvDetail) && data && typeof data === 'object' && !Array.isArray(data)) {
+                    // Details can wait briefly for *arr — badges matter more here.
+                    data = await Promise.race([
+                        library.enrichDetails(data),
+                        new Promise((resolve) => setTimeout(() => resolve(data), 4000)),
+                    ]);
+                } else if (Array.isArray(data?.results)) {
+                    // Browse lists: never block on cold *arr catalogs.
+                    data = {
+                        ...data,
+                        results: await library.enrichItems(data.results),
+                    };
+                }
             } catch (enrichError) {
                 log(`Discovery TMDB library enrich skipped for ${path}: ${enrichError.message}`);
             }

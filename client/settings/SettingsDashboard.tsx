@@ -430,6 +430,7 @@ export const SettingsDashboard: React.FC = () => {
     const [requestDiscoverLanguage, setRequestDiscoverLanguage] = useState('');
     const [requestHideAvailableMedia, setRequestHideAvailableMedia] = useState(false);
     const [discoverySource, setDiscoverySource] = useState('tmdb');
+    const [requestEngine, setRequestEngine] = useState('seerr');
     const [maintenanceExperimentalEnabled, setMaintenanceExperimentalEnabled] = useState(false);
     const [upgraderEnabled, setUpgraderEnabled] = useState(false);
     const [collexionsEnabled, setCollexionsEnabled] = useState(false);
@@ -975,6 +976,7 @@ export const SettingsDashboard: React.FC = () => {
             setRequestDiscoverLanguage(initialSettings.requestDiscoverLanguage || '');
             setRequestHideAvailableMedia(!!initialSettings.requestHideAvailableMedia);
             setDiscoverySource(initialSettings.discoverySource === 'seerr' ? 'seerr' : 'tmdb');
+            setRequestEngine(initialSettings.requestEngine === 'portal' ? 'portal' : 'seerr');
             const savedBrandingTheme = localStorage.getItem('portal-theme') || initialSettings.brandingTheme || 'plex';
             setBrandingTheme(savedBrandingTheme === 'light' ? 'plex' : savedBrandingTheme);
             setCustomLogoUrl(initialSettings.customLogoUrl || '');
@@ -1210,6 +1212,7 @@ export const SettingsDashboard: React.FC = () => {
             requestDiscoverLanguage,
             requestHideAvailableMedia,
             discoverySource,
+            requestEngine,
             primaryColor: '',
             customLogoUrl: savedCustomLogoUrl,
             brandingTheme,
@@ -2278,6 +2281,30 @@ export const SettingsDashboard: React.FC = () => {
                                         Set a TMDB API key under Integrations — required for Discover browse.
                                     </p>
                                 )}
+                            </div>
+
+                            <div id={getSettingsSectionElementId('request-engine')} className="scroll-mt-24">
+                                <SettingFieldLabel
+                                    htmlFor="requestEngine"
+                                    hint={(
+                                        <SettingHint>
+                                            Seerr (default) creates requests in your request app.
+                                            Portal stores pending requests as JSON under config/requests — admin approve and *arr push arrive in Phase 6.
+                                            Request options (servers/profiles) still read from Seerr when connected.
+                                        </SettingHint>
+                                    )}
+                                >
+                                    Request Engine
+                                </SettingFieldLabel>
+                                <CustomSelect
+                                    id="requestEngine"
+                                    value={requestEngine}
+                                    onChange={setRequestEngine}
+                                    options={[
+                                        { value: 'seerr', label: 'Seerr / Overseerr (default)' },
+                                        { value: 'portal', label: 'Portal JSON store (beta)' },
+                                    ]}
+                                />
                             </div>
 
                             <div id={getSettingsSectionElementId('region')} className="scroll-mt-24">

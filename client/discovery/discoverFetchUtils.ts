@@ -81,7 +81,8 @@ export async function fetchDiscoverHomeRowResults(
 
     if (!needsBackfill) {
         let merged: any[] = [];
-        for (let page = 1; page <= Math.min(3, maxPages); page += 1) {
+        const pageLimit = Math.min(options.maxPages ?? 2, maxPages);
+        for (let page = 1; page <= pageLimit; page += 1) {
             const res = await apiFetch(buildUrl(page));
             const totalPages = Math.max(1, Number(res?.totalPages) || 1);
             const batch = Array.isArray(res?.results) ? res.results : [];

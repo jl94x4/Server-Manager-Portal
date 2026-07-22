@@ -43,31 +43,6 @@ const mapGenreSliderResponse = (payload: any): GenreSliderItem[] => {
         .filter(Boolean) as GenreSliderItem[];
 };
 
-const enrichGenreFallbacks = async (
-    fallbackGenres: typeof MOVIE_GENRES,
-    kind: 'movie' | 'tv',
-): Promise<GenreSliderItem[]> => {
-    const results = await Promise.all(fallbackGenres.map(async (genre) => {
-        try {
-            const path = kind === 'movie'
-                ? `/api/discovery/proxy/discover/movies?genre=${genre.id}&sortBy=popularity.desc&page=1`
-                : `/api/discovery/proxy/discover/tv?genre=${genre.id}&sortBy=popularity.desc&page=1`;
-            const data = await apiFetch(path);
-            const backdrops = (Array.isArray(data?.results) ? data.results : [])
-                .map((item: any) => item?.backdropPath || item?.backdrop_path)
-                .filter(Boolean);
-            return {
-                id: genre.id,
-                name: genre.name,
-                image: buildGenreSliderImage(genre.id, backdrops),
-            } as GenreSliderItem;
-        } catch {
-            return { id: genre.id, name: genre.name } as GenreSliderItem;
-        }
-    }));
-    return results;
-};
-
 const EmptyRail: React.FC<{
     title: string;
     body: string;
@@ -124,8 +99,8 @@ export const DiscoverHome: React.FC<{
         setLoading(true);
         try {
             const hideAvailable = preferences.hideAvailableMedia;
-            const languageFilterActive = Boolean(preferences.discoverLanguage);
-            const rowBackfill = { needsBackfill: hideAvailable || languageFilterActive };
+            // Language filtering is applied server-side — only hide-available needs client backfill.
+            const rowBackfill = { needsBackfill: hideAvailable, maxPages: hideAvailable ? 6 : 2, maxItems: 24 };
             // Load poster rows first — genre sliders must not block the home skeleton.
             const [
                 addedRes, reqRes, watchlistRes, trendingRes,
@@ -192,22 +167,20 @@ export const DiscoverHome: React.FC<{
             });
             setLoading(false);
 
-            // Genre sliders after rows are visible (best-effort).
+            // Genre sliders after rows are visible (best-effort, no per-genre fan-out).
             try {
                 const [movieGenreRes, tvGenreRes] = await Promise.all([
                     apiFetch('/api/discovery/proxy/discover/genreslider/movie').catch(() => null),
                     apiFetch('/api/discovery/proxy/discover/genreslider/tv').catch(() => null),
                 ]);
-                let mappedMovies = mapGenreSliderResponse(movieGenreRes);
-                let mappedTv = mapGenreSliderResponse(tvGenreRes);
-                if (!mappedMovies.some((g) => g.image)) {
-                    mappedMovies = await enrichGenreFallbacks(MOVIE_GENRES, 'movie');
-                }
-                if (!mappedTv.some((g) => g.image)) {
-                    mappedTv = await enrichGenreFallbacks(TV_GENRES, 'tv');
-                }
-                setMovieGenres(mappedMovies);
-                setTvGenres(mappedTv);
+                const mappedMovies = mapGenreSliderResponse(movieGenreRes);
+                const mappedTv = mapGenreSliderResponse(tvGenreRes);
+                setMovieGenres(mappedMovies.length
+                    ? mappedMovies
+                    : MOVIE_GENRES.map((g) => ({ id: g.id, name: g.name })));
+                setTvGenres(mappedTv.length
+                    ? mappedTv
+                    : TV_GENRES.map((g) => ({ id: g.id, name: g.name })));
             } catch {
                 setMovieGenres(MOVIE_GENRES.map((g) => ({ id: g.id, name: g.name })));
                 setTvGenres(TV_GENRES.map((g) => ({ id: g.id, name: g.name })));

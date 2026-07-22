@@ -107,7 +107,8 @@ Server mapping today lives in `request-app-service.js` (`toPortalRequestItem`, e
 | TMDB path router | `lib/portal-request/tmdbDiscover.js` | 2 ✅ |
 | TMDB → Seerr mapper | `lib/portal-request/tmdbMapper.js` | 2 ✅ |
 | Library availability | `lib/portal-request/libraryAvailability.js` | 3 ✅ |
-| Request store (JSON) | `lib/portal-request/requestStore.js` | 5+ |
+| Request store (JSON) | `lib/portal-request/requestStore.js` | 5 ✅ |
+| Portal request service | `lib/portal-request/portalRequestService.js` | 5 ✅ |
 | Barrel | `lib/portal-request/index.js` | — |
 | JSDoc types | `lib/portal-request/types.js` | 5+ |
 
@@ -119,7 +120,7 @@ Stubs are wired; Phase 4 defaults Discover metadata to TMDB (`discoverySource` d
 - [x] Phase 2 — Direct TMDB client
 - [x] Phase 3 — Portal library availability
 - [x] Phase 4 — Flip Discover off Seerr proxy
-- [ ] Phase 5 — JSON RequestStore + create/list
+- [x] Phase 5 — JSON RequestStore + create/list
 - [ ] Phase 6 — Approve/decline + *arr push
 - [ ] Phase 7 — Status sync from *arr/Plex
 - [ ] Phase 8 — Issues + quotas
@@ -148,3 +149,11 @@ Stubs are wired; Phase 4 defaults Discover metadata to TMDB (`discoverySource` d
 - Ungated browse-adjacent routes: `fact`, `ratings` (TMDB + Radarr IMDb), `tv/:id/library-status` (Sonarr).
 - Done criteria: Discover browse/details work with Seerr unreachable (request/watchlist/issues still need Seerr until later phases).
 - `/media` library shelf still empty under TMDB (Phase 3/9).
+
+## Phase 5 notes
+
+- Flag: `requestEngine: 'seerr' | 'portal'` (Settings → Request → Request Engine). Default remains **seerr**.
+- Portal path stores pending requests under `config/requests/` (`index.json` + `<id>.json`).
+- Wired: `POST /api/discovery/request`, `GET/DELETE /api/discovery/my-requests*`.
+- No auto-approve / *arr push yet (Phase 6). Request-options and admin approve stay on Seerr.
+- Portal My Requests shows only portal JSON history (not Seerr) when engine=portal.
