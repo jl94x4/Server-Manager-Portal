@@ -46,7 +46,8 @@ export const SETTINGS_INDEX: SettingsIndexEntry[] = [
     { id: 'mediastack/seerr', tabId: 'mediastack', sectionId: 'seerr', label: 'Request App (Seerr/Ombi)', group: 'Media Stack', keywords: ['seerr', 'overseerr', 'jellyseerr', 'ombi', 'request'] },
     { id: 'mediastack/tmdb', tabId: 'mediastack', sectionId: 'tmdb', label: 'TMDB API Key', group: 'Media Stack', keywords: ['tmdb', 'api', 'trending', 'metadata'] },
 
-    { id: 'request', tabId: 'request', label: 'Request Discovery', group: 'Media Stack', keywords: ['request', 'discover', 'discovery', 'region', 'language', 'hide available', 'quota', 'permissions', 'seerr', 'overseerr'] },
+    { id: 'request', tabId: 'request', label: 'Request Discovery', group: 'Media Stack', keywords: ['request', 'discover', 'discovery', 'region', 'language', 'hide available', 'quota', 'permissions', 'seerr', 'overseerr', 'tmdb'] },
+    { id: 'request/discovery-source', tabId: 'request', sectionId: 'discovery-source', label: 'Discover Metadata Source', group: 'Media Stack', keywords: ['discovery source', 'tmdb', 'seerr', 'metadata', 'proxy'] },
     { id: 'request/region', tabId: 'request', sectionId: 'region', label: 'Discover Region', group: 'Media Stack', keywords: ['discover region', 'country', 'region', 'availability'] },
     { id: 'request/language', tabId: 'request', sectionId: 'language', label: 'Discover Language', group: 'Media Stack', keywords: ['discover language', 'original language', 'filter language'] },
     { id: 'request/hide-available', tabId: 'request', sectionId: 'hide-available', label: 'Hide Available Media', group: 'Media Stack', keywords: ['hide available', 'library', 'discover filter'] },

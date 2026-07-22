@@ -412,8 +412,10 @@ import {
     ensureSeerrDiscoverySettings,
     filterDiscoveryPayload,
     getDiscoveryPreferences,
+    getDiscoverySource,
     isAllowedDiscoveryProxyPath,
     normalizeDiscoveryProxyPath,
+    normalizeDiscoverySource,
     normalizeDiscoverLanguage,
     normalizeDiscoverRegion,
     resolveDiscoverMetadataLanguage,
@@ -424,6 +426,7 @@ import { fetchDiscoveryHeroBackdrops } from './lib/discovery-hero.js';
 import { fetchDiscoveryCombinedRatings } from './lib/discovery-ratings.js';
 import { enrichTvDetailsWithSonarrLibraryStatus, fetchSonarrLibraryStatusForShow } from './lib/sonarr-library-status.js';
 import { enrichSessionsWithGeo } from './lib/geoip-lookup.js';
+import { createTmdbClient, createTmdbDiscoverRouter } from './lib/portal-request/index.js';
 const PLEX_API = 'https://plex.tv/api';
 
 // --- Status App Global State ---
@@ -2809,6 +2812,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 requestDiscoverRegion: config.requestDiscoverRegion || '',
                 requestDiscoverLanguage: config.requestDiscoverLanguage || '',
                 requestHideAvailableMedia: !!config.requestHideAvailableMedia,
+                discoverySource: getDiscoverySource(config),
                 primaryColor: config.primaryColor || '#F7C600',
                 customLogoUrl: config.customLogoUrl || '',
                 brandingTheme: config.brandingTheme || 'plex',
@@ -2906,6 +2910,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 requestDiscoverRegion: '',
                 requestDiscoverLanguage: '',
                 requestHideAvailableMedia: false,
+                discoverySource: 'seerr',
                 primaryColor: '#F7C600',
                 customLogoUrl: '',
                 brandingTheme: 'plex',
@@ -2967,7 +2972,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         newsletterFrequency, newsletterDay, publicDomain, requestUrl, contactUrl, contactWhatsApp, contactEmail,
         sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, arrInstances, downloadClients, tautulliUrl, tautulliApiKey, jellystatUrl, jellystatApiKey,
         requestAppType, requestAppUrl, requestAppFetchUrl, requestAppApiKey,
-        requestDiscoverRegion, requestDiscoverLanguage, requestHideAvailableMedia,
+        requestDiscoverRegion, requestDiscoverLanguage, requestHideAvailableMedia, discoverySource,
         inactiveCleanupEnabled, inactiveCleanupDays,
         primaryColor, customLogoUrl, brandingTheme, sidebarIdentityPosition, pwaIconSource, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, navHiddenKeys, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges, showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds,
         showPublicStatusMonitor, showPublicLibraryStats,
@@ -3121,6 +3126,9 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         requestHideAvailableMedia: requestHideAvailableMedia !== undefined
             ? !!requestHideAvailableMedia
             : !!existingConfig.requestHideAvailableMedia,
+        discoverySource: normalizeDiscoverySource(
+            discoverySource !== undefined ? discoverySource : existingConfig.discoverySource
+        ),
         primaryColor: primaryColor || '#F7C600',
         customLogoUrl: customLogoUrl || '',
         brandingTheme: ['dynamic', 'plex', 'slate', 'nordic', 'jellyfin', 'emerald', 'midnight', 'crimson', 'amethyst', 'sunset', 'ocean', 'rose', 'royal', 'graphite', 'cyberlime', 'aurora'].includes(String(brandingTheme || '').toLowerCase()) ? String(brandingTheme).toLowerCase() : (existingConfig.brandingTheme || 'plex'),
@@ -3250,11 +3258,15 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
     }
     let seerrDiscoverySync = { ok: false, skipped: true };
     try {
-        seerrDiscoverySync = await syncSeerrDiscoverySettings(collexionsConfig, requestAppService.rawFetch);
-        if (seerrDiscoverySync.ok) {
-            log('Request app discovery settings synced.');
-        } else if (!seerrDiscoverySync.skipped && seerrDiscoverySync.error) {
-            log(`Request app discovery settings sync failed: ${seerrDiscoverySync.error}`);
+        if (getDiscoverySource(collexionsConfig) === 'tmdb') {
+            seerrDiscoverySync = { ok: true, skipped: true, reason: 'discovery_source_tmdb' };
+        } else {
+            seerrDiscoverySync = await syncSeerrDiscoverySettings(collexionsConfig, requestAppService.rawFetch);
+            if (seerrDiscoverySync.ok) {
+                log('Request app discovery settings synced.');
+            } else if (!seerrDiscoverySync.skipped && seerrDiscoverySync.error) {
+                log(`Request app discovery settings sync failed: ${seerrDiscoverySync.error}`);
+            }
         }
     } catch (e) {
         seerrDiscoverySync = { ok: false, error: e.message || 'Sync failed' };
@@ -5258,13 +5270,50 @@ app.get('/api/discovery/preferences', requireAuth, requireMember, async (req, re
 app.get('/api/discovery/search', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
+        const discoverySource = getDiscoverySource(config);
         const query = String(req.query.query || '').trim();
         if (query.length < 2) return res.json({ results: [] });
 
         const metadataLanguage = resolveDiscoverMetadataLanguage(req);
+        const resultCount = (payload) => (Array.isArray(payload?.results) ? payload.results.length : -1);
+
+        if (discoverySource === 'tmdb') {
+            if (!String(config.tmdbApiKey || '').trim()) {
+                return res.status(400).json({ error: 'TMDB API key is required when Discover source is TMDB' });
+            }
+            const client = createTmdbClient({
+                tmdbApiKey: config.tmdbApiKey,
+                language: metadataLanguage,
+            });
+            let data = await client.search(query, { language: metadataLanguage, page: 1 }).catch((err) => {
+                log(`Discovery TMDB search attempt failed: ${err.message}`);
+                return null;
+            });
+            if (!data || resultCount(data) === 0) {
+                await new Promise((resolve) => setTimeout(resolve, 250));
+                data = await client.search(query, { language: metadataLanguage, page: 1 }).catch((err) => {
+                    log(`Discovery TMDB search retry failed: ${err.message}`);
+                    return data;
+                });
+            }
+            if (data && resultCount(data) === 0 && metadataLanguage !== 'en') {
+                const fallback = await client.search(query, { language: 'en', page: 1 }).catch(() => null);
+                if (fallback && resultCount(fallback) > 0) data = fallback;
+            }
+            if (!data) {
+                return res.status(502).json({ error: 'Search temporarily unavailable. Try again.' });
+            }
+            return res.json({
+                page: data.page || 1,
+                totalPages: data.totalPages || 1,
+                totalResults: data.totalResults || resultCount(data) || 0,
+                results: Array.isArray(data.results) ? data.results : [],
+            });
+        }
+
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
         const searchPath = (language) => (
             `/api/v1/search?query=${encodeURIComponent(query)}&page=1&language=${encodeURIComponent(language)}`
         );
@@ -5280,7 +5329,6 @@ app.get('/api/discovery/search', requireAuth, requireMember, async (req, res) =>
             log(`Discovery search attempt failed: ${err.message}`);
             return null;
         });
-        const resultCount = (payload) => (Array.isArray(payload?.results) ? payload.results.length : -1);
         if (!data || resultCount(data) === 0) {
             await new Promise((resolve) => setTimeout(resolve, 250));
             data = await runSearch(metadataLanguage).catch((err) => {
@@ -5310,17 +5358,31 @@ app.get('/api/discovery/search', requireAuth, requireMember, async (req, res) =>
 app.get('/api/discovery/trending', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
+        const prefs = getDiscoveryPreferences(config);
+        const metadataLanguage = resolveDiscoverMetadataLanguage(req);
+
+        if (prefs.discoverySource === 'tmdb') {
+            if (!String(config.tmdbApiKey || '').trim()) {
+                return res.status(400).json({ error: 'TMDB API key is required when Discover source is TMDB' });
+            }
+            const client = createTmdbClient({
+                tmdbApiKey: config.tmdbApiKey,
+                language: metadataLanguage,
+                region: prefs.discoverRegion,
+            });
+            const data = await client.trending({ language: metadataLanguage, page: 1 });
+            return res.json(filterDiscoveryPayload(data, '/discover/trending', prefs.hideAvailableMedia, prefs.discoverLanguage));
+        }
+
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
 
         await ensureSeerrDiscoverySettings(config, requestAppService.rawFetch);
-        const metadataLanguage = resolveDiscoverMetadataLanguage(req);
         const data = await requestAppService.rawFetch(
             config,
             `/api/v1/discover/trending?language=${encodeURIComponent(metadataLanguage)}`,
             { headers: { 'Accept-Language': metadataLanguage } },
         );
-        const prefs = getDiscoveryPreferences(config);
         res.json(filterDiscoveryPayload(data, '/discover/trending', prefs.hideAvailableMedia, prefs.discoverLanguage));
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -5372,8 +5434,16 @@ app.get('/api/dynamic-theme/sample-image', requireAuth, requireMember, async (re
 app.get('/api/discovery/hero-backdrops', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+        const discoverySource = getDiscoverySource(config);
+
+        if (discoverySource === 'tmdb') {
+            if (!String(config.tmdbApiKey || '').trim()) {
+                return res.status(400).json({ error: 'TMDB API key is required when Discover source is TMDB' });
+            }
+        } else {
+            const gate = getRequestAppGate(config);
+            if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+        }
 
         if (discoveryHeroCache.data && Date.now() - discoveryHeroCache.lastFetch < 6 * 60 * 60 * 1000) {
             return res.json(discoveryHeroCache.data);
@@ -5381,7 +5451,10 @@ app.get('/api/discovery/hero-backdrops', requireAuth, requireMember, async (req,
 
         const payload = await fetchDiscoveryHeroBackdrops({
             config,
-            rawFetch: (path) => requestAppService.rawFetch(config, path),
+            // When source is TMDB, skip Seerr top-up so Discover can run without Seerr.
+            rawFetch: discoverySource === 'tmdb'
+                ? null
+                : (path) => requestAppService.rawFetch(config, path),
         });
         discoveryHeroCache = { data: payload, lastFetch: Date.now() };
         res.json(payload);
@@ -6471,30 +6544,43 @@ app.get('/api/discovery/library-link', requireAuth, requireMember, async (req, r
 app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
-        await ensureSeerrDiscoverySettings(config, requestAppService.rawFetch);
+        const prefs = getDiscoveryPreferences(config);
+        const metadataLanguage = resolveDiscoverMetadataLanguage(req);
 
         const path = normalizeDiscoveryProxyPath('/' + req.params[0]);
         if (!path || !isAllowedDiscoveryProxyPath(path)) {
             return res.status(403).json({ error: 'Discovery proxy path is not allowed.' });
         }
 
-        const prefs = getDiscoveryPreferences(config);
-        const metadataLanguage = resolveDiscoverMetadataLanguage(req);
-
         const params = applyDiscoveryQueryParams(new URLSearchParams(req.query), path, prefs, metadataLanguage);
-        const qs = params.toString();
-        const fullPath = qs ? `${path}?${qs}` : path;
 
-        let data = await requestAppService.rawFetch(config, '/api/v1' + fullPath, {
-            // Genre slider fans out many TMDB calls inside Seerr — needs a longer budget.
-            timeoutMs: /^\/discover\/genreslider\//i.test(path) ? 90000 : 15000,
-            // Seerr uses Accept-Language / req.locale for TMDB metadata on discover browse
-            // (query.language there is the original-language filter, not title translation).
-            headers: { 'Accept-Language': metadataLanguage },
-        });
+        let data;
+        if (prefs.discoverySource === 'tmdb') {
+            if (!String(config.tmdbApiKey || '').trim()) {
+                return res.status(400).json({ error: 'TMDB API key is required when Discover source is TMDB' });
+            }
+            const router = createTmdbDiscoverRouter(config, {
+                language: metadataLanguage,
+                region: prefs.discoverRegion,
+                originalLanguage: prefs.discoverLanguage,
+            });
+            data = await router.fetchPath(path, params);
+        } else {
+            const gate = getRequestAppGate(config);
+            if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+            await ensureSeerrDiscoverySettings(config, requestAppService.rawFetch);
+            const qs = params.toString();
+            const fullPath = qs ? `${path}?${qs}` : path;
+            data = await requestAppService.rawFetch(config, '/api/v1' + fullPath, {
+                // Genre slider fans out many TMDB calls inside Seerr — needs a longer budget.
+                timeoutMs: /^\/discover\/genreslider\//i.test(path) ? 90000 : 15000,
+                // Seerr uses Accept-Language / req.locale for TMDB metadata on discover browse
+                // (query.language there is the original-language filter, not title translation).
+                headers: { 'Accept-Language': metadataLanguage },
+            });
+        }
+
         const tvDetailMatch = path.match(/^\/tv\/(\d+)$/);
         const shouldLibraryCheck = String(req.query.libraryCheck || req.query.sonarrCheck || '') === '1';
         if (tvDetailMatch && shouldLibraryCheck && data && typeof data === 'object' && !Array.isArray(data)) {

@@ -29,7 +29,7 @@ Server-Manager-Portal/
 
 `index.js` contains the Express API, authentication, Plex and Jellyfin integrations, email handling, security headers, rate limiting, background jobs, and static asset serving.
 
-`lib/portal-request/` holds seams for the portal-native Discover/request engine (replacing Seerr over time). See [seerr-uncouple-inventory.md](./seerr-uncouple-inventory.md).
+`lib/portal-request/` holds the portal-native Discover/request engine (Seerr uncouple). Phase 2: TMDB client dual-run via `discoverySource`. See [seerr-uncouple-inventory.md](./seerr-uncouple-inventory.md).
 
 ## Frontend
 

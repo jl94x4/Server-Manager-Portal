@@ -2,7 +2,7 @@
 
 Working document for the portal-native request/discover engine.  
 **End goal:** remove Seerr/Overseerr/Jellyseerr runtime dependency.  
-**Phase 1:** inventory only — no route behavior changes yet.
+**Phase 2:** Direct TMDB client behind `discoverySource` flag (default still Seerr).
 
 Related plan: uncouple Seerr in 10 phases (Discover first, JSON request store, then hard cut).
 
@@ -103,18 +103,20 @@ Server mapping today lives in `request-app-service.js` (`toPortalRequestItem`, e
 
 | Module | Path | Later phase |
 |--------|------|-------------|
-| TMDB client | `lib/portal-request/tmdbClient.js` | 2 |
+| TMDB client | `lib/portal-request/tmdbClient.js` | 2 ✅ |
+| TMDB path router | `lib/portal-request/tmdbDiscover.js` | 2 ✅ |
+| TMDB → Seerr mapper | `lib/portal-request/tmdbMapper.js` | 2 ✅ |
 | Library availability | `lib/portal-request/libraryAvailability.js` | 3 |
 | Request store (JSON) | `lib/portal-request/requestStore.js` | 5+ |
 | Barrel | `lib/portal-request/index.js` | — |
 | JSDoc types | `lib/portal-request/types.js` | 5+ |
 
-Stubs are **not** wired into [`index.js`](../../index.js) yet.
+Stubs are wired for Phase 2 behind `discoverySource: tmdb` (default remains `seerr`).
 
 ## Phase checklist
 
 - [x] Phase 1 — Inventory + seams
-- [ ] Phase 2 — Direct TMDB client
+- [x] Phase 2 — Direct TMDB client
 - [ ] Phase 3 — Portal library availability
 - [ ] Phase 4 — Flip Discover off Seerr proxy
 - [ ] Phase 5 — JSON RequestStore + create/list
@@ -123,3 +125,12 @@ Stubs are **not** wired into [`index.js`](../../index.js) yet.
 - [ ] Phase 8 — Issues + quotas
 - [ ] Phase 9 — Watchlist/blocklist + migration
 - [ ] Phase 10 — Hard cut + cleanup
+
+## Phase 2 notes
+
+- Config flag: `discoverySource: 'seerr' | 'tmdb'` (Settings → Request → Discover Metadata Source).
+- Requires `tmdbApiKey` when source is `tmdb`.
+- Routes dual-run: `/api/discovery/search`, `/trending`, `/hero-backdrops`, `/proxy/*`.
+- Responses match Seerr camelCase shapes (`posterPath`, `totalPages`, etc.).
+- `mediaInfo` / library shelf (`/media`) empty until Phase 3 — hide-available has little effect in TMDB mode.
+- Seerr discovery settings sync is skipped when source is `tmdb`.
