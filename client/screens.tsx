@@ -7502,19 +7502,19 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
 
                 {/* Body */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-5 flex flex-col gap-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="grid grid-cols-2 gap-2.5">
                         <StreamSpecCard label="Player">
                             <p className="text-sm font-semibold text-text truncate" title={session.playerTitle}>{session.playerTitle || 'Unknown'}</p>
                             <p className="text-xs text-muted truncate mt-0.5" title={session.playerProduct}>{session.playerProduct || '—'}</p>
                         </StreamSpecCard>
                         <StreamSpecCard label="Network">
-                            <p className="text-sm font-semibold text-text font-mono tracking-tight">
+                            <p className="text-sm font-semibold text-text font-mono tracking-tight truncate">
                                 {isAdmin ? (session.playerAddress || 'Unknown IP') : 'Hidden'}
                             </p>
-                            {bandwidthLabel && <p className="text-xs text-muted mt-0.5">{bandwidthLabel}</p>}
+                            {bandwidthLabel && <p className="text-xs text-muted mt-0.5 truncate">{bandwidthLabel}</p>}
                         </StreamSpecCard>
                         <StreamSpecCard label="Video">
-                            <p className="text-sm font-semibold text-text uppercase tracking-wide">
+                            <p className="text-sm font-semibold text-text uppercase tracking-wide truncate">
                                 {session.videoCodec || 'Unknown'}
                                 {session.videoProfile ? ` · ${session.videoProfile}` : ''}
                             </p>
@@ -7523,7 +7523,7 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
                             )}
                         </StreamSpecCard>
                         <StreamSpecCard label="Audio">
-                            <p className="text-sm font-semibold text-text uppercase tracking-wide">
+                            <p className="text-sm font-semibold text-text uppercase tracking-wide truncate">
                                 {session.audioCodec || 'Unknown'}
                                 {session.audioChannels ? ` · ${session.audioChannels}ch` : ''}
                             </p>
