@@ -367,6 +367,7 @@ import {
     UPGRADER_PREFS_PATH,
     UPGRADER_INDEX_PATH,
     PLEX_STATS_CACHE_PATH,
+    DISCOVERY_AVAILABILITY_CACHE_PATH,
     REQUESTS_DIR,
     ISSUES_DIR,
     BLOCKLIST_DIR,
@@ -435,6 +436,11 @@ import {
     createTmdbClient,
     createTmdbDiscoverRouter,
     createLibraryAvailability,
+    emptyDiscoveryAvailabilityCache,
+    normalizeDiscoveryAvailabilityCache,
+    lookupDiscoveryAvailability,
+    applyDiscoveryAvailabilityCacheToPayload,
+    rebuildDiscoveryAvailabilityCache,
     createPortalRequestService,
     createPortalIssueService,
     createPortalBlocklistService,
@@ -5313,6 +5319,71 @@ const createDiscoveryLibraryAvailability = (config) => createLibraryAvailability
     catalogTimeoutMs: 8000,
 });
 
+const loadDiscoveryAvailabilityCacheFile = async () => (
+    normalizeDiscoveryAvailabilityCache(
+        await loadFile(DISCOVERY_AVAILABILITY_CACHE_PATH, emptyDiscoveryAvailabilityCache()),
+    )
+);
+
+/** Overlay the current member's pending portal requests onto discover items (Requested badges). */
+const overlayPortalPendingRequestsOntoItems = async (config, sessionUser, items = []) => {
+    if (getRequestEngine(config) !== 'portal' || !sessionUser || !Array.isArray(items) || !items.length) {
+        return items;
+    }
+    try {
+        const portalRequests = getPortalRequestService(config);
+        const listed = await portalRequests.listMemberRequests(sessionUser, {
+            filter: 'pending',
+            take: 100,
+            skip: 0,
+        });
+        const pendingByKey = new Map();
+        for (const row of listed.results || []) {
+            const mediaType = row?.type === 'tv' ? 'tv' : 'movie';
+            const tmdbId = Number(row?.tmdbId);
+            if (!Number.isFinite(tmdbId) || tmdbId <= 0) continue;
+            pendingByKey.set(`${mediaType}:${tmdbId}`, row);
+        }
+        if (!pendingByKey.size) return items;
+        return items.map((item) => {
+            const mediaType = item?.mediaType === 'tv' || item?.mediaType === 2 || item?.mediaType === '2'
+                ? 'tv'
+                : 'movie';
+            const tmdbId = Number(item?.tmdbId ?? item?.id);
+            const pending = pendingByKey.get(`${mediaType}:${tmdbId}`);
+            if (!pending) return item;
+            const mediaInfo = { ...(item?.mediaInfo || {}) };
+            mediaInfo.requests = [
+                {
+                    id: pending.id,
+                    status: 1,
+                    is4k: !!pending.is4k,
+                    createdAt: pending.createdAt,
+                },
+                ...(Array.isArray(mediaInfo.requests) ? mediaInfo.requests : []),
+            ];
+            if (mediaInfo.status == null) mediaInfo.status = 2;
+            return { ...item, mediaInfo };
+        });
+    } catch (error) {
+        log(`Discovery pending overlay skipped: ${error.message}`);
+        return items;
+    }
+};
+
+const attachDiscoveryAvailabilityCacheToPayload = async (config, sessionUser, data) => {
+    if (!data || typeof data !== 'object') return data;
+    const cache = await loadDiscoveryAvailabilityCacheFile();
+    let next = applyDiscoveryAvailabilityCacheToPayload(data, cache);
+    if (Array.isArray(next?.results)) {
+        next = {
+            ...next,
+            results: await overlayPortalPendingRequestsOntoItems(config, sessionUser, next.results),
+        };
+    }
+    return next;
+};
+
 const getPortalBlocklistService = (config) => createPortalBlocklistService({
     dataDir: BLOCKLIST_DIR,
     config,
@@ -5393,72 +5464,77 @@ app.post('/api/discovery/availability-batch', requireAuth, requireMember, async 
 
         if (!items.length) return res.json({ results: [] });
 
-        const library = createDiscoveryLibraryAvailability(config);
-        // Second-pass badge fill: wait briefly for catalogs, then Map-lookup enrich.
-        let enriched = items;
-        try {
-            const blocked = library.enrichItems(items, { blockForCatalog: true });
-            const timedOut = await Promise.race([
-                blocked.then(() => false),
-                new Promise((resolve) => setTimeout(() => resolve(true), 3000)),
-            ]);
-            enriched = timedOut
-                ? await library.enrichItems(items, { blockForCatalog: false })
-                : await blocked;
-        } catch (enrichError) {
-            log(`Discovery availability-batch enrich skipped: ${enrichError.message}`);
-            enriched = items;
-        }
-
-        // Overlay portal pending requests so "Requested" badges work without Seerr mediaInfo.
-        let pendingByKey = new Map();
-        if (getRequestEngine(config) === 'portal') {
-            try {
-                const portalRequests = getPortalRequestService(config);
-                const listed = await portalRequests.listMemberRequests(req.user, {
-                    filter: 'pending',
-                    take: 100,
-                    skip: 0,
+        const cache = await loadDiscoveryAvailabilityCacheFile();
+        const cachedHits = [];
+        const misses = [];
+        for (const item of items) {
+            const hit = lookupDiscoveryAvailability(cache, item.mediaType, item.tmdbId);
+            if (hit?.mediaInfo) {
+                cachedHits.push({
+                    ...item,
+                    mediaInfo: hit.mediaInfo,
+                    sonarrLibraryStatus: hit.sonarrLibraryStatus || null,
+                    radarrLibraryStatus: hit.radarrLibraryStatus || null,
                 });
-                for (const row of listed.results || []) {
-                    const mediaType = row?.type === 'tv' ? 'tv' : 'movie';
-                    const tmdbId = Number(row?.tmdbId);
-                    if (!Number.isFinite(tmdbId) || tmdbId <= 0) continue;
-                    pendingByKey.set(`${mediaType}:${tmdbId}`, row);
-                }
-            } catch (requestError) {
-                log(`Discovery availability-batch portal requests skipped: ${requestError.message}`);
+            } else {
+                misses.push(item);
             }
         }
 
-        const results = (Array.isArray(enriched) ? enriched : items).map((item) => {
+        let liveEnriched = [];
+        if (misses.length) {
+            const library = createDiscoveryLibraryAvailability(config);
+            try {
+                const blocked = library.enrichItems(misses, { blockForCatalog: true });
+                const timedOut = await Promise.race([
+                    blocked.then(() => false),
+                    new Promise((resolve) => setTimeout(() => resolve(true), 3000)),
+                ]);
+                liveEnriched = timedOut
+                    ? await library.enrichItems(misses, { blockForCatalog: false })
+                    : await blocked;
+            } catch (enrichError) {
+                log(`Discovery availability-batch enrich skipped: ${enrichError.message}`);
+                liveEnriched = misses;
+            }
+        }
+
+        const enrichedByKey = new Map();
+        for (const item of [...cachedHits, ...(Array.isArray(liveEnriched) ? liveEnriched : [])]) {
             const mediaType = item?.mediaType === 'tv' ? 'tv' : 'movie';
             const tmdbId = Number(item?.tmdbId ?? item?.id);
-            const key = `${mediaType}:${tmdbId}`;
-            const pending = pendingByKey.get(key);
-            const mediaInfo = { ...(item?.mediaInfo || {}) };
-            if (pending) {
-                mediaInfo.requests = [
-                    {
-                        id: pending.id,
-                        status: 1,
-                        is4k: !!pending.is4k,
-                        createdAt: pending.createdAt,
-                    },
-                    ...(Array.isArray(mediaInfo.requests) ? mediaInfo.requests : []),
-                ];
-                if (mediaInfo.status == null) mediaInfo.status = 2; // pending media status
-            }
+            if (!Number.isFinite(tmdbId) || tmdbId <= 0) continue;
+            enrichedByKey.set(`${mediaType}:${tmdbId}`, item);
+        }
+
+        const withPending = await overlayPortalPendingRequestsOntoItems(
+            config,
+            req.user,
+            items.map((item) => enrichedByKey.get(`${item.mediaType}:${item.tmdbId}`) || item),
+        );
+
+        const results = withPending.map((item) => {
+            const mediaType = item?.mediaType === 'tv' ? 'tv' : 'movie';
+            const tmdbId = Number(item?.tmdbId ?? item?.id);
+            const mediaInfo = item?.mediaInfo && typeof item.mediaInfo === 'object' ? item.mediaInfo : null;
             return {
                 mediaType,
                 tmdbId,
-                mediaInfo: Object.keys(mediaInfo).length ? mediaInfo : null,
+                mediaInfo: mediaInfo && Object.keys(mediaInfo).length ? mediaInfo : null,
                 sonarrLibraryStatus: item?.sonarrLibraryStatus || null,
                 radarrLibraryStatus: item?.radarrLibraryStatus || null,
             };
         });
 
-        res.json({ results });
+        res.json({
+            results,
+            cache: {
+                generatedAt: cache.generatedAt,
+                itemCount: cache.itemCount,
+                hits: cachedHits.length,
+                misses: misses.length,
+            },
+        });
     } catch (e) {
         log(`Discovery availability-batch error: ${e.message}`);
         res.status(500).json({ error: e.message });
@@ -6398,13 +6474,13 @@ app.get('/api/discovery/watchlist', requireAuth, requireMember, async (req, res)
         if (getRequestEngine(config) === 'portal') {
             const portalWatchlist = getPortalWatchlistService(config);
             const payload = await portalWatchlist.getMemberWatchlist(req.user);
-            return res.json(payload);
+            return res.json(await attachDiscoveryAvailabilityCacheToPayload(config, req.user, payload));
         }
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
 
         const payload = await requestAppService.getMemberWatchlist(config, req.user);
-        res.json(payload);
+        res.json(await attachDiscoveryAvailabilityCacheToPayload(config, req.user, payload));
     } catch (e) {
         log(`Discovery watchlist error: ${e.message}`);
         res.status(500).json({ error: e.message });
@@ -7109,6 +7185,7 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
                 log(`Discovery Sonarr library check skipped for tv/${tvDetailMatch[1]}: ${sonarrError.message}`);
             }
         }
+        data = await attachDiscoveryAvailabilityCacheToPayload(config, req.user, data);
         data = filterDiscoveryPayload(data, path, prefs.hideAvailableMedia, prefs.discoverLanguage);
         res.json(data);
     } catch (e) {
@@ -7818,6 +7895,7 @@ app.post('/api/tasks/run/:taskId', requireAdmin, async (req, res) => {
                     case 'autoBackup': await runAutoBackupCycle('manual', { force: true }); break;
                     case 'maintenanceIndex': await buildMaintenanceMediaIndex({ actor: req.user, force: true }); break;
                     case 'requestStatusSync': await runPortalRequestStatusSync('manual'); break;
+                    case 'discoveryAvailabilityCache': await runDiscoveryAvailabilityCacheRebuild('manual'); break;
                     case 'seerrHistoryImport': await runSeerrHistoryImport('manual'); break;
                 }
             }
@@ -11748,6 +11826,16 @@ const systemJobs = {
         lastDurationMs: null,
         lastError: null,
     },
+    discoveryAvailabilityCache: {
+        id: 'discoveryAvailabilityCache',
+        name: 'Discovery Availability Cache',
+        description: 'Rebuilds Sonarr/Radarr availability badges for Discover browse into a shared on-disk cache.',
+        lastRun: null,
+        nextRun: null,
+        running: false,
+        lastDurationMs: null,
+        lastError: null,
+    },
     seerrHistoryImport: {
         id: 'seerrHistoryImport',
         name: 'Import Seerr History',
@@ -11777,6 +11865,33 @@ const markTaskEnd = (task, error = null) => {
 };
 
 const REQUEST_STATUS_SYNC_INTERVAL_MS = 60 * 1000;
+const DISCOVERY_AVAILABILITY_CACHE_INTERVAL_MS = 2 * 60 * 1000;
+
+const runDiscoveryAvailabilityCacheRebuild = async (reason = 'scheduled') => {
+    const job = systemJobs.discoveryAvailabilityCache;
+    if (job.running) return null;
+    markTaskStart(job);
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const summary = await rebuildDiscoveryAvailabilityCache({
+            config,
+            createLibraryAvailability: createDiscoveryLibraryAvailability,
+            saveFile,
+            cachePath: DISCOVERY_AVAILABILITY_CACHE_PATH,
+        });
+        job.nextRun = new Date(Date.now() + DISCOVERY_AVAILABILITY_CACHE_INTERVAL_MS).toISOString();
+        markTaskEnd(job, null);
+        if (reason === 'manual' || reason === 'startup' || summary?.itemCount > 0) {
+            log(`[DiscoveryAvailabilityCache] ${reason}: items=${summary.itemCount} movies=${summary.movieCount} tv=${summary.tvCount}`);
+        }
+        return summary;
+    } catch (error) {
+        job.nextRun = new Date(Date.now() + DISCOVERY_AVAILABILITY_CACHE_INTERVAL_MS).toISOString();
+        markTaskEnd(job, error);
+        log(`[DiscoveryAvailabilityCache] failed: ${error.message}`);
+        return null;
+    }
+};
 
 const runPortalRequestStatusSync = async (reason = 'scheduled') => {
     const job = systemJobs.requestStatusSync;
@@ -11845,6 +11960,16 @@ const startPortalRequestStatusSyncBackgroundTask = () => {
     setInterval(() => {
         runPortalRequestStatusSync('scheduled').catch(() => {});
     }, REQUEST_STATUS_SYNC_INTERVAL_MS);
+};
+
+const startDiscoveryAvailabilityCacheBackgroundTask = () => {
+    systemJobs.discoveryAvailabilityCache.nextRun = new Date(Date.now() + 20 * 1000).toISOString();
+    setTimeout(() => {
+        runDiscoveryAvailabilityCacheRebuild('startup').catch(() => {});
+    }, 20 * 1000);
+    setInterval(() => {
+        runDiscoveryAvailabilityCacheRebuild('scheduled').catch(() => {});
+    }, DISCOVERY_AVAILABILITY_CACHE_INTERVAL_MS);
 };
 
 const computeNextBackupRun = (config) => {
@@ -18600,6 +18725,7 @@ app.listen(PORT, BIND_HOST, async () => {
     startAnalyticsStatsBackgroundTask();
     startUpgraderIndexBackgroundTask();
     startPortalRequestStatusSyncBackgroundTask();
+    startDiscoveryAvailabilityCacheBackgroundTask();
     systemJobs.maintenanceIndex.nextRun = new Date(Date.now() + (20 * 1000)).toISOString();
     setTimeout(async () => {
         try {

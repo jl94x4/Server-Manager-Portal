@@ -40,10 +40,15 @@ export const mergeAvailabilityOntoItems = <T,>(items: T[], availabilityByKey: Re
 export async function enrichDiscoverItemsWithAvailability<T>(items: T[]): Promise<T[]> {
     if (!Array.isArray(items) || items.length === 0) return items;
 
+    // Skip titles that already have library/request status (e.g. from the disk cache on browse).
     const payloadItems = items
         .map((item) => {
             const key = itemKey(item);
             if (!key) return null;
+            const status = Number((item as any)?.mediaInfo?.status);
+            const hasRequests = Array.isArray((item as any)?.mediaInfo?.requests)
+                && (item as any).mediaInfo.requests.length > 0;
+            if (Number.isFinite(status) || hasRequests) return null;
             const [mediaType, tmdbId] = key.split(':');
             return { mediaType, tmdbId: Number(tmdbId) };
         })
