@@ -7448,14 +7448,14 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
 
     return ReactDOM.createPortal(
         <div
-            className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in overscroll-none"
+            className="fixed inset-x-0 top-0 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in overscroll-none bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] sm:inset-0 sm:bottom-0"
             onClick={onClose}
         >
             <div
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="stream-details-title"
-                className="relative w-full sm:max-w-2xl lg:max-w-3xl max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)))] sm:max-h-[85vh] bg-card border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden overscroll-contain"
+                className="relative w-full sm:max-w-2xl lg:max-w-3xl max-h-full sm:max-h-[85vh] bg-card border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden overscroll-contain"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
@@ -7610,8 +7610,8 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
                     )}
                 </div>
 
-                {/* Footer — portaled above mobile bottom nav so Terminate stays reachable */}
-                <div className="shrink-0 border-t border-white/10 bg-black/30 p-4 sm:p-5 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-5">
+                {/* Footer sits above the mobile bottom nav (overlay stops above it) */}
+                <div className="shrink-0 border-t border-white/10 bg-black/30 p-4 sm:p-5">
                     {isAdmin && session.sessionId && showKillConfirm ? (
                         <div className="flex flex-col gap-2 rounded-xl border border-red-500/25 bg-red-500/10 p-3">
                             <input
@@ -10078,7 +10078,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
             )}
 
             {/* Mobile Bottom Nav */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 w-full nav-shell border-t z-50 pb-[env(safe-area-inset-bottom)]">
+            <div className="md:hidden fixed bottom-0 left-0 right-0 w-full nav-shell border-t z-[310] pb-[env(safe-area-inset-bottom)]">
                 <div className="flex items-center justify-between w-full h-16 px-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))]">
                     {(() => {
                         const maxPrimary = MOBILE_NAV_PRIMARY_SLOTS;
