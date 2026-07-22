@@ -7446,16 +7446,16 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
         }
     };
 
-    return (
+    return ReactDOM.createPortal(
         <div
-            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in overscroll-none"
+            className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in overscroll-none"
             onClick={onClose}
         >
             <div
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="stream-details-title"
-                className="relative w-full sm:max-w-2xl lg:max-w-3xl max-h-[min(88dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] sm:max-h-[85vh] bg-card border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden overscroll-contain"
+                className="relative w-full sm:max-w-2xl lg:max-w-3xl max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)))] sm:max-h-[85vh] bg-card border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden overscroll-contain"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
@@ -7596,11 +7596,12 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
                                     Google Maps
                                 </a>
                             </div>
-                            <div className="relative w-full h-40 sm:h-44">
+                            {/* Crop OSM’s dense attribution strip on small screens */}
+                            <div className="relative w-full h-36 sm:h-44 overflow-hidden">
                                 <iframe
                                     title={`Approximate location: ${geo.label}`}
                                     src={osmEmbedUrl}
-                                    className="absolute inset-0 w-full h-full border-0"
+                                    className="absolute inset-0 w-full h-[calc(100%+28px)] border-0"
                                     loading="lazy"
                                     referrerPolicy="no-referrer-when-downgrade"
                                 />
@@ -7609,8 +7610,8 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
                     )}
                 </div>
 
-                {/* Footer actions — modal sits above the mobile bottom nav (z-100) */}
-                <div className="shrink-0 border-t border-white/10 bg-black/20 p-4 sm:p-5 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-5">
+                {/* Footer — portaled above mobile bottom nav so Terminate stays reachable */}
+                <div className="shrink-0 border-t border-white/10 bg-black/30 p-4 sm:p-5 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-5">
                     {isAdmin && session.sessionId && showKillConfirm ? (
                         <div className="flex flex-col gap-2 rounded-xl border border-red-500/25 bg-red-500/10 p-3">
                             <input
@@ -7639,12 +7640,12 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
                             </div>
                         </div>
                     ) : (
-                        <div className={`grid gap-2.5 ${isAdmin && session.sessionId ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+                        <div className="flex flex-col sm:flex-row gap-2.5">
                             {isAdmin && session.sessionId && (
                                 <button
                                     type="button"
                                     onClick={() => setShowKillConfirm(true)}
-                                    className="w-full order-2 sm:order-1 bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/30 font-bold py-3 rounded-xl transition-colors text-sm inline-flex items-center justify-center gap-2"
+                                    className="w-full sm:flex-1 bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/30 font-bold py-3 rounded-xl transition-colors text-sm inline-flex items-center justify-center gap-2"
                                 >
                                     <X className="w-4 h-4" /> Terminate Stream
                                 </button>
@@ -7653,7 +7654,7 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
                                 href={session.plexUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="w-full order-1 sm:order-2 bg-plex hover:bg-plex-hover text-background font-bold text-center py-3 rounded-xl transition-colors text-sm inline-flex items-center justify-center gap-2"
+                                className="w-full sm:flex-1 bg-plex hover:bg-plex-hover text-background font-bold text-center py-3 rounded-xl transition-colors text-sm inline-flex items-center justify-center gap-2"
                             >
                                 Open in {providerLabel}
                             </a>
@@ -7661,7 +7662,8 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
                     )}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 };
 

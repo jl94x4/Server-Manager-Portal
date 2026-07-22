@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Loader2, Sparkles, X, Film, Tv, TrendingUp, Clapperboard } from 'lucide-react';
+import { Search, Loader2, Sparkles, X, Film, Tv, TrendingUp, Laugh, Skull, Drama, Zap } from 'lucide-react';
 import { SlideshowBackground } from '../shared/theme';
 import { apiFetch } from '../shared/api';
 import { discoveryTheme } from './discoveryThemeClasses';
@@ -103,14 +103,19 @@ const SearchDropdown: React.FC<SearchResultProps & { anchorRect: DOMRect | null 
     );
 };
 
+/** Quick picks: mixed home jumps, movie genres, and TV genres. */
 const QUICK_CHIPS = [
     { id: 'trending', labelKey: 'hero.chipTrending', icon: TrendingUp, path: '/discovery' },
     { id: 'movies', labelKey: 'hero.chipMovies', icon: Film, path: '/discovery/movies' },
     { id: 'series', labelKey: 'hero.chipSeries', icon: Tv, path: '/discovery/series' },
-    { id: 'action', labelKey: 'hero.chipAction', icon: Clapperboard, path: '/discovery/movies?genre=28' },
-    { id: 'comedy', labelKey: 'hero.chipComedy', icon: Clapperboard, path: '/discovery/movies?genre=35' },
-    { id: 'scifi', labelKey: 'hero.chipSciFi', icon: Clapperboard, path: '/discovery/movies?genre=878' },
-    { id: 'fresh', labelKey: 'hero.chipFresh', icon: Sparkles, path: '/discovery/movies?sort=primary_release_date.desc&dateGte=' },
+    { id: 'action', labelKey: 'hero.chipAction', icon: Zap, path: '/discovery/movies?genre=28' },
+    { id: 'comedy', labelKey: 'hero.chipComedy', icon: Laugh, path: '/discovery/movies?genre=35' },
+    { id: 'horror', labelKey: 'hero.chipHorror', icon: Skull, path: '/discovery/movies?genre=27' },
+    { id: 'drama-tv', labelKey: 'hero.chipDramaTv', icon: Drama, path: '/discovery/series?genre=18' },
+    { id: 'crime-tv', labelKey: 'hero.chipCrimeTv', icon: Tv, path: '/discovery/series?genre=80' },
+    { id: 'scifi-tv', labelKey: 'hero.chipSciFiTv', icon: Sparkles, path: '/discovery/series?genre=10765' },
+    { id: 'fresh', labelKey: 'hero.chipFresh', icon: Film, path: '/discovery/movies?sort=primary_release_date.desc&dateGte=' },
+    { id: 'fresh-tv', labelKey: 'hero.chipFreshTv', icon: Sparkles, path: '/discovery/series?sort=first_air_date.desc&dateGte=' },
 ] as const;
 
 export const DiscoverHeroHeader: React.FC<SearchResultProps> = (props) => {
@@ -183,9 +188,12 @@ export const DiscoverHeroHeader: React.FC<SearchResultProps> = (props) => {
             navigate(`/discovery/movies?sort=primary_release_date.desc&dateGte=${freshFrom()}`);
             return;
         }
+        if (chip.id === 'fresh-tv') {
+            navigate(`/discovery/series?sort=first_air_date.desc&dateGte=${freshFrom()}`);
+            return;
+        }
         if (chip.id === 'trending') {
             navigate('/discovery');
-            // Scroll toward trending is handled by home layout order; personal is first.
             return;
         }
         navigate(chip.path);
@@ -241,7 +249,7 @@ export const DiscoverHeroHeader: React.FC<SearchResultProps> = (props) => {
                     </div>
 
                     {navigate && (
-                        <div className="flex flex-wrap items-center justify-center gap-2 max-w-3xl">
+                        <div className="flex flex-wrap items-center justify-center gap-2 max-w-4xl">
                             {QUICK_CHIPS.map((chip) => {
                                 const Icon = chip.icon;
                                 return (
