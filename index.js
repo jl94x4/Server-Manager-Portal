@@ -6827,13 +6827,9 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
                         library.enrichDetails(data),
                         new Promise((resolve) => setTimeout(() => resolve(data), 4000)),
                     ]);
-                } else if (Array.isArray(data?.results)) {
-                    // Browse lists: never block on cold *arr catalogs.
-                    data = {
-                        ...data,
-                        results: await library.enrichItems(data.results),
-                    };
                 }
+                // Browse lists skip inline *arr enrich — client availability-batch fills badges
+                // after first paint so Discover home is not gated on catalog/queue work.
             } catch (enrichError) {
                 log(`Discovery TMDB library enrich skipped for ${path}: ${enrichError.message}`);
             }

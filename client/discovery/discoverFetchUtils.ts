@@ -73,9 +73,10 @@ export async function fetchDiscoverHomeRowResults(
     options: { minItems?: number; maxPages?: number; maxItems?: number; needsBackfill?: boolean } = {},
 ): Promise<any[]> {
     // Ultrawide layouts need ~30–40 posters before a row fills; fetch enough to scroll.
-    const minItems = options.minItems ?? 36;
-    const maxPages = options.maxPages ?? 8;
     const maxItems = options.maxItems ?? 40;
+    const maxPages = options.maxPages ?? 8;
+    // Never chase more items than we will keep — otherwise hide-available scans every page.
+    const minItems = Math.min(options.minItems ?? Math.min(24, maxItems), maxItems);
     const filterOptions = { hideAvailable };
     const needsBackfill = options.needsBackfill ?? hideAvailable;
 

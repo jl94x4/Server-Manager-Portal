@@ -11,7 +11,7 @@ import {
     TV_GENRES,
     buildGenreSliderImage,
 } from './discoverConstants';
-import { enrichDiscoveryItems } from './discoverItemUtils';
+import { normalizeRawDiscoveryItem } from './discoverItemUtils';
 import { portalRequestToDiscoveryRowItem } from './myRequestUtils';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
 import { fetchDiscoverHomeRowResults } from './discoverFetchUtils';
@@ -100,66 +100,46 @@ export const DiscoverHome: React.FC<{
         setLoading(true);
         try {
             const hideAvailable = preferences.hideAvailableMedia;
-            // Language filtering is applied server-side — only hide-available needs client backfill.
-            const rowBackfill = { needsBackfill: hideAvailable, maxPages: hideAvailable ? 6 : 2, maxItems: 24 };
-            // Load poster rows first — genre sliders must not block the home skeleton.
+            // First paint: one page per poster row only. Side rails / badges / extra pages follow.
+            const firstPaint = { needsBackfill: hideAvailable, maxPages: hideAvailable ? 2 : 1, maxItems: 20, minItems: 12 };
             const [
-                addedRes, reqRes, watchlistRes, trendingRes,
+                trendingRes,
                 popularMovies,
                 upcomingMovies,
                 popularSeries,
                 upcomingSeries,
             ] = await Promise.all([
-                hideAvailable
-                    ? Promise.resolve(null)
-                    : apiFetch('/api/discovery/proxy/media?filter=allavailable&take=40&sort=mediaAdded').catch(() => null),
-                apiFetch('/api/discovery/my-requests?filter=all&take=40').catch(() => null),
-                apiFetch('/api/discovery/watchlist').catch(() => null),
                 fetchDiscoverHomeRowResults(
                     (page) => `/api/discovery/proxy/discover/trending?page=${page}`,
                     hideAvailable,
-                    rowBackfill,
+                    firstPaint,
                 ).catch(() => []),
                 fetchDiscoverHomeRowResults(
                     (page) => `/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`,
                     hideAvailable,
-                    rowBackfill,
+                    firstPaint,
                 ).catch(() => []),
                 fetchDiscoverHomeRowResults(
                     (page) => `/api/discovery/proxy/discover/movies/upcoming?page=${page}`,
                     hideAvailable,
-                    rowBackfill,
+                    firstPaint,
                 ).catch(() => []),
                 fetchDiscoverHomeRowResults(
                     (page) => `/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`,
                     hideAvailable,
-                    rowBackfill,
+                    firstPaint,
                 ).catch(() => []),
                 fetchDiscoverHomeRowResults(
                     (page) => `/api/discovery/proxy/discover/tv/upcoming?page=${page}`,
                     hideAvailable,
-                    rowBackfill,
+                    firstPaint,
                 ).catch(() => []),
             ]);
 
-            const myRequestItems = Array.isArray(reqRes?.results)
-                ? reqRes.results.map(portalRequestToDiscoveryRowItem)
-                : [];
-
-            const [
-                recentlyAdded,
-                recentRequests,
-                plexWatchlist,
-            ] = await Promise.all([
-                enrichDiscoveryItems(addedRes?.results || []),
-                enrichDiscoveryItems(myRequestItems),
-                enrichDiscoveryItems(watchlistRes?.results || []),
-            ]);
-
             setRows({
-                recentlyAdded,
-                recentRequests: filterHiddenAvailableItems(recentRequests, hideAvailable),
-                plexWatchlist,
+                recentlyAdded: [],
+                recentRequests: [],
+                plexWatchlist: [],
                 trending: trendingRes,
                 popularMovies,
                 upcomingMovies,
@@ -167,6 +147,37 @@ export const DiscoverHome: React.FC<{
                 upcomingSeries,
             });
             setLoading(false);
+
+            // Side rails + poster enrich after first paint (never block the skeleton).
+            void (async () => {
+                try {
+                    const [addedRes, reqRes, watchlistRes] = await Promise.all([
+                        hideAvailable
+                            ? Promise.resolve(null)
+                            : apiFetch('/api/discovery/proxy/media?filter=allavailable&take=40&sort=mediaAdded').catch(() => null),
+                        apiFetch('/api/discovery/my-requests?filter=all&take=40').catch(() => null),
+                        apiFetch('/api/discovery/watchlist').catch(() => null),
+                    ]);
+
+                    const myRequestItems = Array.isArray(reqRes?.results)
+                        ? reqRes.results.map(portalRequestToDiscoveryRowItem)
+                        : [];
+
+                    // Normalize only — avoid per-title detail fan-out on home.
+                    const recentlyAdded = (addedRes?.results || []).map(normalizeRawDiscoveryItem);
+                    const recentRequests = myRequestItems.map(normalizeRawDiscoveryItem);
+                    const plexWatchlist = (watchlistRes?.results || []).map(normalizeRawDiscoveryItem);
+
+                    setRows((prev) => ({
+                        ...prev,
+                        recentlyAdded,
+                        recentRequests: filterHiddenAvailableItems(recentRequests, hideAvailable),
+                        plexWatchlist,
+                    }));
+                } catch {
+                    // Side rails are best-effort.
+                }
+            })();
 
             // Second pass: attach available/requested badges once *arr catalogs are warm.
             void (async () => {
