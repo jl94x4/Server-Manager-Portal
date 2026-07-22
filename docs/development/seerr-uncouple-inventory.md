@@ -2,7 +2,7 @@
 
 Working document for the portal-native request/discover engine.  
 **End goal:** remove Seerr/Overseerr/Jellyseerr runtime dependency.  
-**Phase 2:** Direct TMDB client behind `discoverySource` flag (default still Seerr).
+**Phase 4:** Discover defaults to TMDB metadata; Seerr optional rollback for browse proxy.
 
 Related plan: uncouple Seerr in 10 phases (Discover first, JSON request store, then hard cut).
 
@@ -111,14 +111,14 @@ Server mapping today lives in `request-app-service.js` (`toPortalRequestItem`, e
 | Barrel | `lib/portal-request/index.js` | — |
 | JSDoc types | `lib/portal-request/types.js` | 5+ |
 
-Stubs are wired for Phase 2 behind `discoverySource: tmdb` (default remains `seerr`).
+Stubs are wired; Phase 4 defaults Discover metadata to TMDB (`discoverySource` default `tmdb`, Seerr rollback kept).
 
 ## Phase checklist
 
 - [x] Phase 1 — Inventory + seams
 - [x] Phase 2 — Direct TMDB client
 - [x] Phase 3 — Portal library availability
-- [ ] Phase 4 — Flip Discover off Seerr proxy
+- [x] Phase 4 — Flip Discover off Seerr proxy
 - [ ] Phase 5 — JSON RequestStore + create/list
 - [ ] Phase 6 — Approve/decline + *arr push
 - [ ] Phase 7 — Status sync from *arr/Plex
@@ -132,7 +132,6 @@ Stubs are wired for Phase 2 behind `discoverySource: tmdb` (default remains `see
 - Requires `tmdbApiKey` when source is `tmdb`.
 - Routes dual-run: `/api/discovery/search`, `/trending`, `/hero-backdrops`, `/proxy/*`.
 - Responses match Seerr camelCase shapes (`posterPath`, `totalPages`, etc.).
-- Seerr discovery settings sync is skipped when source is `tmdb`.
 
 ## Phase 3 notes
 
@@ -141,3 +140,11 @@ Stubs are wired for Phase 2 behind `discoverySource: tmdb` (default remains `see
 - Detail path: movies via Radarr; TV via existing Sonarr episode-aware enrich.
 - Hide-available + availability overlays work in TMDB mode without Seerr `mediaInfo`.
 - Request badges (`mediaInfo.requests`) still need Phase 5+.
+
+## Phase 4 notes
+
+- **Default flipped to TMDB** — unset/`discoverySource` empty → `tmdb`; explicit `seerr` kept as rollback.
+- Discover Language/Region are portal-owned — Seerr main-settings sync removed from config save + boot.
+- Ungated browse-adjacent routes: `fact`, `ratings` (TMDB + Radarr IMDb), `tv/:id/library-status` (Sonarr).
+- Done criteria: Discover browse/details work with Seerr unreachable (request/watchlist/issues still need Seerr until later phases).
+- `/media` library shelf still empty under TMDB (Phase 3/9).

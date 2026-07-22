@@ -419,11 +419,10 @@ import {
     normalizeDiscoverLanguage,
     normalizeDiscoverRegion,
     resolveDiscoverMetadataLanguage,
-    syncSeerrDiscoverySettings,
 } from './lib/discovery-settings.js';
 import { buildDiscoveryFacts } from './lib/discovery-facts.js';
 import { fetchDiscoveryHeroBackdrops } from './lib/discovery-hero.js';
-import { fetchDiscoveryCombinedRatings } from './lib/discovery-ratings.js';
+import { fetchDiscoveryCombinedRatings, fetchImdbRatingsFromRadarr } from './lib/discovery-ratings.js';
 import { enrichTvDetailsWithSonarrLibraryStatus, fetchSonarrLibraryStatusForShow } from './lib/sonarr-library-status.js';
 import { enrichSessionsWithGeo } from './lib/geoip-lookup.js';
 import { createTmdbClient, createTmdbDiscoverRouter, createLibraryAvailability } from './lib/portal-request/index.js';
@@ -2910,7 +2909,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 requestDiscoverRegion: '',
                 requestDiscoverLanguage: '',
                 requestHideAvailableMedia: false,
-                discoverySource: 'seerr',
+                discoverySource: 'tmdb',
                 primaryColor: '#F7C600',
                 customLogoUrl: '',
                 brandingTheme: 'plex',
@@ -3256,22 +3255,8 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
     } catch (e) {
         log(`[collexions] Embedded worker sync failed: ${e.message}`);
     }
-    let seerrDiscoverySync = { ok: false, skipped: true };
-    try {
-        if (getDiscoverySource(collexionsConfig) === 'tmdb') {
-            seerrDiscoverySync = { ok: true, skipped: true, reason: 'discovery_source_tmdb' };
-        } else {
-            seerrDiscoverySync = await syncSeerrDiscoverySettings(collexionsConfig, requestAppService.rawFetch);
-            if (seerrDiscoverySync.ok) {
-                log('Request app discovery settings synced.');
-            } else if (!seerrDiscoverySync.skipped && seerrDiscoverySync.error) {
-                log(`Request app discovery settings sync failed: ${seerrDiscoverySync.error}`);
-            }
-        }
-    } catch (e) {
-        seerrDiscoverySync = { ok: false, error: e.message || 'Sync failed' };
-        log(`Request app discovery settings sync failed: ${e.message}`);
-    }
+    let seerrDiscoverySync = { ok: true, skipped: true, reason: 'portal_owned' };
+    // Phase 4: Discover Language/Region are portal-owned — do not sync to Seerr.
     startBackgroundService(); // (Re)start service with new config
     const becameConfigured = !isConfigured && isPortalConfigured(collexionsConfig);
     const maintenanceJustEnabled = !wasMaintenanceEnabled && !!collexionsConfig.maintenanceExperimentalEnabled;
@@ -6174,16 +6159,31 @@ app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) 
 app.get('/api/discovery/fact', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
         const mediaType = String(req.query.mediaType || '').toLowerCase();
         const mediaId = Number(req.query.mediaId);
         if ((mediaType !== 'movie' && mediaType !== 'tv') || !Number.isFinite(mediaId)) {
             return res.status(400).json({ error: 'Invalid mediaType or mediaId' });
         }
 
-        const details = await requestAppService.rawFetch(config, `/api/v1/${mediaType}/${mediaId}`);
+        let details = null;
+        const discoverySource = getDiscoverySource(config);
+        if (discoverySource === 'tmdb') {
+            if (!String(config.tmdbApiKey || '').trim()) {
+                return res.status(400).json({ error: 'TMDB API key is required when Discover source is TMDB' });
+            }
+            const client = createTmdbClient({
+                tmdbApiKey: config.tmdbApiKey,
+                language: resolveDiscoverMetadataLanguage(req),
+            });
+            details = mediaType === 'tv'
+                ? await client.tv(mediaId, { language: resolveDiscoverMetadataLanguage(req) })
+                : await client.movie(mediaId, { language: resolveDiscoverMetadataLanguage(req) });
+        } else {
+            const gate = getRequestAppGate(config);
+            if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+            details = await requestAppService.rawFetch(config, `/api/v1/${mediaType}/${mediaId}`);
+        }
+
         const wikiFetch = (url, opts = {}) => fetchWithTimeout(
             url,
             {
@@ -6334,9 +6334,6 @@ app.get('/api/arr/deep-link', requireAuth, requireAdmin, async (req, res) => {
 app.get('/api/discovery/ratings/:mediaType/:mediaId', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
         const mediaType = String(req.params.mediaType || '').toLowerCase();
         const mediaId = Number(req.params.mediaId);
         if (!['movie', 'tv'].includes(mediaType)) {
@@ -6346,13 +6343,34 @@ app.get('/api/discovery/ratings/:mediaType/:mediaId', requireAuth, requireMember
             return res.status(400).json({ error: 'Invalid media id' });
         }
 
-        const ratings = await fetchDiscoveryCombinedRatings({
-            config,
-            rawFetchOptional: requestAppService.rawFetchOptional,
-            fetchImpl: fetchWithTimeout,
-            mediaType,
-            mediaId,
-        });
+        const discoverySource = getDiscoverySource(config);
+        const gate = getRequestAppGate(config);
+        let ratings = null;
+
+        if (discoverySource === 'seerr' && gate.ready) {
+            ratings = await fetchDiscoveryCombinedRatings({
+                config,
+                rawFetchOptional: requestAppService.rawFetchOptional,
+                fetchImpl: fetchWithTimeout,
+                mediaType,
+                mediaId,
+            });
+        } else {
+            // Phase 4: TMDB + Radarr IMDb path (Rotten Tomatoes still needs Seerr when available).
+            if (!String(config.tmdbApiKey || '').trim()) {
+                return res.status(400).json({ error: 'TMDB API key is required when Discover source is TMDB' });
+            }
+            const language = resolveDiscoverMetadataLanguage(req);
+            const client = createTmdbClient({ tmdbApiKey: config.tmdbApiKey, language });
+            const details = mediaType === 'tv'
+                ? await client.tv(mediaId, { language })
+                : await client.movie(mediaId, { language });
+            const imdbId = details?.imdbId
+                || details?.externalIds?.imdbId
+                || null;
+            const imdb = await fetchImdbRatingsFromRadarr(imdbId, fetchWithTimeout);
+            ratings = imdb ? { imdb } : {};
+        }
 
         if (ratings == null) {
             return res.status(502).json({ error: 'Unable to retrieve ratings.' });
@@ -6370,9 +6388,6 @@ app.get('/api/discovery/ratings/:mediaType/:mediaId', requireAuth, requireMember
 app.get('/api/discovery/tv/:tmdbId/library-status', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
         const tmdbId = Number(req.params.tmdbId);
         if (!Number.isFinite(tmdbId) || tmdbId <= 0) {
             return res.status(400).json({ error: 'Invalid tmdbId' });
@@ -17846,9 +17861,7 @@ app.listen(PORT, BIND_HOST, async () => {
         } catch (e) {
             log(`[collexions] Startup embedded worker sync failed: ${e.message}`);
         }
-        ensureSeerrDiscoverySettings(bootConfig, requestAppService.rawFetch).catch((e) => {
-            log(`Request app discovery settings startup sync failed: ${e.message}`);
-        });
+        // Phase 4: Discover prefs are portal-owned — skip Seerr settings sync on boot.
     });
     startPlexStatsBackgroundTask(); // start 24-hour library size cache task
 

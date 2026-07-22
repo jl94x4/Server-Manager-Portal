@@ -429,7 +429,7 @@ export const SettingsDashboard: React.FC = () => {
     const [requestDiscoverRegion, setRequestDiscoverRegion] = useState('');
     const [requestDiscoverLanguage, setRequestDiscoverLanguage] = useState('');
     const [requestHideAvailableMedia, setRequestHideAvailableMedia] = useState(false);
-    const [discoverySource, setDiscoverySource] = useState('seerr');
+    const [discoverySource, setDiscoverySource] = useState('tmdb');
     const [maintenanceExperimentalEnabled, setMaintenanceExperimentalEnabled] = useState(false);
     const [upgraderEnabled, setUpgraderEnabled] = useState(false);
     const [collexionsEnabled, setCollexionsEnabled] = useState(false);
@@ -974,7 +974,7 @@ export const SettingsDashboard: React.FC = () => {
             setRequestDiscoverRegion(initialSettings.requestDiscoverRegion || '');
             setRequestDiscoverLanguage(initialSettings.requestDiscoverLanguage || '');
             setRequestHideAvailableMedia(!!initialSettings.requestHideAvailableMedia);
-            setDiscoverySource(initialSettings.discoverySource === 'tmdb' ? 'tmdb' : 'seerr');
+            setDiscoverySource(initialSettings.discoverySource === 'seerr' ? 'seerr' : 'tmdb');
             const savedBrandingTheme = localStorage.getItem('portal-theme') || initialSettings.brandingTheme || 'plex';
             setBrandingTheme(savedBrandingTheme === 'light' ? 'plex' : savedBrandingTheme);
             setCustomLogoUrl(initialSettings.customLogoUrl || '');
@@ -2249,7 +2249,7 @@ export const SettingsDashboard: React.FC = () => {
                         <div className="mb-8 animate-fade-in space-y-6">
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Request Discovery</h3>
                             <p className="text-muted text-sm max-w-3xl">
-                                Control how the in-portal Discover experience behaves. Region and language still sync to Seerr when Discover source is Seerr.
+                                Control how the in-portal Discover experience behaves. Region and language are portal-owned (not synced to Seerr).
                             </p>
 
                             <div id={getSettingsSectionElementId('discovery-source')} className="scroll-mt-24">
@@ -2257,8 +2257,8 @@ export const SettingsDashboard: React.FC = () => {
                                     htmlFor="discoverySource"
                                     hint={(
                                         <SettingHint>
-                                            Seerr (default) proxies browse/search/details through your request app.
-                                            TMDB fetches metadata directly with your TMDB API key and resolves library availability from Sonarr/Radarr.
+                                            TMDB (default) browses Discover without Seerr — needs a TMDB API key; library overlays use Sonarr/Radarr.
+                                            Seerr remains available as a rollback for metadata proxying.
                                         </SettingHint>
                                     )}
                                 >
@@ -2269,13 +2269,13 @@ export const SettingsDashboard: React.FC = () => {
                                     value={discoverySource}
                                     onChange={setDiscoverySource}
                                     options={[
-                                        { value: 'seerr', label: 'Seerr / Overseerr (default)' },
-                                        { value: 'tmdb', label: 'TMDB direct (beta)' },
+                                        { value: 'tmdb', label: 'TMDB direct (default)' },
+                                        { value: 'seerr', label: 'Seerr / Overseerr (rollback)' },
                                     ]}
                                 />
                                 {discoverySource === 'tmdb' && !String(tmdbApiKey || '').trim() && !String(initialSettings.tmdbApiKey || '').trim() && (
                                     <p className="text-amber-300 text-sm mt-2">
-                                        Set a TMDB API key under Integrations before enabling TMDB mode.
+                                        Set a TMDB API key under Integrations — required for Discover browse.
                                     </p>
                                 )}
                             </div>
@@ -2315,7 +2315,7 @@ export const SettingsDashboard: React.FC = () => {
                                     title="Hide Available Media"
                                     hint={(
                                         <SettingHint>
-                                            Hides titles already in your library from discover browse pages (home rows, movies, series, studios, networks). Search results are never filtered. The portal applies this immediately; it also syncs to Seerr when connected.
+                                            Hides titles already in your library from discover browse pages (home rows, movies, series, studios, networks). Search results are never filtered. In TMDB mode this uses Sonarr/Radarr availability.
                                         </SettingHint>
                                     )}
                                     checked={requestHideAvailableMedia}
