@@ -147,6 +147,15 @@ def save_config(new_data, merge=True):
             config.update(new_data)
         else:
             config = new_data
+
+        # Drop pin-limit entries for libraries that are no longer managed.
+        libs = config.get('library_names')
+        pins = config.get('number_of_collections_to_pin')
+        if isinstance(libs, list) and isinstance(pins, dict):
+            managed = {str(x).strip() for x in libs if str(x).strip()}
+            config['number_of_collections_to_pin'] = {
+                k: v for k, v in pins.items() if k in managed
+            }
             
         ensure_dir_exists(CONFIG_FILE)
         
@@ -826,22 +835,55 @@ def _tmdb_collection_poster_url(collection_id, config=None):
     return None
 
 
-def _resolve_collection_poster_url(source_type='', source_id='', external_items=None, matched_items=None, config=None, plex=None):
-    """
-    Pick a poster URL for a collection:
-    1) TMDB collection poster (franchises)
-    2) First external item with a TMDB id
-    3) First matched Plex item's poster
-    """
+def _resolve_franchise_poster_url(source_type='', source_id='', config=None):
+    """TMDB franchise/collection poster when the source is a TMDB collection."""
     config = config or load_config()
     st = normalize_source_type(source_type, source_id)
-
     if st == 'tmdb_collection' and source_id:
-        url = _tmdb_collection_poster_url(source_id, config)
+        return _tmdb_collection_poster_url(source_id, config)
+    return None
+
+
+def _item_poster_url(item, plex=None):
+    """Best poster URL for a Plex media item."""
+    try:
+        url = getattr(item, 'posterUrl', None)
         if url:
             return url
+        thumb = getattr(item, 'thumb', None)
+        if thumb and plex:
+            return plex.url(thumb, includeToken=True)
+    except Exception:
+        pass
+    return None
+
+
+def _collect_mosaic_poster_urls(matched_items=None, external_items=None, plex=None, config=None, limit=4):
+    """
+    Gather up to `limit` distinct poster URLs for a 2x2 mosaic.
+    Prefers local Plex artwork, then TMDB posters from external source items.
+    """
+    config = config or load_config()
+    urls = []
+    seen = set()
+
+    def _add(url):
+        if not url or not isinstance(url, str):
+            return
+        key = url.split('?')[0]
+        if key in seen:
+            return
+        seen.add(key)
+        urls.append(url)
+
+    for item in matched_items or []:
+        if len(urls) >= limit:
+            break
+        _add(_item_poster_url(item, plex=plex))
 
     for it in external_items or []:
+        if len(urls) >= limit:
+            break
         tid = it.get('tmdb_id') or it.get('id')
         if not tid:
             continue
@@ -852,20 +894,71 @@ def _resolve_collection_poster_url(source_type='', source_id='', external_items=
         media = 'tv' if str(it.get('type') or '') in ('show', 'tv', 'series') else 'movie'
         url = get_tmdb_poster(tid_int, media)
         if url:
-            # Prefer slightly larger art for collection posters
-            return url.replace('/w500', '/w780') if '/w500' in url else url
+            _add(url.replace('/w500', '/w780') if '/w500' in url else url)
 
-    for item in matched_items or []:
+    return urls[:limit]
+
+
+def _download_poster_image(url, timeout=20):
+    """Download image bytes from a poster URL. Returns PIL Image or None."""
+    try:
+        from PIL import Image
+        import io
+        resp = requests.get(url, timeout=timeout)
+        resp.raise_for_status()
+        img = Image.open(io.BytesIO(resp.content))
+        return img.convert('RGB')
+    except Exception as e:
+        logging.debug(f"Failed to download poster image: {e}")
+        return None
+
+
+def _build_poster_mosaic(poster_urls, cell_w=500, cell_h=750):
+    """
+    Build a 2x2 poster collage from up to 4 image URLs.
+    Empty cells stay a dark fill. Returns JPEG BytesIO or None.
+    """
+    if not poster_urls:
+        return None
+    try:
+        from PIL import Image
+        import io
+    except ImportError:
+        logging.warning('Pillow is required to build mosaic collection posters.')
+        return None
+
+    images = []
+    for url in poster_urls[:4]:
+        img = _download_poster_image(url)
+        if img is not None:
+            images.append(img)
+    if not images:
+        return None
+
+    canvas = Image.new('RGB', (cell_w * 2, cell_h * 2), (18, 18, 22))
+    positions = [(0, 0), (cell_w, 0), (0, cell_h), (cell_w, cell_h)]
+
+    for img, (x, y) in zip(images, positions):
         try:
-            url = getattr(item, 'posterUrl', None)
-            if url:
-                return url
-            thumb = getattr(item, 'thumb', None)
-            if thumb and plex:
-                return plex.url(thumb, includeToken=True)
-        except Exception:
-            continue
-    return None
+            src_w, src_h = img.size
+            if src_w <= 0 or src_h <= 0:
+                continue
+            scale = max(cell_w / src_w, cell_h / src_h)
+            new_w = max(1, int(src_w * scale))
+            new_h = max(1, int(src_h * scale))
+            resample = getattr(getattr(Image, 'Resampling', Image), 'LANCZOS', Image.LANCZOS)
+            resized = img.resize((new_w, new_h), resample)
+            left = max(0, (new_w - cell_w) // 2)
+            top = max(0, (new_h - cell_h) // 2)
+            cropped = resized.crop((left, top, left + cell_w, top + cell_h))
+            canvas.paste(cropped, (x, y))
+        except Exception as e:
+            logging.debug(f"Mosaic cell compose failed: {e}")
+
+    buf = io.BytesIO()
+    canvas.save(buf, format='JPEG', quality=90, optimize=True)
+    buf.seek(0)
+    return buf
 
 
 def _collection_has_custom_poster(coll):
@@ -883,6 +976,7 @@ def _collection_has_custom_poster(coll):
 def _ensure_collection_art(coll, source_type='', source_id='', external_items=None, matched_items=None, config=None, force=False):
     """
     Upload a poster when the collection has no custom art (or force=True).
+    Prefer TMDB franchise art; otherwise build a 2x2 mosaic from up to 4 titles.
     Returns True if a poster was uploaded.
     """
     if coll is None:
@@ -903,29 +997,45 @@ def _ensure_collection_art(coll, source_type='', source_id='', external_items=No
         except Exception:
             matched_items = []
 
-    url = _resolve_collection_poster_url(
-        source_type=source_type,
-        source_id=source_id,
-        external_items=external_items,
-        matched_items=matched_items,
-        config=config,
-        plex=plex,
-    )
-    if not url:
-        logging.info(f"No poster source found for collection '{getattr(coll, 'title', '?')}'")
-        return False
+    title = getattr(coll, 'title', '?')
 
-    try:
-        coll.uploadPoster(url=url)
+    # 1) Official franchise / TMDB collection poster
+    franchise_url = _resolve_franchise_poster_url(source_type, source_id, config=config)
+    if franchise_url:
         try:
-            coll.lockPoster()
-        except Exception:
-            pass
-        log_action(f"Set poster for collection '{coll.title}'.")
-        return True
-    except Exception as e:
-        logging.warning(f"Failed to upload poster for '{getattr(coll, 'title', '?')}': {e}")
-        return False
+            coll.uploadPoster(url=franchise_url)
+            try:
+                coll.lockPoster()
+            except Exception:
+                pass
+            log_action(f"Set franchise poster for collection '{title}'.")
+            return True
+        except Exception as e:
+            logging.warning(f"Failed to upload franchise poster for '{title}': {e}")
+
+    # 2) 2x2 mosaic from up to 4 item posters (no single-title fallback)
+    mosaic_urls = _collect_mosaic_poster_urls(
+        matched_items=matched_items,
+        external_items=external_items,
+        plex=plex,
+        config=config,
+        limit=4,
+    )
+    mosaic = _build_poster_mosaic(mosaic_urls)
+    if mosaic is not None:
+        try:
+            coll.uploadPoster(filepath=mosaic)
+            try:
+                coll.lockPoster()
+            except Exception:
+                pass
+            log_action(f"Set 2x2 mosaic poster for collection '{title}' ({len(mosaic_urls)} titles).")
+            return True
+        except Exception as e:
+            logging.warning(f"Failed to upload mosaic poster for '{title}': {e}")
+
+    logging.info(f"No poster source found for collection '{title}'")
+    return False
 
 
 def create_collection_from_source(library_name, title, source_type, source_id='', sort_order='custom', auto_sync=True, external_items=None):
@@ -1411,9 +1521,15 @@ def get_summary():
         status_payload = {}
 
     config = load_config()
-    pin_slots = sum(int(v or 0) for v in (config.get('number_of_collections_to_pin') or {}).values())
-    label = str(config.get('collexions_label') or 'Collexions').lower()
+    pin_map = config.get('number_of_collections_to_pin') or {}
     lib_names = config.get('library_names') or []
+    pin_slots = 0
+    for lib_name in lib_names:
+        try:
+            pin_slots += max(0, int(pin_map.get(lib_name, 0) or 0))
+        except (TypeError, ValueError):
+            continue
+    label = str(config.get('collexions_label') or 'Collexions').lower()
 
     pinned_count = None
     labeled_count = 0

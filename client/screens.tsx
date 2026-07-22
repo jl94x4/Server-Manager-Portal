@@ -7363,6 +7363,46 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
         ? `https://www.google.com/maps?q=${encodeURIComponent(`${geoLat},${geoLon}`)}`
         : '';
 
+    // Lock background scroll while the sheet is open (esp. important on mobile).
+    useEffect(() => {
+        const scrollY = window.scrollY;
+        const { body, documentElement } = document;
+        const prev = {
+            overflow: body.style.overflow,
+            position: body.style.position,
+            top: body.style.top,
+            left: body.style.left,
+            right: body.style.right,
+            width: body.style.width,
+            htmlOverflow: documentElement.style.overflow,
+        };
+        body.style.overflow = 'hidden';
+        body.style.position = 'fixed';
+        body.style.top = `-${scrollY}px`;
+        body.style.left = '0';
+        body.style.right = '0';
+        body.style.width = '100%';
+        documentElement.style.overflow = 'hidden';
+        return () => {
+            body.style.overflow = prev.overflow;
+            body.style.position = prev.position;
+            body.style.top = prev.top;
+            body.style.left = prev.left;
+            body.style.right = prev.right;
+            body.style.width = prev.width;
+            documentElement.style.overflow = prev.htmlOverflow;
+            window.scrollTo(0, scrollY);
+        };
+    }, []);
+
+    useEffect(() => {
+        const onKey = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose]);
+
     const showTitle = session.grandparentTitle || session.title;
     const episodeLine = session.grandparentTitle
         ? [
@@ -7407,12 +7447,15 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+        <div
+            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in overscroll-none"
+            onClick={onClose}
+        >
             <div
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="stream-details-title"
-                className="relative w-full sm:max-w-2xl lg:max-w-3xl max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-0.5rem))] sm:max-h-[85vh] bg-card border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+                className="relative w-full sm:max-w-2xl lg:max-w-3xl max-h-[min(88dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] sm:max-h-[85vh] bg-card border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden overscroll-contain"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
@@ -7501,7 +7544,7 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
                 </div>
 
                 {/* Body */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-5 flex flex-col gap-4">
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar p-5 flex flex-col gap-4">
                     <div className="grid grid-cols-2 gap-2.5">
                         <StreamSpecCard label="Player">
                             <p className="text-sm font-semibold text-text truncate" title={session.playerTitle}>{session.playerTitle || 'Unknown'}</p>
@@ -7566,8 +7609,8 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
                     )}
                 </div>
 
-                {/* Footer actions */}
-                <div className="shrink-0 border-t border-white/10 bg-black/20 p-4 sm:p-5">
+                {/* Footer actions — modal sits above the mobile bottom nav (z-100) */}
+                <div className="shrink-0 border-t border-white/10 bg-black/20 p-4 sm:p-5 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-5">
                     {isAdmin && session.sessionId && showKillConfirm ? (
                         <div className="flex flex-col gap-2 rounded-xl border border-red-500/25 bg-red-500/10 p-3">
                             <input

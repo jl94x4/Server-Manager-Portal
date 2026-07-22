@@ -873,7 +873,7 @@ const Gallery: React.FC = () => {
                     <p><b className="text-text">Tracked</b>: Has the script label but currently hidden from Home.</p>
                     <p><b className="text-text">Manual Pinning</b>: Overrides schedule until the next run unpins it (unless excluded).</p>
                     <p><b className="text-text">Delete</b>: Permanently removes the collection from Plex (movies/shows stay). Also removes any matching Collexions auto-sync job.</p>
-                    <p><b className="text-text">Poster</b> (image icon): Pulls TMDB/franchise art or a title poster into Plex. New creates/syncs do this automatically; use this to fix older blank collections.</p>
+                    <p><b className="text-text">Poster</b> (image icon): Pulls TMDB/franchise art or a 2×2 mosaic of titles into Plex. New creates/syncs do this automatically; use this to fix older blank collections.</p>
                 </div>
             </div>
         </div>

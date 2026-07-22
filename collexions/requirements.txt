@@ -6,3 +6,4 @@ PyJWT
 plexapi
 gunicorn
 psutil
+Pillow

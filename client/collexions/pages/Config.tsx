@@ -9,6 +9,7 @@ import { buildExportableConfig, parseCollexionsConfigText } from '../configImpor
 import { conflictsForTab, findConfigConflicts } from '../configConflicts';
 import { partitionValidationIssues, validateConfigLocal, type ConfigValidationIssue } from '../configValidate';
 import { diffAppConfig, revertConfigField } from '../configDiff';
+import { appConfirm } from '../../shared/confirm';
 import {
     displayToMmDd,
     mmDdToDisplay,
@@ -74,6 +75,41 @@ const ConfigPage: React.FC = () => {
         }
     };
 
+    const persistValidatedConfig = async (deduped: ConfigValidationIssue[]) => {
+        setSaving(true);
+        setSaveLabel('Saving…');
+        setSaveStatus('idle');
+        try {
+            setValidationIssues(deduped.filter(i => i.severity === 'warning'));
+            await api.saveConfig(config);
+
+            // Re-check status to see if we need to warn user
+            const s = await api.getStatus();
+            const lower = s.status.toLowerCase();
+            const active = lower.includes('running') || lower.includes('sleeping') || lower.includes('processing');
+
+            if (active) {
+                setShowRestartBanner(true);
+                setOriginalConfig(config);
+            } else {
+                setSaveStatus('success');
+                setOriginalConfig(config);
+                setTimeout(() => setSaveStatus('idle'), 3000);
+            }
+        } catch (e) {
+            console.error(e);
+            setSaveStatus('error');
+            setValidationIssues([{
+                id: 'save-failed',
+                severity: 'error',
+                message: 'Error saving configuration. Check console.',
+            }]);
+        } finally {
+            setSaving(false);
+            setSaveLabel('Save Config');
+        }
+    };
+
     const handleSave = async () => {
         setSaving(true);
         setSaveLabel('Validating…');
@@ -135,34 +171,17 @@ const ConfigPage: React.FC = () => {
             if (warnings.length) {
                 const preview = warnings.slice(0, 5).map(w => `• ${w.message}`).join('\n');
                 const extra = warnings.length > 5 ? `\n…and ${warnings.length - 5} more` : '';
-                const ok = window.confirm(
+                setValidationIssues(deduped);
+                setSaving(false);
+                setSaveLabel('Save Config');
+                appConfirm(
                     `Config has ${warnings.length} warning${warnings.length === 1 ? '' : 's'}:\n\n${preview}${extra}\n\nSave anyway?`,
+                    () => { void persistValidatedConfig(deduped); },
                 );
-                if (!ok) {
-                    setValidationIssues(deduped);
-                    setSaving(false);
-                    setSaveLabel('Save Config');
-                    return;
-                }
+                return;
             }
 
-            setValidationIssues(deduped.filter(i => i.severity === 'warning'));
-            setSaveLabel('Saving…');
-            await api.saveConfig(config);
-
-            // Re-check status to see if we need to warn user
-            const s = await api.getStatus();
-            const lower = s.status.toLowerCase();
-            const active = lower.includes('running') || lower.includes('sleeping') || lower.includes('processing');
-
-            if (active) {
-                setShowRestartBanner(true);
-                setOriginalConfig(config);
-            } else {
-                setSaveStatus('success');
-                setOriginalConfig(config);
-                setTimeout(() => setSaveStatus('idle'), 3000);
-            }
+            await persistValidatedConfig(deduped);
         } catch (e) {
             console.error(e);
             setSaveStatus('error');
@@ -171,9 +190,9 @@ const ConfigPage: React.FC = () => {
                 severity: 'error',
                 message: 'Error saving configuration. Check console.',
             }]);
+            setSaving(false);
+            setSaveLabel('Save Config');
         }
-        setSaving(false);
-        setSaveLabel('Save Config');
     };
 
     const handleRestartService = async () => {

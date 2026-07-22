@@ -1164,10 +1164,16 @@ def main():
     logging.info(f"Total run duration: {duration}")
 
     total_pinned = sum(int(lib.get('pinned') or 0) for lib in run_library_stats)
-    pin_slots_total = sum(
-        int(v or 0) for v in (collections_per_library_config or {}).values()
-        if isinstance(v, (int, float))
-    )
+    # Only count pin slots for libraries that are still managed — ignore orphaned
+    # keys left in number_of_collections_to_pin after a library was removed/renamed.
+    pin_slots_total = 0
+    for lib_name in library_names:
+        if not isinstance(lib_name, str) or not lib_name.strip():
+            continue
+        try:
+            pin_slots_total += max(0, int(collections_per_library_config.get(lib_name, 0) or 0))
+        except (TypeError, ValueError):
+            continue
     update_status(
         "Run complete",
         next_run_calc_time.timestamp(),
