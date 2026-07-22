@@ -6,6 +6,8 @@ export type DiscoveryPreferences = {
     discoverLanguage: string;
     hideAvailableMedia: boolean;
     tmdbLanguage: string;
+    showRecentlyAdded: boolean;
+    showWatchlist: boolean;
 };
 
 const DEFAULT_PREFERENCES: DiscoveryPreferences = {
@@ -13,6 +15,8 @@ const DEFAULT_PREFERENCES: DiscoveryPreferences = {
     discoverLanguage: '',
     hideAvailableMedia: false,
     tmdbLanguage: 'en',
+    showRecentlyAdded: true,
+    showWatchlist: true,
 };
 
 export { filterHiddenAvailableItems, filterHiddenRequestedItems, filterDiscoverBrowseItems } from './discoverAvailability';
@@ -30,6 +34,8 @@ export function useDiscoveryPreferences() {
                     discoverLanguage: String(data.discoverLanguage || ''),
                     hideAvailableMedia: !!data.hideAvailableMedia,
                     tmdbLanguage: String(data.tmdbLanguage || 'en'),
+                    showRecentlyAdded: data.showRecentlyAdded !== false,
+                    showWatchlist: data.showWatchlist !== false,
                 });
             })
             .catch(() => {

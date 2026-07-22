@@ -104,64 +104,52 @@ export const DiscoverHome: React.FC<{
         setLoading(true);
         try {
             const hideAvailable = preferences.hideAvailableMedia;
-            // Seerr stays fast because hide runs against a local media map in one response.
-            // We do the same: trust proxy cache stamps, paint after 1 page, refill in background.
+            // Seerr-fast first paint: popularity + parallel pages. Never lead with release-date
+            // sorts (unreleased / poster-less junk). Background refill densifies rows.
             const quickPaint = {
                 needsBackfill: hideAvailable,
-                maxPages: 1,
+                maxPages: hideAvailable ? 4 : 2,
                 maxItems: 24,
-                minItems: hideAvailable ? 1 : 12,
+                minItems: hideAvailable ? 8 : 12,
                 hideRequested: hideAvailable,
                 trustAttachedAvailability: true,
-                pageConcurrency: 1,
+                pageConcurrency: 4,
+                requirePoster: true,
             };
             const deepFill = {
                 needsBackfill: true,
-                maxPages: 16,
+                maxPages: 12,
                 maxItems: 24,
                 minItems: 20,
                 hideRequested: hideAvailable,
-                // Background can live-verify; UI already painted from cache stamps.
                 trustAttachedAvailability: false,
                 pageConcurrency: 4,
+                requirePoster: true,
             };
-            // Seerr parity: Discover Language filters original language on home + Movies/Series.
             const movieSources = hideAvailable
                 ? [
-                    (page: number) => `/api/discovery/proxy/discover/movies?sortBy=primary_release_date.desc&page=${page}`,
                     (page: number) => `/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`,
-                    (page: number) => `/api/discovery/proxy/discover/movies/upcoming?page=${page}`,
                     (page: number) => `/api/discovery/proxy/discover/movies?sortBy=vote_count.desc&page=${page}`,
+                    (page: number) => `/api/discovery/proxy/discover/movies/upcoming?page=${page}`,
                 ]
                 : [
                     (page: number) => `/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`,
                 ];
             const seriesSources = hideAvailable
                 ? [
-                    (page: number) => `/api/discovery/proxy/discover/tv?sortBy=first_air_date.desc&page=${page}`,
                     (page: number) => `/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`,
-                    (page: number) => `/api/discovery/proxy/discover/tv/upcoming?page=${page}`,
                     (page: number) => `/api/discovery/proxy/discover/tv?sortBy=vote_count.desc&page=${page}`,
+                    (page: number) => `/api/discovery/proxy/discover/tv/upcoming?page=${page}`,
                 ]
                 : [
                     (page: number) => `/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`,
                 ];
-            const upcomingMovieSources = hideAvailable
-                ? [
-                    (page: number) => `/api/discovery/proxy/discover/movies/upcoming?page=${page}`,
-                    (page: number) => `/api/discovery/proxy/discover/movies?sortBy=primary_release_date.desc&page=${page}`,
-                ]
-                : [
-                    (page: number) => `/api/discovery/proxy/discover/movies/upcoming?page=${page}`,
-                ];
-            const upcomingSeriesSources = hideAvailable
-                ? [
-                    (page: number) => `/api/discovery/proxy/discover/tv/upcoming?page=${page}`,
-                    (page: number) => `/api/discovery/proxy/discover/tv?sortBy=first_air_date.desc&page=${page}`,
-                ]
-                : [
-                    (page: number) => `/api/discovery/proxy/discover/tv/upcoming?page=${page}`,
-                ];
+            const upcomingMovieSources = [
+                (page: number) => `/api/discovery/proxy/discover/movies/upcoming?page=${page}`,
+            ];
+            const upcomingSeriesSources = [
+                (page: number) => `/api/discovery/proxy/discover/tv/upcoming?page=${page}`,
+            ];
             const trendingSources = hideAvailable
                 ? [
                     (page: number) => `/api/discovery/proxy/discover/trending?page=${page}`,
@@ -288,11 +276,13 @@ export const DiscoverHome: React.FC<{
             void (async () => {
                 try {
                     const [addedRes, reqRes, watchlistRes] = await Promise.all([
-                        hideAvailable
+                        (hideAvailable || preferences.showRecentlyAdded === false)
                             ? Promise.resolve(null)
                             : apiFetch('/api/discovery/proxy/media?filter=allavailable&take=40&sort=mediaAdded').catch(() => null),
                         apiFetch('/api/discovery/my-requests?filter=all&take=40').catch(() => null),
-                        apiFetch('/api/discovery/watchlist').catch(() => null),
+                        preferences.showWatchlist === false
+                            ? Promise.resolve(null)
+                            : apiFetch('/api/discovery/watchlist').catch(() => null),
                     ]);
 
                     const myRequestItems = Array.isArray(reqRes?.results)
@@ -340,7 +330,7 @@ export const DiscoverHome: React.FC<{
             console.error(e);
             setLoading(false);
         }
-    }, [loaded, preferences.hideAvailableMedia, preferences.discoverRegion, preferences.discoverLanguage, locale]);
+    }, [loaded, preferences.hideAvailableMedia, preferences.discoverRegion, preferences.discoverLanguage, preferences.showRecentlyAdded, preferences.showWatchlist, locale]);
 
     useEffect(() => {
         loadData();
@@ -484,7 +474,7 @@ export const DiscoverHome: React.FC<{
                             )}
                         />
 
-                        {rows.plexWatchlist.length > 0 ? (
+                        {preferences.showWatchlist !== false && rows.plexWatchlist.length > 0 ? (
                             <WatchlistPanel
                                 items={rows.plexWatchlist}
                                 formatItem={formatItem}
@@ -496,7 +486,7 @@ export const DiscoverHome: React.FC<{
                                 providerLabel={providerLabel}
                                 rowCardClassName={posterCardClass}
                             />
-                        ) : (
+                        ) : preferences.showWatchlist !== false ? (
                             <div className="flex flex-col gap-2">
                                 <h2 className={`${discoveryTheme.sectionTitle} px-2`}>{t('watchlist.title', { provider: providerLabel })}</h2>
                                 <EmptyRail
@@ -509,7 +499,7 @@ export const DiscoverHome: React.FC<{
                                     icon={<Sparkles className="w-5 h-5" />}
                                 />
                             </div>
-                        )}
+                        ) : null}
                     </div>
                 )}
             </section>
@@ -532,7 +522,9 @@ export const DiscoverHome: React.FC<{
                     </div>
                 </div>
 
-                <DiscoveryRow title={t('home.recentlyAdded')} items={rows.recentlyAdded} />
+                {preferences.showRecentlyAdded !== false && (
+                    <DiscoveryRow title={t('home.recentlyAdded')} items={rows.recentlyAdded} />
+                )}
                 <div id="discover-trending">
                     <DiscoveryRow title={t('home.trending')} items={rows.trending} />
                 </div>

@@ -102,10 +102,19 @@ export const MediaDetailsPage: React.FC<{
                     ? `/api/discovery/proxy/movie/${mediaId}`
                     : `/api/discovery/proxy/tv/${mediaId}`;
 
-                // Paint on details alone — recommendations must not hold the spinner.
-                const res = await apiFetch(detailEndpoint);
-                if (cancelled) return;
-                if (!res?.error) setDetails(res);
+                // Paint on details alone — hard-cap wait so a hung proxy never owns the page.
+                const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+                const timer = controller ? window.setTimeout(() => controller.abort(), 12000) : null;
+                try {
+                    const res = await apiFetch(
+                        detailEndpoint,
+                        controller ? { signal: controller.signal } : {},
+                    );
+                    if (cancelled) return;
+                    if (!res?.error) setDetails(res);
+                } finally {
+                    if (timer) window.clearTimeout(timer);
+                }
             } catch (err) {
                 console.error(err);
             } finally {

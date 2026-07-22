@@ -74,7 +74,7 @@ export const RequestModal: React.FC<Props> = ({
     const [selectedQualities, setSelectedQualities] = useState<Set<QualityKey>>(() => new Set(['hd']));
     const [advancedQuality, setAdvancedQuality] = useState<QualityKey>('hd');
     const [selectedSeasons, setSelectedSeasons] = useState<number[]>([]);
-    const [showAdvanced, setShowAdvanced] = useState(mediaType !== 'tv');
+    const [showAdvanced, setShowAdvanced] = useState(false);
     const [qualityForms, setQualityForms] = useState<Record<QualityKey, QualityFormState>>({
         hd: emptyQualityForm(),
         '4k': emptyQualityForm(),
@@ -169,32 +169,41 @@ export const RequestModal: React.FC<Props> = ({
                 ? opts.mediaType
                 : mediaType;
             const segment = resolvedType === 'tv' ? 'sonarr' : 'radarr';
-            const data = await apiFetch(`/api/discovery/request-services/${segment}/${nextServerId}`) as PortalServiceOptions;
-            const applied = applyServiceDefaults({ ...opts, mediaType: resolvedType }, data, defaults);
-            setQualityForms((prev) => {
-                const current = prev[quality];
-                return {
-                    ...prev,
-                    [quality]: {
-                        serviceOptions: data,
-                        loaded: true,
-                        loading: false,
-                        serverId: nextServerId,
-                        profileId: preserveSelections && current.profileId != null
-                            ? current.profileId
-                            : applied.profileId,
-                        rootFolder: preserveSelections && current.rootFolder
-                            ? current.rootFolder
-                            : applied.rootFolder,
-                        languageProfileId: preserveSelections && current.languageProfileId != null
-                            ? current.languageProfileId
-                            : applied.languageProfileId,
-                        selectedTags: preserveSelections
-                            ? current.selectedTags
-                            : applied.selectedTags,
-                    },
-                };
-            });
+            const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            const timer = controller ? window.setTimeout(() => controller.abort(), 10000) : null;
+            try {
+                const data = await apiFetch(
+                    `/api/discovery/request-services/${segment}/${nextServerId}`,
+                    controller ? { signal: controller.signal } : {},
+                ) as PortalServiceOptions;
+                const applied = applyServiceDefaults({ ...opts, mediaType: resolvedType }, data, defaults);
+                setQualityForms((prev) => {
+                    const current = prev[quality];
+                    return {
+                        ...prev,
+                        [quality]: {
+                            serviceOptions: data,
+                            loaded: true,
+                            loading: false,
+                            serverId: nextServerId,
+                            profileId: preserveSelections && current.profileId != null
+                                ? current.profileId
+                                : applied.profileId,
+                            rootFolder: preserveSelections && current.rootFolder
+                                ? current.rootFolder
+                                : applied.rootFolder,
+                            languageProfileId: preserveSelections && current.languageProfileId != null
+                                ? current.languageProfileId
+                                : applied.languageProfileId,
+                            selectedTags: preserveSelections
+                                ? current.selectedTags
+                                : applied.selectedTags,
+                        },
+                    };
+                });
+            } finally {
+                if (timer) window.clearTimeout(timer);
+            }
         } catch (e: any) {
             onErrorRef.current(e?.message || 'Failed to load request options');
             updateQualityForm(quality, { serviceOptions: null, loading: false, loaded: false });
@@ -291,8 +300,9 @@ export const RequestModal: React.FC<Props> = ({
             else initial.add('hd');
             setSelectedQualities(initial);
             setAdvancedQuality(initial.has('hd') ? 'hd' : '4k');
-            // TV seasons already fill the viewport — keep Advanced collapsed so Root Folder isn't hidden below the fold.
-            setShowAdvanced(!!payload.canRequestAdvanced && payload.mediaType !== 'tv');
+            // Keep Advanced collapsed until the user opens it — avoids a multi-minute
+            // "Loading server options…" spinner owning the modal (Seerr keeps defaults hidden).
+            setShowAdvanced(false);
 
             if (payload.mediaType === 'tv' && Array.isArray(payload.seasons)) {
                 setSelectedSeasons(
@@ -302,22 +312,26 @@ export const RequestModal: React.FC<Props> = ({
                 setSelectedSeasons([]);
             }
 
-            // Paint seasons / canRequest immediately — advanced *arr options load in the background.
+            // Paint seasons / canRequest immediately — *arr options load only when Advanced opens.
             if (gen === loadGenRef.current) setLoading(false);
-
-            if (payload.canRequestAdvanced) {
-                const toLoad: QualityKey[] = [];
-                if (payload.hasHdServer !== false) toLoad.push('hd');
-                if (payload.canRequest4k && payload.has4kServer) toLoad.push('4k');
-                void Promise.all(toLoad.map((q) => loadAdvancedForQuality(payload, q, { force: true })));
-            }
         } catch (e: any) {
             if (gen !== loadGenRef.current) return;
             onErrorRef.current(e?.message || 'Failed to load request options');
             setOptions(null);
             if (gen === loadGenRef.current) setLoading(false);
         }
-    }, [mediaId, mediaType, loadAdvancedForQuality]);
+    }, [mediaId, mediaType]);
+
+    useEffect(() => {
+        if (!open || !options?.canRequestAdvanced || !showAdvanced) return undefined;
+        const toLoad: QualityKey[] = [];
+        if (options.hasHdServer !== false) toLoad.push('hd');
+        if (options.canRequest4k && options.has4kServer) toLoad.push('4k');
+        toLoad.forEach((q) => {
+            void loadAdvancedForQuality(options, q);
+        });
+        return undefined;
+    }, [open, showAdvanced, options, loadAdvancedForQuality]);
 
     useEffect(() => {
         if (!open) return undefined;

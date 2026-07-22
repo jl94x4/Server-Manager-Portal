@@ -10,6 +10,19 @@ export interface User {
     isTrial?: boolean;
     optOutNewsletter?: boolean;
     lastLogin?: string;
+    requestOverrides?: {
+        movieQuotaLimit?: number | null;
+        movieQuotaDays?: number | null;
+        tvQuotaLimit?: number | null;
+        tvQuotaDays?: number | null;
+        fourKQuotaLimit?: number | null;
+        fourKQuotaDays?: number | null;
+        allowRequestMovies?: boolean | null;
+        allowRequestTv?: boolean | null;
+        allowRequest4kMovies?: boolean | null;
+        allowRequest4kTv?: boolean | null;
+        allowAdvancedRequests?: boolean | null;
+    };
 }
 
 export interface PlexConfig {

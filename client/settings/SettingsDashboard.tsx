@@ -437,6 +437,21 @@ export const SettingsDashboard: React.FC = () => {
     const [requestQuotaLimit4k, setRequestQuotaLimit4k] = useState(0);
     const [autoApproveMovies, setAutoApproveMovies] = useState(false);
     const [autoApproveTv, setAutoApproveTv] = useState(false);
+    const [autoApproveMovies4k, setAutoApproveMovies4k] = useState(false);
+    const [autoApproveTv4k, setAutoApproveTv4k] = useState(false);
+    const [portalAllowRequestMovies, setPortalAllowRequestMovies] = useState(true);
+    const [portalAllowRequestTv, setPortalAllowRequestTv] = useState(true);
+    const [portalAllowRequest4kMovies, setPortalAllowRequest4kMovies] = useState(false);
+    const [portalAllowRequest4kTv, setPortalAllowRequest4kTv] = useState(false);
+    const [portalAllowAdvancedRequests, setPortalAllowAdvancedRequests] = useState(true);
+    const [portalShowRecentlyAdded, setPortalShowRecentlyAdded] = useState(true);
+    const [portalShowWatchlist, setPortalShowWatchlist] = useState(true);
+    const [portalAutoRequestMovies, setPortalAutoRequestMovies] = useState(false);
+    const [portalAutoRequestTv, setPortalAutoRequestTv] = useState(false);
+    const [seriesMetadataProvider, setSeriesMetadataProvider] = useState('tmdb');
+    const [animeMetadataProvider, setAnimeMetadataProvider] = useState('tmdb');
+    const [tvdbApiKey, setTvdbApiKey] = useState('');
+    const [testingTvdb, setTestingTvdb] = useState(false);
     const [maintenanceExperimentalEnabled, setMaintenanceExperimentalEnabled] = useState(false);
     const [upgraderEnabled, setUpgraderEnabled] = useState(false);
     const [collexionsEnabled, setCollexionsEnabled] = useState(false);
@@ -988,6 +1003,20 @@ export const SettingsDashboard: React.FC = () => {
             setRequestQuotaLimit4k(Number(initialSettings.requestQuotaLimit4k) || 0);
             setAutoApproveMovies(!!initialSettings.autoApproveMovies);
             setAutoApproveTv(!!initialSettings.autoApproveTv);
+            setAutoApproveMovies4k(!!initialSettings.autoApproveMovies4k);
+            setAutoApproveTv4k(!!initialSettings.autoApproveTv4k);
+            setPortalAllowRequestMovies(initialSettings.portalAllowRequestMovies !== false);
+            setPortalAllowRequestTv(initialSettings.portalAllowRequestTv !== false);
+            setPortalAllowRequest4kMovies(!!initialSettings.portalAllowRequest4kMovies);
+            setPortalAllowRequest4kTv(!!initialSettings.portalAllowRequest4kTv);
+            setPortalAllowAdvancedRequests(initialSettings.portalAllowAdvancedRequests !== false);
+            setPortalShowRecentlyAdded(initialSettings.portalShowRecentlyAdded !== false);
+            setPortalShowWatchlist(initialSettings.portalShowWatchlist !== false);
+            setPortalAutoRequestMovies(!!initialSettings.portalAutoRequestMovies);
+            setPortalAutoRequestTv(!!initialSettings.portalAutoRequestTv);
+            setSeriesMetadataProvider(initialSettings.seriesMetadataProvider === 'tvdb' ? 'tvdb' : 'tmdb');
+            setAnimeMetadataProvider(initialSettings.animeMetadataProvider === 'tvdb' ? 'tvdb' : 'tmdb');
+            setTvdbApiKey(initialSettings.tvdbApiKey || '');
             const savedBrandingTheme = localStorage.getItem('portal-theme') || initialSettings.brandingTheme || 'plex';
             setBrandingTheme(savedBrandingTheme === 'light' ? 'plex' : savedBrandingTheme);
             setCustomLogoUrl(initialSettings.customLogoUrl || '');
@@ -1229,6 +1258,20 @@ export const SettingsDashboard: React.FC = () => {
             requestQuotaLimit4k,
             autoApproveMovies,
             autoApproveTv,
+            autoApproveMovies4k,
+            autoApproveTv4k,
+            portalAllowRequestMovies,
+            portalAllowRequestTv,
+            portalAllowRequest4kMovies,
+            portalAllowRequest4kTv,
+            portalAllowAdvancedRequests,
+            portalShowRecentlyAdded,
+            portalShowWatchlist,
+            portalAutoRequestMovies,
+            portalAutoRequestTv,
+            seriesMetadataProvider,
+            animeMetadataProvider,
+            tvdbApiKey,
             primaryColor: '',
             customLogoUrl: savedCustomLogoUrl,
             brandingTheme,
@@ -2357,58 +2400,154 @@ export const SettingsDashboard: React.FC = () => {
                             </div>
 
                             {requestEngine === 'portal' && (
-                                <div id={getSettingsSectionElementId('portal-quotas')} className="scroll-mt-24 space-y-4">
-                                    <SettingFieldLabel
-                                        htmlFor="requestQuotaLimit"
-                                        hint={<SettingHint>0 = unlimited. Rolling window applies to member requests when Request Engine is Portal.</SettingHint>}
-                                    >
-                                        Request quota (standard)
-                                    </SettingFieldLabel>
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                        <input
-                                            id="requestQuotaLimit"
-                                            type="number"
-                                            min={0}
-                                            className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm"
-                                            value={requestQuotaLimit}
-                                            onChange={(e) => setRequestQuotaLimit(Math.max(0, Number(e.target.value) || 0))}
-                                        />
-                                        <input
-                                            type="number"
-                                            min={1}
-                                            className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm"
-                                            value={requestQuotaDays}
-                                            onChange={(e) => setRequestQuotaDays(Math.max(1, Number(e.target.value) || 7))}
-                                            aria-label="Quota days"
-                                        />
-                                        <input
-                                            type="number"
-                                            min={0}
-                                            className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm"
-                                            value={requestQuotaLimit4k}
-                                            onChange={(e) => setRequestQuotaLimit4k(Math.max(0, Number(e.target.value) || 0))}
-                                            aria-label="4K quota limit"
-                                            placeholder="4K limit"
-                                        />
+                                <div className="space-y-8">
+                                    <div id={getSettingsSectionElementId('metadata-providers')} className="scroll-mt-24 space-y-4">
+                                        <h4 className="text-sm font-bold text-text uppercase tracking-wider">Metadata providers</h4>
+                                        <p className="text-xs text-muted max-w-2xl">
+                                            Series/anime matching for Sonarr. TMDB is default; TVDB prefers TheTVDB ids when resolving library matches (browse catalog stays TMDB).
+                                        </p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <SettingFieldLabel htmlFor="seriesMetadataProvider">Series provider</SettingFieldLabel>
+                                                <CustomSelect
+                                                    id="seriesMetadataProvider"
+                                                    value={seriesMetadataProvider}
+                                                    onChange={setSeriesMetadataProvider}
+                                                    options={[
+                                                        { value: 'tmdb', label: 'TMDB' },
+                                                        { value: 'tvdb', label: 'TVDB' },
+                                                    ]}
+                                                />
+                                            </div>
+                                            <div>
+                                                <SettingFieldLabel htmlFor="animeMetadataProvider">Anime provider</SettingFieldLabel>
+                                                <CustomSelect
+                                                    id="animeMetadataProvider"
+                                                    value={animeMetadataProvider}
+                                                    onChange={setAnimeMetadataProvider}
+                                                    options={[
+                                                        { value: 'tmdb', label: 'TMDB' },
+                                                        { value: 'tvdb', label: 'TVDB' },
+                                                    ]}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <SettingFieldLabel
+                                                htmlFor="tvdbApiKey"
+                                                hint={<SettingHint>Optional. Used for TVDB connectivity tests; Sonarr matching still works via TMDB external_ids when empty.</SettingHint>}
+                                            >
+                                                TVDB API key
+                                            </SettingFieldLabel>
+                                            <div className="flex flex-wrap gap-2">
+                                                <input
+                                                    id="tvdbApiKey"
+                                                    type="password"
+                                                    autoComplete="off"
+                                                    className="flex-1 min-w-[12rem] rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm"
+                                                    value={tvdbApiKey}
+                                                    onChange={(e) => setTvdbApiKey(e.target.value)}
+                                                    placeholder={initialSettings.tvdbApiKey ? '•••••••• (unchanged if blank)' : 'Optional'}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    disabled={testingTvdb}
+                                                    className="rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 px-3 py-2 text-sm font-semibold disabled:opacity-50"
+                                                    onClick={async () => {
+                                                        setTestingTvdb(true);
+                                                        try {
+                                                            const res = await apiFetch('/api/integrations/tvdb/test', {
+                                                                method: 'POST',
+                                                                body: JSON.stringify({ apiKey: tvdbApiKey }),
+                                                            });
+                                                            addToast(res?.message || (res?.ok ? 'TVDB OK' : 'TVDB test failed'), res?.ok ? 'success' : 'error');
+                                                        } catch (e: any) {
+                                                            addToast(e?.message || 'TVDB test failed', 'error');
+                                                        } finally {
+                                                            setTestingTvdb(false);
+                                                        }
+                                                    }}
+                                                >
+                                                    {testingTvdb ? 'Testing…' : 'Test TVDB'}
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <p className="text-xs text-white/45">Limit · Days · 4K limit (0 = unlimited)</p>
-                                    <div className="flex flex-wrap gap-4">
-                                        <label className="inline-flex items-center gap-2 text-sm text-white/80">
-                                            <input
-                                                type="checkbox"
-                                                checked={autoApproveMovies}
-                                                onChange={(e) => setAutoApproveMovies(e.target.checked)}
-                                            />
-                                            Auto-approve movies
-                                        </label>
-                                        <label className="inline-flex items-center gap-2 text-sm text-white/80">
-                                            <input
-                                                type="checkbox"
-                                                checked={autoApproveTv}
-                                                onChange={(e) => setAutoApproveTv(e.target.checked)}
-                                            />
-                                            Auto-approve TV
-                                        </label>
+
+                                    <div id={getSettingsSectionElementId('request-permissions')} className="scroll-mt-24 space-y-3">
+                                        <h4 className="text-sm font-bold text-text uppercase tracking-wider">Request permissions (defaults)</h4>
+                                        <SettingsToggleRow title="Request movies" checked={portalAllowRequestMovies} onChange={setPortalAllowRequestMovies} border={false} />
+                                        <SettingsToggleRow title="Request series" checked={portalAllowRequestTv} onChange={setPortalAllowRequestTv} border={false} />
+                                        <SettingsToggleRow title="Request 4K movies" checked={portalAllowRequest4kMovies} onChange={setPortalAllowRequest4kMovies} border={false} />
+                                        <SettingsToggleRow title="Request 4K series" checked={portalAllowRequest4kTv} onChange={setPortalAllowRequest4kTv} border={false} />
+                                        <SettingsToggleRow title="Advanced requests (root folder / profile)" checked={portalAllowAdvancedRequests} onChange={setPortalAllowAdvancedRequests} border={false} />
+                                        <SettingsToggleRow title="Show recently added on Discover home" checked={portalShowRecentlyAdded} onChange={setPortalShowRecentlyAdded} border={false} />
+                                        <SettingsToggleRow title="Show Plex watchlist on Discover home" checked={portalShowWatchlist} onChange={setPortalShowWatchlist} border={false} />
+                                    </div>
+
+                                    <div id={getSettingsSectionElementId('auto-approve')} className="scroll-mt-24 space-y-3">
+                                        <h4 className="text-sm font-bold text-text uppercase tracking-wider">Auto-approve</h4>
+                                        <SettingsToggleRow title="Auto-approve movies" checked={autoApproveMovies} onChange={setAutoApproveMovies} border={false} />
+                                        <SettingsToggleRow title="Auto-approve series" checked={autoApproveTv} onChange={setAutoApproveTv} border={false} />
+                                        <SettingsToggleRow title="Auto-approve 4K movies" checked={autoApproveMovies4k} onChange={setAutoApproveMovies4k} border={false} />
+                                        <SettingsToggleRow title="Auto-approve 4K series" checked={autoApproveTv4k} onChange={setAutoApproveTv4k} border={false} />
+                                    </div>
+
+                                    <div id={getSettingsSectionElementId('auto-request')} className="scroll-mt-24 space-y-3">
+                                        <h4 className="text-sm font-bold text-text uppercase tracking-wider">Auto-request (watchlist)</h4>
+                                        <p className="text-xs text-muted">When a member’s Plex watchlist syncs, create portal requests for new titles.</p>
+                                        <SettingsToggleRow title="Auto-request movies from watchlist" checked={portalAutoRequestMovies} onChange={setPortalAutoRequestMovies} border={false} />
+                                        <SettingsToggleRow title="Auto-request series from watchlist" checked={portalAutoRequestTv} onChange={setPortalAutoRequestTv} border={false} />
+                                    </div>
+
+                                    <div id={getSettingsSectionElementId('portal-quotas')} className="scroll-mt-24 space-y-4">
+                                        <h4 className="text-sm font-bold text-text uppercase tracking-wider">Quotas</h4>
+                                        <SettingFieldLabel
+                                            htmlFor="requestQuotaLimit"
+                                            hint={<SettingHint>0 = Unlimited. Rolling window applies to member requests. Per-user overrides live on Users → Edit User.</SettingHint>}
+                                        >
+                                            Request quota (standard)
+                                        </SettingFieldLabel>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                            <div>
+                                                <label className="text-xs text-muted mb-1 block">Limit</label>
+                                                <input
+                                                    id="requestQuotaLimit"
+                                                    type="number"
+                                                    min={0}
+                                                    className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm"
+                                                    value={requestQuotaLimit}
+                                                    onChange={(e) => setRequestQuotaLimit(Math.max(0, Number(e.target.value) || 0))}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-muted mb-1 block">Days</label>
+                                                <input
+                                                    type="number"
+                                                    min={1}
+                                                    className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm"
+                                                    value={requestQuotaDays}
+                                                    onChange={(e) => setRequestQuotaDays(Math.max(1, Number(e.target.value) || 7))}
+                                                    aria-label="Quota days"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-muted mb-1 block">4K limit</label>
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm"
+                                                    value={requestQuotaLimit4k}
+                                                    onChange={(e) => setRequestQuotaLimit4k(Math.max(0, Number(e.target.value) || 0))}
+                                                    aria-label="4K quota limit"
+                                                />
+                                            </div>
+                                        </div>
+                                        <p className="text-xs text-white/45">
+                                            {requestQuotaLimit === 0 ? 'Unlimited HD requests' : `${requestQuotaLimit} HD / ${requestQuotaDays} days`}
+                                            {' · '}
+                                            {requestQuotaLimit4k === 0 ? 'Unlimited 4K' : `${requestQuotaLimit4k} 4K`}
+                                        </p>
                                     </div>
                                 </div>
                             )}

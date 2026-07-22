@@ -451,6 +451,12 @@ import {
     normalizeRequestQuotaLimit,
     normalizeRequestQuotaDays,
     importSeerrHistoryToPortal,
+    resolveMemberRequestPolicy,
+    canPolicyRequestMedia,
+    normalizeUserRequestOverrides,
+    pickPortalRequestDefaultsForSave,
+    portalRequestDefaultsForClient,
+    getPortalRequestDefaults,
 } from './lib/portal-request/index.js';
 const PLEX_API = 'https://plex.tv/api';
 
@@ -2847,6 +2853,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 requestQuotaLimit4k: Number(config.requestQuotaLimit4k) || 0,
                 autoApproveMovies: !!config.autoApproveMovies,
                 autoApproveTv: !!config.autoApproveTv,
+                ...portalRequestDefaultsForClient(config, { secretMask: SECRET_MASK }),
                 primaryColor: config.primaryColor || '#F7C600',
                 customLogoUrl: config.customLogoUrl || '',
                 brandingTheme: config.brandingTheme || 'plex',
@@ -2951,6 +2958,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 requestQuotaLimit4k: 0,
                 autoApproveMovies: false,
                 autoApproveTv: false,
+                ...portalRequestDefaultsForClient({}),
                 primaryColor: '#F7C600',
                 customLogoUrl: '',
                 brandingTheme: 'plex',
@@ -3014,6 +3022,10 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         requestAppType, requestAppUrl, requestAppFetchUrl, requestAppApiKey,
         requestDiscoverRegion, requestDiscoverLanguage, requestHideAvailableMedia, discoverySource, requestEngine,
         requestQuotaLimit, requestQuotaDays, requestQuotaLimit4k, autoApproveMovies, autoApproveTv,
+        portalAllowRequestMovies, portalAllowRequestTv, portalAllowRequest4kMovies, portalAllowRequest4kTv,
+        portalAllowAdvancedRequests, portalShowRecentlyAdded, portalShowWatchlist,
+        autoApproveMovies4k, autoApproveTv4k, portalAutoRequestMovies, portalAutoRequestTv,
+        seriesMetadataProvider, animeMetadataProvider, tvdbApiKey,
         inactiveCleanupEnabled, inactiveCleanupDays,
         primaryColor, customLogoUrl, brandingTheme, sidebarIdentityPosition, pwaIconSource, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, navHiddenKeys, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges, showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds,
         showPublicStatusMonitor, showPublicLibraryStats,
@@ -3188,6 +3200,22 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         autoApproveTv: autoApproveTv !== undefined
             ? !!autoApproveTv
             : !!existingConfig.autoApproveTv,
+        ...pickPortalRequestDefaultsForSave({
+            portalAllowRequestMovies,
+            portalAllowRequestTv,
+            portalAllowRequest4kMovies,
+            portalAllowRequest4kTv,
+            portalAllowAdvancedRequests,
+            portalShowRecentlyAdded,
+            portalShowWatchlist,
+            autoApproveMovies4k,
+            autoApproveTv4k,
+            portalAutoRequestMovies,
+            portalAutoRequestTv,
+            seriesMetadataProvider,
+            animeMetadataProvider,
+        }, existingConfig),
+        tvdbApiKey: resolveSecret(tvdbApiKey, existingConfig.tvdbApiKey),
         primaryColor: primaryColor || '#F7C600',
         customLogoUrl: customLogoUrl || '',
         brandingTheme: ['dynamic', 'plex', 'slate', 'nordic', 'jellyfin', 'emerald', 'midnight', 'crimson', 'amethyst', 'sunset', 'ocean', 'rose', 'royal', 'graphite', 'cyberlime', 'aurora'].includes(String(brandingTheme || '').toLowerCase()) ? String(brandingTheme).toLowerCase() : (existingConfig.brandingTheme || 'plex'),
@@ -3696,6 +3724,34 @@ const assertIntegrationTestAccess = async (req, res) => {
     }
     return assertUnconfiguredSensitiveSetupAccess(req, res);
 };
+
+app.post('/api/integrations/tvdb/test', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const rawKey = String(req.body?.apiKey || '').trim();
+        const apiKey = (rawKey && rawKey !== SECRET_MASK)
+            ? rawKey
+            : String(config.tvdbApiKey || '').trim();
+        if (!apiKey) {
+            // Matching still works via TMDB external_ids without a dedicated TVDB key.
+            return res.json({
+                ok: true,
+                message: 'No TVDB API key set — Sonarr matching still uses TMDB → TVDB external ids.',
+            });
+        }
+        const loginRes = await fetchWithTimeout('https://api4.thetvdb.com/v4/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({ apikey: apiKey }),
+        }, 12000);
+        if (!loginRes.ok) {
+            return res.status(502).json({ ok: false, message: `TVDB login failed (HTTP ${loginRes.status})` });
+        }
+        return res.json({ ok: true, message: 'TVDB API key accepted.' });
+    } catch (error) {
+        res.status(502).json({ ok: false, message: error.message || 'TVDB test failed' });
+    }
+});
 
 app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
     if (!(await assertIntegrationTestAccess(req, res))) return;
@@ -5824,17 +5880,26 @@ app.get('/api/discovery/me', requireAuth, requireMember, async (req, res) => {
         const config = await loadFile(CONFIG_PATH, {});
         if (getRequestEngine(config) === 'portal') {
             const portalRequests = getPortalRequestService(config);
-            const records = await portalRequests.store.list({ userId: String(req.user?.id || '') });
-            const quotaEval = evaluatePortalMemberQuota(config, records);
+            const users = await loadFile(USERS_PATH, []);
+            const key = String(req.user?.id || req.user?.plexId || '');
+            const portalUser = users.find((u) => String(u?.id) === key || String(u?.plexId) === key) || req.user;
+            const records = await portalRequests.store.list({ userId: String(portalUser?.id || req.user?.id || '') });
+            const policy = resolveMemberRequestPolicy(config, portalUser);
+            const quotaEval = evaluatePortalMemberQuota(config, records, { policy });
             const settings = getPortalRequestQuotaSettings(config);
+            const defaults = getPortalRequestDefaults(config);
             return res.json({
                 configured: true,
                 engine: 'portal',
                 userMapped: true,
                 permissions: {
-                    request: true,
-                    request4k: true,
-                    requestAdvanced: true,
+                    request: policy.allowRequestMovies || policy.allowRequestTv,
+                    requestMovie: policy.allowRequestMovies,
+                    requestTv: policy.allowRequestTv,
+                    request4k: policy.allowRequest4kMovies || policy.allowRequest4kTv,
+                    request4kMovie: policy.allowRequest4kMovies,
+                    request4kTv: policy.allowRequest4kTv,
+                    requestAdvanced: policy.allowAdvancedRequests,
                     createIssues: true,
                     viewIssues: true,
                 },
@@ -5846,9 +5911,13 @@ app.get('/api/discovery/me', requireAuth, requireMember, async (req, res) => {
                     requests: settings.autoApproveMovies || settings.autoApproveTv,
                     movies: settings.autoApproveMovies,
                     tv: settings.autoApproveTv,
-                    requests4k: false,
-                    movies4k: false,
-                    tv4k: false,
+                    requests4k: settings.autoApproveMovies4k || settings.autoApproveTv4k,
+                    movies4k: settings.autoApproveMovies4k,
+                    tv4k: settings.autoApproveTv4k,
+                },
+                discovery: {
+                    showRecentlyAdded: defaults.showRecentlyAdded,
+                    showWatchlist: defaults.showWatchlist,
                 },
             });
         }
@@ -6584,8 +6653,20 @@ app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) 
         // Phase 5–8: portal engine — JSON store + portal quotas + optional auto-approve.
         if (getRequestEngine(config) === 'portal') {
             const portalRequests = getPortalRequestService(config);
-            const records = await portalRequests.store.list({ userId: String(req.user?.id || '') });
-            const quotaEval = evaluatePortalMemberQuota(config, records, { is4k: !!is4k });
+            const users = await loadFile(USERS_PATH, []);
+            const key = String(req.user?.id || req.user?.plexId || '');
+            const portalUser = users.find((u) => String(u?.id) === key || String(u?.plexId) === key) || req.user;
+            const records = await portalRequests.store.list({ userId: String(portalUser?.id || req.user?.id || '') });
+            const policy = resolveMemberRequestPolicy(config, portalUser);
+            const perm = canPolicyRequestMedia(policy, type, { is4k: !!is4k });
+            if (!perm.ok) {
+                return res.status(403).json({ error: perm.reason || 'You cannot request this title.' });
+            }
+            const quotaEval = evaluatePortalMemberQuota(config, records, {
+                is4k: !!is4k,
+                policy,
+                mediaType: type,
+            });
             if (quotaEval.blocked) {
                 const bucket = is4k ? quotaEval.quota.fourK : quotaEval.quota.standard;
                 return res.status(429).json({
@@ -6607,7 +6688,7 @@ app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) 
                 tags,
             });
 
-            if (shouldPortalAutoApprove(config, type)) {
+            if (shouldPortalAutoApprove(config, type, { is4k: !!is4k })) {
                 try {
                     const approved = await portalRequests.approveAdminRequest(created.id, null, req.user);
                     return res.status(201).json(approved);
@@ -8284,7 +8365,7 @@ app.get('/api/audit-log', requireAdmin, async (req, res) => {
 
 app.put('/api/users/:id', requireAdmin, async (req, res) => {
     const { id } = req.params;
-    const { expiryDate, exemptFromCleanup, optOutNewsletter } = req.body;
+    const { expiryDate, exemptFromCleanup, optOutNewsletter, requestOverrides } = req.body;
     let users = await loadFile(USERS_PATH, []);
     const userIndex = users.findIndex(u => u.id === id);
     if (userIndex === -1) return res.status(404).json({ error: 'User not found.' });
@@ -8299,6 +8380,9 @@ app.put('/api/users/:id', requireAdmin, async (req, res) => {
     }
     if (optOutNewsletter !== undefined) {
         users[userIndex].optOutNewsletter = !!optOutNewsletter;
+    }
+    if (requestOverrides !== undefined) {
+        users[userIndex].requestOverrides = normalizeUserRequestOverrides(requestOverrides);
     }
 
     reconcileTrialAccessFlag(users[userIndex]);

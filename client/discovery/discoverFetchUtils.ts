@@ -106,6 +106,20 @@ type HomeRowFetchOptions = {
     trustAttachedAvailability?: boolean;
     /** Parallel TMDB page fetches per round (hide-available refill). */
     pageConcurrency?: number;
+    /** Drop poster-less titles so home never shows "POSTER NOT FOUND" tiles. */
+    requirePoster?: boolean;
+};
+
+const itemHasPoster = (item: any) => !!(
+    item?.posterPath
+    || item?.posterUrl
+    || item?.poster
+);
+
+const applyHomeRowQualityFilters = (items: any[], options: HomeRowFetchOptions) => {
+    let next = Array.isArray(items) ? items : [];
+    if (options.requirePoster) next = next.filter(itemHasPoster);
+    return next;
 };
 
 /** Fetch enough items for a discover home carousel row. */
@@ -140,7 +154,7 @@ export async function fetchDiscoverHomeRowResults(
             merged = dedupeDiscoverResults([...merged, ...batch]);
             if (merged.length >= maxItems || page >= totalPages) break;
         }
-        return merged.slice(0, maxItems);
+        return applyHomeRowQualityFilters(merged, options).slice(0, maxItems);
     }
 
     let merged: any[] = [];
@@ -160,7 +174,7 @@ export async function fetchDiscoverHomeRowResults(
             totalPages = Math.min(totalPages, Math.max(1, Number(res?.totalPages) || 1));
             const rawBatch = Array.isArray(res?.results) ? res.results : [];
             const batch = await filterDiscoverResultsWithAvailability(rawBatch, filterOptions);
-            merged = dedupeDiscoverResults([...merged, ...batch]);
+            merged = dedupeDiscoverResults([...merged, ...applyHomeRowQualityFilters(batch, options)]);
         }
 
         page += chunk.length;

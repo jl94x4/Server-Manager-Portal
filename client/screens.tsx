@@ -304,6 +304,28 @@ const UserModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (user:
     const [expiryDate, setExpiryDate] = useState<string | null>(formatDate(addMonths(new Date(), 1).toISOString()));
     const [exemptFromCleanup, setExemptFromCleanup] = useState(false);
     const [optOutNewsletter, setOptOutNewsletter] = useState(false);
+    const [overrideMovieQuota, setOverrideMovieQuota] = useState(false);
+    const [movieQuotaLimit, setMovieQuotaLimit] = useState(0);
+    const [movieQuotaDays, setMovieQuotaDays] = useState(7);
+    const [overrideTvQuota, setOverrideTvQuota] = useState(false);
+    const [tvQuotaLimit, setTvQuotaLimit] = useState(0);
+    const [tvQuotaDays, setTvQuotaDays] = useState(7);
+    const [allowRequestMovies, setAllowRequestMovies] = useState<'default' | 'on' | 'off'>('default');
+    const [allowRequestTv, setAllowRequestTv] = useState<'default' | 'on' | 'off'>('default');
+    const [allowRequest4kMovies, setAllowRequest4kMovies] = useState<'default' | 'on' | 'off'>('default');
+    const [allowRequest4kTv, setAllowRequest4kTv] = useState<'default' | 'on' | 'off'>('default');
+    const [allowAdvancedRequests, setAllowAdvancedRequests] = useState<'default' | 'on' | 'off'>('default');
+
+    const triFrom = (value: boolean | null | undefined): 'default' | 'on' | 'off' => {
+        if (value === true) return 'on';
+        if (value === false) return 'off';
+        return 'default';
+    };
+    const triTo = (value: 'default' | 'on' | 'off'): boolean | null => {
+        if (value === 'on') return true;
+        if (value === 'off') return false;
+        return null;
+    };
 
     useEffect(() => {
         if (user) {
@@ -312,13 +334,35 @@ const UserModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (user:
             setExpiryDate(user.expiryDate ? formatDate(user.expiryDate) : null);
             setExemptFromCleanup(!!user.exemptFromCleanup);
             setOptOutNewsletter(!!user.optOutNewsletter);
+            const ov = user.requestOverrides || {};
+            setOverrideMovieQuota(ov.movieQuotaLimit != null);
+            setMovieQuotaLimit(Number(ov.movieQuotaLimit) || 0);
+            setMovieQuotaDays(Number(ov.movieQuotaDays) || 7);
+            setOverrideTvQuota(ov.tvQuotaLimit != null);
+            setTvQuotaLimit(Number(ov.tvQuotaLimit) || 0);
+            setTvQuotaDays(Number(ov.tvQuotaDays) || 7);
+            setAllowRequestMovies(triFrom(ov.allowRequestMovies));
+            setAllowRequestTv(triFrom(ov.allowRequestTv));
+            setAllowRequest4kMovies(triFrom(ov.allowRequest4kMovies));
+            setAllowRequest4kTv(triFrom(ov.allowRequest4kTv));
+            setAllowAdvancedRequests(triFrom(ov.allowAdvancedRequests));
         } else {
-            // Reset state for new user (if ever implemented)
             setUsername('');
             setJoiningDate(formatDate(new Date().toISOString()));
             setExpiryDate(formatDate(addMonths(new Date(), 1).toISOString()));
             setExemptFromCleanup(false);
             setOptOutNewsletter(false);
+            setOverrideMovieQuota(false);
+            setMovieQuotaLimit(0);
+            setMovieQuotaDays(7);
+            setOverrideTvQuota(false);
+            setTvQuotaLimit(0);
+            setTvQuotaDays(7);
+            setAllowRequestMovies('default');
+            setAllowRequestTv('default');
+            setAllowRequest4kMovies('default');
+            setAllowRequest4kTv('default');
+            setAllowAdvancedRequests('default');
         }
     }, [user, isOpen]);
 
@@ -326,7 +370,20 @@ const UserModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (user:
 
     const handleSave = () => {
         if (!user) return;
-        const updatedUser: User = { ...user, expiryDate, exemptFromCleanup, optOutNewsletter };
+        const requestOverrides: User['requestOverrides'] = {
+            movieQuotaLimit: overrideMovieQuota ? movieQuotaLimit : null,
+            movieQuotaDays: overrideMovieQuota ? movieQuotaDays : null,
+            tvQuotaLimit: overrideTvQuota ? tvQuotaLimit : null,
+            tvQuotaDays: overrideTvQuota ? tvQuotaDays : null,
+            fourKQuotaLimit: null,
+            fourKQuotaDays: null,
+            allowRequestMovies: triTo(allowRequestMovies),
+            allowRequestTv: triTo(allowRequestTv),
+            allowRequest4kMovies: triTo(allowRequest4kMovies),
+            allowRequest4kTv: triTo(allowRequest4kTv),
+            allowAdvancedRequests: triTo(allowAdvancedRequests),
+        };
+        const updatedUser: User = { ...user, expiryDate, exemptFromCleanup, optOutNewsletter, requestOverrides };
         onSave(updatedUser);
     };
 
@@ -342,9 +399,28 @@ const UserModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (user:
         }
     };
 
+    const permSelect = (
+        label: string,
+        value: 'default' | 'on' | 'off',
+        onChange: (v: 'default' | 'on' | 'off') => void,
+    ) => (
+        <div className="mb-3">
+            <label className="text-xs font-semibold text-muted mb-1 block">{label}</label>
+            <select
+                className="w-full p-2 rounded-lg border border-border bg-background text-text text-sm"
+                value={value}
+                onChange={(e) => onChange(e.target.value as 'default' | 'on' | 'off')}
+            >
+                <option value="default">Use global default</option>
+                <option value="on">Allow</option>
+                <option value="off">Deny</option>
+            </select>
+        </div>
+    );
+
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-[1000]" onClick={onClose}>
-            <div className="bg-card p-4 md:p-8 rounded-2xl w-[90%] max-w-lg shadow-2xl border border-border" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-card p-4 md:p-8 rounded-2xl w-[90%] max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl border border-border" onClick={(e) => e.stopPropagation()}>
                 <h2 className="text-2xl font-bold text-text">Edit User</h2>
                 <div className="mb-4">
                     <label>Plex Username</label>
@@ -387,6 +463,56 @@ const UserModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (user:
                         <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${optOutNewsletter ? 'translate-x-6' : 'translate-x-1'}`} />
                     </button>
                 </div>
+
+                <div className="mt-6 pt-4 border-t border-border">
+                    <h3 className="text-lg font-bold text-text mb-1">Requests</h3>
+                    <p className="text-xs text-muted mb-4">Defaults come from Settings → Request Discovery. Override only what this user needs.</p>
+
+                    <div className="mb-4 p-3 rounded-lg border border-border bg-black/10 space-y-2">
+                        <label className="inline-flex items-center gap-2 text-sm font-semibold">
+                            <input type="checkbox" checked={overrideMovieQuota} onChange={(e) => setOverrideMovieQuota(e.target.checked)} />
+                            Override movie quota
+                        </label>
+                        {overrideMovieQuota && (
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="text-xs text-muted">Limit (0 = unlimited)</label>
+                                    <input type="number" min={0} className="w-full p-2 rounded-lg border border-border bg-background text-sm" value={movieQuotaLimit} onChange={(e) => setMovieQuotaLimit(Math.max(0, Number(e.target.value) || 0))} />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-muted">Days</label>
+                                    <input type="number" min={1} className="w-full p-2 rounded-lg border border-border bg-background text-sm" value={movieQuotaDays} onChange={(e) => setMovieQuotaDays(Math.max(1, Number(e.target.value) || 7))} />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="mb-4 p-3 rounded-lg border border-border bg-black/10 space-y-2">
+                        <label className="inline-flex items-center gap-2 text-sm font-semibold">
+                            <input type="checkbox" checked={overrideTvQuota} onChange={(e) => setOverrideTvQuota(e.target.checked)} />
+                            Override series quota
+                        </label>
+                        {overrideTvQuota && (
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="text-xs text-muted">Limit (0 = unlimited)</label>
+                                    <input type="number" min={0} className="w-full p-2 rounded-lg border border-border bg-background text-sm" value={tvQuotaLimit} onChange={(e) => setTvQuotaLimit(Math.max(0, Number(e.target.value) || 0))} />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-muted">Days</label>
+                                    <input type="number" min={1} className="w-full p-2 rounded-lg border border-border bg-background text-sm" value={tvQuotaDays} onChange={(e) => setTvQuotaDays(Math.max(1, Number(e.target.value) || 7))} />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {permSelect('Request movies', allowRequestMovies, setAllowRequestMovies)}
+                    {permSelect('Request series', allowRequestTv, setAllowRequestTv)}
+                    {permSelect('Request 4K movies', allowRequest4kMovies, setAllowRequest4kMovies)}
+                    {permSelect('Request 4K series', allowRequest4kTv, setAllowRequest4kTv)}
+                    {permSelect('Advanced requests', allowAdvancedRequests, setAllowAdvancedRequests)}
+                </div>
+
                 <div className="flex justify-end gap-4 mt-8 pt-4 border-t border-border">
                     <button className="px-6 py-3 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2" onClick={handleSave}>Save</button>
                 </div>
@@ -4062,7 +4188,12 @@ export const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: 
         try {
             const updatedUser = await apiFetch(`/api/users/${userToSave.id}`, {
                 method: 'PUT',
-                body: JSON.stringify({ expiryDate: userToSave.expiryDate, exemptFromCleanup: userToSave.exemptFromCleanup, optOutNewsletter: userToSave.optOutNewsletter })
+                body: JSON.stringify({
+                    expiryDate: userToSave.expiryDate,
+                    exemptFromCleanup: userToSave.exemptFromCleanup,
+                    optOutNewsletter: userToSave.optOutNewsletter,
+                    requestOverrides: userToSave.requestOverrides || {},
+                })
             });
             setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
             handleCloseModal();
