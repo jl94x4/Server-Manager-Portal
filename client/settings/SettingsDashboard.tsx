@@ -2258,7 +2258,7 @@ export const SettingsDashboard: React.FC = () => {
                                     hint={(
                                         <SettingHint>
                                             Seerr (default) proxies browse/search/details through your request app.
-                                            TMDB fetches metadata directly with your TMDB API key — library availability overlays still need Phase 3.
+                                            TMDB fetches metadata directly with your TMDB API key and resolves library availability from Sonarr/Radarr.
                                         </SettingHint>
                                     )}
                                 >

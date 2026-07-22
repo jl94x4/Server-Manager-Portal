@@ -106,7 +106,7 @@ Server mapping today lives in `request-app-service.js` (`toPortalRequestItem`, e
 | TMDB client | `lib/portal-request/tmdbClient.js` | 2 ✅ |
 | TMDB path router | `lib/portal-request/tmdbDiscover.js` | 2 ✅ |
 | TMDB → Seerr mapper | `lib/portal-request/tmdbMapper.js` | 2 ✅ |
-| Library availability | `lib/portal-request/libraryAvailability.js` | 3 |
+| Library availability | `lib/portal-request/libraryAvailability.js` | 3 ✅ |
 | Request store (JSON) | `lib/portal-request/requestStore.js` | 5+ |
 | Barrel | `lib/portal-request/index.js` | — |
 | JSDoc types | `lib/portal-request/types.js` | 5+ |
@@ -117,7 +117,7 @@ Stubs are wired for Phase 2 behind `discoverySource: tmdb` (default remains `see
 
 - [x] Phase 1 — Inventory + seams
 - [x] Phase 2 — Direct TMDB client
-- [ ] Phase 3 — Portal library availability
+- [x] Phase 3 — Portal library availability
 - [ ] Phase 4 — Flip Discover off Seerr proxy
 - [ ] Phase 5 — JSON RequestStore + create/list
 - [ ] Phase 6 — Approve/decline + *arr push
@@ -132,5 +132,12 @@ Stubs are wired for Phase 2 behind `discoverySource: tmdb` (default remains `see
 - Requires `tmdbApiKey` when source is `tmdb`.
 - Routes dual-run: `/api/discovery/search`, `/trending`, `/hero-backdrops`, `/proxy/*`.
 - Responses match Seerr camelCase shapes (`posterPath`, `totalPages`, etc.).
-- `mediaInfo` / library shelf (`/media`) empty until Phase 3 — hide-available has little effect in TMDB mode.
 - Seerr discovery settings sync is skipped when source is `tmdb`.
+
+## Phase 3 notes
+
+- `createLibraryAvailability` attaches Seerr-shaped `mediaInfo` from Radarr/Sonarr catalogs when `discoverySource=tmdb`.
+- List path: cached movie/series indexes (5 min) + queue sets (45s); Map lookup per card.
+- Detail path: movies via Radarr; TV via existing Sonarr episode-aware enrich.
+- Hide-available + availability overlays work in TMDB mode without Seerr `mediaInfo`.
+- Request badges (`mediaInfo.requests`) still need Phase 5+.

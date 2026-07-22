@@ -426,7 +426,7 @@ import { fetchDiscoveryHeroBackdrops } from './lib/discovery-hero.js';
 import { fetchDiscoveryCombinedRatings } from './lib/discovery-ratings.js';
 import { enrichTvDetailsWithSonarrLibraryStatus, fetchSonarrLibraryStatusForShow } from './lib/sonarr-library-status.js';
 import { enrichSessionsWithGeo } from './lib/geoip-lookup.js';
-import { createTmdbClient, createTmdbDiscoverRouter } from './lib/portal-request/index.js';
+import { createTmdbClient, createTmdbDiscoverRouter, createLibraryAvailability } from './lib/portal-request/index.js';
 const PLEX_API = 'https://plex.tv/api';
 
 // --- Status App Global State ---
@@ -5267,6 +5267,21 @@ app.get('/api/discovery/preferences', requireAuth, requireMember, async (req, re
     }
 });
 
+const createDiscoveryLibraryAvailability = async (config) => {
+    let upgraderItems = [];
+    try {
+        const upgraderIndex = await loadUpgraderIndex();
+        upgraderItems = upgraderIndex?.items || [];
+    } catch {
+        upgraderItems = [];
+    }
+    return createLibraryAvailability(config, {
+        resolveUrl: resolveIntegrationUrlForFetch,
+        fetchImpl: fetch,
+        upgraderItems,
+    });
+};
+
 app.get('/api/discovery/search', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
@@ -5303,11 +5318,18 @@ app.get('/api/discovery/search', requireAuth, requireMember, async (req, res) =>
             if (!data) {
                 return res.status(502).json({ error: 'Search temporarily unavailable. Try again.' });
             }
+            let results = Array.isArray(data.results) ? data.results : [];
+            try {
+                const library = await createDiscoveryLibraryAvailability(config);
+                results = await library.enrichItems(results);
+            } catch (enrichError) {
+                log(`Discovery TMDB search library enrich skipped: ${enrichError.message}`);
+            }
             return res.json({
                 page: data.page || 1,
                 totalPages: data.totalPages || 1,
                 totalResults: data.totalResults || resultCount(data) || 0,
-                results: Array.isArray(data.results) ? data.results : [],
+                results,
             });
         }
 
@@ -5370,7 +5392,16 @@ app.get('/api/discovery/trending', requireAuth, requireMember, async (req, res) 
                 language: metadataLanguage,
                 region: prefs.discoverRegion,
             });
-            const data = await client.trending({ language: metadataLanguage, page: 1 });
+            let data = await client.trending({ language: metadataLanguage, page: 1 });
+            try {
+                const library = await createDiscoveryLibraryAvailability(config);
+                data = {
+                    ...data,
+                    results: await library.enrichItems(Array.isArray(data?.results) ? data.results : []),
+                };
+            } catch (enrichError) {
+                log(`Discovery TMDB trending library enrich skipped: ${enrichError.message}`);
+            }
             return res.json(filterDiscoveryPayload(data, '/discover/trending', prefs.hideAvailableMedia, prefs.discoverLanguage));
         }
 
@@ -6565,6 +6596,22 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
                 originalLanguage: prefs.discoverLanguage,
             });
             data = await router.fetchPath(path, params);
+
+            try {
+                const library = await createDiscoveryLibraryAvailability(config);
+                const isMovieDetail = /^\/movie\/\d+$/i.test(path);
+                const isTvDetail = /^\/tv\/\d+$/i.test(path);
+                if ((isMovieDetail || isTvDetail) && data && typeof data === 'object' && !Array.isArray(data)) {
+                    data = await library.enrichDetails(data);
+                } else if (Array.isArray(data?.results)) {
+                    data = {
+                        ...data,
+                        results: await library.enrichItems(data.results),
+                    };
+                }
+            } catch (enrichError) {
+                log(`Discovery TMDB library enrich skipped for ${path}: ${enrichError.message}`);
+            }
         } else {
             const gate = getRequestAppGate(config);
             if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
@@ -6583,7 +6630,15 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
 
         const tvDetailMatch = path.match(/^\/tv\/(\d+)$/);
         const shouldLibraryCheck = String(req.query.libraryCheck || req.query.sonarrCheck || '') === '1';
-        if (tvDetailMatch && shouldLibraryCheck && data && typeof data === 'object' && !Array.isArray(data)) {
+        // Seerr path still uses optional Sonarr enrich; TMDB path already enriched via libraryAvailability.
+        if (
+            prefs.discoverySource !== 'tmdb'
+            && tvDetailMatch
+            && shouldLibraryCheck
+            && data
+            && typeof data === 'object'
+            && !Array.isArray(data)
+        ) {
             try {
                 const upgraderIndex = await loadUpgraderIndex();
                 const enrichPromise = enrichTvDetailsWithSonarrLibraryStatus(config, data, {
