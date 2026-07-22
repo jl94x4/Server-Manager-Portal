@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 @layer base {
-  :root, [data-theme="plex"] {
+  :root, [data-theme="plex"], [data-theme="dynamic"] {
     --color-bg: 13 17 23;
     --color-card: 22 27 34;
     --color-border: 48 54 61;
@@ -11,6 +11,20 @@
     --color-muted: 139 148 158;
     --color-plex: 229 160 13;
     --color-plex-hover: 240 168 16;
+    color-scheme: dark;
+  }
+
+  /* True light mode — bright surfaces, dark ink, readable accent */
+  [data-theme="light"] {
+    --color-bg: 244 246 249;
+    --color-card: 255 255 255;
+    --color-border: 206 214 224;
+    --color-text: 22 27 34;
+    --color-muted: 88 100 116;
+    --color-plex: 196 112 0;
+    --color-plex-hover: 168 90 0;
+    --light-ink: 22 27 34;
+    color-scheme: light;
   }
 
   [data-theme="slate"] {
@@ -24,6 +38,16 @@
   }
 
   [data-theme="nordic"] {
+    --color-bg: 7 12 24;
+    --color-card: 14 22 40;
+    --color-border: 35 54 92;
+    --color-text: 235 245 255;
+    --color-muted: 145 170 200;
+    --color-plex: 0 164 220;
+    --color-plex-hover: 56 189 248;
+  }
+
+  [data-theme="jellyfin"] {
     --color-bg: 11 15 25;
     --color-card: 20 27 45;
     --color-border: 37 47 70;
@@ -31,16 +55,6 @@
     --color-muted: 156 163 175;
     --color-plex: 129 140 248;
     --color-plex-hover: 99 102 241;
-  }
-
-  [data-theme="jellyfin"] {
-    --color-bg: 10 8 20;
-    --color-card: 20 16 34;
-    --color-border: 36 28 58;
-    --color-text: 240 238 250;
-    --color-muted: 160 155 180;
-    --color-plex: 170 92 238;
-    --color-plex-hover: 190 120 250;
   }
 
   [data-theme="emerald"] {
@@ -93,6 +107,66 @@
     --color-plex-hover: 251 146 60;
   }
 
+  [data-theme="ocean"] {
+    --color-bg: 5 18 24;
+    --color-card: 10 32 42;
+    --color-border: 24 60 74;
+    --color-text: 226 244 248;
+    --color-muted: 130 170 180;
+    --color-plex: 20 184 166;
+    --color-plex-hover: 45 212 191;
+  }
+
+  [data-theme="rose"] {
+    --color-bg: 22 8 16;
+    --color-card: 34 14 25;
+    --color-border: 64 30 48;
+    --color-text: 252 238 244;
+    --color-muted: 190 145 165;
+    --color-plex: 244 114 182;
+    --color-plex-hover: 251 160 211;
+  }
+
+  [data-theme="royal"] {
+    --color-bg: 8 11 28;
+    --color-card: 16 22 48;
+    --color-border: 35 44 86;
+    --color-text: 235 240 255;
+    --color-muted: 145 155 195;
+    --color-plex: 96 165 250;
+    --color-plex-hover: 147 197 253;
+  }
+
+  [data-theme="graphite"] {
+    --color-bg: 12 12 13;
+    --color-card: 24 24 27;
+    --color-border: 55 55 60;
+    --color-text: 244 244 245;
+    --color-muted: 161 161 170;
+    --color-plex: 212 212 216;
+    --color-plex-hover: 244 244 245;
+  }
+
+  [data-theme="cyberlime"] {
+    --color-bg: 8 12 8;
+    --color-card: 16 24 15;
+    --color-border: 36 54 32;
+    --color-text: 238 250 230;
+    --color-muted: 150 175 140;
+    --color-plex: 163 230 53;
+    --color-plex-hover: 190 242 100;
+  }
+
+  [data-theme="aurora"] {
+    --color-bg: 8 14 18;
+    --color-card: 16 26 32;
+    --color-border: 38 58 68;
+    --color-text: 235 248 246;
+    --color-muted: 145 174 174;
+    --color-plex: 45 212 191;
+    --color-plex-hover: 125 211 252;
+  }
+
   body {
     @apply bg-background text-text font-sans antialiased transition-colors duration-200;
   }
@@ -100,6 +174,351 @@
   input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"] {
     color-scheme: dark;
   }
+
+  [data-theme="light"] input[type="date"],
+  [data-theme="light"] input[type="time"],
+  [data-theme="light"] input[type="datetime-local"],
+  [data-theme="light"] input[type="month"] {
+    color-scheme: light;
+  }
+}
+
+/*
+ * True light theme: dark-theme UIs use translucent white fills/borders.
+ * Remap those to translucent ink so panels stay readable on bright surfaces.
+ * Do NOT remap text-white — often used on photo/hero overlays.
+ */
+html[data-theme="light"] .bg-white\/\[0\.02\],
+html[data-theme="light"] .bg-white\/\[0\.03\],
+html[data-theme="light"] .bg-white\/\[0\.04\],
+html[data-theme="light"] .bg-white\/\[0\.05\],
+html[data-theme="light"] .bg-white\/\[0\.06\],
+html[data-theme="light"] .bg-white\/\[0\.07\],
+html[data-theme="light"] .bg-white\/5,
+html[data-theme="light"] .bg-white\/10,
+html[data-theme="light"] .bg-white\/15,
+html[data-theme="light"] .bg-white\/20 {
+  background-color: rgb(var(--light-ink) / 0.05) !important;
+}
+
+html[data-theme="light"] .bg-black\/20,
+html[data-theme="light"] .bg-black\/30,
+html[data-theme="light"] .bg-black\/40,
+html[data-theme="light"] .bg-black\/50 {
+  background-color: rgb(var(--light-ink) / 0.06) !important;
+}
+
+html[data-theme="light"] .hover\:bg-white\/5:hover,
+html[data-theme="light"] .hover\:bg-white\/10:hover,
+html[data-theme="light"] .hover\:bg-white\/\[0\.02\]:hover,
+html[data-theme="light"] .hover\:bg-white\/\[0\.04\]:hover,
+html[data-theme="light"] .hover\:bg-white\/\[0\.05\]:hover,
+html[data-theme="light"] .hover\:bg-white\/\[0\.06\]:hover,
+html[data-theme="light"] .hover\:bg-white\/\[0\.07\]:hover {
+  background-color: rgb(var(--light-ink) / 0.08) !important;
+}
+
+html[data-theme="light"] .border-white\/5,
+html[data-theme="light"] .border-white\/10,
+html[data-theme="light"] .border-white\/15,
+html[data-theme="light"] .border-white\/20,
+html[data-theme="light"] .border-white\/30 {
+  border-color: rgb(var(--light-ink) / 0.12) !important;
+}
+
+html[data-theme="light"] .ring-white\/10,
+html[data-theme="light"] .ring-white\/\[0\.04\] {
+  --tw-ring-color: rgb(var(--light-ink) / 0.12) !important;
+}
+
+html[data-theme="light"] .divide-white\/5 > :not([hidden]) ~ :not([hidden]),
+html[data-theme="light"] .divide-white\/10 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgb(var(--light-ink) / 0.1) !important;
+}
+
+html[data-theme="light"] .glass-card,
+html[data-theme="light"] .glass-card-sm,
+html[data-theme="light"] .glass-card-lg,
+html[data-theme="light"] .section-card,
+html[data-theme="light"] .nav-shell,
+html[data-theme="light"] .btn-primary,
+html[data-theme="light"] .btn-primary:hover,
+html[data-theme="light"] .btn-secondary {
+  box-shadow: none !important;
+}
+
+html[data-theme="light"] .glass-card,
+html[data-theme="light"] .glass-card-sm,
+html[data-theme="light"] .glass-card-lg,
+html[data-theme="light"] .section-card {
+  border-color: rgb(var(--light-ink) / 0.14);
+}
+
+html[data-theme="light"] .btn-secondary {
+  border-color: rgb(var(--light-ink) / 0.14);
+  background-color: rgb(var(--light-ink) / 0.04);
+}
+
+html[data-theme="light"] .input-premium {
+  border-color: rgb(var(--light-ink) / 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+/*
+ * Light mode polish:
+ * 1) Kill drop shadows site-wide (they look muddy on bright surfaces).
+ * 2) Remap hard-coded white text to ink (dark UIs assumed dark backgrounds).
+ * 3) Keep white text on dark/colored badges & media overlays.
+ * 4) Give posters a clear edge when art has white backgrounds.
+ */
+html[data-theme="light"] .shadow,
+html[data-theme="light"] .shadow-sm,
+html[data-theme="light"] .shadow-md,
+html[data-theme="light"] .shadow-lg,
+html[data-theme="light"] .shadow-xl,
+html[data-theme="light"] .shadow-2xl,
+html[data-theme="light"] .shadow-inner,
+html[data-theme="light"] .hover\:shadow-md:hover,
+html[data-theme="light"] .hover\:shadow-lg:hover,
+html[data-theme="light"] .hover\:shadow-xl:hover,
+html[data-theme="light"] .hover\:shadow-2xl:hover,
+html[data-theme="light"] .group-hover\:shadow-xl,
+html[data-theme="light"] .group:hover .group-hover\:shadow-xl,
+html[data-theme="light"] [class*="shadow-\["],
+html[data-theme="light"] [class*="shadow-plex"],
+html[data-theme="light"] [class*="shadow-lg"],
+html[data-theme="light"] [class*="shadow-xl"],
+html[data-theme="light"] [class*="shadow-2xl"],
+html[data-theme="light"] [class*="shadow-md"],
+html[data-theme="light"] [class*="shadow-sm"] {
+  --tw-shadow: 0 0 #0000 !important;
+  --tw-shadow-colored: 0 0 #0000 !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="light"] .drop-shadow,
+html[data-theme="light"] .drop-shadow-sm,
+html[data-theme="light"] .drop-shadow-md,
+html[data-theme="light"] .drop-shadow-lg,
+html[data-theme="light"] .drop-shadow-xl,
+html[data-theme="light"] [class*="drop-shadow-\["] {
+  filter: none !important;
+}
+
+html[data-theme="light"] .text-white {
+  color: rgb(var(--color-text)) !important;
+}
+
+html[data-theme="light"] .text-white\/95,
+html[data-theme="light"] .text-white\/90,
+html[data-theme="light"] .text-white\/85,
+html[data-theme="light"] .text-white\/80,
+html[data-theme="light"] .text-white\/70,
+html[data-theme="light"] .text-white\/65,
+html[data-theme="light"] .text-white\/60,
+html[data-theme="light"] .text-white\/55,
+html[data-theme="light"] .text-white\/50,
+html[data-theme="light"] .text-white\/45,
+html[data-theme="light"] .text-white\/40,
+html[data-theme="light"] .text-white\/35,
+html[data-theme="light"] .text-white\/30,
+html[data-theme="light"] .hover\:text-white:hover {
+  color: rgb(var(--color-muted)) !important;
+}
+
+/* Restore white text on dark/colored chips, badges, and media overlays */
+html[data-theme="light"] :is(
+  .bg-plex,
+  .bg-plex\/90,
+  .bg-black,
+  .bg-black\/50,
+  .bg-black\/70,
+  .bg-black\/80,
+  .bg-black\/85,
+  .bg-black\/90,
+  .bg-black\/95,
+  .bg-zinc-700\/95,
+  .bg-indigo-500\/90,
+  .bg-emerald-500\/90,
+  .bg-green-500\/90,
+  .bg-blue-500\/90,
+  .bg-amber-500\/90,
+  .bg-red-500\/90,
+  .bg-red-500\/80,
+  .bg-red-600,
+  .bg-red-700
+) :is(.text-white, .text-white\/95, .text-white\/90, .text-white\/85, .text-white\/80) {
+  color: #fff !important;
+}
+
+html[data-theme="light"] .bg-plex.text-white,
+html[data-theme="light"] .bg-plex .text-white {
+  color: #fff !important;
+}
+
+/* Keep white copy on media heroes / dark photo overlays */
+html[data-theme="light"] .light-on-media,
+html[data-theme="light"] .light-on-media :is(
+  .text-white,
+  .text-white\/95,
+  .text-white\/90,
+  .text-white\/85,
+  .text-white\/82,
+  .text-white\/80,
+  .text-white\/75,
+  .text-white\/70,
+  .text-white\/65,
+  .text-white\/60,
+  .text-white\/55,
+  .text-white\/50,
+  .text-white\/45,
+  .text-white\/40,
+  .text-white\/35,
+  .text-white\/30
+) {
+  color: #fff !important;
+}
+
+html[data-theme="light"] .bg-black\/45 ~ .text-white {
+  color: #fff !important;
+}
+
+html[data-theme="light"] .text-gray-200,
+html[data-theme="light"] .text-gray-300,
+html[data-theme="light"] .text-gray-400 {
+  color: rgb(var(--color-muted)) !important;
+}
+
+/* Poster / media art: clear edge without relying on shadows */
+html[data-theme="light"] .aspect-\[2\/3\],
+html[data-theme="light"] .aspect-square {
+  box-shadow: none !important;
+}
+
+html[data-theme="light"] .aspect-\[2\/3\].overflow-hidden,
+html[data-theme="light"] .aspect-square.overflow-hidden,
+html[data-theme="light"] .aspect-\[2\/3\].rounded-lg,
+html[data-theme="light"] .aspect-\[2\/3\].rounded-xl,
+html[data-theme="light"] .aspect-\[2\/3\].rounded-2xl,
+html[data-theme="light"] img.object-cover.rounded-lg,
+html[data-theme="light"] img.object-cover.rounded-xl,
+html[data-theme="light"] img.object-cover.rounded-2xl {
+  outline: 1px solid rgb(var(--light-ink) / 0.12);
+  outline-offset: -1px;
+}
+
+/* Discover hero: keep subtitle readable over light backdrops */
+html[data-theme="light"] .discovery-theme .from-background\/85 {
+  --tw-gradient-from: rgb(var(--color-bg) / 0.92) var(--tw-gradient-from-position);
+}
+
+/*
+ * Personal Wrap-Up cards: dark photo + black scrim + white type works in dark themes,
+ * but light mode remaps white→ink and makes the muddy dark tiles look broken.
+ * Use a soft light surface with faint art instead.
+ */
+html[data-theme="light"] .wrap-up-card {
+  background-color: rgb(var(--color-card));
+  border-color: rgb(var(--light-ink) / 0.14) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="light"] .wrap-up-card .wrap-up-card-bg {
+  opacity: 0.14 !important;
+  filter: saturate(0.85) brightness(1.15);
+}
+
+html[data-theme="light"] .wrap-up-card .wrap-up-card-scrim {
+  background: linear-gradient(
+    160deg,
+    rgb(var(--color-card) / 0.92) 0%,
+    rgb(var(--color-bg) / 0.88) 100%
+  ) !important;
+}
+
+html[data-theme="light"] .wrap-up-card .wrap-up-card-label {
+  color: rgb(var(--color-muted)) !important;
+}
+
+html[data-theme="light"] .wrap-up-card .wrap-up-card-value,
+html[data-theme="light"] .wrap-up-card .wrap-up-card-value .text-white {
+  color: rgb(var(--color-text)) !important;
+}
+
+html[data-theme="light"] .wrap-up-card .wrap-up-card-sub:not(.text-plex) {
+  color: rgb(var(--color-muted)) !important;
+}
+
+html[data-theme="light"] .wrap-up-card .text-plex {
+  color: rgb(var(--color-plex)) !important;
+}
+
+/* Home hero banner: keep greeting readable over bright slideshow art */
+html[data-theme="light"] .home-hero-banner {
+  box-shadow: none !important;
+}
+
+html[data-theme="light"] .home-hero-banner .home-hero-scrim {
+  background: linear-gradient(
+    105deg,
+    rgb(var(--color-bg) / 0.92) 0%,
+    rgb(var(--color-bg) / 0.72) 42%,
+    rgb(var(--color-bg) / 0.2) 72%,
+    transparent 100%
+  ) !important;
+}
+
+/* Studios / Networks: white duotone logos disappear on light cards */
+html[data-theme="light"] .company-card {
+  background-color: rgb(var(--color-card));
+  border-color: rgb(var(--light-ink) / 0.16);
+  box-shadow: none !important;
+}
+
+html[data-theme="light"] .company-card .company-duotone-logo {
+  /* Fallback if a cached light duotone image is still shown */
+  filter: none;
+}
+
+/* Media details: only in light mode, put overview/facts on an opaque panel
+ * so dark ink stays readable over leftover hero art. Dark themes stay seamless. */
+html[data-theme="light"] .media-details-panel {
+  background-color: rgb(var(--color-card)) !important;
+  border: 1px solid rgb(var(--light-ink) / 0.14);
+  border-radius: 1rem;
+  padding: 1rem 1.25rem;
+  box-shadow: none !important;
+}
+
+/* Light mode: keep cinematic image but use darker left/bottom washes so white
+ * hero titles stay readable (card vars are white in light theme). */
+html[data-theme="light"] .media-details-hero-scrim-mobile {
+  background: linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 0.45) 0%,
+    rgb(0 0 0 / 0.25) 45%,
+    rgb(var(--color-card) / 0.88) 78%,
+    rgb(var(--color-card)) 100%
+  ) !important;
+}
+
+html[data-theme="light"] .media-details-hero-scrim-bottom {
+  background: linear-gradient(
+    to top,
+    rgb(var(--color-card)) 0%,
+    rgb(var(--color-card) / 0.92) 28%,
+    rgb(0 0 0 / 0.35) 55%,
+    transparent 100%
+  ) !important;
+}
+
+html[data-theme="light"] .media-details-hero-scrim-left {
+  background: linear-gradient(
+    to right,
+    rgb(0 0 0 / 0.55) 0%,
+    rgb(0 0 0 / 0.28) 32%,
+    transparent 78%
+  ) !important;
 }
 
 /* Custom Scrollbars */

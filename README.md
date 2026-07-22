@@ -34,6 +34,25 @@ Once set up, users can sign in with Plex OAuth or Jellyfin authentication/Quick 
 
 ## Feature Overview
 
+### Integration List
+
+Server Portal can connect to the apps that usually surround a Plex, Jellyfin, or Emby-style media stack.
+
+| Category | Integrations | What they power |
+|---|---|---|
+| **Media servers** | Plex, Jellyfin, Emby | Login, profiles, library stats, live sessions, Discover, maintenance, and upgrader workflows |
+| **Analytics** | Tautulli, Jellystat | Plex/Jellyfin analytics, personal wrap-ups, leaderboard data, watch history, Jellyfin yearly activity heatmap, and status checks |
+| **Requests** | Jellyseerr, Overseerr, Ombi | Request queue, pending request dashboard widget, approvals, retries, and request navigation |
+| **ARR apps** | Sonarr, Radarr, Lidarr | Calendars, queues, history, download matching, and upgrader actions where supported |
+| **Subtitles** | Bazarr | Multi-instance subtitle widgets, tools, version display, and connection tests |
+| **Download clients** | qBittorrent, Transmission, BitTorrent, Deluge, SABnzbd | Unified Download Status page with progress, speed, source filters, client health, and ARR matching |
+| **Notifications** | Gotify, SMTP email | Alert rules, access notifications, expiry warnings, inactivity notices, welcome emails, and newsletters |
+| **Metadata and artwork** | TMDB | Trending slideshow, posters, backdrops, and Discover enrichment |
+
+ARR, Bazarr, and download clients support multiple named instances where needed. The Download Status page merges all enabled clients and filters active downloads by Sonarr, Radarr, Lidarr, or Other.
+
+---
+
 ### Personal Analytics & Wrap-Up
 
 Every user gets a rich, personalized dashboard packed with insights about their own streaming habits. A **time-period filter** (7 / 30 / 60 / 90 / 180 / 365 days / All Time) updates every card simultaneously. Metadata is cached server-side and refreshed by a background job every **30 minutes** for near-instant filter switching.
@@ -72,7 +91,8 @@ A comprehensive control panel for the server owner:
 - **Customizable Home Layout** - Reorder home page sections and show or hide whole blocks (Personal Wrap-Up, Main grid, Pending Requests, Recently / Most Watched, Recently Added) from **Settings → Home Layout**, with a live preview before saving. The main dashboard grid keeps a fixed balanced two-column layout so card heights stay aligned
 - **Pending Requests Widget** - Surface open Seerr/Jellyseerr requests on the home dashboard with quick review actions, fanart-backed cards, and a count badge in the sidebar
 - **Library Maintenance** - Scan libraries for missing or empty media, manage exclusions, and run cleanup tasks from the Maintenance page
-- **Library Upgrader (Plex / Jellyfin)** — Find non-HEVC titles, browse a poster grid with codec/HDR badges, drill into show episodes, open Plex/Jellyfin or Sonarr/Radarr deep links, snooze titles, and optionally switch ARR quality profiles with search triggers (dry-run preview, bulk select, history tab, rate limits). Enable in **Settings → System → Library Upgrader**.
+- **Library Upgrader (Plex / Jellyfin)** — Find non-HEVC titles, browse a poster grid with codec/HDR badges, drill into show episodes, open Plex/Jellyfin or Sonarr/Radarr deep links, snooze titles, and optionally switch ARR quality profiles with search triggers (dry-run preview, bulk select, history tab, rate limits). Enable in **Settings → Library Upgrader**.
+- **Collexions (admin)** — Automated Plex collection pinning. UI lives in the portal; the Python worker is **bundled in the portal image**. Enable in **Settings → Collexions** (no second container).
 
 ---
 
@@ -122,15 +142,17 @@ All discover items display server artwork, play counts, and quality badges (4K, 
 
 ### Media Stack
 
-Browse your Sonarr and Radarr activity directly inside the portal:
+Browse your Sonarr, Radarr, Lidarr, Bazarr, and download-client activity directly inside the portal:
 
 - **Release Calendar** - Upcoming TV episodes and movie releases with poster art, air dates, and grabbed/missing status
-- **Active Queue** - Live download queue from Sonarr and Radarr with progress and status
-- **Recent History** - Import and grab history across both services
+- **Active Queue** - Live download queue from Sonarr, Radarr, and Lidarr-aware matching with progress and status
+- **Recent History** - Import and grab history across configured ARR services
 - **Month Navigation** - Browse releases by month with auto-advance to the next month that has content
 - **Smart ID Matching** - Uses IMDb, TMDB, and TVDB IDs to accurately map and display metadata
+- **Bazarr Tools** - Multi-instance subtitle widgets and quick subtitle tooling
+- **Download Status** - Unified view of qBittorrent, Transmission, BitTorrent, Deluge, and SABnzbd downloads with Sonarr/Radarr/Lidarr filters
 
-Configure Sonarr/Radarr URLs and API keys in **Settings → Media Stack**.
+Configure ARR apps, Bazarr, request apps, and download clients in **Settings → Media Stack**.
 
 ---
 
@@ -154,7 +176,7 @@ Review and approve media requests from Seerr, Jellyseerr, or Ombi without leavin
 
 ### Library Upgrader
 
-A powerful, built-in tool for server admins to identify and upgrade sub-optimal media in your library, fully integrated with your Sonarr and Radarr instances. Enable it in **Settings → System → Library Upgrader**.
+A powerful, built-in tool for server admins to identify and upgrade sub-optimal media in your library, fully integrated with your Sonarr and Radarr instances. Enable it in **Settings → Library Upgrader**.
 
 **Core Capabilities:**
 - **Advanced Media Filtering** - Index your entire library to easily filter and browse your media by codec, resolution, and size. Instantly locate H.264 files or check HDR availability per show, so you can easily upgrade to a different codec when you need to.
@@ -179,6 +201,14 @@ A powerful, built-in tool for server admins to identify and upgrade sub-optimal 
 - **Action History** - A dedicated audit log tracking all your manual and automated upgrade actions, profile changes, and search triggers.
 - **Snooze & Ignore** - Snooze specific titles to hide them from the upgrader view for a set duration, or permanently exclude specific libraries, shows, or movies.
 - **Reclaimable Space Estimation** - View live statistics on how many gigabytes of storage could be reclaimed by upgrading your media to more efficient formats.
+
+---
+
+### Collexions
+
+Admin-only Plex collection automation. The portal ships the React UI (`client/collexions/`) and **bundles** the Flask/`ColleXions.py` worker from `collexions/` inside the same Docker image. Enable under **Settings → Collexions** and save — the portal starts the worker on localhost automatically (service key and internal URL are generated for you).
+
+Onboarding (and Config → Import from portal) auto-fills Plex URL/token and TMDB from portal Settings when available; Trakt/MDBList are still entered in Collexions if you use them. Migrating from standalone Collexions: use **Config → Import config.json** with your existing file, review, then **Save Config**. Worker state lives under `config/collexions/` on the portal volume.
 
 ---
 
@@ -296,19 +326,20 @@ npm start
 **5. First-time admin setup**
 
 - Navigate to `http://localhost:2121`
-- Choose **Plex** or **Jellyfin** in the first-time setup wizard
+- Choose **Plex**, **Jellyfin**, or **Emby** in the first-time setup wizard
 - Plex setup uses Plex OAuth/token and server selection
 - Jellyfin setup uses Jellyfin URL + API key, then supports Jellyfin login and Quick Connect
-- Go to **Settings** in the sidebar to configure **Media Player**, SMTP, temporary access settings, branding, and scheduled tasks
+- Go to **Settings** in the sidebar to configure **Media Server**, integrations, SMTP, temporary access settings, branding, and scheduled tasks
 
-### Media player modes
+### Media server modes
 
 | Mode | Authentication | Analytics companion | Branding |
 |---|---|---|---|
 | **Plex** | Plex.tv OAuth, Plex token, selected owned server | Tautulli | Plex or custom theme |
-| **Jellyfin** | Jellyfin username/password or Quick Connect | JellyStat | Jellyfin server icon and splash screen proxy, or custom theme |
+| **Jellyfin** | Jellyfin username/password or Quick Connect | Jellystat | Jellyfin server icon and splash screen proxy, or custom theme |
+| **Emby** | Emby-compatible server connection | Optional external analytics/status tools | Emby or custom theme |
 
-Plex mode keeps the original Plex OAuth and Tautulli flow. Jellyfin mode uses your Jellyfin URL/API key for user sync, session activity, Quick Connect, and server branding assets. JellyStat provides rich analytics on par with Tautulli.
+Plex mode keeps the original Plex OAuth and Tautulli flow. Jellyfin mode uses your Jellyfin URL/API key for user sync, session activity, Quick Connect, and server branding assets. Jellystat provides rich analytics on par with Tautulli where configured.
 
 ---
 
@@ -381,9 +412,19 @@ On first startup, any legacy JSON files still in the project root are automatica
 ### Docker Compose tips
 
 - Change the published port: set `PORT=8080` in `.env` (maps host `8080` → container `2121`).
-- Integrations on your LAN (Sonarr, Radarr, Tautulli, Jellystat, Seerr/Jellyseerr/Ombi): set `ALLOW_PRIVATE_INTEGRATION_URLS=true` and use reachable URLs from inside the container (e.g. `http://host.docker.internal:8989` on Docker Desktop, or your host IP on Linux).
+- Integrations on your LAN (Sonarr, Radarr, Lidarr, Bazarr, Tautulli, Jellystat, request apps, and download clients): set `ALLOW_PRIVATE_INTEGRATION_URLS=true` and use reachable URLs from inside the container (e.g. `http://host.docker.internal:8989` on Docker Desktop, or your host IP on Linux).
 - View logs: `docker compose logs -f portal`
 - Update: `git pull && docker compose up -d --build`
+
+### Collexions (bundled)
+
+Collexions is built into the portal image. No second container is required.
+
+1. Rebuild/redeploy the portal image so it includes the Python worker.
+2. In **Settings → Collexions**, turn **Enable** ON and click **Save Settings**.
+3. Open **Collexions** in the nav — import your old `config.json` if migrating, or complete onboarding.
+
+Worker data persists under `./config/collexions/` (config + logs). Advanced: set `COLLEXIONS_EMBEDDED_PORT` if you need a different localhost port (default `15755`).
 
 ### Build the image manually
 
@@ -494,18 +535,21 @@ All configuration is managed through the **Settings UI** in the browser. Key opt
 
 | Setting | Description |
 |---|---|
-| Media Player | Choose Plex or Jellyfin |
+| Media Server | Choose Plex, Jellyfin, or Emby |
 | Plex Token / Server | Plex admin token, selected server, and optional direct Plex URL |
-| Jellyfin URL / API Key | Jellyfin server URL and API key for users, sessions, Quick Connect, and branding proxy |
+| Jellyfin / Emby URL and API Key | Media server URL and API key for users, sessions, Quick Connect where supported, and branding proxy |
 | Branding & UI | Portal accent colour, server logo, Jellyfin/Plex preset, and splash background |
 | Temporary Access Duration | Number of days new users get for free |
 | Inactivity Threshold | Days of inactivity before auto-removal |
 | SMTP Settings | Host, port, username, password, from address |
 | Newsletter Schedule | Weekly or monthly, with day/time selection |
 | Home Layout | Section order and visibility for the user home page, including Pending Requests |
-| Sonarr / Radarr URLs | For media stack calendar, queue, and history |
+| ARR Instances | Sonarr, Radarr, and Lidarr URLs/API keys for calendars, queues, history, and download matching |
+| Bazarr Instances | Subtitle widgets, tools, version display, and connection tests |
+| Download Clients | qBittorrent, Transmission, BitTorrent, Deluge, and SABnzbd for the Download Status page |
 | Request App (Seerr/Ombi) | Seerr, Jellyseerr, or Ombi URL and API key for in-portal request review |
 | Tautulli / Jellystat | Tautulli for Plex analytics, Jellystat for Jellyfin analytics |
+| Alerts | Gotify connection and alert rules |
 | Status Page Services | Define services and their health check URLs |
 
 ---
@@ -542,10 +586,12 @@ Server-Manager-Portal/
 │   ├── home/           # User dashboard layout and widget renderers
 │   ├── requests/       # Seerr-style request review UI (admin panel, approval modal, home widget)
 │   ├── upgrader/       # Library Upgrader poster browse (non-HEVC scan)
-│   ├── settings/       # Settings UI (Media Player, Home Layout, System, Background Tasks)
+│   ├── collexions/     # Collexions admin UI (proxied to bundled worker)
+│   ├── settings/       # Settings UI (Media Server, Home Layout, System, Background Tasks)
 │   ├── shared/         # API helpers, types, theme, skeletons, wrap-up cards
 │   ├── setup/          # First-time setup wizard
 │   └── maintenance/    # Library maintenance panel
+├── collexions/         # Bundled Collexions worker (Flask + ColleXions.py)
 ├── input.css           # Tailwind CSS source
 ├── static/
 │   ├── bundle.js       # Built React frontend

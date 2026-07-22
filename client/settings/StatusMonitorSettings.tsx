@@ -84,7 +84,7 @@ export const StatusMonitorSettings: React.FC<{ config: any; onChange: (cfg: any)
     };
 
     const handleResetStats = () => {
-        appConfirm('Are you sure you want to reset all uptime statistics? This will delete all historical status data.', async () => {
+        appConfirm('Are you sure you want to reset all uptime statistics? This will delete all historical status data including hourly samples, latency history, and incidents.', async () => {
             try {
                 const res = await apiFetch('/api/status/reset', { method: 'POST' });
                 if (res.error) throw new Error(res.error);
@@ -178,7 +178,7 @@ export const StatusMonitorSettings: React.FC<{ config: any; onChange: (cfg: any)
 
             <div className="border-t border-border/40 pt-6 mt-2">
                 <h4 className="font-bold text-xl text-text mb-2">Reset Statistics</h4>
-                <p className="text-sm text-muted mb-4">Resetting the status statistics will clear all historical uptime and latency data for all monitored services. This action cannot be undone.</p>
+                <p className="text-sm text-muted mb-4">Resetting the status statistics will clear all historical uptime, hourly samples, latency, and incident data for all monitored services. This action cannot be undone.</p>
                 <button
                     type="button"
                     onClick={handleResetStats}

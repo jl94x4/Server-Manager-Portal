@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { SettingsDashboard } from './settings/SettingsDashboard';
+import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+const SettingsDashboard = lazy(() => import('./settings/SettingsDashboard').then(m => ({ default: m.SettingsDashboard })));
 import { bindAppConfirm } from './shared/confirm';
 import { apiFetch } from './shared/api';
 import { getPublicOrigin, portalUrl, resolvePortalAssetUrl, stripBasePath } from './shared/basePath';
@@ -7,6 +7,7 @@ import { ConfirmModal } from './shared/ui';
 import { Loader } from './shared/toast';
 import { AppAmbientBackground } from './shared/theme';
 import { WhatsNewModal } from './shared/WhatsNewModal';
+import { DiscoverI18nProvider } from './discovery/i18n';
 import {
     getLastSeenVersion,
     parseAppSemver,
@@ -15,9 +16,14 @@ import {
     type ReleaseNotes,
 } from './shared/releaseNotes';
 
-import { RequestsAdminPanel } from './requests/RequestsAdminPanel';
+const RequestQueueDashboard = lazy(() => import('./requests/RequestQueueDashboard').then(m => ({ default: m.RequestQueueDashboard })));
 import { usePendingRequestCount } from './requests/usePendingRequestCount';
-import { UpgraderDashboard } from './upgrader/UpgraderDashboard';
+import { useWatchingCount } from './shared/useWatchingCount';
+import { useDownloadCount } from './shared/useDownloadCount';
+import { useAppDynamicTheme } from './shared/useAppDynamicTheme';
+import { useOpenIssueCount } from './requests/useOpenIssueCount';
+const UpgraderDashboard = lazy(() => import('./upgrader/UpgraderDashboard').then(m => ({ default: m.UpgraderDashboard })));
+const CollexionsDashboard = lazy(() => import('./collexions/CollexionsDashboard').then(m => ({ default: m.CollexionsDashboard })));
 import {
     updateFavicon,
     Login,
@@ -27,18 +33,27 @@ import {
     MaintenanceDashboard,
     LogsDashboard,
     MediaStackDashboard,
+    DownloadStatusPage,
     AnalyticsDashboard,
     AdminDashboard,
+    AboutDashboard,
     UserDashboard,
     Navigation,
 } from './screens';
+import { DiscoveryDashboard } from './discovery/DiscoveryDashboard';
 
 export const MainApp: React.FC = () => {
     const [confirmState, setConfirmState] = useState<{ isOpen: boolean, message: string, onConfirm: () => void }>({ isOpen: false, message: '', onConfirm: () => { } });
 
     const [activeTheme, setActiveTheme] = useState(() => {
         if (typeof window !== 'undefined') {
-            return localStorage.getItem('portal-theme') || 'plex';
+            const stored = localStorage.getItem('portal-theme') || 'plex';
+            // Light theme is temporarily disabled — migrate saved preference.
+            if (stored === 'light') {
+                localStorage.setItem('portal-theme', 'plex');
+                return 'plex';
+            }
+            return stored;
         }
         return 'plex';
     });
@@ -56,7 +71,7 @@ export const MainApp: React.FC = () => {
         closeConfirm();
     };
 
-    const [currentRoute, setCurrentRoute] = useState<'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'maintenance' | 'upgrader' | 'requests' | 'invite' | 'loading'>('loading');
+    const [currentRoute, setCurrentRoute] = useState<'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'collexions' | 'requests' | 'discovery' | 'about' | 'invite' | 'loading'>('loading');
     const [sessionInfo, setSessionInfo] = useState<any>(null);
     const [publicConfig, setPublicConfig] = useState<any>({});
     const [releaseNotes, setReleaseNotes] = useState<ReleaseNotes | null>(null);
@@ -83,25 +98,37 @@ export const MainApp: React.FC = () => {
     useEffect(() => {
         if (!publicConfig.brandingTheme) return;
 
+        const resolveTheme = (value: string) => (value === 'light' ? 'plex' : value);
+
         if (lastBrandingTheme.current === null) {
             // First time config loads - respect user's localStorage choice if any
-            const theme = localStorage.getItem('portal-theme') || publicConfig.brandingTheme || 'plex';
+            const theme = resolveTheme(localStorage.getItem('portal-theme') || publicConfig.brandingTheme || 'plex');
             setActiveTheme(theme);
             lastBrandingTheme.current = publicConfig.brandingTheme;
         } else if (publicConfig.brandingTheme !== lastBrandingTheme.current) {
             // Default theme setting was changed (e.g. saved in Settings) - override local theme
-            setActiveTheme(publicConfig.brandingTheme);
-            localStorage.setItem('portal-theme', publicConfig.brandingTheme);
+            const theme = resolveTheme(publicConfig.brandingTheme);
+            setActiveTheme(theme);
+            localStorage.setItem('portal-theme', theme);
             lastBrandingTheme.current = publicConfig.brandingTheme;
         }
     }, [publicConfig.brandingTheme]);
 
     useEffect(() => {
-        document.documentElement.setAttribute('data-theme', activeTheme);
-        localStorage.setItem('portal-theme', activeTheme);
-        document.documentElement.style.removeProperty('--color-plex');
-        document.documentElement.style.removeProperty('--color-plex-hover');
+        const theme = activeTheme === 'light' ? 'plex' : activeTheme;
+        if (theme !== activeTheme) {
+            setActiveTheme('plex');
+            return;
+        }
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('portal-theme', theme);
+        if (theme !== 'dynamic') {
+            document.documentElement.style.removeProperty('--color-plex');
+            document.documentElement.style.removeProperty('--color-plex-hover');
+        }
     }, [activeTheme]);
+
+    useAppDynamicTheme(activeTheme, currentRoute, publicConfig);
 
     useEffect(() => {
         if (publicConfig?.useBrandedSkeleton !== false) {
@@ -120,6 +147,40 @@ export const MainApp: React.FC = () => {
     useEffect(() => {
         fetchPublicConfig();
     }, [fetchPublicConfig]);
+
+    useEffect(() => {
+        if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+
+        const isFirefox = /Firefox/i.test(navigator.userAgent || '');
+        let cancelled = false;
+
+        (async () => {
+            try {
+                const regs = await navigator.serviceWorker.getRegistrations();
+
+                // Firefox does not need a SW for Install/A2HS. A leftover broken SW
+                // from earlier PWA work makes Install silently do nothing — remove it.
+                if (isFirefox) {
+                    await Promise.all(regs.map((reg) => reg.unregister()));
+                    return;
+                }
+
+                if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                    return;
+                }
+                if (cancelled) return;
+
+                await navigator.serviceWorker.register(portalUrl('/service-worker.js'), {
+                    scope: portalUrl('/'),
+                    updateViaCache: 'none',
+                });
+            } catch {
+                // ignore
+            }
+        })();
+
+        return () => { cancelled = true; };
+    }, []);
 
     useEffect(() => {
         if (currentRoute === 'status' && !sessionInfo && publicConfig?.showPublicStatusMonitor === false) {
@@ -164,7 +225,7 @@ export const MainApp: React.FC = () => {
         setShowWhatsNew(false);
     }, [publicConfig?.appVersion]);
 
-    const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'maintenance' | 'upgrader' | 'requests' | 'invite' | 'loading', options?: { hash?: string }) => {
+    const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'collexions' | 'requests' | 'discovery' | 'about' | 'invite' | 'loading', options?: { hash?: string; reviewId?: number }) => {
         if (route === 'logs') {
             setCurrentRoute('settings');
             window.history.pushState({}, '', portalUrl('/settings#logs'));
@@ -180,14 +241,28 @@ export const MainApp: React.FC = () => {
             if (route === 'dashboard') path = '/dashboard';
             if (route === 'settings') path = '/settings#branding';
             if (route === 'analytics') path = '/analytics';
+            if (route === 'downloads') path = '/downloads';
             if (route === 'mediastack') path = '/mediastack';
             if (route === 'maintenance') path = '/maintenance';
             if (route === 'upgrader') path = '/upgrader';
-            if (route === 'requests') path = '/requests';
+            if (route === 'collexions') path = '/collexions';
+            if (route === 'requests') {
+                path = options?.reviewId ? `/requests?review=${options.reviewId}` : '/requests';
+            }
+            if (route === 'discovery') path = '/discovery';
+            if (route === 'about') path = '/about';
             if (options?.hash) path += options.hash;
             window.history.pushState({}, '', portalUrl(path));
         }
     }, []);
+
+    useEffect(() => {
+        if (!sessionInfo) return;
+        if (currentRoute !== 'downloads') return;
+        if (sessionInfo.session?.isAdmin) return;
+        if (sessionInfo.navFeatures?.downloads !== false) return;
+        setRoute('user');
+    }, [currentRoute, sessionInfo, setRoute]);
 
     const checkSession = useCallback(async () => {
         let path = stripBasePath(window.location.pathname).toLowerCase();
@@ -220,9 +295,22 @@ export const MainApp: React.FC = () => {
                 setCurrentRoute('settings');
             }
             else if (path.startsWith('/mediastack')) setCurrentRoute('mediastack');
+            else if (path.startsWith('/downloads')) setCurrentRoute('downloads');
             else if (path.startsWith('/maintenance') && data.session.isAdmin) setCurrentRoute('maintenance');
             else if (path.startsWith('/upgrader') && data.session.isAdmin) setCurrentRoute('upgrader');
+            else if (
+                path.startsWith('/collexions')
+                && data.session.isAdmin
+                && data.navFeatures?.collexions
+                && String(data.mediaServerType || 'plex').toLowerCase() === 'plex'
+            ) setCurrentRoute('collexions');
+            else if (path.startsWith('/collexions')) {
+                window.history.replaceState({}, '', portalUrl('/portal'));
+                setCurrentRoute('user');
+            }
             else if (path.startsWith('/requests') && data.session.isAdmin) setCurrentRoute('requests');
+            else if (path.startsWith('/discovery')) setCurrentRoute('discovery');
+            else if (path.startsWith('/about')) setCurrentRoute('about');
             else if (path.startsWith('/analytics')) setCurrentRoute('analytics');
             else if (path.startsWith('/admin') || path.startsWith('/users')) {
                 if (data.session.isAdmin && !data.impersonation?.active) setCurrentRoute('users');
@@ -285,6 +373,19 @@ export const MainApp: React.FC = () => {
 
     const requestsQueueEnabled = !!sessionInfo?.session?.isAdmin && !!sessionInfo?.navFeatures?.requestsQueue;
     const { pendingCount: pendingRequestCount, refresh: refreshPendingRequestCount } = usePendingRequestCount(requestsQueueEnabled);
+    const showDashboardWatchingBadge = publicConfig?.showDashboardWatchingBadge === true;
+    const dashboardWatchingBadgePollSeconds = Number(publicConfig?.dashboardWatchingBadgePollSeconds) || 15;
+    const { watchingCount } = useWatchingCount(showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds);
+    const downloadsNavEnabled = !!sessionInfo && (
+        !!sessionInfo?.session?.isAdmin || sessionInfo?.navFeatures?.downloads !== false
+    );
+    const { downloadCount } = useDownloadCount(downloadsNavEnabled, 15);
+    const { openCount: openIssueCount, refresh: refreshOpenIssueCount } = useOpenIssueCount(requestsQueueEnabled);
+    const queueBadgeCount = pendingRequestCount + openIssueCount;
+    const refreshQueueCounts = useCallback(() => {
+        refreshPendingRequestCount();
+        refreshOpenIssueCount();
+    }, [refreshPendingRequestCount, refreshOpenIssueCount]);
 
     if (currentRoute === 'loading') return <Loader isLoading={true} isCinematic={!!publicConfig?.useCinematicLoading} />;
     if (currentRoute === 'login') {
@@ -311,15 +412,32 @@ export const MainApp: React.FC = () => {
         if (currentRoute === 'settings' && isAdmin) return <SettingsDashboard />;
         if (currentRoute === 'maintenance' && isAdmin) return <MaintenanceDashboard />;
         if (currentRoute === 'upgrader' && isAdmin) return <UpgraderDashboard />;
-        if (currentRoute === 'requests' && isAdmin) return <RequestsAdminPanel onCountsChange={refreshPendingRequestCount} />;
+        if (
+            currentRoute === 'collexions'
+            && isAdmin
+            && sessionInfo?.navFeatures?.collexions
+            && String(sessionInfo?.mediaServerType || publicConfig?.mediaServerType || 'plex').toLowerCase() === 'plex'
+        ) return <CollexionsDashboard />;
+        if (currentRoute === 'requests' && isAdmin) {
+            return (
+                <RequestQueueDashboard
+                    onCountsChange={refreshQueueCounts}
+                    openIssueCount={openIssueCount}
+                />
+            );
+        }
+        if (currentRoute === 'discovery') return <DiscoveryDashboard onItemClick={(item) => console.log('Item', item)} mediaServerType={sessionInfo?.mediaServerType || publicConfig?.mediaServerType || 'plex'} isAdmin={isAdmin} />;
         if (currentRoute === 'logs' && isAdmin) return <LogsDashboard onLogout={handleLogout} />;
         if (currentRoute === 'mediastack') return <MediaStackDashboard isAdmin={isAdmin} />;
+        if (currentRoute === 'downloads') return <DownloadStatusPage isAdmin={isAdmin} />;
         if (currentRoute === 'analytics') return <AnalyticsDashboard isAdmin={isAdmin} sessionInfo={sessionInfo} />;
+        if (currentRoute === 'about') return <AboutDashboard appVersion={publicConfig?.appVersion} mediaServerType={sessionInfo?.mediaServerType || publicConfig?.mediaServerType} />;
         if (currentRoute === 'admin' || currentRoute === 'users') return <AdminDashboard onLogout={handleLogout} onViewUserPortal={() => setRoute('user')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} onViewAsUser={handleViewAsUser} />;
-        return <UserDashboard sessionInfo={sessionInfo} publicConfig={publicConfig} onLogout={handleLogout} refreshSession={checkSession} onViewAdmin={() => setRoute('users')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} onViewSettings={() => setRoute('settings')} onViewLogs={() => setRoute('logs')} onViewRequests={() => setRoute('requests')} onPendingRequestsChange={refreshPendingRequestCount} />;
+        return <UserDashboard sessionInfo={sessionInfo} publicConfig={publicConfig} onLogout={handleLogout} refreshSession={checkSession} onViewAdmin={() => setRoute('users')} onViewStatus={() => setRoute('status')} onViewDashboard={() => setRoute('dashboard')} onViewSettings={() => setRoute('settings')} onViewLogs={() => setRoute('logs')} onViewCollexions={() => setRoute('collexions')} onViewRequests={(reviewId) => setRoute('requests', reviewId ? { reviewId } : undefined)} onPendingRequestsChange={refreshPendingRequestCount} />;
     };
 
     return (
+        <DiscoverI18nProvider>
         <div className="relative flex w-full min-h-screen md:h-dvh md:overflow-hidden">
             <AppAmbientBackground backgroundImageUrl={publicConfig?.backgroundImageUrl} />
             <ConfirmModal isOpen={confirmState.isOpen} message={confirmState.message} onConfirm={handleConfirm} onCancel={closeConfirm} />
@@ -330,10 +448,10 @@ export const MainApp: React.FC = () => {
                     onDismiss={dismissWhatsNew}
                 />
             )}
-            {!isPublicView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Server Portal'} adminThumb={sessionInfo?.adminThumb} customLogoUrl={publicConfig?.customLogoUrl} requestUrl={sessionInfo?.requestUrl || 'https://yourdomain.com'} navOrder={sessionInfo?.navOrder || ['home', 'discover', 'users', 'analytics', 'mediastack', 'upgrader', 'requests', 'status', 'maintenance', 'request', 'logs', 'settings', 'logout']} navFeatures={sessionInfo?.navFeatures} appVersion={publicConfig.appVersion} activeTheme={activeTheme} setActiveTheme={setActiveTheme} pendingRequestCount={pendingRequestCount} />}
-            <div id="main-scroll-container" className={`relative z-10 flex-1 min-w-0 min-h-0 flex flex-col items-center px-4 pb-[80px] md:px-8 md:pb-8 overflow-x-visible md:overflow-y-auto custom-scrollbar ${isPublicView ? '!pb-8' : ''}`}>
+            {!isPublicView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Server Portal'} adminThumb={sessionInfo?.adminThumb} customLogoUrl={publicConfig?.customLogoUrl} requestUrl={sessionInfo?.requestUrl || 'https://yourdomain.com'} navOrder={sessionInfo?.navOrder || ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'collexions', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'logs', 'settings', 'logout']} navHiddenKeys={sessionInfo?.navHiddenKeys} navFeatures={sessionInfo?.navFeatures} appVersion={publicConfig.appVersion} activeTheme={activeTheme} setActiveTheme={setActiveTheme} pendingRequestCount={queueBadgeCount} watchingCount={watchingCount} downloadCount={downloadCount} showDashboardWatchingBadge={showDashboardWatchingBadge} sessionInfo={sessionInfo} mediaServerType={sessionInfo?.mediaServerType || publicConfig?.mediaServerType || 'plex'} sidebarIdentityPosition={publicConfig?.sidebarIdentityPosition || 'bottom'} />}
+            <div id="main-scroll-container" className={`relative z-10 flex-1 min-w-0 min-h-0 flex flex-col items-center px-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:px-8 md:pb-8 overflow-x-visible md:overflow-y-auto custom-scrollbar ${isPublicView ? '!pb-8' : ''}`}>
                 {isImpersonating && (
-                    <div className="w-full max-w-[100%] pt-20 md:pt-0 md:sticky md:top-0 md:z-30">
+                    <div className="w-full max-w-[100%] pt-[calc(5rem+env(safe-area-inset-top,0px))] md:pt-0 md:sticky md:top-0 md:z-30">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-100 shadow-lg backdrop-blur-md">
                             <p className="text-sm font-medium">
                                 Viewing portal as <span className="font-bold text-white">{sessionInfo?.impersonation?.targetUsername || sessionInfo?.session?.username}</span>
@@ -348,8 +466,10 @@ export const MainApp: React.FC = () => {
                         </div>
                     </div>
                 )}
-                <div className={`w-full min-w-0 max-w-[100%] ${isImpersonating ? 'pt-3 md:pt-4' : 'pt-20 md:pt-8'}`}>
-                    {renderView()}
+                <div className={`w-full min-w-0 max-w-[100%] ${isImpersonating ? 'pt-3 md:pt-4' : 'pt-[calc(5rem+env(safe-area-inset-top,0px))] md:pt-8'}`}>
+                    <Suspense fallback={<div className="flex w-full items-center justify-center pt-20"><Loader isLoading={true} isCinematic={false} /></div>}>
+                        {renderView()}
+                    </Suspense>
                 </div>
 
                 {/* Mobile Bottom Version */}
@@ -360,5 +480,6 @@ export const MainApp: React.FC = () => {
                 )}
             </div>
         </div>
+        </DiscoverI18nProvider>
     );
 };

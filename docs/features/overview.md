@@ -34,6 +34,12 @@ The app can send HTML emails for welcome messages, temporary-access warnings, ex
 
 Public-facing routes include the landing/login page, invite claim page, and status dashboard.
 
+## Integrations
+
+Server Portal connects to the surrounding media stack: Plex, Jellyfin, Emby, Tautulli, Jellystat, Jellyseerr, Overseerr, Ombi, Sonarr, Radarr, Lidarr, Bazarr, qBittorrent, Transmission, BitTorrent, Deluge, SABnzbd, Gotify, TMDB, and SMTP.
+
+See [Integrations](/guide/integrations) for the full matrix.
+
 ## Themes
 
 Users can choose among built-in dark themes, while admins can set the default theme and branding.

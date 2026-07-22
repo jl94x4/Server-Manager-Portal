@@ -4,6 +4,8 @@ import {
     Calendar,
     ChevronLeft,
     ChevronRight,
+    ExternalLink,
+    FileText,
     Film,
     Layers,
     Music,
@@ -20,6 +22,7 @@ import { PeriodDropdown } from '../shared/PeriodDropdown';
 import { ScrollReveal } from '../shared/ui';
 import { ANALYTICS_PERIOD_OPTIONS } from '../shared/analyticsPeriodOptions';
 import { PendingRequestsHomeWidget } from '../requests/PendingRequestsHomeWidget';
+import { CollexionsHomeWidget } from '../collexions/CollexionsHomeWidget';
 
 type PosterCardProps = {
     item: { title: string; thumb?: string; plexUrl: string; tags?: string[]; year?: number | string; parentTitle?: string };
@@ -49,12 +52,14 @@ export type UserDashboardWidgetDeps = {
     setAnalyticsDaysOpen: (open: boolean) => void;
     showQualityBadges: boolean;
     dashboardData: any;
+    bazarrWidgets: any;
     handleRelink: () => void;
     handleToggleNewsletter: () => void;
     onViewAdmin: () => void;
     onViewSettings?: () => void;
     onViewLogs?: () => void;
-    onViewRequests?: () => void;
+    onViewCollexions?: () => void;
+    onViewRequests?: (reviewId?: number) => void;
     onPendingRequestsChange?: () => void;
     setToast: (toast: { id: number; message: string; type: 'success' | 'error' }) => void;
     DiscoverPosterCard: React.ComponentType<PosterCardProps>;
@@ -190,6 +195,7 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
         optOutNewsletter,
         serverStats,
         serverDataLoading,
+        bazarrWidgets,
         analytics,
         analyticsLoading,
         analyticsDays,
@@ -201,6 +207,7 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
         onViewAdmin,
         onViewSettings,
         onViewLogs,
+        onViewCollexions,
         onViewRequests,
         onPendingRequestsChange,
         setToast,
@@ -209,6 +216,7 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
 
     const analyticsDaysOptions = ANALYTICS_PERIOD_OPTIONS;
     const isJellyfinPortal = String(publicConfig?.mediaServerType || 'plex').toLowerCase() === 'jellyfin';
+    const isExpired = daysLeft !== null && daysLeft < 0;
 
     return (id: MainGridWidgetId): React.ReactNode => {
         switch (id) {
@@ -257,16 +265,21 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                                 <div className="bg-background/40 rounded-xl p-5 border border-white/5 mt-2">
                                     <div className="flex justify-between items-baseline mb-3">
                                         <span className="text-muted text-xs uppercase tracking-widest font-semibold">Time Remaining</span>
-                                        <span className={`font-black text-3xl md:text-4xl leading-none ${isExpiringSoon ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.3)]' : 'text-plex drop-shadow-[0_0_8px_rgba(229,160,13,0.3)]'}`}>
+                                        <span className={`font-black text-3xl md:text-4xl leading-none ${isExpired || isRevoked ? 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.3)]' : isExpiringSoon ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.3)]' : 'text-plex drop-shadow-[0_0_8px_rgba(229,160,13,0.3)]'}`}>
                                             {daysLeft}<span className="text-base font-semibold text-muted ml-1.5">{daysLeft === 1 ? 'day' : 'days'}</span>
                                         </span>
                                     </div>
                                     <div className="w-full h-3 bg-black/40 rounded-full overflow-hidden shadow-inner border border-white/5">
-                                        <div className={`h-full rounded-full transition-all duration-1000 relative ${isExpiringSoon ? 'bg-yellow-400' : 'bg-gradient-to-r from-plex via-amber-400 to-orange-500'}`} style={{ width: `${progressPct}%` }}>
+                                        <div className={`h-full rounded-full transition-all duration-1000 relative ${isExpired || isRevoked ? 'bg-red-400' : isExpiringSoon ? 'bg-yellow-400' : 'bg-gradient-to-r from-plex via-amber-400 to-orange-500'}`} style={{ width: `${progressPct}%` }}>
                                             <div className="absolute top-0 bottom-0 left-0 right-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[shimmer_1s_linear_infinite]" />
                                         </div>
                                     </div>
-                                    {isExpiringSoon && <p className="text-yellow-400/90 text-sm font-medium mt-3 flex items-center gap-2">⚠️ Expiring soon — contact admin</p>}
+                                    {isExpired && (
+                                        <p className="text-red-400/90 text-sm font-medium mt-3 flex items-center gap-2">Expired</p>
+                                    )}
+                                    {isExpiringSoon && !isExpired && (
+                                        <p className="text-yellow-400/90 text-sm font-medium mt-3 flex items-center gap-2">⚠️ Expiring soon — contact admin</p>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -419,6 +432,8 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                         )}
                     </div>
                 );
+            case 'collexions':
+                return <CollexionsHomeWidget onOpen={onViewCollexions} />;
             case 'analytics':
                 if (!sessionInfo.session.isAdmin && !user) return null;
                 if (!isJellyfinPortal) return null;
@@ -480,11 +495,30 @@ export const createPendingRequestsSectionRenderer = (deps: UserDashboardWidgetDe
     const { sessionInfo, onViewRequests, onPendingRequestsChange, setToast } = deps;
 
     return (): React.ReactNode => {
-        if (!sessionInfo?.session?.isAdmin || !sessionInfo?.navFeatures?.requestsQueue) return null;
+        if (!sessionInfo?.session?.isAdmin) return null;
+        if (!sessionInfo?.navFeatures?.requestsQueue) {
+            return (
+                <div className="glass-card p-4 md:p-5 shadow-xl border-white/10">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <p className="text-sm font-semibold text-text">Jellyfin Requests</p>
+                            <p className="text-xs text-muted mt-1">Connect Jellyseerr, Overseerr, or Ombi in Settings to show request approvals here.</p>
+                        </div>
+                        {onViewRequests && (
+                            <button type="button" onClick={() => onViewRequests()} className="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-white/10 text-sm font-semibold text-text hover:bg-white/5 transition-colors">
+                                Open Requests
+                            </button>
+                        )}
+                    </div>
+                </div>
+            );
+        }
         return (
             <PendingRequestsHomeWidget
                 layout="wide"
-                onViewAll={onViewRequests}
+                showEmpty
+                onViewAll={() => onViewRequests?.()}
+                onReviewRequest={(requestId) => onViewRequests?.(requestId)}
                 onActionComplete={onPendingRequestsChange}
                 onToast={(message, type) => setToast({ id: Date.now(), message, type })}
             />
@@ -555,6 +589,84 @@ const RecentlyAddedScrollRow: React.FC<{ title: string; children: React.ReactNod
             </div>
         </div>
     );
+};
+
+export const createBazarrToolsSectionRenderer = (deps: UserDashboardWidgetDeps) => {
+    const { sessionInfo, bazarrWidgets } = deps;
+    return (): React.ReactNode => {
+        if (!sessionInfo.session.isAdmin) return null;
+        const instances = Array.isArray(bazarrWidgets?.instances) ? bazarrWidgets.instances : [];
+        if (!bazarrWidgets?.configured && instances.length === 0) return null;
+        const totals = bazarrWidgets?.totals || {};
+        const primary = instances[0] || {};
+        return (
+            <div className="glass-card p-4 md:p-5 shadow-xl w-full">
+                <div className="flex items-start justify-between gap-3 mb-4">
+                    <div>
+                        <p className="text-muted text-sm uppercase tracking-widest font-semibold">Bazarr Subtitles</p>
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className={`w-2 h-2 rounded-full ${totals.online > 0 ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500'}`} />
+                            <span className={`text-[10px] font-bold uppercase tracking-wider ${totals.online > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                {totals.online > 0 ? `${totals.online}/${instances.length} online` : 'Unavailable'}
+                            </span>
+                            {primary.version && <span className="text-[10px] font-bold text-muted">v{primary.version}</span>}
+                        </div>
+                    </div>
+                    {primary.url && (
+                        <a
+                            href={primary.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Open Bazarr"
+                            className="p-2 rounded-lg text-muted hover:text-text hover:bg-white/5 transition-colors shrink-0"
+                        >
+                            <ExternalLink className="w-4 h-4" />
+                        </a>
+                    )}
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                    <div className="bg-background/60 rounded-xl border border-white/5 p-3">
+                        <FileText className="w-4 h-4 text-plex mb-2 opacity-80" />
+                        <p className="text-2xl font-black text-text">{Number(totals.wantedEpisodes || 0).toLocaleString()}</p>
+                        <p className="text-[10px] uppercase tracking-wider font-bold text-muted mt-0.5">Wanted Episodes</p>
+                    </div>
+                    <div className="bg-background/60 rounded-xl border border-white/5 p-3">
+                        <Film className="w-4 h-4 text-plex mb-2 opacity-80" />
+                        <p className="text-2xl font-black text-text">{Number(totals.wantedMovies || 0).toLocaleString()}</p>
+                        <p className="text-[10px] uppercase tracking-wider font-bold text-muted mt-0.5">Wanted Movies</p>
+                    </div>
+                    <div className="bg-background/60 rounded-xl border border-white/5 p-3">
+                        <Layers className="w-4 h-4 text-plex mb-2 opacity-80" />
+                        <p className="text-xl font-black text-text">{Number(totals.providers || 0).toLocaleString()}</p>
+                        <p className="text-[10px] uppercase tracking-wider font-bold text-muted mt-0.5">Providers</p>
+                    </div>
+                    <div className="bg-background/60 rounded-xl border border-white/5 p-3">
+                        <Activity className="w-4 h-4 text-plex mb-2 opacity-80" />
+                        <p className="text-xl font-black text-text">{Number(totals.announcements || 0).toLocaleString()}</p>
+                        <p className="text-[10px] uppercase tracking-wider font-bold text-muted mt-0.5">Announcements</p>
+                    </div>
+                </div>
+
+                {instances.length > 1 && (
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-1.5">
+                        {instances.map((instance: any) => (
+                            <div key={instance.id} className="flex items-center justify-between gap-2 rounded-lg bg-background/40 border border-white/5 px-3 py-2">
+                                <span className="text-xs font-bold text-text truncate">{instance.name || 'Bazarr'}</span>
+                                <span className="text-[10px] font-bold text-muted">
+                                    {Number(instance.wantedEpisodes || 0).toLocaleString()} episodes · {Number(instance.wantedMovies || 0).toLocaleString()} movies
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {primary.error && (
+                    <p className="text-xs text-red-300 mt-3">Bazarr warning: {primary.error}</p>
+                )}
+            </div>
+        );
+    };
 };
 
 export const createRecentlyAddedWidgetRenderer = (deps: UserDashboardWidgetDeps) => {

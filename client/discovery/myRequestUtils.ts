@@ -1,0 +1,57 @@
+import type { PortalRequestItem } from '../requests/types';
+
+/** Convert a portal request DTO into a discovery-row compatible item. */
+export const portalRequestToDiscoveryRowItem = (item: PortalRequestItem) => ({
+    type: item.type,
+    status: item.status,
+    id: item.id,
+    media: {
+        tmdbId: item.tmdbId,
+        title: item.title,
+        name: item.title,
+        posterPath: item.posterPath || null,
+        mediaType: item.type,
+        status: item.mediaStatus,
+    },
+    mediaInfo: { status: item.mediaStatus },
+});
+
+export const memberRequestStatusClass = (label: string) => {
+    if (label === 'Available') return 'bg-green-500/15 text-green-400 border-green-500/25';
+    if (label === 'Processing' || label === 'Approved') return 'bg-blue-500/15 text-blue-300 border-blue-500/25';
+    if (label === 'Requested') return 'bg-indigo-500/15 text-indigo-300 border-indigo-500/25';
+    if (label === 'Pending Approval') return 'bg-amber-500/15 text-amber-400 border-amber-500/25';
+    if (label === 'Declined') return 'bg-red-500/15 text-red-400 border-red-500/25';
+    if (label === 'Failed') return 'bg-red-500/15 text-red-300 border-red-500/30';
+    return 'bg-white/5 text-white/60 border-white/10';
+};
+
+export const memberRequestDisplayStatus = (item: PortalRequestItem) => {
+    const status = Number(item.status);
+    const mediaStatus = Number(item.mediaStatus);
+    if (status === 3) return 'Declined';
+    if (status === 4) return 'Failed';
+    if (status === 1) return 'Pending Approval';
+    // Downloads in flight always win over Seerr's optimistic Available/Partial.
+    if (status === 2 && item.isDownloading) return 'Processing';
+    if (status === 2 && mediaStatus === 5) return 'Available';
+    if (status === 2 && mediaStatus === 4) return item.type === 'tv' ? 'Requested' : 'Available';
+    if (status === 2 && mediaStatus === 3) return 'Requested';
+    if (status === 2) return 'Approved';
+    return item.statusLabel || 'Unknown';
+};
+
+export const formatRequestRelativeTime = (value?: string | null) => {
+    if (!value) return 'Unknown time';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    const diffMs = Date.now() - date.getTime();
+    const minutes = Math.floor(diffMs / 60000);
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}d ago`;
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+};

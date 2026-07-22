@@ -6,6 +6,7 @@ import { apiFetch } from '../shared/api';
 import { portalUrl, resolvePortalAssetUrl } from '../shared/basePath';
 import { CustomSelect } from '../shared/ui';
 import type { UpgraderItem, UpgraderProfileInstance, UpgraderShowDetail } from './types';
+import { formatUpgraderCodecLabel } from './codecUtils';
 
 type UpgraderShowDrawerProps = {
     show: UpgraderItem | null;
@@ -35,7 +36,7 @@ const EpisodeQualityBadges: React.FC<{ tags: string[]; isHevc?: boolean; codec?:
         ) : null}
         {codec ? (
             <span className="text-xs font-bold px-2 py-1 rounded-md bg-plex/20 text-plex border border-plex/30">
-                {codec.match(/^(h|x)26[45]$/i) ? codec.toLowerCase() : codec.toUpperCase()}
+                {formatUpgraderCodecLabel(codec)}
             </span>
         ) : null}
         {(tags || []).slice(0, 4).map((tag) => (

@@ -14,7 +14,13 @@ const resolveBuildVersion = (pkgVersion) => {
     if (fromEnv) return fromEnv;
 
     try {
-        return execSync('git rev-parse --short HEAD', { stdio: 'pipe' }).toString().trim();
+        const sha = execSync('git rev-parse --short HEAD', { stdio: 'pipe' }).toString().trim();
+        try {
+            execSync('git diff --quiet && git diff --cached --quiet', { stdio: 'pipe', shell: true });
+            return sha;
+        } catch {
+            return `${sha}-${Date.now().toString(36)}`;
+        }
     } catch {
         return `build-${Date.now()}`;
     }
@@ -34,7 +40,7 @@ try {
     const html = fs.readFileSync(indexPath, 'utf8');
     const stamped = html
         .replace(/(?:\/)?static\/tailwind\.css\?v=[^"']+/g, `static/tailwind.css?v=${assetVersion}`)
-        .replace(/(?:\/)?static\/bundle\.js\?v=[^"']+/g, `static/bundle.js?v=${assetVersion}`);
+        .replace(/(?:\/)?static\/index\.js\?v=[^"']+/g, `static/index.js?v=${assetVersion}`);
     fs.writeFileSync(indexPath, stamped);
 } catch (e) {
     console.warn('Could not stamp index.html asset versions:', e.message);

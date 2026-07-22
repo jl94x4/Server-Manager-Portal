@@ -5,7 +5,6 @@ import {
     DEFAULT_DASHBOARD_LAYOUT,
     DASHBOARD_SECTION_LABELS,
     SECTION_PREVIEW_META,
-    lockWidgetLayout,
     type DashboardLayoutConfig,
     type DashboardSectionId,
 } from '../shared/dashboardLayout';
@@ -102,7 +101,7 @@ export const HomeLayoutSettings: React.FC<Props> = ({ layout, onChange }) => {
     const [dropIndex, setDropIndex] = useState<number | null>(null);
 
     const applyChange = useCallback(
-        (next: DashboardLayoutConfig) => onChange(lockWidgetLayout(next)),
+        (next: DashboardLayoutConfig) => onChange(next),
         [onChange]
     );
 
@@ -198,9 +197,8 @@ export const HomeLayoutSettings: React.FC<Props> = ({ layout, onChange }) => {
 
             <div className="max-w-5xl rounded-xl border border-border/30 bg-background/20 px-4 py-3">
                 <p className="text-xs text-muted">
-                    <span className="font-semibold text-text">Locked:</span> Individual widgets inside the main grid (Quick Actions, Library Size, etc.)
-                    cannot be reordered or hidden — that prevents uneven columns and wasted space on desktop.
-                    Pending Requests is its own section and can be moved or hidden above.
+                    <span className="font-semibold text-text">Tip:</span> The live portal editor can also move, hide, and re-add individual widgets directly from the home page.
+                    This settings page remains the admin-wide section layout editor.
                 </p>
             </div>
 

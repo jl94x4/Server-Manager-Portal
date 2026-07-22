@@ -14,7 +14,7 @@ export const RequestCardShell: React.FC<Props> = ({ backdropUrl, posterUrl, clas
         'linear-gradient(to right, rgb(var(--color-bg) / 1) 0%, rgb(var(--color-bg) / 0.94) 24%, rgb(var(--color-bg) / 0.55) 50%, rgb(var(--color-bg) / 0.28) 76%, rgb(var(--color-bg) / 0.18) 100%)';
 
     return (
-        <div className={`relative overflow-hidden rounded-xl border border-white/10 hover:border-white/20 transition-colors ${className}`}>
+        <div className={`relative overflow-hidden rounded-xl border border-border hover:border-border/80 transition-colors ${className}`}>
             {artUrl ? (
                 <>
                     <div

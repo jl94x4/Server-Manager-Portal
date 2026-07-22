@@ -10,7 +10,7 @@ Task labels adapt to the selected media player:
 | Expiry checks | Email users nearing expiry | Same |
 | Revoke access | Remove expired Plex access | Revoke expired portal access |
 | Inactive cleanup | Revoke inactive users | Revoke inactive Jellyfin portal users |
-| Analytics cache | Plex and Tautulli data where configured | Jellyfin and JellyStat data where configured |
+| Analytics cache | Plex and Tautulli data where configured | Jellyfin and Jellystat data where configured |
 | Library stats | Plex stats builder | Hidden in Jellyfin mode |
 | Maintenance index | Build media/request index | Same |
 | Rolling backup | Create config backups | Same |

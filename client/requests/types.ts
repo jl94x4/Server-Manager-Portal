@@ -20,6 +20,7 @@ export type PortalRequestItem = {
     year: string | null;
     overview: string;
     posterUrl: string;
+    posterPath?: string | null;
     backdropUrl?: string;
     requestedBy: {
         id: number | null;
@@ -27,9 +28,15 @@ export type PortalRequestItem = {
         email?: string | null;
         avatar: string;
     };
+    modifiedBy?: {
+        id: number;
+        displayName: string;
+    } | null;
+    declineReason?: string | null;
     createdAt: string | null;
     updatedAt: string | null;
     mediaStatus: number | null;
+    isDownloading?: boolean;
     seerrUrl: string;
     tmdbId?: number | null;
     mediaId?: number | null;
@@ -43,11 +50,103 @@ export type PortalRequestItem = {
     tvSeasons?: PortalTvSeasonInfo[];
     routingSummary?: string | null;
     canRemove?: boolean | null;
+    canCancel?: boolean;
     canRetry?: boolean;
     isAnime?: boolean;
 };
 
 export type PortalRequestDetail = PortalRequestItem;
+
+export type PortalIssueComment = {
+    id: number | null;
+    message: string;
+    createdAt: string | null;
+    updatedAt: string | null;
+    user: {
+        id: number | null;
+        displayName: string;
+        avatar: string;
+    };
+};
+
+export type PortalIssueItem = {
+    id: number;
+    status: number | null;
+    statusLabel: string;
+    issueType: number | null;
+    issueTypeLabel: string;
+    problemSeason: number | null;
+    problemEpisode: number | null;
+    type: 'movie' | 'tv';
+    title: string;
+    year: string | null;
+    overview: string;
+    posterUrl: string;
+    backdropUrl?: string;
+    posterPath?: string | null;
+    tmdbId?: number | null;
+    mediaId?: number | null;
+    createdAt: string | null;
+    updatedAt: string | null;
+    createdBy: {
+        id: number | null;
+        displayName: string;
+        email?: string | null;
+        avatar: string;
+    };
+    modifiedBy?: {
+        id: number;
+        displayName: string;
+    } | null;
+    comments: PortalIssueComment[];
+    commentCount: number;
+    seerrUrl: string;
+};
+
+export type PortalIssueCounts = {
+    configured?: boolean;
+    connected?: boolean;
+    supported?: boolean;
+    open: number;
+    closed?: number;
+    resolved?: number;
+    total: number;
+    error?: string | null;
+};
+
+export type PortalBlocklistItem = {
+    id: number | null;
+    tmdbId: number | null;
+    mediaType: 'movie' | 'tv';
+    title: string;
+    createdAt: string | null;
+    blocklistedTags?: string | null;
+    posterUrl: string;
+    posterPath?: string | null;
+    addedBy: {
+        id: number | null;
+        displayName: string;
+        avatar?: string;
+    };
+    seerrUrl: string;
+};
+
+export type PortalBlocklistSearchResult = {
+    tmdbId: number | null;
+    mediaType: 'movie' | 'tv';
+    title: string;
+    year?: string | null;
+    posterPath?: string | null;
+    overview?: string;
+};
+
+export type PortalBlocklistCounts = {
+    configured?: boolean;
+    connected?: boolean;
+    supported?: boolean;
+    total: number;
+    error?: string | null;
+};
 
 export type PortalServiceServer = {
     id: number;

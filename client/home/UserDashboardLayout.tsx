@@ -37,6 +37,7 @@ type Props = {
     renderWrapUp: () => React.ReactNode;
     renderMainGridWidget: (id: MainGridWidgetId) => React.ReactNode;
     renderPendingRequests: () => React.ReactNode;
+    renderBazarrTools?: () => React.ReactNode;
     renderWatchRowLeft?: () => React.ReactNode;
     renderWatchRowRight?: () => React.ReactNode;
     renderRecentlyAddedWidget: (id: RecentlyAddedWidgetId) => React.ReactNode;
@@ -51,6 +52,7 @@ export const UserDashboardLayout: React.FC<Props> = ({
     renderWrapUp,
     renderMainGridWidget,
     renderPendingRequests,
+    renderBazarrTools,
     renderWatchRowLeft,
     renderWatchRowRight,
     renderRecentlyAddedWidget,
@@ -125,13 +127,13 @@ export const UserDashboardLayout: React.FC<Props> = ({
                             <React.Fragment key={id}>{renderMainGridWidget(id)}</React.Fragment>
                         ))}
                         {mostWatched}
-                        {showRecentlyAdded ? (
-                            <div className={`flex flex-col gap-3 md:gap-4 ${RECENTLY_ADDED_FULL_BLEED_CLASS}`}>
-                                {renderRecentlyAddedRows()}
-                            </div>
-                        ) : null}
                     </div>
                 </div>
+                {showRecentlyAdded ? (
+                    <div className="hidden lg:flex flex-col gap-3 md:gap-4 w-full">
+                        {renderRecentlyAddedRows()}
+                    </div>
+                ) : null}
                 <div className="lg:hidden flex flex-col gap-3 md:gap-4 w-full">
                     {renderMainGridColumns()}
                     {renderWatchRowColumns()}
@@ -221,6 +223,16 @@ export const UserDashboardLayout: React.FC<Props> = ({
                     </div>
                 );
                 break;
+            case 'bazarrTools': {
+                const content = renderBazarrTools?.();
+                if (!content) break;
+                sectionNodes.push(
+                    <div key="bazarrTools" className="relative w-full min-w-0">
+                        {content}
+                    </div>
+                );
+                break;
+            }
             default:
                 break;
         }

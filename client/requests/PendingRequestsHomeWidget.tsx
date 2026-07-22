@@ -22,10 +22,12 @@ const formatRelativeTime = (value?: string | null) => {
 
 export const PendingRequestsHomeWidget: React.FC<{
     onViewAll?: () => void;
+    onReviewRequest?: (requestId: number) => void;
     onActionComplete?: () => void;
     onToast?: (message: string, type: 'success' | 'error') => void;
     layout?: 'compact' | 'wide';
-}> = ({ onViewAll, onActionComplete, onToast, layout = 'compact' }) => {
+    showEmpty?: boolean;
+}> = ({ onViewAll, onReviewRequest, onActionComplete, onToast, layout = 'compact', showEmpty = false }) => {
     const isWide = layout === 'wide';
     const [requests, setRequests] = useState<PortalRequestItem[]>([]);
     const [pendingTotal, setPendingTotal] = useState(0);
@@ -91,11 +93,28 @@ export const PendingRequestsHomeWidget: React.FC<{
         }
     };
 
-    if (!configured) return null;
-
     const cardClass = isWide
         ? 'glass-card p-4 md:p-5 shadow-xl w-full relative'
         : 'glass-card p-4 md:p-5 shadow-xl flex flex-col flex-shrink-0 relative';
+
+    if (!configured) {
+        if (!showEmpty) return null;
+        return (
+            <div className={`${cardClass} border-white/10`}>
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <p className="text-sm font-semibold text-text">Jellyfin Requests</p>
+                        <p className="text-xs text-muted mt-1">Connect Jellyseerr, Overseerr, or Ombi to show request approvals here.</p>
+                    </div>
+                    {onViewAll && (
+                        <button type="button" onClick={onViewAll} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-sm font-semibold text-text hover:bg-white/5 transition-colors">
+                            Open Requests <ChevronRight className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     if (loading) {
         return (
@@ -129,7 +148,15 @@ export const PendingRequestsHomeWidget: React.FC<{
         );
     }
 
-    if (pendingTotal === 0) return null;
+    if (pendingTotal === 0 && !showEmpty) return null;
+
+    const openReview = (item: PortalRequestItem) => {
+        if (onReviewRequest) {
+            onReviewRequest(item.id);
+            return;
+        }
+        setReviewTarget(item);
+    };
 
     const renderRequestRow = (item: PortalRequestItem, wide: boolean) => {
         const TypeIcon = item.type === 'tv' ? Tv : Film;
@@ -166,7 +193,7 @@ export const PendingRequestsHomeWidget: React.FC<{
                         <button
                             type="button"
                             disabled={busy}
-                            onClick={() => setReviewTarget(item)}
+                            onClick={() => openReview(item)}
                             className={`${requestCardActionBtnClass} border border-plex/50 bg-background/80 text-plex font-bold hover:bg-plex/15`}
                         >
                             <Pencil className="w-3.5 h-3.5" />
@@ -211,7 +238,7 @@ export const PendingRequestsHomeWidget: React.FC<{
                 <button
                     type="button"
                     disabled={busy}
-                    onClick={() => setReviewTarget(item)}
+                    onClick={() => openReview(item)}
                     className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-md border border-plex/50 bg-background/90 text-plex hover:bg-plex/15 transition-colors disabled:opacity-50 shadow-sm shadow-black/20"
                     title="Review"
                 >
@@ -265,14 +292,14 @@ export const PendingRequestsHomeWidget: React.FC<{
 
             {requests.length === 0 ? (
                 <p className="text-sm text-muted">
-                    {pendingTotal} pending in your request app — open Requests to review them.
+                    {pendingTotal > 0 ? `${pendingTotal} pending in your request app — open Requests to review them.` : 'No pending requests right now.'}
                 </p>
             ) : (
                 <div className={isWide ? 'grid grid-cols-1 xl:grid-cols-2 gap-3' : 'space-y-2'}>
                     {requests.map((item) => renderRequestRow(item, isWide))}
                 </div>
             )}
-            {reviewTarget && typeof document !== 'undefined' && createPortal(
+            {reviewTarget && !onReviewRequest && typeof document !== 'undefined' && createPortal(
                 <RequestApprovalModal
                     requestId={reviewTarget.id}
                     initialTitle={reviewTarget.title}

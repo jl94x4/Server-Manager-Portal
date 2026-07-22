@@ -17,16 +17,16 @@ export const periodLabel = (days: number | string) => {
 };
 
 const FALLBACK_IMAGES = {
-    rank: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&q=80&w=600',
-    streams: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=600',
+    rank: 'https://images.unsplash.com/photo-1755039466834-3322b29dc45e?auto=format&fit=crop&q=80&w=600',
+    streams: 'https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&q=80&w=600',
     binge: 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?auto=format&fit=crop&q=80&w=600',
     movie: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=600',
     time: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&q=80&w=600',
     day: 'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&q=80&w=600',
-    library: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&q=80&w=600',
+    library: 'https://images.unsplash.com/photo-1636750570049-aec176ca3784?auto=format&fit=crop&q=80&w=600',
     profile: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&q=80&w=600',
     style: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=600',
-    habit: 'https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?auto=format&fit=crop&q=80&w=600',
+    habit: 'https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?auto=format&fit=crop&q=80&w=600',
 };
 
 export type WrapUpCardDef = {
@@ -42,11 +42,15 @@ export type WrapUpCardDef = {
 const resolveCardImage = (url: string) => portalUrl(url);
 
 export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
-    const topDayStreams = analytics.dayOfWeekCounts
-        ? Math.max(...Object.values(analytics.dayOfWeekCounts) as number[])
-        : 0;
-    const rankPct = analytics.leaderboardRank && analytics.totalActiveUsers > 0
-        ? Math.max(1, Math.round((analytics.leaderboardRank / analytics.totalActiveUsers) * 100))
+    const dayCounts = Object.values(analytics?.dayOfWeekCounts || {})
+        .map((value) => Number(value) || 0)
+        .filter((value) => Number.isFinite(value));
+    const topDayStreams = dayCounts.length > 0 ? Math.max(...dayCounts) : 0;
+    const leaderboardRank = Number(analytics?.leaderboardRank);
+    const totalActiveUsers = Number(analytics?.totalActiveUsers) || 0;
+    const hasRank = Number.isFinite(leaderboardRank) && leaderboardRank > 0;
+    const rankPct = hasRank && totalActiveUsers > 0
+        ? Math.max(1, Math.round((leaderboardRank / totalActiveUsers) * 100))
         : null;
 
     return [
@@ -56,9 +60,9 @@ export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
             bgImage: FALLBACK_IMAGES.rank,
             icon: Trophy,
             valueClassName: 'text-2xl font-black leading-none',
-            value: analytics.leaderboardRank ? (
-                <><span className="text-plex text-xl mr-0.5">#</span>{analytics.leaderboardRank}</>
-            ) : 'Unranked',
+            value: hasRank ? (
+                <><span className="text-plex text-xl mr-0.5">#</span>{leaderboardRank}</>
+            ) : 'Not ranked yet',
             subValue: rankPct ? `Top ${rankPct}% of users` : undefined,
         },
         {
@@ -79,7 +83,7 @@ export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
         {
             metric: 'Top Binge',
             label: 'Top Binge',
-            bgImage: analytics.topBinge?.artUrl || FALLBACK_IMAGES.binge,
+            bgImage: analytics.topBinge?.artUrl || analytics.topBinge?.thumbUrl || FALLBACK_IMAGES.binge,
             icon: Tv,
             valueClassName: 'text-sm font-bold line-clamp-2 leading-tight',
             value: analytics.topBinge?.title || 'Nothing yet',
@@ -88,7 +92,7 @@ export const buildWrapUpCards = (analytics: any): WrapUpCardDef[] => {
         {
             metric: 'Top Movie',
             label: 'Top Movie',
-            bgImage: analytics.topMovie?.artUrl || FALLBACK_IMAGES.movie,
+            bgImage: analytics.topMovie?.artUrl || analytics.topMovie?.thumbUrl || FALLBACK_IMAGES.movie,
             icon: Clapperboard,
             valueClassName: 'text-sm font-bold line-clamp-2 leading-tight',
             value: analytics.topMovie?.title || 'Nothing yet',
@@ -208,7 +212,7 @@ export const WrapUpCardGrid: React.FC<WrapUpCardGridProps> = ({
                         key={card.metric}
                         data-wrap-up-card=""
                         onClick={interactive && onCardClick ? () => onCardClick(card.metric) : undefined}
-                        className={`rounded-xl relative border border-border/50 flex flex-col ${isExport ? 'isolate' : 'overflow-hidden'} ${interactive ? 'cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all group' : ''}`}
+                        className={`wrap-up-card rounded-xl relative border border-border/50 flex flex-col ${isExport ? 'isolate' : 'overflow-hidden'} ${interactive ? 'cursor-pointer hover:ring-2 hover:ring-plex/50 transition-all group' : ''}`}
                         style={{ minHeight: `${resolvedMinHeight}px` }}
                     >
                         {isExport ? (
@@ -241,19 +245,24 @@ export const WrapUpCardGrid: React.FC<WrapUpCardGridProps> = ({
                         ) : (
                             <>
                                 <img
+                                    key={bgImage}
                                     src={bgImage}
                                     alt=""
-                                    className={`absolute inset-0 w-full h-full object-cover z-0 opacity-60 ${interactive ? 'transition-transform duration-700 group-hover:scale-110' : ''}`}
+                                    className={`wrap-up-card-bg absolute inset-0 w-full h-full object-cover z-0 opacity-55 ${interactive ? 'transition-transform duration-700 group-hover:scale-110' : ''}`}
                                 />
-                                <div className="absolute inset-0 bg-black/60 z-10" />
+                                <div className="wrap-up-card-scrim absolute inset-0 bg-black/65 z-10" />
                                 <div className="relative z-20 p-3 md:p-4 flex-1 flex flex-col items-center justify-center text-center">
-                                    <Icon className="w-6 h-6 text-plex mb-2 drop-shadow-md flex-shrink-0" />
-                                    <p className="text-gray-300 text-[10px] uppercase tracking-widest font-bold mb-1 drop-shadow-md">{card.label}</p>
-                                    <p className={`text-white drop-shadow-lg mb-1 ${valueClass}`}>
+                                    <Icon className="w-6 h-6 text-plex mb-2 flex-shrink-0" />
+                                    <p className="wrap-up-card-label text-[10px] uppercase tracking-widest font-bold mb-1 text-white/70">
+                                        {card.label}
+                                    </p>
+                                    <p className={`wrap-up-card-value text-white mb-1 ${valueClass}`}>
                                         {card.value}
                                     </p>
                                     {subValue && (
-                                        <p className={`text-[10px] font-bold tracking-wider ${card.metric === 'Top Binge' || card.metric === 'Top Movie' ? 'text-plex' : 'text-gray-400'}`}>{subValue}</p>
+                                        <p className={`wrap-up-card-sub text-[10px] font-bold tracking-wider ${card.metric === 'Top Binge' || card.metric === 'Top Movie' ? 'text-plex' : 'text-white/55'}`}>
+                                            {subValue}
+                                        </p>
                                     )}
                                 </div>
                             </>

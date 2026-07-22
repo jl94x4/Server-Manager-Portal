@@ -1,6 +1,6 @@
 export const SETTINGS_TABS = [
-    'plex', 'smtp', 'newsletter', 'cleanup', 'mediastack', 'branding', 'navigation', 'home-layout',
-    'status', 'invites', 'tasks', 'upgrader', 'system', 'contact', 'broadcast', 'stream-rules', 'logs',
+    'plex', 'smtp', 'gotify', 'newsletter', 'cleanup', 'mediastack', 'request', 'branding', 'navigation', 'home-layout',
+    'status', 'invites', 'tasks', 'upgrader', 'collexions', 'system', 'contact', 'broadcast', 'stream-rules', 'logs',
 ] as const;
 
 export type SettingsTabId = typeof SETTINGS_TABS[number];
@@ -17,16 +17,17 @@ export type SettingsIndexEntry = {
 export const SETTINGS_INDEX: SettingsIndexEntry[] = [
     { id: 'branding', tabId: 'branding', label: 'Portal UI', group: 'Portal', keywords: ['theme', 'logo', 'color', 'branding', 'ui'] },
     { id: 'branding/logo', tabId: 'branding', sectionId: 'logo', label: 'Custom Logo', group: 'Portal', keywords: ['logo', 'icon', 'favicon', 'upload'] },
-    { id: 'branding/theme', tabId: 'branding', sectionId: 'theme', label: 'Portal Theme', group: 'Portal', keywords: ['theme', 'plex dark', 'slate', 'jellyfin purple'] },
+    { id: 'branding/theme', tabId: 'branding', sectionId: 'theme', label: 'Portal Theme', group: 'Portal', keywords: ['theme', 'light', 'plex dark', 'slate', 'jellyfin purple', 'ocean', 'rose', 'royal', 'graphite', 'cyber lime', 'aurora'] },
     { id: 'branding/announcement', tabId: 'branding', sectionId: 'announcement', label: 'Portal Announcement', group: 'Portal', keywords: ['announcement', 'banner', 'notice'] },
     { id: 'branding/poster-badges', tabId: 'branding', sectionId: 'poster-badges', label: 'Poster Quality Badges', group: 'Portal', keywords: ['poster', 'quality', 'badges', 'hdr', '4k', 'codec'] },
+    { id: 'branding/dashboard-watching-badge', tabId: 'branding', sectionId: 'dashboard-watching-badge', label: 'Dashboard Watching Badge', group: 'Portal', keywords: ['dashboard', 'watching', 'streams', 'sidebar', 'badge', 'nav', 'poll', 'interval', 'seconds'] },
     { id: 'branding/slideshow', tabId: 'branding', sectionId: 'slideshow', label: 'TMDB Trending Slideshow', group: 'Portal', keywords: ['slideshow', 'tmdb', 'trending', 'background', 'splash'] },
 
     { id: 'contact', tabId: 'contact', label: 'Contact Details', group: 'Portal', keywords: ['contact', 'support', 'help'] },
     { id: 'contact/whatsapp', tabId: 'contact', sectionId: 'whatsapp', label: 'WhatsApp Number', group: 'Portal', keywords: ['whatsapp', 'phone', 'number'] },
     { id: 'contact/email', tabId: 'contact', sectionId: 'email', label: 'Contact Email', group: 'Portal', keywords: ['email', 'mail', 'support'] },
 
-    { id: 'navigation', tabId: 'navigation', label: 'Navigation', group: 'Portal', keywords: ['menu', 'order', 'sidebar', 'nav'] },
+    { id: 'navigation', tabId: 'navigation', label: 'Navigation', group: 'Portal', keywords: ['menu', 'order', 'sidebar', 'nav', 'downloads', 'members'] },
     { id: 'home-layout', tabId: 'home-layout', label: 'Home Layout', group: 'Portal', keywords: ['dashboard', 'widgets', 'sections', 'home', 'layout', 'reorder', 'hide'] },
 
     { id: 'plex', tabId: 'plex', label: 'Media Player', group: 'Media Stack', keywords: ['plex', 'jellyfin', 'media', 'player', 'server'] },
@@ -35,16 +36,25 @@ export const SETTINGS_INDEX: SettingsIndexEntry[] = [
     { id: 'plex/analytics-usernames', tabId: 'plex', sectionId: 'analytics-usernames', label: 'Show Usernames in Analytics', group: 'Media Stack', keywords: ['analytics', 'usernames', 'viewer', 'privacy'] },
     { id: 'plex/libraries', tabId: 'plex', sectionId: 'libraries', label: 'Default Libraries', group: 'Media Stack', keywords: ['libraries', 'share', 'temporary', 'access'] },
 
-    { id: 'mediastack', tabId: 'mediastack', label: 'Integrations', group: 'Media Stack', keywords: ['integrations', 'arr', 'sonarr', 'radarr'] },
+    { id: 'mediastack', tabId: 'mediastack', label: 'Integrations', group: 'Media Stack', keywords: ['integrations', 'arr', 'sonarr', 'radarr', 'lidarr', 'bazarr', 'downloads', 'qbittorrent', 'transmission', 'deluge', 'sabnzbd', 'nzb'] },
     { id: 'mediastack/arr', tabId: 'mediastack', sectionId: 'arr', label: 'Sonarr & Radarr Instances', group: 'Media Stack', keywords: ['sonarr', 'radarr', 'arr', 'instances'] },
+    { id: 'mediastack/lidarr', tabId: 'mediastack', sectionId: 'lidarr', label: 'Lidarr Instances', group: 'Media Stack', keywords: ['lidarr', 'music', 'artists', 'albums', 'instances'] },
+    { id: 'mediastack/bazarr', tabId: 'mediastack', sectionId: 'bazarr', label: 'Bazarr Instances', group: 'Media Stack', keywords: ['bazarr', 'subtitles', 'subtitle', 'instances'] },
+    { id: 'mediastack/download-clients', tabId: 'mediastack', sectionId: 'download-clients', label: 'Download Clients', group: 'Media Stack', keywords: ['downloads', 'qbittorrent', 'transmission', 'bittorrent', 'deluge', 'sabnzbd', 'nzb', 'torrents'] },
     { id: 'mediastack/tautulli', tabId: 'mediastack', sectionId: 'tautulli', label: 'Tautulli Integration', group: 'Media Stack', keywords: ['tautulli', 'analytics', 'plex'] },
     { id: 'mediastack/jellystat', tabId: 'mediastack', sectionId: 'jellystat', label: 'Jellystat Integration', group: 'Media Stack', keywords: ['jellystat', 'jellyfin', 'analytics'] },
     { id: 'mediastack/seerr', tabId: 'mediastack', sectionId: 'seerr', label: 'Request App (Seerr/Ombi)', group: 'Media Stack', keywords: ['seerr', 'overseerr', 'jellyseerr', 'ombi', 'request'] },
     { id: 'mediastack/tmdb', tabId: 'mediastack', sectionId: 'tmdb', label: 'TMDB API Key', group: 'Media Stack', keywords: ['tmdb', 'api', 'trending', 'metadata'] },
 
+    { id: 'request', tabId: 'request', label: 'Request Discovery', group: 'Media Stack', keywords: ['request', 'discover', 'discovery', 'region', 'language', 'hide available', 'quota', 'permissions', 'seerr', 'overseerr'] },
+    { id: 'request/region', tabId: 'request', sectionId: 'region', label: 'Discover Region', group: 'Media Stack', keywords: ['discover region', 'country', 'region', 'availability'] },
+    { id: 'request/language', tabId: 'request', sectionId: 'language', label: 'Discover Language', group: 'Media Stack', keywords: ['discover language', 'original language', 'filter language'] },
+    { id: 'request/hide-available', tabId: 'request', sectionId: 'hide-available', label: 'Hide Available Media', group: 'Media Stack', keywords: ['hide available', 'library', 'discover filter'] },
+
     { id: 'status', tabId: 'status', label: 'Status Monitor', group: 'Media Stack', keywords: ['uptime', 'health', 'services', 'monitor'] },
 
     { id: 'smtp', tabId: 'smtp', label: 'SMTP Alerts', group: 'Comms', keywords: ['mail', 'smtp', 'email', 'alerts', 'test'] },
+    { id: 'gotify', tabId: 'gotify', label: 'Gotify Alerts', group: 'Comms', keywords: ['gotify', 'push', 'alerts', 'notifications', 'rules', 'self hosted'] },
     { id: 'newsletter', tabId: 'newsletter', label: 'Newsletter', group: 'Comms', keywords: ['digest', 'send', 'frequency', 'weekly', 'monthly'] },
     { id: 'broadcast', tabId: 'broadcast', label: 'Broadcast Email', group: 'Comms', keywords: ['announcement', 'bulk', 'users', 'broadcast'] },
     { id: 'invites', tabId: 'invites', label: 'Invites', group: 'Comms', keywords: ['invite', 'link', 'code'] },
@@ -55,6 +65,7 @@ export const SETTINGS_INDEX: SettingsIndexEntry[] = [
     { id: 'stream-rules', tabId: 'stream-rules', label: 'Stream Rules', group: 'Automation', keywords: ['kill', 'transcode', 'rule', 'stream'] },
     { id: 'tasks', tabId: 'tasks', label: 'Background Tasks', group: 'Automation', keywords: ['jobs', 'scheduler', 'run now', 'tasks'] },
     { id: 'upgrader', tabId: 'upgrader', label: 'Library Upgrader', group: 'Automation', keywords: ['upgrader', 'hevc', 'h264', 'codec', 'upgrade', 'sonarr', 'radarr'] },
+    { id: 'collexions', tabId: 'collexions', label: 'Collexions', group: 'Automation', keywords: ['collexions', 'collections', 'plex', 'trakt', 'sidecar', 'pinning', 'autostart', 'auto start'] },
     { id: 'system', tabId: 'system', label: 'System', group: 'Automation', keywords: ['system', 'diagnostics', 'backup'] },
     { id: 'system/health', tabId: 'system', sectionId: 'health', label: 'Health Dashboard', group: 'Automation', keywords: ['health', 'score', 'alerts', 'integrations'] },
     { id: 'system/maintenance', tabId: 'system', sectionId: 'maintenance', label: 'Cleaner Experimental Mode', group: 'Automation', keywords: ['cleaner', 'maintenance', 'experimental'] },
@@ -85,13 +96,14 @@ export const parseSettingsHash = (hash: string): { tabId: SettingsTabId | null; 
     if (!raw) return { tabId: null, sectionId: null };
     if (raw === 'system/upgrader') return { tabId: 'upgrader', sectionId: null };
     const [tabPart, ...sectionParts] = raw.split('/');
-    const tabId = SETTINGS_TABS.includes(tabPart as SettingsTabId) ? tabPart as SettingsTabId : null;
+    const normalizedTabPart = tabPart === 'media-player' ? 'plex' : tabPart;
+    const tabId = SETTINGS_TABS.includes(normalizedTabPart as SettingsTabId) ? normalizedTabPart as SettingsTabId : null;
     const sectionId = sectionParts.length > 0 ? sectionParts.join('/') : null;
     return { tabId, sectionId };
 };
 
 export const buildSettingsHash = (tabId: SettingsTabId, sectionId?: string | null) => (
-    sectionId ? `#${tabId}/${sectionId}` : `#${tabId}`
+    sectionId ? `#${tabId === 'plex' ? 'media-player' : tabId}/${sectionId}` : `#${tabId === 'plex' ? 'media-player' : tabId}`
 );
 
 export const getSettingsSectionElementId = (sectionId: string) => `settings-section-${sectionId}`;

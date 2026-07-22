@@ -3,7 +3,7 @@
 ## Requirements
 
 - Node.js 20.6 or newer for native `.env` support.
-- A Plex Media Server with an admin Plex token, or a Jellyfin server with an admin API key.
+- A Plex Media Server with an admin Plex token, or a Jellyfin/Emby server with an admin API key.
 - An SMTP provider if you want automated email notifications.
 
 ## Install Locally
@@ -34,14 +34,15 @@ Open `http://localhost:2121` and complete the setup wizard.
 
 ## First-Time Setup
 
-The setup wizard asks you to choose a media player mode:
+The setup wizard asks you to choose a media server mode:
 
 | Mode | Authentication | Analytics Companion | Branding |
 | --- | --- | --- | --- |
 | Plex | Plex.tv OAuth, Plex token, selected owned server | Tautulli | Plex or custom theme |
-| Jellyfin | Jellyfin username/password or Quick Connect | JellyStat | Jellyfin server assets or custom theme |
+| Jellyfin | Jellyfin username/password or Quick Connect | Jellystat | Jellyfin server assets or custom theme |
+| Emby | Emby-compatible server connection | Optional external analytics/status tools | Emby or custom theme |
 
-After setup, use the Settings area to configure the media player, SMTP, temporary access, branding, status services, home layout, and scheduled tasks.
+After setup, use the Settings area to configure the media server, SMTP, temporary access, branding, status services, integrations, home layout, and scheduled tasks.
 
 ## Runtime Data
 

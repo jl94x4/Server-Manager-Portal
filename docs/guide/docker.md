@@ -64,7 +64,7 @@ To publish a different host port, set `PORT=8080` in `.env`. The Compose file ma
 
 ## LAN Integrations
 
-For Sonarr, Radarr, Tautulli, JellyStat, Seerr, Jellyseerr, or Ombi running on a private network, set:
+For Sonarr, Radarr, Lidarr, Bazarr, Tautulli, Jellystat, request apps, or download clients running on a private network, set:
 
 ```ini
 ALLOW_PRIVATE_INTEGRATION_URLS=true

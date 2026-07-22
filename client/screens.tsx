@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2, Search, BookOpen, Loader2, Eye, ClipboardList, ArrowUpCircle, MoreHorizontal } from 'lucide-react';
+import { Home, Film, Activity, Sparkles, LogOut, Settings, FileText, BarChart3, Users, PlaySquare, TrendingUp, X, Star, Layers, HardDrive, Calendar, Tv, Clock, DownloadCloud, MonitorSmartphone, Copy, ChevronUp, ChevronDown, List, Palette, Music, Play, Pause, Upload, Shield, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Trophy, PlayCircle, Coffee, Compass, PieChart, Clapperboard, AlertTriangle, Check, Cpu, Monitor, LineChart as LucideLineChart, Share2, Search, BookOpen, Loader2, Eye, EyeOff, ClipboardList, ArrowUpCircle, MoreHorizontal, ExternalLink, Info, GitFork, MapPin } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
 
 import { SettingsDashboard } from './settings/SettingsDashboard';
@@ -11,7 +11,9 @@ import { getPublicOrigin, logoUrl, portalUrl, resolvePortalAssetUrl, stripBasePa
 import { formatDate, getDaysUntilExpiry, getAccessProgressPct, addMonths, addYears, formatTime, formatEventName, formatDateTime, hexToRgb, formatSizeCeil, formatStreamingHour } from './shared/format';
 import { CustomSelect, ConfirmModal, StyledCheckbox, ScrollReveal } from './shared/ui';
 import { PeriodDropdown } from './shared/PeriodDropdown';
+import { ActivityHeatmap } from './shared/ActivityHeatmap';
 import { Loader, Toast, ToastContainer, pushToast } from './shared/toast';
+import { NoPosterPlaceholder } from './shared/NoPosterPlaceholder';
 import {
     ActivityGridSkeleton,
     DiscoverPageSkeleton,
@@ -25,14 +27,92 @@ import type { User, PlexConfig, AppSettings, PlexServer, ToastMessage, DeletedUs
 import { ShareWrapUpModal } from './shared/ShareWrapUp';
 import { WrapUpCardGrid } from './shared/WrapUpCards';
 import { SetupWizard } from './setup/SetupWizard';
+import { DiscoveryDashboard } from './discovery/DiscoveryDashboard';
 import { AuthPageBackground, themeClasses, SlideshowBackground } from './shared/theme';
-import { activityStreamColumnCount, activityStreamGridClass, discoverPosterGridClass } from './shared/portalLayout';
-import { filterNavOrder, type NavFeatureFlags } from './shared/nav';
+import { activityStreamColumnCount, activityStreamGridClass, upgraderPosterGridClass, upgraderPosterGridStyle, type UpgraderGridSize } from './shared/portalLayout';
+import { DiscoverGridSizeSelect } from './discovery/DiscoverGridSizeSelect';
+import { useDiscoverGridSize } from './discovery/useDiscoverGridSize';
+import { DiscoverLocaleSelect } from './discovery/i18n/DiscoverLocaleSelect';
+import { filterNavOrder, ensureCompleteNavOrder, MOBILE_NAV_PRIMARY_SLOTS, type NavFeatureFlags } from './shared/nav';
+import {
+    STATUS_PERIODS,
+    barsForPeriod,
+    fleetUptimeForPeriod,
+    formatDurationShort,
+    formatLatencyMs,
+    historyRowsForPeriod,
+    incidentsForPeriod,
+    latencySeriesForPeriod,
+    periodStats,
+    statusToneFromPct,
+    uptimeForPeriod,
+    type StatusPeriod,
+} from './shared/statusHealth';
+import { StatusSpeedTest } from './shared/StatusSpeedTest';
 import { ANALYTICS_PERIOD_OPTIONS } from './shared/analyticsPeriodOptions';
 import { UserDashboardLayout } from './home/UserDashboardLayout';
-import { createMainGridWidgetRenderer, createPendingRequestsSectionRenderer, createRecentlyAddedWidgetRenderer } from './home/userDashboardWidgetRenderers';
+import { createBazarrToolsSectionRenderer, createMainGridWidgetRenderer, createPendingRequestsSectionRenderer, createRecentlyAddedWidgetRenderer } from './home/userDashboardWidgetRenderers';
+import {
+    DEFAULT_DASHBOARD_LAYOUT,
+    DASHBOARD_SECTION_LABELS,
+    MAIN_GRID_WIDGET_META,
+    RECENTLY_ADDED_WIDGET_META,
+    normalizeSectionLayout,
+    type DashboardLayoutConfig,
+    type DashboardSectionId,
+    type DashboardWidgetId,
+    type DashboardWidgetSize,
+    type MainGridWidgetId,
+    type RecentlyAddedWidgetId,
+} from './shared/dashboardLayout';
 
 const JELLYFIN_ICON_URL = 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg/jellyfin.svg';
+const STATUS_ICON_BASE = 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg';
+const SIMPLE_STATUS_ICON_BASE = 'https://cdn.simpleicons.org';
+const STATUS_SERVICE_ICONS: Record<string, string> = {
+    plex: `${STATUS_ICON_BASE}/plex.svg`,
+    jellyfin: `${STATUS_ICON_BASE}/jellyfin.svg`,
+    emby: `${STATUS_ICON_BASE}/emby.svg`,
+    tautulli: `${STATUS_ICON_BASE}/tautulli.svg`,
+    jellystat: 'https://cdn.jsdelivr.net/gh/selfhst/icons@main/png/jellystat.png',
+    sonarr: `${STATUS_ICON_BASE}/sonarr.svg`,
+    radarr: `${STATUS_ICON_BASE}/radarr.svg`,
+    lidarr: `${STATUS_ICON_BASE}/lidarr.svg`,
+    bazarr: `${STATUS_ICON_BASE}/bazarr.svg`,
+    qbittorrent: `${STATUS_ICON_BASE}/qbittorrent.svg`,
+    transmission: `${STATUS_ICON_BASE}/transmission.svg`,
+    bittorrent: `${SIMPLE_STATUS_ICON_BASE}/bittorrent`,
+    deluge: `${STATUS_ICON_BASE}/deluge.svg`,
+    sabnzbd: `${STATUS_ICON_BASE}/sabnzbd.svg`,
+    seerr: `${STATUS_ICON_BASE}/seerr.svg`,
+    overseerr: `${STATUS_ICON_BASE}/seerr.svg`,
+    jellyseerr: `${STATUS_ICON_BASE}/jellyseerr.svg`,
+    ombi: `${STATUS_ICON_BASE}/ombi.svg`,
+};
+
+const getStatusServiceIconKey = (service: any) => {
+    if (service?.clientType) return String(service.clientType).toLowerCase();
+    const id = String(service?.id || '').toLowerCase();
+    const name = String(service?.name || '').toLowerCase();
+    for (const key of Object.keys(STATUS_SERVICE_ICONS)) {
+        if (id.includes(key) || name.includes(key)) return key;
+    }
+    return '';
+};
+
+const StatusServiceIcon: React.FC<{ service: any }> = ({ service }) => {
+    const key = getStatusServiceIconKey(service);
+    const iconUrl = key ? STATUS_SERVICE_ICONS[key] : '';
+    return (
+        <span className="inline-flex w-10 h-10 rounded-lg bg-white/5 border border-white/10 items-center justify-center overflow-hidden flex-shrink-0">
+            {iconUrl ? (
+                <img src={iconUrl} alt="" className="w-6 h-6 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            ) : (
+                <Activity className="w-5 h-5 text-plex" />
+            )}
+        </span>
+    );
+};
 
 const jellyfinQuickConnectUrl = (baseUrl: string) => {
     const base = String(baseUrl || '').replace(/\/+$/, '');
@@ -61,6 +141,11 @@ declare global {
     }
 }
 
+type BeforeInstallPromptEvent = Event & {
+    prompt: () => Promise<void>;
+    userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+};
+
 
 export const updateFavicon = (thumbUrl: string | null | undefined) => {
     let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
@@ -70,17 +155,25 @@ export const updateFavicon = (thumbUrl: string | null | undefined) => {
         link.type = 'image/png';
         document.head.appendChild(link);
     }
+    let appleLink = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement;
+    if (!appleLink) {
+        appleLink = document.createElement('link');
+        appleLink.rel = 'apple-touch-icon';
+        appleLink.setAttribute('sizes', '180x180');
+        document.head.appendChild(appleLink);
+    }
+    let href = logoUrl();
     if (thumbUrl) {
         if (thumbUrl.startsWith('http://') || thumbUrl.startsWith('https://')) {
-            link.href = thumbUrl;
-        } else if (thumbUrl.startsWith('/api/')) {
-            link.href = resolvePortalAssetUrl(thumbUrl);
+            href = thumbUrl;
+        } else if (thumbUrl.startsWith('/api/') || thumbUrl.startsWith('/static/')) {
+            href = resolvePortalAssetUrl(thumbUrl);
         } else {
-            link.href = portalUrl(`/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=32&height=32`);
+            href = portalUrl(`/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=180&height=180`);
         }
-    } else {
-        link.href = logoUrl();
     }
+    link.href = href;
+    appleLink.href = href;
 };
 
 // --- Components ---
@@ -910,6 +1003,7 @@ const PersonalAnalyticsDashboard: React.FC<{ username: string, thumb: string | n
 };
 
 export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
+    const [detailsItem, setDetailsItem] = useState<any>(null);
     const [data, setData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
@@ -1071,6 +1165,11 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
     const activeStackConfigured = !!activeInstanceData?.configured;
 
     const activeStackLabel = activeInstanceData?.name || activeInstanceData?.instanceName || (isTvInstance ? 'Sonarr' : 'Radarr');
+    const stackTools = useMemo(() => (
+        Array.isArray(data?.tools)
+            ? data.tools.filter((tool: any) => tool?.type === 'lidarr' || tool?.type === 'bazarr')
+            : []
+    ), [data]);
 
     useEffect(() => {
         let cancelled = false;
@@ -1292,6 +1391,50 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
         );
     };
 
+    const renderToolCard = (tool: any) => {
+        const isBazarr = tool?.type === 'bazarr';
+        const label = tool?.name || (isBazarr ? 'Bazarr' : 'Lidarr');
+        const isOnline = !!tool?.status && !tool?.error;
+        const href = tool?.externalUrl || tool?.url || '';
+        return (
+            <div key={tool.id || `${tool.type}-${label}`} className="bg-card border border-white/5 shadow-2xl rounded-2xl p-4 md:p-5 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-5">
+                    {isBazarr ? <FileText className="w-20 h-20" /> : <Music className="w-20 h-20" />}
+                </div>
+                <div className="flex items-center justify-between gap-3 relative">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-plex/10 flex items-center justify-center border border-plex/20 shrink-0">
+                            {isBazarr ? <FileText className="w-5 h-5 text-plex" /> : <Music className="w-5 h-5 text-plex" />}
+                        </div>
+                        <div className="min-w-0">
+                            <h3 className="text-base font-bold text-text truncate">{label}</h3>
+                            <div className="flex items-center gap-2 mt-0.5">
+                                <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]'}`}></span>
+                                <span className={`text-[10px] font-bold tracking-wider uppercase ${isOnline ? 'text-green-500' : 'text-red-400'}`}>{isOnline ? 'Online' : 'Unavailable'}</span>
+                                {tool?.version && <span className="text-[10px] text-muted font-bold">v{tool.version}</span>}
+                            </div>
+                        </div>
+                    </div>
+                    {href && (
+                        <a
+                            href={href}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-2 rounded-lg text-muted hover:text-text hover:bg-white/5 transition-colors shrink-0"
+                            title={`Open ${label}`}
+                        >
+                            <ExternalLink className="w-4 h-4" />
+                        </a>
+                    )}
+                </div>
+                <p className="text-xs text-muted mt-4 relative">
+                    {isBazarr ? 'Subtitle management and automation' : 'Music library automation'}
+                    {tool?.error ? ` · ${tool.error}` : ''}
+                </p>
+            </div>
+        );
+    };
+
     return (
         <div className="w-full animate-fade-in flex flex-col gap-6">
             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-2">
@@ -1322,7 +1465,19 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
                 )}
             </div>
 
+            <button onClick={fetchData} className="px-3 py-1.5 bg-plex/10 hover:bg-plex/20 text-plex text-xs font-bold rounded-lg border border-plex/20 flex items-center gap-2 transition-all">
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+            </button>
+
+            <DetailsModal item={detailsItem} onClose={() => setDetailsItem(null)} />
+
             <div className="flex flex-col gap-8 w-full">
+                {stackTools.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-7xl">
+                        {stackTools.map(renderToolCard)}
+                    </div>
+                )}
 
                 <div className="w-full">
 
@@ -1362,9 +1517,9 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
                                 )}
                             </div>
                         ) : (
-                            <div className="flex items-start gap-3 md:gap-8 w-full">
+                            <div className="flex items-start gap-3 md:gap-5 xl:gap-6 w-full">
                                 {/* Left Sticky Poster */}
-                                <div className="sticky top-[64px] md:top-0 w-[120px] sm:w-[160px] md:w-[320px] flex-shrink-0">
+                                <div className="sticky top-[64px] md:top-0 w-[100px] sm:w-[140px] md:w-[200px] xl:w-[240px] flex-shrink-0 hidden sm:block">
                                     <div className="flex flex-col gap-4 mt-8 md:mt-0">
                                         <div className="relative aspect-[2/3] rounded-lg md:rounded-2xl overflow-hidden shadow-2xl border border-white/10 group bg-card">
                                             {activeCalendarItem?.imageUrl ? (
@@ -1381,53 +1536,61 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
                                                 )}
                                             </div>
                                         </div>
+                                        {activeCalendarItem?.title && (
+                                            <div className="hidden md:block px-0.5">
+                                                <p className="text-sm font-bold text-text leading-snug break-words">{activeCalendarItem.title}</p>
+                                                {activeCalendarItem.subtitle && (
+                                                    <p className="text-xs text-muted mt-1 break-words">{activeCalendarItem.subtitle}</p>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
-                                {/* Right Side: Vertical List */}
-                                <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 md:gap-8 pb-4">
+                                {/* Right Side: day columns */}
+                                <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5 pb-4">
                                     {Object.entries(groupedCalendar).map(([dateStr, items]: [string, typeof filteredCalendar]) => (
-                                        <div key={dateStr} className="flex flex-col gap-2 md:gap-3">
+                                        <div key={dateStr} className="flex flex-col gap-2 md:gap-3 min-w-0">
                                             <div className="sticky top-[64px] md:top-0 bg-card z-20 py-1 md:py-3 border-b border-white/10 md:mb-2 -mx-4 px-4 md:mx-0 md:px-0 shadow-[0_10px_20px_-10px_rgba(0,0,0,0.5)]">
-                                                <h3 className="text-sm md:text-xl font-black text-plex md:text-text tracking-tight uppercase">{dateStr}</h3>
+                                                <h3 className="text-sm md:text-base xl:text-lg font-black text-plex md:text-text tracking-tight uppercase truncate" title={dateStr}>{dateStr}</h3>
                                             </div>
                                             {items.map(item => (
                                                 <div
                                                     key={item.id}
                                                     onMouseEnter={() => setActiveCalendarItem(item)}
                                                     onClick={() => setActiveCalendarItem(item)}
-                                                    className={`bg-background/40 hover:bg-background/80 transition-all duration-300 rounded-lg md:rounded-xl p-2.5 md:p-4 flex flex-col gap-2 md:gap-3 shadow-md border-l-4 cursor-pointer group ${item.hasFile ? 'border-l-green-500/80' : item.monitored ? 'border-l-red-500/80' : 'border-l-blue-500/80'} ${activeCalendarItem?.id === item.id ? 'bg-white/10 border border-white/30 scale-[1.01] md:scale-[1.02]' : 'border border-white/5 hover:border-white/20'}`}
+                                                    className={`bg-background/40 hover:bg-background/80 transition-all duration-300 rounded-lg md:rounded-xl p-2.5 md:p-3 flex flex-col gap-1.5 shadow-md border-l-4 cursor-pointer group min-w-0 ${item.hasFile ? 'border-l-green-500/80' : item.monitored ? 'border-l-red-500/80' : 'border-l-blue-500/80'} ${activeCalendarItem?.id === item.id ? 'bg-white/10 border border-white/30 scale-[1.01]' : 'border border-white/5 hover:border-white/20'}`}
                                                 >
-                                                    <div className="flex justify-between items-start gap-2 md:gap-3">
-                                                        <div className="min-w-0 flex-grow">
-                                                            <div className="flex items-center gap-1.5 md:gap-2 mb-1 md:mb-2">
-                                                                <span className="text-[9px] md:text-[11px] text-plex flex items-center gap-1 md:gap-1.5 font-bold tracking-wide">
-                                                                    <Clock className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                                                                    {formatTime(item.date).replace(/^0:/, '12:')}
+                                                    <div className="flex items-center justify-between gap-2 min-w-0">
+                                                        <span className="text-[9px] md:text-[11px] text-plex flex items-center gap-1 md:gap-1.5 font-bold tracking-wide shrink-0">
+                                                            <Clock className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                                                            {formatTime(item.date).replace(/^0:/, '12:')}
+                                                        </span>
+                                                        {item.hasFile ? (
+                                                            <span className="text-[8px] md:text-[10px] font-bold text-green-500 bg-green-500/10 border border-green-500/20 rounded md:rounded-md px-1.5 py-0.5 whitespace-nowrap shrink-0">
+                                                                ✓ Ready
+                                                            </span>
+                                                        ) : (
+                                                            item.monitored && (
+                                                                <span className="text-[8px] md:text-[10px] font-bold text-plex bg-plex/10 border border-plex/20 rounded md:rounded-md px-1.5 py-0.5 flex items-center gap-1 whitespace-nowrap shrink-0">
+                                                                    <span className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-plex animate-pulse"></span>
+                                                                    Monitored
                                                                 </span>
-                                                            </div>
-                                                            <h4 className="font-bold text-xs sm:text-sm text-text line-clamp-2 md:line-clamp-3 leading-tight group-hover:text-plex transition-colors">
-                                                                {item.title}
-                                                            </h4>
-                                                            <p className="text-[10px] md:text-[12px] text-muted/80 line-clamp-2 mt-0.5 md:mt-1 font-medium">
-                                                                {item.subtitle}
-                                                            </p>
-                                                        </div>
-                                                        <div className="flex flex-col items-end gap-1.5 md:gap-2 flex-shrink-0">
-                                                            {item.hasFile ? (
-                                                                <span className="text-[8px] md:text-[10px] font-bold text-green-500 bg-green-500/10 border border-green-500/20 rounded md:rounded-md px-1.5 py-0.5 md:px-2 md:py-1 whitespace-nowrap">
-                                                                    ✓ Ready
-                                                                </span>
-                                                            ) : (
-                                                                item.monitored && (
-                                                                    <span className="text-[8px] md:text-[10px] font-bold text-plex bg-plex/10 border border-plex/20 rounded md:rounded-md px-1.5 py-0.5 md:px-2 md:py-1 flex items-center gap-1 md:gap-1.5 whitespace-nowrap">
-                                                                        <span className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-plex animate-pulse"></span>
-                                                                        Monitored
-                                                                    </span>
-                                                                )
-                                                            )}
-                                                        </div>
+                                                            )
+                                                        )}
                                                     </div>
+                                                    <h4
+                                                        className="font-bold text-xs sm:text-sm text-text leading-snug break-words group-hover:text-plex transition-colors"
+                                                        title={item.title}
+                                                    >
+                                                        {item.title}
+                                                    </h4>
+                                                    <p
+                                                        className="text-[10px] md:text-[12px] text-muted/80 leading-snug break-words font-medium"
+                                                        title={item.subtitle}
+                                                    >
+                                                        {item.subtitle}
+                                                    </p>
                                                 </div>
                                             ))}
                                         </div>
@@ -1525,6 +1688,363 @@ export const MediaStackDashboard: React.FC<{ isAdmin: boolean }> = ({ isAdmin })
                             )}
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export const DownloadStatusPage: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false }) => {
+    const [data, setData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [filter, setFilter] = useState<'all' | 'sonarr' | 'radarr' | 'lidarr' | 'unknown'>('all');
+    const [clientFilter, setClientFilter] = useState<string>('all');
+    const [busyAction, setBusyAction] = useState('');
+    const [uploadClientId, setUploadClientId] = useState('');
+    const [uploadCategory, setUploadCategory] = useState('');
+    const [torrentUrl, setTorrentUrl] = useState('');
+    const [torrentFile, setTorrentFile] = useState<File | null>(null);
+    const [uploadBusy, setUploadBusy] = useState(false);
+
+    const load = useCallback(async () => {
+        try {
+            const res = await apiFetch('/api/downloads/status');
+            setData(res);
+            setError('');
+        } catch (e: any) {
+            setError(e.message || 'Failed to load downloads');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        load();
+        const interval = setInterval(load, 15000);
+        return () => clearInterval(interval);
+    }, [load]);
+
+    const downloads = useMemo(() => {
+        const all = Array.isArray(data?.downloads) ? data.downloads : [];
+        const bySource = filter === 'all' ? all : all.filter((item: any) => item.source === filter);
+        return clientFilter === 'all' ? bySource : bySource.filter((item: any) => String(item.clientId) === clientFilter);
+    }, [data, filter, clientFilter]);
+
+    const torrentClients = useMemo(() => (
+        (Array.isArray(data?.clients) ? data.clients : [])
+            .filter((entry: any) => entry?.client?.type !== 'sabnzbd')
+            .map((entry: any) => entry.client)
+    ), [data]);
+
+    useEffect(() => {
+        if (!uploadClientId && torrentClients.length > 0) setUploadClientId(String(torrentClients[0].id));
+        if (uploadClientId && !torrentClients.some((client: any) => String(client.id) === uploadClientId)) {
+            setUploadClientId(torrentClients[0]?.id ? String(torrentClients[0].id) : '');
+        }
+    }, [torrentClients, uploadClientId]);
+
+    const formatBytes = (bytes: number) => {
+        if (!bytes) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let value = Number(bytes) || 0;
+        let unit = 0;
+        while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit += 1; }
+        return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unit]}`;
+    };
+
+    const sourceLabel = (source: string) => ({ sonarr: 'Sonarr', radarr: 'Radarr', lidarr: 'Lidarr', unknown: 'Other' }[source] || 'Other');
+    const uploadCategoryOptions = useMemo(() => {
+        const seen = new Set(['']);
+        const arrOptions = (Array.isArray(data?.downloadCategoryOptions) ? data.downloadCategoryOptions : [])
+            .map((option: any) => ({
+                label: String(option?.label || option?.value || '').trim(),
+                value: String(option?.value || '').trim(),
+            }))
+            .filter((option: any) => {
+                if (!option.value || seen.has(option.value)) return false;
+                seen.add(option.value);
+                return true;
+            });
+        return [{ label: 'No category', value: '' }, ...arrOptions];
+    }, [data]);
+    useEffect(() => {
+        if (uploadCategory && !uploadCategoryOptions.some((option) => String(option.value) === uploadCategory)) {
+            setUploadCategory('');
+        }
+    }, [uploadCategory, uploadCategoryOptions]);
+    const downloadClientLabel = (type: string) => ({
+        qbittorrent: 'qBittorrent',
+        transmission: 'Transmission',
+        bittorrent: 'BitTorrent',
+        deluge: 'Deluge',
+        sabnzbd: 'SABnzbd',
+    }[String(type || '').toLowerCase()] || 'Download Client');
+    const downloadClientIcon = (type: string) => {
+        const normalized = String(type || '').toLowerCase();
+        if (normalized === 'bittorrent') return 'https://cdn.simpleicons.org/bittorrent';
+        if (['qbittorrent', 'transmission', 'deluge', 'sabnzbd'].includes(normalized)) return `${STATUS_ICON_BASE}/${normalized}.svg`;
+        return `${STATUS_ICON_BASE}/qbittorrent.svg`;
+    };
+    const isPausedDownload = (item: any) => {
+        const state = String(item?.state || '').toLowerCase();
+        return state.includes('pause') || state.includes('stop') || state === 'queued';
+    };
+    const sendDownloadControl = async (item: any, action: 'pause' | 'resume' | 'remove') => {
+        const key = `${item.clientId}-${item.id}-${action}`;
+        setBusyAction(key);
+        try {
+            await apiFetch('/api/downloads/control', {
+                method: 'POST',
+                body: JSON.stringify({
+                    clientId: item.clientId,
+                    downloadId: item.downloadId || item.hash || item.infoHash || item.id,
+                    action,
+                }),
+            });
+            await load();
+        } catch (e: any) {
+            setError(e.message || `Failed to ${action} download`);
+        } finally {
+            setBusyAction('');
+        }
+    };
+    const controlDownload = (item: any, action: 'pause' | 'resume' | 'remove') => {
+        if (action === 'remove') {
+            appConfirm(
+                `Remove "${item.name}" from ${item.clientName}? Downloaded files will be left in place where the client supports it.`,
+                () => { sendDownloadControl(item, action); },
+            );
+            return;
+        }
+        sendDownloadControl(item, action);
+    };
+    const uploadTorrent = async () => {
+        const targetClientId = String(uploadClientId || '').trim();
+        if (!targetClientId) {
+            setError('Choose a download client first.');
+            return;
+        }
+        if (!torrentFile && !torrentUrl.trim()) {
+            setError('Add a torrent URL, magnet link, or torrent file.');
+            return;
+        }
+        setUploadBusy(true);
+        const category = String(uploadCategory || '').trim();
+        try {
+            if (torrentFile) {
+                const bytes = await torrentFile.arrayBuffer();
+                const params = new URLSearchParams({
+                    clientId: targetClientId,
+                    filename: torrentFile.name || 'upload.torrent',
+                });
+                if (category) params.set('category', category);
+                await apiFetch(`/api/downloads/add-file?${params.toString()}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': torrentFile.type || 'application/x-bittorrent' },
+                    body: bytes,
+                });
+            } else {
+                await apiFetch('/api/downloads/add-url', {
+                    method: 'POST',
+                    body: JSON.stringify({ clientId: targetClientId, url: torrentUrl.trim(), category }),
+                });
+            }
+            setTorrentUrl('');
+            setTorrentFile(null);
+            setError('');
+            await load();
+        } catch (e: any) {
+            setError(e.message || 'Failed to add torrent');
+        } finally {
+            setUploadBusy(false);
+        }
+    };
+
+    if (loading) return <Loader isLoading={true} />;
+
+    return (
+        <div className="w-full animate-fade-in flex flex-col gap-6">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-text uppercase tracking-widest flex items-center gap-3">
+                        <DownloadCloud className="w-8 h-8 text-plex" />
+                        Download Status
+                    </h1>
+                    <p className="text-muted text-sm mt-1">All configured download clients, grouped by Sonarr, Radarr, and Lidarr.</p>
+                </div>
+                <button type="button" onClick={load} className="px-4 py-2 rounded-lg border border-border text-sm font-bold text-text hover:bg-white/5">
+                    Refresh
+                </button>
+            </div>
+
+            {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 text-red-200 px-4 py-3 text-sm">{error}</div>}
+
+            {isAdmin && (
+                <div className="bg-card border border-white/5 rounded-2xl p-4 shadow-xl">
+                    <div className="flex flex-col lg:flex-row lg:items-end gap-3">
+                        <div className="lg:w-56">
+                            <label className="text-[10px] uppercase tracking-widest font-bold text-muted mb-1.5 block">Client</label>
+                            <CustomSelect
+                                value={uploadClientId}
+                                onChange={setUploadClientId}
+                                options={torrentClients.map((client: any) => ({
+                                    label: client.name || downloadClientLabel(client.type),
+                                    value: String(client.id),
+                                }))}
+                            />
+                        </div>
+                        <div className="lg:w-48">
+                            <label className="text-[10px] uppercase tracking-widest font-bold text-muted mb-1.5 block">Category</label>
+                            <CustomSelect
+                                value={uploadCategory}
+                                onChange={setUploadCategory}
+                                options={uploadCategoryOptions}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <label className="text-[10px] uppercase tracking-widest font-bold text-muted mb-1.5 block">Torrent URL or Magnet</label>
+                            <input
+                                value={torrentUrl}
+                                onChange={(e) => { setTorrentUrl(e.target.value); if (e.target.value.trim()) setTorrentFile(null); }}
+                                placeholder="magnet:?xt=... or https://example/torrent.torrent"
+                                className="w-full px-4 py-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all text-sm"
+                            />
+                        </div>
+                        <label className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-border bg-white/[0.04] text-sm font-bold text-text hover:bg-white/10 cursor-pointer transition-colors">
+                            <Upload className="w-4 h-4 text-plex" />
+                            {torrentFile ? torrentFile.name : 'Torrent File'}
+                            <input
+                                type="file"
+                                accept=".torrent,application/x-bittorrent"
+                                className="hidden"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0] || null;
+                                    setTorrentFile(file);
+                                    if (file) setTorrentUrl('');
+                                }}
+                            />
+                        </label>
+                        <button
+                            type="button"
+                            onClick={uploadTorrent}
+                            disabled={uploadBusy || !uploadClientId || (!torrentFile && !torrentUrl.trim())}
+                            className="px-5 py-3 rounded-lg bg-plex text-background text-sm font-black hover:bg-plex-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            {uploadBusy ? 'Sending...' : 'Add Torrent'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {(['all', 'sonarr', 'radarr', 'lidarr', 'unknown'] as const).map((key) => (
+                    <button key={key} type="button" onClick={() => setFilter(key)} className={`rounded-xl border p-4 text-left transition-colors ${filter === key ? 'border-plex bg-plex/10 text-plex' : 'border-white/5 bg-card text-text hover:bg-white/5'}`}>
+                        <p className="text-[10px] uppercase tracking-widest font-bold text-muted">{key === 'all' ? 'All' : sourceLabel(key)}</p>
+                        <p className="text-2xl font-black mt-1">{key === 'all' ? data?.counts?.total || 0 : data?.counts?.[key] || 0}</p>
+                    </button>
+                ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="lg:col-span-2 bg-card border border-white/5 rounded-2xl p-4 shadow-xl">
+                    <h2 className="text-xl font-bold text-text mb-4">Active Downloads</h2>
+                    <div className="space-y-3">
+                        {downloads.length === 0 ? (
+                            <div className="text-center py-12 text-muted bg-background/30 rounded-xl border border-white/5">No downloads for this filter.</div>
+                        ) : downloads.map((item: any) => {
+                            const paused = isPausedDownload(item);
+                            const actionKey = `${item.clientId}-${item.id}`;
+                            return (
+                            <div key={`${item.clientId}-${item.id}`} className="rounded-xl border border-white/5 bg-background/40 p-4">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 min-w-0 w-full">
+                                            <p className="font-bold text-text truncate min-w-0">{item.name}</p>
+                                            <img src={downloadClientIcon(item.clientType)} alt="" className="w-4 h-4 object-contain shrink-0 opacity-80 ml-auto" />
+                                        </div>
+                                        <p className="text-xs text-muted mt-1">
+                                            {item.clientName} · {sourceLabel(item.source)}
+                                            {item.arrInstanceName ? ` · ${item.arrInstanceName}` : ''}
+                                            {' · '}
+                                            {item.state || 'Unknown'}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <span className="text-sm font-black text-plex">{Math.round(item.progress || 0)}%</span>
+                                        {isAdmin && (
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => controlDownload(item, paused ? 'resume' : 'pause')}
+                                                    disabled={busyAction.startsWith(actionKey)}
+                                                    title={paused ? 'Resume download' : 'Pause download'}
+                                                    className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-text hover:border-plex/40 hover:text-plex disabled:opacity-50 transition-colors"
+                                                >
+                                                    {paused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => controlDownload(item, 'remove')}
+                                                    disabled={busyAction.startsWith(actionKey)}
+                                                    title="Remove download"
+                                                    className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-red-500/20 bg-red-500/10 text-red-200 hover:bg-red-500/20 disabled:opacity-50 transition-colors"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="h-2 bg-white/5 rounded-full overflow-hidden mt-3">
+                                    <div className="h-full bg-plex rounded-full" style={{ width: `${Math.max(0, Math.min(100, item.progress || 0))}%` }} />
+                                </div>
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted mt-2">
+                                    <span>{formatBytes(item.downloaded)} / {formatBytes(item.size)}</span>
+                                    <span>Down {formatBytes(item.downloadSpeed)}/s</span>
+                                    <span>Up {formatBytes(item.uploadSpeed)}/s</span>
+                                    {item.category && <span>{item.category}</span>}
+                                    {item.sourceReason === 'arr_queue' && <span>Matched from Arr queue</span>}
+                                </div>
+                            </div>
+                        );})}
+                    </div>
+                </div>
+                <div className="bg-card border border-white/5 rounded-2xl p-4 shadow-xl">
+                    <h2 className="text-xl font-bold text-text mb-4">Clients</h2>
+                    <div className="space-y-3">
+                        {(data?.clients || []).length === 0 ? (
+                            <p className="text-sm text-muted">No download clients configured in Settings.</p>
+                        ) : data.clients.map((client: any) => {
+                            const activeClientFilter = clientFilter === String(client.client.id);
+                            return (
+                            <button
+                                key={client.client.id}
+                                type="button"
+                                onClick={() => setClientFilter(activeClientFilter ? 'all' : String(client.client.id))}
+                                className={`w-full rounded-xl border p-3 text-left transition-colors ${activeClientFilter ? 'border-plex bg-plex/10' : 'border-white/5 bg-background/40 hover:bg-white/[0.06]'}`}
+                            >
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <span className="inline-flex w-8 h-8 rounded-lg bg-white/5 border border-white/10 items-center justify-center overflow-hidden shrink-0">
+                                            <img src={downloadClientIcon(client.client.type)} alt="" className="w-5 h-5 object-contain" />
+                                        </span>
+                                        <div className="min-w-0">
+                                            <p className="font-bold text-text truncate">{client.client.name || downloadClientLabel(client.client.type)}</p>
+                                            <p className="text-[11px] text-muted">{downloadClientLabel(client.client.type)} · {client.count} downloads</p>
+                                        </div>
+                                    </div>
+                                    <span className={`w-2.5 h-2.5 rounded-full ${client.online ? 'bg-green-500' : 'bg-red-500'}`} />
+                                </div>
+                                {client.error && <p className="text-xs text-red-300 mt-2">{client.error}</p>}
+                            </button>
+                        );})}
+                    </div>
+                    {clientFilter !== 'all' && (
+                        <button type="button" onClick={() => setClientFilter('all')} className="mt-3 text-xs font-bold text-plex hover:underline">
+                            Clear client filter
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
@@ -1899,10 +2419,13 @@ const ServerInsightsWidget: React.FC<{
     compare: any,
     analyticsSourceLabel: string,
     peakDate?: string,
-    setPeakDate?: (date: string) => void,
+    setPeakDate: (date: string) => void,
     peakDateData?: number[] | null,
-    peakDateLoading?: boolean
-}> = ({ peakHours, tautulliData, compare, analyticsSourceLabel, peakDate, setPeakDate, peakDateData, peakDateLoading }) => {
+    peakDateLoading?: boolean,
+    isJellyfinPortal?: boolean,
+    periodPlays?: number,
+    uniqueViewers?: number,
+}> = ({ peakHours, tautulliData, compare, analyticsSourceLabel, peakDate, setPeakDate, peakDateData, peakDateLoading, isJellyfinPortal = false, periodPlays = 0, uniqueViewers = 0 }) => {
     
     // Format chart data
     const activePeakHours = peakDateData || peakHours;
@@ -1914,6 +2437,10 @@ const ServerInsightsWidget: React.FC<{
             plays: count
         };
     }) : [];
+    const statsAreJellystatTotals = isJellyfinPortal && tautulliData?.playbackMethodStatsAreTotals;
+    const displayPeriodPlays = compare?.totalPlaybacks?.current ?? periodPlays ?? tautulliData?.totalPlays ?? 0;
+    const displayUniqueViewers = compare?.uniqueViewers?.current ?? uniqueViewers ?? 0;
+    const displayWatchTime = tautulliData?.totalTimeStr || (isJellyfinPortal ? 'Unavailable' : '0 mins');
 
     const formatChange = (data: any) => {
         if (!data || data.percent === null) return null;
@@ -1988,32 +2515,39 @@ const ServerInsightsWidget: React.FC<{
                         <Activity className="w-4 h-4 text-[#3b82f6]" /> {analyticsSourceLabel} Records & Period Stats
                     </h3>
                     <div className="grid grid-cols-2 gap-3 relative z-10">
-                        <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
-                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Users className="w-3 h-3 text-[#3b82f6]"/> Peak Streams</span>
-                            <p className="text-xl font-black text-[#3b82f6]">{tautulliData?.streamsRecord || 0} <span className="text-[9px] font-normal text-muted">concurrent</span></p>
-                        </div>
+                        {!isJellyfinPortal ? (
+                            <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
+                                <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Users className="w-3 h-3 text-[#3b82f6]"/> Peak Streams</span>
+                                <p className="text-xl font-black text-[#3b82f6]">{tautulliData?.streamsRecord || 0} <span className="text-[9px] font-normal text-muted">concurrent</span></p>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
+                                <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Users className="w-3 h-3 text-[#3b82f6]"/> Active Streams</span>
+                                <p className="text-xl font-black text-[#3b82f6]">{tautulliData?.activeStreams || 0} <span className="text-[9px] font-normal text-muted">now</span></p>
+                            </div>
+                        )}
                         <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
                             <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Clock className="w-3 h-3 text-green-400"/> Watch Time</span>
-                            <p className="text-base font-black text-green-400 leading-tight">{tautulliData?.totalTimeStr || '0 mins'}</p>
+                            <p className="text-base font-black text-green-400 leading-tight">{displayWatchTime}</p>
                         </div>
                         <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
                             <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><TrendingUp className="w-3 h-3 text-yellow-400"/> Period Plays</span>
-                            <p className="text-xl font-black text-yellow-400 flex items-center">{compare?.totalPlaybacks?.current || 0} {formatChange(compare?.totalPlaybacks)}</p>
+                            <p className="text-xl font-black text-yellow-400 flex items-center">{displayPeriodPlays.toLocaleString()} {formatChange(compare?.totalPlaybacks)}</p>
                         </div>
                         <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
                             <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Users className="w-3 h-3 text-pink-400"/> Unique Viewers</span>
-                            <p className="text-xl font-black text-pink-400 flex items-center">{compare?.uniqueViewers?.current || 0} {formatChange(compare?.uniqueViewers)}</p>
+                            <p className="text-xl font-black text-pink-400 flex items-center">{displayUniqueViewers.toLocaleString()} {formatChange(compare?.uniqueViewers)}</p>
                         </div>
                         <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
-                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Monitor className="w-3 h-3 text-cyan-400" /> Peak Direct Plays</span>
+                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Monitor className="w-3 h-3 text-cyan-400" /> {statsAreJellystatTotals ? 'Direct Plays' : 'Peak Direct Plays'}</span>
                             <p className="font-mono font-black text-cyan-400 text-xl">{tautulliData?.directPlayRecord || 0}</p>
                         </div>
                         <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
-                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Activity className="w-3 h-3 text-orange-400" /> Peak Direct Streams</span>
+                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Activity className="w-3 h-3 text-orange-400" /> {statsAreJellystatTotals ? 'Direct Streams' : 'Peak Direct Streams'}</span>
                             <p className="font-mono font-black text-orange-400 text-xl">{tautulliData?.directStreamRecord || 0}</p>
                         </div>
                         <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
-                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Settings className="w-3 h-3 text-rose-400" /> Peak Transcodes</span>
+                            <span className="font-bold text-muted text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Settings className="w-3 h-3 text-rose-400" /> {statsAreJellystatTotals ? 'Transcodes' : 'Peak Transcodes'}</span>
                             <p className="font-mono font-black text-rose-400 text-xl">{tautulliData?.transcodeRecord || 0}</p>
                         </div>
                         <div className="flex flex-col p-3 bg-black/20 rounded-lg border border-white/5 shadow-inner">
@@ -2157,6 +2691,178 @@ const AnimatedLeaderboard: React.FC<{ users: any[], resolveAvatar: (thumb: strin
         </div>
     );
 };
+const DetailsModal: React.FC<{ item: any, onClose: () => void }> = ({ item, onClose }) => {
+    const [details, setDetails] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    
+    useEffect(() => {
+        if (!item) return;
+        const fetchDetails = async () => {
+            try {
+                // Robust ratingKey extraction
+                let ratingKey = '';
+                if (item.ratingKey) {
+                    ratingKey = item.ratingKey;
+                } else if (item.key) {
+                    const m = String(item.key).match(/\/(\d+)$/);
+                    if (m) ratingKey = m[1];
+                } else if (item.plexUrl) {
+                    const decoded = decodeURIComponent(item.plexUrl);
+                    const match = decoded.match(/metadata\/(\d+)/);
+                    if (match) ratingKey = match[1];
+                }
+
+                if (!ratingKey) {
+                    console.warn('Could not extract ratingKey from item:', item);
+                    setLoading(false);
+                    return;
+                }
+                const res = await apiFetch('/api/plex/item/' + encodeURIComponent(ratingKey));
+                if (res.ok) {
+                    const data = await res.json();
+                    if (!data.error) setDetails(data);
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchDetails();
+    }, [item]);
+
+    if (!item) return null;
+
+    const formatDuration = (ms: number) => {
+        if (!ms) return '0m';
+        const mins = Math.floor(ms / 60000);
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        return h > 0 ? `${h}h ${m}m` : `${m}m`;
+    };
+
+    const hasProgress = details?.viewOffset > 0 && details?.duration > 0;
+    const progressPct = hasProgress ? Math.min(100, Math.max(0, (details.viewOffset / details.duration) * 100)) : 0;
+    const isCompleted = details?.viewCount > 0;
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 animate-fade-in backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-card border border-border w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-slide-up overflow-hidden relative isolate" onClick={e => e.stopPropagation()}>
+                {/* Header with Background */}
+                <div className="relative h-48 sm:h-56 flex-shrink-0 bg-black/50 border-b border-white/5 rounded-t-2xl overflow-hidden">
+                    {details?.art ? (
+                        <img src={resolvePortalAssetUrl(details.art)} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+                    ) : null}
+                    <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" />
+                    
+                    <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-black/40 hover:bg-black/60 rounded-full transition-colors text-white/70 hover:text-white z-10 border border-white/10">
+                        <X className="w-5 h-5" />
+                    </button>
+
+                    <div className="absolute bottom-0 left-0 right-0 p-5 flex gap-4">
+                        <div className={`w-16 sm:w-20 ${item.type === 'track' ? 'aspect-square' : 'aspect-[2/3]'} rounded-md overflow-hidden flex-shrink-0 shadow-lg border border-white/10 bg-black/50 z-10`}>
+                            {details?.thumb || item.thumbUrl ? (
+                                <img src={resolvePortalAssetUrl(details?.thumb || item.thumbUrl)} alt="" className="w-full h-full object-cover" />
+                            ) : null}
+                        </div>
+                        <div className="flex-1 min-w-0 flex flex-col justify-end pb-1 z-10">
+                            <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight drop-shadow-md">
+                                {details?.title || item.title}
+                            </h2>
+                            {(details?.year || details?.grandparentTitle) && (
+                                <span className="text-sm text-white/70 font-semibold drop-shadow-sm mt-1">
+                                    {details?.grandparentTitle ? `${details.grandparentTitle} • ` : ''}{details?.year || ''}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Content */}
+                <div className="p-5 flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+                    {loading ? (
+                        <div className="flex justify-center items-center py-12"><span className="animate-pulse text-muted font-medium">Loading details...</span></div>
+                    ) : details ? (
+                        <div className="space-y-6">
+                            {/* Watch Progress */}
+                            <div className="bg-white/5 rounded-xl p-4 border border-white/5 shadow-inner">
+                                <div className="flex justify-between items-end mb-2.5">
+                                    <div>
+                                        <h4 className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Watch Status</h4>
+                                        <p className="text-sm font-semibold text-text">
+                                            {isCompleted ? 'Completed' : hasProgress ? `Watched ${formatDuration(details.viewOffset)} of ${formatDuration(details.duration)}` : `Duration: ${formatDuration(details.duration)}`}
+                                        </p>
+                                    </div>
+                                    {isCompleted && <div className="text-plex drop-shadow-[0_0_8px_rgba(229,160,13,0.5)]"><CheckCircle className="w-5 h-5" /></div>}
+                                </div>
+                                {(hasProgress || isCompleted) && (
+                                    <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
+                                        <div className="h-full bg-plex rounded-full transition-all duration-1000" style={{ width: isCompleted ? '100%' : `${progressPct}%` }} />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Summary */}
+                            {details.summary && (
+                                <div>
+                                    <h4 className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">Overview</h4>
+                                    <p className="text-sm text-text/80 leading-relaxed font-medium">{details.summary}</p>
+                                </div>
+                            )}
+                            
+                            <div className="pt-2">
+                                <a href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm font-bold text-text transition-colors border border-white/5 hover:border-white/10">
+                                    <PlaySquare className="w-4 h-4 text-plex" /> View on Plex
+                                </a>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-center py-12 text-muted font-medium">Details not available.</div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const ItemViewersModal: React.FC<{ item: { title: string, viewers: Record<string, any> } | null, onClose: () => void, resolveAvatar: (t: string|null|undefined) => string }> = ({ item, onClose, resolveAvatar }) => {
+    if (!item) return null;
+    const viewersArray = item.viewers ? Object.values(item.viewers).sort((a: any, b: any) => b.plays - a.plays) : [];
+    
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 animate-fade-in backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-card border border-border w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[80vh] animate-slide-up overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between p-5 border-b border-white/5 bg-black/20">
+                    <h2 className="text-lg font-bold text-white pr-4 line-clamp-1 flex items-center gap-2"><PlaySquare className="w-5 h-5 text-plex" /> {item.title}</h2>
+                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors text-muted hover:text-white flex-shrink-0">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
+                    {viewersArray.length === 0 ? (
+                        <p className="p-4 text-center text-muted text-sm leading-relaxed">No specific viewer data available for this item yet. Viewer data will populate automatically as new views occur.</p>
+                    ) : (
+                        <div className="flex flex-col gap-1 p-2">
+                            {viewersArray.map((v: any, i: number) => (
+                                <div key={i} className="flex items-center justify-between p-3 bg-background/50 hover:bg-white/5 rounded-xl transition-colors border border-transparent hover:border-white/5">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full overflow-hidden bg-white/10 shadow-inner flex-shrink-0">
+                                            <img src={resolveAvatar(v.thumb)} alt={v.username} className="w-full h-full object-cover" />
+                                        </div>
+                                        <span className="font-bold text-text truncate max-w-[150px] sm:max-w-[200px]">{v.username}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 bg-plex/10 text-plex px-3 py-1.5 rounded-lg text-sm font-mono font-bold shadow-sm">
+                                        {v.plays} {v.plays === 1 ? 'play' : 'plays'}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
 
 export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }> = ({ isAdmin, sessionInfo }) => {
     const [analyticsData, setAnalyticsData] = useState<{
@@ -2168,6 +2874,7 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
         topDevices: any[],
         peakHours: number[],
         totalPlaybacks: number,
+        totalActiveUsers?: number,
         maxConcurrentStreams: number,
         maxDirectPlays: number,
         maxTranscodes: number,
@@ -2389,17 +3096,17 @@ export const AnalyticsDashboard: React.FC<{ isAdmin: boolean, sessionInfo: any }
 return (
         <div className="w-full min-w-0 animate-fade-in flex flex-col gap-6">
             <div className="flex flex-col gap-4 mb-6">
-                <h1 className="text-3xl font-black text-white flex items-center gap-3 uppercase tracking-wider">
+                <h1 className="text-3xl font-black text-text flex items-center gap-3 uppercase tracking-wider">
                     <BarChart3 className="w-8 h-8 text-plex" />
                     Advanced Analytics
                 </h1>
                 <div className="flex flex-row items-center justify-between gap-3 w-full">
                     <div className="flex bg-black/40 rounded-lg p-1 border border-white/5 w-fit overflow-x-auto hide-scrollbar">
-                        <button onClick={() => setViewTab('overview')} className={`px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 md:gap-2 ${viewTab === 'overview' ? 'bg-plex text-white shadow-lg' : 'text-muted hover:text-white'}`}>
+                        <button onClick={() => setViewTab('overview')} className={`px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 md:gap-2 ${viewTab === 'overview' ? 'bg-plex text-background' : 'text-muted hover:text-text'}`}>
                             <Activity className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Overview</span><span className="sm:hidden">Overview</span>
                         </button>
                         {!isJellyfinPortal && (
-                            <button onClick={() => setViewTab('graphs')} className={`px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 md:gap-2 ${viewTab === 'graphs' ? 'bg-plex text-white shadow-lg' : 'text-muted hover:text-white'}`}>
+                            <button onClick={() => setViewTab('graphs')} className={`px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 md:gap-2 ${viewTab === 'graphs' ? 'bg-plex text-background' : 'text-muted hover:text-text'}`}>
                                 <LucideLineChart className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Graphs</span><span className="sm:hidden">Graphs</span>
                             </button>
                         )}
@@ -2684,6 +3391,9 @@ return (
                             setPeakDate={setPeakDate}
                             peakDateData={peakDateData}
                             peakDateLoading={peakDateLoading}
+                            isJellyfinPortal={isJellyfinPortal}
+                            periodPlays={analyticsData?.totalPlaybacks || tautulliData?.totalPlays || 0}
+                            uniqueViewers={analyticsData?.totalActiveUsers || topUsers?.length || 0}
                         />
 
                         {/* Top Devices & Libraries Container */}
@@ -3018,6 +3728,170 @@ export const LogsDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
                     </section>
                 </div>
             </main>
+        </div>
+    );
+};
+
+const ABOUT_CONTRIBUTORS = [
+    {
+        name: 'jl94x4',
+        role: 'Plex side',
+        href: 'https://github.com/jl94x4',
+        avatarUrl: 'https://github.com/jl94x4.png?size=128',
+        note: 'Original project maintainer and Plex workflow lead.',
+    },
+    {
+        name: 'Nerdy-Technician',
+        role: 'Jellyfin / Emby side',
+        href: 'https://github.com/Nerdy-Technician',
+        avatarUrl: 'https://github.com/Nerdy-Technician.png?size=128',
+        note: 'Jellyfin and Emby focused contributor and integration work.',
+    },
+];
+
+const ABOUT_LINKS = [
+    { label: 'Documentation', href: 'https://jl94x4.github.io/Server-Manager-Portal/' },
+    { label: 'GitHub Repository', href: 'https://github.com/jl94x4/Server-Manager-Portal' },
+    { label: 'Feature Overview', href: 'https://jl94x4.github.io/Server-Manager-Portal/features/overview.html' },
+    { label: 'Getting Started', href: 'https://jl94x4.github.io/Server-Manager-Portal/guide/getting-started.html' },
+];
+
+export const AboutDashboard: React.FC<{ appVersion?: string; mediaServerType?: string }> = ({ appVersion, mediaServerType = 'plex' }) => {
+    const providerLabel = String(mediaServerType || 'plex').toLowerCase() === 'jellyfin'
+        ? 'Jellyfin'
+        : String(mediaServerType || 'plex').toLowerCase() === 'emby'
+            ? 'Emby'
+            : 'Plex';
+    const featurePillClass = 'rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-muted';
+    return (
+        <div className="w-full space-y-6 animate-fade-in">
+            <div className="rounded-xl border border-border/70 bg-card/80 overflow-hidden shadow-2xl">
+                <div className="p-6 sm:p-8 border-b border-border/70 bg-gradient-to-br from-white/10 via-transparent to-plex/10">
+                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-3 mb-4">
+                                <span className="w-12 h-12 rounded-xl bg-plex/15 border border-plex/30 flex items-center justify-center">
+                                    <Info className="w-6 h-6 text-plex" />
+                                </span>
+                                <div>
+                                    <p className="text-xs uppercase tracking-[0.22em] text-muted font-bold">About the project</p>
+                                    <h1 className="text-3xl sm:text-4xl font-black text-text tracking-tight">Server Portal Manager</h1>
+                                </div>
+                            </div>
+                            <p className="text-base sm:text-lg text-muted max-w-3xl leading-relaxed">
+                                Server Portal Manager is the Media Control Station for a self-hosted media server: one central pane of glass for user access, request workflows, live activity, analytics, dashboards, and maintenance across Plex, Emby, and Jellyfin.
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 lg:w-72 flex-shrink-0">
+                            <div className="rounded-lg border border-border bg-background/70 p-3">
+                                <p className="text-[10px] uppercase tracking-[0.18em] text-muted">Current mode</p>
+                                <p className="mt-1 text-lg font-black text-text">{providerLabel}</p>
+                            </div>
+                            <div className="rounded-lg border border-border bg-background/70 p-3">
+                                <p className="text-[10px] uppercase tracking-[0.18em] text-muted">Version</p>
+                                <p className="mt-1 text-sm font-mono font-bold text-plex truncate">{appVersion || 'Development'}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-6 sm:p-8 grid grid-cols-1 xl:grid-cols-[1.35fr_0.65fr] gap-6">
+                    <section className="space-y-5">
+                        <div>
+                            <h2 className="text-xl font-black text-text mb-3">One Central Place</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {[
+                                    { icon: Users, title: 'Access & users', body: 'Manage invites, expiry, revokes, profiles, and admin impersonation without jumping between server tools.' },
+                                    { icon: BarChart3, title: 'Stats & analytics', body: 'Bring server-wide rankings, personal wrap-ups, watch history, peak hours, libraries, and play trends into one dashboard.' },
+                                    { icon: Activity, title: 'Live monitoring', body: 'See active streams, direct play/transcode status, player details, bandwidth, and current media activity at a glance.' },
+                                    { icon: ClipboardList, title: 'Requests & review', body: 'Review Seerr, Jellyseerr, and Ombi requests from the same place as dashboards, user stats, and media operations.' },
+                                    { icon: Calendar, title: 'Media stack', body: 'Surface Sonarr and Radarr calendars, queues, history, and connected service health inside the portal.' },
+                                    { icon: Shield, title: 'Maintenance', body: 'Run library cleanup, status monitoring, upgrader workflows, logs, audits, and operational checks from a single console.' },
+                                ].map(({ icon: Icon, title, body }) => (
+                                    <div key={title} className="rounded-lg border border-border bg-background/70 p-4">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <span className="w-9 h-9 rounded-lg bg-plex/10 border border-plex/20 flex items-center justify-center">
+                                                <Icon className="w-4 h-4 text-plex" />
+                                            </span>
+                                            <h3 className="font-bold text-text">{title}</h3>
+                                        </div>
+                                        <p className="text-sm text-muted leading-relaxed">{body}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="rounded-lg border border-border bg-background/70 p-4">
+                            <h2 className="text-lg font-black text-text mb-3">Supported Ecosystem</h2>
+                            <div className="flex flex-wrap gap-2">
+                                {['Plex', 'Jellyfin', 'Emby', 'Seerr', 'Jellyseerr', 'Ombi', 'Sonarr', 'Radarr', 'Tautulli', 'Jellystat', 'Download clients'].map((item) => (
+                                    <span key={item} className={featurePillClass}>{item}</span>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+
+                    <aside className="space-y-5">
+                        <section className="rounded-lg border border-border bg-background/70 p-4">
+                            <div className="flex items-center gap-2 mb-4">
+                                <GitFork className="w-5 h-5 text-plex" />
+                                <h2 className="text-lg font-black text-text">Contributors</h2>
+                            </div>
+                            <div className="space-y-3">
+                                {ABOUT_CONTRIBUTORS.map((contributor) => (
+                                    <a
+                                        key={contributor.name}
+                                        href={contributor.href}
+	                                        target="_blank"
+	                                        rel="noopener noreferrer"
+	                                        className="block rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 hover:border-plex/40 transition-colors p-3"
+	                                    >
+	                                        <div className="flex items-start gap-3">
+	                                            <img
+	                                                src={contributor.avatarUrl}
+	                                                alt=""
+	                                                className="w-12 h-12 rounded-full object-cover bg-background border border-white/10 flex-shrink-0"
+	                                                loading="lazy"
+	                                            />
+	                                            <div className="min-w-0 flex-1">
+	                                                <div className="flex items-center justify-between gap-3">
+	                                                    <div className="min-w-0">
+	                                                        <p className="font-bold text-text truncate">{contributor.name}</p>
+	                                                        <p className="text-xs text-plex font-bold">{contributor.role}</p>
+	                                                    </div>
+	                                                    <ExternalLink className="w-4 h-4 text-muted flex-shrink-0" />
+	                                                </div>
+	                                                <p className="mt-2 text-xs text-muted leading-relaxed">{contributor.note}</p>
+	                                            </div>
+	                                        </div>
+	                                    </a>
+                                ))}
+                            </div>
+                        </section>
+
+                        <section className="rounded-lg border border-border bg-background/70 p-4">
+                            <div className="flex items-center gap-2 mb-4">
+                                <BookOpen className="w-5 h-5 text-plex" />
+                                <h2 className="text-lg font-black text-text">Project Links</h2>
+                            </div>
+                            <div className="space-y-2">
+                                {ABOUT_LINKS.map((link) => (
+                                    <a
+                                        key={link.href}
+                                        href={link.href}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 hover:border-plex/40 transition-colors px-3 py-2 text-sm font-semibold text-text"
+                                    >
+                                        <span>{link.label}</span>
+                                        <ExternalLink className="w-4 h-4 text-muted flex-shrink-0" />
+                                    </a>
+                                ))}
+                            </div>
+                        </section>
+                    </aside>
+                </div>
+            </div>
         </div>
     );
 };
@@ -3395,6 +4269,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void, onViewUserPortal: 
                             ) : (
                                 <button className="text-muted hover:text-text transition-colors underline" onClick={() => setSelectedUserIds(prev => Array.from(new Set([...prev, ...filteredUserIds])))}>Select Filtered ({filteredAndSortedUsers.length})</button>
                             )}
+                            {selectedUserIds.length < users.length && (
+                                <button className="text-muted hover:text-text transition-colors underline" onClick={() => setSelectedUserIds(users.map(user => user.id))}>Select All ({users.length})</button>
+                            )}
                             <button className="text-muted hover:text-text transition-colors underline" onClick={() => setSelectedUserIds([])}>Unselect All</button>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -3626,6 +4503,11 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
         }).finally(() => setPublicInfoLoading(false));
     };
 
+    const handleSetupComplete = () => {
+        window.dispatchEvent(new CustomEvent('portal-public-config-updated'));
+        fetchPublicInfo();
+    };
+
     useEffect(() => {
         if (initialError) {
             window.history.replaceState({}, '', portalUrl('/'));
@@ -3756,14 +4638,14 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, i
     };
 
     if (publicInfo.isConfigured === false || (typeof window !== 'undefined' && stripBasePath(window.location.pathname).startsWith('/auth/setup/'))) {
-        return <SetupWizard onComplete={fetchPublicInfo} />;
+        return <SetupWizard onComplete={handleSetupComplete} />;
     }
 
     if (publicInfoLoading || (publicInfo.isConfigured === null && !publicInfoLoadFailed)) {
         return <Loader isLoading={true} isCinematic={!!publicConfig?.useCinematicLoading} />;
     }
 
-    const mediaServerType = String(publicConfig?.mediaServerType || publicInfo.mediaServerType || 'plex').toLowerCase();
+    const mediaServerType = String(publicInfo.mediaServerType || publicConfig?.mediaServerType || 'plex').toLowerCase();
     const isJellyfinAuth = mediaServerType === 'jellyfin';
     const showTrialAccess = !isJellyfinAuth && publicConfig?.allowTemporaryAccess !== false;
     const logoSrc = publicConfig?.customLogoUrl
@@ -3966,11 +4848,16 @@ const RebuildLibraryCacheButton: React.FC = () => {
                 const s: any = await apiFetch('/api/plex/stats/status');
                 if (s.lastGeneratedAt) setLastBuilt(s.lastGeneratedAt);
                 if (!s.isBuilding) {
-                    clearInterval(pollRef.current);
+                    if (pollRef.current) clearInterval(pollRef.current);
+                    pollRef.current = null;
                     setStatus('done');
                     setTimeout(() => setStatus('idle'), 4000);
                 }
-            } catch { clearInterval(pollRef.current); setStatus('error'); }
+            } catch {
+                if (pollRef.current) clearInterval(pollRef.current);
+                pollRef.current = null;
+                setStatus('error');
+            }
         }, 3000);
     };
 
@@ -4028,27 +4915,30 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | str
     const renderContent = () => {
         switch (metric) {
             case 'Server Rank': {
-                const percentile = analytics.totalActiveUsers > 0 ? Math.max(1, Math.round((analytics.leaderboardRank / analytics.totalActiveUsers) * 100)) : 100;
-                const progressPct = analytics.totalActiveUsers > 0 ? Math.max(2, 100 - Math.round(((analytics.leaderboardRank - 1) / analytics.totalActiveUsers) * 100)) : 100;
+                const leaderboardRank = Number(analytics.leaderboardRank);
+                const totalActiveUsers = Number(analytics.totalActiveUsers) || 0;
+                const hasRank = Number.isFinite(leaderboardRank) && leaderboardRank > 0;
+                const percentile = hasRank && totalActiveUsers > 0 ? Math.max(1, Math.round((leaderboardRank / totalActiveUsers) * 100)) : null;
+                const progressPct = hasRank && totalActiveUsers > 0 ? Math.max(2, 100 - Math.round(((leaderboardRank - 1) / totalActiveUsers) * 100)) : 0;
                 const neighbourhood: any[] = analytics.leaderboardNeighbourhood || [];
                 const myPlays = analytics.myPlaysOnLeaderboard || analytics.totalPlays || 0;
-                const userAbove = neighbourhood.find((u: any) => !u.isMe && u.rank < (analytics.leaderboardRank || 999));
+                const userAbove = hasRank ? neighbourhood.find((u: any) => !u.isMe && u.rank < leaderboardRank) : null;
                 const playsToClimb = userAbove ? (userAbove.plays - myPlays + 1) : null;
 
-                const rankEmoji = (analytics.leaderboardRank === 1) ? '🥇' : (analytics.leaderboardRank === 2) ? '🥈' : (analytics.leaderboardRank === 3) ? '🥉' : '🏆';
+                const rankEmoji = (leaderboardRank === 1) ? '🥇' : (leaderboardRank === 2) ? '🥈' : (leaderboardRank === 3) ? '🥉' : '🏆';
 
                 return (
                     <div className="flex flex-col items-center justify-center text-center p-6">
                         <span className="text-5xl mb-3">{rankEmoji}</span>
-                        <h2 className="text-3xl font-black text-white mb-1">Rank #{analytics.leaderboardRank || 'Unranked'}</h2>
-                        <p className="text-muted mb-5 text-sm">Out of {analytics.totalActiveUsers || 0} active users</p>
+                        <h2 className="text-3xl font-black text-white mb-1">{hasRank ? `Rank #${leaderboardRank}` : 'Not ranked yet'}</h2>
+                        <p className="text-muted mb-5 text-sm">Out of {totalActiveUsers} active users</p>
 
                         {/* Progress bar */}
                         <div className="w-full mb-1">
                             <div className="flex justify-between text-[10px] font-black uppercase tracking-widest mb-1.5">
                                 <span className="text-gray-500">#1 Top</span>
-                                <span className="text-plex">Top {percentile}%</span>
-                                <span className="text-gray-500">#{analytics.totalActiveUsers} Last</span>
+                                <span className="text-plex">{percentile ? `Top ${percentile}%` : 'No rank yet'}</span>
+                                <span className="text-gray-500">{totalActiveUsers > 0 ? `#${totalActiveUsers} Last` : 'No users'}</span>
                             </div>
                             <div className="w-full h-3 bg-black/50 rounded-full overflow-hidden border border-white/10">
                                 <div
@@ -4066,7 +4956,7 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | str
                             </div>
                             <div className="bg-gradient-to-b from-plex/20 to-plex/5 border border-plex/30 rounded-xl p-4 flex flex-col items-center shadow-lg relative overflow-hidden">
                                 <div className="absolute top-0 right-0 w-16 h-16 bg-plex/20 blur-xl -mr-5 -mt-5 rounded-full" />
-                                <span className="text-2xl font-black text-plex mb-1">{percentile}%</span>
+                                <span className="text-2xl font-black text-plex mb-1">{percentile ? `${percentile}%` : '-'}</span>
                                 <span className="text-[9px] text-plex/80 uppercase tracking-widest font-black">Top Percentile</span>
                             </div>
                         </div>
@@ -4077,9 +4967,14 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | str
                                 🎯 <strong>{playsToClimb} more stream{playsToClimb !== 1 ? 's' : ''}</strong> to overtake <strong>{userAbove?.username}</strong> (Rank #{userAbove?.rank})
                             </div>
                         )}
-                        {playsToClimb === null && analytics.leaderboardRank === 1 && (
+                        {playsToClimb === null && leaderboardRank === 1 && (
                             <div className="w-full bg-plex/10 border border-plex/30 rounded-xl px-4 py-3 mb-4 text-sm text-plex font-medium">
                                 👑 You're at the top of the leaderboard!
+                            </div>
+                        )}
+                        {!hasRank && (
+                            <div className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 mb-4 text-sm text-muted font-medium">
+                                Stream activity has not been matched to your account for this period yet.
                             </div>
                         )}
 
@@ -4248,7 +5143,7 @@ const WrapUpModal: React.FC<{ metric: string; analytics: any; days: number | str
                 return (
                     <div className="flex flex-col items-center justify-center text-center p-6 relative">
                         {analytics.topMovie?.artUrl || analytics.topMovie?.thumbUrl ? (
-                            <div className="w-full h-40 bg-cover bg-center rounded-xl shadow-lg mb-6 border border-white/10 relative overflow-hidden" style={{ backgroundImage: `url('${resolvePortalAssetUrl(analytics.topMovie.artUrl) || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=600'}')` }}>
+                            <div className="w-full h-40 bg-cover bg-center rounded-xl shadow-lg mb-6 border border-white/10 relative overflow-hidden" style={{ backgroundImage: `url('${resolvePortalAssetUrl(analytics.topMovie.artUrl || analytics.topMovie.thumbUrl) || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=600'}')` }}>
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
                                 <div className="absolute bottom-4 left-0 right-0 px-4 flex flex-col items-center">
                                     <h2 className="text-2xl font-black text-white mb-1 line-clamp-1 drop-shadow-md">{analytics.topMovie?.title || 'Nothing yet'}</h2>
@@ -4615,8 +5510,8 @@ export const DiscoverPosterCard: React.FC<{
 }> = ({ item, aspect = '2/3', overlay, variant = 'discover', className = 'w-full', footer, showQualityBadges = true, posterOnlyLink = false, onPosterClick, posterWidth = 300, posterHeight }) => {
     const resolvedPosterHeight = posterHeight ?? (aspect === 'square' ? posterWidth : Math.round(posterWidth * 1.5));
     const posterShell = variant === 'home'
-        ? 'relative rounded-xl overflow-hidden bg-background border border-white/5 transition-[box-shadow,border-color] duration-300 group-hover:shadow-xl group-hover:border-plex/50'
-        : 'relative rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors shadow-md';
+        ? 'relative rounded-xl overflow-hidden bg-background border border-border transition-[border-color] duration-300 group-hover:border-plex/50'
+        : 'relative rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors bg-card';
 
     const primaryPosterSrc = item.thumbUrl
         ? resolvePortalAssetUrl(item.thumbUrl)
@@ -4627,14 +5522,19 @@ export const DiscoverPosterCard: React.FC<{
         ? resolvePortalAssetUrl(item.posterFallbackUrl)
         : '';
     const [posterSrc, setPosterSrc] = useState(primaryPosterSrc);
+    const [posterFailed, setPosterFailed] = useState(false);
     useEffect(() => {
         setPosterSrc(primaryPosterSrc);
+        setPosterFailed(false);
     }, [primaryPosterSrc]);
 
     const hasPoster = !!(primaryPosterSrc || fallbackPosterSrc);
+    const showPosterPlaceholder = !hasPoster || posterFailed;
     const posterInner = (
         <div className={`${posterShell} ${aspect === 'square' ? 'aspect-square' : 'aspect-[2/3]'} w-full`}>
-            {hasPoster ? (
+            {showPosterPlaceholder ? (
+                <NoPosterPlaceholder />
+            ) : (
                 <img
                     src={posterSrc || fallbackPosterSrc}
                     alt={item.title}
@@ -4642,18 +5542,16 @@ export const DiscoverPosterCard: React.FC<{
                     onError={() => {
                         if (fallbackPosterSrc && posterSrc !== fallbackPosterSrc) {
                             setPosterSrc(fallbackPosterSrc);
+                            return;
                         }
+                        setPosterFailed(true);
                     }}
                     className={`w-full h-full object-cover ${variant === 'home' ? 'transition-[transform,opacity] duration-300 group-hover:scale-105 group-hover:opacity-80' : ''}`}
                 />
-            ) : (
-                <div className="w-full h-full flex items-center justify-center p-4 text-center bg-white/5">
-                    <span className="text-xs font-bold text-muted line-clamp-3">{item.title}</span>
-                </div>
             )}
             {overlay}
             {showQualityBadges && item.tags && item.tags.length > 0 && (
-                <div className="absolute bottom-1 left-1 right-1 flex flex-wrap gap-0.5 pointer-events-none z-10">
+                <div className={`absolute left-1 right-1 flex flex-wrap gap-0.5 pointer-events-none z-20 ${overlay ? 'bottom-7' : 'bottom-1'}`}>
                     {item.tags.map((tag) => (
                         <span key={tag} className="text-[8px] font-bold px-1 py-px rounded bg-black/85 text-white/95 border border-white/15 uppercase tracking-wide">
                             {tag}
@@ -4665,7 +5563,7 @@ export const DiscoverPosterCard: React.FC<{
     );
 
     const defaultFooter = (
-        <div className={`text-xs font-medium line-clamp-2 leading-tight ${variant === 'home' ? 'text-text text-left px-1' : 'text-white text-center mt-1'}`}>
+        <div className={`text-xs font-medium line-clamp-2 leading-tight text-text ${variant === 'home' ? 'text-left px-1' : 'text-center mt-1'}`}>
             {item.title}
         </div>
     );
@@ -4700,14 +5598,22 @@ export const DiscoverPosterCard: React.FC<{
         );
     }
 
+    if (onPosterClick && !posterOnlyLink) {
+        return (
+            <button
+                type="button"
+                onClick={onPosterClick}
+                className={`flex flex-col gap-2 group text-left border-0 p-0 bg-transparent cursor-pointer ${className}`}
+                style={{ color: 'inherit', textDecoration: 'none' }}
+            >
+                {posterInner}
+                {footer ?? defaultFooter}
+            </button>
+        );
+    }
+
     return (
-        <a
-            href={item.plexUrl}
-            target="_blank"
-            rel="noreferrer"
-            className={`flex flex-col gap-2 group ${className}`}
-            style={{ textDecoration: 'none', color: 'inherit' }}
-        >
+        <a href={item.plexUrl} target="_blank" rel="noreferrer" className={`flex flex-col gap-2 group no-underline ${className}`} style={{ color: 'inherit', textDecoration: 'none' }}>
             {posterInner}
             {footer ?? defaultFooter}
         </a>
@@ -4715,8 +5621,10 @@ export const DiscoverPosterCard: React.FC<{
 };
 
 const discoverViewsOverlay = (views: number) => (
-    <div className="absolute top-2 right-2 bg-black/80 text-plex text-xs font-bold px-2 py-1 rounded backdrop-blur-md border border-plex/30 z-10 pointer-events-none">
-        {views} Views
+    <div className="absolute inset-x-0 bottom-0 z-10 pointer-events-none bg-gradient-to-t from-black/85 via-black/45 to-transparent pt-6 pb-1.5 px-1.5">
+        <span className="text-[10px] font-semibold text-white/90 tracking-wide">
+            {views} {views === 1 ? 'view' : 'views'}
+        </span>
     </div>
 );
 
@@ -4724,28 +5632,29 @@ const DISCOVER_DESKTOP_ITEM_LIMIT = 20;
 const DISCOVER_MOBILE_ITEM_LIMIT = 12;
 const RECENTLY_ADDED_ITEM_LIMIT = 100;
 const DISCOVER_LIMIT_OPTIONS = [
-    { value: '12', label: '12 Items' },
-    { value: '20', label: '20 Items' },
-    { value: '25', label: '25 Items' },
-    { value: '50', label: '50 Items' },
-    { value: '100', label: '100 Items' },
-    { value: '150', label: '150 Items' },
-    { value: '200', label: '200 Items' },
-    { value: '250', label: '250 Items' },
+    { value: '12', label: '12' },
+    { value: '20', label: '20' },
+    { value: '25', label: '25' },
+    { value: '50', label: '50' },
+    { value: '100', label: '100' },
+    { value: '150', label: '150' },
+    { value: '200', label: '200' },
+    { value: '250', label: '250' },
 ];
 
-const TrendingDiscoverSection: React.FC<{ title: string; items: any[]; limit: number; showQualityBadges?: boolean; useScrollRevealAnimations?: boolean }> = ({ title, items, limit, showQualityBadges = true, useScrollRevealAnimations }) => {
+const TrendingDiscoverSection: React.FC<{ title: string; items: any[]; limit: number; showQualityBadges?: boolean; useScrollRevealAnimations?: boolean; onItemClick?: (item: any) => void; gridSize?: UpgraderGridSize }> = ({ title, items, limit, showQualityBadges = true, useScrollRevealAnimations, onItemClick, gridSize = 'medium' }) => {
     if (!items?.length) return null;
     return (
         <ScrollReveal enabled={!!useScrollRevealAnimations} className="flex flex-col">
             <h3 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">{title}</h3>
-            <div className={discoverPosterGridClass}>
+            <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
                 {items.slice(0, limit).map((item, i) => (
                     <DiscoverPosterCard
                         key={i}
                         item={{ ...item, plexUrl: item.plexUrl || '#' }}
                         overlay={discoverViewsOverlay(item.views)}
                         showQualityBadges={showQualityBadges}
+                        onPosterClick={onItemClick ? () => onItemClick(item) : undefined}
                     />
                 ))}
             </div>
@@ -4753,21 +5662,350 @@ const TrendingDiscoverSection: React.FC<{ title: string; items: any[]; limit: nu
     );
 };
 
-export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: () => void; refreshSession: () => void; onViewAdmin: () => void; onViewStatus: () => void; onViewDashboard: () => void; onViewSettings?: () => void; onViewLogs?: () => void; onViewRequests?: () => void; onPendingRequestsChange?: () => void }> = ({ sessionInfo, publicConfig, onLogout, refreshSession, onViewAdmin, onViewStatus, onViewDashboard, onViewSettings, onViewLogs, onViewRequests, onPendingRequestsChange }) => {
+const moveDashboardItem = <T extends string,>(items: T[], from: number, direction: -1 | 1): T[] => {
+    const to = from + direction;
+    if (from < 0 || to < 0 || from >= items.length || to >= items.length) return items;
+    const next = [...items];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    return next;
+};
+
+const moveDashboardItemTo = <T extends string,>(items: T[], from: number, to: number): T[] => {
+    if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return items;
+    const next = [...items];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    return next;
+};
+
+const PortalLayoutRow: React.FC<{
+    label: string;
+    description?: string;
+    hidden: boolean;
+    first: boolean;
+    last: boolean;
+    draggable?: boolean;
+    selected?: boolean;
+    size?: DashboardWidgetSize;
+    onMoveUp: () => void;
+    onMoveDown: () => void;
+    onToggle: () => void;
+    onSelect?: () => void;
+    onDragStart?: () => void;
+    onDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
+    onDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
+    onSizeChange?: (size: DashboardWidgetSize) => void;
+}> = ({ label, description, hidden, first, last, draggable, selected, size, onMoveUp, onMoveDown, onToggle, onSelect, onDragStart, onDragOver, onDrop, onSizeChange }) => (
+    <div
+        draggable={draggable}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        onClick={onSelect}
+        onKeyDown={(event) => {
+            if (!onSelect) return;
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onSelect();
+            }
+        }}
+        role={onSelect ? 'button' : undefined}
+        tabIndex={onSelect ? 0 : undefined}
+        className={`flex flex-col sm:flex-row sm:items-center gap-2 rounded-xl border px-3 py-2.5 transition-colors outline-none ${draggable ? 'cursor-pointer active:cursor-grabbing' : ''} ${selected ? 'border-plex/70 bg-plex/10 ring-1 ring-plex/40' : hidden ? 'border-border/30 bg-background/20 opacity-70' : 'border-border/50 bg-background/40 hover:border-plex/35 hover:bg-background/55'}`}
+    >
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+        <div className="flex flex-col gap-1 shrink-0">
+            <button
+                type="button"
+                onClick={(event) => {
+                    event.stopPropagation();
+                    onMoveUp();
+                }}
+                disabled={first}
+                className="p-1 rounded-md text-muted hover:text-text hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed"
+                aria-label={`Move ${label} up`}
+            >
+                <ChevronUp className="w-4 h-4" />
+            </button>
+            <button
+                type="button"
+                onClick={(event) => {
+                    event.stopPropagation();
+                    onMoveDown();
+                }}
+                disabled={last}
+                className="p-1 rounded-md text-muted hover:text-text hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed"
+                aria-label={`Move ${label} down`}
+            >
+                <ChevronDown className="w-4 h-4" />
+            </button>
+        </div>
+        <div className="min-w-0 flex-1">
+            <p className={`font-semibold truncate ${hidden ? 'text-muted line-through' : 'text-text'}`}>{label}</p>
+            <p className="text-xs text-muted truncate mt-0.5">{selected ? 'Selected - click another row to move it there.' : (description || 'Click to pick up, then click another row to move.')}</p>
+        </div>
+        </div>
+        {onSizeChange && !hidden && (
+            <div className="grid grid-cols-4 gap-1 rounded-lg border border-border/60 bg-background/30 p-1 shrink-0">
+                {(['compact', 'normal', 'wide', 'full'] as DashboardWidgetSize[]).map((option) => (
+                    <button
+                        key={option}
+                        type="button"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onSizeChange(option);
+                        }}
+                        className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase transition-colors ${
+                            (size || 'normal') === option ? 'bg-plex text-black' : 'text-muted hover:text-text hover:bg-white/10'
+                        }`}
+                    >
+                        {option === 'compact' ? 'S' : option === 'normal' ? 'M' : option === 'wide' ? 'L' : 'XL'}
+                    </button>
+                ))}
+            </div>
+        )}
+        <button
+            type="button"
+            onClick={(event) => {
+                event.stopPropagation();
+                onToggle();
+            }}
+            className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-bold transition-colors shrink-0 ${
+                hidden
+                    ? 'border-plex/40 bg-plex/10 text-plex hover:bg-plex/20'
+                    : 'border-border/60 bg-white/5 text-muted hover:text-text hover:border-white/20'
+            }`}
+        >
+            {hidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+            {hidden ? 'Add' : 'Hide'}
+        </button>
+    </div>
+);
+
+const PortalWidgetEditorModal: React.FC<{
+    layout: DashboardLayoutConfig;
+    onChange: (layout: DashboardLayoutConfig) => void;
+    onSave: () => void;
+    onClose: () => void;
+    saving: boolean;
+}> = ({ layout, onChange, onSave, onClose, saving }) => {
+    const [movingItem, setMovingItem] = useState<{ list: 'sections' | 'main' | 'recent'; index: number } | null>(null);
+
+    const reorderList = (list: 'sections' | 'main' | 'recent', targetIndex: number, source = movingItem) => {
+        if (!source || source.list !== list || source.index === targetIndex) return;
+        if (list === 'sections') {
+            onChange(normalizeSectionLayout({ ...layout, sections: moveDashboardItemTo(layout.sections, source.index, targetIndex) }));
+            return;
+        }
+        const items = list === 'main' ? layout.mainGridOrder : layout.recentlyAddedOrder;
+        const next = moveDashboardItemTo(items, source.index, targetIndex);
+        onChange(normalizeSectionLayout(list === 'main' ? { ...layout, mainGridOrder: next } : { ...layout, recentlyAddedOrder: next }));
+    };
+
+    const selectOrMove = (list: 'sections' | 'main' | 'recent', index: number) => {
+        if (!movingItem) {
+            setMovingItem({ list, index });
+            return;
+        }
+        if (movingItem.list !== list) {
+            setMovingItem({ list, index });
+            return;
+        }
+        if (movingItem.index === index) {
+            setMovingItem(null);
+            return;
+        }
+        reorderList(list, index, movingItem);
+        setMovingItem(null);
+    };
+
+    const toggleSection = (id: DashboardSectionId) => {
+        const hiddenSections = layout.hiddenSections.includes(id)
+            ? layout.hiddenSections.filter((sectionId) => sectionId !== id)
+            : [...layout.hiddenSections, id];
+        onChange(normalizeSectionLayout({ ...layout, hiddenSections }));
+    };
+
+    const toggleWidget = (id: DashboardWidgetId) => {
+        const hiddenWidgets = layout.hiddenWidgets.includes(id)
+            ? layout.hiddenWidgets.filter((widgetId) => widgetId !== id)
+            : [...layout.hiddenWidgets, id];
+        onChange(normalizeSectionLayout({ ...layout, hiddenWidgets }));
+    };
+
+    const moveSection = (index: number, direction: -1 | 1) => {
+        onChange(normalizeSectionLayout({ ...layout, sections: moveDashboardItem(layout.sections, index, direction) }));
+    };
+
+    const moveMainWidget = (index: number, direction: -1 | 1) => {
+        onChange(normalizeSectionLayout({ ...layout, mainGridOrder: moveDashboardItem(layout.mainGridOrder, index, direction) }));
+    };
+
+    const moveRecentWidget = (index: number, direction: -1 | 1) => {
+        onChange(normalizeSectionLayout({ ...layout, recentlyAddedOrder: moveDashboardItem(layout.recentlyAddedOrder, index, direction) }));
+    };
+
+    const setWidgetSize = (id: DashboardWidgetId, size: DashboardWidgetSize) => {
+        const widgetSizes = { ...(layout.widgetSizes || {}) };
+        if (size === 'normal') delete widgetSizes[id];
+        else widgetSizes[id] = size;
+        onChange(normalizeSectionLayout({ ...layout, widgetSizes }));
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <div className="w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl border border-border bg-card shadow-2xl flex flex-col">
+                <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-border">
+                    <div>
+                        <h2 className="text-xl font-black text-text">Portal Widgets</h2>
+                        <p className="text-sm text-muted mt-1">Move, hide, and add portal widgets for everyone.</p>
+                    </div>
+                    <button type="button" onClick={onClose} className="p-2 rounded-lg text-muted hover:text-text hover:bg-white/10">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                <div className="overflow-y-auto p-5 space-y-6">
+                    <section>
+                        <div className="flex items-center justify-between gap-3 mb-3">
+                            <h3 className="text-sm font-bold uppercase tracking-wider text-muted">Page sections</h3>
+                            <button
+                                type="button"
+                                onClick={() => onChange({ ...DEFAULT_DASHBOARD_LAYOUT })}
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-xs font-bold text-muted hover:text-text hover:border-plex/40 transition-colors"
+                            >
+                                <RefreshCw className="w-4 h-4" />
+                                Reset
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                            {layout.sections.map((id, index) => (
+                                <PortalLayoutRow
+                                    key={id}
+                                    label={DASHBOARD_SECTION_LABELS[id]}
+                                    hidden={layout.hiddenSections.includes(id)}
+                                    first={index === 0}
+                                    last={index === layout.sections.length - 1}
+                                    draggable
+                                    selected={movingItem?.list === 'sections' && movingItem.index === index}
+                                    onSelect={() => selectOrMove('sections', index)}
+                                    onDragStart={() => setMovingItem({ list: 'sections', index })}
+                                    onDragOver={(event) => event.preventDefault()}
+                                    onDrop={(event) => {
+                                        event.preventDefault();
+                                        reorderList('sections', index);
+                                        setMovingItem(null);
+                                    }}
+                                    onMoveUp={() => moveSection(index, -1)}
+                                    onMoveDown={() => moveSection(index, 1)}
+                                    onToggle={() => toggleSection(id)}
+                                />
+                            ))}
+                        </div>
+                    </section>
+
+                    <section>
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-muted mb-3">Main widgets</h3>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                            {layout.mainGridOrder.map((id: MainGridWidgetId, index) => (
+                                <PortalLayoutRow
+                                    key={id}
+                                    label={MAIN_GRID_WIDGET_META[id].label}
+                                    description="Drag to move. Resize with S, M, L, XL."
+                                    hidden={layout.hiddenWidgets.includes(id)}
+                                    first={index === 0}
+                                    last={index === layout.mainGridOrder.length - 1}
+                                    draggable
+                                    size={layout.widgetSizes?.[id] || 'normal'}
+                                    selected={movingItem?.list === 'main' && movingItem.index === index}
+                                    onSelect={() => selectOrMove('main', index)}
+                                    onDragStart={() => setMovingItem({ list: 'main', index })}
+                                    onDragOver={(event) => event.preventDefault()}
+                                    onDrop={(event) => {
+                                        event.preventDefault();
+                                        reorderList('main', index);
+                                        setMovingItem(null);
+                                    }}
+                                    onMoveUp={() => moveMainWidget(index, -1)}
+                                    onMoveDown={() => moveMainWidget(index, 1)}
+                                    onToggle={() => toggleWidget(id)}
+                                    onSizeChange={(size) => setWidgetSize(id, size)}
+                                />
+                            ))}
+                        </div>
+                    </section>
+
+                    <section>
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-muted mb-3">Recently added widgets</h3>
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
+                            {layout.recentlyAddedOrder.map((id: RecentlyAddedWidgetId, index) => (
+                                <PortalLayoutRow
+                                    key={id}
+                                    label={RECENTLY_ADDED_WIDGET_META[id]}
+                                    hidden={layout.hiddenWidgets.includes(id)}
+                                    first={index === 0}
+                                    last={index === layout.recentlyAddedOrder.length - 1}
+                                    draggable
+                                    size={layout.widgetSizes?.[id] || 'full'}
+                                    selected={movingItem?.list === 'recent' && movingItem.index === index}
+                                    onSelect={() => selectOrMove('recent', index)}
+                                    onDragStart={() => setMovingItem({ list: 'recent', index })}
+                                    onDragOver={(event) => event.preventDefault()}
+                                    onDrop={(event) => {
+                                        event.preventDefault();
+                                        reorderList('recent', index);
+                                        setMovingItem(null);
+                                    }}
+                                    onMoveUp={() => moveRecentWidget(index, -1)}
+                                    onMoveDown={() => moveRecentWidget(index, 1)}
+                                    onToggle={() => toggleWidget(id)}
+                                    onSizeChange={(size) => setWidgetSize(id, size)}
+                                />
+                            ))}
+                        </div>
+                    </section>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 px-5 py-4 border-t border-border bg-background/40">
+                    <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border border-border text-muted hover:text-text hover:border-white/20 transition-colors">
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onSave}
+                        disabled={saving}
+                        className="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-lg bg-plex text-black font-bold hover:bg-plex/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                    >
+                        {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                        Save Widgets
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onLogout: () => void; refreshSession: () => void; onViewAdmin: () => void; onViewStatus: () => void; onViewDashboard: () => void; onViewSettings?: () => void; onViewLogs?: () => void; onViewCollexions?: () => void; onViewRequests?: (reviewId?: number) => void; onPendingRequestsChange?: () => void }> = ({ sessionInfo, publicConfig, onLogout, refreshSession, onViewAdmin, onViewStatus, onViewDashboard, onViewSettings, onViewLogs, onViewCollexions, onViewRequests, onPendingRequestsChange }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [toast, setToast] = useState<ToastMessage | null>(null);
     const [analytics, setAnalytics] = useState<any>(null);
     const [analyticsLoading, setAnalyticsLoading] = useState(true);
     const [serverStats, setServerStats] = useState<any>(null);
     const [dashboardData, setDashboardData] = useState<any>(null);
+    const [bazarrWidgets, setBazarrWidgets] = useState<any>(null);
     const [serverDataLoading, setServerDataLoading] = useState(true);
     const [topContentPage, setTopContentPage] = useState(0);
+    const [dashboardLayoutDraft, setDashboardLayoutDraft] = useState<DashboardLayoutConfig>(() => normalizeSectionLayout(publicConfig?.dashboardLayout));
+    const [layoutEditorOpen, setLayoutEditorOpen] = useState(false);
+    const [layoutSaving, setLayoutSaving] = useState(false);
+    const [inlineWidgetEditing, setInlineWidgetEditing] = useState(false);
     const [isDesktopMostWatched, setIsDesktopMostWatched] = useState(
         () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
     );
-    const topWatchedPageSize = (publicConfig?.dashboardLayout?.topWatchedRows || 2) * 6;
+    const topWatchedPageSize = (dashboardLayoutDraft.topWatchedRows || DEFAULT_DASHBOARD_LAYOUT.topWatchedRows || 2) * 6;
     const [recentHistoryPage, setRecentHistoryPage] = useState(0);
-    const recentHistoryPageSize = (publicConfig?.dashboardLayout?.recentHistoryRows || 7) * 2;
+    const recentHistoryPageSize = (dashboardLayoutDraft.recentHistoryRows || DEFAULT_DASHBOARD_LAYOUT.recentHistoryRows || 6);
     const [analyticsDays, setAnalyticsDays] = useState<number | 'all'>(30);
     const [analyticsDaysOpen, setAnalyticsDaysOpen] = useState(false);
     const [wrapUpDaysOpen, setWrapUpDaysOpen] = useState(false);
@@ -4775,11 +6013,18 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     const [reportItem, setReportItem] = useState<any>(null);
     const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
     const [shareWrapUpOpen, setShareWrapUpOpen] = useState(false);
+    const [recentLimit, setRecentLimit] = useState(24);
+    const [detailsItem, setDetailsItem] = useState<any>(null);
 
     const user = sessionInfo.account;
     const showQualityBadges = publicConfig?.showPosterQualityBadges !== false;
-    const isJellyfinPortal = String(publicConfig?.mediaServerType || 'plex').toLowerCase() === 'jellyfin';
+    const mediaServerType = String(publicConfig?.mediaServerType || 'plex').toLowerCase();
+    const isJellyfinPortal = mediaServerType === 'jellyfin' || mediaServerType === 'emby';
     const [optOutNewsletter, setOptOutNewsletter] = useState(user?.optOutNewsletter || false);
+
+    useEffect(() => {
+        setDashboardLayoutDraft(normalizeSectionLayout(publicConfig?.dashboardLayout));
+    }, [publicConfig?.dashboardLayout]);
 
     const resolveHomeImage = (thumbUrl: string | null | undefined, fallback = logoUrl()) => {
         if (!thumbUrl) return fallback;
@@ -4788,6 +6033,17 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
         }
         return portalUrl(`/api/plex/image?path=${encodeURIComponent(thumbUrl)}&width=256&height=256`);
     };
+    const heroBg = publicConfig?.backgroundImageUrl
+        ? resolvePortalAssetUrl(publicConfig.backgroundImageUrl)
+        : resolveHomeImage(
+            dashboardData?.recentShows?.[0]?.artUrl ||
+            dashboardData?.recentShows?.[0]?.thumbUrl ||
+            dashboardData?.recentMovies?.[0]?.artUrl ||
+            dashboardData?.recentMovies?.[0]?.thumbUrl ||
+            dashboardData?.recentMusic?.[0]?.artUrl ||
+            dashboardData?.recentMusic?.[0]?.thumbUrl,
+            ''
+        );
 
     const buildJellyfinHomeAnalytics = (data: any) => {
         const topMovies = Array.isArray(data?.topMovies) ? data.topMovies : [];
@@ -4796,6 +6052,20 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
         const topWatched = [...topShows, ...topMovies, ...topMusic].sort((a: any, b: any) => (b.plays || 0) - (a.plays || 0));
         const peakHours = Array.isArray(data?.peakHours) ? data.peakHours : [];
         const peakHour = peakHours.reduce((best: number, value: number, hour: number) => value > (peakHours[best] || 0) ? hour : best, 0);
+        const dayOfWeekCounts = data?.dayOfWeekCounts && Object.keys(data.dayOfWeekCounts).length > 0
+            ? data.dayOfWeekCounts
+            : Object.entries(data?.heatmapData || {}).reduce((counts: Record<number, number>, [dateKey, count]) => {
+                const date = new Date(`${dateKey}T00:00:00`);
+                if (!Number.isNaN(date.getTime())) {
+                    const day = date.getDay();
+                    counts[day] = (counts[day] || 0) + (Number(count) || 0);
+                }
+                return counts;
+            }, { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 });
+        const topDayEntry = Object.entries(dayOfWeekCounts)
+            .map(([day, count]) => ({ day: Number(day), count: Number(count) || 0 }))
+            .sort((a, b) => b.count - a.count)[0];
+        const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const moviesCount = data?.jellystatInsights?.moviePlays || topMovies.reduce((sum: number, item: any) => sum + (item.plays || 0), 0);
         const showsCount = data?.jellystatInsights?.tvPlays || topShows.reduce((sum: number, item: any) => sum + (item.plays || 0), 0);
         const musicCount = data?.jellystatInsights?.musicPlays || topMusic.reduce((sum: number, item: any) => sum + (item.plays || 0), 0);
@@ -4815,8 +6085,8 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
             peakHour,
             avgHour: peakHour,
             timeOfDay: peakHour >= 5 && peakHour < 12 ? 'Early Bird' : peakHour >= 12 && peakHour < 18 ? 'Afternoon Watcher' : peakHour >= 18 ? 'Evening Streamer' : 'Night Owl',
-            popularDay: 'Recent Activity',
-            dayOfWeekCounts: {},
+            popularDay: topDayEntry && topDayEntry.count > 0 ? daysOfWeek[topDayEntry.day] : 'Recent Activity',
+            dayOfWeekCounts,
             favoriteLibrary: topLibraries[0]?.title || 'None',
             topLibraries,
             mediaPreference: moviesCount > showsCount ? 'Movie Fan' : 'TV Binger',
@@ -4825,10 +6095,14 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
             streamingHabit: 'Jellyfin Viewer',
             weekdayPlays: data?.totalPlaybacks || 0,
             weekendPlays: 0,
+            leaderboardRank: data?.leaderboardRank || null,
+            totalActiveUsers: data?.totalActiveUsers || 0,
+            myPlaysOnLeaderboard: data?.myPlaysOnLeaderboard ?? null,
+            leaderboardNeighbourhood: data?.leaderboardNeighbourhood || [],
             libraryHealth: data?.libraryHealth || null,
+            heatmapData: data?.heatmapData || null,
         };
     };
-
     const handleToggleNewsletter = async () => {
         setIsLoading(true);
         try {
@@ -4878,34 +6152,56 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
 
     useEffect(() => {
         let cancelled = false;
-        const fetchAnalytics = async () => {
+        let refreshTimer: ReturnType<typeof setInterval> | null = null;
+        const ANALYTICS_REFRESH_MS = 5 * 60 * 1000;
+
+        const fetchAnalytics = async ({ silent = false } = {}) => {
             if (!sessionInfo?.session?.isAdmin && !user) {
-                setAnalyticsLoading(false);
+                if (!silent) setAnalyticsLoading(false);
                 return;
             }
             try {
-                setAnalyticsLoading(true);
-                setAnalyticsError(null);
+                if (!silent) {
+                    setAnalyticsLoading(true);
+                    setAnalyticsError(null);
+                }
                 const res = isJellyfinPortal
                     ? buildJellyfinHomeAnalytics(await apiFetch(`/api/jellystat/analytics?days=${analyticsDays}`))
                     : await apiFetch(`/api/plex/analytics/me?days=${analyticsDays}`);
                 if (cancelled) return;
                 setAnalytics(res);
-                setTopContentPage(0);
-                setRecentHistoryPage(0);
+                if (!silent) {
+                    setTopContentPage(0);
+                    setRecentHistoryPage(0);
+                }
             } catch (e: any) {
-                if (!cancelled) {
+                if (!cancelled && !silent) {
                     const message = e?.message || 'Failed to load your analytics';
                     setAnalyticsError(message);
                     setAnalytics(null);
                     setToast({ id: Date.now(), message, type: 'error' });
                 }
             } finally {
-                if (!cancelled) setAnalyticsLoading(false);
+                if (!cancelled && !silent) setAnalyticsLoading(false);
             }
         };
+
         fetchAnalytics();
-        return () => { cancelled = true; };
+        refreshTimer = setInterval(() => fetchAnalytics({ silent: true }), ANALYTICS_REFRESH_MS);
+
+        const onFocus = () => fetchAnalytics({ silent: true });
+        const onVisibility = () => {
+            if (document.visibilityState === 'visible') onFocus();
+        };
+        window.addEventListener('focus', onFocus);
+        document.addEventListener('visibilitychange', onVisibility);
+
+        return () => {
+            cancelled = true;
+            if (refreshTimer) clearInterval(refreshTimer);
+            window.removeEventListener('focus', onFocus);
+            document.removeEventListener('visibilitychange', onVisibility);
+        };
     }, [user, sessionInfo.session.isAdmin, analyticsDays, isJellyfinPortal]);
 
     useEffect(() => {
@@ -4936,8 +6232,16 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
         const fetchDashboard = async () => {
             if (!isMounted) return;
             try {
-                const res = await apiFetch(`${isJellyfinPortal ? '/api/jellyfin/dashboard' : '/api/plex/dashboard'}?limit=${RECENTLY_ADDED_ITEM_LIMIT}`);
-                if (isMounted) setDashboardData(res);
+                const [dashboardRes, bazarrRes] = await Promise.all([
+                    apiFetch(`${isJellyfinPortal ? '/api/jellyfin/dashboard' : '/api/plex/dashboard'}?limit=${RECENTLY_ADDED_ITEM_LIMIT}`),
+                    sessionInfo?.session?.isAdmin
+                        ? apiFetch('/api/bazarr/widgets').catch(() => null)
+                        : Promise.resolve(null),
+                ]);
+                if (isMounted) {
+                    setDashboardData(dashboardRes);
+                    if (bazarrRes) setBazarrWidgets(bazarrRes);
+                }
             } catch (e) {
                 console.error('Failed to refresh dashboard data', e);
             }
@@ -4994,16 +6298,104 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
         }
     };
 
+    const handleSaveDashboardLayout = async () => {
+        setLayoutSaving(true);
+        try {
+            const result = await apiFetch('/api/config/dashboard-layout', {
+                method: 'POST',
+                body: JSON.stringify({ dashboardLayout: dashboardLayoutDraft }),
+            });
+            const nextLayout = normalizeSectionLayout(result?.dashboardLayout || dashboardLayoutDraft);
+            setDashboardLayoutDraft(nextLayout);
+            setToast({ id: Date.now(), message: 'Portal widgets saved.', type: 'success' });
+            setLayoutEditorOpen(false);
+            setInlineWidgetEditing(false);
+        } catch (e: any) {
+            setToast({ id: Date.now(), message: e.message || 'Failed to save portal widgets', type: 'error' });
+        } finally {
+            setLayoutSaving(false);
+        }
+    };
+
+    const updateDashboardLayoutDraft = (next: DashboardLayoutConfig | ((layout: DashboardLayoutConfig) => DashboardLayoutConfig)) => {
+        setDashboardLayoutDraft((current) => normalizeSectionLayout(typeof next === 'function' ? next(current) : next));
+    };
+
+    const toggleDashboardSection = (id: DashboardSectionId) => {
+        updateDashboardLayoutDraft((layout) => ({
+            ...layout,
+            hiddenSections: layout.hiddenSections.includes(id)
+                ? layout.hiddenSections.filter((sectionId) => sectionId !== id)
+                : [...layout.hiddenSections, id],
+        }));
+    };
+
+    const toggleDashboardWidget = (id: DashboardWidgetId) => {
+        updateDashboardLayoutDraft((layout) => ({
+            ...layout,
+            hiddenWidgets: layout.hiddenWidgets.includes(id)
+                ? layout.hiddenWidgets.filter((widgetId) => widgetId !== id)
+                : [...layout.hiddenWidgets, id],
+        }));
+    };
+
+    const moveDashboardSection = (id: DashboardSectionId, direction: -1 | 1) => {
+        updateDashboardLayoutDraft((layout) => ({
+            ...layout,
+            sections: moveDashboardItem(layout.sections, layout.sections.indexOf(id), direction),
+        }));
+    };
+
+    const reorderDashboardSection = (sourceId: DashboardSectionId, targetId: DashboardSectionId) => {
+        updateDashboardLayoutDraft((layout) => ({
+            ...layout,
+            sections: moveDashboardItemTo(layout.sections, layout.sections.indexOf(sourceId), layout.sections.indexOf(targetId)),
+        }));
+    };
+
+    const moveDashboardMainWidget = (id: MainGridWidgetId, direction: -1 | 1) => {
+        updateDashboardLayoutDraft((layout) => ({
+            ...layout,
+            mainGridOrder: moveDashboardItem(layout.mainGridOrder, layout.mainGridOrder.indexOf(id), direction),
+        }));
+    };
+
+    const reorderDashboardMainWidget = (sourceId: MainGridWidgetId, targetId: MainGridWidgetId) => {
+        updateDashboardLayoutDraft((layout) => ({
+            ...layout,
+            mainGridOrder: moveDashboardItemTo(layout.mainGridOrder, layout.mainGridOrder.indexOf(sourceId), layout.mainGridOrder.indexOf(targetId)),
+        }));
+    };
+
+    const moveDashboardRecentWidget = (id: RecentlyAddedWidgetId, direction: -1 | 1) => {
+        updateDashboardLayoutDraft((layout) => ({
+            ...layout,
+            recentlyAddedOrder: moveDashboardItem(layout.recentlyAddedOrder, layout.recentlyAddedOrder.indexOf(id), direction),
+        }));
+    };
+
+    const reorderDashboardRecentWidget = (sourceId: RecentlyAddedWidgetId, targetId: RecentlyAddedWidgetId) => {
+        updateDashboardLayoutDraft((layout) => ({
+            ...layout,
+            recentlyAddedOrder: moveDashboardItemTo(layout.recentlyAddedOrder, layout.recentlyAddedOrder.indexOf(sourceId), layout.recentlyAddedOrder.indexOf(targetId)),
+        }));
+    };
+
+    const setDashboardWidgetSize = (id: DashboardWidgetId, size: DashboardWidgetSize) => {
+        updateDashboardLayoutDraft((layout) => {
+            const widgetSizes = { ...(layout.widgetSizes || {}) };
+            if (size === 'normal') delete widgetSizes[id];
+            else widgetSizes[id] = size;
+            return { ...layout, widgetSizes };
+        });
+    };
+
     const daysLeft = user?.expiryDate ? getDaysUntilExpiry(user.expiryDate) : null;
     const progressPct = getAccessProgressPct(user?.expiryDate || null, user?.joiningDate || null);
-    const isExpiringSoon = daysLeft !== null && daysLeft <= 7;
+    const isExpired = daysLeft !== null && daysLeft < 0;
+    const isExpiringSoon = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7;
     const isRevoked = user?.plexAccessStatus === 'revoked';
     const isPending = user?.plexAccessStatus?.toLowerCase() === 'pending';
-
-    const heroBgRaw = analytics?.recentHistory?.[0]?.thumbUrl || publicConfig?.customLogoUrl || '';
-    const heroBg = heroBgRaw
-        ? (heroBgRaw.startsWith('http') ? heroBgRaw : resolvePortalAssetUrl(heroBgRaw))
-        : '';
 
     const wrapUpDaysOptions = ANALYTICS_PERIOD_OPTIONS;
 
@@ -5012,8 +6404,9 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
         hasUser: !!user,
         referralEnabled: !!publicConfig?.referralEnabled,
         requestsQueueEnabled: !!sessionInfo?.navFeatures?.requestsQueue,
+        collexionsEnabled: !!sessionInfo?.navFeatures?.collexions,
         mediaServerType: publicConfig?.mediaServerType || 'plex',
-    }), [sessionInfo.session.isAdmin, user, publicConfig?.referralEnabled, publicConfig?.mediaServerType, sessionInfo?.navFeatures?.requestsQueue]);
+    }), [sessionInfo.session.isAdmin, user, publicConfig?.referralEnabled, publicConfig?.mediaServerType, sessionInfo?.navFeatures?.requestsQueue, sessionInfo?.navFeatures?.collexions]);
 
     const widgetDeps = useMemo(() => ({
         sessionInfo,
@@ -5034,11 +6427,13 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
         setAnalyticsDaysOpen,
         showQualityBadges,
         dashboardData,
+        bazarrWidgets,
         handleRelink,
         handleToggleNewsletter,
         onViewAdmin,
         onViewSettings,
         onViewLogs,
+        onViewCollexions,
         onViewRequests,
         onPendingRequestsChange,
         setToast,
@@ -5047,28 +6442,43 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     }), [
         sessionInfo, publicConfig, user, isRevoked, isExpiringSoon, daysLeft, progressPct, optOutNewsletter,
         serverStats, serverDataLoading, analytics, analyticsLoading, analyticsDays, analyticsDaysOpen,
-        showQualityBadges, dashboardData, onViewAdmin, onViewSettings, onViewLogs, onViewRequests, onPendingRequestsChange,
+        showQualityBadges, dashboardData, bazarrWidgets, onViewAdmin, onViewSettings, onViewLogs, onViewCollexions, onViewRequests, onPendingRequestsChange,
     ]);
 
     const renderMainGridWidget = useMemo(() => createMainGridWidgetRenderer(widgetDeps), [widgetDeps]);
     const renderPendingRequests = useMemo(() => createPendingRequestsSectionRenderer(widgetDeps), [widgetDeps]);
+    const renderBazarrTools = useMemo(() => createBazarrToolsSectionRenderer(widgetDeps), [widgetDeps]);
     const renderRecentlyAddedWidget = useMemo(() => createRecentlyAddedWidgetRenderer(widgetDeps), [widgetDeps]);
 
     return (
         <div className="w-full flex flex-col gap-3 md:gap-4">
             <Loader isLoading={isLoading} isCinematic={!!publicConfig?.useCinematicLoading} />
             {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
+            {layoutEditorOpen && (
+                <PortalWidgetEditorModal
+                    layout={dashboardLayoutDraft}
+                    onChange={setDashboardLayoutDraft}
+                    onSave={handleSaveDashboardLayout}
+                    onClose={() => setLayoutEditorOpen(false)}
+                    saving={layoutSaving}
+                />
+            )}
 
             {/* Massive Hero Banner */}
-            <div className="relative w-full rounded-2xl overflow-hidden shadow-2xl bg-card border border-border">
+            <div className="home-hero-banner relative w-full rounded-2xl overflow-hidden shadow-2xl bg-card border border-border">
                 {/* Blurred Background */}
                 <div className="absolute inset-0 bg-background overflow-hidden">
                     {publicConfig?.useTrendingSlideshow && publicConfig?.trendingBackgrounds?.length > 0 ? (
                         <>
                             <div className="absolute inset-0 opacity-100">
-                                <SlideshowBackground backgrounds={publicConfig.trendingBackgrounds} intervalSeconds={publicConfig.trendingSlideshowInterval} opacity={1} />
+                                <SlideshowBackground
+                                    backgrounds={publicConfig.trendingBackgrounds}
+                                    intervalSeconds={publicConfig.trendingSlideshowInterval}
+                                    opacity={1}
+                                    smartFocus
+                                />
                             </div>
-                            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
+                            <div className="home-hero-scrim absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
                             <div className="absolute inset-0 bg-gradient-to-r from-card via-card/20 to-transparent" />
                             <div className="absolute inset-0 bg-black/10" />
                         </>
@@ -5083,7 +6493,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                     </div>
                                 ))}
                             </div>
-                            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" />
+                            <div className="home-hero-scrim absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" />
                             <div className="absolute inset-0 bg-gradient-to-r from-card via-card/40 to-transparent" />
                         </>
                     ) : heroBg ? (
@@ -5092,16 +6502,47 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                 className="absolute inset-0 bg-cover bg-center opacity-30 blur-2xl scale-110"
                                 style={{ backgroundImage: `url(${heroBg})` }}
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" />
+                            <div className="home-hero-scrim absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" />
                             <div className="absolute inset-0 bg-gradient-to-r from-card via-card/40 to-transparent" />
                         </>
                     ) : (
                         <>
-                            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" />
+                            <div className="home-hero-scrim absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" />
                             <div className="absolute inset-0 bg-gradient-to-r from-card via-card/40 to-transparent" />
                         </>
                     )}
                 </div>
+
+                {false && sessionInfo.session.isAdmin && (
+                    <div className="absolute top-4 right-4 z-20 flex flex-wrap justify-end gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setInlineWidgetEditing((value) => !value)}
+                            className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-bold backdrop-blur-md transition-colors shadow-lg ${inlineWidgetEditing ? 'border-plex/70 bg-plex text-black' : 'border-white/15 bg-black/45 text-text hover:border-plex/50 hover:text-plex'}`}
+                        >
+                            <Settings className="w-4 h-4" />
+                            {inlineWidgetEditing ? 'Editing Widgets' : 'Edit Widgets'}
+                        </button>
+                        {inlineWidgetEditing && (
+                            <button
+                                type="button"
+                                onClick={handleSaveDashboardLayout}
+                                disabled={layoutSaving}
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-400/40 bg-emerald-500/20 text-emerald-100 text-sm font-bold backdrop-blur-md hover:bg-emerald-500/30 disabled:opacity-60 transition-colors shadow-lg"
+                            >
+                                {layoutSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                                Save
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => setLayoutEditorOpen(true)}
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-white/15 bg-black/45 text-text text-sm font-bold backdrop-blur-md hover:border-plex/50 hover:text-plex transition-colors shadow-lg"
+                        >
+                            List
+                        </button>
+                    </div>
+                )}
 
                 <div className="relative pt-14 pb-7 px-4 md:pt-32 md:pb-12 md:px-12 flex flex-col items-center md:items-start text-center md:text-left z-10">
                     <div className="flex flex-col md:flex-row items-center md:items-center gap-4 md:gap-6">
@@ -5147,7 +6588,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                 })()}
                             </p>
                             <h1
-                                className="text-4xl md:text-5xl font-black text-white leading-normal drop-shadow-lg pb-0.5"
+                                className="text-4xl md:text-5xl font-black text-text leading-normal pb-0.5"
                                 style={{ fontSize: 'clamp(1.6rem, 8vw, 3rem)', wordBreak: 'break-word' }}
                             >
                                 {sessionInfo.session.username}
@@ -5174,11 +6615,14 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                 />
             )}
 
+            <DetailsModal item={detailsItem} onClose={() => setDetailsItem(null)} />
+
             <UserDashboardLayout
-                layoutConfig={publicConfig?.dashboardLayout}
+                layoutConfig={dashboardLayoutDraft}
                 layoutCtx={layoutCtx}
                 renderMainGridWidget={renderMainGridWidget}
                 renderPendingRequests={renderPendingRequests}
+                renderBazarrTools={renderBazarrTools}
                 renderRecentlyAddedWidget={renderRecentlyAddedWidget}
                 recentlyAddedLoading={serverDataLoading}
                 hasDashboardData={!!dashboardData}
@@ -5219,6 +6663,14 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                     </div>
                                 </div>
                                 <WrapUpCardGrid analytics={analytics} interactive onCardClick={setSelectedMetric} minCardHeight={112} />
+                                {analytics.heatmapData && (
+                                    <div className="mt-6 pt-6 border-t border-white/10 min-w-0 overflow-hidden">
+                                        <h4 className="text-xs uppercase tracking-widest text-muted font-bold mb-4 flex items-center gap-2">
+                                            <Calendar className="w-4 h-4 text-plex" /> Activity ({analyticsDays === 'all' ? 'All Time' : `Last ${analyticsDays} Days`})
+                                        </h4>
+                                        <ActivityHeatmap data={analytics.heatmapData} />
+                                    </div>
+                                )}
                             </div>
                         )}
                     </>
@@ -5252,34 +6704,42 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                     </div>
                                 )}
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 items-stretch flex-1 min-h-0 content-start">
+                            <div className="relative flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar pl-8 pr-2 pt-2 pb-2">
+                                {/* Vertical Line */}
+                                <div className="absolute left-[15px] top-6 bottom-6 w-[2px] bg-white/5 rounded-full" />
+                                
                                 {analytics.recentHistory.slice(recentHistoryPage * recentHistoryPageSize, (recentHistoryPage + 1) * recentHistoryPageSize).map((item: any, idx: number) => (
-                                    <div key={idx} className="flex items-center self-stretch gap-3 p-2 bg-black/20 rounded-xl border border-white/5 hover:border-plex/50 hover:bg-black/40 hover:shadow-[0_0_15px_rgba(229,160,13,0.15)] transition-all group relative">
-                                        <a href={item.plexUrl} target="_blank" rel="noreferrer" className="flex items-center flex-1 min-w-0 gap-3">
-                                            <div className="w-10 h-10 rounded-lg overflow-hidden bg-background flex-shrink-0 shadow-md">
+                                    <div key={idx} className="relative flex items-center py-2.5 group">
+                                        {/* Timeline Node */}
+                                        <div className="absolute -left-[21px] w-[10px] h-[10px] rounded-full bg-white/20 group-hover:bg-plex group-hover:scale-[1.6] group-hover:shadow-[0_0_15px_rgba(229,160,13,0.8)] transition-all duration-300 z-10" />
+                                        
+                                        <button onClick={() => setDetailsItem(item)} className="flex items-center flex-1 min-w-0 gap-4 p-2.5 -my-2.5 rounded-2xl hover:bg-white/5 transition-colors border-0 bg-transparent text-left cursor-pointer outline-none w-full relative group">
+                                            <div className={`w-10 sm:w-12 ${item.type === 'track' ? 'aspect-square' : 'aspect-[2/3]'} rounded-md overflow-hidden bg-black/50 flex-shrink-0 shadow-lg border border-white/5 group-hover:border-plex/40 transition-colors`}>
                                                 {item.thumbUrl ? (
-                                                    <img src={resolvePortalAssetUrl(item.thumbUrl)} alt={item.title} className="w-full h-full object-cover" />
+                                                    <img src={resolvePortalAssetUrl(item.thumbUrl)} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center">
                                                         <PlaySquare className="w-5 h-5 text-muted/50" />
                                                     </div>
                                                 )}
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="font-bold text-text text-xs truncate group-hover:text-plex transition-colors">{item.title}</h4>
-                                                {item.episodeTitle && <p className="text-[11px] leading-tight text-muted truncate mt-0.5">{item.episodeTitle}</p>}
-                                                <div className="flex items-center gap-1 mt-1">
-                                                    <Clock className="w-3 h-3 text-muted" />
-                                                    <p className="text-[10px] text-muted">{new Date(item.viewedAt * 1000).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
+                                            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                <p className="text-sm text-muted truncate">
+                                                    Watched <span className="font-bold text-text group-hover:text-plex transition-colors">{item.title}</span>
+                                                </p>
+                                                {item.episodeTitle && <p className="text-[11px] font-semibold text-muted/70 truncate mt-0.5">{item.episodeTitle}</p>}
+                                                <div className="flex items-center gap-1.5 mt-1.5">
+                                                    <Clock className="w-3 h-3 text-plex/80" />
+                                                    <p className="text-[10px] font-mono font-bold text-muted/60 uppercase tracking-wider">{new Date(item.viewedAt * 1000).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
                                                 </div>
                                             </div>
-                                        </a>
+                                        </button>
                                         <button
                                             onClick={(e) => { e.preventDefault(); setReportItem(item); }}
-                                            className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-2 text-muted hover:text-red-400 hover:bg-red-400/10 rounded-full transition-all focus:outline-none"
+                                            className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-2.5 ml-2 text-muted hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all focus:outline-none flex-shrink-0"
                                             title="Report a playback issue"
                                         >
-                                            <AlertTriangle className="w-4 h-4" />
+                                            <AlertTriangle className="w-[18px] h-[18px]" />
                                         </button>
                                     </div>
                                 ))}
@@ -5405,6 +6865,7 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
     const [hasError, setHasError] = useState(false);
     const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'analytics'>('overview');
     const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+    const [period, setPeriod] = useState<StatusPeriod>('90d');
 
     const fetchStatus = useCallback(async () => {
         try {
@@ -5427,9 +6888,9 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
 
     useEffect(() => {
         if (statusData && !selectedServiceId) {
-            const services = statusData.config?.services || [];
-            if (services.length > 0) {
-                setSelectedServiceId(services[0].id);
+            const nextServices = statusData.config?.services || [];
+            if (nextServices.length > 0) {
+                setSelectedServiceId(nextServices[0].id);
             }
         }
     }, [statusData, selectedServiceId]);
@@ -5445,11 +6906,10 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
                     )}
                     <h2 className="text-2xl font-bold text-text">Server Status</h2>
                 </header>
-                {!isLoading && hasError ? (
-                    <div className="w-full bg-red-500/10 border border-red-500 text-red-400 p-6 rounded-xl flex flex-col items-center gap-3 mt-4">
-                        <AlertCircle className="w-8 h-8" />
-                        <p className="font-semibold">Failed to load server status.</p>
-                        <button onClick={() => { setIsLoading(true); fetchStatus(); }} className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-text text-sm font-medium transition-colors">Retry</button>
+                {hasError ? (
+                    <div className="text-center p-8">
+                        <p className="text-status-expired mb-4">Failed to load status data.</p>
+                        <button onClick={fetchStatus} className="px-4 py-2 bg-plex text-background rounded-lg font-bold">Retry</button>
                     </div>
                 ) : (
                     <Loader isLoading={true} />
@@ -5461,16 +6921,60 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
     const { config, healthData } = statusData;
     const services = config?.services || [];
     const groups = config?.groups || [];
+    const serviceIds = services.map((s: any) => s.id);
+    const statusCounts = services.reduce((acc: any, service: any) => {
+        const status = healthData[service.id]?.currentStatus || 'unknown';
+        acc.total += 1;
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+    }, { total: 0, online: 0, degraded: 0, offline: 0, unknown: 0 });
+    const fleetPct = fleetUptimeForPeriod(healthData, serviceIds, period);
+    const periodLabel = STATUS_PERIODS.find((p) => p.id === period)?.label || period;
+    const selectedService = services.find((s: any) => s.id === selectedServiceId) || services[0];
+    const selectedHealth = selectedService ? healthData[selectedService.id] : null;
+    const selectedStats = periodStats(selectedHealth, period);
+    const selectedBars = barsForPeriod(selectedHealth, period);
+    const selectedLatencySeries = latencySeriesForPeriod(selectedHealth, period);
+
+    const barClassForTone = (tone: string) => {
+        if (tone === 'online') return 'bg-status-active hover:shadow-[0_0_8px_rgba(35,134,54,0.6)]';
+        if (tone === 'offline') return 'bg-status-expired hover:shadow-[0_0_8px_rgba(218,54,51,0.6)]';
+        if (tone === 'degraded') return 'bg-status-expiring hover:shadow-[0_0_8px_rgba(210,153,34,0.6)]';
+        return 'bg-border';
+    };
+
+    const heightForTone = (tone: string) => {
+        if (tone === 'online') return 'h-full';
+        if (tone === 'degraded') return 'h-2/3';
+        if (tone === 'offline') return 'h-1/3';
+        return 'h-1/5';
+    };
 
     return (
         <div className="w-full flex flex-col">
-            <header className="flex items-center gap-4 w-full mb-8 pb-4 border-b border-border">
-                {isPublic && (
-                    <button onClick={onBack} className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors flex items-center justify-center text-muted hover:text-text">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-                    </button>
-                )}
-                <h2 className="text-2xl font-bold text-text">Server Status</h2>
+            <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between w-full mb-6 pb-4 border-b border-border">
+                <div className="flex items-center gap-4">
+                    {isPublic && (
+                        <button onClick={onBack} className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors flex items-center justify-center text-muted hover:text-text">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                        </button>
+                    )}
+                    <h2 className="text-2xl font-bold text-text">Server Status</h2>
+                </div>
+                <div className="flex flex-wrap gap-1.5 p-1 bg-black/20 rounded-xl border border-border w-fit">
+                    {STATUS_PERIODS.map((p) => (
+                        <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => setPeriod(p.id)}
+                            className={`px-3.5 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all border-none outline-none cursor-pointer ${
+                                period === p.id ? 'bg-plex text-background' : 'bg-transparent text-muted hover:text-text hover:bg-white/5'
+                            }`}
+                        >
+                            {p.label}
+                        </button>
+                    ))}
+                </div>
             </header>
 
             <div className="flex flex-wrap gap-2 mb-8 p-1.5 bg-black/20 rounded-xl border border-border w-fit mx-auto md:mx-0">
@@ -5483,7 +6987,7 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)}
                         className={`px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 cursor-pointer border-none outline-none ${activeTab === tab.id
-                            ? 'bg-plex text-background shadow-md'
+                            ? 'bg-plex text-background'
                             : 'bg-transparent text-muted hover:text-text hover:bg-white/5'
                             }`}
                     >
@@ -5495,6 +6999,23 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
             <main className="user-content">
                 {activeTab === 'overview' && (
                     <>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
+                            {[
+                                { label: 'Services', value: statusCounts.total, tone: 'text-text' },
+                                { label: 'Online', value: statusCounts.online, tone: 'text-status-active' },
+                                { label: 'Degraded', value: statusCounts.degraded, tone: 'text-status-expiring' },
+                                { label: 'Offline', value: statusCounts.offline, tone: 'text-status-expired' },
+                                { label: `${periodLabel} uptime`, value: `${fleetPct.toFixed(1)}%`, tone: 'text-plex' },
+                            ].map((item) => (
+                                <div key={item.label} className="rounded-xl border border-white/5 bg-card p-4 shadow-lg">
+                                    <p className="text-[10px] uppercase tracking-widest font-bold text-muted">{item.label}</p>
+                                    <p className={`text-2xl font-black mt-1 ${item.tone}`}>{item.value}</p>
+                                </div>
+                            ))}
+                        </div>
+
+                        {!isPublic && <StatusSpeedTest />}
+
                         {config.announcement && config.announcement.enabled && (
                             <div className="status-announcement">
                                 {config.announcement.message}
@@ -5531,53 +7052,54 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                         {groupServices.map((service: any, index: number) => {
                                             const health = healthData[service.id] || { currentStatus: 'unknown', uptimePercentage: 100, dailyHistory: {} };
+                                            const uptime = uptimeForPeriod(health, period);
+                                            const bars = barsForPeriod(health, period);
+                                            const latency = health.lastLatency;
+                                            const avgLatency = periodStats(health, period).latency.avg;
+                                            const rangeLeft = period === '24h' ? '24h ago' : period === '7d' ? '7 days ago' : period === '30d' ? '30 days ago' : '90 days ago';
                                             return (
                                                 <div key={service.id} className="bg-card rounded-xl p-4 md:p-6 border border-white/5 shadow-lg flex flex-col gap-4 animate-fade-in hover:-translate-y-1 hover:shadow-plex/10 hover:shadow-2xl hover:border-plex/30 transition-all duration-300" style={{ animationFillMode: 'both', animationDelay: `${index * 75}ms` }}>
                                                     <div className="flex justify-between items-start mb-2 gap-4">
-                                                        <h4 className="font-bold text-text text-lg">{service.name}</h4>
+                                                        <div className="flex items-center gap-3 min-w-0">
+                                                            <StatusServiceIcon service={service} />
+                                                            <div className="min-w-0">
+                                                                <h4 className="font-bold text-text text-lg truncate">{service.name}</h4>
+                                                                {service.description && <p className="text-xs text-muted truncate">{service.description}</p>}
+                                                            </div>
+                                                        </div>
                                                         <span className={`px-3 py-1 rounded-full text-[0.65rem] uppercase tracking-wider font-bold border flex items-center gap-1.5 shadow-lg transition-all duration-300 ${health.currentStatus === 'online' ? 'bg-status-active/10 text-status-active border-status-active/30 shadow-[0_0_10px_rgba(35,134,54,0.3)]' : health.currentStatus === 'offline' ? 'bg-status-expired/10 text-[#D32F2F] border-[#D32F2F]/30 shadow-[0_0_10px_rgba(211,47,47,0.3)] animate-pulse' : 'bg-status-expiring/10 text-status-expiring border-status-expiring/30 shadow-[0_0_10px_rgba(210,153,34,0.3)]'}`}>
                                                             {health.currentStatus === 'online' && <span className="w-1.5 h-1.5 rounded-full bg-status-active animate-pulse shadow-[0_0_5px_rgba(35,134,54,0.8)]" />}
                                                             {health.currentStatus === 'offline' && <span className="w-1.5 h-1.5 rounded-full bg-[#D32F2F] animate-ping" />}
                                                             {health.currentStatus === 'degraded' && <span className="w-1.5 h-1.5 rounded-full bg-status-expiring animate-pulse shadow-[0_0_5px_rgba(210,153,34,0.8)]" />}
-                                                            {health.currentStatus.toUpperCase()}
+                                                            {(health.currentStatus || 'unknown').toUpperCase()}
                                                         </span>
                                                     </div>
-                                                    <div className="text-sm text-muted font-medium">
-                                                        <span>Uptime: {health.uptimePercentage}%</span>
+                                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted font-medium">
+                                                        <span>{periodLabel} uptime: <span className="text-text font-bold tabular-nums">{uptime.pct.toFixed(1)}%</span></span>
+                                                        <span>Latency: <span className="text-text font-bold tabular-nums">{formatLatencyMs(latency)}</span>
+                                                            {avgLatency != null && <span className="text-muted font-normal"> avg {formatLatencyMs(avgLatency)}</span>}
+                                                        </span>
                                                     </div>
                                                     <div className="flex gap-[2px] h-12 mt-auto items-end pt-4 group/bars relative">
-                                                        {Array.from({ length: 90 }).map((_, i) => {
-                                                            const d = new Date();
-                                                            d.setDate(d.getDate() - (89 - i));
-                                                            const dateStr = d.toISOString().split('T')[0];
-                                                            const stat = health.dailyHistory?.[dateStr];
-
-                                                            let barClass = 'unknown';
-                                                            let title = `${dateStr}: No data`;
-                                                            let hClass = 'h-1/5';
-
-                                                            if (stat && stat.total > 0) {
-                                                                const pct = (stat.up / stat.total) * 100;
-                                                                title = `${dateStr}: ${pct.toFixed(1)}% uptime`;
-                                                                if (pct >= 99) { barClass = 'online'; hClass = 'h-full'; }
-                                                                else if (pct >= 90) { barClass = 'degraded'; hClass = 'h-2/3'; }
-                                                                else { barClass = 'offline'; hClass = 'h-1/3'; }
-                                                            }
-
+                                                        {bars.map((bar, i) => {
+                                                            const tone = statusToneFromPct(bar.pct);
+                                                            const title = bar.pct == null
+                                                                ? `${bar.label}: No data`
+                                                                : `${bar.label}: ${bar.pct.toFixed(1)}% uptime${bar.avgLatency != null ? ` · ${formatLatencyMs(bar.avgLatency)} avg` : ''}`;
                                                             return (
                                                                 <div
-                                                                    key={i}
-                                                                    className={`flex-1 rounded-sm transition-all duration-300 hover:opacity-100 opacity-60 cursor-pointer animate-fade-in ${barClass === 'online' ? 'bg-status-active hover:shadow-[0_0_8px_rgba(35,134,54,0.6)]' : barClass === 'offline' ? 'bg-status-expired hover:shadow-[0_0_8px_rgba(218,54,51,0.6)]' : barClass === 'degraded' ? 'bg-status-expiring hover:shadow-[0_0_8px_rgba(210,153,34,0.6)]' : 'bg-border'} ${hClass}`}
-                                                                    style={{ animationFillMode: 'both', animationDelay: `${i * 10}ms` }}
+                                                                    key={bar.key}
+                                                                    className={`flex-1 rounded-sm transition-all duration-300 hover:opacity-100 opacity-60 cursor-pointer animate-fade-in ${barClassForTone(tone)} ${heightForTone(tone)}`}
+                                                                    style={{ animationFillMode: 'both', animationDelay: `${Math.min(i, 40) * 10}ms` }}
                                                                     title={title}
                                                                 />
                                                             );
                                                         })}
                                                     </div>
-                                                    <div className="flex justify-between text-[10px] text-muted font-bold tracking-wider mt-1 opacity-50">
-                                                        <span>90 DAYS AGO</span>
-                                                        <span className="text-center flex-1">{health.uptimePercentage}%</span>
-                                                        <span>TODAY</span>
+                                                    <div className="flex justify-between text-[10px] text-muted font-bold tracking-wider mt-1 opacity-50 uppercase">
+                                                        <span>{rangeLeft}</span>
+                                                        <span className="text-center flex-1 tabular-nums">{uptime.pct.toFixed(1)}%</span>
+                                                        <span>Now</span>
                                                     </div>
                                                 </div>
                                             );
@@ -5591,111 +7113,232 @@ export const StatusDashboard: React.FC<{ onBack: () => void, isAdmin: boolean, i
 
                 {activeTab === 'history' && (
                     <div className="flex flex-col gap-8 animate-fade-in">
-                        {services.map((service: any) => (
-                            <div key={service.id} className="bg-card border border-white/5 shadow-2xl rounded-2xl overflow-hidden mt-4">
-                                <div className="p-4 bg-black/20 border-b border-border/50">
-                                    <h3 className="text-lg font-bold text-plex uppercase tracking-wider">{service.name}</h3>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left border-collapse">
-                                        <thead className="bg-black/40 border-b border-border text-muted text-xs uppercase tracking-wider">
-                                            <tr>
-                                                <th className="px-6 py-4 font-bold whitespace-nowrap">Date</th>
-                                                <th className="px-6 py-4 font-bold whitespace-nowrap">Uptime %</th>
-                                                <th className="px-6 py-4 font-bold whitespace-nowrap">Checks (Up / Total)</th>
-                                                <th className="px-6 py-4 font-bold text-right whitespace-nowrap">Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-border/50">
-                                            {Object.entries(healthData[service.id]?.dailyHistory || {})
-                                                .sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime())
-                                                .map(([dateStr, stat]: [string, any]) => {
-                                                    const pct = stat.total > 0 ? (stat.up / stat.total) * 100 : 0;
+                        {services.map((service: any) => {
+                            const health = healthData[service.id];
+                            const rows = historyRowsForPeriod(health, period);
+                            const incidents = incidentsForPeriod(health, period);
+                            return (
+                                <div key={service.id} className="bg-card border border-white/5 shadow-2xl rounded-2xl overflow-hidden mt-4">
+                                    <div className="p-4 bg-black/20 border-b border-border/50 flex flex-wrap items-center justify-between gap-2">
+                                        <h3 className="text-lg font-bold text-plex uppercase tracking-wider">{service.name}</h3>
+                                        <span className="text-xs text-muted font-bold uppercase tracking-wider">{periodLabel} history</span>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead className="bg-black/40 border-b border-border text-muted text-xs uppercase tracking-wider">
+                                                <tr>
+                                                    <th className="px-6 py-4 font-bold whitespace-nowrap">{period === '24h' || period === '7d' ? 'Hour (UTC)' : 'Date'}</th>
+                                                    <th className="px-6 py-4 font-bold whitespace-nowrap">Uptime %</th>
+                                                    <th className="px-6 py-4 font-bold whitespace-nowrap">Checks (Up / Total)</th>
+                                                    {(period === '24h' || period === '7d') && (
+                                                        <th className="px-6 py-4 font-bold whitespace-nowrap">Avg latency</th>
+                                                    )}
+                                                    <th className="px-6 py-4 font-bold text-right whitespace-nowrap">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-border/50">
+                                                {rows.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={period === '24h' || period === '7d' ? 5 : 4} className="px-6 py-8 text-center text-muted text-sm">
+                                                            No history for this period yet. Data builds as probes run.
+                                                        </td>
+                                                    </tr>
+                                                ) : rows.map((row) => {
+                                                    const tone = statusToneFromPct(row.pct);
                                                     return (
-                                                        <tr key={dateStr} className="hover:bg-white/5 transition-colors">
-                                                            <td className="px-6 py-4 font-medium whitespace-nowrap text-text">{dateStr}</td>
-                                                            <td className="px-6 py-4 font-mono whitespace-nowrap text-muted">{pct.toFixed(2)}%</td>
-                                                            <td className="px-6 py-4 text-muted text-sm whitespace-nowrap">{stat.up} / {stat.total} checks</td>
+                                                        <tr key={row.key} className="hover:bg-white/5 transition-colors">
+                                                            <td className="px-6 py-4 font-medium whitespace-nowrap text-text">{row.label}</td>
+                                                            <td className="px-6 py-4 font-mono whitespace-nowrap text-muted">{row.pct.toFixed(2)}%</td>
+                                                            <td className="px-6 py-4 text-muted text-sm whitespace-nowrap">{row.up} / {row.total} checks</td>
+                                                            {(period === '24h' || period === '7d') && (
+                                                                <td className="px-6 py-4 text-muted text-sm whitespace-nowrap tabular-nums">{formatLatencyMs(row.avgLatency)}</td>
+                                                            )}
                                                             <td className="px-6 py-4 text-right whitespace-nowrap">
-                                                                <span className={`px-2.5 py-1 rounded-full text-[10px] uppercase font-bold tracking-widest border ${pct >= 99 ? 'bg-status-active/10 text-status-active border-status-active/30' : pct >= 90 ? 'bg-status-expiring/10 text-status-expiring border-status-expiring/30' : 'bg-status-expired/10 text-status-expired border-status-expired/30'}`}>
-                                                                    {pct >= 99 ? 'Healthy' : pct >= 90 ? 'Degraded' : 'Outage'}
+                                                                <span className={`px-2.5 py-1 rounded-full text-[10px] uppercase font-bold tracking-widest border ${tone === 'online' ? 'bg-status-active/10 text-status-active border-status-active/30' : tone === 'degraded' ? 'bg-status-expiring/10 text-status-expiring border-status-expiring/30' : tone === 'offline' ? 'bg-status-expired/10 text-status-expired border-status-expired/30' : 'bg-white/5 text-muted border-border'}`}>
+                                                                    {tone === 'online' ? 'Healthy' : tone === 'degraded' ? 'Degraded' : tone === 'offline' ? 'Outage' : 'Unknown'}
                                                                 </span>
                                                             </td>
                                                         </tr>
                                                     );
                                                 })}
-                                        </tbody>
-                                    </table>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div className="border-t border-border/50 p-4 bg-black/10">
+                                        <h4 className="text-xs font-bold uppercase tracking-widest text-muted mb-3">Incidents ({periodLabel})</h4>
+                                        {incidents.length === 0 ? (
+                                            <p className="text-sm text-muted">No incidents in this window.</p>
+                                        ) : (
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-left border-collapse text-sm">
+                                                    <thead className="text-muted text-[10px] uppercase tracking-wider">
+                                                        <tr>
+                                                            <th className="pb-2 pr-4 font-bold">Started</th>
+                                                            <th className="pb-2 pr-4 font-bold">Ended</th>
+                                                            <th className="pb-2 pr-4 font-bold">Duration</th>
+                                                            <th className="pb-2 font-bold text-right">Severity</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-border/40">
+                                                        {incidents.map((incident) => {
+                                                            const duration = incident.endedAt != null
+                                                                ? (incident.durationMs ?? Math.max(0, incident.endedAt - incident.startedAt))
+                                                                : Math.max(0, Date.now() - incident.startedAt);
+                                                            const severity = incident.to === 'offline' ? 'Offline' : 'Degraded';
+                                                            return (
+                                                                <tr key={incident.id}>
+                                                                    <td className="py-2.5 pr-4 text-text whitespace-nowrap">{formatDateTime(new Date(incident.startedAt).toISOString())}</td>
+                                                                    <td className="py-2.5 pr-4 text-muted whitespace-nowrap">{incident.endedAt != null ? formatDateTime(new Date(incident.endedAt).toISOString()) : 'Ongoing'}</td>
+                                                                    <td className="py-2.5 pr-4 text-muted tabular-nums">{formatDurationShort(duration)}</td>
+                                                                    <td className="py-2.5 text-right">
+                                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-widest border ${severity === 'Offline' ? 'bg-status-expired/10 text-status-expired border-status-expired/30' : 'bg-status-expiring/10 text-status-expiring border-status-expiring/30'}`}>
+                                                                            {severity}
+                                                                        </span>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
 
                 {activeTab === 'analytics' && (
-                    <div className="flex flex-col gap-8 animate-fade-in">
-                        {services.map((service: any) => (
-                            <div key={service.id} className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 md:p-10 mt-4">
-                                <h3 className="text-xl font-bold mb-10 text-center text-muted tracking-widest uppercase">{service.name} - 90-Day Uptime Trend</h3>
-                                <div className="relative h-64 md:h-80 flex items-end gap-1 w-full pl-12 pr-4 md:pr-8">
-                                    {/* Grid lines */}
-                                    <div className="absolute inset-0 pl-12 pr-4 md:pr-8 flex flex-col justify-between pointer-events-none pb-8">
-                                        <div className="w-full border-t border-white/5 h-0 relative">
-                                            <span className="absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right">100%</span>
-                                        </div>
-                                        <div className="w-full border-t border-white/5 h-0 relative">
-                                            <span className="absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right">75%</span>
-                                        </div>
-                                        <div className="w-full border-t border-white/5 h-0 relative">
-                                            <span className="absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right">50%</span>
-                                        </div>
-                                        <div className="w-full border-t border-white/5 h-0 relative">
-                                            <span className="absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right">25%</span>
-                                        </div>
-                                        <div className="w-full border-t border-white/20 h-0 relative">
-                                            <span className="absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right">0%</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Bars */}
-                                    <div className="w-full h-full flex items-end gap-[2px] pb-8 z-10">
-                                        {Array.from({ length: 90 }).map((_, i) => {
-                                            const d = new Date();
-                                            d.setDate(d.getDate() - (89 - i));
-                                            const dateStr = d.toISOString().split('T')[0];
-                                            const stat = healthData[service.id]?.dailyHistory?.[dateStr];
-                                            const pct = stat && stat.total > 0 ? (stat.up / stat.total) * 100 : 0;
-
-                                            return (
-                                                <div
-                                                    key={i}
-                                                    className="flex-1 flex flex-col justify-end h-full relative group/chart cursor-crosshair"
-                                                >
-                                                    <div
-                                                        className={`w-full rounded-t-sm transition-all duration-300 opacity-80 group-hover/chart:opacity-100 ${pct >= 99 ? 'bg-status-active' : pct >= 90 ? 'bg-status-expiring' : stat && stat.total > 0 ? 'bg-status-expired' : 'bg-white/10'}`}
-                                                        style={{ height: `${Math.max(1, pct)}%` }}
-                                                    />
-                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-3 bg-card border border-border shadow-2xl text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/chart:opacity-100 pointer-events-none transition-opacity z-50 flex flex-col items-center">
-                                                        <strong className="text-plex mb-1 tracking-wider uppercase text-[10px]">{dateStr}</strong>
-                                                        <span className="text-lg font-mono font-bold">{stat && stat.total > 0 ? `${pct.toFixed(2)}%` : 'No data'}</span>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                                <div className="flex justify-between text-[10px] text-muted font-bold tracking-widest mt-2 px-12 uppercase">
-                                    <span>90 days ago</span>
-                                    <span>Today</span>
-                                </div>
+                    <div className="flex flex-col gap-6 animate-fade-in">
+                        {services.length > 1 && (
+                            <div className="flex flex-wrap gap-2">
+                                {services.map((service: any) => (
+                                    <button
+                                        key={service.id}
+                                        type="button"
+                                        onClick={() => setSelectedServiceId(service.id)}
+                                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors border ${
+                                            selectedService?.id === service.id
+                                                ? 'bg-plex text-background border-plex'
+                                                : 'bg-card text-muted border-border hover:text-text hover:border-plex/40'
+                                        }`}
+                                    >
+                                        {service.name}
+                                    </button>
+                                ))}
                             </div>
-                        ))}
+                        )}
+
+                        {selectedService && (
+                            <>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    {[
+                                        { label: 'Uptime', value: `${selectedStats.pct.toFixed(2)}%` },
+                                        { label: 'Checks', value: selectedStats.total.toLocaleString() },
+                                        { label: 'Avg latency', value: formatLatencyMs(selectedStats.latency.avg) },
+                                        { label: 'p95 latency', value: formatLatencyMs(selectedStats.latency.p95) },
+                                        { label: 'Incidents', value: String(selectedStats.incidentCount) },
+                                        { label: 'Longest outage', value: formatDurationShort(selectedStats.longestOutageMs) },
+                                        { label: 'Healthy streak', value: selectedStats.currentStreakHours ? `${selectedStats.currentStreakHours}h` : '—' },
+                                        { label: 'Worst day', value: selectedStats.worstDay ? `${selectedStats.worstDay.pct.toFixed(1)}%` : '—' },
+                                    ].map((chip) => (
+                                        <div key={chip.label} className="rounded-xl border border-white/5 bg-card p-4 shadow-lg">
+                                            <p className="text-[10px] uppercase tracking-widest font-bold text-muted">{chip.label}</p>
+                                            <p className="text-xl font-black mt-1 text-text tabular-nums">{chip.value}</p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 md:p-10">
+                                    <h3 className="text-xl font-bold mb-10 text-center text-muted tracking-widest uppercase">
+                                        {selectedService.name} — {periodLabel} Uptime Trend
+                                    </h3>
+                                    <div className="relative h-64 md:h-80 flex items-end gap-1 w-full pl-12 pr-4 md:pr-8">
+                                        <div className="absolute inset-0 pl-12 pr-4 md:pr-8 flex flex-col justify-between pointer-events-none pb-8">
+                                            {['100%', '75%', '50%', '25%', '0%'].map((label) => (
+                                                <div key={label} className={`w-full border-t ${label === '0%' ? 'border-white/20' : 'border-white/5'} h-0 relative`}>
+                                                    <span className="absolute -left-12 -top-2.5 text-xs font-mono text-muted/50 w-10 text-right">{label}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="w-full h-full flex items-end gap-[2px] pb-8 z-10">
+                                            {selectedBars.map((bar) => {
+                                                const pct = bar.pct ?? 0;
+                                                const hasData = bar.pct != null && bar.total > 0;
+                                                return (
+                                                    <div key={bar.key} className="flex-1 flex flex-col justify-end h-full relative group/chart cursor-crosshair">
+                                                        <div
+                                                            className={`w-full rounded-t-sm transition-all duration-300 opacity-80 group-hover/chart:opacity-100 ${
+                                                                !hasData ? 'bg-white/10' : pct >= 99 ? 'bg-status-active' : pct >= 90 ? 'bg-status-expiring' : 'bg-status-expired'
+                                                            }`}
+                                                            style={{ height: `${Math.max(1, hasData ? pct : 1)}%` }}
+                                                        />
+                                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-3 bg-card border border-border shadow-2xl text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/chart:opacity-100 pointer-events-none transition-opacity z-50 flex flex-col items-center">
+                                                            <strong className="text-plex mb-1 tracking-wider uppercase text-[10px]">{bar.label}</strong>
+                                                            <span className="text-lg font-mono font-bold">{hasData ? `${pct.toFixed(2)}%` : 'No data'}</span>
+                                                            {bar.avgLatency != null && (
+                                                                <span className="text-muted mt-0.5">{formatLatencyMs(bar.avgLatency)} avg</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-between text-[10px] text-muted font-bold tracking-widest mt-2 px-12 uppercase">
+                                        <span>{period === '24h' ? '24h ago' : `${periodLabel} ago`}</span>
+                                        <span>Now</span>
+                                    </div>
+                                </div>
+
+                                <div className="bg-card border border-white/5 shadow-2xl rounded-2xl p-6 md:p-10">
+                                    <h3 className="text-xl font-bold mb-8 text-center text-muted tracking-widest uppercase">
+                                        {selectedService.name} — {periodLabel} Latency
+                                    </h3>
+                                    {selectedLatencySeries.some((p) => p.avg != null) ? (
+                                        <div className="h-56 md:h-72 w-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <AreaChart data={selectedLatencySeries.filter((p) => p.avg != null)} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                                                    <XAxis dataKey="label" tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 10 }} interval="preserveStartEnd" minTickGap={28} />
+                                                    <YAxis tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 10 }} width={48} tickFormatter={(v) => `${v}ms`} />
+                                                    <RechartsTooltip
+                                                        contentStyle={{ background: 'var(--card, #1a1a1a)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }}
+                                                        labelStyle={{ color: '#e5a00d' }}
+                                                        formatter={(value: any) => [formatLatencyMs(Number(value)), 'Avg latency']}
+                                                    />
+                                                    <Area type="monotone" dataKey="avg" stroke="#e5a00d" fill="rgba(229,160,13,0.2)" strokeWidth={2} />
+                                                </AreaChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    ) : (
+                                        <p className="text-center text-muted text-sm py-12">
+                                            Latency history will appear after probes collect response times for this period.
+                                        </p>
+                                    )}
+                                    {selectedStats.bestDay && selectedStats.worstDay && period !== '24h' && (
+                                        <div className="flex flex-wrap justify-center gap-6 mt-6 text-sm text-muted">
+                                            <span>Best: <strong className="text-status-active">{selectedStats.bestDay.key}</strong> ({selectedStats.bestDay.pct.toFixed(1)}%)</span>
+                                            <span>Worst: <strong className="text-status-expired">{selectedStats.worstDay.key}</strong> ({selectedStats.worstDay.pct.toFixed(1)}%)</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
             </main>
         </div>
     );
 };
+const StreamSpecCard: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+    <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-3 min-w-0">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-1.5">{label}</p>
+        {children}
+    </div>
+);
+
 const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?: boolean, onKilled?: () => void, providerLabel?: string }> = ({ session, onClose, isAdmin, onKilled, providerLabel = 'Plex' }) => {
     const [killReason, setKillReason] = useState('');
     const [isKilling, setIsKilling] = useState(false);
@@ -5703,7 +7346,84 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
     const sessionPosterSrc = session.thumbUrl
         ? resolvePortalAssetUrl(session.thumbUrl)
         : portalUrl(`/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=400&height=600`);
+    const sessionFallbackPosterSrc = session.posterFallbackUrl ? resolvePortalAssetUrl(session.posterFallbackUrl) : '';
     const sessionUserThumbSrc = session.userThumb ? resolvePortalAssetUrl(session.userThumb) : 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y';
+    const geo = isAdmin && session.geo && Number.isFinite(Number(session.geo.latitude)) && Number.isFinite(Number(session.geo.longitude))
+        ? session.geo
+        : null;
+    const geoLat = geo ? Number(geo.latitude) : NaN;
+    const geoLon = geo ? Number(geo.longitude) : NaN;
+    const mapPad = 0.35;
+    const osmEmbedUrl = geo
+        ? `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(
+            `${geoLon - mapPad},${geoLat - mapPad},${geoLon + mapPad},${geoLat + mapPad}`,
+        )}&layer=mapnik&marker=${encodeURIComponent(`${geoLat},${geoLon}`)}`
+        : '';
+    const googleMapsUrl = geo
+        ? `https://www.google.com/maps?q=${encodeURIComponent(`${geoLat},${geoLon}`)}`
+        : '';
+
+    // Lock background scroll while the sheet is open (esp. important on mobile).
+    useEffect(() => {
+        const scrollY = window.scrollY;
+        const { body, documentElement } = document;
+        const prev = {
+            overflow: body.style.overflow,
+            position: body.style.position,
+            top: body.style.top,
+            left: body.style.left,
+            right: body.style.right,
+            width: body.style.width,
+            htmlOverflow: documentElement.style.overflow,
+        };
+        body.style.overflow = 'hidden';
+        body.style.position = 'fixed';
+        body.style.top = `-${scrollY}px`;
+        body.style.left = '0';
+        body.style.right = '0';
+        body.style.width = '100%';
+        documentElement.style.overflow = 'hidden';
+        return () => {
+            body.style.overflow = prev.overflow;
+            body.style.position = prev.position;
+            body.style.top = prev.top;
+            body.style.left = prev.left;
+            body.style.right = prev.right;
+            body.style.width = prev.width;
+            documentElement.style.overflow = prev.htmlOverflow;
+            window.scrollTo(0, scrollY);
+        };
+    }, []);
+
+    useEffect(() => {
+        const onKey = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose]);
+
+    const showTitle = session.grandparentTitle || session.title;
+    const episodeLine = session.grandparentTitle
+        ? [
+            session.title,
+            session.type === 'episode' && session.season !== undefined
+                ? `S${String(session.season).padStart(2, '0')}E${String(session.episode).padStart(2, '0')}`
+                : null,
+        ].filter(Boolean).join(' · ')
+        : (session.type === 'episode' && session.season !== undefined
+            ? `S${String(session.season).padStart(2, '0')}E${String(session.episode).padStart(2, '0')}`
+            : '');
+    const progressPct = Math.min(100, Math.max(0, Number(session.progress) || 0));
+    const resolutionLabel = session.resolution
+        ? (String(session.resolution).includes('p') || String(session.resolution).includes('k')
+            ? String(session.resolution).toUpperCase()
+            : `${session.resolution}p`)
+        : null;
+    const isLocal = session.sessionLocation === 'lan';
+    const bandwidthLabel = Number.isFinite(Number(session.bandwidth))
+        ? `${(Number(session.bandwidth) / 1000).toFixed(1)} Mbps`
+        : null;
 
     const handleKill = async () => {
         setIsKilling(true);
@@ -5725,90 +7445,225 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
             setIsKilling(false);
         }
     };
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-card w-full max-w-2xl md:max-w-5xl lg:max-w-6xl md:min-h-[500px] lg:min-h-[600px] max-h-[90vh] md:max-h-[85vh] rounded-2xl overflow-y-auto custom-scrollbar md:overflow-hidden shadow-2xl relative flex flex-col md:flex-row" onClick={e => e.stopPropagation()}>
-                {/* Poster Side */}
-                <div className="w-full md:w-2/5 lg:w-1/3 relative bg-black flex-shrink-0">
-                    <div className="w-full aspect-square md:aspect-auto md:h-full relative">
-                        <img src={sessionPosterSrc} alt={session.title} className="absolute inset-0 w-full h-full object-cover object-top md:object-center opacity-80" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent md:bg-gradient-to-r"></div>
+
+    return ReactDOM.createPortal(
+        <div
+            className="fixed inset-x-0 top-0 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in overscroll-none bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] sm:inset-0 sm:bottom-0"
+            onClick={onClose}
+        >
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="stream-details-title"
+                className="relative w-full sm:max-w-2xl lg:max-w-3xl max-h-full sm:max-h-[85vh] bg-card border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden overscroll-contain"
+                onClick={e => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="flex items-start gap-4 p-5 border-b border-white/10 bg-black/20 shrink-0">
+                    <div className="w-[4.5rem] h-[6.75rem] sm:w-24 sm:h-36 rounded-xl overflow-hidden flex-shrink-0 bg-black/40 border border-white/10 shadow-lg">
+                        {session.thumb || session.thumbUrl ? (
+                            <img
+                                src={sessionPosterSrc}
+                                alt=""
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                    if (sessionFallbackPosterSrc && e.currentTarget.src !== sessionFallbackPosterSrc) {
+                                        e.currentTarget.src = sessionFallbackPosterSrc;
+                                    }
+                                }}
+                            />
+                        ) : (
+                            <NoPosterPlaceholder compact />
+                        )}
                     </div>
-                    {/* User Avatar Badge */}
-                    {session.user && (
-                        <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/60 backdrop-blur-md rounded-full pr-4 p-1.5 shadow-lg border border-white/10 z-10">
-                            <img src={sessionUserThumbSrc} className="w-8 h-8 rounded-full object-cover" onError={(e) => { e.currentTarget.src = 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'; }} />
-                            <span className="text-xs font-bold text-white truncate max-w-[120px]">{session.user}</span>
+
+                    <div className="min-w-0 flex-1 pt-0.5">
+                        {session.user && (
+                            <div className="inline-flex items-center gap-2 mb-2 rounded-full border border-white/10 bg-white/5 pl-1 pr-2.5 py-1">
+                                <img
+                                    src={sessionUserThumbSrc}
+                                    alt=""
+                                    className="w-5 h-5 rounded-full object-cover"
+                                    onError={(e) => { e.currentTarget.src = 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'; }}
+                                />
+                                <span className="text-[11px] font-bold text-white/80 truncate max-w-[10rem]">{session.user}</span>
+                            </div>
+                        )}
+                        <h2 id="stream-details-title" className="text-xl sm:text-2xl font-black text-text leading-tight tracking-tight">
+                            {showTitle}
+                        </h2>
+                        {episodeLine ? (
+                            <p className="text-sm text-muted mt-1 leading-snug">{episodeLine}</p>
+                        ) : null}
+
+                        <div className="flex flex-wrap gap-1.5 mt-3">
+                            {resolutionLabel && (
+                                <span className="text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide bg-white/10 text-white/80 border border-white/10">
+                                    {resolutionLabel}
+                                </span>
+                            )}
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide border ${
+                                isLocal
+                                    ? 'bg-status-active/15 text-status-active border-status-active/25'
+                                    : 'bg-plex/15 text-plex border-plex/30'
+                            }`}>
+                                {isLocal ? 'Local' : 'Remote'}
+                            </span>
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide border ${
+                                session.isTranscoding
+                                    ? 'bg-status-expiring/15 text-status-expiring border-status-expiring/25'
+                                    : 'bg-status-active/15 text-status-active border-status-active/25'
+                            }`}>
+                                {session.isTranscoding ? 'Transcode' : 'Direct Play'}
+                            </span>
+                            {session.state && session.state !== 'playing' && (
+                                <span className="text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide bg-white/10 text-white/70 border border-white/10">
+                                    {session.state}
+                                </span>
+                            )}
+                        </div>
+
+                        {progressPct > 0 && (
+                            <div className="mt-3.5 max-w-md">
+                                <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                                    <div className="h-full rounded-full bg-plex transition-all" style={{ width: `${progressPct}%` }} />
+                                </div>
+                                <p className="text-[10px] text-muted mt-1.5 font-medium">{Math.round(progressPct)}% watched</p>
+                            </div>
+                        )}
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="p-2 rounded-full hover:bg-white/10 text-white/45 hover:text-white transition-colors shrink-0"
+                        aria-label="Close"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* Body */}
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar p-5 flex flex-col gap-4">
+                    <div className="grid grid-cols-2 gap-2.5">
+                        <StreamSpecCard label="Player">
+                            <p className="text-sm font-semibold text-text truncate" title={session.playerTitle}>{session.playerTitle || 'Unknown'}</p>
+                            <p className="text-xs text-muted truncate mt-0.5" title={session.playerProduct}>{session.playerProduct || '—'}</p>
+                        </StreamSpecCard>
+                        <StreamSpecCard label="Network">
+                            <p className="text-sm font-semibold text-text font-mono tracking-tight truncate">
+                                {isAdmin ? (session.playerAddress || 'Unknown IP') : 'Hidden'}
+                            </p>
+                            {bandwidthLabel && <p className="text-xs text-muted mt-0.5 truncate">{bandwidthLabel}</p>}
+                        </StreamSpecCard>
+                        <StreamSpecCard label="Video">
+                            <p className="text-sm font-semibold text-text uppercase tracking-wide truncate">
+                                {session.videoCodec || 'Unknown'}
+                                {session.videoProfile ? ` · ${session.videoProfile}` : ''}
+                            </p>
+                            {session.transcodeVideoDecision === 'transcode' && (
+                                <p className="text-[10px] text-status-expiring font-bold mt-1">Transcoding</p>
+                            )}
+                        </StreamSpecCard>
+                        <StreamSpecCard label="Audio">
+                            <p className="text-sm font-semibold text-text uppercase tracking-wide truncate">
+                                {session.audioCodec || 'Unknown'}
+                                {session.audioChannels ? ` · ${session.audioChannels}ch` : ''}
+                            </p>
+                            {session.transcodeAudioDecision === 'transcode' && (
+                                <p className="text-[10px] text-status-expiring font-bold mt-1">Transcoding</p>
+                            )}
+                        </StreamSpecCard>
+                    </div>
+
+                    {geo && osmEmbedUrl && (
+                        <div className="rounded-xl overflow-hidden border border-white/10 bg-white/[0.03]">
+                            <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 border-b border-white/10">
+                                <div className="min-w-0 flex items-center gap-2">
+                                    <MapPin className="w-3.5 h-3.5 text-plex shrink-0" />
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-text truncate">{geo.label}</p>
+                                        <p className="text-[10px] text-muted">Approximate location from IP</p>
+                                    </div>
+                                </div>
+                                <a
+                                    href={googleMapsUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold text-plex hover:text-plex-hover transition-colors"
+                                >
+                                    <ExternalLink className="w-3 h-3" />
+                                    Google Maps
+                                </a>
+                            </div>
+                            {/* Crop OSM’s dense attribution strip on small screens */}
+                            <div className="relative w-full h-36 sm:h-44 overflow-hidden">
+                                <iframe
+                                    title={`Approximate location: ${geo.label}`}
+                                    src={osmEmbedUrl}
+                                    className="absolute inset-0 w-full h-[calc(100%+28px)] border-0"
+                                    loading="lazy"
+                                    referrerPolicy="no-referrer-when-downgrade"
+                                />
+                            </div>
                         </div>
                     )}
                 </div>
 
-                {/* Details Side */}
-                <div className="p-6 md:p-8 flex flex-col flex-grow relative md:overflow-y-auto custom-scrollbar">
-                    <button onClick={onClose} className="absolute top-4 right-4 text-muted hover:text-white transition-colors bg-white/5 rounded-full p-2 z-10">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-
-                    <h2 className="text-2xl font-bold text-text leading-tight mb-1 pr-10">{session.grandparentTitle || session.title}</h2>
-                    <p className="text-base text-muted mb-4">{session.grandparentTitle ? session.title : ''} {session.type === 'episode' && session.season !== undefined ? `| S${String(session.season).padStart(2, '0')}E${String(session.episode).padStart(2, '0')}` : ''}</p>
-
-                    <div className="flex flex-wrap gap-2 mb-6">
-                        {session.resolution && <span className="bg-white/10 text-white/90 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border border-white/10">{session.resolution.includes('p') || session.resolution.includes('k') ? session.resolution : `${session.resolution}p`}</span>}
-                        <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border ${session.sessionLocation === 'lan' ? 'bg-status-active/20 text-status-active border-status-active/30' : 'bg-plex/20 text-plex border-plex/30'}`}>{session.sessionLocation === 'lan' ? 'Local' : 'Remote'}</span>
-                        <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border ${session.isTranscoding ? 'bg-status-expiring/20 text-status-expiring border-status-expiring/30' : 'bg-status-active/20 text-status-active border-status-active/30'}`}>{session.isTranscoding ? 'Transcode' : 'Direct Play'}</span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-4 mb-8">
-                        <div>
-                            <p className="text-[10px] text-muted uppercase tracking-widest font-bold mb-1">Player</p>
-                            <p className="text-sm font-medium truncate" title={session.playerTitle}>{session.playerTitle}</p>
-                            <p className="text-xs text-muted/80 truncate" title={session.playerProduct}>{session.playerProduct}</p>
+                {/* Footer sits above the mobile bottom nav (overlay stops above it) */}
+                <div className="shrink-0 border-t border-white/10 bg-black/30 p-4 sm:p-5">
+                    {isAdmin && session.sessionId && showKillConfirm ? (
+                        <div className="flex flex-col gap-2 rounded-xl border border-red-500/25 bg-red-500/10 p-3">
+                            <input
+                                type="text"
+                                placeholder="Reason (optional)"
+                                value={killReason}
+                                onChange={e => setKillReason(e.target.value)}
+                                className="w-full bg-black/30 border border-red-500/30 rounded-lg px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:border-red-500"
+                            />
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handleKill}
+                                    disabled={isKilling}
+                                    className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2.5 rounded-xl transition-colors text-sm disabled:opacity-50"
+                                >
+                                    {isKilling ? 'Terminating…' : 'Confirm terminate'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowKillConfirm(false)}
+                                    className="px-4 bg-white/10 hover:bg-white/15 text-white font-bold py-2.5 rounded-xl transition-colors text-sm"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-[10px] text-muted uppercase tracking-widest font-bold mb-1">Network</p>
-                            <p className="text-sm font-medium">{session.playerAddress}</p>
-                            <p className="text-xs text-muted/80">{(session.bandwidth / 1000).toFixed(1)} Mbps</p>
-                        </div>
-
-                        <div>
-                            <p className="text-[10px] text-muted uppercase tracking-widest font-bold mb-1">Video</p>
-                            <p className="text-sm font-medium uppercase">{session.videoCodec || 'Unknown'} {session.videoProfile ? `(${session.videoProfile})` : ''}</p>
-                            {session.transcodeVideoDecision === 'transcode' && <p className="text-[10px] text-status-expiring font-bold">Transcoding</p>}
-                        </div>
-                        <div>
-                            <p className="text-[10px] text-muted uppercase tracking-widest font-bold mb-1">Audio</p>
-                            <p className="text-sm font-medium uppercase">{session.audioCodec || 'Unknown'} {session.audioChannels ? `(${session.audioChannels}ch)` : ''}</p>
-                            {session.transcodeAudioDecision === 'transcode' && <p className="text-[10px] text-status-expiring font-bold">Transcoding</p>}
-                        </div>
-                    </div>
-
-                    <div className="mt-auto flex flex-col gap-3 pt-4 border-t border-white/5">
-                        {isAdmin && session.sessionId && (
-                            showKillConfirm ? (
-                                <div className="flex flex-col gap-2 bg-red-500/10 border border-red-500/20 p-3 rounded-lg">
-                                    <input type="text" placeholder="Reason (Optional)" value={killReason} onChange={e => setKillReason(e.target.value)} className="w-full bg-black/30 border border-red-500/30 rounded px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:border-red-500" />
-                                    <div className="flex gap-2">
-                                        <button onClick={handleKill} disabled={isKilling} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2 rounded transition-colors text-sm">
-                                            {isKilling ? 'Killing...' : 'Confirm Kill'}
-                                        </button>
-                                        <button onClick={() => setShowKillConfirm(false)} className="px-4 bg-white/10 hover:bg-white/20 text-white font-bold py-2 rounded transition-colors text-sm">
-                                            Cancel
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <button onClick={() => setShowKillConfirm(true)} className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 font-bold py-2.5 rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
+                    ) : (
+                        <div className="flex flex-col sm:flex-row gap-2.5">
+                            {isAdmin && session.sessionId && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowKillConfirm(true)}
+                                    className="w-full sm:flex-1 bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/30 font-bold py-3 rounded-xl transition-colors text-sm inline-flex items-center justify-center gap-2"
+                                >
                                     <X className="w-4 h-4" /> Terminate Stream
                                 </button>
-                            )
-                        )}
-                        <a href={session.plexUrl} target="_blank" rel="noreferrer" className="flex-1 bg-plex text-background font-bold text-center py-3 rounded-lg hover:bg-plex-hover transition-colors shadow-lg">
-                            Open in {providerLabel}
-                        </a>
-                    </div>
+                            )}
+                            <a
+                                href={session.plexUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="w-full sm:flex-1 bg-plex hover:bg-plex-hover text-background font-bold text-center py-3 rounded-xl transition-colors text-sm inline-flex items-center justify-center gap-2"
+                            >
+                                Open in {providerLabel}
+                            </a>
+                        </div>
+                    )}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 };
 
@@ -5857,6 +7712,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
     });
     const responsiveRecentLimit = isDiscoverDesktop ? DISCOVER_DESKTOP_ITEM_LIMIT : DISCOVER_MOBILE_ITEM_LIMIT;
     const recentLimit = recentLimitOverride ?? responsiveRecentLimit;
+    const [gridSize, setGridSize] = useDiscoverGridSize();
     const [selectedSession, setSelectedSession] = useState<any | null>(null);
     const showQualityBadges = publicConfig?.showPosterQualityBadges !== false;
     const isJellyfinPortal = String(publicConfig?.mediaServerType || mediaServerType || 'plex').toLowerCase() === 'jellyfin';
@@ -6155,6 +8011,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                     const sessionPosterSrc = session.thumbUrl
                                         ? resolvePortalAssetUrl(session.thumbUrl)
                                         : portalUrl(`/api/plex/image?path=${encodeURIComponent(session.thumb)}&width=360&height=540`);
+                                    const sessionFallbackPosterSrc = session.posterFallbackUrl ? resolvePortalAssetUrl(session.posterFallbackUrl) : '';
                                     const sessionUserThumbSrc = session.userThumb ? resolvePortalAssetUrl(session.userThumb) : 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y';
                                     const posterColumnClass = 'grid-cols-[clamp(6rem,36%,8.5rem)_minmax(0,1fr)]';
                                     return (
@@ -6165,6 +8022,11 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                                         src={sessionPosterSrc}
                                                         alt={session.title}
                                                         loading="lazy"
+                                                        onError={(e) => {
+                                                            if (sessionFallbackPosterSrc && e.currentTarget.src !== sessionFallbackPosterSrc) {
+                                                                e.currentTarget.src = sessionFallbackPosterSrc;
+                                                            }
+                                                        }}
                                                         className="absolute inset-0 w-full h-full object-cover object-top drop-shadow-[4px_0_15px_rgba(0,0,0,0.5)]"
                                                     />
                                                 </div>
@@ -6263,22 +8125,28 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                     )}
                 </section>
 
-                <div className="flex justify-end gap-4 items-center mb-8">
-                    <span className="text-xs uppercase tracking-wider text-muted font-semibold">Items Per Section</span>
-                    <CustomSelect
-                        compact
-                        className="w-32"
-                        value={String(recentLimit)}
-                        onChange={handleRecentLimitChange}
-                        options={DISCOVER_LIMIT_OPTIONS}
-                    />
+                <div className="flex justify-end gap-2 sm:gap-3 items-end mb-8 flex-wrap">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted px-0.5">Grid</span>
+                        <DiscoverGridSizeSelect className="w-36" value={gridSize} onChange={setGridSize} />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted px-0.5">Per section</span>
+                        <CustomSelect
+                            compact
+                            className="w-28"
+                            value={String(recentLimit)}
+                            onChange={handleRecentLimitChange}
+                            options={DISCOVER_LIMIT_OPTIONS}
+                        />
+                    </div>
                 </div>
 
                 <div className="flex flex-col gap-12 w-full">
                     {/* RECENT MOVIES */}
                     <ScrollReveal enabled={!!publicConfig?.useScrollRevealAnimations} className="flex flex-col">
                         <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">RECENTLY ADDED MOVIES</h2>
-                        <div className={discoverPosterGridClass}>
+                        <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
                             {dashboardData && dashboardData.recentMovies.slice(0, recentLimit).map((item, i) => (
                                 <DiscoverPosterCard key={i} item={item} showQualityBadges={showQualityBadges} />
                             ))}
@@ -6289,7 +8157,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                     {/* RECENT TV SHOWS */}
                     <ScrollReveal enabled={!!publicConfig?.useScrollRevealAnimations} className="flex flex-col">
                         <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">{isJellyfinPortal ? 'RECENTLY ADDED EPISODES' : 'RECENTLY ADDED TV SHOWS'}</h2>
-                        <div className={discoverPosterGridClass}>
+                        <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
                             {dashboardData && dashboardData.recentShows.slice(0, recentLimit).map((item, i) => (
                                 <DiscoverPosterCard key={i} item={item} showQualityBadges={showQualityBadges} />
                             ))}
@@ -6300,7 +8168,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                     {/* RECENT MUSIC */}
                     <ScrollReveal enabled={!!publicConfig?.useScrollRevealAnimations} className="flex flex-col">
                         <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">RECENTLY ADDED MUSIC</h2>
-                        <div className={discoverPosterGridClass}>
+                        <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
                             {dashboardData && dashboardData.recentMusic.slice(0, recentLimit).map((item, i) => (
                                 <DiscoverPosterCard key={i} item={item} aspect="square" showQualityBadges={showQualityBadges} />
                             ))}
@@ -6319,15 +8187,15 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                             <p className="text-muted text-sm max-w-xl">A look at what the community is currently watching across the entire server.</p>
                         </div>
 
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🔥 Trending This Week" items={trendingStats.trending7Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🍿 Most Watched Movies (This Month)" items={trendingStats.movies30Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="📺 Most Watched Shows (This Month)" items={trendingStats.shows30Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🏆 Top of the Year" items={trendingStats.top365Days} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🌟 All Time Favorites" items={trendingStats.allTime} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🍿 Weekend Warriors" items={trendingStats.weekendWarriors} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🦇 Night Owl Club" items={trendingStats.nightOwls} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="📼 Blast from the Past" items={trendingStats.retroHits} limit={recentLimit} showQualityBadges={showQualityBadges} />
-                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="💎 Cult Classics" items={trendingStats.cultClassics} limit={recentLimit} showQualityBadges={showQualityBadges} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🔥 Trending This Week" items={trendingStats.trending7Days} limit={recentLimit} showQualityBadges={showQualityBadges} gridSize={gridSize} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🍿 Most Watched Movies (This Month)" items={trendingStats.movies30Days} limit={recentLimit} showQualityBadges={showQualityBadges} gridSize={gridSize} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="📺 Most Watched Shows (This Month)" items={trendingStats.shows30Days} limit={recentLimit} showQualityBadges={showQualityBadges} gridSize={gridSize} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🏆 Top of the Year" items={trendingStats.top365Days} limit={recentLimit} showQualityBadges={showQualityBadges} gridSize={gridSize} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🌟 All Time Favorites" items={trendingStats.allTime} limit={recentLimit} showQualityBadges={showQualityBadges} gridSize={gridSize} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🍿 Weekend Warriors" items={trendingStats.weekendWarriors} limit={recentLimit} showQualityBadges={showQualityBadges} gridSize={gridSize} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="🦇 Night Owl Club" items={trendingStats.nightOwls} limit={recentLimit} showQualityBadges={showQualityBadges} gridSize={gridSize} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="📼 Blast from the Past" items={trendingStats.retroHits} limit={recentLimit} showQualityBadges={showQualityBadges} gridSize={gridSize} />
+                        <TrendingDiscoverSection useScrollRevealAnimations={publicConfig?.useScrollRevealAnimations} title="💎 Cult Classics" items={trendingStats.cultClassics} limit={recentLimit} showQualityBadges={showQualityBadges} gridSize={gridSize} />
                     </div>
                 )}
             </main>
@@ -7597,7 +9465,7 @@ export const MaintenanceDashboard: React.FC = () => {
 
 interface NavigationProps {
     currentRoute: string;
-    onNavigate: (route: 'admin' | 'user' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'mediastack' | 'maintenance') => void;
+    onNavigate: (route: 'admin' | 'user' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'requests' | 'discovery' | 'about') => void;
     onLogout: () => void;
     isAdmin: boolean;
     serverName: string;
@@ -7605,23 +9473,159 @@ interface NavigationProps {
     customLogoUrl?: string | null;
     requestUrl: string;
     navOrder: string[];
+    navHiddenKeys?: string[];
     navFeatures?: NavFeatureFlags;
     appVersion?: string;
     activeTheme: string;
     setActiveTheme: (theme: string) => void;
     pendingRequestCount?: number;
+    watchingCount?: number;
+    downloadCount?: number;
+    showDashboardWatchingBadge?: boolean;
+    sessionInfo?: any;
+    mediaServerType?: string;
+    sidebarIdentityPosition?: 'top' | 'bottom';
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, customLogoUrl, requestUrl, navOrder, navFeatures, appVersion, activeTheme, setActiveTheme, pendingRequestCount = 0 }) => {
+export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, customLogoUrl, requestUrl, navOrder, navHiddenKeys, navFeatures, appVersion, activeTheme, setActiveTheme, pendingRequestCount = 0, watchingCount = 0, downloadCount = 0, showDashboardWatchingBadge = false, sessionInfo, mediaServerType = 'plex', sidebarIdentityPosition = 'bottom' }) => {
     const serverIcon = customLogoUrl ? resolvePortalAssetUrl(customLogoUrl) : (adminThumb ? (adminThumb.startsWith('http') ? adminThumb : portalUrl(`/api/plex/image?path=${encodeURIComponent(adminThumb)}&width=256&height=256`)) : logoUrl());
+    const providerName = String(mediaServerType || 'plex').toLowerCase() === 'jellyfin'
+        ? 'Jellyfin'
+        : String(mediaServerType || 'plex').toLowerCase() === 'emby'
+            ? 'Emby'
+            : 'Plex';
+    const profile = sessionInfo?.account || sessionInfo?.session || {};
+    const profileName = profile?.username || sessionInfo?.session?.username || 'Profile';
+    const profileEmail = profile?.email || sessionInfo?.session?.email || '';
+    const profileThumb = profile?.thumb || sessionInfo?.session?.thumb || (isAdmin ? adminThumb : null);
+    const profileIcon = profileThumb
+        ? (String(profileThumb).startsWith('http://') || String(profileThumb).startsWith('https://') || String(profileThumb).startsWith('/api/')
+            ? resolvePortalAssetUrl(profileThumb)
+            : portalUrl(`/api/plex/image?path=${encodeURIComponent(profileThumb)}&width=256&height=256`))
+        : logoUrl();
     useEffect(() => {
         updateFavicon(serverIcon);
     }, [serverIcon]);
 
     const [mobileThemeOpen, setMobileThemeOpen] = useState(false);
     const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+    const [profileOpen, setProfileOpen] = useState(false);
+    const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+    const [installHelpOpen, setInstallHelpOpen] = useState(false);
+    const [isInstalledApp, setIsInstalledApp] = useState(() => (
+        typeof window !== 'undefined'
+        && (window.matchMedia?.('(display-mode: standalone)').matches
+            || window.matchMedia?.('(display-mode: fullscreen)').matches
+            || (navigator as any).standalone === true)
+    ));
     const mobileThemeRef = useRef<HTMLDivElement>(null);
     const [mobileThemePos, setMobileThemePos] = useState<{ top: number; right: number } | null>(null);
+    const isFirefoxMobile = typeof navigator !== 'undefined'
+        && /Firefox/i.test(navigator.userAgent)
+        && /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent);
+    const [installDiag, setInstallDiag] = useState<string[] | null>(null);
+
+    useEffect(() => {
+        const handleBeforeInstallPrompt = (event: Event) => {
+            event.preventDefault();
+            setInstallPrompt(event as BeforeInstallPromptEvent);
+        };
+        const handleInstalled = () => {
+            setIsInstalledApp(true);
+            setInstallPrompt(null);
+            setInstallHelpOpen(false);
+        };
+        const syncInstalledState = () => {
+            const installed = window.matchMedia?.('(display-mode: standalone)').matches
+                || window.matchMedia?.('(display-mode: fullscreen)').matches
+                || (navigator as any).standalone === true;
+            setIsInstalledApp(!!installed);
+        };
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        window.addEventListener('appinstalled', handleInstalled);
+        const standaloneMq = window.matchMedia?.('(display-mode: standalone)');
+        standaloneMq?.addEventListener?.('change', syncInstalledState);
+        return () => {
+            window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+            window.removeEventListener('appinstalled', handleInstalled);
+            standaloneMq?.removeEventListener?.('change', syncInstalledState);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!installHelpOpen) {
+            setInstallDiag(null);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            const notes: string[] = [];
+            const secure = window.isSecureContext || ['localhost', '127.0.0.1'].includes(window.location.hostname);
+            if (!secure || window.location.protocol !== 'https:') {
+                if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                    notes.push('Site is not HTTPS — Firefox will not install a PWA over plain HTTP. Open the portal via your HTTPS URL (reverse proxy / tunnel), not http://IP:port.');
+                }
+            }
+            try {
+                const manifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement | null;
+                const manifestHref = manifestLink?.href || portalUrl('/manifest.webmanifest');
+                const manifestRes = await fetch(manifestHref, { credentials: 'same-origin', cache: 'no-store' });
+                if (!manifestRes.ok) {
+                    notes.push(`Manifest failed to load (${manifestRes.status}).`);
+                } else {
+                    const manifest = await manifestRes.json();
+                    const icons = Array.isArray(manifest.icons) ? manifest.icons : [];
+                    if (!manifest.name && !manifest.short_name) notes.push('Manifest is missing a name.');
+                    if (!manifest.start_url) notes.push('Manifest is missing start_url.');
+                    if (!icons.length) notes.push('Manifest has no icons.');
+                    for (const icon of icons.slice(0, 3)) {
+                        try {
+                            const iconUrl = new URL(String(icon.src || ''), window.location.href).toString();
+                            const iconRes = await fetch(iconUrl, { credentials: 'same-origin', cache: 'no-store' });
+                            if (!iconRes.ok) {
+                                notes.push(`Icon failed (${icon.sizes || '?'}): ${iconRes.status}`);
+                                continue;
+                            }
+                            const type = (iconRes.headers.get('content-type') || '').toLowerCase();
+                            if (type && !type.includes('image/')) {
+                                notes.push(`Icon is not an image (${icon.sizes || '?'}): ${type}`);
+                            }
+                        } catch {
+                            notes.push(`Icon could not be fetched (${icon.sizes || '?'}).`);
+                        }
+                    }
+                    if (!notes.length) {
+                        notes.push('Manifest and icons look OK. In Firefox: menu ⋮ → Install. If that still does nothing, clear site data for this site and retry once over HTTPS.');
+                    }
+                }
+            } catch {
+                notes.push('Could not verify the web app manifest from this device.');
+            }
+            if (!cancelled) setInstallDiag(notes);
+        })();
+        return () => { cancelled = true; };
+    }, [installHelpOpen]);
+
+    const handleInstallApp = async () => {
+        if (isInstalledApp) return;
+        // Firefox (and most non-Chromium browsers) never fire beforeinstallprompt —
+        // always show manual install steps instead of appearing to do nothing.
+        if (!installPrompt || isFirefoxMobile) {
+            setInstallHelpOpen(true);
+            return;
+        }
+        const promptEvent = installPrompt;
+        setInstallPrompt(null);
+        try {
+            await promptEvent.prompt();
+            const choice = await promptEvent.userChoice;
+            if (choice.outcome === 'accepted') {
+                setIsInstalledApp(true);
+            }
+        } catch {
+            setInstallHelpOpen(true);
+        }
+    };
 
     useEffect(() => {
         if (!mobileThemeOpen) { setMobileThemePos(null); return; }
@@ -7645,45 +9649,36 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
     const navItemsConfig: Record<string, { label: string; icon: React.FC<any>; route: string; adminOnly: boolean; href?: string; onClick?: (e: any) => void }> = {
         'home': { label: 'Home', icon: Home, route: 'user', adminOnly: false },
         'users': { label: 'Users', icon: Users, route: 'users', adminOnly: true },
-        'discover': { label: 'Discover', icon: Film, route: 'dashboard', adminOnly: false },
+        'discover': { label: 'Dashboard', icon: Film, route: 'dashboard', adminOnly: false },
         'status': { label: 'Status', icon: Activity, route: 'status', adminOnly: false },
         'logs': { label: 'Logs', icon: FileText, route: 'logs', adminOnly: true },
         'analytics': { label: 'Analytics', icon: BarChart3, route: 'analytics', adminOnly: false },
-        'mediastack': { label: 'Calendar', icon: Layers, route: 'mediastack', adminOnly: false },
+        'downloads': { label: 'Downloads', icon: DownloadCloud, route: 'downloads', adminOnly: false },
+        'mediastack': { label: 'Calendar', icon: Calendar, route: 'mediastack', adminOnly: false },
         'maintenance': { label: 'Cleaner', icon: Shield, route: 'maintenance', adminOnly: true },
         'upgrader': { label: 'Upgrader', icon: ArrowUpCircle, route: 'upgrader', adminOnly: true },
+        'collexions': { label: 'ColleXions', icon: Layers, route: 'collexions', adminOnly: true },
         'requests': { label: 'Requests', icon: ClipboardList, route: 'requests', adminOnly: true },
-        'request': { label: 'Request Content', icon: Sparkles, route: '', adminOnly: false, href: requestUrl },
+        'request': { label: 'Discover & Request', icon: Sparkles, route: 'discovery', adminOnly: false },
+        'about': { label: 'About', icon: Info, route: 'about', adminOnly: false },
         'settings': { label: 'Settings', icon: Settings, route: 'settings', adminOnly: true },
         'logout': { label: 'Logout', icon: LogOut, route: '', adminOnly: false, onClick: onLogout }
     };
     const normalizedNavOrder = useMemo(() => {
-        const order = Array.isArray(navOrder) ? [...navOrder] : [];
-        if (isAdmin && navFeatures?.maintenance !== false && !order.includes('maintenance')) {
-            const requestIndex = order.indexOf('request');
-            if (requestIndex >= 0) order.splice(requestIndex, 0, 'maintenance');
-            else order.push('maintenance');
-        }
-        if (isAdmin && navFeatures?.upgrader && !order.includes('upgrader')) {
-            const maintenanceIndex = order.indexOf('maintenance');
-            if (maintenanceIndex >= 0) order.splice(maintenanceIndex + 1, 0, 'upgrader');
-            else {
-                const requestIndex = order.indexOf('request');
-                if (requestIndex >= 0) order.splice(requestIndex, 0, 'upgrader');
-                else order.push('upgrader');
-            }
-        }
-        if (isAdmin && navFeatures?.requestsQueue && !order.includes('requests')) {
-            const requestIndex = order.indexOf('request');
-            if (requestIndex >= 0) order.splice(requestIndex, 0, 'requests');
-            else order.push('requests');
-        }
-        return filterNavOrder(order, { isAdmin, features: navFeatures });
-    }, [navOrder, isAdmin, navFeatures]);
+        const order = ensureCompleteNavOrder(navOrder);
+        return filterNavOrder(order, { isAdmin, features: navFeatures, hiddenKeys: navHiddenKeys });
+    }, [navOrder, navHiddenKeys, isAdmin, navFeatures]);
 
     const isNavCurrent = (key: string, route: string) => (
         ['admin', 'user'].includes(currentRoute) && key === 'home' ? true : currentRoute === route
     );
+
+    const getNavBadgeCount = (key: string) => {
+        if (key === 'requests') return pendingRequestCount;
+        if (key === 'discover' && showDashboardWatchingBadge) return watchingCount;
+        if (key === 'downloads') return downloadCount;
+        return 0;
+    };
 
     const renderNavAction = (
         key: string,
@@ -7692,14 +9687,14 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
     ) => {
         const Icon = item.icon;
         const label = options.compactLabel || item.label;
-        const badgeCount = key === 'requests' ? (options.badgeCount || 0) : 0;
+        const badgeCount = options.badgeCount || 0;
         const baseClass = options.mobile
             ? `relative flex flex-col items-center justify-center gap-0.5 h-full flex-1 min-w-0 px-0.5 text-center text-[0.6rem] sm:text-[0.65rem] transition-colors ${options.isCurrent ? 'text-plex font-bold' : 'text-muted hover:text-text'}`
-            : `flex items-center gap-4 p-3 no-underline rounded-xl transition-all font-medium ${options.isCurrent ? 'nav-item-active' : 'text-muted hover:bg-white/5 hover:text-text'}`;
+            : `flex items-center gap-3 px-3 py-2.5 no-underline rounded-lg transition-all text-[14px] font-medium ${options.isCurrent ? 'nav-item-active' : 'text-muted hover:bg-white/5 hover:text-text'}`;
 
         if (item.href) {
             return (
-                <a key={key} href={item.href} target="_blank" rel="noreferrer" className={options.mobile ? baseClass.replace('hover:text-text', 'hover:text-text') : 'flex items-center gap-4 p-3 text-muted no-underline rounded-lg transition-all font-medium hover:bg-white/5 hover:text-text'}>
+                <a key={key} href={item.href} target="_blank" rel="noreferrer" className={options.mobile ? baseClass.replace('hover:text-text', 'hover:text-text') : 'flex items-center gap-3 px-3 py-2.5 text-muted no-underline rounded-lg transition-all text-[14px] font-medium hover:bg-white/5 hover:text-text'}>
                     <Icon className="w-5 h-5 flex-shrink-0" /> {label}
                 </a>
             );
@@ -7718,7 +9713,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                 onClick={handleActivate}
             >
                 <span className="relative shrink-0">
-                    <Icon className="w-5 h-5" />
+                    <Icon className={options.mobile ? 'w-5 h-5' : 'w-5 h-5'} />
                     {badgeCount > 0 && options.mobile && (
                         <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 px-0.5 rounded-full bg-plex text-background text-[8px] font-bold flex items-center justify-center leading-none">
                             {badgeCount > 9 ? '9+' : badgeCount}
@@ -7742,30 +9737,79 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         );
     };
 
-    return (
-        <>
-
-            {/* Mobile Top Nav */}
-            <div className="md:hidden fixed top-0 left-0 right-0 h-16 nav-shell border-b z-50 flex items-center justify-between px-4 pt-[env(safe-area-inset-top)] shadow-lg">
-                <div className="flex items-center gap-3">
+    const renderServerIdentity = (placement: 'top' | 'bottom') => (
+        <div className={`flex flex-col items-center w-full shrink-0 ${placement === 'top' ? 'pb-3 mb-3 border-b' : 'pt-3 mt-3 border-t'} border-white/10 group cursor-default`}>
+            <div className={`relative mb-2.5 ${customLogoUrl ? 'w-28 flex items-center justify-center' : ''}`}>
+                {customLogoUrl ? (
                     <img
                         src={serverIcon}
-                        alt="Logo"
-                        className={`w-8 h-8 ${customLogoUrl ? 'object-contain' : 'rounded-full object-cover'}`}
+                        alt="Server Logo"
+                        className="max-w-28 max-h-24 object-contain drop-shadow-[0_0_24px_rgba(0,0,0,0.75)] group-hover:scale-105 transition-transform duration-700 ease-out"
                         onError={(e) => {
                             (e.target as HTMLImageElement).src = logoUrl();
                         }}
                     />
-                    <span className="font-bold text-text uppercase tracking-widest text-sm">{serverName}</span>
+                ) : (
+                    <>
+                        <div className="absolute inset-0 bg-plex blur-[25px] opacity-20 group-hover:opacity-40 transition-opacity duration-700 rounded-full"></div>
+                        <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-plex via-amber-300 to-orange-600 opacity-60 group-hover:opacity-100 group-hover:rotate-180 transition-all duration-1000 ease-out"></div>
+                        <div className="relative w-24 h-24 rounded-full p-[3px] shadow-2xl bg-card">
+                            <div className="w-full h-full rounded-full overflow-hidden bg-background">
+                                <img
+                                    src={serverIcon}
+                                    alt="Server Logo"
+                                    className="w-full h-full group-hover:scale-110 transition-transform duration-700 ease-out object-cover"
+                                    onError={(e) => {
+                                        (e.target as HTMLImageElement).src = logoUrl();
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
+
+            <div className="flex flex-col items-center text-center px-2">
+                <h2 className="text-xl font-black text-text tracking-tight leading-tight line-clamp-2">
+                    {serverName}
+                </h2>
+                <div className="mt-1.5 flex items-center gap-2">
+                    <div className="h-px w-6 bg-gradient-to-r from-transparent to-plex/50"></div>
+                    <span className="text-[10px] uppercase tracking-[0.3em] text-plex font-bold">
+                        Portal
+                    </span>
+                    <div className="h-px w-6 bg-gradient-to-l from-transparent to-plex/50"></div>
                 </div>
-                <div className="flex items-center gap-4">
+            </div>
+        </div>
+    );
+
+    return (
+        <>
+
+            {/* Mobile Top Nav — height grows with safe-area so content clears the iOS status bar in PWA */}
+            <div className="md:hidden fixed top-0 left-0 right-0 z-50 nav-shell border-b shadow-lg pt-[env(safe-area-inset-top,0px)]">
+                <div className="h-16 flex items-center justify-between px-4">
+                <div className="flex items-center gap-3 min-w-0">
+                    <img
+                        src={serverIcon}
+                        alt="Logo"
+                        className={`w-10 h-10 shrink-0 ${customLogoUrl ? 'object-contain' : 'rounded-full object-cover'}`}
+                        onError={(e) => {
+                            (e.target as HTMLImageElement).src = logoUrl();
+                        }}
+                    />
+                    <span className="font-bold text-text uppercase tracking-widest text-sm truncate">{serverName}</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                    <DiscoverLocaleSelect showLabel={false} className="w-[6.75rem]" />
                     <div className="relative" ref={mobileThemeRef}>
                         <button
                             onClick={() => setMobileThemeOpen(v => !v)}
-                            className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all ${mobileThemeOpen ? 'border-plex text-plex ring-1 ring-plex' : 'border-border text-muted hover:border-plex/50 hover:text-text'}`}
+                            className={`w-8 h-8 flex items-center justify-center rounded-md border transition-all ${mobileThemeOpen ? 'border-plex text-plex ring-1 ring-plex' : 'border-border text-muted hover:border-plex/50 hover:text-text'}`}
                             title="Change theme"
                         >
-                            <Palette className="w-4 h-4" />
+                            <Palette className="w-3.5 h-3.5" />
                         </button>
                         {mobileThemeOpen && mobileThemePos && ReactDOM.createPortal(
                             <div
@@ -7773,6 +9817,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                 className="bg-card border border-border rounded-lg shadow-2xl py-1 min-w-[140px]"
                             >
                                 {[
+                                    { label: 'Dynamic (Chameleon)', value: 'dynamic' },
                                     { label: 'Plex Dark', value: 'plex' },
                                     { label: 'Sleek Slate', value: 'slate' },
                                     { label: 'Nordic Frost', value: 'nordic' },
@@ -7782,6 +9827,12 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                     { label: 'Crimson Red', value: 'crimson' },
                                     { label: 'Deep Amethyst', value: 'amethyst' },
                                     { label: 'Sunset Orange', value: 'sunset' },
+                                    { label: 'Ocean Teal', value: 'ocean' },
+                                    { label: 'Rose Pink', value: 'rose' },
+                                    { label: 'Royal Blue', value: 'royal' },
+                                    { label: 'Graphite', value: 'graphite' },
+                                    { label: 'Cyber Lime', value: 'cyberlime' },
+                                    { label: 'Aurora', value: 'aurora' },
                                 ].map(opt => (
                                     <div
                                         key={opt.value}
@@ -7797,82 +9848,119 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                     </div>
                     {isAdmin && (
                         <button onClick={(e) => { e.preventDefault(); onNavigate('logs'); }} className={`text-muted hover:text-text transition-colors ${currentRoute === 'logs' ? 'text-plex' : ''}`}>
-                            <FileText className="w-5 h-5" />
+                            <FileText className="w-4 h-4" />
                         </button>
                     )}
-                    <button onClick={(e) => { e.preventDefault(); onLogout(); }} className="text-muted hover:text-red-500 transition-colors ml-1">
-                        <LogOut className="w-5 h-5" />
+                    {!isInstalledApp && (
+                        <button type="button" onClick={(e) => { e.preventDefault(); handleInstallApp(); }} className="text-muted hover:text-text transition-colors" title="Install app" aria-label="Install app">
+                            <MonitorSmartphone className="w-4 h-4" />
+                        </button>
+                    )}
+                    <button onClick={(e) => { e.preventDefault(); onLogout(); }} className="text-muted hover:text-red-500 transition-colors">
+                        <LogOut className="w-4 h-4" />
                     </button>
+                </div>
                 </div>
             </div>
 
 
             {/* Desktop Sidebar */}
-            <div className="hidden md:flex flex-col w-72 nav-shell border-r p-6 sticky top-0 self-start h-dvh shadow-2xl">
-                <div className="flex flex-col gap-2 mt-4">
+            <div className="hidden md:flex flex-col w-72 nav-shell border-r px-5 py-4 sticky top-0 self-start h-dvh shadow-2xl overflow-hidden">
+                {sidebarIdentityPosition === 'top' && renderServerIdentity('top')}
+
+                <div className="flex flex-col justify-start gap-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden py-1 custom-scrollbar">
                     {normalizedNavOrder.map((key) => {
                         const item = navItemsConfig[key];
                         if (!item) return null;
                         if (key === 'logs') return null;
                         const isCurrent = item.route ? isNavCurrent(key, item.route) : false;
                         const labelOverride = key === 'mediastack' ? 'Calendar' : item.label;
-                        return renderNavAction(key, { ...item, label: labelOverride }, { isCurrent, badgeCount: key === 'requests' ? pendingRequestCount : 0 });
+                        return renderNavAction(key, { ...item, label: labelOverride }, { isCurrent, badgeCount: getNavBadgeCount(key) });
                     })}
                 </div>
 
-                <div className="flex flex-col items-center w-full mt-auto pt-10 pb-4 group cursor-default">
-                    <div className={`relative mb-6 ${customLogoUrl ? 'w-32 flex items-center justify-center' : ''}`}>
-                        {customLogoUrl ? (
-                            <img
-                                src={serverIcon}
-                                alt="Server Logo"
-                                className="max-w-32 max-h-32 object-contain drop-shadow-[0_0_24px_rgba(0,0,0,0.75)] group-hover:scale-105 transition-transform duration-700 ease-out"
-                                onError={(e) => {
-                                    (e.target as HTMLImageElement).src = logoUrl();
-                                }}
-                            />
-                        ) : (
-                            <>
-                        {/* Soft ambient background glow */}
-                        <div className="absolute inset-0 bg-plex blur-[25px] opacity-20 group-hover:opacity-40 transition-opacity duration-700 rounded-full"></div>
-                        {/* Spinning gradient border */}
-                        <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-plex via-amber-300 to-orange-600 opacity-60 group-hover:opacity-100 group-hover:rotate-180 transition-all duration-1000 ease-out"></div>
-                        {/* Inner cutout for the image */}
-                        <div className="relative w-28 h-28 rounded-full p-[4px] shadow-2xl bg-card">
-                            <div className="w-full h-full rounded-full overflow-hidden bg-background">
-                                <img
-                                    src={serverIcon}
-                                    alt="Server Logo"
-                                    className={`w-full h-full group-hover:scale-110 transition-transform duration-700 ease-out ${customLogoUrl ? 'object-contain p-3' : 'object-cover'}`}
-                                    onError={(e) => {
-                                        (e.target as HTMLImageElement).src = logoUrl();
-                                    }}
-                                />
+                {sidebarIdentityPosition !== 'top' && renderServerIdentity('bottom')}
+
+                <div className="mt-3 pt-3 border-t border-white/10 shrink-0">
+                    <button
+                        type="button"
+                        onClick={() => setProfileOpen(true)}
+                        className="w-full flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-plex/40 transition-all p-2.5 text-left"
+                    >
+                        <img
+                            src={profileIcon}
+                            alt=""
+                            className="w-9 h-9 flex-shrink-0 rounded-full object-cover bg-background/60 border border-white/10"
+                            onError={(e) => {
+                                (e.target as HTMLImageElement).src = logoUrl();
+                            }}
+                        />
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-bold text-text truncate">{profileName}</p>
+                            <p className="text-[10px] uppercase tracking-[0.2em] text-muted">{providerName} Profile</p>
+                        </div>
+                        <Palette className="w-4 h-4 text-plex flex-shrink-0" />
+                    </button>
+                    <div className="mt-1.5 flex flex-col items-center gap-0.5">
+                        {appVersion && (
+                            <div className="text-[10px] text-white/50 font-mono tracking-wider opacity-80 hover:opacity-100 transition-opacity">
+                                {appVersion}
+                            </div>
+                        )}
+                        <DiscoverLocaleSelect variant="text" />
+                    </div>
+                </div>
+            </div>
+
+            {profileOpen && (
+                <div className="hidden md:block fixed inset-0 z-[80]" aria-modal="true" role="dialog">
+                    <button
+                        type="button"
+                        className="absolute inset-0 bg-black/35 cursor-default"
+                        aria-label="Close profile modal"
+                        onClick={() => setProfileOpen(false)}
+                    />
+                    <div className="absolute left-5 bottom-4 w-[calc(18rem-2.5rem)] max-w-[calc(18rem-2.5rem)] rounded-2xl border border-border bg-card shadow-2xl overflow-hidden animate-fade-in">
+                        <div className="p-4 border-b border-border/70">
+                            <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <img
+                                        src={profileIcon}
+                                        alt={`${profileName} profile`}
+                                        className="w-11 h-11 flex-shrink-0 rounded-full object-cover bg-background/60 border border-white/10"
+                                        onError={(e) => {
+                                            (e.target as HTMLImageElement).src = logoUrl();
+                                        }}
+                                    />
+                                    <div className="min-w-0">
+                                        <p className="text-base font-black text-text truncate">{profileName}</p>
+                                        <p className="text-[10px] uppercase tracking-[0.2em] text-plex font-bold mt-0.5">{providerName} Profile</p>
+                                        {profileEmail && <p className="text-xs text-muted truncate mt-1">{profileEmail}</p>}
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setProfileOpen(false)}
+                                    className="p-1.5 rounded-lg text-muted hover:text-text hover:bg-white/5 transition-colors shrink-0"
+                                    aria-label="Close profile modal"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
                             </div>
                         </div>
-                            </>
-                        )}
-                    </div>
 
-                    <div className="flex flex-col items-center text-center px-2">
-                        <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-gray-100 to-gray-400 drop-shadow-md tracking-tight leading-tight line-clamp-2">
-                            {serverName}
-                        </h2>
-                        <div className="mt-2 flex items-center gap-2">
-                            <div className="h-px w-6 bg-gradient-to-r from-transparent to-plex/50"></div>
-                            <span className="text-[10px] uppercase tracking-[0.3em] text-plex font-bold drop-shadow-[0_0_8px_rgba(229,160,13,0.5)]">
-                                Portal
-                            </span>
-                            <div className="h-px w-6 bg-gradient-to-l from-transparent to-plex/50"></div>
-                        </div>
-                        <div className="mt-4 mb-2 relative w-full px-2">
-                            <Palette className="w-4 h-4 text-muted absolute left-5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+                        <div className="p-4">
+                            <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-muted font-bold">
+                                <Palette className="w-3.5 h-3.5 text-plex" />
+                                Theme
+                            </div>
                             <CustomSelect
                                 value={activeTheme}
                                 onChange={setActiveTheme}
                                 compact={true}
-                                className="w-full [&_div]:pl-9"
+                                className="w-full"
                                 options={[
+                                    { label: 'Dynamic (Chameleon)', value: 'dynamic' },
                                     { label: 'Plex Dark', value: 'plex' },
                                     { label: 'Sleek Slate', value: 'slate' },
                                     { label: 'Nordic Frost', value: 'nordic' },
@@ -7882,23 +9970,118 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                     { label: 'Crimson Red', value: 'crimson' },
                                     { label: 'Deep Amethyst', value: 'amethyst' },
                                     { label: 'Sunset Orange', value: 'sunset' },
+                                    { label: 'Ocean Teal', value: 'ocean' },
+                                    { label: 'Rose Pink', value: 'rose' },
+                                    { label: 'Royal Blue', value: 'royal' },
+                                    { label: 'Graphite', value: 'graphite' },
+                                    { label: 'Cyber Lime', value: 'cyberlime' },
+                                    { label: 'Aurora', value: 'aurora' },
                                 ]}
                             />
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setProfileOpen(false);
+                                    onLogout();
+                                }}
+                                className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200 hover:bg-red-500/20 hover:border-red-400/50 transition-colors"
+                            >
+                                <LogOut className="w-4 h-4" />
+                                Logout
+                            </button>
                         </div>
-                        {appVersion && (
-                            <div className="mt-2 text-[10px] text-white/50 font-mono tracking-wider opacity-80 hover:opacity-100 transition-opacity">
-                                {appVersion}
-                            </div>
-                        )}
                     </div>
                 </div>
-            </div>
+            )}
+
+            {installHelpOpen && (
+                <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm animate-fade-in flex items-center justify-center p-4" aria-modal="true" role="dialog">
+                    <button
+                        type="button"
+                        className="absolute inset-0 cursor-default"
+                        aria-label="Close install help"
+                        onClick={() => setInstallHelpOpen(false)}
+                    />
+                    <div className="relative w-full max-w-sm rounded-2xl border border-border bg-card shadow-2xl p-5">
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-11 h-11 rounded-xl bg-plex/10 border border-plex/25 flex items-center justify-center text-plex">
+                                    <MonitorSmartphone className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-black text-text">Install App</h3>
+                                    <p className="text-xs text-muted">{serverName} Portal</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setInstallHelpOpen(false)}
+                                className="p-2 rounded-lg text-muted hover:text-text hover:bg-white/5 transition-colors"
+                                aria-label="Close install help"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <p className="text-sm text-muted leading-relaxed">
+                            {isFirefoxMobile ? (
+                                <>
+                                    Tap the Firefox menu <span className="text-text font-semibold">(⋮)</span>, then choose{' '}
+                                    <span className="text-text font-semibold">Install</span>.
+                                    Use your public <span className="text-text font-semibold">HTTPS</span> URL — not a plain http://IP address.
+                                </>
+                            ) : (
+                                <>
+                                    Use your browser menu and choose <span className="text-text font-semibold">Install app</span> or <span className="text-text font-semibold">Add to Home Screen</span>.
+                                </>
+                            )}
+                        </p>
+                        {installDiag && (
+                            <ul className="mt-4 space-y-2 rounded-xl border border-border bg-background/40 p-3 text-xs text-muted">
+                                {installDiag.map((note) => (
+                                    <li key={note} className="leading-relaxed">• {note}</li>
+                                ))}
+                            </ul>
+                        )}
+                        {!installDiag && installHelpOpen && (
+                            <p className="mt-4 text-xs text-muted">Checking install requirements…</p>
+                        )}
+                        {isFirefoxMobile && (
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    try {
+                                        if ('serviceWorker' in navigator) {
+                                            const regs = await navigator.serviceWorker.getRegistrations();
+                                            await Promise.all(regs.map((reg) => reg.unregister()));
+                                        }
+                                        if ('caches' in window) {
+                                            const keys = await caches.keys();
+                                            await Promise.all(keys.map((key) => caches.delete(key)));
+                                        }
+                                    } catch { /* ignore */ }
+                                    window.location.reload();
+                                }}
+                                className="mt-3 w-full inline-flex items-center justify-center rounded-xl border border-border px-4 py-3 text-sm font-bold text-text hover:bg-white/5 transition-colors"
+                            >
+                                Reset install data & reload
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => setInstallHelpOpen(false)}
+                            className="mt-3 w-full inline-flex items-center justify-center rounded-xl bg-plex px-4 py-3 text-sm font-bold text-background hover:bg-plex-hover transition-colors"
+                        >
+                            Done
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Mobile Bottom Nav */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 w-full nav-shell border-t z-50 pb-[env(safe-area-inset-bottom)]">
+            <div className="md:hidden fixed bottom-0 left-0 right-0 w-full nav-shell border-t z-[310] pb-[env(safe-area-inset-bottom)]">
                 <div className="flex items-center justify-between w-full h-16 px-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))]">
                     {(() => {
-                        const maxPrimary = 7;
+                        const maxPrimary = MOBILE_NAV_PRIMARY_SLOTS;
                         const showMore = normalizedNavOrder.length > maxPrimary;
                         const primary = showMore ? normalizedNavOrder.slice(0, maxPrimary) : normalizedNavOrder;
                         return (
@@ -7907,8 +10090,8 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                     const item = navItemsConfig[key];
                                     if (!item) return null;
                                     const isCurrent = item.route ? isNavCurrent(key, item.route) : false;
-                                    const labelOverride = key === 'mediastack' ? 'Media' : key === 'request' ? 'Request' : item.label;
-                                    return renderNavAction(key, { ...item, label: labelOverride }, { mobile: true, isCurrent, compactLabel: labelOverride, badgeCount: key === 'requests' ? pendingRequestCount : 0 });
+                                    const labelOverride = key === 'mediastack' ? 'Calendar' : key === 'request' ? 'Request' : item.label;
+                                    return renderNavAction(key, { ...item, label: labelOverride }, { mobile: true, isCurrent, compactLabel: labelOverride, badgeCount: getNavBadgeCount(key) });
                                 })}
                                 {showMore && (
                                     <button 
@@ -7938,20 +10121,20 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                         </div>
                         <div className="p-5 grid grid-cols-4 gap-4">
                             {(() => {
-                                const maxPrimary = 7;
+                                const maxPrimary = MOBILE_NAV_PRIMARY_SLOTS;
                                 const secondary = normalizedNavOrder.length > maxPrimary ? normalizedNavOrder.slice(maxPrimary) : [];
                                 return secondary.map(key => {
                                     const item = navItemsConfig[key];
                                     if (!item) return null;
                                     const isCurrent = item.route ? isNavCurrent(key, item.route) : false;
-                                    const labelOverride = key === 'mediastack' ? 'Media' : key === 'request' ? 'Request' : item.label;
+                                    const labelOverride = key === 'mediastack' ? 'Calendar' : key === 'request' ? 'Request' : item.label;
                                     const handleActivate = () => {
                                         setMobileMoreOpen(false);
                                         if (item.href) window.open(item.href, '_blank');
                                         else if (item.onClick) item.onClick({ preventDefault: () => {} });
                                         else if (item.route) onNavigate(item.route as any);
                                     };
-                                    const badgeCount = key === 'requests' ? pendingRequestCount : 0;
+                                    const badgeCount = getNavBadgeCount(key);
                                     return (
                                         <button key={key} onClick={handleActivate} className="flex flex-col items-center gap-2 relative bg-transparent border-0">
                                             <div className={`w-[3.25rem] h-[3.25rem] rounded-full flex items-center justify-center transition-colors ${isCurrent ? 'bg-plex text-background shadow-[0_0_15px_rgba(229,160,13,0.35)]' : 'bg-background/50 text-text hover:bg-white/10 border border-white/5'}`}>

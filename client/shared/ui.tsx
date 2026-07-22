@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { Check } from 'lucide-react';
+import { SettingHint } from '../settings/SettingHint';
 import type { CustomSelectProps } from './types';
 
 export type DropdownPosition = { top: number; left: number; width: number };
@@ -144,13 +145,15 @@ export const SettingsSwitch: React.FC<{
     onChange: (checked: boolean) => void;
     className?: string;
     id?: string;
-}> = ({ checked, onChange, className = '', id }) => (
-    <label className={`relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0 ${className}`}>
+    disabled?: boolean;
+}> = ({ checked, onChange, className = '', id, disabled = false }) => (
+    <label className={`relative inline-flex items-center ml-4 flex-shrink-0 ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${className}`}>
         <input
             id={id}
             type="checkbox"
             className="sr-only peer"
             checked={checked}
+            disabled={disabled}
             onChange={(e) => onChange(e.target.checked)}
         />
         <div className="w-11 h-6 bg-background peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-plex" />
@@ -165,23 +168,18 @@ export const SettingsToggleRow: React.FC<{
     onChange: (checked: boolean) => void;
     className?: string;
     border?: boolean;
+    disabled?: boolean;
     children?: React.ReactNode;
-}> = ({ title, description, hint, checked, onChange, className = '', border = true, children }) => (
-    <div className={`${border ? 'py-4 border-b border-border/40' : 'py-4'} ${className}`}>
+}> = ({ title, description, hint, checked, onChange, className = '', border = true, disabled = false, children }) => (
+    <div className={`${border ? 'py-4 border-b border-border/40' : 'py-4'} ${disabled ? 'opacity-70' : ''} ${className}`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="min-w-0">
                 <h4 className="font-bold text-text inline-flex items-center gap-1.5 flex-wrap">
                     <span>{title}</span>
-                    {!description && hint}
+                    {hint || (description ? <SettingHint>{description}</SettingHint> : null)}
                 </h4>
-                {description ? (
-                    <p className="text-sm text-muted mt-1 inline-flex items-center gap-1.5 flex-wrap">
-                        <span>{description}</span>
-                        {hint}
-                    </p>
-                ) : null}
             </div>
-            <SettingsSwitch checked={checked} onChange={onChange} />
+            <SettingsSwitch checked={checked} onChange={onChange} disabled={disabled} />
         </div>
         {children}
     </div>
@@ -191,9 +189,9 @@ export const ConfirmModal: React.FC<{ isOpen: boolean; message: string; onConfir
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
-            <div className="modal-glass animate-slide-up">
+            <div className="modal-glass animate-slide-up max-w-md w-full">
                 <h3 className="text-xl font-black mb-4 text-text tracking-tight">Are you sure?</h3>
-                <p className="text-muted mb-8 text-sm leading-relaxed">{message}</p>
+                <p className="text-muted mb-8 text-sm leading-relaxed whitespace-pre-line">{message}</p>
                 <div className="flex gap-3 justify-end">
                     <button type="button" className="btn-secondary px-4 py-2.5 text-sm" onClick={onCancel}>Cancel</button>
                     <button type="button" className="btn-primary px-4 py-2.5 text-sm" onClick={onConfirm}>Confirm</button>

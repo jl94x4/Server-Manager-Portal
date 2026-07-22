@@ -1,0 +1,891 @@
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { api, collexionsImageUrl } from '../api';
+import { PlexCollection } from '../types';
+import {
+    Image as ImageIcon,
+    Pin,
+    PinOff,
+    Search,
+    RefreshCw,
+    Library,
+    CheckCircle2,
+    Info,
+    ChevronDown,
+    Check,
+    ExternalLink,
+    Square,
+    CheckSquare,
+    X,
+    Trash2,
+} from 'lucide-react';
+import { CustomSelect } from '../../shared/ui';
+import { NoPosterPlaceholder } from '../../shared/NoPosterPlaceholder';
+import {
+    normalizeUpgraderGridSize,
+    UPGRADER_GRID_SIZE_OPTIONS,
+    upgraderPosterGridClass,
+    upgraderPosterGridStyle,
+    type UpgraderGridSize,
+} from '../../shared/portalLayout';
+
+const LEGACY_GRID_MAP: Record<string, UpgraderGridSize> = {
+    sm: 'small',
+    md: 'medium',
+    lg: 'large',
+};
+
+type StatusFilter = 'all' | 'pinned' | 'tracked' | 'missing_art';
+type SortMode = 'title' | 'library';
+
+const collKey = (c: { library: string; title: string }) => `${c.library}\0${c.title}`;
+const collId = (c: { library: string; title: string }) => `${c.library}-${c.title}`;
+
+/** Collection art with Discover-style placeholder when missing or load fails. */
+const GalleryCollectionArt: React.FC<{
+    thumb?: string | null;
+    title: string;
+    imageSize: { width: number; height: number };
+    compact?: boolean;
+    imgClassName?: string;
+    onClick?: () => void;
+}> = ({ thumb, title, imageSize, compact = false, imgClassName = '', onClick }) => {
+    const src = thumb ? collexionsImageUrl(thumb, imageSize) : '';
+    const [failed, setFailed] = useState(false);
+
+    useEffect(() => {
+        setFailed(false);
+    }, [src]);
+
+    if (!src || failed) {
+        return (
+            <div className="w-full h-full" onClick={onClick} role={onClick ? 'button' : undefined}>
+                <NoPosterPlaceholder compact={compact} />
+            </div>
+        );
+    }
+
+    return (
+        <img
+            src={src}
+            alt={title}
+            className={imgClassName || 'w-full h-full object-cover'}
+            loading="lazy"
+            decoding="async"
+            onClick={onClick}
+            onError={() => setFailed(true)}
+        />
+    );
+};
+
+const STATUS_FILTER_OPTIONS = [
+    { value: 'all', label: 'All status' },
+    { value: 'pinned', label: 'Pinned' },
+    { value: 'tracked', label: 'Tracked' },
+    { value: 'missing_art', label: 'Missing art' },
+];
+
+const SORT_OPTIONS = [
+    { value: 'title', label: 'Sort: Title' },
+    { value: 'library', label: 'Sort: Library' },
+];
+
+const Gallery: React.FC = () => {
+    const [collections, setCollections] = useState<PlexCollection[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [resolvingPins, setResolvingPins] = useState(false);
+    const [loadError, setLoadError] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedLibrary, setSelectedLibrary] = useState<string>('All');
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+    const [sortMode, setSortMode] = useState<SortMode>('title');
+    const [gridSize, setGridSize] = useState<UpgraderGridSize>('medium');
+    const [pinningId, setPinningId] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [fixingArtId, setFixingArtId] = useState<string | null>(null);
+    const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+    const [selectMode, setSelectMode] = useState(false);
+    const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
+    const [bulkBusy, setBulkBusy] = useState(false);
+    const resolveGenRef = useRef(0);
+
+    useEffect(() => {
+        const savedState = localStorage.getItem('collexions_gallery_state');
+        if (savedState) {
+            try {
+                const state = JSON.parse(savedState);
+                if (state.searchQuery !== undefined) setSearchQuery(state.searchQuery);
+                if (state.selectedLibrary !== undefined) setSelectedLibrary(state.selectedLibrary);
+                if (state.statusFilter !== undefined) setStatusFilter(state.statusFilter);
+                else if (state.showPinnedOnly) setStatusFilter('pinned');
+                if (state.sortMode !== undefined) setSortMode(state.sortMode);
+                if (state.gridSize !== undefined) {
+                    const raw = String(state.gridSize);
+                    setGridSize(normalizeUpgraderGridSize(LEGACY_GRID_MAP[raw] || raw));
+                }
+            } catch (e) {
+                console.error('Failed to parse saved gallery state', e);
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem('collexions_gallery_state', JSON.stringify({
+            searchQuery,
+            selectedLibrary,
+            statusFilter,
+            sortMode,
+            gridSize,
+        }));
+    }, [searchQuery, selectedLibrary, statusFilter, sortMode, gridSize]);
+
+    const libraries = useMemo(() => {
+        const libs = ['All', ...new Set(collections.map(c => c.library))];
+        return libs.sort();
+    }, [collections]);
+
+    const enrichPins = useCallback(async (list: PlexCollection[]) => {
+        const needs = list.filter(c => c.pin_resolved === false);
+        if (!needs.length) {
+            setResolvingPins(false);
+            return;
+        }
+        const gen = ++resolveGenRef.current;
+        setResolvingPins(true);
+        const chunkSize = 80;
+        try {
+            for (let i = 0; i < needs.length; i += chunkSize) {
+                if (gen !== resolveGenRef.current) return;
+                const chunk = needs.slice(i, i + chunkSize);
+                const pins = await api.resolveCollectionPins(
+                    chunk.map(c => ({ title: c.title, library: c.library })),
+                );
+                if (gen !== resolveGenRef.current) return;
+                setCollections(prev => prev.map(c => {
+                    const key = collKey(c);
+                    if (!(key in pins)) return c;
+                    return { ...c, is_pinned: !!pins[key], pin_resolved: true };
+                }));
+            }
+        } catch (e) {
+            console.error('Failed to resolve pin status', e);
+            if (gen === resolveGenRef.current) {
+                setCollections(prev => prev.map(c =>
+                    c.pin_resolved === false ? { ...c, pin_resolved: true } : c,
+                ));
+            }
+        } finally {
+            if (gen === resolveGenRef.current) setResolvingPins(false);
+        }
+    }, []);
+
+    const fetchCollections = useCallback(async (isManual = false) => {
+        setLoading(true);
+        setLoadError('');
+        resolveGenRef.current += 1;
+        setResolvingPins(false);
+        try {
+            const data = await api.getCollections(isManual, { light: true });
+            const finalList = (Array.isArray(data) ? data : []).map(c => ({
+                ...c,
+                is_pinned: !!c.is_pinned,
+                pin_resolved: typeof c.pin_resolved === 'boolean' ? c.pin_resolved : false,
+            }));
+            setCollections(finalList);
+            setLoading(false);
+            void enrichPins(finalList);
+        } catch (e: any) {
+            console.error('Failed to fetch collections', e);
+            setLoadError(e?.message || 'Failed to load collections from Plex.');
+            setCollections([]);
+            setLoading(false);
+        }
+    }, [enrichPins]);
+
+    useEffect(() => {
+        fetchCollections();
+    }, [fetchCollections]);
+
+    const handlePinToggle = async (coll: PlexCollection) => {
+        const id = collId(coll);
+        setPinningId(id);
+        try {
+            if (coll.is_pinned) {
+                await api.unpinCollection(coll.title, coll.library);
+                setCollections(prev => prev.map(c =>
+                    collKey(c) === collKey(coll)
+                        ? { ...c, is_pinned: false, pin_resolved: true, has_label: false }
+                        : c,
+                ));
+            } else {
+                await api.pinCollection(coll.title, coll.library);
+                setCollections(prev => prev.map(c =>
+                    collKey(c) === collKey(coll)
+                        ? { ...c, is_pinned: true, pin_resolved: true, has_label: true }
+                        : c,
+                ));
+            }
+        } catch (e) {
+            alert('Action failed. Check Plex connection.');
+        } finally {
+            setPinningId(null);
+        }
+    };
+
+    const handleDelete = async (coll: PlexCollection) => {
+        const ok = window.confirm(
+            `Delete "${coll.title}" from Plex?\n\nThis permanently removes the collection from "${coll.library}" (titles stay in your library). Any Collexions auto-sync job for it will also be removed.`,
+        );
+        if (!ok) return;
+        const id = collId(coll);
+        setDeletingId(id);
+        try {
+            await api.deleteCollection(coll.title, coll.library);
+            setCollections(prev => prev.filter(c => collKey(c) !== collKey(coll)));
+            setSelectedKeys(prev => {
+                const next = new Set(prev);
+                next.delete(collKey(coll));
+                return next;
+            });
+        } catch (e: any) {
+            alert(e?.message || 'Delete failed. Check Plex connection.');
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
+    const handleFixArt = async (coll: PlexCollection) => {
+        const id = collId(coll);
+        setFixingArtId(id);
+        try {
+            const res = await api.fixCollectionArt(coll.library, coll.title, true);
+            if (!res.ok_count) {
+                alert('Could not find a poster source for this collection (need TMDB key or items with artwork).');
+            }
+            await fetchCollections(true);
+        } catch (e: any) {
+            const msg = String(e?.message || '');
+            if (/504|timed out|timeout/i.test(msg)) {
+                alert('Poster refresh timed out. Try again — large collections can take a moment.');
+            } else {
+                alert(msg || 'Failed to set collection art.');
+            }
+        } finally {
+            setFixingArtId(null);
+        }
+    };
+
+    const toggleSelect = (coll: PlexCollection) => {
+        const key = collKey(coll);
+        setSelectedKeys(prev => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
+            return next;
+        });
+    };
+
+    const exitSelectMode = () => {
+        setSelectMode(false);
+        setSelectedKeys(new Set());
+    };
+
+    const filteredCollections = useMemo(() => {
+        const q = searchQuery.toLowerCase();
+        let list = collections.filter(c => {
+            const matchSearch = c.title.toLowerCase().includes(q);
+            const matchLib = selectedLibrary === 'All' || c.library === selectedLibrary;
+            let matchStatus = true;
+            if (statusFilter === 'pinned') matchStatus = c.is_pinned;
+            else if (statusFilter === 'tracked') matchStatus = c.has_label && !c.is_pinned;
+            else if (statusFilter === 'missing_art') matchStatus = !c.thumb;
+            return matchSearch && matchLib && matchStatus;
+        });
+        list = [...list].sort((a, b) => {
+            if (sortMode === 'library') {
+                const libCmp = a.library.localeCompare(b.library);
+                if (libCmp !== 0) return libCmp;
+            }
+            return a.title.localeCompare(b.title);
+        });
+        return list;
+    }, [collections, searchQuery, selectedLibrary, statusFilter, sortMode]);
+
+    const selectAllVisible = () => {
+        setSelectedKeys(new Set(filteredCollections.map(collKey)));
+    };
+
+    const handleBulkFixArt = async () => {
+        const items = collections.filter(c => selectedKeys.has(collKey(c)));
+        if (!items.length) return;
+        setBulkBusy(true);
+        try {
+            let okCount = 0;
+            for (const coll of items) {
+                try {
+                    const res = await api.fixCollectionArt(coll.library, coll.title, true);
+                    if (res.ok_count) okCount += 1;
+                } catch {
+                    /* continue */
+                }
+            }
+            exitSelectMode();
+            await fetchCollections(true);
+            if (okCount < items.length) {
+                alert(`Set posters on ${okCount} of ${items.length}. Some need a TMDB key or items with artwork.`);
+            }
+        } catch (e: any) {
+            alert(e?.message || 'Bulk fix art failed.');
+        } finally {
+            setBulkBusy(false);
+        }
+    };
+
+    const handleBulk = async (action: 'pin' | 'unpin' | 'delete') => {
+        const items = collections
+            .filter(c => selectedKeys.has(collKey(c)))
+            .map(c => ({ title: c.title, library: c.library }));
+        if (!items.length) return;
+        if (action === 'delete') {
+            const ok = window.confirm(
+                `Permanently delete ${items.length} collection${items.length === 1 ? '' : 's'} from Plex?\n\nTitles stay in your libraries. Matching Collexions auto-sync jobs will also be removed.`,
+            );
+            if (!ok) return;
+        }
+        setBulkBusy(true);
+        try {
+            const result = await api.bulkPinCollections(action, items);
+            const okKeys = new Set(
+                (result.results || [])
+                    .filter(r => r.ok)
+                    .map(r => collKey({ title: r.title, library: r.library })),
+            );
+            if (action === 'delete') {
+                setCollections(prev => prev.filter(c => !okKeys.has(collKey(c))));
+            } else {
+                setCollections(prev => prev.map(c => {
+                    if (!okKeys.has(collKey(c))) return c;
+                    return {
+                        ...c,
+                        is_pinned: action === 'pin',
+                        pin_resolved: true,
+                        has_label: action === 'pin',
+                    };
+                }));
+            }
+            exitSelectMode();
+            if (result.ok_count < items.length) {
+                alert(`${action === 'delete' ? 'Deleted' : 'Updated'} ${result.ok_count} of ${items.length}. Some actions failed.`);
+            }
+        } catch (e) {
+            alert('Bulk action failed. Check Plex connection.');
+        } finally {
+            setBulkBusy(false);
+        }
+    };
+
+    const isCompact = gridSize === 'small';
+    const isList = gridSize === 'list';
+    const imageSize = useMemo(() => {
+        switch (gridSize) {
+            case 'small': return { width: 160, height: 240 };
+            case 'medium': return { width: 240, height: 360 };
+            case 'large': return { width: 320, height: 480 };
+            case 'xlarge': return { width: 400, height: 600 };
+            case 'list': return { width: 96, height: 144 };
+            default: return { width: 320, height: 480 };
+        }
+    }, [gridSize]);
+
+    if (loading && collections.length === 0) {
+        return (
+            <div className="flex flex-col h-96 items-center justify-center text-muted animate-pulse">
+                <ImageIcon className="w-12 h-12 mb-4 opacity-50" />
+                <p>Scanning Plex Libraries...</p>
+            </div>
+        );
+    }
+
+    if (loadError && collections.length === 0) {
+        return (
+            <div className="flex flex-col h-96 items-center justify-center text-muted gap-3">
+                <ImageIcon className="w-12 h-12 opacity-40" />
+                <p className="text-sm text-red-300">{loadError}</p>
+                <button
+                    type="button"
+                    onClick={() => fetchCollections(true)}
+                    className="px-4 py-2 rounded-lg bg-plex text-background text-sm font-bold hover:bg-plex-hover transition-colors"
+                >
+                    Retry
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6 animate-in fade-in duration-500 pb-10">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 className="text-2xl md:text-3xl font-bold text-text tracking-tight">Collection Gallery</h2>
+                    <p className="text-muted mt-1 flex items-center gap-2 text-sm">
+                        <Library className="w-4 h-4" />
+                        Explore and manually pin collections to your Home Screen
+                        {resolvingPins && (
+                            <span className="inline-flex items-center gap-1.5 text-plex/80">
+                                <RefreshCw className="w-3 h-3 animate-spin" />
+                                Updating pin status…
+                            </span>
+                        )}
+                    </p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+                        className={`px-3 py-2 rounded-lg border text-sm font-bold transition-colors ${selectMode
+                            ? 'bg-plex text-background border-plex'
+                            : 'bg-card border-border text-muted hover:text-text'
+                            }`}
+                    >
+                        {selectMode ? 'Cancel' : 'Select'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => fetchCollections(true)}
+                        className="p-2 rounded-lg bg-card border border-border text-muted hover:text-text transition-colors"
+                    >
+                        <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                    </button>
+                </div>
+            </div>
+
+            {selectMode && (
+                <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl bg-card/60 border border-border">
+                    <span className="text-sm text-muted mr-1">
+                        {selectedKeys.size} selected
+                    </span>
+                    <button
+                        type="button"
+                        onClick={selectAllVisible}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold border border-border text-muted hover:text-text"
+                    >
+                        Select visible ({filteredCollections.length})
+                    </button>
+                    <button
+                        type="button"
+                        disabled={bulkBusy || selectedKeys.size === 0}
+                        onClick={() => handleBulk('pin')}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 disabled:opacity-50 inline-flex items-center gap-1.5"
+                    >
+                        {bulkBusy ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Pin className="w-3 h-3" />}
+                        Pin selected
+                    </button>
+                    <button
+                        type="button"
+                        disabled={bulkBusy || selectedKeys.size === 0}
+                        onClick={() => handleBulk('unpin')}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 disabled:opacity-50 inline-flex items-center gap-1.5"
+                    >
+                        {bulkBusy ? <RefreshCw className="w-3 h-3 animate-spin" /> : <PinOff className="w-3 h-3" />}
+                        Unpin selected
+                    </button>
+                    <button
+                        type="button"
+                        disabled={bulkBusy || selectedKeys.size === 0}
+                        onClick={() => handleBulk('delete')}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600/20 text-red-300 border border-red-600/40 hover:bg-red-600/30 disabled:opacity-50 inline-flex items-center gap-1.5"
+                    >
+                        {bulkBusy ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                        Delete selected
+                    </button>
+                    <button
+                        type="button"
+                        disabled={bulkBusy || selectedKeys.size === 0}
+                        onClick={() => void handleBulkFixArt()}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-plex/15 text-plex border border-plex/30 hover:bg-plex/25 disabled:opacity-50 inline-flex items-center gap-1.5"
+                    >
+                        {bulkBusy ? <RefreshCw className="w-3 h-3 animate-spin" /> : <ImageIcon className="w-3 h-3" />}
+                        Fix posters
+                    </button>
+                    <button
+                        type="button"
+                        onClick={exitSelectMode}
+                        className="ml-auto p-1.5 rounded-lg text-muted hover:text-text"
+                        title="Exit select mode"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
+
+            <div className="flex flex-col md:flex-row gap-4 flex-wrap">
+                <div className="flex-1 relative min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                    <input
+                        type="text"
+                        placeholder="Search collections..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-card/60 border border-border rounded-xl py-2.5 pl-10 pr-4 text-text focus:outline-none focus:border-plex transition-colors"
+                    />
+                </div>
+
+                <div className="relative w-full md:w-52">
+                    <button
+                        type="button"
+                        onClick={() => setIsLibraryOpen(!isLibraryOpen)}
+                        className="w-full bg-card/60 border border-border rounded-xl py-2.5 pl-4 pr-10 text-text flex items-center justify-between focus:outline-none focus:border-plex transition-all hover:bg-white/5"
+                    >
+                        <div className="flex items-center gap-2 truncate">
+                            <Library className="w-4 h-4 text-muted" />
+                            <span className="truncate">{selectedLibrary}</span>
+                        </div>
+                        <ChevronDown className={`w-4 h-4 text-muted transition-transform ${isLibraryOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {isLibraryOpen && (
+                        <>
+                            <div
+                                className="fixed inset-0 z-10"
+                                onClick={() => setIsLibraryOpen(false)}
+                            />
+                            <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-xl overflow-hidden shadow-2xl z-20 animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="max-h-60 overflow-y-auto scrollbar-thin">
+                                    {libraries.map(lib => (
+                                        <button
+                                            type="button"
+                                            key={lib}
+                                            onClick={() => {
+                                                setSelectedLibrary(lib);
+                                                setIsLibraryOpen(false);
+                                            }}
+                                            className={`w-full px-4 py-2.5 text-sm text-left flex items-center justify-between transition-colors hover:bg-white/5 ${selectedLibrary === lib ? 'text-plex bg-plex/5' : 'text-text'
+                                                }`}
+                                        >
+                                            {lib}
+                                            {selectedLibrary === lib && <Check className="w-4 h-4" />}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                <CustomSelect
+                    value={statusFilter}
+                    onChange={(value) => setStatusFilter(value as StatusFilter)}
+                    options={STATUS_FILTER_OPTIONS}
+                    className="w-full md:w-40"
+                    compact
+                />
+
+                <CustomSelect
+                    value={sortMode}
+                    onChange={(value) => setSortMode(value as SortMode)}
+                    options={SORT_OPTIONS}
+                    className="w-full md:w-40"
+                    compact
+                />
+
+                <CustomSelect
+                    value={gridSize}
+                    onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}
+                    options={UPGRADER_GRID_SIZE_OPTIONS}
+                    className="w-full md:w-44"
+                    compact
+                />
+            </div>
+
+            <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
+                {filteredCollections.map((coll, idx) => {
+                    const id = collId(coll);
+                    const key = collKey(coll);
+                    const uniqueKey = `${id}-${idx}`;
+                    const isProcessing = pinningId === id || deletingId === id || fixingArtId === id;
+                    const isDeleting = deletingId === id;
+                    const isFixingArt = fixingArtId === id;
+                    const isSelected = selectedKeys.has(key);
+                    const pinPending = coll.pin_resolved === false;
+
+                    if (isList) {
+                        return (
+                            <div
+                                key={uniqueKey}
+                                className={`group flex items-center gap-4 bg-card/50 border rounded-xl overflow-hidden hover:border-plex/40 transition-all p-3 ${isSelected ? 'border-plex ring-1 ring-plex/40' : 'border-border'}`}
+                            >
+                                {selectMode && (
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleSelect(coll)}
+                                        className="shrink-0 text-plex"
+                                        aria-label={isSelected ? 'Deselect' : 'Select'}
+                                    >
+                                        {isSelected
+                                            ? <CheckSquare className="w-5 h-5" />
+                                            : <Square className="w-5 h-5 text-muted" />}
+                                    </button>
+                                )}
+                                <div className="w-14 h-[84px] shrink-0 rounded-lg overflow-hidden bg-card">
+                                    <GalleryCollectionArt
+                                        thumb={coll.thumb}
+                                        title={coll.title}
+                                        imageSize={imageSize}
+                                        compact
+                                        imgClassName="w-full h-full object-cover"
+                                    />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        {coll.plexUrl ? (
+                                            <a
+                                                href={coll.plexUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="font-bold text-text truncate hover:text-plex transition-colors"
+                                                title={coll.title}
+                                            >
+                                                {coll.title}
+                                            </a>
+                                        ) : (
+                                            <h3 className="font-bold text-text truncate group-hover:text-plex transition-colors" title={coll.title}>
+                                                {coll.title}
+                                            </h3>
+                                        )}
+                                        {pinPending ? (
+                                            <span className="text-[10px] font-bold uppercase bg-white/5 text-muted px-1.5 py-0.5 rounded">…</span>
+                                        ) : null}
+                                        {coll.has_label && !coll.is_pinned && !pinPending && (
+                                            <span className="text-[10px] font-bold uppercase bg-white/10 text-muted px-1.5 py-0.5 rounded">Tracked</span>
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-muted uppercase mt-0.5">{coll.library}</p>
+                                </div>
+                                {!selectMode && (
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        {coll.plexUrl && (
+                                            <a
+                                                href={coll.plexUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="rounded-lg border border-border bg-card/60 text-muted hover:text-plex hover:border-plex/40 p-2 transition-colors"
+                                                title="Open in Plex"
+                                            >
+                                                <ExternalLink className="w-3.5 h-3.5" />
+                                            </a>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => handlePinToggle(coll)}
+                                            disabled={isProcessing || pinPending}
+                                            className={`rounded-lg font-bold flex items-center justify-center gap-2 transition-all border px-3 py-2 text-xs ${coll.is_pinned
+                                                ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'
+                                                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                                                } disabled:opacity-50`}
+                                        >
+                                            {isProcessing && !isDeleting ? (
+                                                <RefreshCw className="w-3 h-3 animate-spin" />
+                                            ) : coll.is_pinned ? (
+                                                <>
+                                                    <PinOff className="w-3 h-3" />
+                                                    Unpin
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Pin className="w-3 h-3" />
+                                                    Pin
+                                                </>
+                                            )}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDelete(coll)}
+                                            disabled={isProcessing}
+                                            className="rounded-lg border border-border bg-card/60 text-red-400 hover:text-red-300 hover:border-red-500/40 p-2 transition-colors disabled:opacity-50"
+                                            title="Delete collection from Plex"
+                                        >
+                                            {isDeleting
+                                                ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                                : <Trash2 className="w-3.5 h-3.5" />}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    }
+
+                    return (
+                        <div
+                            key={uniqueKey}
+                            className={`group relative flex h-full min-w-0 flex-col bg-card/50 border overflow-hidden hover:border-plex/40 transition-all hover:shadow-2xl hover:shadow-black/50 ${isCompact ? 'rounded-xl' : 'rounded-2xl'} ${isSelected ? 'border-plex ring-1 ring-plex/40' : 'border-border'}`}
+                        >
+                            {selectMode && (
+                                <button
+                                    type="button"
+                                    onClick={() => toggleSelect(coll)}
+                                    className="absolute top-2 left-2 z-10 bg-black/70 rounded p-1 text-white"
+                                    aria-label={isSelected ? 'Deselect' : 'Select'}
+                                >
+                                    {isSelected
+                                        ? <CheckSquare className="w-4 h-4 text-plex" />
+                                        : <Square className="w-4 h-4" />}
+                                </button>
+                            )}
+                            <div className="aspect-[2/3] bg-card relative overflow-hidden">
+                                {coll.plexUrl && !selectMode ? (
+                                    <a
+                                        href={coll.plexUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block w-full h-full"
+                                        title="Open in Plex"
+                                    >
+                                        <GalleryCollectionArt
+                                            thumb={coll.thumb}
+                                            title={coll.title}
+                                            imageSize={imageSize}
+                                            compact={isCompact}
+                                            imgClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                        />
+                                    </a>
+                                ) : (
+                                    <GalleryCollectionArt
+                                        thumb={coll.thumb}
+                                        title={coll.title}
+                                        imageSize={imageSize}
+                                        compact={isCompact}
+                                        imgClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                        onClick={selectMode ? () => toggleSelect(coll) : undefined}
+                                    />
+                                )}
+                                {coll.plexUrl && !selectMode && (
+                                    <a
+                                        href={coll.plexUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={`absolute top-2 left-2 z-[1] bg-black/70 hover:bg-plex text-white rounded flex items-center gap-1 shadow-lg ring-1 ring-white/20 transition-colors ${isCompact ? 'px-1 py-0.5 text-[8px]' : 'px-2 py-1 text-[10px] font-bold'}`}
+                                        title="Open in Plex"
+                                    >
+                                        <ExternalLink className={isCompact ? 'w-2.5 h-2.5' : 'w-3 h-3'} />
+                                        {!isCompact && <span>Plex</span>}
+                                    </a>
+                                )}
+                                {!selectMode && (
+                                    <div className="absolute top-2 right-2 z-[1] flex flex-col items-end gap-1">
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleFixArt(coll)}
+                                                disabled={isProcessing}
+                                                className={`bg-black/70 hover:bg-plex text-white rounded flex items-center justify-center shadow-lg ring-1 ring-white/20 transition-colors disabled:opacity-50 ${isCompact ? 'px-1 py-0.5' : 'px-2 py-1'}`}
+                                                title="Set / refresh collection poster"
+                                            >
+                                                {isFixingArt
+                                                    ? <RefreshCw className={`${isCompact ? 'w-2.5 h-2.5' : 'w-3 h-3'} animate-spin`} />
+                                                    : <ImageIcon className={isCompact ? 'w-2.5 h-2.5' : 'w-3 h-3'} />}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDelete(coll)}
+                                                disabled={isProcessing}
+                                                className={`bg-black/70 hover:bg-red-600 text-white rounded flex items-center justify-center shadow-lg ring-1 ring-white/20 transition-colors disabled:opacity-50 ${isCompact ? 'px-1 py-0.5' : 'px-2 py-1'}`}
+                                                title="Delete collection from Plex"
+                                            >
+                                                {isDeleting
+                                                    ? <RefreshCw className={`${isCompact ? 'w-2.5 h-2.5' : 'w-3 h-3'} animate-spin`} />
+                                                    : <Trash2 className={isCompact ? 'w-2.5 h-2.5' : 'w-3 h-3'} />}
+                                            </button>
+                                        </div>
+                                        {pinPending ? (
+                                            <div className={`bg-black/60 text-muted font-bold rounded flex items-center gap-1 ${isCompact ? 'px-1 py-0.5 text-[8px]' : 'px-2 py-1 text-[10px]'}`}>
+                                                <RefreshCw className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} animate-spin`} />
+                                            </div>
+                                        ) : coll.has_label && !coll.is_pinned ? (
+                                            <div className={`bg-plex/90 text-background font-bold rounded flex items-center gap-1 shadow-lg ring-1 ring-white/20 ${isCompact ? 'px-1 py-0.5 text-[8px]' : 'px-2 py-1 text-[10px]'}`}>
+                                                <CheckCircle2 className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'}`} /> TRACKED
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className={`${isCompact ? 'p-2 gap-1.5' : 'p-4 gap-3'} flex flex-col`}>
+                                <div className={`min-w-0 ${isCompact ? 'min-h-[2rem]' : 'min-h-[3.25rem]'}`}>
+                                    {coll.plexUrl ? (
+                                        <a
+                                            href={coll.plexUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className={`font-bold text-text line-clamp-2 leading-snug hover:text-plex transition-colors ${isCompact ? 'text-[10px]' : 'text-sm'}`}
+                                            title={coll.title}
+                                        >
+                                            {coll.title}
+                                        </a>
+                                    ) : (
+                                        <h3
+                                            className={`font-bold text-text line-clamp-2 leading-snug group-hover:text-plex transition-colors ${isCompact ? 'text-[10px]' : 'text-sm'}`}
+                                            title={coll.title}
+                                        >
+                                            {coll.title}
+                                        </h3>
+                                    )}
+                                    {!isCompact && (
+                                        <p className="text-[10px] text-muted font-medium uppercase mt-1 truncate" title={coll.library}>
+                                            {coll.library}
+                                        </p>
+                                    )}
+                                </div>
+
+                                {!selectMode && (
+                                    <button
+                                        type="button"
+                                        onClick={() => handlePinToggle(coll)}
+                                        disabled={isProcessing || pinPending}
+                                        className={`w-full rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all border whitespace-nowrap ${isCompact ? 'py-1 text-[10px]' : 'py-2 text-xs'} ${coll.is_pinned
+                                            ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'
+                                            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                                            } disabled:opacity-50`}
+                                    >
+                                        {isProcessing && !isDeleting ? (
+                                            <RefreshCw className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0 animate-spin`} />
+                                        ) : coll.is_pinned ? (
+                                            <>
+                                                <PinOff className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0`} />
+                                                <span>Unpin</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Pin className={`${isCompact ? 'w-2 h-2' : 'w-3 h-3'} shrink-0`} />
+                                                <span className={isCompact ? 'hidden' : ''}>Pin to Home</span>
+                                                {isCompact && <span>Pin</span>}
+                                            </>
+                                        )}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {filteredCollections.length === 0 && (
+                <div className="h-64 flex flex-col items-center justify-center text-muted border-2 border-dashed border-border rounded-3xl">
+                    <Search className="w-12 h-12 mb-2 opacity-10" />
+                    <p>No collections match your filters</p>
+                </div>
+            )}
+
+            <div className="p-4 bg-card/30 border border-border rounded-2xl flex items-start gap-3 text-xs text-muted">
+                <Info className="w-4 h-4 text-plex flex-shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                    <p><b className="text-text">Pinned</b>: Visible on your Plex Home Screen and Shared Home Screens.</p>
+                    <p><b className="text-text">Tracked</b>: Has the script label but currently hidden from Home.</p>
+                    <p><b className="text-text">Manual Pinning</b>: Overrides schedule until the next run unpins it (unless excluded).</p>
+                    <p><b className="text-text">Delete</b>: Permanently removes the collection from Plex (movies/shows stay). Also removes any matching Collexions auto-sync job.</p>
+                    <p><b className="text-text">Poster</b> (image icon): Pulls TMDB/franchise art or a 2×2 mosaic of titles into Plex. New creates/syncs do this automatically; use this to fix older blank collections.</p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default Gallery;

@@ -5,6 +5,28 @@ import { IntegrationTestButton } from '../shared/IntegrationTestButton';
 import { SettingsSwitch } from '../shared/ui';
 
 const SECRET_MASK = '••••••••';
+type ArrAppType = ArrInstance['type'];
+
+const ARR_ICON_URLS: Record<ArrAppType, string> = {
+    sonarr: 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg/sonarr.svg',
+    radarr: 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg/radarr.svg',
+    lidarr: 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg/lidarr.svg',
+    bazarr: 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg/bazarr.svg',
+};
+
+const ARR_APP_LABELS: Record<ArrAppType, string> = {
+    sonarr: 'Sonarr',
+    radarr: 'Radarr',
+    lidarr: 'Lidarr',
+    bazarr: 'Bazarr',
+};
+
+const ARR_APP_PLACEHOLDERS: Record<ArrAppType, { url: string; externalUrl: string }> = {
+    sonarr: { url: 'http://localhost:8989', externalUrl: 'https://sonarr.yourdomain.com' },
+    radarr: { url: 'http://localhost:7878', externalUrl: 'https://radarr.yourdomain.com' },
+    lidarr: { url: 'http://localhost:8686', externalUrl: 'https://lidarr.yourdomain.com' },
+    bazarr: { url: 'http://localhost:6767', externalUrl: 'https://bazarr.yourdomain.com' },
+};
 
 const hasCredentials = (
     instance: ArrInstance,
@@ -22,10 +44,10 @@ const generateId = () => {
     return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 };
 
-export const createEmptyArrInstance = (type: 'sonarr' | 'radarr', isDefault = false): ArrInstance => ({
+export const createEmptyArrInstance = (type: ArrAppType, isDefault = false): ArrInstance => ({
     id: generateId(),
     type,
-    name: type === 'radarr' ? 'Radarr' : 'Sonarr',
+    name: ARR_APP_LABELS[type],
     url: '',
     externalUrl: '',
     apiKey: '',
@@ -41,7 +63,7 @@ type PlexLibrary = {
 };
 
 type Props = {
-    type: 'sonarr' | 'radarr';
+    type: ArrAppType;
     title: string;
     subtitle: string;
     instances: ArrInstance[];
@@ -66,7 +88,11 @@ export const ArrInstancesPanel: React.FC<Props> = ({
     className = '',
 }) => {
     const libraryType = type === 'radarr' ? 'movie' : 'show';
-    const availableLibraries = libraries.filter((entry) => String(entry.type || '').toLowerCase() === libraryType);
+    const supportsLibraryMapping = type === 'sonarr' || type === 'radarr';
+    const availableLibraries = supportsLibraryMapping
+        ? libraries.filter((entry) => String(entry.type || '').toLowerCase() === libraryType)
+        : [];
+    const appName = ARR_APP_LABELS[type];
 
     const librariesAssignedElsewhere = (instanceId: string) => {
         const assigned = new Set<string>();
@@ -112,9 +138,19 @@ export const ArrInstancesPanel: React.FC<Props> = ({
     return (
         <div className={className}>
             <div className="flex items-start justify-between gap-4 mb-4">
-                <div>
-                    <h3 className="text-lg font-bold text-plex">{title}</h3>
-                    <p className="text-sm text-muted mt-1">{subtitle}</p>
+                <div className="flex items-start gap-3 min-w-0">
+                    <span className="w-11 h-11 rounded-lg bg-background border border-border flex items-center justify-center overflow-hidden shrink-0">
+                        <img
+                            src={ARR_ICON_URLS[type]}
+                            alt=""
+                            className="w-8 h-8 object-contain"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                    </span>
+                    <div className="min-w-0">
+                        <h3 className="text-lg font-bold text-plex">{title}</h3>
+                        <p className="text-sm text-muted mt-1">{subtitle}</p>
+                    </div>
                 </div>
                 <button
                     type="button"
@@ -128,20 +164,28 @@ export const ArrInstancesPanel: React.FC<Props> = ({
 
             {instances.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border p-6 text-sm text-muted text-center">
-                    No {type === 'radarr' ? 'Radarr' : 'Sonarr'} instances configured.
+                    No {appName} instances configured.
                 </div>
             ) : (
                 <div className="space-y-4">
                     {instances.map((instance, index) => {
                         const saved = savedInstances.find((entry) => entry.id === instance.id);
-                        const testPayload = type === 'sonarr'
-                            ? { sonarrUrl: instance.url, sonarrApiKey: instance.apiKey, instanceId: instance.id }
-                            : { radarrUrl: instance.url, radarrApiKey: instance.apiKey, instanceId: instance.id };
+                        const testPayload = {
+                            [`${type}Url`]: instance.url,
+                            [`${type}ApiKey`]: instance.apiKey,
+                            instanceId: instance.id,
+                        };
 
                         return (
                             <div key={instance.id} className="rounded-xl border border-border bg-background/40 p-4 space-y-3">
                                 <div className="flex items-center justify-between gap-3">
                                     <div className="flex items-center gap-2 min-w-0">
+                                        <img
+                                            src={ARR_ICON_URLS[type]}
+                                            alt=""
+                                            className="w-5 h-5 object-contain shrink-0"
+                                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                        />
                                         <span className="text-xs uppercase tracking-wider font-bold text-muted">
                                             Instance {index + 1}
                                         </span>
@@ -183,7 +227,7 @@ export const ArrInstancesPanel: React.FC<Props> = ({
                                         type="text"
                                         value={instance.name}
                                         onChange={(e) => updateInstance(instance.id, { name: e.target.value })}
-                                        placeholder={type === 'radarr' ? 'Radarr' : 'Sonarr'}
+                                        placeholder={appName}
                                     />
                                 </div>
 
@@ -194,7 +238,7 @@ export const ArrInstancesPanel: React.FC<Props> = ({
                                         type="text"
                                         value={instance.url}
                                         onChange={(e) => updateInstance(instance.id, { url: e.target.value })}
-                                        placeholder={type === 'radarr' ? 'http://localhost:7878' : 'http://localhost:8989'}
+                                        placeholder={ARR_APP_PLACEHOLDERS[type].url}
                                     />
                                 </div>
 
@@ -207,7 +251,7 @@ export const ArrInstancesPanel: React.FC<Props> = ({
                                         type="text"
                                         value={instance.externalUrl || ''}
                                         onChange={(e) => updateInstance(instance.id, { externalUrl: e.target.value })}
-                                        placeholder={type === 'radarr' ? 'https://radarr.yourdomain.com' : 'https://sonarr.yourdomain.com'}
+                                        placeholder={ARR_APP_PLACEHOLDERS[type].externalUrl}
                                     />
                                 </div>
 

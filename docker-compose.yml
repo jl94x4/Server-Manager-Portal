@@ -16,6 +16,8 @@ services:
       BIND_HOST: 0.0.0.0
       CONFIG_DIR: /app/config
       PLEX_PREFER_REMOTE_CONNECTION: "true"
+      # Collexions worker is bundled in the portal image (enable in Settings → Collexions).
+      COLLEXIONS_EMBEDDED_PORT: ${COLLEXIONS_EMBEDDED_PORT:-15755}
     volumes:
       - ./config:/app/config
       - ./backup:/app/backup

@@ -3,8 +3,8 @@
 import express from 'express';
 import fs from 'fs/promises';
 import path from 'path';
-import fetch from 'node-fetch';
-import { randomUUID, randomBytes } from 'crypto';
+import fetch, { Blob, FormData } from 'node-fetch';
+import { randomUUID, randomBytes, createHash, createCipheriv, createDecipheriv } from 'crypto';
 import nodemailer from 'nodemailer';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
@@ -14,6 +14,7 @@ import compression from 'compression';
 import { execSync } from 'child_process';
 import fsSync from 'fs';
 import net from 'net';
+import { makeCircularPwaIconPng } from './lib/circular-icon.js';
 
 const resolveAppVersion = () => {
     let pkgVersion = '1.0.0';
@@ -55,7 +56,14 @@ const normalizePlexBandwidthKbps = (raw) => {
 };
 
 const app = express();
-app.use(compression());
+app.use(compression({
+    filter: (req, res) => {
+        // Speed tests must stay uncompressed — gzip of repetitive payloads skews Mbps badly.
+        const url = String(req.originalUrl || req.url || '');
+        if (url.includes('/api/speedtest/')) return false;
+        return compression.filter(req, res);
+    },
+}));
 const PORT = parseInt(process.env.PORT || '2121', 10);
 const BIND_HOST = process.env.BIND_HOST || '0.0.0.0';
 const SETUP_TOKEN = process.env.SETUP_TOKEN || '';
@@ -127,7 +135,7 @@ app.use((req, res, next) => {
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; frame-src 'self' https://www.openstreetmap.org; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'");
     if (req.secure || FORCE_SECURE_COOKIES) {
         res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     }
@@ -139,7 +147,16 @@ app.use((req, res, next) => {
 });
 
 // --- Security: Rate Limiting for Auth Endpoints ---
-const getClientIp = (req) => req.ip || req.socket.remoteAddress || 'unknown';
+// Prefer the TCP peer address so client-supplied X-Forwarded-For cannot bypass limits
+// unless TRUST_PROXY is explicitly enabled for a real reverse-proxy deployment.
+const TRUST_PROXY_FOR_RATE_LIMIT = ['1', 'true', 'yes'].includes(String(process.env.TRUST_PROXY || '').toLowerCase());
+const getSocketPeerIp = (req) => (req.socket && req.socket.remoteAddress) || 'unknown';
+const getClientIp = (req) => {
+    if (TRUST_PROXY_FOR_RATE_LIMIT) {
+        return req.ip || getSocketPeerIp(req) || 'unknown';
+    }
+    return getSocketPeerIp(req);
+};
 const createRateLimiter = (windowMs, maxRequests) => {
     const store = new Map();
     // Prune stale IP entries every window to prevent unbounded memory growth under high unique-IP load
@@ -167,7 +184,7 @@ const authRateLimit = createRateLimiter(15 * 60 * 1000, 10); // Reduced from 20 
 const authCallbackRateLimit = createRateLimiter(15 * 60 * 1000, 40);
 const jellyfinQuickConnectPollRateLimit = createRateLimiter(5 * 60 * 1000, 140);
 const publicReadRateLimit = createRateLimiter(60 * 1000, 120);
-const speedtestRateLimit = createRateLimiter(60 * 1000, 12);
+const speedtestRateLimit = createRateLimiter(60 * 1000, 80); // parallel duration streams need headroom
 const setupRateLimit = createRateLimiter(15 * 60 * 1000, 30);
 
 const isLoopbackAddress = (ip = '') => {
@@ -184,7 +201,6 @@ const hasValidSetupToken = (req) => {
 // Use the raw TCP peer address for setup authorization. req.ip honors the
 // client-supplied X-Forwarded-For header (trust proxy is enabled), which an
 // attacker could spoof to impersonate localhost during the unconfigured window.
-const getSocketPeerIp = (req) => (req.socket && req.socket.remoteAddress) || 'unknown';
 const canRunInitialSetup = (req) => hasValidSetupToken(req) || isLoopbackAddress(getSocketPeerIp(req));
 
 const isPrivateIp = (host) => {
@@ -248,22 +264,22 @@ const resolveRequestAppFetchUrl = (config = {}) => {
     return resolveIntegrationUrlForFetch(config.requestAppUrl || '');
 };
 
-// Only mark cookies Secure when explicitly enabled. Auto-detecting HTTPS breaks plain
-// HTTP LAN access (e.g. http://192.168.x.x:2121) when FORCE_SECURE_COOKIES was left on.
-const sessionCookieBase = () => ({
+// Mark cookies Secure on HTTPS requests or when FORCE_SECURE_COOKIES=true.
+// Plain HTTP LAN setups remain usable when the request is not secure.
+const sessionCookieBase = (req) => ({
     httpOnly: true,
-    secure: FORCE_SECURE_COOKIES,
+    secure: FORCE_SECURE_COOKIES || !!(req && req.secure),
     sameSite: 'lax',
     path: BASE_PATH || '/',
 });
 
 const clearSessionCookie = (req, res) => {
-    res.clearCookie('session', sessionCookieBase());
+    res.clearCookie('session', sessionCookieBase(req));
 };
 
 const setSessionCookie = (req, res, token) => {
     res.cookie('session', token, {
-        ...sessionCookieBase(),
+        ...sessionCookieBase(req),
         maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 };
@@ -271,15 +287,60 @@ const setSessionCookie = (req, res, token) => {
 app.use(express.json({ limit: '50kb' })); // Middleware to parse JSON bodies (with size limit)
 app.use(cookieParser()); // Middleware to parse cookies
 
+// CSRF defense for cookie-authenticated API mutations: require same-origin
+// Origin/Referer or the portal's custom X-Requested-With header (sent by apiFetch).
+const PORTAL_CSRF_HEADER = 'x-requested-with';
+const PORTAL_CSRF_VALUE = 'ServerManagerPortal';
+const collectAllowedOrigins = (req) => {
+    const allowed = new Set();
+    // Prefer Host; only trust X-Forwarded-Host when TRUST_PROXY is explicitly enabled.
+    const rawHost = TRUST_PROXY_FOR_RATE_LIMIT
+        ? (req.get('x-forwarded-host') || req.get('host') || '')
+        : (req.get('host') || '');
+    const host = String(rawHost).split(',')[0].trim();
+    if (host) {
+        allowed.add(`https://${host}`);
+        allowed.add(`http://${host}`);
+    }
+    if (PUBLIC_BASE_URL) {
+        try {
+            allowed.add(new URL(PUBLIC_BASE_URL).origin);
+        } catch { /* ignore */ }
+    }
+    return allowed;
+};
+const isSameOriginApiRequest = (req) => {
+    const allowed = collectAllowedOrigins(req);
+    if (!allowed.size) return false;
+    const origin = String(req.get('origin') || '').trim();
+    if (origin && allowed.has(origin)) return true;
+    const referer = String(req.get('referer') || '').trim();
+    if (referer) {
+        try {
+            if (allowed.has(new URL(referer).origin)) return true;
+        } catch { /* ignore */ }
+    }
+    return false;
+};
+const portalCsrfMiddleware = (req, res, next) => {
+    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
+    if (!String(req.path || '').startsWith('/api/')) return next();
+    const headerOk = String(req.get(PORTAL_CSRF_HEADER) || '') === PORTAL_CSRF_VALUE;
+    if (headerOk || isSameOriginApiRequest(req)) return next();
+    return res.status(403).json({ error: 'CSRF validation failed.' });
+};
+
 // Trust the first proxy (e.g. Nginx/Caddy) so req.secure reflects HTTPS correctly
 app.set('trust proxy', 1);
 
+// Strip BASE_PATH before CSRF so subdirectory deploys still match `/api/...`.
 if (BASE_PATH) {
     app.use((req, res, next) => {
         req.url = stripBasePathFromUrl(req.url);
         next();
     });
 }
+app.use(portalCsrfMiddleware);
 
 // --- In-Memory Cache for Plex Metadata ---
 const plexMetadataCache = new Map();
@@ -309,6 +370,12 @@ import {
     migrateConfigFiles,
 } from './lib/data-paths.js';
 import {
+    applyCollexionsBundledDefaults,
+    getCollexionsEmbeddedStatus,
+    isCollexionsBundledAvailable,
+    syncCollexionsEmbeddedWorker,
+} from './lib/collexions-embedded.js';
+import {
     normalizeArrConfig,
     migrateArrConfig,
     syncLegacyArrFields,
@@ -336,9 +403,27 @@ import {
     triggerSonarrEpisodeSearch,
     fetchArrQueueSummary,
     fetchArrInstanceJson,
+    fetchRadarrMovieReleaseDates,
 } from './lib/arr-service.js';
 import { getSonarrTrashCatalog, getSonarrTrashCustomFormat } from './lib/trash-guides-catalog.js';
-import { createRequestAppService, getRequestAppGate } from './lib/request-app-service.js';
+import { createRequestAppService, getRequestAppGate, mapSeerrClientError } from './lib/request-app-service.js';
+import {
+    applyDiscoveryQueryParams,
+    ensureSeerrDiscoverySettings,
+    filterDiscoveryPayload,
+    getDiscoveryPreferences,
+    isAllowedDiscoveryProxyPath,
+    normalizeDiscoveryProxyPath,
+    normalizeDiscoverLanguage,
+    normalizeDiscoverRegion,
+    resolveDiscoverMetadataLanguage,
+    syncSeerrDiscoverySettings,
+} from './lib/discovery-settings.js';
+import { buildDiscoveryFacts } from './lib/discovery-facts.js';
+import { fetchDiscoveryHeroBackdrops } from './lib/discovery-hero.js';
+import { fetchDiscoveryCombinedRatings } from './lib/discovery-ratings.js';
+import { enrichTvDetailsWithSonarrLibraryStatus, fetchSonarrLibraryStatusForShow } from './lib/sonarr-library-status.js';
+import { enrichSessionsWithGeo } from './lib/geoip-lookup.js';
 const PLEX_API = 'https://plex.tv/api';
 
 // --- Status App Global State ---
@@ -354,8 +439,12 @@ let statusConfig = {
 };
 
 let healthData = {};
-const SPEED_TEST_CHUNK_SIZE = 1024 * 1024;
-const SPEED_TEST_BUFFER = Buffer.alloc(SPEED_TEST_CHUNK_SIZE, 'x');
+const SPEED_TEST_CHUNK_SIZE = 4 * 1024 * 1024;
+/** Incompressible chunk so transfer size ≈ measured bytes (also gzip-excluded above). */
+const SPEED_TEST_BUFFER = randomBytes(SPEED_TEST_CHUNK_SIZE);
+const SPEED_TEST_MAX_DOWNLOAD_BYTES = 512 * 1024 * 1024;
+/** Per-request upload cap for duration tests (client aborts sooner; needs room for multi-gig). */
+const SPEED_TEST_MAX_UPLOAD_BYTES = 4 * 1024 * 1024 * 1024;
 
 const createDefaultStatusConfig = (config = {}) => {
     const groups = [
@@ -374,9 +463,10 @@ const createDefaultStatusConfig = (config = {}) => {
     if (publicDomain) addService('portal', 'Server Portal', `${publicDomain.replace(/\/+$/, '')}/api/health`, 'core', 'Portal API health');
 
     const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
-    if (mediaServerType === 'jellyfin') {
-        addService('jellyfin', 'Jellyfin', config.jellyfinUrl, 'media', 'Jellyfin media server');
-        addService('jellystat', 'Jellystat', config.jellystatUrl, 'media', 'Jellyfin analytics');
+    if (mediaServerType !== 'plex') {
+        const mediaLabel = mediaServerType === 'emby' ? 'Emby' : 'Jellyfin';
+        addService(mediaServerType, mediaLabel, config.jellyfinUrl, 'media', `${mediaLabel} media server`);
+        if (mediaServerType === 'jellyfin') addService('jellystat', 'Jellystat', config.jellystatUrl, 'media', 'Jellyfin analytics');
     } else {
         addService('plex', 'Plex', config.plexServerUrl || config.publicDomain, 'media', 'Plex Media Server');
         addService('tautulli', 'Tautulli', config.tautulliUrl, 'media', 'Plex analytics');
@@ -384,9 +474,27 @@ const createDefaultStatusConfig = (config = {}) => {
 
     getArrInstances(config, { enabledOnly: true }).forEach((instance) => {
         if (!instance?.url) return;
-        const label = instance.name || (instance.type === 'radarr' ? 'Radarr' : 'Sonarr');
-        const description = instance.type === 'radarr' ? 'Movie automation' : 'TV automation';
+        const label = instance.name || ({ radarr: 'Radarr', lidarr: 'Lidarr', bazarr: 'Bazarr', sonarr: 'Sonarr' }[instance.type] || 'Sonarr');
+        const description = ({
+            radarr: 'Movie automation',
+            sonarr: 'TV automation',
+            lidarr: 'Music automation',
+            bazarr: 'Subtitle automation',
+        }[instance.type] || 'Media automation');
         addService(`arr-${instance.id}`, label, instance.url, 'downloads', description);
+    });
+    (Array.isArray(config.downloadClients) ? config.downloadClients : []).forEach((client) => {
+        if (client?.enabled === false || !client?.url) return;
+        services.push({
+            id: `download-${client.id}`,
+            name: client.name || downloadClientLabel(client.type),
+            url: client.url,
+            type: 'download-client',
+            clientType: client.type,
+            clientId: client.id,
+            groupId: 'downloads',
+            description: `${downloadClientLabel(client.type)} download client`,
+        });
     });
     if (config.requestAppType && config.requestAppType !== 'none') {
         addService(config.requestAppType, config.requestAppType === 'jellyseerr' ? 'Jellyseerr' : 'Seerr', config.requestAppUrl, 'external', 'Requests portal');
@@ -395,25 +503,55 @@ const createDefaultStatusConfig = (config = {}) => {
     return { groups, services, announcement: null };
 };
 
-const syncArrServicesInStatusConfig = (config = {}) => {
+const syncIntegrationServicesInStatusConfig = (config = {}) => {
     const arrServices = getArrInstances(config, { enabledOnly: true })
         .filter((instance) => instance?.url)
         .map((instance) => ({
             id: `arr-${instance.id}`,
-            name: instance.name || (instance.type === 'radarr' ? 'Radarr' : 'Sonarr'),
+            name: instance.name || ({ radarr: 'Radarr', lidarr: 'Lidarr', bazarr: 'Bazarr', sonarr: 'Sonarr' }[instance.type] || 'Sonarr'),
             url: instance.url,
             type: 'web',
             groupId: 'downloads',
-            description: instance.type === 'radarr' ? 'Movie automation' : 'TV automation',
+            description: ({
+                radarr: 'Movie automation',
+                sonarr: 'TV automation',
+                lidarr: 'Music automation',
+                bazarr: 'Subtitle automation',
+            }[instance.type] || 'Media automation'),
         }));
+    const downloadServices = (Array.isArray(config.downloadClients) ? config.downloadClients : [])
+        .filter((client) => client?.enabled !== false && client?.url)
+        .map((client) => ({
+            id: `download-${client.id}`,
+            name: client.name || downloadClientLabel(client.type),
+            url: client.url,
+            type: 'download-client',
+            clientType: client.type,
+            clientId: client.id,
+            groupId: 'downloads',
+            description: `${downloadClientLabel(client.type)} download client`,
+        }));
+    const managedServices = [...arrServices, ...downloadServices];
     const existingById = new Map((statusConfig.services || []).map((service) => [service.id, service]));
-    const arrIds = new Set(arrServices.map((service) => service.id));
-    const nonArr = (statusConfig.services || []).filter((service) => !arrIds.has(service.id) && !String(service.id || '').startsWith('arr-'));
-    const mergedArr = arrServices.map((service) => {
-        const existing = existingById.get(service.id);
-        return existing ? { ...existing, name: service.name, url: service.url, description: service.description } : service;
+    const managedIds = new Set(managedServices.map((service) => service.id));
+    const unmanaged = (statusConfig.services || []).filter((service) => {
+        const id = String(service.id || '');
+        return !managedIds.has(id) && !id.startsWith('arr-') && !id.startsWith('download-');
     });
-    statusConfig.services = [...nonArr, ...mergedArr];
+    const mergedManaged = managedServices.map((service) => {
+        const existing = existingById.get(service.id);
+        return existing ? {
+            ...existing,
+            name: service.name,
+            url: service.url,
+            type: service.type,
+            clientType: service.clientType,
+            clientId: service.clientId,
+            groupId: service.groupId,
+            description: service.description,
+        } : service;
+    });
+    statusConfig.services = [...unmanaged, ...mergedManaged];
 };
 
 // --- Helper Functions ---
@@ -588,6 +726,21 @@ const logEmailSent = async (userId, type, uniqueKey) => {
 };
 
 // --- SMTP & Email Alerts ---
+const DEFAULT_ALERT_RULES = {
+    expiryWarning: true,
+    accessRevoked: true,
+    newUserSynced: true,
+    syncSuccess: false,
+    syncFailure: true,
+};
+
+const normalizeAlertRules = (rules = {}) => ({
+    ...DEFAULT_ALERT_RULES,
+    ...(rules && typeof rules === 'object' ? rules : {}),
+});
+
+const alertRuleEnabled = (config, rule) => normalizeAlertRules(config?.alertRules)[rule] !== false;
+
 const sendEmail = async (config, to, subject, html, customTransporter = null) => {
     if (!config.smtpHost || !config.smtpUser || !config.smtpPass) {
         log('SMTP is not fully configured. Skipping email send.');
@@ -639,8 +792,42 @@ const sendEmail = async (config, to, subject, html, customTransporter = null) =>
     }
 };
 
+const sendGotifyAlert = async (config, title, message, priority = undefined) => {
+    if (!config.gotifyEnabled || !config.gotifyUrl || !config.gotifyToken) {
+        return false;
+    }
+    const baseUrl = String(config.gotifyUrl || '').replace(/\/+$/, '');
+    const alertPriority = Math.max(0, Math.min(10, Number(priority ?? config.gotifyPriority ?? 5) || 0));
+    try {
+        const response = await fetch(`${baseUrl}/message`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Gotify-Key': config.gotifyToken,
+            },
+            body: JSON.stringify({
+                title: String(title || 'Server Manager Portal'),
+                message: String(message || ''),
+                priority: alertPriority,
+            }),
+        });
+        if (!response.ok) {
+            const detail = await response.text().catch(() => '');
+            throw new Error(`Gotify returned HTTP ${response.status}${detail ? `: ${detail.slice(0, 160)}` : ''}`);
+        }
+        log(`Gotify alert sent: ${title}`);
+        await appendAuditLog('system_gotify_alert_sent', { username: 'System', email: '' }, null, { title });
+        return true;
+    } catch (error) {
+        log(`Error sending Gotify alert: ${error.message}`);
+        throw error;
+    }
+};
+
 const checkAndSendNotifications = async (config) => {
-    if (!config.smtpHost || !config.smtpUser || !config.smtpPass) {
+    const hasSmtp = !!(config.smtpHost && config.smtpUser && config.smtpPass);
+    const hasGotify = !!(config.gotifyEnabled && config.gotifyUrl && config.gotifyToken);
+    if (!hasSmtp && !hasGotify) {
         return;
     }
 
@@ -658,7 +845,7 @@ const checkAndSendNotifications = async (config) => {
     } catch (e) { }
 
     for (const user of users) {
-        if (!user.expiryDate || user.plexAccessStatus === 'revoked' || !user.email) {
+        if (!user.expiryDate || user.plexAccessStatus === 'revoked') {
             continue;
         }
 
@@ -713,12 +900,18 @@ const checkAndSendNotifications = async (config) => {
             `;
 
             try {
-                const sent = await sendEmail(config, user.email, subject, html);
-                if (sent) {
+                const emailSent = user.email && hasSmtp ? await sendEmail(config, user.email, subject, html) : false;
+                const gotifySent = hasGotify && alertRuleEnabled(config, 'expiryWarning') ? await sendGotifyAlert(
+                    config,
+                    'Portal access expiring',
+                    `${user.username} expires in ${days} day${days === 1 ? '' : 's'} (${new Date(user.expiryDate).toLocaleDateString()}).`,
+                    5,
+                ) : false;
+                if (emailSent || gotifySent) {
                     await logEmailSent(user.id, 'expiry_warning', user.expiryDate);
                 }
             } catch (err) {
-                log(`Failed to send email to ${user.username}: ${err.message}`);
+                log(`Failed to send expiry alert to ${user.username}: ${err.message}`);
             }
         }
     }
@@ -772,12 +965,54 @@ const saveFile = async (path, data) => {
 };
 
 // --- Plex API Functions (Server-side only) ---
+/** Stable identity so Docker hostname (container ID) is never reported as a "new device". */
+const plexClientHeaders = (token = '', extra = {}) => ({
+    Accept: 'application/json',
+    ...(token ? { 'X-Plex-Token': String(token) } : {}),
+    'X-Plex-Client-Identifier': CLIENT_ID,
+    'X-Plex-Product': 'Server Manager Portal',
+    'X-Plex-Device': 'Server',
+    'X-Plex-Device-Name': 'Server Manager Portal',
+    'X-Plex-Platform': 'Server Manager Portal',
+    'X-Plex-Platform-Version': String(appVersion || '1'),
+    'X-Plex-Provides': 'controller',
+    ...extra,
+});
+
+/** Global safety net: bare fetch() to PMS/plex.tv must never omit client identity. */
+const _nativeFetch = globalThis.fetch.bind(globalThis);
+globalThis.fetch = async (input, init = {}) => {
+    const urlStr = typeof input === 'string' ? input : (input?.url || String(input || ''));
+    const existing = { ...(init.headers || {}) };
+    // Normalize Headers / array form into a plain object
+    let headerObj = existing;
+    if (typeof Headers !== 'undefined' && init.headers instanceof Headers) {
+        headerObj = {};
+        init.headers.forEach((v, k) => { headerObj[k] = v; });
+    } else if (Array.isArray(init.headers)) {
+        headerObj = Object.fromEntries(init.headers);
+    }
+    const lower = Object.fromEntries(Object.entries(headerObj).map(([k, v]) => [String(k).toLowerCase(), v]));
+    const hasPlexId = !!(lower['x-plex-client-identifier']);
+    const hasToken = !!(lower['x-plex-token'] || /[?&]X-Plex-Token=/i.test(urlStr));
+    const isPlexHost = /(?:^|[/.])plex\.tv(?:[:/]|$)/i.test(urlStr) || /[?&]X-Plex-Token=/i.test(urlStr);
+    if (!hasPlexId && (hasToken || isPlexHost)) {
+        let token = lower['x-plex-token'] || '';
+        if (!token) {
+            const match = urlStr.match(/[?&]X-Plex-Token=([^&]+)/i);
+            if (match) {
+                try { token = decodeURIComponent(match[1]); } catch { token = match[1]; }
+            }
+        }
+        init = { ...init, headers: { ...plexClientHeaders(token), ...headerObj } };
+    }
+    return _nativeFetch(input, init);
+};
+
 const apiFetch = (url, token, options = {}) => {
     const headers = {
-        'Accept': 'application/json',
+        ...plexClientHeaders(token),
         ...(options.headers || {}),
-        'X-Plex-Token': token,
-        'X-Plex-Client-Identifier': CLIENT_ID
     };
     return fetch(url, { ...options, headers });
 };
@@ -864,6 +1099,37 @@ const findLocalUserForSession = (users, sessionUser) => {
             (sessionUsername && sessionUsername === userUsername)
         );
     }) || null;
+};
+
+/** Record portal last-login using the same identity matching as membership checks. */
+const touchUserLastLogin = (users, sessionUser, at = new Date().toISOString()) => {
+    const existingUser = findLocalUserForSession(users, sessionUser);
+    if (!existingUser) return null;
+    existingUser.lastLogin = at;
+    if (!existingUser.plexId && sessionUser.plexId) existingUser.plexId = sessionUser.plexId;
+    if (!existingUser.jellyfinId && sessionUser.jellyfinId) existingUser.jellyfinId = sessionUser.jellyfinId;
+    return existingUser;
+};
+
+/** Recover missing lastLogin values from successful portal login audit events. */
+const backfillLastLoginFromAudit = async (users) => {
+    if (!Array.isArray(users) || !users.length) return { users, changed: false };
+    const missing = users.filter((user) => !user.lastLogin);
+    if (!missing.length) return { users, changed: false };
+
+    const auditLog = await loadFile(AUDIT_LOG_PATH, []);
+    const loginEvents = auditLog.filter((entry) => entry?.event === 'user_login' && entry.actor);
+    if (!loginEvents.length) return { users, changed: false };
+
+    let changed = false;
+    for (const user of missing) {
+        const match = loginEvents.find((entry) => findLocalUserForSession([user], entry.actor));
+        if (!match?.timestamp) continue;
+        user.lastLogin = match.timestamp;
+        if (!user.plexId && match.actor?.plexId) user.plexId = match.actor.plexId;
+        changed = true;
+    }
+    return { users, changed };
 };
 
 const getSessionActor = (sessionUser) => (
@@ -955,11 +1221,16 @@ const resolveCurrentAdmin = async (sessionUser, config = null) => {
                     const jellyfinUser = await userRes.json();
                     return jellyfinUser?.Policy?.IsAdministrator === true;
                 }
+                // Fail closed when Jellyfin responds but user lookup fails — do not trust JWT claims.
+                log(`Jellyfin admin policy check HTTP ${userRes.status} for ${sessionUser.username || sessionUser.jellyfinId}`);
+                return false;
             } catch (e) {
                 log(`Jellyfin admin policy check failed for ${sessionUser.username || sessionUser.jellyfinId}: ${e.message}`);
+                // Fail closed when Jellyfin is unreachable — do not elevate from cookie flags.
+                return false;
             }
         }
-        return sessionUser?.jellyfinIsAdmin === true || sessionUser?.isAdmin === true;
+        return false;
     }
     if (!sessionUser?.plexId) return false;
     const adminId = await getAdminId(loadedConfig);
@@ -967,13 +1238,18 @@ const resolveCurrentAdmin = async (sessionUser, config = null) => {
 };
 
 const isPlexConfigured = (config = {}) => !!(config && config.plexToken && config.serverIdentifier);
+const isEmbyLikeMediaServer = (config = {}) => ['jellyfin', 'emby'].includes(String(config?.mediaServerType || '').toLowerCase());
 const isJellyfinConfigured = (config = {}) => (
-    String(config?.mediaServerType || '').toLowerCase() === 'jellyfin'
+    isEmbyLikeMediaServer(config)
     && !!(config?.jellyfinUrl && config?.jellyfinApiKey)
 );
 const isPortalConfigured = (config = {}) => isPlexConfigured(config) || isJellyfinConfigured(config);
 const isPublicStatusVisible = (config = {}) => config.showPublicStatusMonitor !== false;
 const arePublicLibraryStatsVisible = (config = {}) => config.showPublicLibraryStats !== false;
+const normalizePwaIconSource = (value, fallback = 'server') => {
+    const normalized = String(value || '').trim().toLowerCase();
+    return normalized === 'application' || normalized === 'server' ? normalized : fallback;
+};
 
 const requireAuth = (req, res, next) => {
     const token = req.cookies.session;
@@ -1016,6 +1292,10 @@ const requireAdmin = async (req, res, next) => {
         req.user = jwt.verify(token, JWT_SECRET);
     } catch (e) {
         return res.status(401).json({ error: 'Invalid session' });
+    }
+
+    if (isImpersonatingSession(req.user)) {
+        return res.status(403).json({ error: 'Admin actions are disabled while viewing as another user. Stop impersonation first.' });
     }
 
     const config = await loadFile(CONFIG_PATH, {});
@@ -1078,6 +1358,7 @@ const syncUsers = async (config) => {
     const usernameUserMap = new Map(localUsers.filter(u => u.username).map(u => [u.username.toLowerCase(), u]));
     const matchedLocalUserIds = new Set();
 
+    let newUserCount = 0;
     const syncedUsers = plexUsers.map(pUser => {
         if (isDeletedUser(deletedUsers, pUser)) {
             log(`Skipping deleted user during sync: ${pUser.username}`);
@@ -1096,12 +1377,22 @@ const syncUsers = async (config) => {
                 appendAuditLog('invite_accepted_synced', null, { ...existingUser, id: pUser.id, username: pUser.username, email: pUser.email }).catch(() => { });
             }
             // Update existing user with latest info from Plex, but keep local expiry/trial data.
-            return { ...existingUser, id: pUser.id, username: pUser.username, email: pUser.email, thumb: pUser.thumb, plexAccessStatus: 'active' };
+            return {
+                ...existingUser,
+                id: pUser.id,
+                plexId: existingUser.plexId || pUser.id,
+                username: pUser.username,
+                email: pUser.email,
+                thumb: pUser.thumb,
+                plexAccessStatus: 'active',
+            };
         }
         log(`New user found: ${pUser.username}. Setting default unlimited expiry.`);
+        newUserCount++;
         appendAuditLog('plex_sync_new_user_added', null, pUser).catch(() => { });
         return {
             id: pUser.id,
+            plexId: pUser.id,
             username: pUser.username,
             email: pUser.email,
             thumb: pUser.thumb,
@@ -1126,7 +1417,7 @@ const syncUsers = async (config) => {
     await saveFile(USERS_PATH, syncedUsers);
     const message = `Sync complete. Synced ${plexUsers.length} users.`;
     log(message);
-    return { message, count: plexUsers.length };
+    return { message, count: plexUsers.length, newUserCount };
 };
 
 const syncJellyfinUsers = async (config) => {
@@ -1164,6 +1455,7 @@ const syncJellyfinUsers = async (config) => {
     const usernameUserMap = new Map(localUsers.filter((user) => user.username).map((user) => [user.username.toLowerCase(), user]));
     const matchedLocalUserIds = new Set();
 
+    let newUserCount = 0;
     const syncedUsers = jellyfinUsers.map((jUser) => {
         const deletedLookup = { id: jUser.id, jellyfinId: jUser.jellyfinId, username: jUser.username, email: jUser.email };
         if (isDeletedUser(deletedUsers, deletedLookup)) {
@@ -1192,6 +1484,7 @@ const syncJellyfinUsers = async (config) => {
         }
 
         log(`New Jellyfin user found: ${jUser.username}. Setting default 1-day expiry.`);
+        newUserCount++;
         appendAuditLog('jellyfin_sync_new_user_added', null, jUser).catch(() => { });
         return {
             id: jUser.id,
@@ -1224,7 +1517,7 @@ const syncJellyfinUsers = async (config) => {
     await saveFile(USERS_PATH, syncedUsers);
     const message = `Sync complete. Synced ${jellyfinUsers.length} Jellyfin users.`;
     log(message);
-    return { message, count: jellyfinUsers.length };
+    return { message, count: jellyfinUsers.length, newUserCount };
 };
 
 const revokePlexAccess = async (user, config) => {
@@ -1517,6 +1810,12 @@ const checkAndRevoke = async (config) => {
             if (userInList) {
                 userInList.plexAccessStatus = 'revoked';
                 usersModified = true;
+                if (alertRuleEnabled(config, 'accessRevoked')) await sendGotifyAlert(
+                    config,
+                    'Portal access revoked',
+                    `${userInList.username || user.username} was revoked after expiry.`,
+                    8,
+                ).catch((e) => log(`Failed to send Gotify revocation alert: ${e.message}`));
 
                 // Send expiry notification email if not already sent
                 if (!userInList.expiryEmailSent) {
@@ -1660,11 +1959,9 @@ app.post('/api/auth/plex/login', authRateLimit, async (req, res) => {
     try {
         const response = await fetch('https://plex.tv/api/v2/pins?strong=true', {
             method: 'POST',
-            headers: {
-                'Accept': 'application/json',
+            headers: plexClientHeaders('', {
                 'X-Plex-Product': 'Server Manager Portal',
-                'X-Plex-Client-Identifier': CLIENT_ID
-            }
+            }),
         });
         if (!response.ok) throw new Error('Failed to generate Plex PIN');
         const data = await response.json();
@@ -1719,9 +2016,7 @@ const completeJellyfinPortalLogin = async (req, res, config, authData, source = 
         return res.status(403).json({ error: 'Your account is not registered for this portal.' });
     }
 
-    if (!isAdmin && knownUser) {
-        knownUser.lastLogin = new Date().toISOString();
-        if (!knownUser.jellyfinId && sessionUser.jellyfinId) knownUser.jellyfinId = sessionUser.jellyfinId;
+    if (!isAdmin && touchUserLastLogin(users, sessionUser)) {
         await saveFile(USERS_PATH, users);
     }
 
@@ -1866,10 +2161,7 @@ const fetchPlexPinAuthToken = async (pinId, { attempts = 10, delayMs = 800 } = {
     let lastData = null;
     for (let attempt = 1; attempt <= attempts; attempt++) {
         const pinRes = await fetch(`https://plex.tv/api/v2/pins/${pinId}`, {
-            headers: {
-                Accept: 'application/json',
-                'X-Plex-Client-Identifier': CLIENT_ID,
-            },
+            headers: plexClientHeaders(),
         });
         lastData = await pinRes.json();
         if (lastData?.authToken) {
@@ -1978,9 +2270,7 @@ const handlePlexPinLogin = async (req, res, pinId, ref, { redirectOnSuccess = fa
 
     if (!isAdmin) {
         const users = await loadFile(USERS_PATH, []);
-        const existingUser = users.find(u => u.id === sessionUser.id || u.plexId === sessionUser.plexId);
-        if (existingUser) {
-            existingUser.lastLogin = new Date().toISOString();
+        if (touchUserLastLogin(users, sessionUser)) {
             await saveFile(USERS_PATH, users);
         }
     }
@@ -2061,21 +2351,15 @@ const assertInitialSetupAccess = async (req, res, options = {}) => {
         res.status(403).json({ error: 'Portal is already configured.' });
         return false;
     }
-    if (options.allowUnconfigured === true) return true;
+    // Only localhost / SETUP_TOKEN — do not accept an arbitrary valid JWT while unconfigured.
     if (canRunInitialSetup(req)) return true;
-    const sessionToken = req.cookies && req.cookies.session;
-    if (sessionToken) {
-        try {
-            jwt.verify(sessionToken, JWT_SECRET);
-            return true;
-        } catch (e) { /* fall through */ }
-    }
-    res.status(403).json({ error: 'Initial setup denied: localhost, valid setup token, or admin session required.' });
+    res.status(403).json({ error: 'Initial setup denied: localhost or valid setup token required.' });
     return false;
 };
 
 app.post('/api/setup/plex/callback', setupRateLimit, authRateLimit, async (req, res) => {
-    if (!(await assertInitialSetupAccess(req, res, { allowUnconfigured: true }))) return;
+    // Require localhost or SETUP_TOKEN — never return a Plex owner token on an open unconfigured portal.
+    if (!(await assertInitialSetupAccess(req, res))) return;
     const { pinId } = req.body;
     if (!pinId) return res.status(400).json({ error: 'pinId is required' });
 
@@ -2163,7 +2447,29 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
     if ((requestUrl === 'https://yourdomain.com' || !requestUrl) && config.requestAppUrl) {
         requestUrl = config.requestAppUrl;
     }
-    let navOrder = config.navOrder || ['home', 'discover', 'users', 'status', 'analytics', 'mediastack', 'maintenance', 'request', 'settings', 'logout'];
+    let navOrder = Array.isArray(config.navOrder) && config.navOrder.length
+        ? [...config.navOrder]
+        : ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'collexions', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'];
+    // Migrate known legacy stock defaults to the current default without clobbering custom orders
+    const legacyNavOrders = [
+        ['home', 'discover', 'users', 'status', 'analytics', 'downloads', 'mediastack', 'maintenance', 'request', 'about', 'settings', 'logout'],
+        ['home', 'discover', 'users', 'analytics', 'downloads', 'mediastack', 'upgrader', 'requests', 'status', 'maintenance', 'request', 'about', 'logs', 'settings', 'logout'],
+        ['home', 'discover', 'status', 'analytics', 'request', 'users', 'downloads', 'mediastack', 'maintenance', 'about', 'settings', 'logout'],
+        ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'],
+    ];
+    if (legacyNavOrders.some((legacy) => legacy.length === navOrder.length && legacy.every((key, i) => key === navOrder[i]))) {
+        navOrder = ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'collexions', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'];
+    }
+    // Ensure newly added stock items appear for custom orders too.
+    if (!navOrder.includes('collexions')) {
+        const upgraderIdx = navOrder.indexOf('upgrader');
+        if (upgraderIdx >= 0) navOrder.splice(upgraderIdx + 1, 0, 'collexions');
+        else {
+            const downloadsIdx = navOrder.indexOf('downloads');
+            if (downloadsIdx >= 0) navOrder.splice(downloadsIdx + 1, 0, 'collexions');
+            else navOrder.splice(Math.max(0, navOrder.length - 2), 0, 'collexions');
+        }
+    }
     try {
         if (isJellyfinPortal && config?.jellyfinUrl && config?.jellyfinApiKey) {
             const profile = await getAdminProfile(config);
@@ -2198,11 +2504,15 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
 
     const requestAppType = config.requestAppType === 'overseerr' ? 'seerr' : (config.requestAppType || 'none');
     const resolvedRequestUrl = requestUrl;
+    const isPlexMediaServer = String(config.mediaServerType || 'plex').toLowerCase() === 'plex';
     const navFeatures = {
         maintenance: !!config.maintenanceExperimentalEnabled,
         upgrader: !!config.upgraderEnabled,
+        // Collexions is Plex-only — hide for Jellyfin/Emby even if the flag is on.
+        collexions: !!config.collexionsEnabled && isPlexMediaServer,
         request: !!(requestAppType && requestAppType !== 'none' && resolvedRequestUrl && resolvedRequestUrl !== 'https://yourdomain.com'),
         requestsQueue: requestAppService.isRequestAppConfigured(config),
+        downloads: config.downloadsVisibleToMembers !== false,
     };
 
     res.json({
@@ -2213,6 +2523,9 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
         mediaServerType: config.mediaServerType || 'plex',
         requestUrl,
         navOrder,
+        navHiddenKeys: Array.isArray(config.navHiddenKeys)
+            ? config.navHiddenKeys.filter((key) => typeof key === 'string' && key && key !== 'home' && key !== 'settings' && key !== 'logout')
+            : [],
         navFeatures,
         impersonation: impersonating ? {
             active: true,
@@ -2288,7 +2601,7 @@ app.post('/api/admin/stop-impersonation', requireAuth, async (req, res) => {
 
 const DEFAULT_DASHBOARD_LAYOUT = {
     version: 1,
-    sections: ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'recentlyAdded'],
+    sections: ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'recentlyAdded', 'bazarrTools'],
     mainGridOrder: [
         'adminBadge', 'quickActions', 'accessStatus', 'announcement', 'referral',
         'newsletterPrefs', 'support', 'libraryStats', 'analytics'
@@ -2296,24 +2609,77 @@ const DEFAULT_DASHBOARD_LAYOUT = {
     recentlyAddedOrder: ['recentMovies', 'recentShows', 'recentMusic'],
     hiddenSections: [],
     hiddenWidgets: [],
-    recentHistoryRows: 7,
-    topWatchedRows: 2
+    widgetSizes: {},
+    widgetColumns: {},
+    recentHistoryRows: 4,
+    topWatchedRows: 1
 };
+
+const DASHBOARD_SECTIONS = ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'recentlyAdded', 'bazarrTools'];
+const DASHBOARD_MAIN_GRID_WIDGETS = [
+    'adminBadge', 'accessStatus', 'tempAccessSetup', 'quickActions', 'announcement',
+    'referral', 'newsletterPrefs', 'support', 'libraryStats', 'analytics'
+];
+const DASHBOARD_RECENTLY_ADDED_WIDGETS = ['recentMovies', 'recentShows', 'recentMusic'];
+const DASHBOARD_WIDGETS = [...DASHBOARD_MAIN_GRID_WIDGETS, ...DASHBOARD_RECENTLY_ADDED_WIDGETS];
+const DASHBOARD_WIDGET_SIZES = ['compact', 'normal', 'wide', 'full'];
+
+const DOWNLOAD_CLIENT_TYPES = ['qbittorrent', 'transmission', 'bittorrent', 'deluge', 'sabnzbd'];
+const downloadClientLabel = (type) => ({
+    qbittorrent: 'qBittorrent',
+    transmission: 'Transmission',
+    bittorrent: 'BitTorrent',
+    deluge: 'Deluge',
+    sabnzbd: 'SABnzbd',
+}[type] || 'Download Client');
+
+const normalizeDownloadClients = (incoming, existing = [], { resolveSecret = (v) => v, resolveConfigIntegrationUrl = (v) => String(v || '').trim(), secretMask = SECRET_MASK } = {}) => {
+    if (!Array.isArray(incoming)) return Array.isArray(existing) ? existing : [];
+    const existingById = new Map((Array.isArray(existing) ? existing : []).map((entry) => [String(entry.id), entry]));
+    return incoming.slice(0, 20).map((raw, index) => {
+        const type = DOWNLOAD_CLIENT_TYPES.includes(String(raw?.type || '').toLowerCase()) ? String(raw.type).toLowerCase() : 'qbittorrent';
+        const id = String(raw?.id || `${type}-${Date.now()}-${index}`);
+        const previous = existingById.get(id) || {};
+        const safeUrl = resolveConfigIntegrationUrl(raw?.url, previous.url || '');
+        const password = resolveSecret(raw?.password, previous.password || '');
+        return {
+            id,
+            type,
+            name: String(raw?.name || previous.name || downloadClientLabel(type)).trim() || downloadClientLabel(type),
+            url: safeUrl,
+            username: String(raw?.username ?? previous.username ?? ''),
+            password: password === secretMask ? (previous.password || '') : String(password || ''),
+            enabled: raw?.enabled !== false,
+        };
+    }).filter((entry) => entry.url || entry.username || entry.password || entry.name);
+};
+
+const maskDownloadClientsForApi = (clients = [], secretMask = SECRET_MASK) => (
+    (Array.isArray(clients) ? clients : []).map((entry) => ({
+        id: entry.id,
+        type: entry.type,
+        name: entry.name || downloadClientLabel(entry.type),
+        url: entry.url || '',
+        username: entry.username || '',
+        password: entry.password ? secretMask : '',
+        enabled: entry.enabled !== false,
+    }))
+);
 
 const migrateDashboardSections = (sections) => {
     const next = sections.filter((id, index) => id !== 'pendingRequests' || sections.indexOf('pendingRequests') === index);
-    if (next.includes('pendingRequests')) return next;
     const mainGridIndex = next.indexOf('mainGrid');
-    if (mainGridIndex >= 0) {
+    if (!next.includes('pendingRequests') && mainGridIndex >= 0) {
         next.splice(mainGridIndex + 1, 0, 'pendingRequests');
-        return next;
+    } else if (!next.includes('pendingRequests')) {
+        next.push('pendingRequests');
     }
-    return [...next, 'pendingRequests'];
+    if (!next.includes('bazarrTools')) next.push('bazarrTools');
+    return next;
 };
 
 const normalizeDashboardLayout = (raw) => {
-    const ALL_SECTIONS = ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'recentlyAdded'];
-    const uniqueValid = (values, allowed, fallback) => {
+    const uniqueValid = (values, allowed, fallback, fillMissing = true) => {
         if (!Array.isArray(values)) return [...fallback];
         const seen = new Set();
         const result = [];
@@ -2322,17 +2688,39 @@ const normalizeDashboardLayout = (raw) => {
             seen.add(value);
             result.push(value);
         });
-        allowed.forEach((id) => { if (!seen.has(id)) result.push(id); });
+        if (fillMissing) {
+            allowed.forEach((id) => { if (!seen.has(id)) result.push(id); });
+        }
         return result;
+    };
+    const normalizeWidgetSizes = (values) => {
+        if (!values || typeof values !== 'object') return {};
+        return Object.entries(values).reduce((result, [key, value]) => {
+            if (DASHBOARD_WIDGETS.includes(key) && DASHBOARD_WIDGET_SIZES.includes(value) && value !== 'normal') {
+                result[key] = value;
+            }
+            return result;
+        }, {});
+    };
+    const normalizeWidgetColumns = (values) => {
+        if (!values || typeof values !== 'object') return {};
+        return Object.entries(values).reduce((result, [key, value]) => {
+            if (!DASHBOARD_WIDGETS.includes(key)) return result;
+            const column = Math.max(1, Math.min(12, Math.floor(Number(value))));
+            if (Number.isFinite(column)) result[key] = column;
+            return result;
+        }, {});
     };
     const input = raw && typeof raw === 'object' ? raw : {};
     return {
         version: 1,
-        sections: migrateDashboardSections(uniqueValid(input.sections, ALL_SECTIONS, DEFAULT_DASHBOARD_LAYOUT.sections)),
-        mainGridOrder: [...DEFAULT_DASHBOARD_LAYOUT.mainGridOrder],
-        recentlyAddedOrder: [...DEFAULT_DASHBOARD_LAYOUT.recentlyAddedOrder],
-        hiddenSections: uniqueValid(input.hiddenSections, ALL_SECTIONS, []),
-        hiddenWidgets: [],
+        sections: migrateDashboardSections(uniqueValid(input.sections, DASHBOARD_SECTIONS, DEFAULT_DASHBOARD_LAYOUT.sections)),
+        mainGridOrder: uniqueValid(input.mainGridOrder, DASHBOARD_MAIN_GRID_WIDGETS, DEFAULT_DASHBOARD_LAYOUT.mainGridOrder),
+        recentlyAddedOrder: uniqueValid(input.recentlyAddedOrder, DASHBOARD_RECENTLY_ADDED_WIDGETS, DEFAULT_DASHBOARD_LAYOUT.recentlyAddedOrder),
+        hiddenSections: uniqueValid(input.hiddenSections, DASHBOARD_SECTIONS, [], false),
+        hiddenWidgets: uniqueValid(input.hiddenWidgets, DASHBOARD_WIDGETS, [], false),
+        widgetSizes: normalizeWidgetSizes(input.widgetSizes),
+        widgetColumns: normalizeWidgetColumns(input.widgetColumns),
         recentHistoryRows: typeof input.recentHistoryRows === 'number' ? input.recentHistoryRows : DEFAULT_DASHBOARD_LAYOUT.recentHistoryRows,
         topWatchedRows: typeof input.topWatchedRows === 'number' ? input.topWatchedRows : DEFAULT_DASHBOARD_LAYOUT.topWatchedRows
     };
@@ -2347,10 +2735,25 @@ const normalizeSectionLayout = (raw) => {
     if (normalized.hiddenSections.length >= DEFAULT_DASHBOARD_LAYOUT.sections.length) {
         return { ...normalized, hiddenSections: [] };
     }
+    if (normalized.hiddenWidgets.length >= DASHBOARD_WIDGETS.length) {
+        return { ...normalized, hiddenWidgets: [] };
+    }
     return normalized;
 };
 
 // Config endpoints
+app.post('/api/config/dashboard-layout', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const dashboardLayout = normalizeSectionLayout(req.body?.dashboardLayout || req.body || {});
+        const nextConfig = { ...config, dashboardLayout };
+        await saveFile(CONFIG_PATH, nextConfig);
+        res.json({ success: true, dashboardLayout });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to save dashboard layout.' });
+    }
+});
+
 app.get('/api/config', requireAdmin, async (req, res) => {
     const config = normalizeArrConfig(await loadFile(CONFIG_PATH, {}));
     const isConfigured = isPortalConfigured(config);
@@ -2375,6 +2778,11 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 smtpFrom: config.smtpFrom || '',
                 smtpSecure: !!config.smtpSecure,
                 emailDaysBefore: config.emailDaysBefore || 7,
+                gotifyEnabled: !!config.gotifyEnabled,
+                gotifyUrl: config.gotifyUrl || '',
+                gotifyToken: config.gotifyToken ? SECRET_MASK : '',
+                gotifyPriority: config.gotifyPriority ?? 5,
+                alertRules: normalizeAlertRules(config.alertRules),
                 newsletterFrequency: config.newsletterFrequency || 'disabled',
                 newsletterDay: config.newsletterDay || 0,
                 inactiveCleanupEnabled: !!config.inactiveCleanupEnabled,
@@ -2389,6 +2797,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 radarrUrl: config.radarrUrl || '',
                 radarrApiKey: config.radarrApiKey ? SECRET_MASK : '',
                 arrInstances: maskArrInstancesForApi(config.arrInstances, SECRET_MASK),
+                downloadClients: maskDownloadClientsForApi(config.downloadClients, SECRET_MASK),
                 tautulliUrl: config.tautulliUrl || '',
                 tautulliApiKey: config.tautulliApiKey ? SECRET_MASK : '',
                 jellystatUrl: config.jellystatUrl || '',
@@ -2397,9 +2806,14 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 requestAppUrl: config.requestAppUrl || '',
                 requestAppFetchUrl: config.requestAppFetchUrl || '',
                 requestAppApiKey: config.requestAppApiKey ? SECRET_MASK : '',
+                requestDiscoverRegion: config.requestDiscoverRegion || '',
+                requestDiscoverLanguage: config.requestDiscoverLanguage || '',
+                requestHideAvailableMedia: !!config.requestHideAvailableMedia,
                 primaryColor: config.primaryColor || '#F7C600',
                 customLogoUrl: config.customLogoUrl || '',
                 brandingTheme: config.brandingTheme || 'plex',
+                sidebarIdentityPosition: ['top', 'bottom'].includes(String(config.sidebarIdentityPosition || '').toLowerCase()) ? String(config.sidebarIdentityPosition).toLowerCase() : 'bottom',
+                pwaIconSource: normalizePwaIconSource(config.pwaIconSource),
                 backgroundImageUrl: config.backgroundImageUrl || '',
                 useScrollRevealAnimations: !!config.useScrollRevealAnimations,
                 useCinematicLoading: !!config.useCinematicLoading,
@@ -2412,11 +2826,15 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 referralRewardDays: config.referralRewardDays || 7,
                 announcement: config.announcement || '',
                 hideStreamUsers: config.hideStreamUsers === true ? 'anonymous' : (config.hideStreamUsers || 'false'),
-                navOrder: config.navOrder || ['home', 'discover', 'users', 'status', 'analytics', 'mediastack', 'maintenance', 'request', 'settings', 'logout'],
+                navOrder: config.navOrder || ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'collexions', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'],
+                navHiddenKeys: Array.isArray(config.navHiddenKeys) ? config.navHiddenKeys : [],
+                downloadsVisibleToMembers: config.downloadsVisibleToMembers !== false,
                 defaultLibraryIds: config.defaultLibraryIds || null,
                 use24HourClock: !!config.use24HourClock,
                 allowTemporaryAccess: !!config.allowTemporaryAccess,
                 showPosterQualityBadges: config.showPosterQualityBadges !== false,
+                showDashboardWatchingBadge: !!config.showDashboardWatchingBadge,
+                dashboardWatchingBadgePollSeconds: Math.min(15, Math.max(1, parseInt(config.dashboardWatchingBadgePollSeconds, 10) || 15)),
                 showPublicStatusMonitor: isPublicStatusVisible(config),
                 showPublicLibraryStats: arePublicLibraryStatsVisible(config),
                 autoBackupEnabled: !!config.autoBackupEnabled,
@@ -2424,6 +2842,12 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 autoBackupRetentionCount: Number(config.autoBackupRetentionCount) > 0 ? Number(config.autoBackupRetentionCount) : 10,
                 maintenanceExperimentalEnabled: !!config.maintenanceExperimentalEnabled,
                 upgraderEnabled: !!config.upgraderEnabled,
+                collexionsEnabled: !!config.collexionsEnabled,
+                collexionsAutostart: !!config.collexionsAutostart,
+                collexionsInternalUrl: config.collexionsInternalUrl || '',
+                collexionsServiceKey: config.collexionsServiceKey ? '********' : '',
+                collexionsBundled: isCollexionsBundledAvailable(),
+                collexionsEmbedded: getCollexionsEmbeddedStatus(),
                 upgraderDefaultPreset: config.upgraderDefaultPreset || 'non_hevc',
                 upgraderMinSizeGB: Number(config.upgraderMinSizeGB) > 0 ? Number(config.upgraderMinSizeGB) : 5,
                 upgraderAutomationEnabled: !!config.upgraderAutomationEnabled,
@@ -2454,6 +2878,11 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 smtpFrom: '',
                 smtpSecure: false,
                 emailDaysBefore: 7,
+                gotifyEnabled: false,
+                gotifyUrl: '',
+                gotifyToken: '',
+                gotifyPriority: 5,
+                alertRules: DEFAULT_ALERT_RULES,
                 newsletterFrequency: 'disabled',
                 newsletterDay: 0,
                 inactiveCleanupEnabled: false,
@@ -2466,6 +2895,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 radarrUrl: '',
                 radarrApiKey: '',
                 arrInstances: [],
+                downloadClients: [],
                 tautulliUrl: '',
                 tautulliApiKey: '',
                 jellystatUrl: '',
@@ -2473,9 +2903,14 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 requestAppType: 'none',
                 requestAppUrl: '',
                 requestAppApiKey: '',
+                requestDiscoverRegion: '',
+                requestDiscoverLanguage: '',
+                requestHideAvailableMedia: false,
                 primaryColor: '#F7C600',
                 customLogoUrl: '',
                 brandingTheme: 'plex',
+                sidebarIdentityPosition: 'bottom',
+                pwaIconSource: 'server',
                 backgroundImageUrl: '',
                 useScrollRevealAnimations: false,
                 useCinematicLoading: false,
@@ -2488,11 +2923,15 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 referralRewardDays: 7,
                 announcement: '',
                 hideStreamUsers: 'false',
-                navOrder: ['home', 'discover', 'users', 'status', 'analytics', 'mediastack', 'maintenance', 'request', 'settings', 'logout'],
+                navOrder: ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'collexions', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'],
+                navHiddenKeys: [],
+                downloadsVisibleToMembers: true,
                 defaultLibraryIds: null,
                 use24HourClock: false,
                 allowTemporaryAccess: false,
                 showPosterQualityBadges: true,
+                showDashboardWatchingBadge: false,
+                dashboardWatchingBadgePollSeconds: 15,
                 showPublicStatusMonitor: true,
                 showPublicLibraryStats: true,
                 autoBackupEnabled: false,
@@ -2500,6 +2939,12 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 autoBackupRetentionCount: 10,
                 maintenanceExperimentalEnabled: false,
                 upgraderEnabled: false,
+                collexionsEnabled: false,
+                collexionsAutostart: false,
+                collexionsInternalUrl: '',
+                collexionsServiceKey: '',
+                collexionsBundled: isCollexionsBundledAvailable(),
+                collexionsEmbedded: getCollexionsEmbeddedStatus(),
                 upgraderDefaultPreset: 'non_hevc',
                 upgraderMinSizeGB: 5,
                 upgraderAutomationEnabled: false,
@@ -2518,18 +2963,20 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         token, mediaServerType, serverIdentifier, checkIntervalMinutes,
         plexServerUrl: plexServerUrlFromBody, jellyfinUrl, jellyfinApiKey,
         smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, smtpSecure, emailDaysBefore,
+        gotifyEnabled, gotifyUrl, gotifyToken, gotifyPriority, alertRules,
         newsletterFrequency, newsletterDay, publicDomain, requestUrl, contactUrl, contactWhatsApp, contactEmail,
-        sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, arrInstances, tautulliUrl, tautulliApiKey, jellystatUrl, jellystatApiKey,
+        sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, arrInstances, downloadClients, tautulliUrl, tautulliApiKey, jellystatUrl, jellystatApiKey,
         requestAppType, requestAppUrl, requestAppFetchUrl, requestAppApiKey,
+        requestDiscoverRegion, requestDiscoverLanguage, requestHideAvailableMedia,
         inactiveCleanupEnabled, inactiveCleanupDays,
-        primaryColor, customLogoUrl, brandingTheme, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges,
+        primaryColor, customLogoUrl, brandingTheme, sidebarIdentityPosition, pwaIconSource, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, navHiddenKeys, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges, showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds,
         showPublicStatusMonitor, showPublicLibraryStats,
-        autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, upgraderEnabled, upgraderDefaultPreset, upgraderMinSizeGB, upgraderAutomationEnabled, upgraderProfileMap, upgraderMaxActionsPerHour, upgraderDefaultSort, upgraderDrawerPosition, dashboardLayout,
-        showUsernamesInAnalytics, useTrendingSlideshowOnLogin
+        autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, upgraderEnabled, collexionsEnabled, collexionsAutostart, collexionsInternalUrl, collexionsServiceKey, upgraderDefaultPreset, upgraderMinSizeGB, upgraderAutomationEnabled, upgraderProfileMap, upgraderMaxActionsPerHour, upgraderDefaultSort, upgraderDrawerPosition, dashboardLayout,
+        showUsernamesInAnalytics, useTrendingSlideshowOnLogin, downloadsVisibleToMembers
     } = req.body;
 
     const existingConfig = await loadFile(CONFIG_PATH, {});
-    const normalizedMediaServerType = ['plex', 'jellyfin'].includes(String(mediaServerType || '').toLowerCase())
+    const normalizedMediaServerType = ['plex', 'jellyfin', 'emby'].includes(String(mediaServerType || '').toLowerCase())
         ? String(mediaServerType || '').toLowerCase()
         : (existingConfig.mediaServerType || 'plex');
     const normalizedToken = normalizePlexToken(token);
@@ -2541,7 +2988,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
     if (normalizedMediaServerType === 'plex' && (!normalizedToken || !normalizedServerIdentifier)) {
         return res.status(400).json({ error: 'Plex token and serverIdentifier are required.' });
     }
-    if (normalizedMediaServerType === 'jellyfin' && (!jellyfinUrl || !jellyfinApiKey)) {
+    if (normalizedMediaServerType !== 'plex' && (!jellyfinUrl || !jellyfinApiKey)) {
         return res.status(400).json({ error: 'Jellyfin URL and API key are required.' });
     }
 
@@ -2561,7 +3008,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
             return res.status(403).json({ error: 'Forbidden: Invalid or expired session. Please log in again.' });
         }
     } else if (!canRunInitialSetup(req)) {
-        if (normalizedMediaServerType === 'jellyfin') {
+        if (normalizedMediaServerType !== 'plex') {
             return res.status(403).json({ error: 'Initial setup is restricted. Configure SETUP_TOKEN or run setup from localhost.' });
         }
         const candidatePlexServerUrl = (plexServerUrlFromBody !== undefined
@@ -2583,6 +3030,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
     let safeRequestAppUrl = '';
     let safeRequestAppFetchUrl = '';
     let safeJellyfinUrl = '';
+    let safeGotifyUrl = '';
     const resolveConfigIntegrationUrl = (incoming, existing) => {
         const existingValue = typeof existing === 'string' ? existing : '';
         // Keep existing URL as-is when caller did not change the value.
@@ -2600,6 +3048,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         safeRequestAppUrl = resolveConfigIntegrationUrl(requestAppUrl, existingConfig.requestAppUrl || '');
         safeRequestAppFetchUrl = resolveConfigIntegrationUrl(requestAppFetchUrl, existingConfig.requestAppFetchUrl || '');
         safeJellyfinUrl = resolveConfigIntegrationUrl(jellyfinUrl, existingConfig.jellyfinUrl || '');
+        safeGotifyUrl = resolveConfigIntegrationUrl(gotifyUrl, existingConfig.gotifyUrl || '');
     } catch (e) {
         return res.status(400).json({ error: `Invalid integration URL: ${e.message}` });
     }
@@ -2626,8 +3075,8 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
     const configDraft = {
         ...existingConfig,
         mediaServerType: normalizedMediaServerType,
-        plexToken: normalizedMediaServerType === 'jellyfin' ? resolveSecret(token, existingConfig.plexToken) : resolveSecret(normalizedToken, existingConfig.plexToken),
-        serverIdentifier: normalizedMediaServerType === 'jellyfin' ? (normalizedServerIdentifier || existingConfig.serverIdentifier || '') : normalizedServerIdentifier,
+        plexToken: normalizedMediaServerType !== 'plex' ? resolveSecret(token, existingConfig.plexToken) : resolveSecret(normalizedToken, existingConfig.plexToken),
+        serverIdentifier: normalizedMediaServerType !== 'plex' ? (normalizedServerIdentifier || existingConfig.serverIdentifier || '') : normalizedServerIdentifier,
         plexServerUrl: (plexServerUrlFromBody !== undefined ? String(plexServerUrlFromBody || '').trim() : existingConfig.plexServerUrl) || '',
         jellyfinUrl: safeJellyfinUrl,
         jellyfinApiKey: resolveSecret(jellyfinApiKey, existingConfig.jellyfinApiKey),
@@ -2639,6 +3088,11 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         smtpFrom: smtpFrom || '',
         smtpSecure: !!smtpSecure,
         emailDaysBefore: parseInt(emailDaysBefore, 10) || 7,
+        gotifyEnabled: !!gotifyEnabled,
+        gotifyUrl: safeGotifyUrl,
+        gotifyToken: resolveSecret(gotifyToken, existingConfig.gotifyToken),
+        gotifyPriority: Math.max(0, Math.min(10, Number(gotifyPriority ?? existingConfig.gotifyPriority ?? 5) || 0)),
+        alertRules: normalizeAlertRules(alertRules ?? existingConfig.alertRules),
         newsletterFrequency: newsletterFrequency || 'disabled',
         newsletterDay: parseInt(newsletterDay, 10) || 0,
         inactiveCleanupEnabled: !!inactiveCleanupEnabled,
@@ -2649,6 +3103,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         contactWhatsApp: contactWhatsApp || '',
         contactEmail: contactEmail || '',
         arrInstances: nextArrInstances,
+        downloadClients: normalizeDownloadClients(downloadClients, existingConfig.downloadClients, { resolveSecret, resolveConfigIntegrationUrl, secretMask: SECRET_MASK }),
         tautulliUrl: safeTautulliUrl,
         tautulliApiKey: resolveSecret(tautulliApiKey, existingConfig.tautulliApiKey),
         jellystatUrl: safeJellystatUrl,
@@ -2657,9 +3112,20 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         requestAppUrl: safeRequestAppUrl,
         requestAppFetchUrl: safeRequestAppFetchUrl,
         requestAppApiKey: resolveSecret(requestAppApiKey, existingConfig.requestAppApiKey),
+        requestDiscoverRegion: normalizeDiscoverRegion(
+            requestDiscoverRegion !== undefined ? requestDiscoverRegion : existingConfig.requestDiscoverRegion
+        ),
+        requestDiscoverLanguage: normalizeDiscoverLanguage(
+            requestDiscoverLanguage !== undefined ? requestDiscoverLanguage : existingConfig.requestDiscoverLanguage
+        ),
+        requestHideAvailableMedia: requestHideAvailableMedia !== undefined
+            ? !!requestHideAvailableMedia
+            : !!existingConfig.requestHideAvailableMedia,
         primaryColor: primaryColor || '#F7C600',
         customLogoUrl: customLogoUrl || '',
-        brandingTheme: ['plex', 'slate', 'nordic'].includes(String(brandingTheme || '').toLowerCase()) ? String(brandingTheme).toLowerCase() : (existingConfig.brandingTheme || 'plex'),
+        brandingTheme: ['dynamic', 'plex', 'slate', 'nordic', 'jellyfin', 'emerald', 'midnight', 'crimson', 'amethyst', 'sunset', 'ocean', 'rose', 'royal', 'graphite', 'cyberlime', 'aurora'].includes(String(brandingTheme || '').toLowerCase()) ? String(brandingTheme).toLowerCase() : (existingConfig.brandingTheme || 'plex'),
+        sidebarIdentityPosition: ['top', 'bottom'].includes(String(sidebarIdentityPosition || '').toLowerCase()) ? String(sidebarIdentityPosition).toLowerCase() : (existingConfig.sidebarIdentityPosition || 'bottom'),
+        pwaIconSource: normalizePwaIconSource(pwaIconSource, normalizePwaIconSource(existingConfig.pwaIconSource)),
         backgroundImageUrl: backgroundImageUrl || '',
         useScrollRevealAnimations: !!useScrollRevealAnimations,
         useCinematicLoading: !!useCinematicLoading,
@@ -2672,11 +3138,30 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         referralRewardDays: parseInt(referralRewardDays, 10) || 7,
         announcement: announcement || '',
         hideStreamUsers: hideStreamUsers === true ? 'anonymous' : (hideStreamUsers === false ? 'false' : (hideStreamUsers || 'false')),
-        navOrder: Array.isArray(navOrder) ? navOrder : existingConfig.navOrder || ['home', 'discover', 'users', 'status', 'analytics', 'mediastack', 'maintenance', 'request', 'settings', 'logout'],
+        navOrder: Array.isArray(navOrder) ? navOrder : existingConfig.navOrder || ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'collexions', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'],
+        navHiddenKeys: (() => {
+            const ALWAYS = new Set(['home', 'settings', 'logout']);
+            const incoming = Array.isArray(navHiddenKeys) ? navHiddenKeys : existingConfig.navHiddenKeys;
+            if (!Array.isArray(incoming)) return [];
+            const seen = new Set();
+            const result = [];
+            for (const raw of incoming) {
+                const key = String(raw || '').trim();
+                if (!key || ALWAYS.has(key) || seen.has(key)) continue;
+                seen.add(key);
+                result.push(key);
+            }
+            return result;
+        })(),
+        downloadsVisibleToMembers: downloadsVisibleToMembers !== undefined
+            ? !!downloadsVisibleToMembers
+            : (existingConfig.downloadsVisibleToMembers !== false),
         defaultLibraryIds: Array.isArray(defaultLibraryIds) ? defaultLibraryIds : null,
         use24HourClock: !!use24HourClock,
         allowTemporaryAccess: !!allowTemporaryAccess,
         showPosterQualityBadges: showPosterQualityBadges !== false,
+        showDashboardWatchingBadge: !!showDashboardWatchingBadge,
+        dashboardWatchingBadgePollSeconds: Math.min(15, Math.max(1, parseInt(dashboardWatchingBadgePollSeconds, 10) || 15)),
         showPublicStatusMonitor: showPublicStatusMonitor !== undefined ? !!showPublicStatusMonitor : isPublicStatusVisible(existingConfig),
         showPublicLibraryStats: showPublicLibraryStats !== undefined ? !!showPublicLibraryStats : arePublicLibraryStatsVisible(existingConfig),
         autoBackupEnabled: !!autoBackupEnabled,
@@ -2684,6 +3169,34 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         autoBackupRetentionCount: Math.max(1, parseInt(autoBackupRetentionCount, 10) || 10),
         maintenanceExperimentalEnabled: maintenanceExperimentalEnabled !== undefined ? !!maintenanceExperimentalEnabled : !!existingConfig.maintenanceExperimentalEnabled,
         upgraderEnabled: upgraderEnabled !== undefined ? !!upgraderEnabled : !!existingConfig.upgraderEnabled,
+        collexionsEnabled: (() => {
+            // Plex-only integration — never leave enabled for Jellyfin/Emby.
+            if (normalizedMediaServerType !== 'plex') return false;
+            return collexionsEnabled !== undefined ? !!collexionsEnabled : !!existingConfig.collexionsEnabled;
+        })(),
+        collexionsAutostart: (() => {
+            if (normalizedMediaServerType !== 'plex') return false;
+            const enabled = collexionsEnabled !== undefined ? !!collexionsEnabled : !!existingConfig.collexionsEnabled;
+            if (!enabled) return false;
+            return collexionsAutostart !== undefined ? !!collexionsAutostart : !!existingConfig.collexionsAutostart;
+        })(),
+        collexionsInternalUrl: (() => {
+            if (collexionsInternalUrl === undefined) return existingConfig.collexionsInternalUrl || '';
+            const incoming = String(collexionsInternalUrl || '').trim();
+            if (!incoming) return '';
+            try {
+                // Localhost / private is expected for the bundled worker.
+                return normalizeExternalBaseUrl(incoming, { allowPrivate: true, allowHttp: true });
+            } catch {
+                return existingConfig.collexionsInternalUrl || '';
+            }
+        })(),
+        collexionsServiceKey: (() => {
+            if (collexionsServiceKey === undefined) return existingConfig.collexionsServiceKey || '';
+            const incoming = String(collexionsServiceKey || '').trim();
+            if (!incoming || incoming === '********') return existingConfig.collexionsServiceKey || '';
+            return incoming;
+        })(),
         upgraderDefaultPreset: upgraderDefaultPreset || existingConfig.upgraderDefaultPreset || 'non_hevc',
         upgraderMinSizeGB: Math.max(0, Number(upgraderMinSizeGB ?? existingConfig.upgraderMinSizeGB ?? 5) || 5),
         upgraderAutomationEnabled: upgraderAutomationEnabled !== undefined ? !!upgraderAutomationEnabled : !!existingConfig.upgraderAutomationEnabled,
@@ -2704,14 +3217,18 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
             : normalizeSectionLayout(existingConfig.dashboardLayout)
     };
     const config = migrateArrConfig(configDraft);
-    await saveFile(CONFIG_PATH, config);
-    syncArrServicesInStatusConfig(config);
+    const { config: collexionsConfig, changed: collexionsDefaultsChanged } = applyCollexionsBundledDefaults(config, {
+        configDir: CONFIG_DIR,
+        log,
+    });
+    await saveFile(CONFIG_PATH, collexionsConfig);
+    syncIntegrationServicesInStatusConfig(collexionsConfig);
     try {
         await saveFile(STATUS_CONFIG_PATH, statusConfig);
     } catch (e) {
-        log(`Failed to sync ARR services into status config: ${e.message}`);
+        log(`Failed to sync integration services into status config: ${e.message}`);
     }
-    await syncAdminPlexIdFromConfigToken(config, { persist: true });
+    await syncAdminPlexIdFromConfigToken(collexionsConfig, { persist: true });
     // Invalidate caches tied to the Plex token/server so changes take effect immediately.
     cachedPlexConnectionUri = null;
     lastPlexConnectionUriFetch = 0;
@@ -2721,13 +3238,40 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
     lastAdminProfileFetch = 0;
     cachedArrCatalog = null;
     cachedArrCatalogAt = 0;
-    systemJobs.autoBackup.nextRun = config.autoBackupEnabled ? computeNextBackupRun(config) : null;
+    systemJobs.autoBackup.nextRun = collexionsConfig.autoBackupEnabled ? computeNextBackupRun(collexionsConfig) : null;
     log('Configuration saved successfully.');
+    if (collexionsDefaultsChanged) {
+        log('[collexions] Applied bundled worker defaults (internal URL / service key).');
+    }
+    try {
+        await syncCollexionsEmbeddedWorker(collexionsConfig, { configDir: CONFIG_DIR, log });
+    } catch (e) {
+        log(`[collexions] Embedded worker sync failed: ${e.message}`);
+    }
+    let seerrDiscoverySync = { ok: false, skipped: true };
+    try {
+        seerrDiscoverySync = await syncSeerrDiscoverySettings(collexionsConfig, requestAppService.rawFetch);
+        if (seerrDiscoverySync.ok) {
+            log('Request app discovery settings synced.');
+        } else if (!seerrDiscoverySync.skipped && seerrDiscoverySync.error) {
+            log(`Request app discovery settings sync failed: ${seerrDiscoverySync.error}`);
+        }
+    } catch (e) {
+        seerrDiscoverySync = { ok: false, error: e.message || 'Sync failed' };
+        log(`Request app discovery settings sync failed: ${e.message}`);
+    }
     startBackgroundService(); // (Re)start service with new config
-    const becameConfigured = !isConfigured && isPortalConfigured(config);
-    const maintenanceJustEnabled = !wasMaintenanceEnabled && !!config.maintenanceExperimentalEnabled;
-    const upgraderJustEnabled = !wasUpgraderEnabled && !!config.upgraderEnabled;
-    if ((becameConfigured || maintenanceJustEnabled || upgraderJustEnabled) && isMediaQualityIndexEnabled(config)) {
+    const becameConfigured = !isConfigured && isPortalConfigured(collexionsConfig);
+    const maintenanceJustEnabled = !wasMaintenanceEnabled && !!collexionsConfig.maintenanceExperimentalEnabled;
+    const upgraderJustEnabled = !wasUpgraderEnabled && !!collexionsConfig.upgraderEnabled;
+    const upgraderJustDisabled = wasUpgraderEnabled && !collexionsConfig.upgraderEnabled;
+    if (upgraderJustDisabled) {
+        idleUpgraderIndexJob('Library Upgrader disabled in settings');
+    } else if (upgraderJustEnabled) {
+        clearUpgraderIndexDisabledError();
+        scheduleUpgraderIndexRebuild(0);
+    }
+    if ((becameConfigured || maintenanceJustEnabled || upgraderJustEnabled) && isMediaQualityIndexEnabled(collexionsConfig)) {
         // Kick an immediate index build after setup/enablement so rules/upgrader are usable right away.
         setTimeout(async () => {
             try {
@@ -2738,7 +3282,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
             }
         }, 1000);
     }
-    res.json({ message: 'Configuration saved.' });
+    res.json({ message: 'Configuration saved.', seerrDiscoverySync });
 });
 
 let tmdbCache = { data: null, lastFetch: 0 };
@@ -2779,6 +3323,8 @@ app.get('/api/config/public', async (req, res) => {
             primaryColor: config.primaryColor || '#F7C600',
             customLogoUrl: config.customLogoUrl || '',
             brandingTheme: config.brandingTheme || 'plex',
+            sidebarIdentityPosition: ['top', 'bottom'].includes(String(config.sidebarIdentityPosition || '').toLowerCase()) ? String(config.sidebarIdentityPosition).toLowerCase() : 'bottom',
+            pwaIconSource: normalizePwaIconSource(config.pwaIconSource),
             backgroundImageUrl: config.backgroundImageUrl || '',
             useScrollRevealAnimations: !!config.useScrollRevealAnimations,
             useCinematicLoading: !!config.useCinematicLoading,
@@ -2793,6 +3339,8 @@ app.get('/api/config/public', async (req, res) => {
             use24HourClock: !!config.use24HourClock,
             allowTemporaryAccess: !!config.allowTemporaryAccess,
             showPosterQualityBadges: config.showPosterQualityBadges !== false,
+            showDashboardWatchingBadge: !!config.showDashboardWatchingBadge,
+            dashboardWatchingBadgePollSeconds: Math.min(15, Math.max(1, parseInt(config.dashboardWatchingBadgePollSeconds, 10) || 15)),
             showPublicStatusMonitor: isPublicStatusVisible(config),
             showPublicLibraryStats: arePublicLibraryStatsVisible(config),
             dashboardLayout: normalizeSectionLayout(config.dashboardLayout),
@@ -2804,6 +3352,8 @@ app.get('/api/config/public', async (req, res) => {
             primaryColor: '#F7C600',
             customLogoUrl: '',
             brandingTheme: 'plex',
+            sidebarIdentityPosition: 'bottom',
+            pwaIconSource: 'server',
             backgroundImageUrl: '',
             useScrollRevealAnimations: false,
             useCinematicLoading: false,
@@ -2817,6 +3367,8 @@ app.get('/api/config/public', async (req, res) => {
             use24HourClock: false,
             allowTemporaryAccess: false,
             showPosterQualityBadges: true,
+            showDashboardWatchingBadge: false,
+            dashboardWatchingBadgePollSeconds: 15,
             showPublicStatusMonitor: true,
             showPublicLibraryStats: true,
             dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
@@ -2843,27 +3395,51 @@ app.get('/api/release-notes', async (req, res) => {
     }
 });
 
-app.post('/api/config/logo', requireAdmin, express.raw({ type: 'image/*', limit: '5mb' }), async (req, res) => {
+const requireLogoUploadAccess = async (req, res, next) => {
+    const config = await loadFile(CONFIG_PATH, {});
+    if (!isPortalConfigured(config) && canRunInitialSetup(req)) {
+        return next();
+    }
+    return requireAdmin(req, res, next);
+};
+
+const saveUploadedBrandingImage = async (req, res, assetName, responseKey) => {
     try {
         const buf = req.body;
         if (!Buffer.isBuffer(buf) || buf.length < 4) {
             return res.status(400).json({ error: 'Invalid image file.' });
         }
-        // Verify PNG (89 50 4E 47) or JPEG (FF D8 FF) magic bytes — Content-Type header alone is spoofable
-        const isPng  = buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47;
+        // Verify PNG, JPEG, or WebP magic bytes — Content-Type header and file extension are spoofable.
+        const isPng = buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47;
         const isJpeg = buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF;
-        if (!isPng && !isJpeg) {
-            return res.status(400).json({ error: 'Invalid image format. Only PNG and JPEG files are accepted.' });
+        const isWebp = buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46
+            && buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50;
+        if (!isPng && !isJpeg && !isWebp) {
+            const signature = buf.subarray(0, 12).toString('hex').match(/.{1,2}/g)?.join(' ') || 'unknown';
+            log(`Rejected ${assetName} upload: unsupported image signature ${signature}`);
+            return res.status(400).json({ error: 'Invalid image format. Only PNG, JPEG, and WebP files are accepted.' });
         }
-        const logoDir = path.join(process.cwd(), 'static');
-        await fs.mkdir(logoDir, { recursive: true });
-        const logoPath = path.join(logoDir, 'logo.png');
-        await fs.writeFile(logoPath, buf);
-        res.json({ message: 'Logo uploaded successfully.' });
+        const assetDir = path.join(process.cwd(), 'static');
+        await fs.mkdir(assetDir, { recursive: true });
+        const extension = isWebp ? 'webp' : (isJpeg ? 'jpg' : 'png');
+        await Promise.all(['png', 'jpg', 'jpeg', 'webp']
+            .filter((ext) => ext !== extension)
+            .map((ext) => fs.unlink(path.join(assetDir, `${assetName}.${ext}`)).catch(() => null)));
+        const assetPath = path.join(assetDir, `${assetName}.${extension}`);
+        await fs.writeFile(assetPath, buf);
+        res.json({ message: `${assetName === 'logo' ? 'Logo' : 'Background'} uploaded successfully.`, [responseKey]: `/static/${assetName}.${extension}` });
     } catch (e) {
-        log('Failed to upload logo: ' + e.message);
-        res.status(500).json({ error: 'Failed to upload logo.' });
+        log(`Failed to upload ${assetName}: ${e.message}`);
+        res.status(500).json({ error: `Failed to upload ${assetName}.` });
     }
+};
+
+app.post('/api/config/logo', requireLogoUploadAccess, express.raw({ type: ['image/*', 'application/octet-stream'], limit: '5mb' }), async (req, res) => {
+    await saveUploadedBrandingImage(req, res, 'logo', 'logoUrl');
+});
+
+app.post('/api/config/background', requireLogoUploadAccess, express.raw({ type: ['image/*', 'application/octet-stream'], limit: '10mb' }), async (req, res) => {
+    await saveUploadedBrandingImage(req, res, 'background', 'backgroundImageUrl');
 });
 
 app.post('/api/config/test-email', requireAdmin, async (req, res) => {
@@ -2927,6 +3503,44 @@ app.post('/api/config/test-email', requireAdmin, async (req, res) => {
     } catch (error) {
         log(`Failed to send test email: ${error.message}`);
         res.status(500).json({ error: `SMTP test failed: ${error.message}` });
+    }
+});
+
+app.post('/api/config/test-gotify', requireAdmin, async (req, res) => {
+    const { gotifyUrl, gotifyToken, gotifyPriority } = req.body || {};
+    if (!gotifyUrl || !gotifyToken) {
+        return res.status(400).json({ error: 'Gotify URL and application token are required.' });
+    }
+
+    const storedConfig = await loadFile(CONFIG_PATH, {});
+    let safeGotifyUrl = '';
+    try {
+        const incomingUrl = String(gotifyUrl || '').trim();
+        safeGotifyUrl = incomingUrl === String(storedConfig.gotifyUrl || '').trim()
+            ? resolveIntegrationUrlForFetch(storedConfig.gotifyUrl || incomingUrl)
+            : sanitizeIntegrationUrl(incomingUrl);
+    } catch (e) {
+        return res.status(400).json({ error: `Invalid Gotify URL: ${e.message}` });
+    }
+
+    const effectiveGotifyToken = gotifyToken === SECRET_MASK
+        ? storedConfig.gotifyToken || ''
+        : String(gotifyToken || '');
+
+    try {
+        await sendGotifyAlert(
+            {
+                gotifyEnabled: true,
+                gotifyUrl: safeGotifyUrl,
+                gotifyToken: effectiveGotifyToken,
+                gotifyPriority: Math.max(0, Math.min(10, Number(gotifyPriority ?? 5) || 0)),
+            },
+            'Server Manager Portal test',
+            'Gotify alerts are connected and ready.',
+        );
+        res.json({ message: 'Gotify test alert sent successfully!' });
+    } catch (error) {
+        res.status(502).json({ error: `Gotify test failed: ${error.message}` });
     }
 });
 
@@ -3035,6 +3649,9 @@ app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
         jellyfinUrl, jellyfinApiKey,
         sonarrUrl, sonarrApiKey,
         radarrUrl, radarrApiKey,
+        lidarrUrl, lidarrApiKey,
+        bazarrUrl, bazarrApiKey,
+        downloadClientId, downloadClientType, downloadClientUrl, downloadClientUsername, downloadClientPassword,
         tautulliUrl, tautulliApiKey,
         jellystatUrl, jellystatApiKey,
         requestAppType, requestAppUrl, requestAppFetchUrl, requestAppApiKey,
@@ -3053,7 +3670,7 @@ app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
             const testConfig = { ...stored, plexToken, serverIdentifier: serverId, ...(directUrl ? { plexServerUrl: directUrl } : {}) };
             const uri = await getPlexConnectionUri(testConfig);
             const identityRes = await fetchWithTimeout(`${uri}/identity?X-Plex-Token=${encodeURIComponent(plexToken)}`, {
-                headers: { Accept: 'application/json' },
+                headers: plexClientHeaders(plexToken),
             }, 12000);
             if (!identityRes.ok) throw new Error(`Plex server returned HTTP ${identityRes.status}`);
             const identity = await identityRes.json().catch(() => ({}));
@@ -3065,27 +3682,30 @@ app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
             return res.json({ ok: true, message, details: { version: version || null, machineIdentifier: container.machineIdentifier || serverId, uri } });
         }
 
-        if (type === 'jellyfin') {
+        if (type === 'jellyfin' || type === 'emby') {
+            const label = type === 'emby' ? 'Emby' : 'Jellyfin';
             const url = resolveIntegrationUrlForFetch(resolveTestCredential(jellyfinUrl, stored.jellyfinUrl));
             const apiKey = resolveTestCredential(jellyfinApiKey, stored.jellyfinApiKey);
-            if (!url || !apiKey) return res.status(400).json({ error: 'Jellyfin URL and API key are required.' });
+            if (!url || !apiKey) return res.status(400).json({ error: `${label} URL and API key are required.` });
             const infoRes = await fetchWithTimeout(`${url}/System/Info`, {
                 headers: { Accept: 'application/json', 'X-Emby-Token': apiKey },
             }, 12000);
-            if (!infoRes.ok) throw new Error(`Jellyfin returned HTTP ${infoRes.status}`);
+            if (!infoRes.ok) throw new Error(`${label} returned HTTP ${infoRes.status}`);
             const data = await infoRes.json().catch(() => ({}));
             const version = data.Version || data.version || '?';
-            return res.json({ ok: true, message: `Jellyfin v${version} connected`, details: { version, serverName: data.ServerName || data.LocalAddress || null } });
+            return res.json({ ok: true, message: `${label} v${version} connected`, details: { version, serverName: data.ServerName || data.LocalAddress || null } });
         }
 
-        if (type === 'sonarr' || type === 'radarr') {
+        if (['sonarr', 'radarr', 'lidarr', 'bazarr'].includes(String(type || '').toLowerCase())) {
+            const arrType = String(type || '').toLowerCase();
             const normalized = normalizeArrConfig(stored);
             const instanceFromId = req.body?.instanceId ? getArrInstance(normalized, req.body.instanceId) : null;
-            const defaultInstance = getDefaultArrInstance(normalized, type);
-            const legacyUrl = type === 'sonarr' ? sonarrUrl : radarrUrl;
-            const legacyKey = type === 'sonarr' ? sonarrApiKey : radarrApiKey;
-            const storedUrl = type === 'sonarr' ? stored.sonarrUrl : stored.radarrUrl;
-            const storedKey = type === 'sonarr' ? stored.sonarrApiKey : stored.radarrApiKey;
+            const defaultInstance = getDefaultArrInstance(normalized, arrType);
+            const legacyUrl = ({ sonarr: sonarrUrl, radarr: radarrUrl, lidarr: lidarrUrl, bazarr: bazarrUrl })[arrType];
+            const legacyKey = ({ sonarr: sonarrApiKey, radarr: radarrApiKey, lidarr: lidarrApiKey, bazarr: bazarrApiKey })[arrType];
+            const storedUrl = arrType === 'sonarr' ? stored.sonarrUrl : arrType === 'radarr' ? stored.radarrUrl : '';
+            const storedKey = arrType === 'sonarr' ? stored.sonarrApiKey : arrType === 'radarr' ? stored.radarrApiKey : '';
+            const labelBase = ({ sonarr: 'Sonarr', radarr: 'Radarr', lidarr: 'Lidarr', bazarr: 'Bazarr' })[arrType] || 'ARR';
             const url = resolveIntegrationUrlForTest(
                 legacyUrl || instanceFromId?.url,
                 instanceFromId?.url || defaultInstance?.url || storedUrl
@@ -3094,14 +3714,47 @@ app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
                 legacyKey || instanceFromId?.apiKey,
                 instanceFromId?.apiKey || defaultInstance?.apiKey || storedKey
             );
-            if (!url || !apiKey) return res.status(400).json({ error: `${type === 'sonarr' ? 'Sonarr' : 'Radarr'} URL and API key are required.` });
-            const statusRes = await fetchWithTimeout(`${url}/api/v3/system/status`, {
-                headers: { 'X-Api-Key': apiKey, Accept: 'application/json' },
+            if (!url || !apiKey) return res.status(400).json({ error: `${labelBase} URL and API key are required.` });
+            const statusPath = arrType === 'bazarr'
+                ? `/api/system/status?apikey=${encodeURIComponent(apiKey)}`
+                : arrType === 'lidarr'
+                    ? '/api/v1/system/status'
+                    : '/api/v3/system/status';
+            const statusRes = await fetchWithTimeout(`${url}${statusPath}`, {
+                headers: { 'X-Api-Key': apiKey, 'X-API-KEY': apiKey, Accept: 'application/json' },
             }, 12000);
-            if (!statusRes.ok) throw new Error(`${type === 'sonarr' ? 'Sonarr' : 'Radarr'} returned HTTP ${statusRes.status}`);
-            const data = await statusRes.json();
-            const label = instanceFromId?.name || defaultInstance?.name || (type === 'sonarr' ? 'Sonarr' : 'Radarr');
-            return res.json({ ok: true, message: `${label} v${data.version || '?'} connected`, details: { version: data.version, appName: data.appName, instanceId: instanceFromId?.id || defaultInstance?.id || null } });
+            if (!statusRes.ok) throw new Error(`${labelBase} returned HTTP ${statusRes.status}`);
+            const data = await statusRes.json().catch(() => ({}));
+            const version = arrType === 'bazarr'
+                ? (data?.data?.bazarr_version || data?.data?.package_version || data?.bazarr_version || data?.package_version || data?.version)
+                : data.version;
+            const label = instanceFromId?.name || defaultInstance?.name || labelBase;
+            return res.json({ ok: true, message: `${label} v${version || '?'} connected`, details: { version: version || null, appName: data.appName || data?.data?.appName || null, instanceId: instanceFromId?.id || defaultInstance?.id || null } });
+        }
+
+        if (type === 'downloadClient') {
+            const existing = downloadClientId
+                ? (Array.isArray(stored.downloadClients) ? stored.downloadClients : []).find((entry) => String(entry.id) === String(downloadClientId))
+                : null;
+            const clientType = DOWNLOAD_CLIENT_TYPES.includes(String(downloadClientType || existing?.type || '').toLowerCase())
+                ? String(downloadClientType || existing?.type).toLowerCase()
+                : 'qbittorrent';
+            const client = {
+                id: String(downloadClientId || existing?.id || 'test'),
+                type: clientType,
+                name: existing?.name || downloadClientLabel(clientType),
+                url: resolveIntegrationUrlForTest(downloadClientUrl, existing?.url),
+                username: String(downloadClientUsername ?? existing?.username ?? ''),
+                password: resolveTestCredential(downloadClientPassword, existing?.password || ''),
+                enabled: true,
+            };
+            if (!client.url) return res.status(400).json({ error: `${downloadClientLabel(clientType)} URL is required.` });
+            const downloads = await fetchDownloadClientTorrents(client);
+            return res.json({
+                ok: true,
+                message: `${downloadClientLabel(client.type)} connected (${Array.isArray(downloads) ? downloads.length : 0} downloads)`,
+                details: { downloadCount: Array.isArray(downloads) ? downloads.length : 0, clientType: client.type },
+            });
         }
 
         if (type === 'tautulli') {
@@ -3199,7 +3852,28 @@ const fetchWithTimeout = async (url, options = {}, timeoutMs = 15000) => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-        return await fetch(url, { ...options, signal: controller.signal });
+        const urlStr = String(url || '');
+        const existing = options.headers || {};
+        const hasPlexId = !!(existing['X-Plex-Client-Identifier'] || existing['x-plex-client-identifier']);
+        // Safety net: any tokenised PMS/plex.tv URL must carry our stable device identity
+        // (otherwise Plex names the device after the Docker container hostname).
+        const needsPlexIdentity = !hasPlexId && (
+            urlStr.includes('X-Plex-Token=')
+            || urlStr.includes('plex.tv/')
+            || (existing['X-Plex-Token'] || existing['x-plex-token'])
+        );
+        let headers = existing;
+        if (needsPlexIdentity) {
+            let token = existing['X-Plex-Token'] || existing['x-plex-token'] || '';
+            if (!token) {
+                const match = urlStr.match(/[?&]X-Plex-Token=([^&]+)/i);
+                if (match) {
+                    try { token = decodeURIComponent(match[1]); } catch { token = match[1]; }
+                }
+            }
+            headers = { ...plexClientHeaders(token), ...existing };
+        }
+        return await fetch(url, { ...options, headers, signal: controller.signal });
     } finally {
         clearTimeout(timer);
     }
@@ -3230,11 +3904,7 @@ const resolvePlexServerUrlForVerification = async (plexToken, config = {}, serve
 
     try {
         const response = await fetchWithTimeout('https://plex.tv/api/v2/resources?includeHttps=1', {
-            headers: {
-                'X-Plex-Token': token,
-                'X-Plex-Client-Identifier': CLIENT_ID,
-                Accept: 'application/json',
-            },
+            headers: plexClientHeaders(token),
         }, 10000);
         if (!response.ok) return configured;
         const resources = await response.json();
@@ -3254,10 +3924,7 @@ const resolvePlexServerUrlForVerification = async (plexToken, config = {}, serve
 
 const fetchOwnedPlexServers = async (plexToken) => {
     const response = await fetch('https://plex.tv/pms/servers', {
-        headers: {
-            'X-Plex-Token': plexToken,
-            'Accept': 'application/xml',
-        },
+        headers: plexClientHeaders(plexToken, { Accept: 'application/xml' }),
     });
     if (!response.ok) {
         const errorText = await response.text();
@@ -3282,7 +3949,7 @@ const validatePlexServerAdminToken = async (plexToken, plexServerUrl) => {
     if (!token || !directUrl) return false;
     try {
         const res = await fetchWithTimeout(`${directUrl}/library/sections?X-Plex-Container-Size=1`, {
-            headers: { 'X-Plex-Token': token, Accept: 'application/json' },
+            headers: plexClientHeaders(token),
         }, 6000);
         return res.ok;
     } catch {
@@ -3311,7 +3978,7 @@ const verifyInitialSetupPlexOwner = async (plexToken, serverIdentifier, plexServ
         try {
             const baseUrl = resolveIntegrationUrlForFetch(directUrl);
             const identityRes = await fetchWithTimeout(`${baseUrl}/identity`, {
-                headers: { 'X-Plex-Token': token, Accept: 'application/json' },
+                headers: plexClientHeaders(token),
             }, 6000);
             if (!identityRes.ok) return false;
 
@@ -3347,7 +4014,7 @@ const fetchPlexServerAccounts = async (uri, config) => {
         return cachedPlexAccounts;
     }
     const accountsRes = await fetchWithTimeout(`${uri}/accounts?X-Plex-Token=${config.plexToken}`, {
-        headers: { Accept: 'application/json' },
+        headers: plexClientHeaders(config.plexToken),
     }, 8000).then(r => r.json()).catch(() => null);
 
     const accounts = accountsRes?.MediaContainer?.Account || [];
@@ -3413,7 +4080,7 @@ const getPlexConnectionUri = async (config) => {
         if (normalized) {
             try {
                 const probe = await fetchWithTimeout(`${normalized}/identity`, {
-                    headers: { 'X-Plex-Token': config.plexToken, Accept: 'application/json' },
+                    headers: plexClientHeaders(config.plexToken),
                 }, 4000);
                 if (probe.ok) {
                     cachedPlexConnectionUri = normalized;
@@ -3428,11 +4095,7 @@ const getPlexConnectionUri = async (config) => {
     }
 
     const response = await fetchWithTimeout('https://plex.tv/api/v2/resources?includeHttps=1', {
-        headers: {
-            'X-Plex-Token': config.plexToken,
-            'X-Plex-Client-Identifier': CLIENT_ID,
-            'Accept': 'application/json'
-        }
+        headers: plexClientHeaders(config.plexToken)
     }, 20000);
     if (!response.ok) throw new Error('Failed to fetch resources from Plex.tv');
     const resources = await response.json();
@@ -3448,11 +4111,42 @@ const getPlexConnectionUri = async (config) => {
     return cachedPlexConnectionUri;
 };
 
+const listPlexLibrariesForConfig = async (config) => {
+    const uri = await getPlexConnectionUri(config);
+    if (!uri) throw new Error('Cannot connect to Plex');
+    const token = normalizePlexToken(config.plexToken);
+    if (!token) throw new Error('Plex token is required');
+
+    const sectionsRes = await fetchWithTimeout(
+        `${uri}/library/sections?X-Plex-Token=${encodeURIComponent(token)}`,
+        { headers: plexClientHeaders(config.plexToken) },
+        15000,
+    ).then((r) => r.json()).catch(() => null);
+
+    const directories = sectionsRes?.MediaContainer?.Directory;
+    if (!Array.isArray(directories)) return [];
+    return directories.map((section) => ({
+        id: section.key,
+        title: section.title,
+        type: section.type,
+    }));
+};
+
+const isSafePlexMediaPath = (rawPath) => {
+    const thumbPath = String(rawPath || '');
+    if (!thumbPath.startsWith('/') || thumbPath.startsWith('//')) return false;
+    if (thumbPath.includes('://') || thumbPath.includes('\\')) return false;
+    if (thumbPath.includes('..')) return false;
+    // Disallow control chars / whitespace that can confuse upstream URL parsers
+    if (/[\s\x00-\x1f\x7f]/.test(thumbPath)) return false;
+    return true;
+};
+
 app.get('/api/plex/image', requireAuth, requireMember, async (req, res) => {
     const { path: thumbPath, width, height } = req.query;
     if (!thumbPath) return res.status(400).send('path required');
     // Security: only allow relative Plex paths — block protocol-relative and absolute URLs
-    if (!thumbPath.startsWith('/') || thumbPath.includes('://')) {
+    if (!isSafePlexMediaPath(thumbPath)) {
         return res.status(400).send('Invalid path');
     }
     try {
@@ -3466,7 +4160,7 @@ app.get('/api/plex/image', requireAuth, requireMember, async (req, res) => {
             url = `${uri}${thumbPath}?X-Plex-Token=${config.plexToken}`;
         }
 
-        const response = await fetchWithTimeout(url, {}, 15000);
+        const response = await fetchWithTimeout(url, { headers: plexClientHeaders(config.plexToken) }, 15000);
         if (!response.ok) throw new Error('fetch failed');
         const buffer = Buffer.from(await response.arrayBuffer());
         res.setHeader('Content-Type', response.headers.get('content-type') || 'image/jpeg');
@@ -3527,7 +4221,7 @@ const buildPlexStatsCache = async () => {
         const timer = setTimeout(() => controller.abort(), 600000); // 10 min hard cap
 
         const sectionsRes = await fetch(`${uri}/library/sections`, {
-            headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' },
+            headers: plexClientHeaders(config.plexToken),
             signal: controller.signal
         });
         if (!sectionsRes.ok) throw new Error(`Sections request failed: ${sectionsRes.status}`);
@@ -3554,7 +4248,7 @@ const buildPlexStatsCache = async () => {
                 // ── Item count (single zero-size request) ──
                 const countRes = await fetch(
                     `${uri}/library/sections/${dir.key}/all?X-Plex-Container-Start=0&X-Plex-Container-Size=0`,
-                    { headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' }, signal: controller.signal }
+                    { headers: plexClientHeaders(config.plexToken), signal: controller.signal }
                 );
                 if (countRes.ok) {
                     const { MediaContainer: mc } = await countRes.json();
@@ -3569,7 +4263,7 @@ const buildPlexStatsCache = async () => {
                         // Also fetch album count (type 9)
                         const albCountRes = await fetch(
                             `${uri}/library/sections/${dir.key}/all?type=9&X-Plex-Container-Start=0&X-Plex-Container-Size=1`,
-                            { headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' }, signal: controller.signal }
+                            { headers: plexClientHeaders(config.plexToken), signal: controller.signal }
                         );
                         if (albCountRes.ok) {
                             const { MediaContainer: albMc } = await albCountRes.json();
@@ -3587,7 +4281,7 @@ const buildPlexStatsCache = async () => {
                 while (true) {
                     const pageRes = await fetch(
                         `${uri}/library/sections/${dir.key}/all${typeParam}&X-Plex-Container-Start=${start}&X-Plex-Container-Size=${PAGE}`,
-                        { headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' }, signal: controller.signal }
+                        { headers: plexClientHeaders(config.plexToken), signal: controller.signal }
                     );
                     if (!pageRes.ok) break;
                     const { MediaContainer: { Metadata: items = [] } } = await pageRes.json();
@@ -3792,7 +4486,7 @@ const fetchImageBuffer = async (config, thumbPath) => {
         const uri = await getPlexConnectionUri(config);
         const transcodeUrl = `/photo/:/transcode?width=150&height=225&minSize=1&upscale=1&url=${encodeURIComponent(thumbPath)}`;
         const url = `${uri}${transcodeUrl}&X-Plex-Token=${config.plexToken}`;
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: plexClientHeaders(config.plexToken) });
         if (res.ok) {
             return Buffer.from(await res.arrayBuffer());
         }
@@ -3800,10 +4494,128 @@ const fetchImageBuffer = async (config, thumbPath) => {
     return null;
 };
 
-const generateNewsletterHtml = async (config) => {
-    const stats = cachedPlexStats || await loadPlexStatsFromDisk() || { movies: 0, shows: 0, music: 0 };
+const uniqueTruthy = (values = []) => [...new Set(values.flat().filter(Boolean).map((value) => String(value)))];
+
+const fetchJellyfinImageBufferForNewsletter = async (config, itemIds, { width = 150, height = 225 } = {}) => {
+    const candidates = uniqueTruthy(Array.isArray(itemIds) ? itemIds : [itemIds]);
+    if (candidates.length === 0) return null;
+    const imageTypes = ['Primary', 'Thumb', 'Backdrop'];
+
+    try {
+        const baseUrl = resolveIntegrationUrlForFetch(config.jellyfinUrl);
+        for (const candidate of candidates) {
+            const [itemId, imageTag = ''] = candidate.split('|');
+            if (!itemId) continue;
+            for (const imageType of imageTypes) {
+                try {
+                    const params = new URLSearchParams({
+                        fillWidth: String(width),
+                        fillHeight: String(height),
+                        quality: '90',
+                    });
+                    if (imageTag) params.set('tag', imageTag);
+                    const imageUrl = `${baseUrl}/Items/${encodeURIComponent(itemId)}/Images/${imageType}?${params.toString()}`;
+                    const response = await fetchWithTimeout(imageUrl, {
+                        headers: jellyfinHeaders(config.jellyfinApiKey, { Accept: 'image/*,*/*;q=0.8' }),
+                    }, 10000);
+                    const contentType = response.headers.get('content-type') || '';
+                    if (response.ok && contentType.startsWith('image/')) {
+                        return Buffer.from(await response.arrayBuffer());
+                    }
+                } catch (e) { }
+            }
+        }
+    } catch (e) { }
+    return null;
+};
+
+const jellyfinImageCandidate = (itemId, tag) => itemId ? `${itemId}${tag ? `|${tag}` : ''}` : '';
+
+const newsletterPlaceholderDataUrl = (width, height, label = 'No Image') => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#111827"/><rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="6" fill="none" stroke="#374151"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#eab308" font-family="Arial, sans-serif" font-size="13" font-weight="700">${escapeHtmlAttr(label)}</text></svg>`;
+    return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+};
+
+const fetchJellyfinLibraryStatsForNewsletter = async (config) => {
+    const fallback = { movies: 0, shows: 0, music: 0 };
+    try {
+        const baseUrl = resolveIntegrationUrlForFetch(config.jellyfinUrl);
+        const fetchCount = async (types) => {
+            const params = new URLSearchParams({
+                Recursive: 'true',
+                IncludeItemTypes: types,
+                Limit: '0',
+            });
+            const response = await fetchWithTimeout(`${baseUrl}/Items?${params.toString()}`, {
+                headers: jellyfinHeaders(config.jellyfinApiKey),
+            }, 15000);
+            if (!response.ok) return 0;
+            const data = await response.json().catch(() => ({}));
+            return Number(data.TotalRecordCount || 0) || 0;
+        };
+        const [movies, shows, music] = await Promise.all([
+            fetchCount('Movie'),
+            fetchCount('Series'),
+            fetchCount('MusicAlbum,Audio'),
+        ]);
+        return {
+            movies,
+            shows,
+            music,
+        };
+    } catch (e) {
+        log(`Jellyfin newsletter library stats failed: ${e.message}`);
+        return fallback;
+    }
+};
+
+const fetchJellyfinServerNameForNewsletter = async (config, providerLabel) => {
+    try {
+        const baseUrl = resolveIntegrationUrlForFetch(config.jellyfinUrl);
+        const response = await fetchWithTimeout(`${baseUrl}/System/Info/Public`, {
+            headers: jellyfinHeaders(config.jellyfinApiKey),
+        }, 10000);
+        const data = response.ok ? await response.json().catch(() => ({})) : {};
+        return data.ServerName || data.LocalAddress || `${providerLabel} Server`;
+    } catch {
+        return `${providerLabel} Server`;
+    }
+};
+
+const getNewsletterProviderLabel = (config = {}) => {
+    const type = String(config?.mediaServerType || 'plex').toLowerCase();
+    if (type === 'emby') return 'Emby';
+    if (type === 'jellyfin') return 'Jellyfin';
+    return 'Plex';
+};
+
+const resolveNewsletterTestRecipient = async (config, actor = {}) => {
+    if (actor?.email) return actor.email;
+    if (String(config?.mediaServerType || 'plex').toLowerCase() !== 'plex') return '';
+    try {
+        const userRes = await fetch('https://plex.tv/api/v2/user', {
+            headers: plexClientHeaders(config.plexToken)
+        });
+        if (userRes.ok) {
+            const userData = await userRes.json();
+            return userData.email || '';
+        }
+    } catch (e) {
+        log('Error fetching admin email: ' + e.message);
+    }
+    return '';
+};
+
+const generateNewsletterHtml = async (config, options = {}) => {
+    const embedImages = Boolean(options.embedImages);
+    const mediaServerType = String(config?.mediaServerType || 'plex').toLowerCase();
+    const isJellyfinLike = isEmbyLikeMediaServer(config);
+    const providerLabel = getNewsletterProviderLabel(config);
+    const stats = isJellyfinLike
+        ? await fetchJellyfinLibraryStatsForNewsletter(config)
+        : (cachedPlexStats || await loadPlexStatsFromDisk() || { movies: 0, shows: 0, music: 0 });
     let recentHtml = '';
-    let serverName = 'our Plex Server';
+    let serverName = isJellyfinLike ? `${providerLabel} Server` : 'our Plex Server';
     const attachments = [];
     let cidCounter = 1;
 
@@ -3816,46 +4628,96 @@ const generateNewsletterHtml = async (config) => {
     } catch (e) { }
 
     try {
-        const uri = await getPlexConnectionUri(config);
+        const uri = isJellyfinLike ? '' : await getPlexConnectionUri(config);
 
         // serverName is declared at function scope above
-        try {
+        if (isJellyfinLike) {
+            serverName = await fetchJellyfinServerNameForNewsletter(config, providerLabel);
+        } else {
+            try {
             const serverRes = await fetch(`${uri}/?X-Plex-Token=${config.plexToken}`, {
-                headers: { 'Accept': 'application/json' }
+                headers: plexClientHeaders(config.plexToken)
             });
             const serverData = await serverRes.json();
             if (serverData?.MediaContainer?.friendlyName) {
                 serverName = serverData.MediaContainer.friendlyName;
             }
-        } catch (e) { }
-
-        const recentRes = await fetch(`${uri}/library/recentlyAdded?X-Plex-Container-Start=0&X-Plex-Container-Size=100`, {
-            headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' }
-        });
-        const recentData = await recentRes.json();
-        const items = recentData.MediaContainer.Metadata || [];
+            } catch (e) { }
+        }
 
         const movies = [];
         const tvShowsMap = new Map();
         const music = [];
 
-        items.forEach(item => {
-            if (item.type === 'movie') {
-                movies.push(item);
-            } else if (item.type === 'season' || item.type === 'episode') {
-                const showKey = item.grandparentRatingKey || item.parentRatingKey || item.ratingKey;
+        if (isJellyfinLike) {
+            const [recentMovies, recentEpisodes, recentMusic] = await Promise.all([
+                fetchJellyfinItems(config, 'Movie', 100).catch((e) => { log(`Jellyfin newsletter movies failed: ${e.message}`); return []; }),
+                fetchJellyfinItems(config, 'Episode', 100).catch((e) => { log(`Jellyfin newsletter episodes failed: ${e.message}`); return []; }),
+                fetchJellyfinItems(config, 'MusicAlbum,Audio', 100).catch((e) => { log(`Jellyfin newsletter music failed: ${e.message}`); return []; }),
+            ]);
+            recentMovies.forEach((item) => movies.push({
+                ratingKey: item.Id,
+                title: item.Name,
+                thumb: item.Id,
+                imageCandidates: [
+                    jellyfinImageCandidate(item.PrimaryImageItemId, item.ImageTags?.Primary),
+                    jellyfinImageCandidate(item.Id, item.ImageTags?.Primary),
+                ],
+                itemUrl: jellyfinItemUrl(config, item.Id),
+            }));
+            recentEpisodes.forEach((item) => {
+                const showKey = item.SeriesId || item.ParentId || item.Id;
                 if (!tvShowsMap.has(showKey)) {
                     tvShowsMap.set(showKey, {
                         ratingKey: showKey,
-                        title: item.grandparentTitle || item.parentTitle || item.title,
-                        type: 'TV Show',
-                        thumb: item.grandparentThumb || item.parentThumb || item.thumb
+                        title: item.SeriesName || item.Name,
+                        thumb: item.SeriesId || item.ParentId || item.Id,
+                        imageCandidates: [
+                            jellyfinImageCandidate(item.SeriesId),
+                            jellyfinImageCandidate(item.ParentThumbItemId),
+                            jellyfinImageCandidate(item.PrimaryImageItemId, item.ImageTags?.Primary),
+                            jellyfinImageCandidate(item.ParentId),
+                            jellyfinImageCandidate(item.Id, item.ImageTags?.Primary),
+                        ],
+                        itemUrl: jellyfinItemUrl(config, item.Id),
                     });
                 }
-            } else if (item.type === 'album' || item.type === 'track') {
-                music.push(item);
-            }
-        });
+            });
+            recentMusic.forEach((item) => music.push({
+                ratingKey: item.Id,
+                title: item.Album || item.Name,
+                thumb: item.Id,
+                imageCandidates: [
+                    jellyfinImageCandidate(item.PrimaryImageItemId, item.ImageTags?.Primary),
+                    jellyfinImageCandidate(item.AlbumId),
+                    jellyfinImageCandidate(item.Id, item.ImageTags?.Primary),
+                ],
+                itemUrl: jellyfinItemUrl(config, item.Id),
+            }));
+        } else {
+            const recentRes = await fetch(`${uri}/library/recentlyAdded?X-Plex-Container-Start=0&X-Plex-Container-Size=100`, {
+                headers: plexClientHeaders(config.plexToken)
+            });
+            const recentData = await recentRes.json();
+            const items = recentData.MediaContainer.Metadata || [];
+            items.forEach(item => {
+                if (item.type === 'movie') {
+                    movies.push(item);
+                } else if (item.type === 'season' || item.type === 'episode') {
+                    const showKey = item.grandparentRatingKey || item.parentRatingKey || item.ratingKey;
+                    if (!tvShowsMap.has(showKey)) {
+                        tvShowsMap.set(showKey, {
+                            ratingKey: showKey,
+                            title: item.grandparentTitle || item.parentTitle || item.title,
+                            type: 'TV Show',
+                            thumb: item.grandparentThumb || item.parentThumb || item.thumb
+                        });
+                    }
+                } else if (item.type === 'album' || item.type === 'track') {
+                    music.push(item);
+                }
+            });
+        }
 
         const tvShows = Array.from(tvShowsMap.values());
 
@@ -3872,20 +4734,29 @@ const generateNewsletterHtml = async (config) => {
                 const item = itemsToRender[i];
                 let thumbPath = item.thumb;
                 let imageUrl = '';
+                const imageCandidates = isJellyfinLike
+                    ? uniqueTruthy([item.imageCandidates, thumbPath])
+                    : [thumbPath];
 
-                if (thumbPath) {
-                    const buf = await fetchImageBuffer(config, thumbPath);
+                if (imageCandidates.length > 0) {
+                    const buf = isJellyfinLike
+                        ? await fetchJellyfinImageBufferForNewsletter(config, imageCandidates, { width: imgWidth, height: imgHeight })
+                        : await fetchImageBuffer(config, thumbPath);
                     if (buf) {
-                        const cid = `poster-${cidCounter++}`;
-                        attachments.push({ filename: `${cid}.jpg`, content: buf, cid: cid });
-                        imageUrl = `cid:${cid}`;
+                        if (embedImages) {
+                            imageUrl = `data:image/jpeg;base64,${Buffer.from(buf).toString('base64')}`;
+                        } else {
+                            const cid = `poster-${cidCounter++}`;
+                            attachments.push({ filename: `${cid}.jpg`, content: buf, cid: cid });
+                            imageUrl = `cid:${cid}`;
+                        }
                     }
                 }
                 if (!imageUrl) {
-                    imageUrl = `https://via.placeholder.com/${imgWidth}x${imgHeight}/1f2937/eab308?text=No+Image`;
+                    imageUrl = newsletterPlaceholderDataUrl(imgWidth, imgHeight);
                 }
 
-                const itemUrl = `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=%2Flibrary%2Fmetadata%2F${item.ratingKey}`;
+                const itemUrl = item.itemUrl || `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=%2Flibrary%2Fmetadata%2F${item.ratingKey}`;
                 cols += `
                     <td width="25%" align="center" valign="top" style="padding: 10px 5px;">
                         <a href="${itemUrl}" style="text-decoration: none; display: block;" target="_blank">
@@ -3932,7 +4803,7 @@ const generateNewsletterHtml = async (config) => {
                         <!-- Header -->
                         <tr>
                             <td align="center" style="padding: 40px 30px; background-color: #0b0f19; border-bottom: 1px solid #1f2937;">
-                                <img src="cid:logo" alt="Plex Portal" style="max-width: 280px; height: auto; display: block; margin: 0 auto 10px auto;" />
+                                <img src="cid:logo" alt="Server Portal" style="max-width: 280px; height: auto; display: block; margin: 0 auto 10px auto;" />
                                 <p style="color: #9ca3af; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; margin: 0;">Here is what's happening on the server</p>
                             </td>
                         </tr>
@@ -3978,7 +4849,7 @@ const generateNewsletterHtml = async (config) => {
                         <!-- Footer -->
                         <tr>
                             <td align="center" style="padding: 30px; background-color: #0b0f19; border-top: 1px solid #1f2937;">
-                                <p style="margin: 0 0 10px 0; color: #6b7280; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 12px;">This is an automated message from Plex Server Manager.</p>
+                                <p style="margin: 0 0 10px 0; color: #6b7280; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 12px;">This is an automated message from Server Portal Manager.</p>
                                 <p style="margin: 0; color: #6b7280; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 12px;">To opt out of these newsletters, please visit your <a href="${config.publicDomain}" style="color: #eab308; text-decoration: none;">User Portal</a>.</p>
                             </td>
                         </tr>
@@ -3990,7 +4861,7 @@ const generateNewsletterHtml = async (config) => {
             <head>
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Plex Server Automated Newsletter</title>
+                <title>${providerLabel} Server Automated Newsletter</title>
             </head>
             <body style="margin: 0; padding: 0; background-color: #000000; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
                 <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #000000;">
@@ -4009,27 +4880,63 @@ const generateNewsletterHtml = async (config) => {
     return { html: finalHtml, attachments };
 };
 
+const renderNewsletterHtmlForBrowser = (html, attachments = [], username = 'Preview User') => {
+    let output = String(html || '').replace(/{{USERNAME}}/g, escapeHtmlAttr(username));
+    for (const attachment of attachments || []) {
+        if (!attachment?.cid || !attachment?.content) continue;
+        const ext = String(attachment.filename || '').split('.').pop()?.toLowerCase();
+        const mime = ext === 'png'
+            ? 'image/png'
+            : ext === 'webp'
+                ? 'image/webp'
+                : 'image/jpeg';
+        const dataUrl = `data:${mime};base64,${Buffer.from(attachment.content).toString('base64')}`;
+        output = output.replace(new RegExp(`cid:${attachment.cid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'g'), dataUrl);
+    }
+    return output;
+};
+
+app.get('/api/newsletter/preview', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const { html, attachments } = await generateNewsletterHtml(config, { embedImages: true });
+        const previewHtml = renderNewsletterHtmlForBrowser(html, attachments, req.user?.username || 'Preview User');
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store');
+        return res.send(previewHtml);
+    } catch (e) {
+        log(`Newsletter preview error: ${e.message}`);
+        return res.status(500).send(`<p>Failed to generate newsletter preview: ${escapeHtmlAttr(e.message)}</p>`);
+    }
+});
+
+app.get('/api/newsletter/download', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const { html, attachments } = await generateNewsletterHtml(config, { embedImages: true });
+        const downloadHtml = renderNewsletterHtmlForBrowser(html, attachments, req.user?.username || 'Preview User');
+        const stamp = new Date().toISOString().slice(0, 10);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="server-portal-newsletter-${stamp}.html"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.send(downloadHtml);
+    } catch (e) {
+        log(`Newsletter download error: ${e.message}`);
+        return res.status(500).json({ error: 'Failed to generate newsletter download' });
+    }
+});
+
 app.post('/api/newsletter/test', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
         if (!config.smtpHost || !config.smtpUser) return res.status(400).json({ error: 'SMTP not configured' });
 
-        let adminEmail = null;
-        try {
-            const userRes = await fetch('https://plex.tv/api/v2/user', {
-                headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' }
-            });
-            if (userRes.ok) {
-                const userData = await userRes.json();
-                adminEmail = userData.email;
-            }
-        } catch (e) {
-            log('Error fetching admin email: ' + e.message);
-        }
+        const adminEmail = await resolveNewsletterTestRecipient(config, req.user);
 
-        if (!adminEmail) return res.status(400).json({ error: 'Could not fetch admin email from Plex account.' });
+        if (!adminEmail) return res.status(400).json({ error: 'Could not determine an admin email address for the test newsletter.' });
 
         const { html, attachments } = await generateNewsletterHtml(config);
+        const providerLabel = getNewsletterProviderLabel(config);
         const transporter = nodemailer.createTransport({
             host: config.smtpHost,
             port: config.smtpPort,
@@ -4042,7 +4949,7 @@ app.post('/api/newsletter/test', requireAdmin, async (req, res) => {
         await transporter.sendMail({
             from: config.smtpFrom || config.smtpUser,
             to: adminEmail,
-            subject: 'Plex Server Automated Newsletter (Test)',
+            subject: `${providerLabel} Server Automated Newsletter (Test)`,
             html: personalizedHtml,
             attachments: attachments
         });
@@ -4063,6 +4970,7 @@ app.post('/api/newsletter/send-now', requireAdmin, async (req, res) => {
         if (validUsers.length === 0) return res.status(400).json({ error: 'No users with email addresses found.' });
 
         const { html, attachments } = await generateNewsletterHtml(config);
+        const providerLabel = getNewsletterProviderLabel(config);
         const transporter = nodemailer.createTransport({
             host: config.smtpHost,
             port: config.smtpPort,
@@ -4076,11 +4984,12 @@ app.post('/api/newsletter/send-now', requireAdmin, async (req, res) => {
         log(`Manual newsletter trigger initiated for ${validUsers.length} users.`);
         for (const user of validUsers) {
             try {
+                const personalizedHtml = html.replace(/{{USERNAME}}/g, escapeHtmlAttr(user.username || user.name || 'User'));
                 await transporter.sendMail({
                     from: config.smtpFrom || config.smtpUser,
                     to: user.email,
-                    subject: 'Plex Server Automated Newsletter',
-                    html: html,
+                    subject: `${providerLabel} Server Automated Newsletter`,
+                    html: personalizedHtml,
                     attachments: attachments
                 });
                 await new Promise(resolve => setTimeout(resolve, 15000)); // 15s delay to avoid Gmail rate limits
@@ -4137,7 +5046,7 @@ app.post('/api/plex/servers', setupRateLimit, async (req, res) => {
             try {
                 const baseUrl = resolveIntegrationUrlForFetch(directUrl);
                 const identityRes = await fetchWithTimeout(`${baseUrl}/identity`, {
-                    headers: { 'X-Plex-Token': normalizedToken, Accept: 'application/json' },
+                    headers: plexClientHeaders(normalizedToken),
                 }, 6000);
                 if (identityRes.ok) {
                     const identityText = await identityRes.text();
@@ -4186,9 +5095,33 @@ app.post('/api/sync', requireAdmin, async (req, res) => {
     try {
         const result = isJellyfinPortal ? await syncJellyfinUsers(config) : await syncUsers(config);
         await appendAuditLog(isJellyfinPortal ? 'jellyfin_sync_completed' : 'plex_sync_completed', req.user || null, null, { count: result.count });
+        if (result.newUserCount > 0 && alertRuleEnabled(config, 'newUserSynced')) {
+            await sendGotifyAlert(
+                config,
+                `${isJellyfinPortal ? 'Jellyfin' : 'Plex'} sync found new users`,
+                `${result.newUserCount} new user${result.newUserCount === 1 ? '' : 's'} added during sync.`,
+                5,
+            ).catch((e) => log(`Failed to send Gotify new-user sync alert: ${e.message}`));
+        }
+        if (alertRuleEnabled(config, 'syncSuccess')) {
+            await sendGotifyAlert(
+                config,
+                `${isJellyfinPortal ? 'Jellyfin' : 'Plex'} sync completed`,
+                result.message || `Synced ${result.count} users.`,
+                2,
+            ).catch((e) => log(`Failed to send Gotify sync success alert: ${e.message}`));
+        }
         res.json(result);
     } catch (error) {
         await appendAuditLog(isJellyfinPortal ? 'jellyfin_sync_failed' : 'plex_sync_failed', req.user || null, null, { error: error.message });
+        if (alertRuleEnabled(config, 'syncFailure')) {
+            await sendGotifyAlert(
+                config,
+                `${isJellyfinPortal ? 'Jellyfin' : 'Plex'} sync failed`,
+                error.message || 'Sync failed.',
+                8,
+            ).catch((e) => log(`Failed to send Gotify sync failure alert: ${e.message}`));
+        }
         res.status(500).json({ error: error.message });
     }
 });
@@ -4312,6 +5245,1283 @@ const buildRequestAppStatusPayload = (config) => {
         error: gate.error,
     };
 };
+
+app.get('/api/discovery/preferences', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        res.json(getDiscoveryPreferences(config));
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/discovery/search', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const query = String(req.query.query || '').trim();
+        if (query.length < 2) return res.json({ results: [] });
+
+        const metadataLanguage = resolveDiscoverMetadataLanguage(req);
+        const searchPath = (language) => (
+            `/api/v1/search?query=${encodeURIComponent(query)}&page=1&language=${encodeURIComponent(language)}`
+        );
+        const runSearch = (language) => requestAppService.rawFetch(
+            config,
+            searchPath(language),
+            { headers: { 'Accept-Language': language }, timeoutMs: 20000 },
+        );
+
+        // Seerr/TMDB often soft-fail to `{ results: [] }` on transient errors.
+        // Retry once (and once without an explicit language) before returning empty.
+        let data = await runSearch(metadataLanguage).catch((err) => {
+            log(`Discovery search attempt failed: ${err.message}`);
+            return null;
+        });
+        const resultCount = (payload) => (Array.isArray(payload?.results) ? payload.results.length : -1);
+        if (!data || resultCount(data) === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            data = await runSearch(metadataLanguage).catch((err) => {
+                log(`Discovery search retry failed: ${err.message}`);
+                return data;
+            });
+        }
+        if (data && resultCount(data) === 0 && metadataLanguage !== 'en') {
+            const fallback = await runSearch('en').catch(() => null);
+            if (fallback && resultCount(fallback) > 0) data = fallback;
+        }
+        if (!data) {
+            return res.status(502).json({ error: 'Search temporarily unavailable. Try again.' });
+        }
+        res.json({
+            page: data.page || 1,
+            totalPages: data.totalPages || data.total_pages || 1,
+            totalResults: data.totalResults || data.total_results || resultCount(data) || 0,
+            results: Array.isArray(data.results) ? data.results : [],
+        });
+    } catch (e) {
+        log(`Discovery search error: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/discovery/trending', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        await ensureSeerrDiscoverySettings(config, requestAppService.rawFetch);
+        const metadataLanguage = resolveDiscoverMetadataLanguage(req);
+        const data = await requestAppService.rawFetch(
+            config,
+            `/api/v1/discover/trending?language=${encodeURIComponent(metadataLanguage)}`,
+            { headers: { 'Accept-Language': metadataLanguage } },
+        );
+        const prefs = getDiscoveryPreferences(config);
+        res.json(filterDiscoveryPayload(data, '/discover/trending', prefs.hideAvailableMedia, prefs.discoverLanguage));
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+let discoveryHeroCache = { data: null, lastFetch: 0 };
+
+const DYNAMIC_THEME_IMAGE_HOSTS = new Set([
+    'image.tmdb.org',
+    'metadata.provider.plex.tv',
+    'plex.tv',
+]);
+
+app.get('/api/dynamic-theme/sample-image', requireAuth, requireMember, async (req, res) => {
+    const rawUrl = String(req.query.url || '').trim();
+    if (!rawUrl) return res.status(400).send('url required');
+
+    let parsed;
+    try {
+        parsed = new URL(rawUrl);
+    } catch {
+        return res.status(400).send('invalid url');
+    }
+
+    if (parsed.protocol !== 'https:' || !DYNAMIC_THEME_IMAGE_HOSTS.has(parsed.hostname)) {
+        return res.status(400).send('host not allowed');
+    }
+
+    try {
+        // Do not follow redirects — an allowlisted host could otherwise bounce to an internal URL.
+        const response = await fetchWithTimeout(rawUrl, { redirect: 'manual' }, 15000);
+        if (response.status >= 300 && response.status < 400) {
+            return res.status(400).send('redirects not allowed');
+        }
+        if (!response.ok) throw new Error('fetch failed');
+        const contentType = response.headers.get('content-type') || 'image/jpeg';
+        if (!contentType.startsWith('image/')) return res.status(400).send('not an image');
+        const buffer = Buffer.from(await response.arrayBuffer());
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        res.send(buffer);
+    } catch (e) {
+        log(`Dynamic theme sample-image error: ${e.message}`);
+        res.status(502).send('image fetch failed');
+    }
+});
+
+app.get('/api/discovery/hero-backdrops', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        if (discoveryHeroCache.data && Date.now() - discoveryHeroCache.lastFetch < 6 * 60 * 60 * 1000) {
+            return res.json(discoveryHeroCache.data);
+        }
+
+        const payload = await fetchDiscoveryHeroBackdrops({
+            config,
+            rawFetch: (path) => requestAppService.rawFetch(config, path),
+        });
+        discoveryHeroCache = { data: payload, lastFetch: Date.now() };
+        res.json(payload);
+    } catch (e) {
+        log(`Discovery hero backdrops error: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/discovery/request-options', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const mediaType = String(req.query.mediaType || '').toLowerCase();
+        const mediaId = Number(req.query.mediaId);
+        if ((mediaType !== 'movie' && mediaType !== 'tv') || !Number.isFinite(mediaId)) {
+            return res.status(400).json({ error: 'Invalid mediaType or mediaId' });
+        }
+
+        const payload = await requestAppService.getMemberRequestOptions(config, req.user, {
+            mediaType,
+            mediaId,
+        });
+        res.json(payload);
+    } catch (e) {
+        log(`Discovery request-options error: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/discovery/me', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const profile = await requestAppService.getMemberDiscoveryProfile(config, req.user);
+        res.json({ configured: true, ...profile });
+    } catch (e) {
+        const mapped = mapSeerrClientError(e.message, e.status);
+        log(`Discovery me error: ${e.message}`);
+        res.status(mapped.status || 500).json({ error: mapped.error || e.message });
+    }
+});
+
+app.get('/api/discovery/request-services/:type/:serverId', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const type = String(req.params.type || '').toLowerCase();
+        const serverId = Number(req.params.serverId);
+        if ((type !== 'radarr' && type !== 'sonarr') || !Number.isFinite(serverId)) {
+            return res.status(400).json({ error: 'Invalid service type or server id' });
+        }
+
+        const data = await requestAppService.getServiceOptions(config, type, serverId);
+        res.json(data);
+    } catch (e) {
+        log(`Discovery request services error: ${e.message}`);
+        res.status(502).json({ error: e.message });
+    }
+});
+
+app.post('/api/discovery/request-tags', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const { mediaType, label, serverName } = req.body || {};
+        const type = mediaType === 'tv' ? 'tv' : (mediaType === 'movie' ? 'movie' : '');
+        if (!type || !label) return res.status(400).json({ error: 'Missing mediaType or label' });
+
+        const tag = await requestAppService.createMemberRequestTag(config, req.user, {
+            mediaType: type,
+            label,
+            serverName: serverName || '',
+        });
+        res.status(201).json(tag);
+    } catch (e) {
+        log(`Discovery request-tags error: ${e.message}`);
+        res.status(e.status || 500).json({ error: e.message });
+    }
+});
+
+app.post('/api/discovery/request-override-defaults', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const { mediaType, tmdbId, is4k } = req.body || {};
+        if (!mediaType || !tmdbId) return res.status(400).json({ error: 'Missing mediaType or tmdbId' });
+
+        // Always bind to the session's Seerr user — ignore client-supplied userId (IDOR).
+        const users = await requestAppService.listRequestUsers(config);
+        const resolvedUserId = requestAppService.resolveSeerrRequestUserId(req.user, users);
+        if (!resolvedUserId) {
+            return res.status(403).json({ error: 'Your portal account is not linked to a Seerr user.' });
+        }
+
+        const defaults = await requestAppService.getAdvancedRequestDefaults(config, {
+            mediaType,
+            tmdbId: Number(tmdbId),
+            userId: resolvedUserId,
+            is4k: !!is4k,
+        });
+        res.json(defaults || {});
+    } catch (e) {
+        log(`Discovery request override defaults error: ${e.message}`);
+        res.status(502).json({ error: e.message });
+    }
+});
+
+app.get('/api/discovery/my-requests/count', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const counts = await requestAppService.getMemberRequestCounts(config, req.user);
+        res.json({ configured: true, ...counts });
+    } catch (e) {
+        log(`Discovery my-requests count error: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/discovery/my-requests', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const filter = String(req.query.filter || 'all').toLowerCase();
+        const take = Math.min(50, Math.max(1, Number(req.query.take) || 20));
+        const skip = Math.max(0, Number(req.query.skip) || 0);
+
+        const payload = await requestAppService.listMemberRequests(config, req.user, { filter, take, skip });
+        res.json({ configured: true, ...payload });
+    } catch (e) {
+        log(`Discovery my-requests error: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.delete('/api/discovery/my-requests/:id', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const requestId = String(req.params.id || '').trim();
+        if (!requestId) return res.status(400).json({ error: 'Request ID is required' });
+
+        await requestAppService.cancelMemberRequest(config, req.user, requestId);
+        res.json({ success: true, message: 'Request cancelled.' });
+    } catch (e) {
+        log(`Discovery cancel request error: ${e.message}`);
+        res.status(e.message?.includes('not linked') || e.message?.includes('only manage') ? 403 : 502).json({ error: e.message });
+    }
+});
+
+app.post('/api/discovery/my-requests/:id/retry', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const requestId = String(req.params.id || '').trim();
+        if (!requestId) return res.status(400).json({ error: 'Request ID is required' });
+
+        await requestAppService.retryMemberRequest(config, req.user, requestId);
+        res.json({ success: true, message: 'Request retry submitted.' });
+    } catch (e) {
+        log(`Discovery retry request error: ${e.message}`);
+        res.status(e.message?.includes('not linked') || e.message?.includes('only manage') ? 403 : 502).json({ error: e.message });
+    }
+});
+
+app.get('/api/discovery/my-issues/count', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const counts = await requestAppService.getMemberIssueCounts(config, req.user);
+        res.json({ configured: true, ...counts });
+    } catch (e) {
+        log(`Discovery my-issues count error: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/discovery/my-issues', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const filter = String(req.query.filter || 'all').toLowerCase();
+        const take = Math.min(50, Math.max(1, Number(req.query.take) || 20));
+        const skip = Math.max(0, Number(req.query.skip) || 0);
+
+        const payload = await requestAppService.listMemberIssues(config, req.user, { filter, take, skip });
+        res.json({ configured: true, ...payload });
+    } catch (e) {
+        log(`Discovery my-issues error: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/discovery/issues', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const profile = await requestAppService.getMemberDiscoveryProfile(config, req.user);
+        if (!profile.permissions?.createIssues) {
+            return res.status(403).json({ error: 'You do not have permission to report issues.' });
+        }
+
+        const { mediaId, issueType, message, problemSeason, problemEpisode } = req.body || {};
+        const issue = await requestAppService.createIssue(config, req.user, {
+            mediaId,
+            issueType,
+            message,
+            problemSeason,
+            problemEpisode,
+        });
+        res.status(201).json({ success: true, issue });
+    } catch (e) {
+        const mapped = mapSeerrClientError(e.message, e.status);
+        log(`Discovery create issue error: ${e.message}`);
+        res.status(mapped.status || (e.message?.includes('not linked') ? 403 : 502)).json({ error: mapped.error });
+    }
+});
+
+app.post('/api/discovery/my-issues/:id/comment', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const issueId = String(req.params.id || '').trim();
+        if (!issueId) return res.status(400).json({ error: 'Issue ID is required' });
+
+        await requestAppService.assertMemberOwnsIssue(config, req.user, issueId);
+        await requestAppService.addIssueComment(config, issueId, req.body?.message);
+        res.json({ success: true, message: 'Comment added.' });
+    } catch (e) {
+        log(`Discovery issue comment error: ${e.message}`);
+        res.status(e.message?.includes('not linked') || e.message?.includes('only manage') ? 403 : 502).json({ error: e.message });
+    }
+});
+
+app.post('/api/discovery/my-issues/:id/:status', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const issueId = String(req.params.id || '').trim();
+        const status = String(req.params.status || '').toLowerCase();
+        if (!issueId) return res.status(400).json({ error: 'Issue ID is required' });
+        if (status !== 'open' && status !== 'resolved') {
+            return res.status(400).json({ error: 'Status must be open or resolved' });
+        }
+
+        await requestAppService.assertMemberOwnsIssue(config, req.user, issueId);
+        await requestAppService.updateIssueStatus(config, issueId, status);
+        res.json({ success: true, message: status === 'resolved' ? 'Issue marked resolved.' : 'Issue reopened.' });
+    } catch (e) {
+        log(`Discovery issue status error: ${e.message}`);
+        res.status(e.message?.includes('not linked') || e.message?.includes('only manage') ? 403 : 502).json({ error: e.message });
+    }
+});
+
+app.delete('/api/discovery/my-issues/:id', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const issueId = String(req.params.id || '').trim();
+        if (!issueId) return res.status(400).json({ error: 'Issue ID is required' });
+
+        const { issue } = await requestAppService.assertMemberOwnsIssue(config, req.user, issueId);
+        if ((issue?.commentCount || 0) > 1) {
+            return res.status(403).json({ error: 'Issues with replies cannot be deleted.' });
+        }
+
+        await requestAppService.deleteIssue(config, issueId);
+        res.json({ success: true, message: 'Issue deleted.' });
+    } catch (e) {
+        log(`Discovery delete issue error: ${e.message}`);
+        res.status(e.message?.includes('not linked') || e.message?.includes('only manage') ? 403 : 502).json({ error: e.message });
+    }
+});
+
+app.get('/api/issues/count', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) {
+            return res.json(buildRequestAppStatusPayload(config));
+        }
+        try {
+            const counts = await requestAppService.getIssueCounts(config);
+            res.json({ configured: true, supported: true, connected: true, ...counts });
+        } catch (error) {
+            res.json({
+                ...buildRequestAppStatusPayload(config),
+                configured: true,
+                supported: true,
+                connected: false,
+                error: error.message || 'Failed to connect to request app',
+            });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'Failed to fetch issue counts' });
+    }
+});
+
+app.get('/api/issues', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) {
+            return res.json({ ...buildRequestAppStatusPayload(config), results: [] });
+        }
+
+        const filter = String(req.query.filter || 'open').toLowerCase();
+        const take = Math.min(50, Math.max(1, Number(req.query.take) || 30));
+        const skip = Math.max(0, Number(req.query.skip) || 0);
+
+        try {
+            const payload = await requestAppService.listIssues(config, { filter, take, skip });
+            res.json({ configured: true, supported: true, connected: true, ...payload });
+        } catch (error) {
+            res.json({
+                ...buildRequestAppStatusPayload(config),
+                configured: true,
+                supported: true,
+                connected: false,
+                error: error.message || 'Failed to connect to request app',
+                results: [],
+            });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'Failed to fetch issues' });
+    }
+});
+
+app.get('/api/issues/:id', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const issueId = String(req.params.id || '').trim();
+        if (!issueId) return res.status(400).json({ error: 'Issue ID is required' });
+
+        const issue = await requestAppService.getIssue(config, issueId);
+        res.json({ configured: true, issue });
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to fetch issue' });
+    }
+});
+
+app.post('/api/issues/:id/comment', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const issueId = String(req.params.id || '').trim();
+        if (!issueId) return res.status(400).json({ error: 'Issue ID is required' });
+
+        await requestAppService.addIssueComment(config, issueId, req.body?.message);
+        res.json({ success: true, message: 'Comment added.' });
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to add comment' });
+    }
+});
+
+app.post('/api/issues/:id/:status', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const issueId = String(req.params.id || '').trim();
+        const status = String(req.params.status || '').toLowerCase();
+        if (!issueId) return res.status(400).json({ error: 'Issue ID is required' });
+        if (status !== 'open' && status !== 'resolved') {
+            return res.status(400).json({ error: 'Status must be open or resolved' });
+        }
+
+        await requestAppService.updateIssueStatus(config, issueId, status);
+        const title = String(req.body?.title || '').trim();
+        await appendAuditLog(
+            status === 'resolved' ? 'issue_resolved' : 'issue_reopened',
+            req.user,
+            null,
+            { issueId, title: title || null },
+        );
+        res.json({ success: true, message: status === 'resolved' ? 'Issue resolved.' : 'Issue reopened.' });
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to update issue' });
+    }
+});
+
+app.delete('/api/issues/:id', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const issueId = String(req.params.id || '').trim();
+        if (!issueId) return res.status(400).json({ error: 'Issue ID is required' });
+
+        await requestAppService.deleteIssue(config, issueId);
+        await appendAuditLog('issue_deleted', req.user, null, { issueId });
+        res.json({ success: true, message: 'Issue deleted.' });
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to delete issue' });
+    }
+});
+
+app.get('/api/blocklist/count', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) {
+            return res.json(buildRequestAppStatusPayload(config));
+        }
+        try {
+            const total = await requestAppService.getBlocklistCount(config);
+            res.json({ configured: true, supported: true, connected: true, total });
+        } catch (error) {
+            res.json({
+                ...buildRequestAppStatusPayload(config),
+                configured: true,
+                supported: true,
+                connected: false,
+                error: error.message || 'Failed to connect to request app',
+                total: 0,
+            });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'Failed to fetch blocklist count' });
+    }
+});
+
+app.get('/api/blocklist/search', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const query = String(req.query.query || '').trim();
+        const results = await requestAppService.searchBlocklistCandidates(config, query);
+        res.json({ configured: true, results });
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to search titles' });
+    }
+});
+
+app.get('/api/blocklist', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) {
+            return res.json({ ...buildRequestAppStatusPayload(config), results: [] });
+        }
+
+        const take = Math.min(50, Math.max(1, Number(req.query.take) || 30));
+        const skip = Math.max(0, Number(req.query.skip) || 0);
+        const search = String(req.query.search || '').trim();
+        const filter = String(req.query.filter || 'manual').toLowerCase();
+
+        try {
+            const payload = await requestAppService.listBlocklist(config, { take, skip, search, filter });
+            res.json({ configured: true, supported: true, connected: true, ...payload });
+        } catch (error) {
+            res.json({
+                ...buildRequestAppStatusPayload(config),
+                configured: true,
+                supported: true,
+                connected: false,
+                error: error.message || 'Failed to connect to request app',
+                results: [],
+            });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'Failed to fetch blocklist' });
+    }
+});
+
+app.post('/api/blocklist', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const { tmdbId, mediaType, title } = req.body || {};
+        const item = await requestAppService.addToBlocklist(config, req.user, { tmdbId, mediaType, title });
+        await appendAuditLog('blocklist_added', req.user, null, { tmdbId, mediaType, title: title || item?.title || null });
+        res.status(201).json({ success: true, item });
+    } catch (error) {
+        const status = /already blocklisted/i.test(error.message || '') ? 409 : 502;
+        res.status(status).json({ error: error.message || 'Failed to blocklist title' });
+    }
+});
+
+app.delete('/api/blocklist/:tmdbId', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const tmdbId = String(req.params.tmdbId || '').trim();
+        const mediaType = String(req.query.mediaType || '').toLowerCase();
+        if (!tmdbId) return res.status(400).json({ error: 'TMDB ID is required' });
+        if (mediaType !== 'movie' && mediaType !== 'tv') {
+            return res.status(400).json({ error: 'mediaType must be movie or tv' });
+        }
+
+        await requestAppService.removeFromBlocklist(config, tmdbId, mediaType);
+        await appendAuditLog('blocklist_removed', req.user, null, { tmdbId, mediaType });
+        res.json({ success: true, message: 'Title removed from blocklist.' });
+    } catch (error) {
+        res.status(502).json({ error: error.message || 'Failed to remove blocklist entry' });
+    }
+});
+
+app.get('/api/discovery/watchlist', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const payload = await requestAppService.getMemberWatchlist(config, req.user);
+        res.json(payload);
+    } catch (e) {
+        log(`Discovery watchlist error: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/discovery/watchlist/request', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const { all, items, is4k } = req.body || {};
+        const summary = await requestAppService.requestMemberWatchlist(config, req.user, {
+            all: !!all,
+            items: Array.isArray(items) ? items : [],
+            is4k: !!is4k,
+        });
+        res.status(summary.submitted > 0 ? 201 : 200).json(summary);
+    } catch (e) {
+        log(`Discovery watchlist request error: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const {
+            mediaType,
+            mediaId,
+            is4k,
+            seasons,
+            serverId,
+            profileId,
+            rootFolder,
+            languageProfileId,
+            tags,
+        } = req.body || {};
+        if (!mediaType || !mediaId) return res.status(400).json({ error: 'Missing media details' });
+
+        const type = mediaType === 'tv' ? 'tv' : 'movie';
+        const tmdbId = Number(mediaId);
+        const options = await requestAppService.getMemberRequestOptions(config, req.user, {
+            mediaType: type,
+            mediaId: tmdbId,
+        });
+
+        if (!options.canRequest) {
+            return res.status(403).json({ error: options.blockReason || 'You cannot request this title.' });
+        }
+        if (is4k && !options.canRequest4k) {
+            return res.status(403).json({ error: 'You do not have permission to request 4K media.' });
+        }
+        if (is4k) {
+            const fourKQuota = options.quota?.fourK;
+            if (fourKQuota?.limit > 0 && fourKQuota.remaining === 0) {
+                return res.status(429).json({ error: `You have used all ${fourKQuota.limit} 4K requests for this period.` });
+            }
+        } else if (options.standardQuotaBlocked) {
+            const limit = options.quota?.standard?.limit;
+            return res.status(429).json({
+                error: limit
+                    ? `You have used all ${limit} requests for this period.`
+                    : 'You have reached your request quota for this period.',
+            });
+        }
+
+        const body = { mediaType: type, mediaId: tmdbId };
+        if (is4k) body.is4k = true;
+        if (type === 'tv') {
+            const requestableSeasonIds = new Set(
+                (options.seasons || [])
+                    .filter((season) => season.requestable)
+                    .map((season) => Number(season.seasonNumber))
+                    .filter((n) => Number.isFinite(n)),
+            );
+            if (seasons === 'all') {
+                body.seasons = 'all';
+            } else if (Array.isArray(seasons) && seasons.length > 0) {
+                const nextSeasons = seasons.map((season) => Number(season)).filter((season) => Number.isFinite(season));
+                if (requestableSeasonIds.size && nextSeasons.some((id) => !requestableSeasonIds.has(id))) {
+                    return res.status(403).json({ error: 'One or more selected seasons are not requestable.' });
+                }
+                body.seasons = nextSeasons;
+            } else {
+                body.seasons = 'all';
+            }
+        }
+
+        if (options.canRequestAdvanced) {
+            const hasRouting =
+                serverId != null
+                || profileId != null
+                || rootFolder
+                || languageProfileId != null
+                || Array.isArray(tags);
+            if (hasRouting) {
+                try {
+                    const routing = await requestAppService.validateMemberRequestRouting(config, {
+                        mediaType: type,
+                        is4k: !!is4k,
+                        servers: options.servers,
+                        serverId,
+                        profileId,
+                        rootFolder,
+                        languageProfileId,
+                        tags,
+                    });
+                    Object.assign(body, routing);
+                } catch (routingErr) {
+                    return res.status(routingErr.status || 400).json({
+                        error: routingErr.message || 'Invalid request routing options.',
+                    });
+                }
+            }
+        }
+
+        if (options.seerrUserId) body.userId = options.seerrUserId;
+
+        const data = await requestAppService.rawFetch(config, '/api/v1/request', {
+            method: 'POST',
+            body,
+        });
+        res.status(201).json(data);
+    } catch (e) {
+        const mapped = mapSeerrClientError(e.message, e.status);
+        log(`Discovery request error: ${e.message}`);
+        res.status(mapped.status || 500).json({ error: mapped.error });
+    }
+});
+
+app.get('/api/discovery/fact', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const mediaType = String(req.query.mediaType || '').toLowerCase();
+        const mediaId = Number(req.query.mediaId);
+        if ((mediaType !== 'movie' && mediaType !== 'tv') || !Number.isFinite(mediaId)) {
+            return res.status(400).json({ error: 'Invalid mediaType or mediaId' });
+        }
+
+        const details = await requestAppService.rawFetch(config, `/api/v1/${mediaType}/${mediaId}`);
+        const wikiFetch = (url, opts = {}) => fetchWithTimeout(
+            url,
+            {
+                ...opts,
+                headers: {
+                    'User-Agent': 'PlexifiedPortal/1.0 (discovery-facts)',
+                    ...(opts.headers || {}),
+                },
+            },
+            opts.timeout || 8000,
+        );
+
+        const payload = await buildDiscoveryFacts({ details, mediaType, fetchFn: wikiFetch });
+        res.json(payload);
+    } catch (e) {
+        log(`Discovery fact error: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/discovery/radarr-releases', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const tmdbId = Number(req.query.tmdbId || req.query.mediaId);
+        if (!Number.isFinite(tmdbId) || tmdbId <= 0) {
+            return res.status(400).json({ error: 'Invalid tmdbId' });
+        }
+        if (!isArrTypeConfigured(config, 'radarr')) {
+            return res.json({ configured: false, releases: null });
+        }
+        const releases = await fetchRadarrMovieReleaseDates(config, tmdbId, {
+            resolveUrl: resolveIntegrationUrlForFetch,
+            fetchImpl: fetch,
+        });
+        res.json({ configured: true, releases });
+    } catch (e) {
+        log(`Discovery Radarr releases error: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/arr/deep-link', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        const mediaTypeRaw = String(req.query.mediaType || req.query.type || '').trim().toLowerCase();
+        const mediaType = mediaTypeRaw === 'tv' || mediaTypeRaw === 'show' || mediaTypeRaw === 'series'
+            ? 'tv'
+            : (mediaTypeRaw === 'movie' ? 'movie' : '');
+        const tmdbId = Number(req.query.tmdbId);
+        const title = String(req.query.title || '').trim();
+        const yearRaw = Number(req.query.year);
+        const year = Number.isFinite(yearRaw) && yearRaw > 0 ? yearRaw : null;
+        const is4k = req.query.is4k === '1' || String(req.query.is4k || '').toLowerCase() === 'true';
+
+        if (mediaType !== 'movie' && mediaType !== 'tv') {
+            return res.status(400).json({ error: 'mediaType must be movie or tv' });
+        }
+        if ((!Number.isFinite(tmdbId) || tmdbId <= 0) && !title) {
+            return res.status(400).json({ error: 'tmdbId or title is required' });
+        }
+
+        const config = await loadFile(CONFIG_PATH, {});
+        const normalized = normalizeArrConfig(config);
+        const arrType = mediaType === 'movie' ? 'radarr' : 'sonarr';
+        const enabled = getArrInstances(normalized, { type: arrType, enabledOnly: true }).filter(isArrInstanceReady);
+        if (!enabled.length) {
+            return res.status(404).json({ error: `${arrType === 'radarr' ? 'Radarr' : 'Sonarr'} is not configured` });
+        }
+
+        let preferred = null;
+        if (is4k) {
+            preferred = enabled.find((entry) => /4k|uhd/i.test(String(entry.name || ''))) || null;
+        }
+        if (!preferred) preferred = getDefaultArrInstance(normalized, arrType);
+        if (!isArrInstanceReady(preferred)) {
+            return res.status(404).json({ error: `${arrType === 'radarr' ? 'Radarr' : 'Sonarr'} is not configured` });
+        }
+
+        const lookupItem = {
+            mediaType,
+            tmdbId: Number.isFinite(tmdbId) && tmdbId > 0 ? tmdbId : null,
+            title,
+            year,
+        };
+
+        // Movies can deep-link by TMDB id without scanning the full Arr catalog.
+        if (arrType === 'radarr' && lookupItem.tmdbId) {
+            const url = buildArrDeepUrl(preferred, { tmdbId: lookupItem.tmdbId, title: lookupItem.title }, 'radarr');
+            if (url) {
+                return res.json({
+                    url,
+                    arrType,
+                    label: 'Open in Radarr',
+                    instanceName: preferred.name || 'Radarr',
+                });
+            }
+        }
+
+        const catalog = await getArrCatalog(normalized);
+        const resolved = resolveArrEntity(lookupItem, catalog, normalized);
+        let instance = resolved.instanceId ? getArrInstance(normalized, resolved.instanceId) : preferred;
+        if (!isArrInstanceReady(instance)) instance = preferred;
+        let entity = resolved.entity || null;
+
+        if (!entity && arrType === 'radarr' && lookupItem.tmdbId) {
+            entity = { tmdbId: lookupItem.tmdbId, title: lookupItem.title };
+        }
+
+        if (!entity && arrType === 'sonarr' && instance) {
+            const terms = [];
+            if (lookupItem.tmdbId) terms.push(`tmdb:${lookupItem.tmdbId}`);
+            if (lookupItem.title) terms.push(lookupItem.title);
+            for (const term of terms) {
+                const payload = await fetchArrInstanceJson(instance, `/api/v3/series/lookup?term=${encodeURIComponent(term)}`, {
+                    resolveUrl: resolveIntegrationUrlForFetch,
+                    fetchImpl: fetch,
+                }).catch(() => null);
+                const records = Array.isArray(payload) ? payload : [];
+                const match = lookupItem.tmdbId
+                    ? (records.find((entry) => Number(entry?.tmdbId) === lookupItem.tmdbId) || records[0])
+                    : records[0];
+                if (match) {
+                    entity = match;
+                    break;
+                }
+            }
+            if (!entity && lookupItem.title) {
+                entity = { title: lookupItem.title };
+            }
+        }
+
+        const url = buildArrDeepUrl(instance, entity, arrType);
+        if (!url) {
+            return res.status(404).json({ error: 'Unable to build Arr deep link' });
+        }
+
+        res.json({
+            url,
+            arrType,
+            label: arrType === 'radarr' ? 'Open in Radarr' : 'Open in Sonarr',
+            instanceName: instance.name || (arrType === 'radarr' ? 'Radarr' : 'Sonarr'),
+        });
+    } catch (e) {
+        log(`Arr deep-link error: ${e.message}`);
+        res.status(500).json({ error: e.message || 'Failed to resolve Arr deep link' });
+    }
+});
+
+app.get('/api/discovery/ratings/:mediaType/:mediaId', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const mediaType = String(req.params.mediaType || '').toLowerCase();
+        const mediaId = Number(req.params.mediaId);
+        if (!['movie', 'tv'].includes(mediaType)) {
+            return res.status(400).json({ error: 'Invalid media type' });
+        }
+        if (!Number.isFinite(mediaId) || mediaId <= 0) {
+            return res.status(400).json({ error: 'Invalid media id' });
+        }
+
+        const ratings = await fetchDiscoveryCombinedRatings({
+            config,
+            rawFetchOptional: requestAppService.rawFetchOptional,
+            fetchImpl: fetchWithTimeout,
+            mediaType,
+            mediaId,
+        });
+
+        if (ratings == null) {
+            return res.status(502).json({ error: 'Unable to retrieve ratings.' });
+        }
+        if (!ratings.rt && !ratings.imdb) {
+            return res.status(404).json({ message: 'No ratings found.' });
+        }
+        return res.json(ratings);
+    } catch (e) {
+        log(`Discovery ratings error: ${e.message}`);
+        return res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/discovery/tv/:tmdbId/library-status', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        const tmdbId = Number(req.params.tmdbId);
+        if (!Number.isFinite(tmdbId) || tmdbId <= 0) {
+            return res.status(400).json({ error: 'Invalid tmdbId' });
+        }
+
+        const upgraderIndex = await loadUpgraderIndex();
+        const statusPromise = fetchSonarrLibraryStatusForShow(config, tmdbId, {
+            resolveUrl: resolveIntegrationUrlForFetch,
+            fetchImpl: fetch,
+            upgraderItems: upgraderIndex?.items || [],
+        });
+        const timeoutMs = 8000;
+        const sonarrLibraryStatus = await Promise.race([
+            statusPromise,
+            new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Sonarr library check timed out')), timeoutMs);
+            }),
+        ]);
+
+        res.json({ sonarrLibraryStatus });
+    } catch (e) {
+        log(`Discovery library-status error: ${e.message}`);
+        res.json({ sonarrLibraryStatus: { matched: false, error: e.message } });
+    }
+});
+
+app.get('/api/discovery/library-link', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const mediaTypeRaw = String(req.query.mediaType || req.query.type || '').trim().toLowerCase();
+        const mediaType = mediaTypeRaw === 'tv' || mediaTypeRaw === 'show' || mediaTypeRaw === 'series'
+            ? 'tv'
+            : (mediaTypeRaw === 'movie' ? 'movie' : '');
+        const tmdbId = Number(req.query.tmdbId);
+        const ratingKeyHint = String(req.query.ratingKey || '').replace(/^\/library\/metadata\//, '').trim();
+        const title = String(req.query.title || '').trim();
+        const yearRaw = Number(req.query.year);
+        const year = Number.isFinite(yearRaw) && yearRaw > 0 ? yearRaw : null;
+
+        if (mediaType !== 'movie' && mediaType !== 'tv') {
+            return res.status(400).json({ error: 'mediaType must be movie or tv' });
+        }
+        if ((!Number.isFinite(tmdbId) || tmdbId <= 0) && !ratingKeyHint && !title) {
+            return res.status(400).json({ error: 'tmdbId, ratingKey, or title is required' });
+        }
+
+        const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
+        const providerLabel = mediaServerType === 'jellyfin' ? 'Jellyfin' : (mediaServerType === 'emby' ? 'Emby' : 'Plex');
+        const toPlexWebUrl = (key) => {
+            const clean = String(key || '').replace(/^\/library\/metadata\//, '').trim();
+            if (!config.serverIdentifier || !clean) return null;
+            return `https://app.plex.tv/desktop#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent(`/library/metadata/${clean}`)}`;
+        };
+
+        if (mediaServerType === 'jellyfin' || mediaServerType === 'emby') {
+            if (!isJellyfinConfigured(config)) {
+                return res.status(404).json({ error: `${providerLabel} is not configured` });
+            }
+            let itemId = ratingKeyHint;
+            if (!itemId && Number.isFinite(tmdbId) && tmdbId > 0) {
+                const baseUrl = resolveIntegrationUrlForFetch(config.jellyfinUrl);
+                const includeType = mediaType === 'movie' ? 'Movie' : 'Series';
+                const lookupUrl = `${baseUrl}/Items?Recursive=true&IncludeItemTypes=${encodeURIComponent(includeType)}&AnyProviderIdEquals=${encodeURIComponent(`Tmdb=${tmdbId}`)}&Limit=1&fields=ProviderIds`;
+                const response = await fetchWithTimeout(lookupUrl, {
+                    headers: jellyfinHeaders(config.jellyfinApiKey),
+                }, 12000).catch(() => null);
+                if (response?.ok) {
+                    const payload = await response.json().catch(() => null);
+                    const items = Array.isArray(payload?.Items) ? payload.Items : [];
+                    itemId = String(items[0]?.Id || '').trim();
+                }
+            }
+            const url = jellyfinItemUrl(config, itemId);
+            if (!url || !itemId) {
+                return res.status(404).json({ error: `Title not found in ${providerLabel}` });
+            }
+            return res.json({ url, label: `Open in ${providerLabel}`, provider: mediaServerType });
+        }
+
+        if (!isPlexConfigured(config)) {
+            return res.status(404).json({ error: 'Plex is not configured' });
+        }
+
+        // Fast path: Seerr/Overseerr already knows the Plex rating key
+        if (ratingKeyHint) {
+            const url = toPlexWebUrl(ratingKeyHint);
+            if (url) {
+                return res.json({ url, label: 'Open in Plex', provider: 'plex', ratingKey: ratingKeyHint });
+            }
+        }
+
+        const uri = await getPlexConnectionUri(config);
+        if (!uri) {
+            return res.status(503).json({ error: 'Unable to reach Plex server' });
+        }
+
+        const plexType = mediaType === 'movie' ? 1 : 2;
+        const guidCandidates = Number.isFinite(tmdbId) && tmdbId > 0
+            ? [
+                `tmdb://${tmdbId}`,
+                `com.plexapp.agents.themoviedb://${tmdbId}?lang=en`,
+                `tmdb://${tmdbId}?lang=en`,
+            ]
+            : [];
+
+        const metaMatchesTmdb = (meta) => {
+            if (!Number.isFinite(tmdbId) || tmdbId <= 0 || !meta) return false;
+            const needle = String(tmdbId);
+            const guidBlob = [
+                meta.guid,
+                ...(Array.isArray(meta.Guid) ? meta.Guid.map((g) => g?.id || g) : []),
+            ].map((v) => String(v || '')).join(' ').toLowerCase();
+            return guidBlob.includes(`tmdb://${needle}`)
+                || guidBlob.includes(`themoviedb://${needle}`)
+                || guidBlob.includes(`tmdb:${needle}`);
+        };
+
+        let ratingKey = '';
+
+        for (const guid of guidCandidates) {
+            const lookupUrl = `${uri}/library/all?type=${plexType}&guid=${encodeURIComponent(guid)}&includeGuids=1&X-Plex-Token=${encodeURIComponent(config.plexToken)}`;
+            const response = await fetchWithTimeout(lookupUrl, { headers: plexClientHeaders(config.plexToken) }, 12000).catch(() => null);
+            if (!response?.ok) continue;
+            const payload = await response.json().catch(() => null);
+            const meta = payload?.MediaContainer?.Metadata?.[0];
+            if (meta?.ratingKey) {
+                ratingKey = String(meta.ratingKey);
+                break;
+            }
+        }
+
+        if (!ratingKey) {
+            const sectionsRes = await fetchWithTimeout(
+                `${uri}/library/sections?X-Plex-Token=${encodeURIComponent(config.plexToken)}`,
+                { headers: plexClientHeaders(config.plexToken) },
+                12000,
+            ).catch(() => null);
+            const sections = sectionsRes?.ok ? (await sectionsRes.json().catch(() => null))?.MediaContainer?.Directory || [] : [];
+            const wantedType = mediaType === 'movie' ? 'movie' : 'show';
+            for (const section of sections) {
+                if (String(section?.type || '') !== wantedType) continue;
+                for (const guid of guidCandidates) {
+                    const sectionLookup = `${uri}/library/sections/${encodeURIComponent(section.key)}/all?type=${plexType}&guid=${encodeURIComponent(guid)}&includeGuids=1&X-Plex-Token=${encodeURIComponent(config.plexToken)}`;
+                    const response = await fetchWithTimeout(sectionLookup, { headers: plexClientHeaders(config.plexToken) }, 12000).catch(() => null);
+                    if (!response?.ok) continue;
+                    const payload = await response.json().catch(() => null);
+                    const meta = payload?.MediaContainer?.Metadata?.[0];
+                    if (meta?.ratingKey) {
+                        ratingKey = String(meta.ratingKey);
+                        break;
+                    }
+                }
+                if (ratingKey) break;
+            }
+        }
+
+        // Title search fallback (availability can come from Sonarr before Seerr has a ratingKey)
+        if (!ratingKey && title) {
+            const searchUrl = `${uri}/hubs/search?query=${encodeURIComponent(title)}&limit=30&includeGuids=1&X-Plex-Token=${encodeURIComponent(config.plexToken)}`;
+            const searchRes = await fetchWithTimeout(searchUrl, { headers: plexClientHeaders(config.plexToken) }, 15000).catch(() => null);
+            const hubs = searchRes?.ok
+                ? ((await searchRes.json().catch(() => null))?.MediaContainer?.Hub || [])
+                : [];
+            const wantedHubTypes = mediaType === 'movie' ? new Set(['movie']) : new Set(['show']);
+            const candidates = [];
+            for (const hub of hubs) {
+                if (hub?.type && !wantedHubTypes.has(String(hub.type))) continue;
+                for (const meta of (Array.isArray(hub?.Metadata) ? hub.Metadata : [])) {
+                    if (!meta?.ratingKey) continue;
+                    candidates.push(meta);
+                }
+            }
+
+            const tmdbHit = candidates.find(metaMatchesTmdb);
+            if (tmdbHit?.ratingKey) {
+                ratingKey = String(tmdbHit.ratingKey);
+            } else {
+                const titleKey = title.trim().toLowerCase();
+                const exact = candidates.find((meta) => {
+                    const metaTitle = String(meta.title || meta.grandparentTitle || '').trim().toLowerCase();
+                    if (metaTitle !== titleKey) return false;
+                    if (year && Number(meta.year) && Number(meta.year) !== year) return false;
+                    return true;
+                });
+                if (exact?.ratingKey) ratingKey = String(exact.ratingKey);
+            }
+        }
+
+        const url = toPlexWebUrl(ratingKey);
+        if (!url) {
+            return res.status(404).json({ error: 'Title not found in Plex' });
+        }
+        return res.json({ url, label: 'Open in Plex', provider: 'plex', ratingKey });
+    } catch (e) {
+        log(`Discovery library-link error: ${e.message}`);
+        res.status(500).json({ error: e.message || 'Failed to resolve library link' });
+    }
+});
+
+app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
+
+        await ensureSeerrDiscoverySettings(config, requestAppService.rawFetch);
+
+        const path = normalizeDiscoveryProxyPath('/' + req.params[0]);
+        if (!path || !isAllowedDiscoveryProxyPath(path)) {
+            return res.status(403).json({ error: 'Discovery proxy path is not allowed.' });
+        }
+
+        const prefs = getDiscoveryPreferences(config);
+        const metadataLanguage = resolveDiscoverMetadataLanguage(req);
+
+        const params = applyDiscoveryQueryParams(new URLSearchParams(req.query), path, prefs, metadataLanguage);
+        const qs = params.toString();
+        const fullPath = qs ? `${path}?${qs}` : path;
+
+        let data = await requestAppService.rawFetch(config, '/api/v1' + fullPath, {
+            // Genre slider fans out many TMDB calls inside Seerr — needs a longer budget.
+            timeoutMs: /^\/discover\/genreslider\//i.test(path) ? 90000 : 15000,
+            // Seerr uses Accept-Language / req.locale for TMDB metadata on discover browse
+            // (query.language there is the original-language filter, not title translation).
+            headers: { 'Accept-Language': metadataLanguage },
+        });
+        const tvDetailMatch = path.match(/^\/tv\/(\d+)$/);
+        const shouldLibraryCheck = String(req.query.libraryCheck || req.query.sonarrCheck || '') === '1';
+        if (tvDetailMatch && shouldLibraryCheck && data && typeof data === 'object' && !Array.isArray(data)) {
+            try {
+                const upgraderIndex = await loadUpgraderIndex();
+                const enrichPromise = enrichTvDetailsWithSonarrLibraryStatus(config, data, {
+                    resolveUrl: resolveIntegrationUrlForFetch,
+                    fetchImpl: fetch,
+                    upgraderItems: upgraderIndex?.items || [],
+                });
+                const timeoutMs = 8000;
+                data = await Promise.race([
+                    enrichPromise,
+                    new Promise((_, reject) => {
+                        setTimeout(() => reject(new Error('Sonarr library check timed out')), timeoutMs);
+                    }),
+                ]);
+            } catch (sonarrError) {
+                log(`Discovery Sonarr library check skipped for tv/${tvDetailMatch[1]}: ${sonarrError.message}`);
+            }
+        }
+        data = filterDiscoveryPayload(data, path, prefs.hideAvailableMedia, prefs.discoverLanguage);
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
 
 app.get('/api/requests/pending', requireAdmin, async (req, res) => {
     try {
@@ -4551,7 +6761,31 @@ app.post('/api/requests/:id/decline', requireAdmin, async (req, res) => {
         const result = await requestAppService.declineRequest(config, requestId, reason);
         const title = result?.media?.title || result?.media?.name || req.body?.title || `Request #${requestId}`;
         await appendAuditLog('request_declined', req.user, null, { requestId, title, reason: reason || null });
-        res.json({ success: true, title });
+
+        if (req.body?.blacklist) {
+            const tmdbId = Number(req.body?.tmdbId);
+            const mediaType = String(req.body?.mediaType || '').toLowerCase();
+            if (Number.isFinite(tmdbId) && tmdbId > 0 && (mediaType === 'movie' || mediaType === 'tv')) {
+                try {
+                    await requestAppService.addToBlocklist(config, req.user, { tmdbId, mediaType, title });
+                    await appendAuditLog('blocklist_added', req.user, null, {
+                        tmdbId,
+                        mediaType,
+                        title,
+                        source: 'decline_request',
+                        requestId,
+                    });
+                } catch (blockError) {
+                    if (!/already blocklisted/i.test(blockError?.message || '')) {
+                        return res.status(502).json({
+                            error: `Request declined, but blocklisting failed: ${blockError.message}`,
+                        });
+                    }
+                }
+            }
+        }
+
+        res.json({ success: true, title, blacklisted: !!req.body?.blacklist });
     } catch (error) {
         res.status(502).json({ error: error.message || 'Failed to decline request' });
     }
@@ -4590,10 +6824,7 @@ app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
 
     try {
         const pinRes = await fetch(`https://plex.tv/api/v2/pins/${pinId}`, {
-            headers: {
-                'Accept': 'application/json',
-                'X-Plex-Client-Identifier': CLIENT_ID
-            }
+            headers: plexClientHeaders()
         });
         const pinData = await pinRes.json();
 
@@ -4604,10 +6835,7 @@ app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
         const config = await loadFile(CONFIG_PATH, {});
         // Validate user with Plex
         const plexRes = await fetch('https://plex.tv/api/v2/user', {
-            headers: {
-                'X-Plex-Token': pinData.authToken,
-                'Accept': 'application/json'
-            }
+            headers: plexClientHeaders(pinData.authToken)
         });
         if (!plexRes.ok) return res.status(401).json({ error: 'Invalid Plex token' });
 
@@ -4683,7 +6911,11 @@ app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
 // User data endpoints
 app.get('/api/users', requireAdmin, async (req, res) => {
     const users = await loadFile(USERS_PATH, []);
-    res.json(users);
+    const { users: withLastLogin, changed } = await backfillLastLoginFromAudit(users);
+    if (changed) {
+        await saveFile(USERS_PATH, withLastLogin);
+    }
+    res.json(withLastLogin);
 });
 
 app.get('/api/deleted-users', requireAdmin, async (req, res) => {
@@ -4695,7 +6927,7 @@ const decorateTaskForConfig = (task, config = {}) => {
     const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
     const next = { ...task };
     if (next.id === 'syncPlexUsers') {
-        if (mediaServerType === 'jellyfin') {
+        if (mediaServerType !== 'plex') {
             next.name = 'Sync Jellyfin Users';
             next.description = 'Fetches latest user data and profile images from Jellyfin.';
         } else {
@@ -4704,12 +6936,12 @@ const decorateTaskForConfig = (task, config = {}) => {
         }
     }
     if (next.id === 'checkAndRevoke') {
-        next.description = mediaServerType === 'jellyfin'
+        next.description = mediaServerType !== 'plex'
             ? 'Revokes expired portal access for Jellyfin users.'
             : 'Removes Plex access for expired users.';
     }
     if (next.id === 'checkAndCleanupInactive') {
-        next.description = mediaServerType === 'jellyfin'
+        next.description = mediaServerType !== 'plex'
             ? 'Revokes portal access for Jellyfin users who have not watched anything recently.'
             : 'Revokes access for users who have not watched anything recently.';
     }
@@ -4719,7 +6951,9 @@ const decorateTaskForConfig = (task, config = {}) => {
 const getTasksSnapshot = (config = {}) => {
     const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
     const systemJobList = Object.values(systemJobs)
-        .filter(job => !(mediaServerType === 'jellyfin' && job.id === 'plexStats'));
+        .filter(job => !(mediaServerType !== 'plex' && job.id === 'plexStats'))
+        // Hide Upgrader Index entirely while the feature is off — idle, not failing.
+        .filter(job => !(job.id === 'upgraderIndex' && !config.upgraderEnabled));
     return [
         ...tasksInfo.map(task => decorateTaskForConfig(task, config)),
         ...systemJobList.map(job => ({ ...job }))
@@ -4838,8 +7072,11 @@ app.get('/api/admin/diagnostics', requireAdmin, async (req, res) => {
                 plexConfigured: !!(config.plexToken && config.serverIdentifier),
                 jellyfinConfigured: !!(config.jellyfinUrl && config.jellyfinApiKey),
                 smtpConfigured: !!(config.smtpHost && config.smtpUser && config.smtpPass),
+                gotifyConfigured: !!(config.gotifyEnabled && config.gotifyUrl && config.gotifyToken),
                 sonarrConfigured: getArrInstanceCounts(config).sonarr.ready > 0,
                 radarrConfigured: getArrInstanceCounts(config).radarr.ready > 0,
+                lidarrConfigured: getArrInstanceCounts(config).lidarr.ready > 0,
+                bazarrConfigured: getArrInstanceCounts(config).bazarr.ready > 0,
                 arrInstanceCounts: getArrInstanceCounts(config),
                 tautulliConfigured: !!(config.tautulliUrl && config.tautulliApiKey),
                 jellystatConfigured: !!(config.jellystatUrl && config.jellystatApiKey),
@@ -4896,6 +7133,51 @@ const BACKUP_TARGETS = [
     { key: 'maintenanceRequestIndex', path: MAINTENANCE_REQUEST_INDEX_PATH },
     { key: 'maintenancePreferences', path: MAINTENANCE_PREFS_PATH }
 ];
+
+const getBackupEncryptionKey = () => createHash('sha256').update(String(JWT_SECRET)).digest();
+
+const encryptBackupObject = (backup) => {
+    const iv = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', getBackupEncryptionKey(), iv);
+    const plaintext = Buffer.from(JSON.stringify(backup), 'utf8');
+    const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    return {
+        schemaVersion: BACKUP_SCHEMA_VERSION,
+        encrypted: true,
+        alg: 'aes-256-gcm',
+        createdAt: backup.createdAt || new Date().toISOString(),
+        createdBy: backup.createdBy || 'system',
+        reason: backup.reason || 'manual',
+        iv: iv.toString('base64'),
+        tag: tag.toString('base64'),
+        ciphertext: ciphertext.toString('base64'),
+    };
+};
+
+const decryptBackupObject = (payload) => {
+    if (!payload || typeof payload !== 'object') {
+        throw new Error('Invalid backup payload.');
+    }
+    // Reject legacy plaintext backups — secrets must only restore from AES-GCM sealed exports.
+    if (!payload.encrypted) {
+        throw new Error('Only encrypted backups can be restored. Create a new backup from this portal version.');
+    }
+    if (payload.alg !== 'aes-256-gcm' || !payload.iv || !payload.tag || !payload.ciphertext) {
+        throw new Error('Encrypted backup is missing required fields.');
+    }
+    const decipher = createDecipheriv(
+        'aes-256-gcm',
+        getBackupEncryptionKey(),
+        Buffer.from(String(payload.iv), 'base64'),
+    );
+    decipher.setAuthTag(Buffer.from(String(payload.tag), 'base64'));
+    const plain = Buffer.concat([
+        decipher.update(Buffer.from(String(payload.ciphertext), 'base64')),
+        decipher.final(),
+    ]);
+    return JSON.parse(plain.toString('utf8'));
+};
 
 const readBackupPayload = async () => {
     const payload = {};
@@ -4977,17 +7259,19 @@ const writeBackupToFolder = async (backup) => {
     await ensureBackupDir();
     const filename = getBackupFilename(backup);
     const filePath = path.join(BACKUP_DIR, filename);
-    await fs.writeFile(filePath, JSON.stringify(backup, null, 2), 'utf8');
+    const sealed = encryptBackupObject(backup);
+    await fs.writeFile(filePath, JSON.stringify(sealed, null, 2), 'utf8');
     return { filename, filePath };
 };
 
 app.get('/api/admin/backup', requireAdmin, async (req, res) => {
     try {
         const backup = await createBackupObject(req.user?.username || req.user?.email || 'admin', 'manual-download');
-        await appendAuditLog('backup_exported', req.user, null, { schemaVersion: BACKUP_SCHEMA_VERSION });
+        await appendAuditLog('backup_exported', req.user, null, { schemaVersion: BACKUP_SCHEMA_VERSION, encrypted: true });
+        const sealed = encryptBackupObject(backup);
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.setHeader('Content-Disposition', `attachment; filename=\"portal-backup-${Date.now()}.json\"`);
-        res.send(JSON.stringify(backup, null, 2));
+        res.send(JSON.stringify(sealed, null, 2));
     } catch (e) {
         res.status(500).json({ error: `Failed to create backup: ${e.message}` });
     }
@@ -5022,9 +7306,9 @@ app.post('/api/admin/backup/restore', requireAdmin, express.text({ type: '*/*', 
 
         let backup;
         try {
-            backup = JSON.parse(rawBody);
+            backup = decryptBackupObject(JSON.parse(rawBody));
         } catch (e) {
-            return res.status(400).json({ error: 'Backup payload is not valid JSON.' });
+            return res.status(400).json({ error: e.message || 'Backup payload is not valid JSON.' });
         }
 
         const confirmRestore = req.query.confirm === 'true' || req.headers['x-confirm-restore'] === 'true';
@@ -5053,7 +7337,7 @@ app.post('/api/admin/backups/restore-file', requireAdmin, async (req, res) => {
         }
         const filePath = path.join(BACKUP_DIR, filename);
         const raw = await fs.readFile(filePath, 'utf8');
-        const backup = JSON.parse(raw);
+        const backup = decryptBackupObject(JSON.parse(raw));
         await applyBackupPayload(backup);
         await appendAuditLog('backup_restored_file', req.user, null, {
             filename,
@@ -5366,12 +7650,12 @@ async function getAdminProfile(config) {
     }
 
     try {
-        const userRes = await fetch('https://plex.tv/api/v2/user', { headers: { 'X-Plex-Token': config.plexToken, 'Accept': 'application/json' } }).then(r => r.json());
+        const userRes = await fetch('https://plex.tv/api/v2/user', { headers: plexClientHeaders(config.plexToken) }).then(r => r.json());
 
         let serverName = 'Server Portal';
         const uri = await getPlexConnectionUri(config);
         if (uri) {
-            const serverRes = await fetch(`${uri}/?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+            const serverRes = await fetch(`${uri}/?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
             if (serverRes && serverRes.MediaContainer && serverRes.MediaContainer.friendlyName) {
                 serverName = serverRes.MediaContainer.friendlyName;
             }
@@ -5384,6 +7668,274 @@ async function getAdminProfile(config) {
         return { thumb: null, serverName: 'Server Portal' };
     }
 }
+
+/** Prefer custom logo, then Jellyfin branding, then Plex/admin thumb — same order as the in-app nav icon. */
+const getPortalBrandingIconCacheKey = (config = {}, profile = {}) => createHash('sha1')
+    .update([
+        String(config.pwaIconSource || 'server'),
+        String(config.customLogoUrl || ''),
+        String(config.mediaServerType || ''),
+        String(profile.thumb || ''),
+        String(profile.serverName || ''),
+    ].join('|'))
+    .digest('hex')
+    .slice(0, 12);
+
+const sendStaticLogoFallback = async (res) => {
+    const logoPath = path.join(process.cwd(), 'static', 'logo.png');
+    try {
+        await fs.access(logoPath);
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        return res.sendFile(logoPath);
+    } catch {
+        return res.status(404).send('');
+    }
+};
+
+const sendPwaSizedIconFile = async (res, size = 192) => {
+    const normalized = Number(size) >= 512 ? 512 : 192;
+    const iconPath = path.join(process.cwd(), 'static', `pwa-icon-${normalized}.png`);
+    try {
+        await fs.access(iconPath);
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        return res.sendFile(iconPath);
+    } catch {
+        return sendStaticLogoFallback(res);
+    }
+};
+
+/** Detect raster type from magic bytes — Firefox A2HS fails on ICO/SVG/HTML icon bodies. */
+const detectRasterImageType = (buffer) => {
+    if (!Buffer.isBuffer(buffer) || buffer.length < 12) return null;
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) return 'image/png';
+    if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'image/jpeg';
+    if (buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP') return 'image/webp';
+    if (buffer.toString('ascii', 0, 3) === 'GIF') return 'image/gif';
+    return null;
+};
+
+/** Cover-crop + circular mask — matches login/hero `rounded-full object-cover` treatment. */
+const sendCircularPwaIcon = async (res, buffer, size = 192) => {
+    try {
+        if (!detectRasterImageType(buffer)) {
+            return sendPwaSizedIconFile(res, size);
+        }
+        const png = makeCircularPwaIconPng(buffer, size);
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        return res.send(png);
+    } catch (e) {
+        log(`Circular PWA icon failed: ${e.message}`);
+        return sendPwaSizedIconFile(res, size);
+    }
+};
+
+const sendBrandingImageBuffer = async (res, buffer, contentTypeHint = '', pwaSize = 0) => {
+    if (pwaSize) {
+        return sendCircularPwaIcon(res, buffer, pwaSize);
+    }
+    const detected = detectRasterImageType(buffer);
+    if (!detected) {
+        return sendStaticLogoFallback(res);
+    }
+    const hint = String(contentTypeHint || '').split(';')[0].trim().toLowerCase();
+    const type = detected || (hint.startsWith('image/') && hint !== 'image/svg+xml' ? hint : 'image/png');
+    res.setHeader('Content-Type', type);
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    return res.send(buffer);
+};
+
+/**
+ * Dedicated PWA icon route — always returns a valid raster quickly.
+ * Firefox aborts Install if the first manifest icon fails/times out; never point the
+ * manifest at slow/unreliable branding URLs without this guarantee.
+ */
+app.get('/api/public/pwa-icon', publicReadRateLimit, async (req, res) => {
+    const size = Number(req.query.size) >= 512 ? 512 : 192;
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        if (normalizePwaIconSource(config.pwaIconSource) === 'application') {
+            return sendPwaSizedIconFile(res, size);
+        }
+
+        const profile = await getAdminProfile(config);
+        const custom = String(config.customLogoUrl || '').trim();
+        const iconTimeoutMs = 2500;
+
+        if (custom) {
+            if (custom.startsWith('http://') || custom.startsWith('https://')) {
+                try {
+                    const parsed = new URL(custom);
+                    if (!isBlockedHostName(parsed.hostname)) {
+                        const response = await fetchWithTimeout(custom, { redirect: 'follow' }, iconTimeoutMs).catch(() => null);
+                        if (response?.ok) {
+                            const buffer = Buffer.from(await response.arrayBuffer());
+                            if (buffer.length) {
+                                return sendBrandingImageBuffer(res, buffer, response.headers.get('content-type') || '', size);
+                            }
+                        }
+                    }
+                } catch {
+                    // fall through
+                }
+            } else {
+                const localPath = stripBasePathFromUrl(custom.startsWith('/') ? custom : `/${custom}`).split('?')[0];
+                if (localPath.startsWith('/static/')) {
+                    const fileName = path.basename(localPath);
+                    if (fileName && !fileName.includes('..')) {
+                        const assetPath = path.join(process.cwd(), 'static', fileName);
+                        try {
+                            const buffer = await fs.readFile(assetPath);
+                            return sendBrandingImageBuffer(res, buffer, '', size);
+                        } catch {
+                            // fall through
+                        }
+                    }
+                }
+            }
+        }
+
+        if (String(config.mediaServerType || '').toLowerCase() === 'jellyfin' && isJellyfinConfigured(config)) {
+            try {
+                const baseUrl = resolveIntegrationUrlForFetch(config.jellyfinUrl);
+                for (const assetPath of ['/web/icon-transparent.png', '/web/assets/img/icon-transparent.png']) {
+                    const response = await fetchWithTimeout(`${baseUrl}${assetPath}`, {
+                        headers: jellyfinHeaders(config.jellyfinApiKey, { Accept: 'image/*,*/*;q=0.8' }),
+                    }, iconTimeoutMs).catch(() => null);
+                    if (!response?.ok) continue;
+                    const buffer = Buffer.from(await response.arrayBuffer());
+                    if (buffer.length) {
+                        return sendCircularPwaIcon(res, buffer, size);
+                    }
+                }
+            } catch {
+                // fall through
+            }
+        }
+
+        const thumb = String(profile.thumb || '').trim();
+        if (thumb.startsWith('http://') || thumb.startsWith('https://')) {
+            try {
+                const parsed = new URL(thumb);
+                if (!isBlockedHostName(parsed.hostname)) {
+                    const response = await fetchWithTimeout(thumb, { redirect: 'follow' }, iconTimeoutMs).catch(() => null);
+                    if (response?.ok) {
+                        const buffer = Buffer.from(await response.arrayBuffer());
+                        if (buffer.length) {
+                            return sendBrandingImageBuffer(res, buffer, response.headers.get('content-type') || '', size);
+                        }
+                    }
+                }
+            } catch {
+                // fall through
+            }
+        } else if (thumb && isSafePlexMediaPath(thumb) && config.plexToken) {
+            const uri = await getPlexConnectionUri(config);
+            if (uri) {
+                const url = `${uri}/photo/:/transcode?url=${encodeURIComponent(thumb)}&width=${size}&height=${size}&minSize=1&X-Plex-Token=${config.plexToken}`;
+                const response = await fetchWithTimeout(url, { headers: plexClientHeaders(config.plexToken) }, iconTimeoutMs).catch(() => null);
+                if (response?.ok) {
+                    const buffer = Buffer.from(await response.arrayBuffer());
+                    if (buffer.length) {
+                        return sendBrandingImageBuffer(res, buffer, response.headers.get('content-type') || 'image/jpeg', size);
+                    }
+                }
+            }
+        }
+
+        return sendPwaSizedIconFile(res, size);
+    } catch (e) {
+        log(`PWA icon failed: ${e.message}`);
+        return sendPwaSizedIconFile(res, size);
+    }
+});
+
+app.get('/api/public/branding-icon', publicReadRateLimit, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        if (normalizePwaIconSource(config.pwaIconSource) === 'application') {
+            return sendStaticLogoFallback(res);
+        }
+        const profile = await getAdminProfile(config);
+        const custom = String(config.customLogoUrl || '').trim();
+
+        if (custom) {
+            if (custom.startsWith('http://') || custom.startsWith('https://')) {
+                try {
+                    const parsed = new URL(custom);
+                    if (!isBlockedHostName(parsed.hostname)) {
+                        const response = await fetchWithTimeout(custom, { redirect: 'follow' }, 15000).catch(() => null);
+                        if (response?.ok) {
+                            const buffer = Buffer.from(await response.arrayBuffer());
+                            if (buffer.length) {
+                                return sendBrandingImageBuffer(res, buffer, response.headers.get('content-type') || '');
+                            }
+                        }
+                    }
+                } catch {
+                    // fall through to other sources
+                }
+            } else {
+                const localPath = stripBasePathFromUrl(custom.startsWith('/') ? custom : `/${custom}`).split('?')[0];
+                if (localPath.startsWith('/static/')) {
+                    const fileName = path.basename(localPath);
+                    if (!fileName || fileName.includes('..')) return sendStaticLogoFallback(res);
+                    const assetPath = path.join(process.cwd(), 'static', fileName);
+                    try {
+                        await fs.access(assetPath);
+                        const buffer = await fs.readFile(assetPath);
+                        return sendBrandingImageBuffer(res, buffer);
+                    } catch {
+                        return sendStaticLogoFallback(res);
+                    }
+                }
+            }
+        }
+
+        if (String(config.mediaServerType || '').toLowerCase() === 'jellyfin' && isJellyfinConfigured(config)) {
+            return proxyJellyfinBrandingAsset(res, ['/web/icon-transparent.png', '/web/assets/img/icon-transparent.png'], 'image/png');
+        }
+
+        const thumb = String(profile.thumb || '').trim();
+        if (thumb.startsWith('http://') || thumb.startsWith('https://')) {
+            try {
+                const parsed = new URL(thumb);
+                if (!isBlockedHostName(parsed.hostname)) {
+                    const response = await fetchWithTimeout(thumb, { redirect: 'follow' }, 15000).catch(() => null);
+                    if (response?.ok) {
+                        const buffer = Buffer.from(await response.arrayBuffer());
+                        if (buffer.length) {
+                            return sendBrandingImageBuffer(res, buffer, response.headers.get('content-type') || '');
+                        }
+                    }
+                }
+            } catch {
+                // fall through
+            }
+        } else if (thumb && isSafePlexMediaPath(thumb) && config.plexToken) {
+            const uri = await getPlexConnectionUri(config);
+            if (uri) {
+                const width = Math.min(Math.max(parseInt(req.query.width, 10) || 180, 32), 1024);
+                const height = Math.min(Math.max(parseInt(req.query.height, 10) || 180, 32), 1024);
+                const url = `${uri}/photo/:/transcode?url=${encodeURIComponent(thumb)}&width=${width}&height=${height}&minSize=1&X-Plex-Token=${config.plexToken}`;
+                const response = await fetchWithTimeout(url, { headers: plexClientHeaders(config.plexToken) }, 15000).catch(() => null);
+                if (response?.ok) {
+                    const buffer = Buffer.from(await response.arrayBuffer());
+                    if (buffer.length) {
+                        return sendBrandingImageBuffer(res, buffer, response.headers.get('content-type') || 'image/jpeg');
+                    }
+                }
+            }
+        }
+
+        return sendStaticLogoFallback(res);
+    } catch (e) {
+        log(`Branding icon failed: ${e.message}`);
+        return sendStaticLogoFallback(res);
+    }
+});
 
 app.get('/api/public/info', publicReadRateLimit, async (req, res) => {
     try {
@@ -5455,16 +8007,53 @@ app.get('/api/status', publicReadRateLimit, async (req, res) => {
         name: service.name,
         groupId: service.groupId,
         type: service.type || 'web',
+        clientType: service.clientType || null,
         description: service.description || ''
     }));
     const groups = (statusConfig.groups || []).map(group => ({ id: group.id, name: group.name, order: group.order }));
+
+    // Downsample recentChecks for the public payload (keep full resolution on disk).
+    const slimHealth = {};
+    for (const [key, record] of Object.entries(healthData || {})) {
+        if (key === '_meta') {
+            slimHealth[key] = record;
+            continue;
+        }
+        if (!record || typeof record !== 'object') continue;
+        const recent = Array.isArray(record.recentChecks) ? record.recentChecks : [];
+        const bucketMs = 5 * 60 * 1000;
+        const buckets = new Map();
+        for (const sample of recent) {
+            if (!sample || !sample.t) continue;
+            const slot = Math.floor(sample.t / bucketMs) * bucketMs;
+            if (!buckets.has(slot)) buckets.set(slot, []);
+            buckets.get(slot).push(sample);
+        }
+        const downsampled = [];
+        for (const [slot, samples] of [...buckets.entries()].sort((a, b) => a[0] - b[0])) {
+            const online = samples.filter((s) => s.status === 'online');
+            const latencies = online.map((s) => Number(s.latency)).filter((n) => Number.isFinite(n) && n > 0);
+            downsampled.push({
+                t: slot,
+                status: online.length >= samples.length / 2 ? 'online' : (samples[samples.length - 1]?.status || 'offline'),
+                latency: latencies.length ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) : 0,
+                _n: samples.length,
+                _up: online.length,
+            });
+        }
+        slimHealth[key] = {
+            ...record,
+            recentChecks: downsampled,
+        };
+    }
+
     res.json({
         config: {
             services: publicServices,
             groups,
             announcement: statusConfig.announcement || null
         },
-        healthData
+        healthData: slimHealth
     });
 });
 app.get('/api/status/config', requireAuth, requireAdmin, (req, res) => res.json(statusConfig));
@@ -5492,6 +8081,8 @@ app.post('/api/status/config', requireAuth, requireAdmin, async (req, res) => {
                 url: normalizedUrl,
                 port: Number.isFinite(Number(service.port)) ? Number(service.port) : undefined,
                 type: String(service.type || 'web'),
+                clientType: service.clientType ? String(service.clientType) : undefined,
+                clientId: service.clientId ? String(service.clientId) : undefined,
                 groupId: String(service.groupId || 'core'),
                 description: String(service.description || '')
             });
@@ -5516,29 +8107,82 @@ app.post('/api/status/reset', requireAuth, requireAdmin, async (req, res) => {
 
 // --- Plex Dashboard & Image Proxy ---
 
+app.get('/api/plex/item/:ratingKey', requireAuth, requireMember, async (req, res) => {
+    try {
+        const ratingKey = String(req.params.ratingKey || '').trim();
+        if (!ratingKey) return res.status(400).json({ error: 'ratingKey required' });
+        const config = await loadFile(CONFIG_PATH, null);
+        if (!config || !config.plexToken || !config.serverIdentifier) return res.status(503).json({ error: 'Plex not configured' });
+        const uri = await getPlexConnectionUri(config);
+        if (!uri) return res.status(503).json({ error: 'Cannot connect to Plex' });
+
+        const metaRes = await fetch(`${uri}/library/metadata/${encodeURIComponent(ratingKey)}?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
+        
+        if (!metaRes || !metaRes.MediaContainer || !metaRes.MediaContainer.Metadata || !metaRes.MediaContainer.Metadata[0]) {
+            return res.status(404).json({ error: 'Item not found' });
+        }
+        
+        const item = metaRes.MediaContainer.Metadata[0];
+        res.json({
+            title: item.title,
+            originalTitle: item.originalTitle,
+            summary: item.summary,
+            duration: item.duration,
+            viewOffset: item.viewOffset,
+            viewCount: item.viewCount,
+            year: item.year,
+            type: item.type,
+            art: item.art,
+            thumb: item.thumb,
+            grandparentTitle: item.grandparentTitle,
+            parentTitle: item.parentTitle
+        });
+    } catch (e) {
+        log(`Error fetching Plex item: ${e.message}`);
+        res.status(500).json({ error: 'Failed to fetch item' });
+    }
+});
+
+
 app.get('/api/plex/libraries', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, null);
         if (!config || !config.plexToken || !config.serverIdentifier) {
             return res.status(503).json({ error: 'Plex not configured' });
         }
-        const uri = await getPlexConnectionUri(config);
-        if (!uri) return res.status(503).json({ error: 'Cannot connect to Plex' });
-
-        const sectionsRes = await fetchWithTimeout(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }, 15000).then(r => r.json()).catch(() => null);
-
-        let libraries = [];
-        if (sectionsRes && sectionsRes.MediaContainer && sectionsRes.MediaContainer.Directory) {
-            libraries = sectionsRes.MediaContainer.Directory.map(s => ({
-                id: s.key,
-                title: s.title,
-                type: s.type
-            }));
-        }
+        const libraries = await listPlexLibrariesForConfig(config);
         res.json(libraries);
     } catch (e) {
         log(`Error fetching Plex libraries: ${e.message}`);
-        res.status(500).json({ error: 'Failed to fetch libraries' });
+        res.status(500).json({ error: e.message || 'Failed to fetch libraries' });
+    }
+});
+
+/** Setup / admin: list Plex libraries using saved config and/or credentials from the body. */
+app.post('/api/plex/libraries', setupRateLimit, async (req, res) => {
+    if (!req.body || typeof req.body !== 'object') req.body = {};
+    if (!req.body.type) req.body.type = 'plex';
+    if (!(await assertIntegrationTestAccess(req, res))) return;
+
+    try {
+        const stored = await loadFile(CONFIG_PATH, {});
+        const plexToken = resolveTestCredential(req.body.token, stored.plexToken);
+        const serverId = resolveTestCredential(req.body.serverIdentifier, stored.serverIdentifier);
+        const directUrl = resolveTestCredential(req.body.plexServerUrl, stored.plexServerUrl);
+        if (!plexToken || !serverId) {
+            return res.status(400).json({ error: 'Plex token and server identifier are required.' });
+        }
+        const testConfig = {
+            ...stored,
+            plexToken,
+            serverIdentifier: serverId,
+            ...(directUrl ? { plexServerUrl: directUrl } : {}),
+        };
+        const libraries = await listPlexLibrariesForConfig(testConfig);
+        res.json(libraries);
+    } catch (e) {
+        log(`Error fetching Plex libraries (setup): ${e.message}`);
+        res.status(500).json({ error: e.message || 'Failed to fetch libraries' });
     }
 });
 
@@ -5601,7 +8245,7 @@ const fetchPlexMetadataMap = async (uri, config, ratingKeys = []) => {
     for (let i = 0; i < unique.length; i += chunkSize) {
         const chunk = unique.slice(i, i + chunkSize);
         const res = await fetch(`${uri}/library/metadata/${chunk.join(',')}?X-Plex-Token=${config.plexToken}`, {
-            headers: { Accept: 'application/json' }
+            headers: plexClientHeaders(config.plexToken)
         }).then((r) => r.json()).catch(() => null);
         const metas = res?.MediaContainer?.Metadata || [];
         for (const meta of metas) {
@@ -5650,8 +8294,8 @@ app.get('/api/plex/dashboard', requireAuth, requireMember, async (req, res) => {
 
         const cacheKey = `plex_dashboard_data_${limit}`;
         const cachedData = await withCache(cacheKey, 800, async () => {
-            const sessionsPromise = fetch(`${uri}/status/sessions?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
-            const sectionsPromise = fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+            const sessionsPromise = fetch(`${uri}/status/sessions?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
+            const sectionsPromise = fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
             const [sessionsData, sectionsData] = await Promise.all([sessionsPromise, sectionsPromise]);
             return { sessionsData, sectionsData };
         });
@@ -5682,7 +8326,7 @@ app.get('/api/plex/dashboard', requireAuth, requireMember, async (req, res) => {
                     userThumb: isHidden ? null : (m.User ? m.User.thumb : null),
                     playerProduct: player.product || 'Unknown Device',
                     playerTitle: player.title || 'Unknown Player',
-                    playerAddress: player.address || 'Unknown IP',
+                    playerAddress: req.user.isAdmin ? (player.address || 'Unknown IP') : null,
                     sessionLocation: session.location || 'Unknown',
                     state: player.state || 'playing',
                     isTranscoding: !!isTranscoding,
@@ -5699,8 +8343,14 @@ app.get('/api/plex/dashboard', requireAuth, requireMember, async (req, res) => {
                     progress: progress,
                     timeRemaining: Math.max(0, duration - viewOffset),
                     bandwidth: normalizePlexBandwidthKbps((session && session.bandwidth) || (m.Media && m.Media[0] && m.Media[0].bitrate) || 0),
-                    plexUrl: plexUrl
+                    plexUrl: plexUrl,
+                    geo: null,
                 };
+            });
+            await enrichSessionsWithGeo(config, activeSessions, {
+                isAdmin: !!req.user.isAdmin,
+                fetchImpl: fetchWithTimeout,
+                resolveUrl: resolveIntegrationUrlForFetch,
             });
         }
 
@@ -5711,7 +8361,7 @@ app.get('/api/plex/dashboard', requireAuth, requireMember, async (req, res) => {
         if (sectionsData && sectionsData.MediaContainer && sectionsData.MediaContainer.Directory) {
             const sections = sectionsData.MediaContainer.Directory;
             const sectionPromises = sections.map(section =>
-                fetch(`${uri}/library/sections/${section.key}/recentlyAdded?X-Plex-Token=${config.plexToken}&X-Plex-Container-Start=0&X-Plex-Container-Size=${limit}`, { headers: { 'Accept': 'application/json' } })
+                fetch(`${uri}/library/sections/${section.key}/recentlyAdded?X-Plex-Token=${config.plexToken}&X-Plex-Container-Start=0&X-Plex-Container-Size=${limit}`, { headers: plexClientHeaders(config.plexToken) })
                     .then(r => r.json())
                     .then(data => ({ sectionType: section.type, data }))
                     .catch(() => ({ sectionType: section.type, data: null }))
@@ -5790,7 +8440,7 @@ app.get('/api/plex/discover-search', requireAuth, requireAdmin, async (req, res)
         if (!query) return res.json({ results: [] });
 
         // Search Plex Hubs
-        const searchRes = await fetch(`${uri}/hubs/search?query=${encodeURIComponent(query)}&limit=20&X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json());
+        const searchRes = await fetch(`${uri}/hubs/search?query=${encodeURIComponent(query)}&limit=20&X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json());
         
         let searchResults = [];
         if (searchRes && searchRes.MediaContainer && searchRes.MediaContainer.Hub) {
@@ -5840,7 +8490,7 @@ app.get('/api/plex/discover-search', requireAuth, requireAdmin, async (req, res)
                 } else {
                     const filterKey = item.type === 'show' ? 'grandparentID' : 'metadataItemID';
                     const fetchUrl = `${uri}/status/sessions/history/all?sort=viewedAt%3Adesc&${filterKey}=${item.ratingKey}&X-Plex-Token=${config.plexToken}`;
-                    const resData = await fetch(fetchUrl, { headers: { 'Accept': 'application/json' } }).then(r => r.json());
+                    const resData = await fetch(fetchUrl, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json());
                     if (resData && resData.MediaContainer && resData.MediaContainer.Metadata) {
                         item.history = resData.MediaContainer.Metadata.map(h => ({
                             user: (h.User && h.User.title) ? h.User.title : 'Unknown User',
@@ -5872,7 +8522,8 @@ const jellyfinItemUrl = (config, itemId) => {
 
 const mapJellyfinItemForDiscover = (config, item = {}, type = '') => {
     const id = item.Id || '';
-    const posterId = type === 'episode' && item.SeriesId ? item.SeriesId : id;
+    const isEpisode = String(type || item.Type || '').toLowerCase() === 'episode';
+    const posterId = isEpisode ? (item.SeriesId || item.ParentId || id) : id;
     const title = type === 'episode'
         ? (item.SeriesName ? `${item.SeriesName} - ${item.Name}` : item.Name)
         : (item.Name || 'Untitled');
@@ -5894,6 +8545,7 @@ const mapJellyfinItemForDiscover = (config, item = {}, type = '') => {
         year: item.ProductionYear,
         thumb: posterId,
         thumbUrl: posterId ? withBasePath(`/api/jellyfin/image?itemId=${encodeURIComponent(posterId)}&width=300&height=${type === 'music' ? 300 : 450}`) : '',
+        posterFallbackUrl: isEpisode && id && id !== posterId ? withBasePath(`/api/jellyfin/image?itemId=${encodeURIComponent(id)}&width=300&height=450`) : '',
         addedAt: item.DateCreated ? Date.parse(item.DateCreated) / 1000 : 0,
         tags: [...new Set(tags)].slice(0, 4),
         plexUrl: jellyfinItemUrl(config, id),
@@ -5908,7 +8560,7 @@ const fetchJellyfinItems = async (config, includeItemTypes, limit) => {
         SortBy: 'DateCreated',
         SortOrder: 'Descending',
         Limit: String(limit),
-        Fields: 'DateCreated,PrimaryImageAspectRatio,ProductionYear,SeriesName,Album,MediaSources,MediaStreams',
+        Fields: 'DateCreated,PrimaryImageAspectRatio,ProductionYear,SeriesName,Album,ParentId,SeriesId,AlbumId,ImageTags,BackdropImageTags,ParentThumbItemId,PrimaryImageItemId,MediaSources,MediaStreams',
         ImageTypeLimit: '1',
         EnableImageTypes: 'Primary,Thumb,Backdrop',
     });
@@ -6043,13 +8695,16 @@ app.get('/api/jellyfin/dashboard', requireAuth, requireMember, async (req, res) 
                     type: item.Type,
                     grandparentTitle: item.SeriesName || item.Album || null,
                     year: item.ProductionYear,
-                    thumb: item.Id,
-                    thumbUrl: item.Id ? withBasePath(`/api/jellyfin/image?itemId=${encodeURIComponent(item.Id)}&width=300&height=450`) : '',
+                    thumb: item.Type === 'Episode' ? (item.SeriesId || item.ParentId || item.Id) : item.Id,
+                    thumbUrl: (item.Type === 'Episode' ? (item.SeriesId || item.ParentId || item.Id) : item.Id)
+                        ? withBasePath(`/api/jellyfin/image?itemId=${encodeURIComponent(item.Type === 'Episode' ? (item.SeriesId || item.ParentId || item.Id) : item.Id)}&width=300&height=450`)
+                        : '',
+                    posterFallbackUrl: item.Type === 'Episode' && item.Id ? withBasePath(`/api/jellyfin/image?itemId=${encodeURIComponent(item.Id)}&width=300&height=450`) : '',
                     user: (isHidden && hideConfig === 'hidden') ? null : (isHidden ? 'Anonymous' : (session.UserName || 'Unknown User')),
                     userThumb: (!isHidden && session.UserId) ? withBasePath(`/api/jellyfin/user-image?userId=${encodeURIComponent(session.UserId)}`) : null,
                     playerProduct: session.Client || 'Jellyfin',
                     playerTitle: session.DeviceName || session.Client || 'Jellyfin Player',
-                    playerAddress: session.RemoteEndPoint || 'Unknown IP',
+                    playerAddress: req.user.isAdmin ? (session.RemoteEndPoint || 'Unknown IP') : null,
                     sessionLocation: 'remote',
                     state: playState.IsPaused ? 'paused' : 'playing',
                     isTranscoding: !!session.TranscodingInfo,
@@ -6060,8 +8715,15 @@ app.get('/api/jellyfin/dashboard', requireAuth, requireMember, async (req, res) 
                     timeRemaining: Math.max(0, runtime - position),
                     bandwidth: Math.round(reportedBitrate / 1000),
                     plexUrl: jellyfinItemUrl(config, item.Id),
+                    geo: null,
                 };
             });
+
+        await enrichSessionsWithGeo(config, activeSessions, {
+            isAdmin: !!req.user.isAdmin,
+            fetchImpl: fetchWithTimeout,
+            resolveUrl: resolveIntegrationUrlForFetch,
+        });
 
         res.json({
             activeSessions,
@@ -6075,6 +8737,51 @@ app.get('/api/jellyfin/dashboard', requireAuth, requireMember, async (req, res) 
     }
 });
 
+app.get('/api/streams/watching-count', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const mediaServerType = config.mediaServerType || 'plex';
+
+        if (isEmbyLikeMediaServer(config)) {
+            if (!isJellyfinConfigured(config)) {
+                return res.json({ count: 0, available: false });
+            }
+            const count = await withCache(`${mediaServerType}_watching_count`, 8000, async () => {
+                const baseUrl = resolveIntegrationUrlForFetch(config.jellyfinUrl);
+                const sessions = await fetchWithTimeout(`${baseUrl}/Sessions`, { headers: jellyfinHeaders(config.jellyfinApiKey) }, 15000)
+                    .then((r) => (r.ok ? r.json() : []))
+                    .catch(() => []);
+                const activeSessions = (Array.isArray(sessions) ? sessions : [])
+                    .filter((session) => session?.NowPlayingItem);
+                return activeSessions.length;
+            });
+            return res.json({ count, available: true });
+        }
+
+        if (!config.plexToken || !config.serverIdentifier) {
+            return res.json({ count: 0, available: false });
+        }
+
+        const uri = await getPlexConnectionUri(config);
+        if (!uri) return res.json({ count: 0, available: false });
+
+        const count = await withCache('plex_watching_count', 8000, async () => {
+            const sessionsData = await fetch(`${uri}/status/sessions?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) })
+                .then((r) => r.json())
+                .catch(() => null);
+            const activeSessions = Array.isArray(sessionsData?.MediaContainer?.Metadata)
+                ? sessionsData.MediaContainer.Metadata
+                : [];
+            return activeSessions.length;
+        });
+
+        res.json({ count, available: true });
+    } catch (e) {
+        log(`Watching count error: ${e.message}`);
+        res.json({ count: 0, available: false, error: e.message });
+    }
+});
+
 app.post('/api/streams/kill', requireAdmin, async (req, res) => {
     const { sessionId, reason } = req.body;
     try {
@@ -6084,7 +8791,7 @@ app.post('/api/streams/kill', requireAdmin, async (req, res) => {
 
         const response = await fetch(`${uri}/status/sessions/terminate?sessionId=${encodeURIComponent(sessionId)}&reason=${encodeURIComponent(reason || 'Admin terminated session')}&X-Plex-Token=${config.plexToken}`, {
             method: 'GET',
-            headers: { 'Accept': 'application/json' }
+            headers: plexClientHeaders(config.plexToken)
         });
 
         if (response.ok) {
@@ -6560,6 +9267,30 @@ const sumJellystatRowCounts = (row = {}) => Object.entries(row)
     .filter(([key]) => key !== 'Key')
     .reduce((sum, [, value]) => sum + toNumber(value?.count, 0), 0);
 
+const normalizeJellystatDateKey = (value) => {
+    if (!value) return null;
+    const raw = String(value);
+    const direct = raw.match(/\d{4}-\d{2}-\d{2}/)?.[0];
+    if (direct) return direct;
+    const date = new Date(`${raw} 00:00:00`);
+    if (Number.isNaN(date.getTime())) return null;
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const buildJellystatHeatmap = (rows = []) => {
+    const heatmap = {};
+    (Array.isArray(rows) ? rows : rows?.stats || []).forEach((row) => {
+        const date = normalizeJellystatDateKey(row?.Key || row?.Date || row?.date || row?.day || row?.Day);
+        if (!date) return;
+        const count = toNumber(row?.Count ?? row?.count ?? row?.Plays ?? row?.plays, sumJellystatRowCounts(row));
+        if (count > 0) heatmap[date] = (heatmap[date] || 0) + count;
+    });
+    return heatmap;
+};
+
 const buildJellystatLibraryHealth = (topLibraries = [], overview = [], metadata = [], libraryTypeTotals = {}) => {
     const metadataById = new Map((Array.isArray(metadata) ? metadata : []).map((item) => [String(item.Id), item]));
     const libraries = Array.isArray(overview) ? overview : [];
@@ -6682,10 +9413,23 @@ const aggregateAnalyticsWindow = (historyItems, { afterTs = 0, beforeTs = null }
                     type: item.type === 'episode' ? 'show' : item.type === 'track' ? 'track' : item.type,
                     thumb: contentThumb,
                     plays: 0,
+                    viewers: {},
                     plexUrl: `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent('/library/metadata/' + contentKey.split('/').pop())}`
                 };
             }
             targetDict[contentKey].plays++;
+            
+            if (item.accountID && userCounts[item.accountID]) {
+                const u = userCounts[item.accountID];
+                if (!targetDict[contentKey].viewers[item.accountID]) {
+                    targetDict[contentKey].viewers[item.accountID] = {
+                        username: u.username,
+                        thumb: u.thumb,
+                        plays: 0
+                    };
+                }
+                targetDict[contentKey].viewers[item.accountID].plays++;
+            }
         }
     });
 
@@ -6762,6 +9506,56 @@ const summarizeLibraryHealth = (topLibraries = [], stats = {}, cachedData = {}) 
 
 const getUniqueActiveViewers = (users = []) => (users || []).filter(u => toNumber(u.plays, 0) > 0).length;
 
+const buildDayOfWeekCountsFromHeatmap = (heatmapData = {}) => {
+    const counts = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+    Object.entries(heatmapData || {}).forEach(([dateKey, count]) => {
+        const date = new Date(`${dateKey}T00:00:00`);
+        if (Number.isNaN(date.getTime())) return;
+        counts[date.getDay()] += toNumber(count, 0);
+    });
+    return counts;
+};
+
+const buildJellyfinLeaderboardContext = (topUsers = [], sessionUser = {}, shouldObfuscate = false) => {
+    const normalizedJellyfinId = normalized(sessionUser?.jellyfinId);
+    const normalizedSessionId = normalized(String(sessionUser?.id || '').replace(/^jellyfin:/i, ''));
+    const normalizedUsername = normalized(sessionUser?.username);
+    const sortedUsers = (Array.isArray(topUsers) ? topUsers : [])
+        .filter((user) => toNumber(user?.plays, 0) > 0)
+        .sort((a, b) => toNumber(b.plays, 0) - toNumber(a.plays, 0));
+    const userIndex = sortedUsers.findIndex((user) => {
+        const candidateId = normalized(String(user?.id || '').replace(/^jellyfin:/i, ''));
+        const candidateName = normalized(user?.username);
+        return (normalizedJellyfinId && candidateId === normalizedJellyfinId)
+            || (normalizedSessionId && candidateId === normalizedSessionId)
+            || (normalizedUsername && candidateName === normalizedUsername);
+    });
+
+    const leaderboardRank = userIndex >= 0 ? userIndex + 1 : null;
+    const userEntry = leaderboardRank ? sortedUsers[userIndex] : null;
+    const start = leaderboardRank ? Math.max(0, userIndex - 2) : 0;
+    const end = leaderboardRank ? Math.min(sortedUsers.length - 1, userIndex + 2) : -1;
+    const leaderboardNeighbourhood = leaderboardRank
+        ? sortedUsers.slice(start, end + 1).map((user, index) => {
+            const rank = start + index + 1;
+            const isMe = rank === leaderboardRank;
+            return {
+                rank,
+                plays: toNumber(user.plays, 0),
+                isMe,
+                username: shouldObfuscate && !isMe ? `Viewer ${rank}` : (isMe ? 'You' : (user.username || `User ${rank}`)),
+            };
+        })
+        : [];
+
+    return {
+        leaderboardRank,
+        totalActiveUsers: sortedUsers.length,
+        myPlaysOnLeaderboard: userEntry ? toNumber(userEntry.plays, 0) : null,
+        leaderboardNeighbourhood,
+    };
+};
+
 app.get('/api/jellystat/analytics', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
@@ -6787,6 +9581,7 @@ app.get('/api/jellystat/analytics', requireAuth, requireMember, async (req, res)
             mostViewedShows,
             mostViewedMusic,
             playbackMethods,
+            dailyViews,
         ] = await Promise.all([
             fetchJellystatJson(config, '/stats/getViewsByLibraryType', { query: { days } }).catch((e) => { log(e.message); return {}; }),
             fetchJellystatJson(config, '/stats/getViewsByHour', { query: { days } }).catch((e) => { log(e.message); return {}; }),
@@ -6799,6 +9594,7 @@ app.get('/api/jellystat/analytics', requireAuth, requireMember, async (req, res)
             fetchJellystatJson(config, '/stats/getMostViewedByType', { method: 'POST', body: { ...postBody, type: 'Series' } }).catch((e) => { log(e.message); return []; }),
             fetchJellystatJson(config, '/stats/getMostViewedByType', { method: 'POST', body: { ...postBody, type: 'Audio' } }).catch((e) => { log(e.message); return []; }),
             fetchJellystatJson(config, '/stats/getPlaybackMethodStats', { method: 'POST', body: postBody }).catch((e) => { log(e.message); return []; }),
+            fetchJellystatJson(config, '/stats/getViewsOverTime', { query: { days: Math.min(days, 365) } }).catch((e) => { log(e.message); return []; }),
         ]);
 
         const peakHours = new Array(24).fill(0);
@@ -6810,12 +9606,14 @@ app.get('/api/jellystat/analytics', requireAuth, requireMember, async (req, res)
         }
 
         const shouldObfuscateUsernames = shouldObfuscateAnalyticsViewers(req.user, config);
-        const topUsers = (Array.isArray(mostActiveUsers) ? mostActiveUsers : []).map((user, index) => obfuscateAnalyticsTopUser({
+        const rawTopUsers = (Array.isArray(mostActiveUsers) ? mostActiveUsers : []).map((user, index) => ({
             id: user.UserId || user.Id || user.Name || `user-${index}`,
             username: user.Name || user.UserName || `User ${index + 1}`,
             thumb: user.UserId ? withBasePath(`/api/jellyfin/user-image?userId=${encodeURIComponent(user.UserId)}`) : null,
             plays: toNumber(user.Plays ?? user.TotalPlays, 0),
-        }, index, shouldObfuscateUsernames));
+        })).sort((a, b) => b.plays - a.plays);
+        const topUsers = rawTopUsers.map((user, index) => obfuscateAnalyticsTopUser(user, index, shouldObfuscateUsernames));
+        const leaderboardContext = buildJellyfinLeaderboardContext(rawTopUsers, req.user, shouldObfuscateUsernames);
 
         const topLibraries = (Array.isArray(mostViewedLibraries) ? mostViewedLibraries : []).map((library, index) => ({
             id: library.Id || library.Name || `library-${index}`,
@@ -6832,9 +9630,23 @@ app.get('/api/jellystat/analytics', requireAuth, requireMember, async (req, res)
         (Array.isArray(playbackMethods) ? playbackMethods : []).forEach((method) => {
             playbackCounts[String(method.Name || '').toLowerCase()] = Math.max(playbackCounts[String(method.Name || '').toLowerCase()] || 0, toNumber(method.Count, 0));
         });
+        const activeStreams = await (async () => {
+            try {
+                const baseUrl = resolveIntegrationUrlForFetch(config.jellyfinUrl);
+                const sessions = await fetchWithTimeout(`${baseUrl}/Sessions`, { headers: jellyfinHeaders(config.jellyfinApiKey) }, 10000)
+                    .then((r) => (r.ok ? r.json() : []))
+                    .catch(() => []);
+                return (Array.isArray(sessions) ? sessions : []).filter((session) => session?.NowPlayingItem).length;
+            } catch {
+                return 0;
+            }
+        })();
 
-        const totalPlaybacks = sumLibraryPlays(topLibraries) || Object.values(libraryTypeTotals || {}).reduce((sum, value) => sum + toNumber(value, 0), 0);
+        const libraryTypePlayTotal = Object.values(libraryTypeTotals || {}).reduce((sum, value) => sum + toNumber(value, 0), 0);
+        const contentTypePlayTotal = ['Series', 'Movie', 'Audio'].reduce((sum, key) => sum + toNumber(libraryTypeTotals?.[key], 0), 0);
+        const totalPlaybacks = libraryTypePlayTotal || contentTypePlayTotal || sumLibraryPlays(topLibraries);
         const libraryHealth = buildJellystatLibraryHealth(topLibraries, libraryOverview, libraryMetadata, libraryTypeTotals);
+        const heatmapData = buildJellystatHeatmap(dailyViews);
 
         res.json({
             topUsers,
@@ -6850,15 +9662,20 @@ app.get('/api/jellystat/analytics', requireAuth, requireMember, async (req, res)
             maxTranscodes: toNumber(playbackCounts.transcode, 0),
             compare: null,
             libraryHealth,
+            heatmapData,
+            dayOfWeekCounts: buildDayOfWeekCountsFromHeatmap(heatmapData),
+            ...leaderboardContext,
             requestedPeriodDays: requestedDays,
             cachePeriodDays: requestedDays,
             cacheFallback: false,
             source: 'jellystat',
             jellystatInsights: {
-                streamsRecord: 0,
+                activeStreams,
+                streamsRecord: null,
                 transcodeRecord: toNumber(playbackCounts.transcode, 0),
                 directPlayRecord: toNumber(playbackCounts.directplay, 0),
                 directStreamRecord: toNumber(playbackCounts.directstream, 0),
+                playbackMethodStatsAreTotals: true,
                 totalPlays: totalPlaybacks,
                 tvPlays: toNumber(libraryTypeTotals.Series, 0),
                 moviePlays: toNumber(libraryTypeTotals.Movie, 0),
@@ -6872,6 +9689,17 @@ app.get('/api/jellystat/analytics', requireAuth, requireMember, async (req, res)
     }
 });
 
+/** Normalize Plex history keys so `/library/metadata/123` and `123` count as the same title. */
+const normalizePlexHistoryContentKey = (rawKey) => {
+    if (rawKey == null || rawKey === '') return null;
+    const value = String(rawKey).trim();
+    if (!value) return null;
+    if (value.startsWith('/library/metadata/')) return value;
+    const tail = value.includes('/') ? value.split('/').pop() : value;
+    if (tail && /^\d+$/.test(tail)) return `/library/metadata/${tail}`;
+    return value;
+};
+
 const fetchPlexAccountHistory = async (uri, config, accountID, { maxItems = 250000 } = {}) => {
     const pageSize = 5000;
     let historyItems = [];
@@ -6880,7 +9708,7 @@ const fetchPlexAccountHistory = async (uri, config, accountID, { maxItems = 2500
     while (start < maxItems) {
         const pageRes = await fetch(
             `${uri}/status/sessions/history/all?accountID=${accountID}&X-Plex-Token=${config.plexToken}&sort=viewedAt:desc&X-Plex-Container-Start=${start}&X-Plex-Container-Size=${pageSize}`,
-            { headers: { Accept: 'application/json' } },
+            { headers: plexClientHeaders(config.plexToken) },
         ).then((r) => r.json()).catch(() => null);
 
         const pageContainer = pageRes?.MediaContainer;
@@ -6967,7 +9795,7 @@ app.get('/api/plex/analytics/day', requireAuth, requireMember, async (req, res) 
 
         const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
 
-        if (mediaServerType === 'jellyfin') {
+        if (mediaServerType !== 'plex') {
             return res.status(501).json({ error: 'Specific date views are currently only supported for Plex/Tautulli' });
         } else {
             if (!config.tautulliUrl || !config.tautulliApiKey) {
@@ -7014,7 +9842,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
         }
 
         const historyItems = await fetchPlexAccountHistory(uri, config, accountID);
-        const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+        const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
 
         if (!historyItems.length) {
             return res.json({ totalPlays: 0, topLibraries: [], topWatched: [], topMusic: [], recentHistory: [] });
@@ -7063,7 +9891,15 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
         const { list: plexAccounts } = await fetchPlexServerAccounts(uri, config);
         const plexAccountName = plexAccounts.find((a) => String(a.id) === String(accountID))?.name || null;
 
+        const heatmapData = {};
+        const yearAgo = Math.floor(Date.now() / 1000) - (365 * 24 * 60 * 60);
+
         historyItems.forEach(item => {
+            if (item.viewedAt >= yearAgo) {
+                const dateStr = new Date(item.viewedAt * 1000).toISOString().split('T')[0];
+                heatmapData[dateStr] = (heatmapData[dateStr] || 0) + 1;
+            }
+
             if (cutoffDate > 0 && item.viewedAt < cutoffDate) return;
             totalPlays++;
 
@@ -7083,10 +9919,15 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
                 libraryCounts[item.librarySectionID].plays++;
             }
 
-            const contentKey = item.type === 'episode' ? (item.grandparentKey || item.parentKey || item.ratingKey) : item.type === 'track' ? (item.parentKey || item.grandparentKey || item.ratingKey) : item.ratingKey;
-                const contentTitle = item.type === 'episode' ? (item.grandparentTitle || item.parentTitle || item.title) : item.type === 'track' ? (item.parentTitle || item.grandparentTitle || item.title) : item.title;
-                const contentThumb = item.type === 'episode' ? (item.grandparentThumb || item.parentThumb || item.thumb) : item.type === 'track' ? (item.parentThumb || item.grandparentThumb || item.thumb) : item.thumb;
-                const contentArt = item.type === 'episode' ? (item.grandparentArt || item.parentArt || item.art) : item.type === 'track' ? (item.parentArt || item.grandparentArt || item.art) : item.art;
+            const rawContentKey = item.type === 'episode'
+                ? (item.grandparentKey || item.grandparentRatingKey || item.parentKey || item.ratingKey)
+                : item.type === 'track'
+                    ? (item.parentKey || item.grandparentKey || item.ratingKey)
+                    : (item.ratingKey || item.key);
+            const contentKey = normalizePlexHistoryContentKey(rawContentKey);
+            const contentTitle = item.type === 'episode' ? (item.grandparentTitle || item.parentTitle || item.title) : item.type === 'track' ? (item.parentTitle || item.grandparentTitle || item.title) : item.title;
+            const contentThumb = item.type === 'episode' ? (item.grandparentThumb || item.parentThumb || item.thumb) : item.type === 'track' ? (item.parentThumb || item.grandparentThumb || item.thumb) : item.thumb;
+            const contentArt = item.type === 'episode' ? (item.grandparentArt || item.parentArt || item.art) : item.type === 'track' ? (item.parentArt || item.grandparentArt || item.art) : item.art;
 
             if (contentKey) {
                 if (!contentCounts[contentKey]) {
@@ -7097,10 +9938,19 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
                         thumb: contentThumb,
                         art: contentArt,
                         plays: 0,
-                        plexUrl: `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent('/library/metadata/' + contentKey.split('/').pop())}`
+                        lastViewedAt: 0,
+                        plexUrl: `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent(contentKey)}`
                     };
                 }
                 contentCounts[contentKey].plays++;
+                const viewedAt = Number(item.viewedAt) || 0;
+                if (viewedAt >= (contentCounts[contentKey].lastViewedAt || 0)) {
+                    contentCounts[contentKey].lastViewedAt = viewedAt;
+                    // Keep title/artwork aligned with the most recent play of this title.
+                    if (contentTitle) contentCounts[contentKey].title = contentTitle;
+                    if (contentThumb) contentCounts[contentKey].thumb = contentThumb;
+                    if (contentArt) contentCounts[contentKey].art = contentArt;
+                }
             }
         });
 
@@ -7126,13 +9976,14 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
             hourDistribution.splice(0, 24, ...plexHourDistribution);
         }
 
+        const sortByPlaysThenRecent = (a, b) => (b.plays - a.plays) || ((b.lastViewedAt || 0) - (a.lastViewedAt || 0));
         const allLibraries = Object.values(libraryCounts).sort((a, b) => b.plays - a.plays);
         const topLibraries = allLibraries.slice(0, 5);
-        const topWatched = Object.values(contentCounts).filter(c => c.type !== 'track').sort((a, b) => b.plays - a.plays).slice(0, 30).map(c => {
+        const topWatched = Object.values(contentCounts).filter(c => c.type !== 'track').sort(sortByPlaysThenRecent).slice(0, 30).map(c => {
             if (c.thumb) c.thumbUrl = plexImageUrl(c.thumb);
             return c;
         });
-        const topMusic = Object.values(contentCounts).filter(c => c.type === 'track').sort((a, b) => b.plays - a.plays).slice(0, 30).map(c => {
+        const topMusic = Object.values(contentCounts).filter(c => c.type === 'track').sort(sortByPlaysThenRecent).slice(0, 30).map(c => {
             if (c.thumb) c.thumbUrl = plexImageUrl(c.thumb);
             return c;
         });
@@ -7141,7 +9992,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
         const peakHour = resolvePeakHour(hourDistribution);
         const timeOfDay = resolveTimeOfDayPersona(peakHour);
 
-        const allShowsList = Object.values(contentCounts).filter(c => c.type === 'show').sort((a, b) => b.plays - a.plays);
+        const allShowsList = Object.values(contentCounts).filter(c => c.type === 'show').sort(sortByPlaysThenRecent);
         let topShowsRaw = allShowsList.slice(0, 5);
         await Promise.all(topShowsRaw.map(async (s, i) => {
             if (!s.art || i === 0) {
@@ -7149,7 +10000,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
 
                 let data = plexMetadataCache.get(metaPath);
                 if (!data) {
-                    const metaRes = await fetch(`${uri}${metaPath}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+                    const metaRes = await fetch(`${uri}${metaPath}?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
                     if (metaRes && metaRes.MediaContainer && metaRes.MediaContainer.Metadata && metaRes.MediaContainer.Metadata[0]) {
                         data = metaRes.MediaContainer.Metadata[0];
                         plexMetadataCache.set(metaPath, data);
@@ -7165,7 +10016,11 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
                 }
             }
         }));
-        const topShows = topShowsRaw.map(s => ({ ...s, artUrl: s.art ? plexImageUrl(s.art) : null, thumbUrl: s.thumb ? plexImageUrl(s.thumb) : null }));
+        const topShows = topShowsRaw.map(s => ({
+            ...s,
+            artUrl: s.art ? plexImageUrl(s.art) : (s.thumb ? plexImageUrl(s.thumb) : null),
+            thumbUrl: s.thumb ? plexImageUrl(s.thumb) : null,
+        }));
         const topBinge = topShows.length > 0 ? topShows[0] : null;
 
         const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -7189,7 +10044,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
             else if (musicCount / totalPrefCount >= 0.6) mediaPreference = 'Music Lover';
         }
 
-        const allMoviesList = Object.values(contentCounts).filter(c => c.type === 'movie').sort((a, b) => b.plays - a.plays);
+        const allMoviesList = Object.values(contentCounts).filter(c => c.type === 'movie').sort(sortByPlaysThenRecent);
         let topMoviesRaw = allMoviesList.slice(0, 5);
         await Promise.all(topMoviesRaw.map(async (m, i) => {
             if (!m.art || i === 0) {
@@ -7197,7 +10052,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
 
                 let data = plexMetadataCache.get(metaPath);
                 if (!data) {
-                    const metaRes = await fetch(`${uri}${metaPath}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+                    const metaRes = await fetch(`${uri}${metaPath}?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
                     if (metaRes && metaRes.MediaContainer && metaRes.MediaContainer.Metadata && metaRes.MediaContainer.Metadata[0]) {
                         data = metaRes.MediaContainer.Metadata[0];
                         plexMetadataCache.set(metaPath, data);
@@ -7206,6 +10061,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
 
                 if (data) {
                     m.art = data.art || data.grandparentArt || data.parentArt || m.art;
+                    if (!m.thumb) m.thumb = data.thumb || m.thumb;
                     if (i === 0) {
                         m.summary = data.summary;
                         m.year = data.year;
@@ -7214,7 +10070,11 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
                 }
             }
         }));
-        const topMovies = topMoviesRaw.map(m => ({ ...m, artUrl: m.art ? plexImageUrl(m.art) : null, thumbUrl: m.thumb ? plexImageUrl(m.thumb) : null }));
+        const topMovies = topMoviesRaw.map(m => ({
+            ...m,
+            artUrl: m.art ? plexImageUrl(m.art) : (m.thumb ? plexImageUrl(m.thumb) : null),
+            thumbUrl: m.thumb ? plexImageUrl(m.thumb) : null,
+        }));
         const topMovie = topMovies.length > 0 ? topMovies[0] : null;
 
         let watchStyle = 'Explorer';
@@ -7250,20 +10110,36 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
         // Build a neighbourhood snapshot: the 2 users above and 2 below
         const users = await loadFile(USERS_PATH, []);
         const usernameMap = {};
-        users.forEach(u => { if (u.plexAccountId) usernameMap[u.plexAccountId] = u.username || u.email || 'Unknown'; });
+        // Prefer live Plex account names so admins see real usernames even when
+        // a viewer is not in the portal users file.
+        (plexAccounts || []).forEach((account) => {
+            if (account?.id == null) return;
+            const name = String(account.name || '').trim();
+            if (name) usernameMap[String(account.id)] = name;
+        });
+        users.forEach((u) => {
+            if (!u.plexAccountId) return;
+            const key = String(u.plexAccountId);
+            usernameMap[key] = u.username || u.email || usernameMap[key] || 'Unknown';
+        });
 
+        const shouldObfuscateUsernames = shouldObfuscateAnalyticsViewers(req.user, config);
         let leaderboardNeighbourhood = [];
         const sortedBoard = trendingStats.leaderboardsSorted && trendingStats.leaderboardsSorted[periodKey] ? trendingStats.leaderboardsSorted[periodKey] : [];
         if (leaderboardRank && sortedBoard.length > 0) {
             const myIdx = leaderboardRank - 1;
             const start = Math.max(0, myIdx - 2);
             const end = Math.min(sortedBoard.length - 1, myIdx + 2);
-            leaderboardNeighbourhood = sortedBoard.slice(start, end + 1).map(entry => ({
-                rank: entry.rank,
-                plays: entry.plays,
-                isMe: entry.accountId === String(accountID),
-                username: usernameMap[entry.accountId] || `User ${entry.rank}`
-            }));
+            leaderboardNeighbourhood = sortedBoard.slice(start, end + 1).map((entry) => {
+                const isMe = String(entry.accountId) === String(accountID);
+                const realName = usernameMap[String(entry.accountId)] || `User ${entry.rank}`;
+                return {
+                    rank: entry.rank,
+                    plays: entry.plays,
+                    isMe,
+                    username: shouldObfuscateUsernames && !isMe ? `Viewer ${entry.rank}` : realName,
+                };
+            });
         }
 
         res.json({
@@ -7296,6 +10172,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
             dayOfWeekCounts,
             hourDistribution,
             allLibraries,
+            heatmapData,
             topShows,
             topMovies,
             recentHistory: recentHistory.map(h => {
@@ -7444,8 +10321,8 @@ app.get('/api/plex/analytics/user/:id', requireAdmin, async (req, res) => {
         const accountID = req.params.id;
         const limit = req.query.days === 'all' ? 999999 : 5000;
 
-        const historyRes = await fetch(`${uri}/status/sessions/history/all?accountID=${accountID}&X-Plex-Token=${config.plexToken}&sort=viewedAt:desc&limit=${limit}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
-        const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+        const historyRes = await fetch(`${uri}/status/sessions/history/all?accountID=${accountID}&X-Plex-Token=${config.plexToken}&sort=viewedAt:desc&limit=${limit}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
+        const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
 
         if (!historyRes || !historyRes.MediaContainer || !historyRes.MediaContainer.Metadata) {
             return res.json({ totalPlays: 0, topLibraries: [], topWatched: [], topMusic: [], recentHistory: [] });
@@ -7562,30 +10439,203 @@ app.get('/api/plex/analytics/user/:id', requireAdmin, async (req, res) => {
 
 app.get('/api/speedtest/ping', requireAuth, requireMember, speedtestRateLimit, (req, res) => { res.set('Cache-Control', 'no-store'); res.send('pong'); });
 app.get('/api/speedtest/download', requireAuth, requireMember, speedtestRateLimit, (req, res) => {
-    const parsedBytes = parseInt(req.query.bytes, 10) || SPEED_TEST_CHUNK_SIZE;
-    const bytes = Math.max(1, Math.min(parsedBytes, 10 * 1024 * 1024));
+    const streamForever = String(req.query.stream || '') === '1';
+    const parsedBytes = parseInt(req.query.bytes, 10);
+    const bytes = streamForever
+        ? null
+        : Math.max(1, Math.min(Number.isFinite(parsedBytes) ? parsedBytes : SPEED_TEST_CHUNK_SIZE, SPEED_TEST_MAX_DOWNLOAD_BYTES));
+
     res.set('Content-Type', 'application/octet-stream');
-    res.set('Content-Length', bytes);
-    res.set('Cache-Control', 'no-store');
+    res.set('Cache-Control', 'no-store, no-transform');
+    res.set('Content-Encoding', 'identity');
+    res.set('X-Content-Type-Options', 'nosniff');
+    if (bytes != null) res.set('Content-Length', String(bytes));
+
+    let destroyed = false;
     let sent = 0;
-    const streamData = () => {
-        if (sent >= bytes) return res.end();
-        const remaining = bytes - sent;
-        const chunk = remaining >= SPEED_TEST_CHUNK_SIZE ? SPEED_TEST_BUFFER : SPEED_TEST_BUFFER.subarray(0, remaining);
-        const canContinue = res.write(chunk);
-        sent += chunk.length;
-        if (canContinue) setImmediate(streamData);
-        else res.once('drain', streamData);
+    const cleanup = () => { destroyed = true; };
+    req.on('close', cleanup);
+    res.on('close', cleanup);
+
+    // Tight write loop — avoid setImmediate between every chunk so Node can push multi-gig.
+    const pump = () => {
+        if (destroyed || res.writableEnded) return;
+        let ok = true;
+        while (ok && !destroyed && !res.writableEnded) {
+            if (bytes != null && sent >= bytes) {
+                res.end();
+                return;
+            }
+            const chunk = (bytes != null && (bytes - sent) < SPEED_TEST_CHUNK_SIZE)
+                ? SPEED_TEST_BUFFER.subarray(0, bytes - sent)
+                : SPEED_TEST_BUFFER;
+            ok = res.write(chunk);
+            sent += chunk.length;
+        }
+        if (!destroyed && !res.writableEnded) res.once('drain', pump);
     };
-    streamData();
+
+    pump();
 });
-app.post('/api/speedtest/upload', requireAuth, requireMember, speedtestRateLimit, express.raw({ type: '*/*', limit: '10mb' }), (req, res) => res.sendStatus(200));
+/** Streaming upload sink — discard body without buffering (supports long duration tests). */
+app.post('/api/speedtest/upload', requireAuth, requireMember, speedtestRateLimit, (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    let received = 0;
+    const maxBytes = SPEED_TEST_MAX_UPLOAD_BYTES;
+    req.on('data', (chunk) => {
+        received += chunk.length;
+        if (received > maxBytes) {
+            req.destroy();
+            if (!res.headersSent) res.status(413).end();
+        }
+    });
+    req.on('end', () => {
+        if (!res.headersSent) res.sendStatus(200);
+    });
+    req.on('error', () => {
+        if (!res.headersSent) res.sendStatus(499);
+    });
+});
 
 // --- Static File Serving ---
 const staticDir = path.join(process.cwd(), 'static');
-app.use('/static', express.static(staticDir));
+const PORTAL_REQUIRED_STATIC_ASSETS = ['tailwind.css', 'index.js'];
+
+const arePortalFrontendAssetsReady = () => (
+    PORTAL_REQUIRED_STATIC_ASSETS.every((file) => fsSync.existsSync(path.join(staticDir, file)))
+);
+
+const buildMissingFrontendAssetsHtml = () => `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portal build required</title>
+  <style>
+    body { font-family: Inter, system-ui, sans-serif; background: #0b0f19; color: #e5e7eb; margin: 0; padding: 2rem; }
+    main { max-width: 42rem; margin: 4rem auto; line-height: 1.6; }
+    h1 { color: #f7c600; margin-bottom: 0.75rem; }
+    code { background: #111827; padding: 0.15rem 0.4rem; border-radius: 0.35rem; }
+    ol { padding-left: 1.25rem; }
+    li { margin: 0.5rem 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Frontend build assets are missing</h1>
+    <p>The portal UI files <code>static/tailwind.css</code> and <code>static/index.js</code> are not on disk. This usually happens after a git pull removed generated build files without rebuilding.</p>
+    <ol>
+      <li><strong>Docker:</strong> pull the latest image tag for your branch (for example <code>ghcr.io/jl94x4/server-manager-portal:beta</code>) and restart the container.</li>
+      <li><strong>Bare metal:</strong> run <code>npm run build</code> in the app directory, then restart the service.</li>
+      <li><strong>Volume mounts:</strong> mount only <code>/app/config</code>, not the whole <code>/app</code> folder, unless you rebuild after every update.</li>
+    </ol>
+  </main>
+</body>
+</html>`;
+
+const staticAssetOptions = {
+    setHeaders: (res, filePath) => {
+        if (/\.(js|css|html)$/i.test(filePath)) {
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+        }
+    },
+};
+app.use('/static', express.static(staticDir, staticAssetOptions));
 if (BASE_PATH) {
-    app.use(`${BASE_PATH}/static`, express.static(staticDir));
+    app.use(`${BASE_PATH}/static`, express.static(staticDir, staticAssetOptions));
+}
+
+const buildPwaManifest = async (req) => {
+    const config = await loadFile(CONFIG_PATH, {});
+    const profile = await getAdminProfile(config);
+    const serverName = profile.serverName || 'Server Portal';
+    const startUrl = BASE_PATH ? `${BASE_PATH}/` : '/portal';
+    const scope = BASE_PATH ? `${BASE_PATH}/` : '/';
+    const useServerIcon = normalizePwaIconSource(config.pwaIconSource) !== 'application';
+    // Firefox Android silently aborts Install on dynamic/API icons — keep static PNGs there.
+    // Chromium can use the server logo via the fast /api/public/pwa-icon route.
+    const ua = String(req?.get?.('user-agent') || '');
+    const isFirefox = /Firefox/i.test(ua);
+    const useDynamicServerIcons = useServerIcon && !isFirefox;
+    const iconVer = '3';
+    let icons;
+    if (useDynamicServerIcons) {
+        const cacheKey = getPortalBrandingIconCacheKey(config, profile);
+        const pwaIcon = resolvePublicAssetHref('/api/public/pwa-icon');
+        icons = [
+            { src: `${pwaIcon}?size=192&v=${cacheKey}c2`, sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: `${pwaIcon}?size=512&v=${cacheKey}c2`, sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: `${pwaIcon}?size=512&v=${cacheKey}c2`, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+        ];
+    } else {
+        const icon192 = `${resolvePublicAssetHref('/static/pwa-icon-192.png')}?v=${iconVer}`;
+        const icon512 = `${resolvePublicAssetHref('/static/pwa-icon-512.png')}?v=${iconVer}`;
+        const iconMaskable = `${resolvePublicAssetHref('/static/pwa-icon-maskable-512.png')}?v=${iconVer}`;
+        icons = [
+            { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: iconMaskable, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+        ];
+    }
+    return {
+        name: `${serverName} Portal`,
+        short_name: serverName.length > 12 ? 'Portal' : serverName,
+        description: `Install ${serverName} Portal for quick access.`,
+        start_url: startUrl,
+        scope,
+        display: 'standalone',
+        background_color: '#0b0f19',
+        theme_color: '#0b0f19',
+        icons
+    };
+};
+
+const sendPwaManifest = async (req, res) => {
+    try {
+        res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        // Vary so Chrome vs Firefox each keep the right icon set cached.
+        res.setHeader('Vary', 'User-Agent');
+        res.json(await buildPwaManifest(req));
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to build web app manifest.' });
+    }
+};
+
+app.get(['/manifest.webmanifest', '/manifest.json', '/site.webmanifest'], sendPwaManifest);
+if (BASE_PATH) {
+    app.get([
+        `${BASE_PATH}/manifest.webmanifest`,
+        `${BASE_PATH}/manifest.json`,
+        `${BASE_PATH}/site.webmanifest`
+    ], sendPwaManifest);
+}
+
+// Chromium uses this for installability. Firefox deliberately does not register it
+// (a bad SW makes Firefox Install silently no-op).
+const serviceWorkerScript = `/* portal-sw v4 */
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('fetch', () => {});
+`;
+
+const sendServiceWorker = (_req, res) => {
+    res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Service-Worker-Allowed', BASE_PATH ? `${BASE_PATH}/` : '/');
+    res.send(serviceWorkerScript);
+};
+
+app.get('/service-worker.js', sendServiceWorker);
+if (BASE_PATH) {
+    app.get(`${BASE_PATH}/service-worker.js`, sendServiceWorker);
 }
 
 // Serve optional legacy stylesheet from the root directory
@@ -7620,14 +10670,44 @@ const getRequestBaseUrl = (req) => {
     return `${proto}://${normalizedHost}${BASE_PATH}`;
 };
 
+const resolvePublicAssetHref = (url = '/static/logo.png') => {
+    const trimmed = String(url || '').trim() || '/static/logo.png';
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+    const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    return withBasePath(stripBasePathFromUrl(path));
+};
+
+const resolvePortalBrandingIconHref = (config = {}, profile = {}) => {
+    const href = resolvePublicAssetHref('/api/public/branding-icon');
+    return `${href}?v=${getPortalBrandingIconCacheKey(config, profile)}`;
+};
+
+const injectAppIconLinks = (html, iconHref) => {
+    const safeHref = escapeHtmlAttr(iconHref || resolvePublicAssetHref('/static/logo.png'));
+    const manifestHref = escapeHtmlAttr(withBasePath('/manifest.webmanifest'));
+    const manifestTag = `<link rel="manifest" href="${manifestHref}" />`;
+    const iconLinks = [
+        `<link rel="icon" type="image/png" href="${safeHref}" />`,
+        `<link rel="apple-touch-icon" sizes="180x180" href="${safeHref}" />`
+    ].join('\n    ');
+    let updated = html
+        .replace(/<link\b(?=[^>]*\brel=["'][^"']*manifest[^"']*["'])[^>]*>\s*/gi, '')
+        .replace(/<link\b(?=[^>]*\brel=["'][^"']*(?:apple-touch-icon|icon)[^"']*["'])[^>]*>\s*/gi, '');
+    // Firefox discovers the manifest from the initial HTML head — keep it near the top.
+    if (/<base\b[^>]*>/i.test(updated)) {
+        updated = updated.replace(/(<base\b[^>]*>)/i, `$1\n    ${manifestTag}`);
+    } else {
+        updated = updated.replace(/<head([^>]*)>/i, `<head$1>\n    ${manifestTag}`);
+    }
+    return updated.replace('</head>', `    ${iconLinks}\n</head>`);
+};
+
 const injectBasePathHtml = (html) => {
     const baseHref = BASE_PATH ? `${BASE_PATH}/` : '/';
     const baseTag = `<base href="${escapeHtmlAttr(baseHref)}">`;
-    const baseScript = `<script>window.__BASE_PATH__=${JSON.stringify(BASE_PATH)};</script>`;
     let updated = html.includes('<base ')
         ? html
         : html.replace(/<head([^>]*)>/i, `<head$1>\n    ${baseTag}`);
-    updated = updated.replace('</head>', `    ${baseScript}\n</head>`);
     if (BASE_PATH) {
         updated = updated
             .replace(/href="\/static\//g, `href="${BASE_PATH}/static/`)
@@ -7642,8 +10722,20 @@ const buildSocialMetaTags = async (req) => {
     const baseUrl = getRequestBaseUrl(req);
     const pageUrl = `${baseUrl}${stripBasePathFromUrl(req.originalUrl || '/')}`;
     const serverName = profile.serverName || 'Server Portal';
-    const serverId = config.serverIdentifier || 'unconfigured';
-    const description = `Live Plex portal for ${serverName} (${serverId}).`;
+    const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
+    const mediaLabel = mediaServerType === 'jellyfin' ? 'Jellyfin' : mediaServerType === 'emby' ? 'Emby' : 'Plex';
+    const requestAppType = config.requestAppType === 'overseerr' ? 'seerr' : (config.requestAppType || 'none');
+    const hasRequests = !!(requestAppType && requestAppType !== 'none' && (config.requestAppUrl || config.requestUrl));
+
+    const highlights = [
+        'see what\'s playing',
+        'browse your library',
+        'check watch history',
+    ];
+    if (hasRequests) highlights.push('discover & request movies and TV');
+    else highlights.push('discover new movies and TV');
+
+    const description = `Your private ${mediaLabel} portal for ${serverName}. Sign in to ${highlights.slice(0, -1).join(', ')}, and ${highlights[highlights.length - 1]}.`;
     const title = `${serverName} Portal`;
 
     let imageUrl = '';
@@ -7668,18 +10760,24 @@ const buildSocialMetaTags = async (req) => {
         `<meta name="description" content="${escapeHtmlAttr(description)}" />`
     ].join('\n    ');
 
-    return { title, tags };
+    return { title, tags, iconHref: resolvePortalBrandingIconHref(config, profile) };
 };
 
 // Serve the main index.html for SPA routes (after base-path strip, paths are root-relative)
-app.get(/^\/(?!api\/|static\/).*$/, async (req, res) => {
+app.get(/^\/(?!api\/|static\/|manifest\.(?:webmanifest|json)|site\.webmanifest|service-worker\.js).*$/, async (req, res) => {
+    if (!arePortalFrontendAssetsReady()) {
+        res.status(503);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store');
+        return res.send(buildMissingFrontendAssetsHtml());
+    }
     try {
         const indexPath = path.join(process.cwd(), 'index.html');
         const html = await fs.readFile(indexPath, 'utf8');
         const socialMeta = await buildSocialMetaTags(req);
-        const updatedHtml = injectBasePathHtml(html
+        const updatedHtml = injectBasePathHtml(injectAppIconLinks(html
             .replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtmlAttr(socialMeta.title)}</title>`)
-            .replace('</head>', `    ${socialMeta.tags}\n</head>`));
+            .replace('</head>', `    ${socialMeta.tags}\n</head>`), socialMeta.iconHref));
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -7725,6 +10823,7 @@ const checkAndSendNewsletter = async (config, force = false) => {
     try {
         log('Generating and sending automated newsletters...');
         const { html, attachments } = await generateNewsletterHtml(config);
+        const providerLabel = getNewsletterProviderLabel(config);
         const transporter = nodemailer.createTransport({
             host: config.smtpHost,
             port: config.smtpPort,
@@ -7753,7 +10852,7 @@ const checkAndSendNewsletter = async (config, force = false) => {
                 await transporter.sendMail({
                     from: config.smtpFrom || config.smtpUser,
                     to: user.email,
-                    subject: 'Plex Server Automated Newsletter',
+                    subject: `${providerLabel} Server Automated Newsletter`,
                     html: personalizedHtml,
                     attachments: attachments
                 });
@@ -7794,7 +10893,7 @@ const checkAndCleanupInactive = async (config) => {
 
         try {
             // Get last session from Plex directly
-            const historyRes = await fetch(`${uri}/status/sessions/history/all?X-Plex-Token=${config.plexToken}&accountID=${plexUserId}&sort=viewedAt:desc&limit=1`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+            const historyRes = await fetch(`${uri}/status/sessions/history/all?X-Plex-Token=${config.plexToken}&accountID=${plexUserId}&sort=viewedAt:desc&limit=1`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
 
             let lastWatchedMs = 0;
             if (historyRes && historyRes.MediaContainer && historyRes.MediaContainer.Metadata && historyRes.MediaContainer.Metadata.length > 0) {
@@ -8007,19 +11106,28 @@ const startBackgroundService = async () => {
 
 // --- Status App Functions ---
 async function loadStatusState() {
+    let appConfig = null;
     try {
         const configData = await fs.readFile(STATUS_CONFIG_PATH, 'utf-8');
         statusConfig = JSON.parse(configData);
     } catch (e) {
-        const appConfig = await loadFile(CONFIG_PATH, {});
+        appConfig = await loadFile(CONFIG_PATH, {});
         statusConfig = createDefaultStatusConfig(appConfig);
         await saveFile(STATUS_CONFIG_PATH, statusConfig);
     }
 
     if (!Array.isArray(statusConfig.services) || statusConfig.services.length === 0) {
-        const appConfig = await loadFile(CONFIG_PATH, {});
+        appConfig = appConfig || await loadFile(CONFIG_PATH, {});
         statusConfig = createDefaultStatusConfig(appConfig);
         await saveFile(STATUS_CONFIG_PATH, statusConfig);
+    }
+
+    try {
+        appConfig = appConfig || await loadFile(CONFIG_PATH, {});
+        syncIntegrationServicesInStatusConfig(appConfig);
+        await saveFile(STATUS_CONFIG_PATH, statusConfig);
+    } catch (e) {
+        log(`Failed to sync integration services during status load: ${e.message}`);
     }
 
     try {
@@ -8036,7 +11144,67 @@ async function saveHealthData() {
     } catch (e) { }
 }
 
-function performSingleProbe(service) {
+async function performDownloadClientProbe(service) {
+    const config = await loadFile(CONFIG_PATH, {});
+    const clientId = String(service.clientId || '').trim();
+    const client = (Array.isArray(config.downloadClients) ? config.downloadClients : [])
+        .find((entry) => String(entry.id || '') === clientId);
+    if (!client || client.enabled === false || !client.url) {
+        return { status: 'offline', latency: 0, httpCode: 0 };
+    }
+    const start = Date.now();
+    try {
+        const torrents = await fetchDownloadClientTorrents(client);
+        return {
+            status: 'online',
+            latency: Math.round(Date.now() - start),
+            httpCode: 200,
+            details: { torrents: Array.isArray(torrents) ? torrents.length : 0 },
+        };
+    } catch (error) {
+        return { status: 'offline', latency: Math.round(Date.now() - start), httpCode: 0 };
+    }
+}
+
+async function performSingleProbe(service) {
+    if (service?.type === 'download-client') {
+        return performDownloadClientProbe(service);
+    }
+
+    // Plex status checks must use our stable client identity — a bare HTTP GET is
+    // reported as "<container-id> (Linux)" and triggers "new device" pushes on restart.
+    const isPlexService = String(service?.id || '') === 'plex'
+        || String(service?.name || '').toLowerCase() === 'plex';
+    if (isPlexService) {
+        const start = Date.now();
+        try {
+            const config = await loadFile(CONFIG_PATH, {});
+            if (!config?.plexToken || config.plexToken === SECRET_MASK) {
+                // Fall through to generic URL probe without a token.
+            } else {
+                let uri = '';
+                try {
+                    uri = await getPlexConnectionUri(config);
+                } catch {
+                    uri = String(service.url || config.plexServerUrl || '').replace(/\/+$/, '');
+                }
+                if (uri) {
+                    const res = await fetchWithTimeout(`${uri}/identity`, {
+                        headers: plexClientHeaders(config.plexToken),
+                    }, 8000);
+                    const latency = Math.round(Date.now() - start);
+                    const code = res.status || 0;
+                    const status = (code >= 200 && code < 400) || code === 401 || code === 403
+                        ? 'online'
+                        : (code >= 500 ? 'degraded' : 'offline');
+                    return { status, latency, httpCode: code };
+                }
+            }
+        } catch {
+            return { status: 'offline', latency: Math.round(Date.now() - start), httpCode: 0 };
+        }
+    }
+
     return new Promise((resolve) => {
         const rawUrl = service.url;
         if (!rawUrl) return resolve({ status: 'offline', latency: 0, httpCode: 0 });
@@ -8064,9 +11232,24 @@ function performSingleProbe(service) {
 
         const lib = parsedUrl.protocol === 'https:' ? https : http;
         const start = Date.now();
+        const urlHasPlexToken = /[?&]X-Plex-Token=/i.test(targetUrl);
+        const probeHeaders = urlHasPlexToken
+            ? {
+                ...plexClientHeaders((() => {
+                    try {
+                        return decodeURIComponent((targetUrl.match(/[?&]X-Plex-Token=([^&]+)/i) || [])[1] || '');
+                    } catch {
+                        return '';
+                    }
+                })()),
+                'User-Agent': 'Server Manager Portal',
+                'Cache-Control': 'no-cache',
+                Connection: 'close',
+            }
+            : { 'User-Agent': 'Server Manager Portal', 'Cache-Control': 'no-cache', Connection: 'close' };
 
         const request = lib.get(targetUrl, {
-            headers: { 'User-Agent': 'SubZero-Monitor/1.0', 'Cache-Control': 'no-cache', 'Connection': 'close' },
+            headers: probeHeaders,
             timeout: 8000,
             rejectUnauthorized: true
         }, (response) => {
@@ -8082,11 +11265,143 @@ function performSingleProbe(service) {
     });
 }
 
+const STATUS_RECENT_CHECKS_MAX = 5760; // ~24h at 15s
+const STATUS_HOURLY_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
+const STATUS_DAILY_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+const STATUS_INCIDENT_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+const STATUS_INCIDENTS_MAX = 200;
+
+const statusHourKey = (ts) => {
+    const d = new Date(ts);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    const h = String(d.getUTCHours()).padStart(2, '0');
+    return `${y}-${m}-${day}T${h}`;
+};
+
+const ensureHealthRecord = (serviceId) => {
+    if (!healthData[serviceId]) {
+        healthData[serviceId] = {
+            serviceId,
+            currentStatus: 'unknown',
+            lastCheck: 0,
+            dailyHistory: {},
+            hourlyHistory: {},
+            recentChecks: [],
+            incidents: [],
+            uptimePercentage: 100,
+            lastLatency: null,
+            lastHttpCode: null,
+        };
+    }
+    const record = healthData[serviceId];
+    if (!record.dailyHistory) record.dailyHistory = {};
+    if (!record.hourlyHistory) record.hourlyHistory = {};
+    if (!Array.isArray(record.recentChecks)) record.recentChecks = [];
+    if (!Array.isArray(record.incidents)) record.incidents = [];
+    return record;
+};
+
+const bumpHourlyBucket = (record, hourKey, { up = 0, down = 0, latency = null } = {}) => {
+    if (!record.hourlyHistory[hourKey]) {
+        record.hourlyHistory[hourKey] = { up: 0, down: 0, total: 0, latencySum: 0, latencyCount: 0 };
+    }
+    const bucket = record.hourlyHistory[hourKey];
+    bucket.up += up;
+    bucket.down += down;
+    bucket.total += up + down;
+    if (latency != null && Number.isFinite(latency) && latency > 0) {
+        bucket.latencySum += latency;
+        bucket.latencyCount += 1;
+    }
+};
+
+const isUnhealthyStatus = (status) => status === 'offline' || status === 'degraded';
+
+const recordStatusIncident = (record, previousStatus, nextStatus, now) => {
+    if (!previousStatus || previousStatus === 'unknown' || previousStatus === nextStatus) return;
+
+    const wasUnhealthy = isUnhealthyStatus(previousStatus);
+    const isUnhealthy = isUnhealthyStatus(nextStatus);
+
+    if (!wasUnhealthy && isUnhealthy) {
+        record.incidents.push({
+            id: `inc-${now}-${Math.random().toString(36).slice(2, 8)}`,
+            from: previousStatus,
+            to: nextStatus,
+            startedAt: now,
+            endedAt: null,
+            durationMs: null,
+        });
+        if (record.incidents.length > STATUS_INCIDENTS_MAX) {
+            record.incidents = record.incidents.slice(-STATUS_INCIDENTS_MAX);
+        }
+        return;
+    }
+
+    if (wasUnhealthy && !isUnhealthy) {
+        for (let i = record.incidents.length - 1; i >= 0; i -= 1) {
+            const incident = record.incidents[i];
+            if (incident && incident.endedAt == null) {
+                incident.endedAt = now;
+                incident.durationMs = Math.max(0, now - (incident.startedAt || now));
+                break;
+            }
+        }
+        return;
+    }
+
+    if (wasUnhealthy && isUnhealthy && previousStatus !== nextStatus) {
+        for (let i = record.incidents.length - 1; i >= 0; i -= 1) {
+            const incident = record.incidents[i];
+            if (incident && incident.endedAt == null) {
+                incident.to = nextStatus;
+                break;
+            }
+        }
+    }
+};
+
+const pruneHealthRecord = (record, now) => {
+    const dailyCutoff = now - STATUS_DAILY_RETENTION_MS;
+    for (const dateStr of Object.keys(record.dailyHistory || {})) {
+        if (new Date(`${dateStr}T00:00:00.000Z`).getTime() < dailyCutoff) {
+            delete record.dailyHistory[dateStr];
+        }
+    }
+
+    const hourlyCutoff = now - STATUS_HOURLY_RETENTION_MS;
+    for (const hourKey of Object.keys(record.hourlyHistory || {})) {
+        const hourTs = new Date(`${hourKey}:00:00.000Z`).getTime();
+        if (!Number.isFinite(hourTs) || hourTs < hourlyCutoff) {
+            delete record.hourlyHistory[hourKey];
+        }
+    }
+
+    const recentCutoff = now - (24 * 60 * 60 * 1000);
+    record.recentChecks = (record.recentChecks || []).filter((sample) => sample && sample.t >= recentCutoff);
+    if (record.recentChecks.length > STATUS_RECENT_CHECKS_MAX) {
+        record.recentChecks = record.recentChecks.slice(-STATUS_RECENT_CHECKS_MAX);
+    }
+
+    const incidentCutoff = now - STATUS_INCIDENT_RETENTION_MS;
+    record.incidents = (record.incidents || []).filter((incident) => {
+        if (!incident) return false;
+        const end = incident.endedAt != null ? incident.endedAt : now;
+        return end >= incidentCutoff;
+    });
+    if (record.incidents.length > STATUS_INCIDENTS_MAX) {
+        record.incidents = record.incidents.slice(-STATUS_INCIDENTS_MAX);
+    }
+};
+
 async function runMonitorCycle() {
     if (!statusConfig.services || statusConfig.services.length === 0) return;
 
     const now = Date.now();
     const todayStr = new Date(now).toISOString().split('T')[0];
+    const hourKey = statusHourKey(now);
 
     if (!healthData._meta) {
         healthData._meta = { lastCheck: now };
@@ -8099,49 +11414,53 @@ async function runMonitorCycle() {
         const missedChecks = Math.floor(gapMs / cycleMs);
 
         for (const service of statusConfig.services) {
-            if (!healthData[service.id]) {
-                healthData[service.id] = { serviceId: service.id, currentStatus: 'unknown', lastCheck: 0, dailyHistory: {}, uptimePercentage: 100 };
-            }
-            const record = healthData[service.id];
-            if (!record.dailyHistory) record.dailyHistory = {};
+            const record = ensureHealthRecord(service.id);
             if (!record.dailyHistory[todayStr]) record.dailyHistory[todayStr] = { up: 0, down: 0, total: 0 };
 
             record.dailyHistory[todayStr].down += missedChecks;
             record.dailyHistory[todayStr].total += missedChecks;
+            bumpHourlyBucket(record, hourKey, { down: missedChecks });
         }
     }
 
     for (const service of statusConfig.services) {
         const result = await performSingleProbe(service);
-        if (!healthData[service.id]) {
-            healthData[service.id] = { serviceId: service.id, currentStatus: 'unknown', lastCheck: 0, dailyHistory: {}, uptimePercentage: 100 };
-        }
-        const record = healthData[service.id];
-        if (!record.dailyHistory) record.dailyHistory = {};
+        const record = ensureHealthRecord(service.id);
         if (!record.dailyHistory[todayStr]) record.dailyHistory[todayStr] = { up: 0, down: 0, total: 0 };
 
+        const previousStatus = record.currentStatus;
         record.currentStatus = result.status;
         record.lastCheck = now;
+        record.lastLatency = Number.isFinite(result.latency) ? result.latency : null;
+        record.lastHttpCode = Number.isFinite(result.httpCode) ? result.httpCode : null;
 
-        if (result.status === 'online') {
+        const isOnline = result.status === 'online';
+        if (isOnline) {
             record.dailyHistory[todayStr].up += 1;
+            bumpHourlyBucket(record, hourKey, { up: 1, latency: result.latency });
         } else {
             record.dailyHistory[todayStr].down += 1;
+            bumpHourlyBucket(record, hourKey, { down: 1 });
         }
         record.dailyHistory[todayStr].total += 1;
 
-        const ninetyDaysAgo = now - (90 * 24 * 60 * 60 * 1000);
-        for (const dateStr of Object.keys(record.dailyHistory)) {
-            if (new Date(dateStr).getTime() < ninetyDaysAgo) {
-                delete record.dailyHistory[dateStr];
-            }
+        record.recentChecks.push({
+            t: now,
+            status: result.status,
+            latency: Number.isFinite(result.latency) ? result.latency : 0,
+        });
+        if (record.recentChecks.length > STATUS_RECENT_CHECKS_MAX) {
+            record.recentChecks = record.recentChecks.slice(-STATUS_RECENT_CHECKS_MAX);
         }
+
+        recordStatusIncident(record, previousStatus, result.status, now);
+        pruneHealthRecord(record, now);
 
         let totalUp = 0;
         let totalChecks = 0;
         for (const stat of Object.values(record.dailyHistory)) {
-            totalUp += stat.up;
-            totalChecks += stat.total;
+            totalUp += stat.up || 0;
+            totalChecks += stat.total || 0;
         }
         record.uptimePercentage = totalChecks > 0 ? Math.round((totalUp / totalChecks) * 100) : 100;
     }
@@ -8177,6 +11496,21 @@ const buildMediaStackMonthRange = (monthOffset = 0) => {
 };
 
 const buildMediaStackInstanceSummary = async (instance, monthOffset = 0) => {
+    if (!['sonarr', 'radarr'].includes(instance?.type)) {
+        return {
+            id: instance?.id || '',
+            type: instance?.type || 'sonarr',
+            name: instance?.name || 'ARR',
+            isDefault: !!instance?.isDefault,
+            configured: false,
+            instanceName: instance?.name || 'ARR',
+            status: null,
+            queue: null,
+            history: null,
+            disk: null,
+            calendar: [],
+        };
+    }
     const { start, end, inTargetMonthRange } = buildMediaStackMonthRange(monthOffset);
     const fetchArr = async (url, key, endpoint) => {
         if (!url || !key) return null;
@@ -8280,6 +11614,78 @@ const buildMediaStackInstanceSummary = async (instance, monthOffset = 0) => {
     };
 };
 
+const buildMediaStackToolSummary = async (instance) => {
+    const type = ['lidarr', 'bazarr'].includes(instance?.type) ? instance.type : 'lidarr';
+    const label = instance?.name || (type === 'bazarr' ? 'Bazarr' : 'Lidarr');
+    const ready = isArrInstanceReady(instance);
+    if (!ready) {
+        return {
+            id: instance?.id || '',
+            type,
+            name: label,
+            url: instance?.url || '',
+            externalUrl: instance?.externalUrl || instance?.url || '',
+            configured: false,
+            status: null,
+            version: null,
+        };
+    }
+
+    try {
+        const safeBaseUrl = normalizeExternalBaseUrl(instance.url, { allowPrivate: true, allowHttp: true }).replace(/\/+$/, '');
+        const statusPath = type === 'bazarr'
+            ? `/api/system/status?apikey=${encodeURIComponent(instance.apiKey)}`
+            : '/api/v1/system/status';
+        const response = await fetchWithTimeout(`${safeBaseUrl}${statusPath}`, {
+            headers: {
+                'X-Api-Key': instance.apiKey,
+                'X-API-KEY': instance.apiKey,
+                Accept: 'application/json',
+            },
+        }, 12000);
+        if (!response.ok) {
+            return {
+                id: instance.id,
+                type,
+                name: label,
+                url: instance.url,
+                externalUrl: instance.externalUrl || instance.url,
+                configured: true,
+                status: null,
+                version: null,
+                error: `HTTP ${response.status}`,
+            };
+        }
+        const data = await response.json().catch(() => ({}));
+        const version = type === 'bazarr'
+            ? (data?.data?.bazarr_version || data?.data?.package_version || data?.bazarr_version || data?.package_version || data?.version || null)
+            : (data?.version || data?.data?.version || null);
+        return {
+            id: instance.id,
+            type,
+            name: label,
+            url: instance.url,
+            externalUrl: instance.externalUrl || instance.url,
+            configured: true,
+            status: data,
+            version,
+            error: null,
+        };
+    } catch (error) {
+        return {
+            id: instance.id,
+            type,
+            name: label,
+            url: instance.url,
+            externalUrl: instance.externalUrl || instance.url,
+            configured: true,
+            status: null,
+            version: null,
+            error: error.message || 'Unavailable',
+        };
+    }
+};
+
 const buildMediaStackAggregates = (instances = []) => {
     const aggregateForType = (type) => {
         const typed = instances.filter((entry) => entry.type === type);
@@ -8307,11 +11713,15 @@ app.get('/api/media-stack/summary', requireAuth, requireMember, async (req, res)
             : `media-stack-summary-offset-${monthOffset}`;
         const data = await withCache(cacheKey, 60000, async () => {
             const config = normalizeArrConfig(await loadFile(CONFIG_PATH, {}));
-            const enabledInstances = getArrInstances(config, { enabledOnly: true });
+            const allEnabledInstances = getArrInstances(config, { enabledOnly: true });
+            const enabledInstances = allEnabledInstances
+                .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr');
+            const toolInstances = allEnabledInstances
+                .filter((entry) => entry.type === 'lidarr' || entry.type === 'bazarr');
 
             if (instanceId) {
                 const selected = getArrInstance(config, instanceId);
-                if (!selected) {
+                if (!selected || !['sonarr', 'radarr'].includes(selected.type)) {
                     return { error: 'ARR instance not found.' };
                 }
                 const summary = await buildMediaStackInstanceSummary(selected, monthOffset);
@@ -8320,12 +11730,14 @@ app.get('/api/media-stack/summary', requireAuth, requireMember, async (req, res)
                     radarr: summary.type === 'radarr' ? summary : { configured: false, calendar: [] },
                     instances: [summary],
                     aggregates: buildMediaStackAggregates([summary]),
+                    tools: await Promise.all(toolInstances.map(buildMediaStackToolSummary)),
                 };
             }
 
-            const instanceSummaries = await Promise.all(
-                enabledInstances.map((instance) => buildMediaStackInstanceSummary(instance, monthOffset))
-            );
+            const [instanceSummaries, toolSummaries] = await Promise.all([
+                Promise.all(enabledInstances.map((instance) => buildMediaStackInstanceSummary(instance, monthOffset))),
+                Promise.all(toolInstances.map(buildMediaStackToolSummary)),
+            ]);
             const defaultSonarr = instanceSummaries.find((entry) => entry.type === 'sonarr' && entry.isDefault)
                 || instanceSummaries.find((entry) => entry.type === 'sonarr')
                 || { configured: false, calendar: [], instanceName: 'Sonarr' };
@@ -8338,6 +11750,7 @@ app.get('/api/media-stack/summary', requireAuth, requireMember, async (req, res)
                 radarr: defaultRadarr,
                 instances: instanceSummaries,
                 aggregates: buildMediaStackAggregates(instanceSummaries),
+                tools: toolSummaries,
             };
         });
         if (data?.error) {
@@ -8352,6 +11765,772 @@ app.get('/api/media-stack/summary', requireAuth, requireMember, async (req, res)
 app.get('/api/media-stack/trending', requireAuth, requireMember, async (req, res) => {
     const stats = await loadFile(TRENDING_CACHE_PATH, { movies: 0, series: 0 });
     res.json(stats);
+});
+
+const fetchBazarrJson = async (instance, endpoint) => {
+    if (!isArrInstanceReady(instance)) return null;
+    const safeBaseUrl = normalizeExternalBaseUrl(instance.url, { allowPrivate: true, allowHttp: true }).replace(/\/+$/, '');
+    const joiner = endpoint.includes('?') ? '&' : '?';
+    const response = await fetchWithTimeout(`${safeBaseUrl}${endpoint}${joiner}apikey=${encodeURIComponent(instance.apiKey)}`, {
+        headers: {
+            'X-Api-Key': instance.apiKey,
+            'X-API-KEY': instance.apiKey,
+            Accept: 'application/json',
+        },
+    }, 12000);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json().catch(() => null);
+};
+
+app.get('/api/bazarr/widgets', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = normalizeArrConfig(await loadFile(CONFIG_PATH, {}));
+        const instances = getArrInstances(config, { type: 'bazarr', enabledOnly: true }).filter(isArrInstanceReady);
+        const summaries = await Promise.all(instances.map(async (instance) => {
+            const name = instance.name || 'Bazarr';
+            try {
+                const [statusPayload, badgesPayload] = await Promise.all([
+                    fetchBazarrJson(instance, '/api/system/status').catch((error) => ({ error: error.message })),
+                    fetchBazarrJson(instance, '/api/badges').catch((error) => ({ error: error.message })),
+                ]);
+                const version = statusPayload?.data?.bazarr_version
+                    || statusPayload?.data?.package_version
+                    || statusPayload?.bazarr_version
+                    || statusPayload?.package_version
+                    || statusPayload?.version
+                    || null;
+                return {
+                    id: instance.id,
+                    name,
+                    url: instance.externalUrl || instance.url,
+                    configured: true,
+                    online: !statusPayload?.error && !badgesPayload?.error,
+                    version,
+                    wantedEpisodes: Number(badgesPayload?.episodes) || 0,
+                    wantedMovies: Number(badgesPayload?.movies) || 0,
+                    providers: Number(badgesPayload?.providers) || 0,
+                    statusCount: Number(badgesPayload?.status) || 0,
+                    sonarrSignalr: badgesPayload?.sonarr_signalr || null,
+                    radarrSignalr: badgesPayload?.radarr_signalr || null,
+                    announcements: Number(badgesPayload?.announcements) || 0,
+                    error: statusPayload?.error || badgesPayload?.error || null,
+                };
+            } catch (error) {
+                return {
+                    id: instance.id,
+                    name,
+                    url: instance.externalUrl || instance.url,
+                    configured: true,
+                    online: false,
+                    version: null,
+                    wantedEpisodes: 0,
+                    wantedMovies: 0,
+                    providers: 0,
+                    statusCount: 0,
+                    sonarrSignalr: null,
+                    radarrSignalr: null,
+                    announcements: 0,
+                    error: error.message || 'Unavailable',
+                };
+            }
+        }));
+        const totals = summaries.reduce((acc, entry) => {
+            acc.wantedEpisodes += Number(entry.wantedEpisodes) || 0;
+            acc.wantedMovies += Number(entry.wantedMovies) || 0;
+            acc.providers += Number(entry.providers) || 0;
+            acc.announcements += Number(entry.announcements) || 0;
+            acc.online += entry.online ? 1 : 0;
+            return acc;
+        }, { wantedEpisodes: 0, wantedMovies: 0, providers: 0, announcements: 0, online: 0 });
+        res.json({ configured: summaries.length > 0, instances: summaries, totals });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to load Bazarr widgets: ${e.message}` });
+    }
+});
+
+const normalizeDownloadMatchKey = (value = '') => String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^urn:btih:/, '');
+
+const normalizeDownloadTitleKey = (value = '') => String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\[[^\]]+\]/g, ' ')
+    .replace(/\([^)]*\b(?:1080p|720p|2160p|480p|x264|x265|h\.?264|h\.?265|hevc|web[- .]?dl|bluray|webrip)\b[^)]*\)/gi, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\b(?:1080p|720p|2160p|480p|x264|x265|h264|h265|hevc|web|dl|webdl|bluray|webrip|proper|repack|extended)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const classifyDownloadSource = (torrent = {}) => {
+    const haystack = [
+        torrent.category,
+        torrent.label,
+        torrent.tags,
+        torrent.savePath,
+        torrent.downloadDir,
+        torrent.contentPath,
+        torrent.name,
+        torrent.tracker,
+    ].map((v) => String(v || '').toLowerCase()).join(' ');
+    if (/\b(lidarr|music|albums?)\b/.test(haystack) || /[\\/](music|albums?)([\\/]|$)/.test(haystack)) return 'lidarr';
+    if (/\b(radarr|movies?|films?)\b/.test(haystack) || /[\\/](movies?|films?)([\\/]|$)/.test(haystack)) return 'radarr';
+    if (/\b(sonarr|tv|shows?|series)\b/.test(haystack) || /[\\/](tv|shows?|series)([\\/]|$)/.test(haystack)) return 'sonarr';
+    return 'unknown';
+};
+
+const buildDownloadArrMatcher = async (config = {}) => {
+    const instances = getArrInstances(config, { enabledOnly: true })
+        .filter((instance) => ['sonarr', 'radarr', 'lidarr'].includes(instance.type))
+        .filter(isArrInstanceReady);
+    if (!instances.length) return null;
+
+    const byId = new Map();
+    const byTitle = new Map();
+    const queueResults = await Promise.all(instances.map(async (instance) => {
+        try {
+            const summary = await fetchArrQueueSummary(instance, { resolveUrl: resolveIntegrationUrlForFetch, fetchImpl: fetch });
+            return { instance, records: Array.isArray(summary.records) ? summary.records : [] };
+        } catch (error) {
+            log(`Download status ${instance.name || instance.type} queue match failed: ${error.message}`);
+            return { instance, records: [] };
+        }
+    }));
+
+    queueResults.forEach(({ instance, records }) => {
+        records.forEach((record) => {
+            const source = instance.type;
+            const metadata = {
+                source,
+                arrInstanceId: instance.id,
+                arrInstanceName: instance.name || downloadClientLabel(source),
+                arrTitle: record.title || record.sourceTitle || record.movie?.title || record.series?.title || record.artist?.artistName || null,
+                sourceReason: 'arr_queue',
+            };
+            [
+                record.downloadId,
+                record.downloadClientId,
+                record.downloadClientItemId,
+                record.hash,
+                record.infoHash,
+                record.trackedDownload?.downloadId,
+                record.trackedDownload?.downloadClientId,
+            ].forEach((value) => {
+                const key = normalizeDownloadMatchKey(value);
+                if (key) byId.set(key, metadata);
+            });
+            [
+                record.title,
+                record.sourceTitle,
+                record.trackedDownload?.title,
+            ].forEach((value) => {
+                const key = normalizeDownloadTitleKey(value);
+                if (key) byTitle.set(key, metadata);
+            });
+        });
+    });
+
+    return (torrent = {}) => {
+        const idKeys = [
+            torrent.id,
+            torrent.hash,
+            torrent.infoHash,
+            torrent.downloadId,
+        ].map(normalizeDownloadMatchKey).filter(Boolean);
+        for (const key of idKeys) {
+            if (byId.has(key)) return byId.get(key);
+        }
+
+        const titleKey = normalizeDownloadTitleKey(torrent.name);
+        if (titleKey && byTitle.has(titleKey)) return byTitle.get(titleKey);
+        return null;
+    };
+};
+
+const normalizeTorrentItem = (client, raw = {}) => {
+    const size = Number(raw.size ?? raw.totalSize ?? raw.total_size ?? raw.length ?? 0) || 0;
+    const downloaded = Number(raw.downloaded ?? raw.downloadedEver ?? raw.completed ?? 0) || 0;
+    const progressRaw = raw.progress ?? raw.percentDone ?? (size > 0 ? downloaded / size : 0);
+    const progress = Math.max(0, Math.min(100, Number(progressRaw) <= 1 ? Number(progressRaw || 0) * 100 : Number(progressRaw || 0)));
+    const item = {
+        id: String(raw.hash || raw.hashString || raw.id || raw.infoHash || raw.downloadId || raw.name || Math.random()),
+        hash: raw.hash || raw.hashString || raw.infoHash || '',
+        infoHash: raw.infoHash || raw.hashString || raw.hash || '',
+        downloadId: raw.downloadId || raw.downloadClientId || raw.downloadClientItemId || '',
+        clientId: client.id,
+        clientName: client.name || downloadClientLabel(client.type),
+        clientType: client.type,
+        name: raw.name || raw.title || 'Unknown download',
+        state: raw.state || raw.status || raw.statusText || '',
+        progress,
+        size,
+        downloaded,
+        downloadSpeed: Number(raw.dlspeed ?? raw.rateDownload ?? raw.downloadSpeed ?? 0) || 0,
+        uploadSpeed: Number(raw.upspeed ?? raw.rateUpload ?? raw.uploadSpeed ?? 0) || 0,
+        eta: Number(raw.eta ?? raw.etaTime ?? raw.secondsDownloading ?? -1) || -1,
+        category: raw.category || raw.label || '',
+        tags: raw.tags || '',
+        savePath: raw.save_path || raw.savePath || raw.downloadDir || '',
+        contentPath: raw.content_path || raw.contentPath || raw.path || '',
+        addedOn: raw.added_on || raw.addedDate || raw.dateAdded || null,
+    };
+    return { ...item, source: classifyDownloadSource(item), sourceReason: 'client_metadata' };
+};
+
+const fetchQbitTorrents = async (client) => {
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const loginRes = await fetchWithTimeout(`${base}/api/v2/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ username: client.username || '', password: client.password || '' }).toString(),
+    }, 12000);
+    if (!loginRes.ok) throw new Error(`login HTTP ${loginRes.status}`);
+    const cookie = loginRes.headers.get('set-cookie') || '';
+    const torrentsRes = await fetchWithTimeout(`${base}/api/v2/torrents/info`, {
+        headers: { Cookie: cookie, Accept: 'application/json' },
+    }, 12000);
+    if (!torrentsRes.ok) throw new Error(`torrents HTTP ${torrentsRes.status}`);
+    return (await torrentsRes.json()).map((entry) => normalizeTorrentItem(client, entry));
+};
+
+const qbitCookie = async (client) => {
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const loginRes = await fetchWithTimeout(`${base}/api/v2/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ username: client.username || '', password: client.password || '' }).toString(),
+    }, 12000);
+    if (!loginRes.ok) throw new Error(`login HTTP ${loginRes.status}`);
+    return loginRes.headers.get('set-cookie') || '';
+};
+
+const controlQbitTorrent = async (client, action, id) => {
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const cookie = await qbitCookie(client);
+    const endpoints = action === 'pause'
+        ? ['pause', 'stop']
+        : action === 'resume'
+            ? ['resume', 'start']
+            : ['delete'];
+    const body = action === 'remove'
+        ? new URLSearchParams({ hashes: id, deleteFiles: 'false' })
+        : new URLSearchParams({ hashes: id });
+    let lastStatus = 0;
+    for (const endpoint of endpoints) {
+        const response = await fetchWithTimeout(`${base}/api/v2/torrents/${endpoint}`, {
+            method: 'POST',
+            headers: { Cookie: cookie, 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString(),
+        }, 12000);
+        if (response.ok) return;
+        lastStatus = response.status;
+        if (response.status !== 404) break;
+    }
+    throw new Error(`qBittorrent ${action} HTTP ${lastStatus}`);
+};
+
+const normalizeDownloadCategory = (value) => String(value || '').trim().slice(0, 80);
+
+const arrDownloadClientCategoryValue = (client = {}) => {
+    const direct = [
+        client.category,
+        client.tvCategory,
+        client.movieCategory,
+    ].map(normalizeDownloadCategory).find(Boolean);
+    if (direct) return direct;
+
+    const fields = Array.isArray(client.fields) ? client.fields : [];
+    const categoryField = fields.find((field) => {
+        const key = String(field?.name || field?.label || '').toLowerCase();
+        return key.includes('category') && !key.includes('priority');
+    });
+    return normalizeDownloadCategory(categoryField?.value);
+};
+
+const fetchArrDownloadCategoryOptions = async (config = {}) => {
+    const instances = getArrInstances(config, { enabledOnly: true })
+        .filter((instance) => ['sonarr', 'radarr', 'lidarr'].includes(instance.type))
+        .filter(isArrInstanceReady);
+    if (!instances.length) return [];
+
+    const results = await Promise.all(instances.map(async (instance) => {
+        try {
+            const clients = await fetchArrInstanceJson(instance, '/api/v3/downloadclient', {
+                resolveUrl: resolveIntegrationUrlForFetch,
+                fetchImpl: fetch,
+            });
+            return (Array.isArray(clients) ? clients : []).map((downloadClient) => {
+                const value = arrDownloadClientCategoryValue(downloadClient);
+                if (!value) return null;
+                const arrLabel = instance.name || downloadClientLabel(instance.type);
+                const clientName = downloadClient.name || downloadClient.implementationName || downloadClient.implementation || 'Download client';
+                return { value, source: `${arrLabel} / ${clientName}` };
+            }).filter(Boolean);
+        } catch (error) {
+            log(`Download category fetch failed for ${instance.name || instance.type}: ${error.message}`);
+            return [];
+        }
+    }));
+
+    const byValue = new Map();
+    results.flat().forEach((entry) => {
+        if (!byValue.has(entry.value)) byValue.set(entry.value, new Set());
+        byValue.get(entry.value).add(entry.source);
+    });
+    return [...byValue.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([value, sources]) => {
+            const sourceList = [...sources];
+            return {
+                value,
+                label: sourceList.length ? `${value} (${sourceList.join(', ')})` : value,
+                sources: sourceList,
+            };
+        });
+};
+
+const addQbitTorrentDownload = async (client, { url = '', fileBuffer = null, filename = 'upload.torrent', category = '' } = {}) => {
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const cookie = await qbitCookie(client);
+    const form = new FormData();
+    const normalizedCategory = normalizeDownloadCategory(category);
+    if (url) {
+        form.append('urls', url);
+    } else if (fileBuffer?.length) {
+        form.append('torrents', new Blob([fileBuffer], { type: 'application/x-bittorrent' }), filename || 'upload.torrent');
+    } else {
+        throw new Error('Torrent URL or file is required');
+    }
+    if (normalizedCategory) form.append('category', normalizedCategory);
+    const response = await fetchWithTimeout(`${base}/api/v2/torrents/add`, {
+        method: 'POST',
+        headers: { Cookie: cookie },
+        body: form,
+    }, 12000);
+    if (!response.ok) throw new Error(`qBittorrent add HTTP ${response.status}`);
+};
+
+const transmissionRpc = async (client, body, sessionId = '') => {
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const auth = client.username || client.password ? `Basic ${Buffer.from(`${client.username || ''}:${client.password || ''}`).toString('base64')}` : '';
+    const response = await fetchWithTimeout(`${base}/transmission/rpc`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(auth ? { Authorization: auth } : {}),
+            ...(sessionId ? { 'X-Transmission-Session-Id': sessionId } : {}),
+        },
+        body: JSON.stringify(body),
+    }, 12000);
+    if (response.status === 409 && !sessionId) {
+        return transmissionRpc(client, body, response.headers.get('x-transmission-session-id') || '');
+    }
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+};
+
+const fetchTransmissionTorrents = async (client) => {
+    const payload = await transmissionRpc(client, {
+        method: 'torrent-get',
+        arguments: {
+            fields: ['id', 'hashString', 'name', 'totalSize', 'percentDone', 'status', 'rateDownload', 'rateUpload', 'eta', 'downloadDir', 'labels', 'trackers', 'addedDate'],
+        },
+    });
+    return (payload?.arguments?.torrents || []).map((entry) => normalizeTorrentItem(client, {
+        ...entry,
+        label: Array.isArray(entry.labels) ? entry.labels.join(',') : '',
+        tracker: Array.isArray(entry.trackers) ? entry.trackers.map((t) => t.announce).join(' ') : '',
+    }));
+};
+
+const controlTransmissionTorrent = async (client, action, id) => {
+    const method = action === 'pause' ? 'torrent-stop' : action === 'resume' ? 'torrent-start' : 'torrent-remove';
+    const args = { ids: [Number.isFinite(Number(id)) ? Number(id) : String(id)] };
+    if (action === 'remove') args['delete-local-data'] = false;
+    const payload = await transmissionRpc(client, { method, arguments: args });
+    if (payload?.result && payload.result !== 'success') throw new Error(payload.result);
+};
+
+const addTransmissionDownload = async (client, { url = '', fileBuffer = null, category = '' } = {}) => {
+    const argumentsPayload = url
+        ? { filename: url }
+        : { metainfo: Buffer.from(fileBuffer || Buffer.alloc(0)).toString('base64') };
+    if (!url && !fileBuffer?.length) throw new Error('Torrent URL or file is required');
+    const normalizedCategory = normalizeDownloadCategory(category);
+    if (normalizedCategory) argumentsPayload.labels = [normalizedCategory];
+    const payload = await transmissionRpc(client, { method: 'torrent-add', arguments: argumentsPayload });
+    if (payload?.result && payload.result !== 'success') throw new Error(payload.result);
+};
+
+const fetchBitTorrentTorrents = async (client) => {
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const auth = client.username || client.password ? `Basic ${Buffer.from(`${client.username || ''}:${client.password || ''}`).toString('base64')}` : '';
+    const response = await fetchWithTimeout(`${base}/gui/?action=get`, {
+        headers: { ...(auth ? { Authorization: auth } : {}), Accept: 'application/json' },
+    }, 12000);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    return (data?.torrents || []).map((row) => normalizeTorrentItem(client, {
+        hash: row[0],
+        name: row[2],
+        size: row[3],
+        progress: Number(row[4] || 0) / 10,
+        downloaded: row[5],
+        uploadSpeed: row[8],
+        downloadSpeed: row[9],
+        eta: row[10],
+        label: row[11],
+    }));
+};
+
+const controlBitTorrent = async (client, action, id) => {
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const auth = client.username || client.password ? `Basic ${Buffer.from(`${client.username || ''}:${client.password || ''}`).toString('base64')}` : '';
+    const command = action === 'pause' ? 'pause' : action === 'resume' ? 'start' : 'remove';
+    const response = await fetchWithTimeout(`${base}/gui/?action=${command}&hash=${encodeURIComponent(id)}`, {
+        headers: { ...(auth ? { Authorization: auth } : {}), Accept: 'application/json' },
+    }, 12000);
+    if (!response.ok) throw new Error(`BitTorrent ${action} HTTP ${response.status}`);
+};
+
+const addBitTorrentDownload = async (client, { url = '', fileBuffer = null, category = '' } = {}) => {
+    if (fileBuffer?.length) throw new Error('BitTorrent file upload is not supported by this API. Use a torrent URL or magnet link.');
+    if (!url) throw new Error('Torrent URL is required');
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const auth = client.username || client.password ? `Basic ${Buffer.from(`${client.username || ''}:${client.password || ''}`).toString('base64')}` : '';
+    const params = new URLSearchParams({ action: 'add-url', s: url });
+    const normalizedCategory = normalizeDownloadCategory(category);
+    if (normalizedCategory) params.set('label', normalizedCategory);
+    const response = await fetchWithTimeout(`${base}/gui/?${params.toString()}`, {
+        headers: { ...(auth ? { Authorization: auth } : {}), Accept: 'application/json' },
+    }, 12000);
+    if (!response.ok) throw new Error(`BitTorrent add HTTP ${response.status}`);
+};
+
+const delugeRpc = async (client, method, params = [], cookie = '') => {
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const response = await fetchWithTimeout(`${base}/json`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            ...(cookie ? { Cookie: cookie } : {}),
+        },
+        body: JSON.stringify({
+            id: Date.now(),
+            method,
+            params,
+        }),
+    }, 12000);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json().catch(() => ({}));
+    if (data?.error) throw new Error(data.error.message || data.error || 'Deluge API error');
+    return { data, cookie: response.headers.get('set-cookie') || cookie };
+};
+
+const fetchDelugeTorrents = async (client) => {
+    const password = client.password || client.username || '';
+    const login = await delugeRpc(client, 'auth.login', [password]);
+    if (login.data?.result !== true) throw new Error('login failed');
+    const fields = [
+        'name',
+        'total_size',
+        'total_done',
+        'progress',
+        'download_payload_rate',
+        'upload_payload_rate',
+        'eta',
+        'state',
+        'label',
+        'save_path',
+        'time_added',
+    ];
+    const torrents = await delugeRpc(client, 'core.get_torrents_status', [{}, fields], login.cookie);
+    return Object.entries(torrents.data?.result || {}).map(([hash, entry]) => normalizeTorrentItem(client, {
+        hash,
+        name: entry.name,
+        size: entry.total_size,
+        downloaded: entry.total_done,
+        progress: entry.progress,
+        downloadSpeed: entry.download_payload_rate,
+        uploadSpeed: entry.upload_payload_rate,
+        eta: entry.eta,
+        state: entry.state,
+        label: entry.label,
+        savePath: entry.save_path,
+        addedDate: entry.time_added,
+    }));
+};
+
+const delugeLogin = async (client) => {
+    const password = client.password || client.username || '';
+    const login = await delugeRpc(client, 'auth.login', [password]);
+    if (login.data?.result !== true) throw new Error('login failed');
+    return login.cookie;
+};
+
+const isDelugeMissingTorrentError = (error) => {
+    const message = String(error?.message || error || '').toLowerCase();
+    return message.includes('invalidtorrenterror') || message.includes('not in session');
+};
+
+const controlDelugeTorrent = async (client, action, id) => {
+    const cookie = await delugeLogin(client);
+    const method = action === 'pause' ? 'core.pause_torrent' : action === 'resume' ? 'core.resume_torrent' : 'core.remove_torrent';
+    const params = action === 'remove' ? [id, false] : [[id]];
+    try {
+        await delugeRpc(client, method, params, cookie);
+    } catch (error) {
+        if (isDelugeMissingTorrentError(error)) return;
+        throw error;
+    }
+};
+
+const addDelugeDownload = async (client, { url = '', fileBuffer = null, filename = 'upload.torrent', category = '' } = {}) => {
+    const cookie = await delugeLogin(client);
+    const normalizedCategory = normalizeDownloadCategory(category);
+    const applyLabel = async (torrentId) => {
+        if (!normalizedCategory || !torrentId) return;
+        try {
+            await delugeRpc(client, 'label.add', [normalizedCategory], cookie);
+        } catch (error) {
+            // Label may already exist or the plugin may not expose add; setting it below is the real check.
+        }
+        try {
+            await delugeRpc(client, 'label.set_torrent', [torrentId, normalizedCategory], cookie);
+        } catch (error) {
+            log(`Deluge label assignment skipped: ${error.message}`);
+        }
+    };
+    if (url) {
+        const result = await delugeRpc(client, 'core.add_torrent_url', [url, {}], cookie);
+        await applyLabel(result.data?.result);
+        return;
+    }
+    if (!fileBuffer?.length) throw new Error('Torrent URL or file is required');
+    const result = await delugeRpc(client, 'core.add_torrent_file', [filename || 'upload.torrent', Buffer.from(fileBuffer).toString('base64'), {}], cookie);
+    await applyLabel(result.data?.result);
+};
+
+const parseSabSize = (value) => {
+    if (typeof value === 'number') return value;
+    const match = String(value || '').trim().match(/^([\d.]+)\s*([kmgtp]?b)?$/i);
+    if (!match) return 0;
+    const amount = Number(match[1]) || 0;
+    const unit = String(match[2] || 'b').toLowerCase();
+    const multiplier = {
+        b: 1,
+        kb: 1024,
+        mb: 1024 ** 2,
+        gb: 1024 ** 3,
+        tb: 1024 ** 4,
+        pb: 1024 ** 5,
+    }[unit] || 1;
+    return amount * multiplier;
+};
+
+const parseSabSpeed = (value) => {
+    const text = String(value || '').trim().replace(/\/s$/i, '');
+    return parseSabSize(text);
+};
+
+const parseSabMegabytes = (value) => {
+    if (value == null || value === '') return 0;
+    const text = String(value).trim();
+    if (/[kmgtp]?b/i.test(text)) return parseSabSize(text);
+    return (Number(text) || 0) * 1024 * 1024;
+};
+
+const fetchSabnzbdDownloads = async (client) => {
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const apiKey = String(client.password || '').trim();
+    const params = new URLSearchParams({ mode: 'queue', output: 'json' });
+    if (apiKey) params.set('apikey', apiKey);
+    const auth = client.username ? `Basic ${Buffer.from(`${client.username}:${client.password || ''}`).toString('base64')}` : '';
+    const response = await fetchWithTimeout(`${base}/api?${params.toString()}`, {
+        headers: { Accept: 'application/json', ...(auth ? { Authorization: auth } : {}) },
+    }, 12000);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json().catch(() => ({}));
+    const queue = data?.queue || {};
+    return (Array.isArray(queue.slots) ? queue.slots : []).map((entry) => {
+        const size = entry.mb != null ? parseSabMegabytes(entry.mb) : parseSabSize(entry.size || entry.sizeleft);
+        const remaining = entry.mbleft != null ? parseSabMegabytes(entry.mbleft) : parseSabSize(entry.sizeleft);
+        const downloaded = Math.max(0, size - remaining);
+        const progress = Number(entry.percentage ?? entry.progress ?? (size > 0 ? (downloaded / size) * 100 : 0)) || 0;
+        return normalizeTorrentItem(client, {
+            id: entry.nzo_id || entry.nzbid || entry.id || entry.filename,
+            downloadId: entry.nzo_id || entry.nzbid || entry.id || '',
+            name: entry.filename || entry.name || 'Unknown NZB',
+            size,
+            downloaded,
+            progress,
+            downloadSpeed: parseSabSpeed(queue.speed || entry.speed),
+            eta: Number(entry.timeleft || entry.eta || -1) || -1,
+            status: entry.status || queue.status || '',
+            category: entry.cat || entry.category || '',
+            savePath: entry.storage || '',
+            addedDate: entry.avg_age || null,
+        });
+    });
+};
+
+const sabnzbdApiUrl = (client, params) => {
+    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
+    const apiKey = String(client.password || '').trim();
+    const query = new URLSearchParams({ output: 'json', ...params });
+    if (apiKey) query.set('apikey', apiKey);
+    return `${base}/api?${query.toString()}`;
+};
+
+const sabnzbdAuthHeaders = (client) => {
+    const auth = client.username ? `Basic ${Buffer.from(`${client.username}:${client.password || ''}`).toString('base64')}` : '';
+    return { Accept: 'application/json', ...(auth ? { Authorization: auth } : {}) };
+};
+
+const controlSabnzbdDownload = async (client, action, id) => {
+    const name = action === 'pause' ? 'pause' : action === 'resume' ? 'resume' : 'delete';
+    const response = await fetchWithTimeout(sabnzbdApiUrl(client, { mode: 'queue', name, value: id }), {
+        headers: sabnzbdAuthHeaders(client),
+    }, 12000);
+    if (!response.ok) throw new Error(`SABnzbd ${action} HTTP ${response.status}`);
+    const data = await response.json().catch(() => ({}));
+    if (data?.status === false) throw new Error(`SABnzbd ${action} failed`);
+};
+
+const fetchDownloadClientTorrents = async (client) => {
+    if (client.type === 'sabnzbd') return fetchSabnzbdDownloads(client);
+    if (client.type === 'transmission') return fetchTransmissionTorrents(client);
+    if (client.type === 'bittorrent') return fetchBitTorrentTorrents(client);
+    if (client.type === 'deluge') return fetchDelugeTorrents(client);
+    return fetchQbitTorrents(client);
+};
+
+const controlDownloadClientItem = async (client, action, id) => {
+    if (!['pause', 'resume', 'remove'].includes(action)) throw new Error('Unsupported download action');
+    const downloadId = String(id || '').trim();
+    if (!downloadId) throw new Error('Download id is required');
+    if (client.type === 'sabnzbd') return controlSabnzbdDownload(client, action, downloadId);
+    if (client.type === 'transmission') return controlTransmissionTorrent(client, action, downloadId);
+    if (client.type === 'bittorrent') return controlBitTorrent(client, action, downloadId);
+    if (client.type === 'deluge') return controlDelugeTorrent(client, action, downloadId);
+    return controlQbitTorrent(client, action, downloadId);
+};
+
+const addDownloadClientItem = async (client, payload = {}) => {
+    if (client.type === 'sabnzbd') throw new Error('SABnzbd accepts NZB files, not torrent uploads.');
+    if (client.type === 'transmission') return addTransmissionDownload(client, payload);
+    if (client.type === 'bittorrent') return addBitTorrentDownload(client, payload);
+    if (client.type === 'deluge') return addDelugeDownload(client, payload);
+    return addQbitTorrentDownload(client, payload);
+};
+
+const getConfiguredDownloadClient = async (clientId) => {
+    const config = await loadFile(CONFIG_PATH, {});
+    return (Array.isArray(config.downloadClients) ? config.downloadClients : [])
+        .find((entry) => String(entry.id || '') === String(clientId || '') && entry.enabled !== false && entry.url);
+};
+
+app.post('/api/downloads/add-url', requireAdmin, async (req, res) => {
+    try {
+        const { clientId, url, category } = req.body || {};
+        const torrentUrl = String(url || '').trim();
+        if (!torrentUrl) return res.status(400).json({ error: 'Torrent URL or magnet link is required.' });
+        const client = await getConfiguredDownloadClient(clientId);
+        if (!client) return res.status(404).json({ error: 'Download client not found.' });
+        await addDownloadClientItem(client, { url: torrentUrl, category });
+        return res.json({ ok: true, message: `Sent torrent URL to ${client.name || downloadClientLabel(client.type)}.` });
+    } catch (e) {
+        res.status(500).json({ error: e.message || 'Failed to add torrent URL.' });
+    }
+});
+
+app.post('/api/downloads/add-file', requireAdmin, express.raw({ type: ['application/x-bittorrent', 'application/octet-stream'], limit: '5mb' }), async (req, res) => {
+    try {
+        const clientId = req.query.clientId || req.headers['x-download-client-id'];
+        const filename = String(req.query.filename || req.headers['x-filename'] || 'upload.torrent').replace(/[^\w.\- ()]/g, '').slice(0, 180) || 'upload.torrent';
+        const category = req.query.category || req.headers['x-download-category'] || '';
+        const fileBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body || []);
+        if (!fileBuffer.length) return res.status(400).json({ error: 'Torrent file is required.' });
+        const client = await getConfiguredDownloadClient(clientId);
+        if (!client) return res.status(404).json({ error: 'Download client not found.' });
+        await addDownloadClientItem(client, { fileBuffer, filename, category });
+        return res.json({ ok: true, message: `Sent torrent file to ${client.name || downloadClientLabel(client.type)}.` });
+    } catch (e) {
+        res.status(500).json({ error: e.message || 'Failed to add torrent file.' });
+    }
+});
+
+app.post('/api/downloads/control', requireAdmin, async (req, res) => {
+    try {
+        const { clientId, downloadId, action } = req.body || {};
+        const client = await getConfiguredDownloadClient(clientId);
+        if (!client) return res.status(404).json({ error: 'Download client not found.' });
+        await controlDownloadClientItem(client, String(action || '').toLowerCase(), downloadId);
+        return res.json({ ok: true, message: `${downloadClientLabel(client.type)} ${action} command sent.` });
+    } catch (e) {
+        res.status(500).json({ error: e.message || 'Failed to control download.' });
+    }
+});
+
+app.get('/api/downloads/status', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const actor = getSessionActor(req.user);
+        const viewerIsAdmin = await resolveCurrentAdmin(actor, config);
+        if (!viewerIsAdmin && config.downloadsVisibleToMembers === false) {
+            return res.status(403).json({ error: 'Downloads are not available for members.' });
+        }
+        const clients = (Array.isArray(config.downloadClients) ? config.downloadClients : []).filter((client) => client.enabled !== false && client.url);
+        const [arrMatcher, downloadCategoryOptions] = await Promise.all([
+            buildDownloadArrMatcher(config),
+            viewerIsAdmin ? fetchArrDownloadCategoryOptions(config) : Promise.resolve([]),
+        ]);
+        const results = await Promise.all(clients.map(async (client) => {
+            try {
+                const torrents = await fetchDownloadClientTorrents(client);
+                return { client: { id: client.id, name: client.name, type: client.type }, online: true, torrents, error: null };
+            } catch (error) {
+                return { client: { id: client.id, name: client.name, type: client.type }, online: false, torrents: [], error: error.message || 'Unavailable' };
+            }
+        }));
+        const downloads = results.flatMap((entry) => entry.torrents).map((torrent) => {
+            const arrMatch = arrMatcher ? arrMatcher(torrent) : null;
+            const merged = arrMatch ? { ...torrent, ...arrMatch } : torrent;
+            if (viewerIsAdmin) return merged;
+            // Members may see progress for the badge/UI, but not release names/hashes/paths/magnets.
+            const source = merged.source || 'unknown';
+            const sourceLabel = source === 'unknown' ? 'Download' : `${source.charAt(0).toUpperCase()}${source.slice(1)} download`;
+            return {
+                id: merged.id,
+                name: sourceLabel,
+                state: merged.state,
+                progress: merged.progress,
+                size: merged.size,
+                dlspeed: merged.dlspeed,
+                upspeed: merged.upspeed,
+                eta: merged.eta,
+                source,
+                clientId: merged.clientId,
+                clientName: merged.clientName,
+            };
+        });
+        res.json({
+            clients: results.map(({ torrents, ...entry }) => ({ ...entry, count: torrents.length })),
+            downloadCategoryOptions,
+            downloads,
+            counts: {
+                total: downloads.length,
+                sonarr: downloads.filter((entry) => entry.source === 'sonarr').length,
+                radarr: downloads.filter((entry) => entry.source === 'radarr').length,
+                lidarr: downloads.filter((entry) => entry.source === 'lidarr').length,
+                unknown: downloads.filter((entry) => entry.source === 'unknown').length,
+            },
+        });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to load download status: ${e.message}` });
+    }
 });
 
 // (Endpoints moved up before wildcard route)
@@ -8389,7 +12568,7 @@ async function calculateAnalyticsStats() {
         while (start < maxHistoryItems) {
             const pageRes = await fetch(
                 `${uri}/status/sessions/history/all?X-Plex-Token=${config.plexToken}&sort=viewedAt:desc&X-Plex-Container-Start=${start}&X-Plex-Container-Size=${pageSize}`,
-                { headers: { 'Accept': 'application/json' } }
+                { headers: plexClientHeaders(config.plexToken) }
             ).then(r => r.json()).catch(() => null);
 
             const pageContainer = pageRes && pageRes.MediaContainer ? pageRes.MediaContainer : null;
@@ -8407,9 +12586,9 @@ async function calculateAnalyticsStats() {
             log(`Analytics history fetch reached safety cap (${maxHistoryItems}). Results may be truncated.`);
         }
 
-        const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
-        const accountsRes = await fetch(`${uri}/accounts?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
-        const devicesRes = await fetch(`${uri}/devices?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+        const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
+        const accountsRes = await fetch(`${uri}/accounts?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
+        const devicesRes = await fetch(`${uri}/devices?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
         const users = await loadFile(USERS_PATH, []);
 
         if (!Array.isArray(historyItems) || historyItems.length === 0) {
@@ -8436,7 +12615,7 @@ async function calculateAnalyticsStats() {
             if (c.thumb) c.thumbUrl = plexImageUrl(c.thumb);
             try {
                 const metadataId = c.key.split('/').pop();
-                const metaRes = await fetch(`${uri}/library/metadata/${metadataId}?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+                const metaRes = await fetch(`${uri}/library/metadata/${metadataId}?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
                 if (metaRes && metaRes.MediaContainer && metaRes.MediaContainer.Metadata && metaRes.MediaContainer.Metadata.length > 0) {
                     const meta = metaRes.MediaContainer.Metadata[0];
                     c.summary = meta.summary || '';
@@ -8528,7 +12707,7 @@ async function calculateTrendingStats() {
         log('Starting background calculation of Plex Trending Stats...');
 
         // Fetch up to 10,000 most recent history items
-        const response = await fetch(`${uri}/status/sessions/history/all?sort=viewedAt%3Adesc&limit=10000&X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).catch(() => null);
+        const response = await fetch(`${uri}/status/sessions/history/all?sort=viewedAt%3Adesc&limit=10000&X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).catch(() => null);
         if (!response) {
             markTaskEnd(systemJobs.trendingCache, null);
             return;
@@ -8852,8 +13031,27 @@ const startAnalyticsStatsBackgroundTask = async () => {
     scheduleAnalyticsRebuild(INITIAL_CACHE_BUILD_DELAY_MS + 5000);
 };
 
+const isUpgraderEnabled = (config) => !!config?.upgraderEnabled;
+
 const UPGRADER_INDEX_INTERVAL_MS = 4 * 60 * 60 * 1000;
 let upgraderIndexTimer = null;
+
+const clearUpgraderIndexDisabledError = () => {
+    const err = String(systemJobs.upgraderIndex.lastError || '');
+    if (!err || /upgrader is disabled/i.test(err)) {
+        systemJobs.upgraderIndex.lastError = null;
+    }
+};
+
+const idleUpgraderIndexJob = (reason = 'Library Upgrader is disabled') => {
+    systemJobs.upgraderIndex.running = false;
+    systemJobs.upgraderIndex.nextRun = null;
+    clearUpgraderIndexDisabledError();
+    if (systemJobs.upgraderIndex._startedAt) {
+        delete systemJobs.upgraderIndex._startedAt;
+    }
+    log(`[UpgraderIndex] Idle — ${reason}.`);
+};
 
 const scheduleUpgraderIndexRebuild = (delayMs) => {
     if (upgraderIndexTimer) clearTimeout(upgraderIndexTimer);
@@ -8862,10 +13060,11 @@ const scheduleUpgraderIndexRebuild = (delayMs) => {
     upgraderIndexTimer = setTimeout(async () => {
         try {
             const config = await loadFile(CONFIG_PATH, {});
-            if (isUpgraderEnabled(config)) {
-                await buildUpgraderArrIndex(config, { actor: { username: 'System', email: 'system@local' } });
+            if (!isUpgraderEnabled(config)) {
+                // Feature off is not a failure — keep the job idle and re-check later.
+                idleUpgraderIndexJob();
             } else {
-                markTaskEnd(systemJobs.upgraderIndex, 'Upgrader is disabled.');
+                await buildUpgraderArrIndex(config, { actor: { username: 'System', email: 'system@local' } });
             }
         } catch (e) {
             log(`[UpgraderIndex] Scheduled rebuild failed: ${e.message}`);
@@ -8875,6 +13074,18 @@ const scheduleUpgraderIndexRebuild = (delayMs) => {
 };
 
 const startUpgraderIndexBackgroundTask = async () => {
+    let config = {};
+    try {
+        config = await loadFile(CONFIG_PATH, {});
+    } catch { /* defaults */ }
+
+    if (!isUpgraderEnabled(config)) {
+        idleUpgraderIndexJob();
+        // Quiet re-check so enabling Upgrader without a full restart still wakes the job.
+        scheduleUpgraderIndexRebuild(UPGRADER_INDEX_INTERVAL_MS);
+        return;
+    }
+
     let existing = null;
     try {
         const loaded = await loadFile(UPGRADER_INDEX_PATH, null);
@@ -8925,14 +13136,39 @@ const MAINTENANCE_DEFAULTS = {
     requireConfirmForDestructive: true
 };
 const isMaintenanceExperimentalEnabled = (config) => !!config?.maintenanceExperimentalEnabled;
-const isUpgraderEnabled = (config) => !!config?.upgraderEnabled;
 const isMediaQualityIndexEnabled = (config) => isMaintenanceExperimentalEnabled(config) || isUpgraderEnabled(config);
 
 const isHevcVideoCodec = (codec = '') => /hevc|h265|x265/.test(String(codec || '').toLowerCase());
 
+/** Collapse Sonarr/Radarr codec aliases (x264≡h264, x265≡hevc, etc.) into stable family keys. */
+const normalizeArrVideoCodecKey = (codec = '') => {
+    const c = String(codec || '').toLowerCase().trim();
+    if (!c) return '';
+    if (/\bav1\b|av01/.test(c)) return 'av1';
+    if (/hevc|h\.?265|x265|hev1/.test(c)) return 'hevc';
+    if (/h\.?264|x264|\bavc\b|avc1/.test(c)) return 'h264';
+    if (/vp9|vp09/.test(c)) return 'vp9';
+    if (/mpeg-?2|mp2v/.test(c)) return 'mpeg2';
+    if (/mpeg-?4|xvid|divx/.test(c)) return 'mpeg4';
+    return c;
+};
+
+const mergeUpgraderCodecMaps = (codecMap = {}) => {
+    const merged = {};
+    Object.entries(codecMap || {}).forEach(([raw, value]) => {
+        const key = normalizeArrVideoCodecKey(raw);
+        if (!key) return;
+        merged[key] = (merged[key] || 0) + Number(value || 0);
+    });
+    return merged;
+};
+
 const buildPlexWebDetailUrl = (config, ratingKey) => {
     if (!config?.serverIdentifier || !ratingKey) return null;
-    return `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent(`/library/metadata/${ratingKey}`)}`;
+    const key = String(ratingKey).replace(/^\/library\/metadata\//, '').trim();
+    if (!key) return null;
+    // Match Overseerr / Plex Web format (desktop#!/server/...)
+    return `https://app.plex.tv/desktop#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent(`/library/metadata/${key}`)}`;
 };
 
 const deriveQualityFieldsFromTags = (displayTags = [], videoCodec = '') => {
@@ -9000,7 +13236,7 @@ const enrichShowItemsWithEpisodeStats = async (uri, config, items = []) => {
     for (const show of shows) {
         try {
             const res = await fetch(`${uri}/library/metadata/${show.ratingKey}/allLeaves?X-Plex-Token=${config.plexToken}`, {
-                headers: { Accept: 'application/json' },
+                headers: plexClientHeaders(config.plexToken),
             }).then((r) => r.json()).catch(() => null);
             const leaves = res?.MediaContainer?.Metadata || [];
             let nonHevc = 0;
@@ -9187,7 +13423,7 @@ const mapPlexEpisodeLeaf = (config, leaf = {}, showTitle = '') => {
 const fetchPlexShowEpisodes = async (config, uri, showItem = {}) => {
     const response = await fetchWithTimeout(
         `${uri}/library/metadata/${showItem.ratingKey}/allLeaves?X-Plex-Token=${config.plexToken}`,
-        { headers: { Accept: 'application/json' } },
+        { headers: plexClientHeaders(config.plexToken) },
         20000,
     ).catch(() => null);
     const res = response?.ok ? await response.json().catch(() => null) : null;
@@ -9241,10 +13477,10 @@ const fetchJellyfinShowEpisodes = async (config, showItem = {}) => {
 const getUpgraderCodecFamily = (item = {}) => {
     const tags = item.displayTags || [];
     const codec = String(item.videoCodec || '').toLowerCase();
-    if (tags.includes('AV1') || /\bav1\b|av01/.test(codec)) return 'av1';
-    if (item.isHevc || tags.includes('HEVC') || /hevc|h265|x265/.test(codec)) return 'hevc';
-    if (tags.includes('H.264') || /h264|x264|avc/.test(codec)) return 'h264';
-    if (/vp9|vp09/.test(codec)) return 'vp9';
+    if (tags.includes('AV1') || normalizeArrVideoCodecKey(codec) === 'av1') return 'av1';
+    if (item.isHevc || tags.includes('HEVC') || normalizeArrVideoCodecKey(codec) === 'hevc') return 'hevc';
+    if (tags.includes('H.264') || normalizeArrVideoCodecKey(codec) === 'h264') return 'h264';
+    if (normalizeArrVideoCodecKey(codec) === 'vp9') return 'vp9';
     return 'other';
 };
 
@@ -9355,6 +13591,90 @@ const parseUpgraderItemKey = (rawKey = '') => {
 
 const analyzeSonarrEpisodeFile = (file = null) => mapSonarrFileToEpisodeQuality(file);
 
+const sonarrEpisodeFileHasVideoCodec = (file = null) => {
+    const mediaInfo = file?.mediaInfo || {};
+    return !!(mediaInfo.videoCodec || mediaInfo.videoFormat);
+};
+
+const parseSeasonEpisodeFromSonarrFile = (file = null) => {
+    if (!file) return null;
+    if (file.seasonNumber != null && (file.episodeNumber != null || file.episodeNumbers?.[0] != null)) {
+        return {
+            season: Number(file.seasonNumber),
+            episode: Number(file.episodeNumber ?? file.episodeNumbers[0]),
+        };
+    }
+    const path = String(file.relativePath || file.path || '');
+    const match = path.match(/[Ss](\d+)[Ee](\d+)/);
+    if (!match) return null;
+    return { season: Number(match[1]), episode: Number(match[2]) };
+};
+
+const buildPlexEpisodeCodecLookup = (plexEpisodes = []) => {
+    const map = new Map();
+    (Array.isArray(plexEpisodes) ? plexEpisodes : []).forEach((ep) => {
+        if (ep?.seasonNumber == null || ep?.episodeNumber == null) return;
+        const codec = normalizeArrVideoCodecKey(ep.videoCodec);
+        if (!codec) return;
+        map.set(`${ep.seasonNumber}-${ep.episodeNumber}`, {
+            videoCodec: codec,
+            videoResolution: String(ep.videoResolution || '').toLowerCase(),
+            displayTags: Array.isArray(ep.displayTags) ? ep.displayTags : [],
+            isHevc: !!ep.isHevc,
+            hasHdr: !!ep.hasHdr,
+            hasDolbyVision: !!ep.hasDolbyVision,
+        });
+    });
+    return map;
+};
+
+/** When Sonarr mediaInfo is empty, fill codec fields from a matched Plex episode (same SxxExx). */
+const applyPlexCodecFallbackToSonarrFile = (file, plexCodecLookup) => {
+    if (!file || sonarrEpisodeFileHasVideoCodec(file) || !plexCodecLookup?.size) return file;
+    const se = parseSeasonEpisodeFromSonarrFile(file);
+    if (!se) return file;
+    const plex = plexCodecLookup.get(`${se.season}-${se.episode}`);
+    if (!plex?.videoCodec) return file;
+    const heightHint = plex.videoResolution === '4k' || plex.videoResolution === '2160'
+        ? 2160
+        : plex.videoResolution.includes('1080')
+            ? 1080
+            : plex.videoResolution.includes('720')
+                ? 720
+                : 0;
+    return {
+        ...file,
+        mediaInfo: {
+            ...(file.mediaInfo || {}),
+            videoCodec: plex.videoCodec,
+            ...(heightHint ? { height: heightHint } : {}),
+        },
+        _codecSource: 'plex',
+    };
+};
+
+const enrichSonarrFilesWithPlexCodecFallback = async (config, seriesFiles = [], posterMeta = {}, plexLookup = null) => {
+    const files = Array.isArray(seriesFiles) ? seriesFiles : [];
+    if (!files.length || !files.some((file) => !sonarrEpisodeFileHasVideoCodec(file))) return files;
+    if (!isPlexConfigured(config) || !plexLookup) return files;
+
+    const plexItem = findPlexPosterItem(plexLookup, posterMeta);
+    if (!plexItem?.ratingKey) return files;
+
+    const uri = await getPlexConnectionUri(config).catch(() => config.plexUrl || null);
+    if (!uri) return files;
+
+    const plexEpisodes = await fetchPlexShowEpisodes(config, uri, {
+        ratingKey: plexItem.ratingKey,
+        title: posterMeta.title || plexItem.title,
+    }).catch(() => []);
+    if (!plexEpisodes.length) return files;
+
+    const codecLookup = buildPlexEpisodeCodecLookup(plexEpisodes);
+    if (!codecLookup.size) return files;
+    return files.map((file) => applyPlexCodecFallbackToSonarrFile(file, codecLookup));
+};
+
 const aggregateSonarrSeriesFileStats = (files = []) => {
     if (!files.length) {
         return {
@@ -9375,23 +13695,28 @@ const aggregateSonarrSeriesFileStats = (files = []) => {
     let nonHevcSizeGB = 0;
     let totalSizeGB = 0;
     let displayFileStats = null;
+    let unknownCodecCount = 0;
     const codecCounts = {};
     const codecSizesGB = {};
     const resCounts = {};
     files.forEach((file) => {
         const stats = analyzeSonarrEpisodeFile(file);
         totalSizeGB += stats.sizeGB;
-        if (!stats.isHevc) {
-            nonHevcCount += 1;
-            nonHevcSizeGB += stats.sizeGB;
-        }
         if (!displayFileStats || stats.sizeGB > displayFileStats.sizeGB) {
             displayFileStats = stats;
         }
-        // Tally codec and resolution occurrences
-        if (stats.videoCodec) {
-            codecCounts[stats.videoCodec] = (codecCounts[stats.videoCodec] || 0) + 1;
-            codecSizesGB[stats.videoCodec] = (codecSizesGB[stats.videoCodec] || 0) + stats.sizeGB;
+        // Tally codec and resolution occurrences (family-normalized: x264≡h264, x265≡hevc)
+        const codecKey = normalizeArrVideoCodecKey(stats.videoCodec);
+        if (codecKey) {
+            codecCounts[codecKey] = (codecCounts[codecKey] || 0) + 1;
+            codecSizesGB[codecKey] = (codecSizesGB[codecKey] || 0) + stats.sizeGB;
+            // Only score HEVC/non-HEVC when Sonarr actually provided mediaInfo
+            if (!stats.isHevc) {
+                nonHevcCount += 1;
+                nonHevcSizeGB += stats.sizeGB;
+            }
+        } else {
+            unknownCodecCount += 1;
         }
         if (stats.videoResolution) resCounts[stats.videoResolution] = (resCounts[stats.videoResolution] || 0) + 1;
     });
@@ -9408,15 +13733,19 @@ const aggregateSonarrSeriesFileStats = (files = []) => {
             hasHdr: false,
             hasDolbyVision: false,
             is4k: false,
+            unknownCodecCount: 0,
         };
     }
     // Use the most common codec and resolution, not just the largest file's
-    const dominantCodec = Object.entries(codecCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || displayFileStats.videoCodec || '';
+    const dominantCodec = Object.entries(codecCounts).sort((a, b) => b[1] - a[1])[0]?.[0]
+        || normalizeArrVideoCodecKey(displayFileStats.videoCodec)
+        || '';
     const dominantRes = Object.entries(resCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || displayFileStats.videoResolution || '';
     // Round codecSizesGB
     Object.keys(codecSizesGB).forEach(k => {
         codecSizesGB[k] = Math.round(codecSizesGB[k] * 100) / 100;
     });
+    const knownCodecFiles = Object.values(codecCounts).reduce((sum, n) => sum + Number(n || 0), 0);
 
     return {
         totalFiles: files.length,
@@ -9429,11 +13758,13 @@ const aggregateSonarrSeriesFileStats = (files = []) => {
         codecSizesGB,
         resCounts,
         displayTags: displayFileStats.displayTags || [],
-        isHevc: nonHevcCount === 0,
+        // All *known* codecs are HEVC (ignore files missing mediaInfo)
+        isHevc: knownCodecFiles > 0 && nonHevcCount === 0,
         hasHdr: !!displayFileStats.hasHdr,
         hasDolbyVision: !!displayFileStats.hasDolbyVision,
         is4k: (displayFileStats.displayTags || []).includes('4K'),
         zeroSizeCount: Object.values(codecSizesGB).reduce((a, b) => a + b, 0) === 0 ? files.length : files.filter(f => !f.size || f.size === 0).length,
+        unknownCodecCount,
     };
 };
 
@@ -9453,7 +13784,7 @@ const analyzeRadarrMovieFile = (movie = null) => {
         };
     }
     const mediaInfo = file.mediaInfo || {};
-    const codec = String(mediaInfo.videoCodec || mediaInfo.videoFormat || '').toLowerCase();
+    const codec = normalizeArrVideoCodecKey(mediaInfo.videoCodec || mediaInfo.videoFormat || '');
     const width = Number(mediaInfo.width || 0);
     const height = Number(mediaInfo.height || 0);
     const qualityLabel = file?.quality?.quality?.name || null;
@@ -9582,6 +13913,7 @@ const mapSonarrSeriesToUpgraderItem = (series, instance, fileStats = {}, episode
         nonHevcEpisodeSizeGB: Number(fileStats.nonHevcSizeGB || 0),
         zeroSizeCount: Number(fileStats.zeroSizeCount || 0),
         onDiskFileCount: Number(fileStats.totalFiles || 0),
+        unknownCodecCount: Number(fileStats.unknownCodecCount || 0),
         tvdbId: series.tvdbId,
         tmdbId: series.tmdbId,
         imdbId: series.imdbId,
@@ -9649,14 +13981,15 @@ const buildSonarrSeriesFingerprint = (series, files = []) => {
     const filePart = files.length
         ? files.map((file) => `${file.id}:${file.size || 0}:${file.mediaInfo?.videoCodec || ''}:${file.mediaInfo?.height || 0}`).sort().join(',')
         : 'none';
-    return `${series?.qualityProfileId || 0}:${stats.episodeFileCount || 0}:${stats.sizeOnDisk || 0}:${filePart}`;
+    // v4: Plex codec fallback when Sonarr mediaInfo is empty.
+    return `v4:${series?.qualityProfileId || 0}:${stats.episodeFileCount || 0}:${stats.sizeOnDisk || 0}:${filePart}`;
 };
 
 const buildRadarrMovieFingerprint = (movie) => {
     const file = movie?.movieFile;
-    if (!file) return `empty:${movie?.qualityProfileId || 0}`;
+    if (!file) return `v4:empty:${movie?.qualityProfileId || 0}`;
     const mediaInfo = file.mediaInfo || {};
-    return `${movie?.qualityProfileId || 0}:${file.id}:${file.size || 0}:${mediaInfo.videoCodec || ''}:${mediaInfo.height || 0}`;
+    return `v4:${movie?.qualityProfileId || 0}:${file.id}:${file.size || 0}:${mediaInfo.videoCodec || ''}:${mediaInfo.height || 0}`;
 };
 
 const loadUpgraderPlexPosterLookup = async (config) => {
@@ -9670,7 +14003,7 @@ const loadUpgraderPlexPosterLookup = async (config) => {
     return buildPlexPosterLookup(maintenanceItems);
 };
 
-const buildUpgraderItemsForArrInstance = async (instance, { plexLookup, resolveUrl, prevByKey } = {}) => {
+const buildUpgraderItemsForArrInstance = async (instance, { config, plexLookup, resolveUrl, prevByKey } = {}) => {
     const items = [];
     let reused = 0;
     const instanceLabel = instance.name || instance.id;
@@ -9703,10 +14036,10 @@ const buildUpgraderItemsForArrInstance = async (instance, { plexLookup, resolveU
             return acc;
         }, {});
 
-        seriesList.forEach((series) => {
+        for (const series of seriesList) {
             const seriesId = Number(series.id || 0);
-            if (!seriesId) return;
-            const seriesFiles = filesBySeries[seriesId] || [];
+            if (!seriesId) continue;
+            let seriesFiles = filesBySeries[seriesId] || [];
             const fingerprint = buildSonarrSeriesFingerprint(series, seriesFiles);
             const ratingKey = buildUpgraderItemKey('sonarr', instance.id, seriesId);
             const posterMeta = {
@@ -9721,11 +14054,16 @@ const buildUpgraderItemsForArrInstance = async (instance, { plexLookup, resolveU
                 imdbId: series.imdbId,
             };
             const prev = prevByKey.get(ratingKey);
-            if (prev?.arrFileFingerprint === fingerprint && prev.zeroSizeCount != null) {
+            const missingSonarrCodec = seriesFiles.some((file) => !sonarrEpisodeFileHasVideoCodec(file));
+            // Skip reuse when codecs are missing — we may fill them from Plex.
+            if (prev?.arrFileFingerprint === fingerprint && prev.zeroSizeCount != null && !missingSonarrCodec && !(Number(prev.unknownCodecCount || 0) > 0)) {
                 prev.overview = series.overview || '';
                 items.push(applyUpgraderPosterFields(prev, posterMeta, plexLookup));
                 reused += 1;
-                return;
+                continue;
+            }
+            if (missingSonarrCodec) {
+                seriesFiles = await enrichSonarrFilesWithPlexCodecFallback(config, seriesFiles, posterMeta, plexLookup);
             }
             const fileStats = aggregateSonarrSeriesFileStats(seriesFiles);
             const plexItem = findPlexPosterItem(plexLookup, posterMeta);
@@ -9738,7 +14076,7 @@ const buildUpgraderItemsForArrInstance = async (instance, { plexLookup, resolveU
             );
             item.arrFileFingerprint = fingerprint;
             items.push(item);
-        });
+        }
     } else if (instance.type === 'radarr') {
         const fetchStarted = Date.now();
         const movies = await fetchArrInstanceCatalogItems(instance, { resolveUrl, fetchImpl: fetch });
@@ -9780,7 +14118,9 @@ const buildUpgraderArrIndex = async (config, { actor = null } = {}) => {
     markTaskStart(systemJobs.upgraderIndex);
     const buildStarted = Date.now();
     try {
-        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instances = getArrInstances(config, { enabledOnly: true })
+            .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+            .filter(isArrInstanceReady);
         if (!instances.length) {
             throw new Error('No ready Sonarr or Radarr instances configured.');
         }
@@ -9793,7 +14133,7 @@ const buildUpgraderArrIndex = async (config, { actor = null } = {}) => {
         const prevByKey = new Map((Array.isArray(prevPayload.items) ? prevPayload.items : []).map((item) => [item.ratingKey, item]));
 
         const instanceResults = await Promise.all(
-            instances.map((instance) => buildUpgraderItemsForArrInstance(instance, { plexLookup, resolveUrl, prevByKey })),
+            instances.map((instance) => buildUpgraderItemsForArrInstance(instance, { config, plexLookup, resolveUrl, prevByKey })),
         );
         const items = instanceResults.flatMap((result) => result.items);
         const reusedCount = instanceResults.reduce((sum, result) => sum + result.reused, 0);
@@ -9826,7 +14166,7 @@ const loadUpgraderIndex = async () => loadFile(UPGRADER_INDEX_PATH, { generatedA
 const mapSonarrFileToEpisodeQuality = (file = null) => {
     const qualityLabel = getSonarrEpisodeQualityLabel(file);
     const mediaInfo = file?.mediaInfo || {};
-    const codec = String(mediaInfo.videoCodec || mediaInfo.videoFormat || '').toLowerCase();
+    const codec = normalizeArrVideoCodecKey(mediaInfo.videoCodec || mediaInfo.videoFormat || '');
     const width = Number(mediaInfo.width || 0);
     const height = Number(mediaInfo.height || 0);
     const tags = [];
@@ -9863,9 +14203,38 @@ const buildUpgraderEpisodesFromSonarr = (sonarrEpisodes, sonarrFiles, showTitle,
         const seasonNumber = sonarrEpisode.seasonNumber != null ? Number(sonarrEpisode.seasonNumber) : null;
         const episodeNumber = sonarrEpisode.episodeNumber != null ? Number(sonarrEpisode.episodeNumber) : null;
         const sonarrFile = sonarrEpisode?.episodeFileId ? fileById.get(Number(sonarrEpisode.episodeFileId)) : null;
-        const sonarrQuality = mapSonarrFileToEpisodeQuality(sonarrFile);
+        let sonarrQuality = mapSonarrFileToEpisodeQuality(sonarrFile);
         
         const plexEp = plexEpMap.get(`${seasonNumber}-${episodeNumber}`);
+        // Prefer Sonarr mediaInfo; if empty, use Plex codec for the same episode.
+        if ((!sonarrQuality.videoCodec || !sonarrQuality.videoResolution) && plexEp) {
+            const plexCodec = normalizeArrVideoCodecKey(plexEp.videoCodec);
+            if (plexCodec && !sonarrQuality.videoCodec) {
+                sonarrQuality = {
+                    ...sonarrQuality,
+                    videoCodec: plexCodec,
+                    isHevc: !!plexEp.isHevc || isHevcVideoCodec(plexCodec),
+                    hasHdr: sonarrQuality.hasHdr || !!plexEp.hasHdr,
+                    hasDolbyVision: sonarrQuality.hasDolbyVision || !!plexEp.hasDolbyVision,
+                    displayTags: (sonarrQuality.displayTags || []).length
+                        ? sonarrQuality.displayTags
+                        : (plexEp.displayTags || []),
+                };
+            }
+            if (!sonarrQuality.videoResolution && plexEp.videoResolution) {
+                const res = String(plexEp.videoResolution).toLowerCase();
+                sonarrQuality = {
+                    ...sonarrQuality,
+                    videoResolution: res.includes('4k') || res.includes('2160')
+                        ? '4k'
+                        : res.includes('1080')
+                            ? '1080'
+                            : res.includes('720')
+                                ? '720'
+                                : res,
+                };
+            }
+        }
         
         let thumbUrl = plexEp?.thumb ? `/api/plex/image?path=${encodeURIComponent(plexEp.thumb)}&width=400&height=225` : null;
         // Always provide an episode image URL when we have instance+episode data — the endpoint handles fallbacks
@@ -10111,13 +14480,27 @@ const mapUpgraderApiItem = (item, exclusions = { ratingKeys: new Set(), titles: 
         || exclusions.libraries.has(normalized(item.libraryTitle))
         || exclusions.snoozedRatingKeys.has(String(item.ratingKey || ''));
     const snoozed = exclusions.snoozedRatingKeys.has(String(item.ratingKey || ''));
+    const codecCounts = mergeUpgraderCodecMaps(item.codecCounts);
+    const codecSizesGBRaw = mergeUpgraderCodecMaps(item.codecSizesGB);
+    const codecSizesGB = {};
+    Object.entries(codecSizesGBRaw).forEach(([key, size]) => {
+        codecSizesGB[key] = Math.round(Number(size || 0) * 100) / 100;
+    });
+    const dominantCodec = Object.entries(codecCounts).sort((a, b) => b[1] - a[1])[0]?.[0]
+        || normalizeArrVideoCodecKey(item.videoCodec)
+        || '';
+    const onDiskFileCount = Number(item.onDiskFileCount || 0)
+        || Object.values(codecCounts).reduce((sum, count) => sum + Number(count || 0), 0);
+    const knownCodecFileCount = Object.values(codecCounts).reduce((sum, count) => sum + Number(count || 0), 0);
+    const unknownCodecCount = Number(item.unknownCodecCount || 0)
+        || Math.max(0, onDiskFileCount - knownCodecFileCount);
     return {
         ratingKey: String(item.ratingKey || ''),
         title: item.title || 'Unknown',
         overview: item.overview || '',
         year: item.year || null,
-        codecCounts: item.codecCounts || undefined,
-        codecSizesGB: item.codecSizesGB || undefined,
+        codecCounts: Object.keys(codecCounts).length ? codecCounts : undefined,
+        codecSizesGB: Object.keys(codecSizesGB).length ? codecSizesGB : undefined,
         resCounts: item.resCounts || undefined,
         thumb: item.thumb || '',
         thumbUrl: item.thumbUrl || null,
@@ -10125,7 +14508,7 @@ const mapUpgraderApiItem = (item, exclusions = { ratingKeys: new Set(), titles: 
         mediaType: item.mediaType || 'movie',
         libraryTitle: item.libraryTitle || 'Library',
         libraryId: String(item.libraryId || ''),
-        videoCodec: item.videoCodec || '',
+        videoCodec: dominantCodec || normalizeArrVideoCodecKey(item.videoCodec) || item.videoCodec || '',
         videoResolution: item.videoResolution || '',
         displayTags: Array.isArray(item.displayTags) ? item.displayTags : [],
         sizeGB: Number(item.sizeGB || 0),
@@ -10138,6 +14521,9 @@ const mapUpgraderApiItem = (item, exclusions = { ratingKeys: new Set(), titles: 
         totalEpisodeCount: Number(item.totalEpisodeCount || 0),
         nonHevcEpisodeCount: Number(item.nonHevcEpisodeCount || 0),
         nonHevcEpisodeSizeGB: Number(item.nonHevcEpisodeSizeGB || 0),
+        onDiskFileCount,
+        knownCodecFileCount,
+        unknownCodecCount,
         plexUrl: item.plexUrl || null,
         arrMapped: !!item.arrMapped,
         arrType: item.arrType || 'none',
@@ -10207,7 +14593,9 @@ const getProfileNameById = (profiles = [], profileId) => {
 };
 
 const buildUpgraderProfilesPayload = async (config) => {
-    const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+    const instances = getArrInstances(config, { enabledOnly: true })
+        .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+        .filter(isArrInstanceReady);
     const resolveUrl = resolveIntegrationUrlForFetch;
     const results = await Promise.all(instances.map(async (instance) => {
         const profiles = await fetchArrQualityProfiles(instance, { resolveUrl, fetchImpl: fetch });
@@ -10822,7 +15210,7 @@ const fetchMaintenanceWatchStats = async (config, uri) => {
     while (start < maxHistoryItems) {
         const pageRes = await fetch(
             `${uri}/status/sessions/history/all?X-Plex-Token=${config.plexToken}&sort=viewedAt:desc&X-Plex-Container-Start=${start}&X-Plex-Container-Size=${pageSize}`,
-            { headers: { Accept: 'application/json' } }
+            { headers: plexClientHeaders(config.plexToken) }
         ).then(r => r.json()).catch(() => null);
 
         const pageContainer = pageRes?.MediaContainer || {};
@@ -10894,7 +15282,7 @@ const extractMaintenanceRatings = (media = {}) => {
 
 const fetchPlexLibraryItemsForMaintenance = async (config, uri) => {
     const watchStats = await fetchMaintenanceWatchStats(config, uri);
-    const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: { Accept: 'application/json' } })
+    const sectionsRes = await fetch(`${uri}/library/sections?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) })
         .then(r => r.json())
         .catch(() => null);
     const sections = sectionsRes?.MediaContainer?.Directory || [];
@@ -10909,7 +15297,7 @@ const fetchPlexLibraryItemsForMaintenance = async (config, uri) => {
         let total = Infinity;
         while (start < total) {
             const listRes = await fetch(`${uri}/library/sections/${sectionKey}/all?X-Plex-Token=${config.plexToken}&X-Plex-Container-Start=${start}&X-Plex-Container-Size=${pageSize}`, {
-                headers: { Accept: 'application/json' }
+                headers: plexClientHeaders(config.plexToken)
             }).then(r => r.json()).catch(() => null);
             const container = listRes?.MediaContainer || {};
             const page = container.Metadata || [];
@@ -11070,7 +15458,9 @@ const attachRequestsToMediaIndex = (mediaItems, requestIndex) => {
 
 const enrichMediaItemsWithArrResolution = async (config, items = []) => {
     const normalized = normalizeArrConfig(config);
-    const hasArr = getArrInstances(normalized, { enabledOnly: true }).some(isArrInstanceReady);
+    const hasArr = getArrInstances(normalized, { enabledOnly: true })
+        .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+        .some(isArrInstanceReady);
     if (!hasArr || !Array.isArray(items) || items.length === 0) return items;
 
     const catalog = await getArrCatalog(normalized, { force: true });
@@ -11111,7 +15501,7 @@ const buildMaintenanceMediaIndex = async ({ actor = null, force = false } = {}) 
         const requestIndex = await fetchRequestIndex(config);
         let enriched = [];
 
-        if (mediaServerType === 'jellyfin') {
+        if (mediaServerType !== 'plex') {
             if (!isJellyfinConfigured(config)) {
                 throw new Error('Jellyfin integration is not configured.');
             }
@@ -11170,7 +15560,8 @@ const getArrCatalog = async (config, { force = false } = {}) => {
         return cachedArrCatalog;
     }
     const normalized = normalizeArrConfig(config);
-    const instances = getArrInstances(normalized, { enabledOnly: true });
+    const instances = getArrInstances(normalized, { enabledOnly: true })
+        .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr');
     const catalogResults = await Promise.all(
         instances.map(async (instance) => ({
             instance,
@@ -11259,7 +15650,7 @@ const applyArrActions = async (config, resolved, actions = {}) => {
 const resolveCollectionRatingKey = async (config, uri, libraryId, title) => {
     try {
         const payload = await fetch(`${uri}/library/sections/${encodeURIComponent(libraryId)}/collections?X-Plex-Token=${encodeURIComponent(config.plexToken)}`, {
-            headers: { Accept: 'application/json' }
+            headers: plexClientHeaders(config.plexToken)
         }).then(r => r.json()).catch(() => null);
         const collections = Array.isArray(payload?.MediaContainer?.Metadata) ? payload.MediaContainer.Metadata : [];
         const needle = String(title || '').trim().toLowerCase();
@@ -11275,7 +15666,7 @@ const pinCollectionToHome = async (config, uri, libraryId, collectionRatingKey, 
     if (!pinToHomeForAllUsers || !libraryId || !collectionRatingKey) return { pinned: false };
     try {
         const hubManageUrl = `${uri}/hubs/sections/${encodeURIComponent(libraryId)}/manage?metadataItemId=${encodeURIComponent(collectionRatingKey)}&promotedToRecommended=1&promotedToOwnHome=1&promotedToSharedHome=1&X-Plex-Token=${encodeURIComponent(config.plexToken)}`;
-        const res = await fetch(hubManageUrl, { method: 'PUT', headers: { Accept: 'application/json' } }).catch(() => null);
+        const res = await fetch(hubManageUrl, { method: 'PUT', headers: plexClientHeaders(config.plexToken) }).catch(() => null);
         return { pinned: !!(res && res.ok), status: res?.status || null };
     } catch (e) {
         return { pinned: false, error: e.message };
@@ -11305,7 +15696,7 @@ const syncRulePlexCollection = async (config, uri, rule, items, options = {}) =>
         if (!uniqueKeys.length) continue;
         const sourceUri = `server://${config.serverIdentifier}/com.plexapp.plugins.library/library/metadata/${uniqueKeys.join(',')}`;
         const targetUrl = `${uri}/library/collections?title=${encodeURIComponent(title)}&type=${typeId}&smart=0&sectionId=${encodeURIComponent(libraryId)}&uri=${encodeURIComponent(sourceUri)}&X-Plex-Token=${encodeURIComponent(config.plexToken)}`;
-        const createRes = await fetch(targetUrl, { method: 'POST', headers: { Accept: 'application/json' } }).catch(() => null);
+        const createRes = await fetch(targetUrl, { method: 'POST', headers: plexClientHeaders(config.plexToken) }).catch(() => null);
         if (createRes && (createRes.ok || createRes.status === 201 || createRes.status === 200)) {
             updated += 1;
             if (pinToHomeForAllUsers) {
@@ -11656,6 +16047,191 @@ app.get('/api/maintenance/library-items', requireAdmin, async (req, res) => {
     }
 });
 
+const isCollexionsEnabled = (config) => (
+    !!config?.collexionsEnabled
+    && String(config?.mediaServerType || 'plex').toLowerCase() === 'plex'
+    && !!String(config?.collexionsInternalUrl || '').trim()
+);
+
+const requireCollexions = async (req, res, next) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        if (String(config?.mediaServerType || 'plex').toLowerCase() !== 'plex') {
+            return res.status(403).json({ error: 'Collexions is a Plex-only integration. Switch Media Server Type to Plex in Settings.' });
+        }
+        if (!isCollexionsEnabled(config)) {
+            return res.status(403).json({ error: 'Collexions is disabled. Enable it and set the internal URL in Settings first.' });
+        }
+        req.collexionsConfig = config;
+        return next();
+    } catch (e) {
+        return res.status(500).json({ error: 'Failed to check Collexions feature flag.' });
+    }
+};
+
+/** Portal-side Collexions health (works even when worker is down). Before catch-all proxy. */
+app.get('/api/collexions/health', requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const enabled = !!config.collexionsEnabled;
+        const autostart = !!config.collexionsAutostart;
+        const embedded = getCollexionsEmbeddedStatus();
+        const base = String(config.collexionsInternalUrl || '').replace(/\/+$/, '');
+        const serviceKey = String(config.collexionsServiceKey || process.env.COLLEXIONS_SERVICE_KEY || '').trim();
+        const issues = [];
+
+        if (String(config.mediaServerType || 'plex').toLowerCase() !== 'plex') {
+            issues.push('Collexions requires Media Server Type = Plex.');
+        }
+        if (!enabled) issues.push('Collexions is disabled in Settings.');
+        if (enabled && !base) issues.push('Internal URL is not configured.');
+        if (enabled && !serviceKey) issues.push('Service key is missing.');
+
+        let worker = { ok: false, reachable: false, error: null, detail: null };
+        if (enabled && base && serviceKey) {
+            try {
+                const upstream = await fetchWithTimeout(
+                    `${base}/api/health`,
+                    { headers: { Accept: 'application/json', 'X-Collexions-Service-Key': serviceKey } },
+                    6000,
+                );
+                if (upstream.ok) {
+                    const detail = await upstream.json().catch(() => null);
+                    worker = { ok: !!(detail && detail.ok), reachable: true, error: null, detail };
+                    if (detail && Array.isArray(detail.issues)) issues.push(...detail.issues);
+                } else {
+                    worker = { ok: false, reachable: false, error: `Worker HTTP ${upstream.status}`, detail: null };
+                    issues.push(`Collexions worker returned HTTP ${upstream.status}.`);
+                }
+            } catch (e) {
+                const timedOut = e?.name === 'AbortError' || /aborted/i.test(String(e?.message || ''));
+                worker = {
+                    ok: false,
+                    reachable: false,
+                    error: timedOut ? 'Worker timed out' : (e.message || 'Unreachable'),
+                    detail: null,
+                };
+                issues.push(timedOut
+                    ? 'Collexions worker did not respond in time.'
+                    : `Cannot reach Collexions worker: ${e.message}`);
+            }
+        }
+
+        const uniqueIssues = [...new Set(issues.filter(Boolean))];
+        return res.json({
+            ok: enabled && worker.reachable && worker.ok,
+            enabled,
+            autostart,
+            embedded,
+            worker,
+            issues: uniqueIssues,
+        });
+    } catch (e) {
+        return res.status(500).json({ error: e.message || 'Failed to check Collexions health.' });
+    }
+});
+
+/** Seed Collexions forms from portal-stored Plex/TMDB credentials (admin only). Must be registered before the catch-all proxy. */
+app.get('/api/collexions/portal-defaults', requireAdmin, requireCollexions, async (req, res) => {
+    try {
+        const config = req.collexionsConfig || await loadFile(CONFIG_PATH, {});
+        const plexUrl = resolveConfiguredPlexServerUrl(config);
+        const plexToken = String(config.plexToken || '').trim();
+        const tmdbApiKey = String(config.tmdbApiKey || '').trim();
+        const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
+        return res.json({
+            plex_url: plexUrl || '',
+            plex_token: plexToken || '',
+            tmdb_api_key: tmdbApiKey || '',
+            mediaServerType,
+            sources: {
+                plex: !!(plexUrl && plexToken && mediaServerType === 'plex'),
+                tmdb: !!tmdbApiKey,
+                trakt: false,
+                mdblist: false,
+            },
+        });
+    } catch (e) {
+        return res.status(500).json({ error: e.message || 'Failed to load portal defaults.' });
+    }
+});
+
+/** Proxy /api/collexions/* → Collexions Flask sidecar with portal admin SSO. */
+app.all('/api/collexions/*', requireAdmin, requireCollexions, async (req, res) => {
+    try {
+        const config = req.collexionsConfig || await loadFile(CONFIG_PATH, {});
+        const base = String(config.collexionsInternalUrl || '').replace(/\/+$/, '');
+        const serviceKey = String(config.collexionsServiceKey || process.env.COLLEXIONS_SERVICE_KEY || '').trim();
+        if (!base) {
+            return res.status(503).json({ error: 'Collexions internal URL is not configured.' });
+        }
+        if (!serviceKey) {
+            return res.status(503).json({ error: 'Collexions service key is not configured. Set it in Settings (shared with the sidecar COLLEXIONS_SERVICE_KEY).' });
+        }
+
+        const suffix = String(req.params[0] || '').replace(/^\/+/, '');
+        const targetUrl = new URL(`${base}/api/${suffix}`);
+        for (const [key, value] of Object.entries(req.query || {})) {
+            if (value == null) continue;
+            if (Array.isArray(value)) value.forEach((v) => targetUrl.searchParams.append(key, String(v)));
+            else targetUrl.searchParams.set(key, String(value));
+        }
+
+        const headers = {
+            Accept: req.headers.accept || 'application/json',
+            'X-Collexions-Service-Key': serviceKey,
+            'X-Portal-Admin': '1',
+        };
+        if (req.headers['content-type']) headers['Content-Type'] = req.headers['content-type'];
+
+        const method = String(req.method || 'GET').toUpperCase();
+        const init = { method, headers };
+        if (method !== 'GET' && method !== 'HEAD') {
+            if (Buffer.isBuffer(req.body)) init.body = req.body;
+            else if (typeof req.body === 'string') init.body = req.body;
+            else if (req.body != null) {
+                headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+                init.body = JSON.stringify(req.body);
+            }
+        }
+
+        // Gallery / create / template jobs / large Trakt lists / poster mosaics can take a while.
+        const longSuffix =
+            suffix === 'collections'
+            || suffix.startsWith('collections?')
+            || suffix === 'collections/create'
+            || suffix === 'collections/create-from-external'
+            || suffix === 'collections/fix-art'
+            || suffix === 'templates/create'
+            || suffix.startsWith('templates/franchise-search')
+            || suffix === 'trending'
+            || suffix === 'trakt/list'
+            || suffix.startsWith('trakt/list?');
+        const timeoutMs = longSuffix ? 180000 : 20000;
+        const upstream = await fetchWithTimeout(targetUrl.toString(), init, timeoutMs);
+        const contentType = upstream.headers.get('content-type') || '';
+        res.status(upstream.status);
+        if (contentType) res.setHeader('Content-Type', contentType);
+        const cacheControl = upstream.headers.get('cache-control');
+        if (cacheControl) res.setHeader('Cache-Control', cacheControl);
+
+        if (contentType.includes('application/json')) {
+            const data = await upstream.json().catch(() => null);
+            return res.send(data == null ? '' : data);
+        }
+        const buf = Buffer.from(await upstream.arrayBuffer());
+        return res.send(buf);
+    } catch (e) {
+        const timedOut = e?.name === 'AbortError' || /aborted/i.test(String(e?.message || ''));
+        log(`Collexions proxy error: ${e.message}`);
+        return res.status(timedOut ? 504 : 502).json({
+            error: timedOut
+                ? 'Collexions worker timed out.'
+                : `Cannot reach Collexions sidecar: ${e.message}`,
+        });
+    }
+});
+
 const requireUpgrader = async (req, res, next) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
@@ -12000,7 +16576,9 @@ app.get('/api/upgrader/arr-episode-image', requireAdmin, async (req, res) => {
 app.get('/api/upgrader/profiles', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instances = getArrInstances(config, { enabledOnly: true })
+            .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+            .filter(isArrInstanceReady);
         res.json({ instances: maskArrInstancesForApi(instances) });
     } catch (e) {
         res.status(500).json({ error: `Failed to load profiles instances: ${e.message}` });
@@ -12052,7 +16630,9 @@ app.get('/api/upgrader/arr/:instanceId/customformats/schema', requireAdmin, asyn
     try {
         const config = await loadFile(CONFIG_PATH, {});
         const instanceId = req.params.instanceId;
-        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instances = getArrInstances(config, { enabledOnly: true })
+            .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+            .filter(isArrInstanceReady);
         const instance = instances.find(i => i.id === instanceId);
         if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
 
@@ -12071,7 +16651,9 @@ app.get('/api/upgrader/arr/:instanceId/customformats', requireAdmin, async (req,
     try {
         const config = await loadFile(CONFIG_PATH, {});
         const instanceId = req.params.instanceId;
-        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instances = getArrInstances(config, { enabledOnly: true })
+            .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+            .filter(isArrInstanceReady);
         const instance = instances.find(i => i.id === instanceId);
         if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
         
@@ -12090,7 +16672,9 @@ app.post('/api/upgrader/arr/:instanceId/customformats', requireAdmin, async (req
     try {
         const config = await loadFile(CONFIG_PATH, {});
         const instanceId = req.params.instanceId;
-        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instances = getArrInstances(config, { enabledOnly: true })
+            .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+            .filter(isArrInstanceReady);
         const instance = instances.find(i => i.id === instanceId);
         if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
         
@@ -12112,7 +16696,9 @@ app.put('/api/upgrader/arr/:instanceId/customformats/:id', requireAdmin, async (
         const config = await loadFile(CONFIG_PATH, {});
         const instanceId = req.params.instanceId;
         const id = req.params.id;
-        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instances = getArrInstances(config, { enabledOnly: true })
+            .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+            .filter(isArrInstanceReady);
         const instance = instances.find(i => i.id === instanceId);
         if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
         
@@ -12142,7 +16728,9 @@ app.get('/api/upgrader/arr/:instanceId/qualityprofiles', requireAdmin, async (re
     try {
         const config = await loadFile(CONFIG_PATH, {});
         const instanceId = req.params.instanceId;
-        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instances = getArrInstances(config, { enabledOnly: true })
+            .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+            .filter(isArrInstanceReady);
         const instance = instances.find(i => i.id === instanceId);
         if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
         
@@ -12162,7 +16750,9 @@ app.put('/api/upgrader/arr/:instanceId/qualityprofiles/:id', requireAdmin, async
         const config = await loadFile(CONFIG_PATH, {});
         const instanceId = req.params.instanceId;
         const id = req.params.id;
-        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instances = getArrInstances(config, { enabledOnly: true })
+            .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+            .filter(isArrInstanceReady);
         const instance = instances.find(i => i.id === instanceId);
         if (!instance) return res.status(404).json({ error: 'Instance not found or not ready' });
         
@@ -12210,7 +16800,9 @@ app.get('/api/upgrader/audit', requireAdmin, async (req, res) => {
 app.get('/api/upgrader/queue', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const instances = getArrInstances(config, { enabledOnly: true }).filter(isArrInstanceReady);
+        const instances = getArrInstances(config, { enabledOnly: true })
+            .filter((entry) => entry.type === 'sonarr' || entry.type === 'radarr')
+            .filter(isArrInstanceReady);
         const queues = await Promise.all(instances.map(async (instance) => {
             const summary = await fetchArrQueueSummary(instance, { resolveUrl: resolveIntegrationUrlForFetch, fetchImpl: fetch });
             return {
@@ -12909,7 +17501,7 @@ async function evaluateKillRules(config, uri, sessions) {
                 const msg = killMessage || `Your stream has been stopped by the server administrator (Rule: ${name || 'Unnamed'}).`;
                 try {
                     const killRes = await fetch(`${uri}/status/sessions/terminate?sessionId=${encodeURIComponent(session.sessionId)}&reason=${encodeURIComponent(msg)}&X-Plex-Token=${config.plexToken}`, {
-                        method: 'GET', headers: { 'Accept': 'application/json' }
+                        method: 'GET', headers: plexClientHeaders(config.plexToken)
                     });
                     if (killRes.ok || killRes.status === 204) {
                         log(`[KillRules] Terminated session for "${session.user || 'Unknown'}" via rule "${name || 'Unnamed'}". Reason: ${msg}`);
@@ -12977,7 +17569,7 @@ async function monitorConcurrentSessions() {
         const uri = await getPlexConnectionUri(config);
         if (!uri) return;
 
-        const sessionsRes = await fetch(`${uri}/status/sessions?X-Plex-Token=${config.plexToken}`, { headers: { 'Accept': 'application/json' } }).then(r => r.json()).catch(() => null);
+        const sessionsRes = await fetch(`${uri}/status/sessions?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
 
         if (sessionsRes && sessionsRes.MediaContainer) {
             const currentStreams = sessionsRes.MediaContainer.size || 0;
@@ -13063,22 +17655,34 @@ async function monitorConcurrentSessions() {
 app.listen(PORT, BIND_HOST, async () => {
     log(`--- Server Manager Portal Service starting on http://${BIND_HOST}:${PORT} ---`);
     log(`Runtime: CONFIG_DIR=${CONFIG_DIR}, FORCE_SECURE_COOKIES=${FORCE_SECURE_COOKIES}, BASE_PATH=${BASE_PATH || '/'}, appVersion=${appVersion}`);
+    if (!arePortalFrontendAssetsReady()) {
+        log('CRITICAL: Frontend build assets missing (static/tailwind.css and/or static/index.js). Pull the latest Docker image or run npm run build before serving the UI.');
+    }
     if (FORCE_SECURE_COOKIES) {
         log('WARNING: FORCE_SECURE_COOKIES=true — plain HTTP logins (http://LAN-IP:2121) will fail until this is set to false.');
     }
 
     await migrateConfigFiles((message) => log(`[config] ${message}`));
 
-    // Ensure unique CLIENT_ID per installation to avoid Plex Auth blocking
+    // Ensure unique, *stable* CLIENT_ID per installation (survives Docker recreates).
+    // Without this, PMS may register the container hostname (e.g. 151a94f8…) as a new device each restart.
     let config = await loadFile(CONFIG_PATH, {});
-    await syncAdminPlexIdFromConfigToken(config, { persist: true });
-    if (!config.clientId || config.clientId.startsWith('smp-')) {
+    if (!config.clientId || config.clientId.startsWith('smp-') || config.clientId === 'plex-expiry-manager-client-id') {
         config.clientId = randomUUID();
         await saveFile(CONFIG_PATH, config);
+        log(`Generated stable Plex clientId ${config.clientId}`);
     }
     if (!process.env.CLIENT_ID) {
         CLIENT_ID = config.clientId;
+    } else {
+        CLIENT_ID = process.env.CLIENT_ID;
+        if (config.clientId !== CLIENT_ID) {
+            config.clientId = CLIENT_ID;
+            await saveFile(CONFIG_PATH, config);
+        }
     }
+    log(`Plex client identity: product=Server Manager Portal clientId=${String(CLIENT_ID).slice(0, 8)}…`);
+    await syncAdminPlexIdFromConfigToken(config, { persist: true });
 
     await loadStatusState();
     runMonitorCycle();
@@ -13086,6 +17690,25 @@ app.listen(PORT, BIND_HOST, async () => {
     monitorConcurrentSessions();
     setInterval(monitorConcurrentSessions, 15000);
     startBackgroundService();
+    loadFile(CONFIG_PATH, {}).then(async (bootConfig) => {
+        try {
+            // Prefer the in-memory CLIENT_ID so Collexions shares the same Plex device identity.
+            const bootWithId = { ...(bootConfig || {}), clientId: CLIENT_ID || bootConfig?.clientId };
+            const { config: withCollexions, changed } = applyCollexionsBundledDefaults(bootWithId, {
+                configDir: CONFIG_DIR,
+                log,
+            });
+            if (changed) {
+                await saveFile(CONFIG_PATH, withCollexions);
+            }
+            await syncCollexionsEmbeddedWorker(withCollexions, { configDir: CONFIG_DIR, log });
+        } catch (e) {
+            log(`[collexions] Startup embedded worker sync failed: ${e.message}`);
+        }
+        ensureSeerrDiscoverySettings(bootConfig, requestAppService.rawFetch).catch((e) => {
+            log(`Request app discovery settings startup sync failed: ${e.message}`);
+        });
+    });
     startPlexStatsBackgroundTask(); // start 24-hour library size cache task
 
     // Background cache builders: reuse on-disk cache and schedule next run by interval.
