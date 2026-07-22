@@ -13,7 +13,7 @@ import {
 } from './discoverConstants';
 import { enrichDiscoveryItems, normalizeRawDiscoveryItem } from './discoverItemUtils';
 import { portalRequestToDiscoveryRowItem } from './myRequestUtils';
-import { filterDiscoverBrowseItems, filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
+import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
 import { fetchDiscoverHomeRowResults, fetchDiscoverHomeRowResultsFromSources } from './discoverFetchUtils';
 import { enrichDiscoverItemsWithAvailability } from './discoverAvailabilityEnrich';
 import { WatchlistPanel } from './WatchlistPanel';
@@ -104,32 +104,84 @@ export const DiscoverHome: React.FC<{
         setLoading(true);
         try {
             const hideAvailable = preferences.hideAvailableMedia;
-            // Large libraries own most of "popular" — dig deep and mix newer lists for requestable holes.
-            const firstPaint = {
+            // Seerr stays fast because hide runs against a local media map in one response.
+            // We do the same: trust proxy cache stamps, paint after 1 page, refill in background.
+            const quickPaint = {
                 needsBackfill: hideAvailable,
-                maxPages: hideAvailable ? 40 : 1,
+                maxPages: 1,
                 maxItems: 24,
-                minItems: hideAvailable ? 16 : 12,
+                minItems: hideAvailable ? 1 : 12,
                 hideRequested: hideAvailable,
+                trustAttachedAvailability: true,
+                pageConcurrency: 1,
             };
+            const deepFill = {
+                needsBackfill: true,
+                maxPages: 16,
+                maxItems: 24,
+                minItems: 20,
+                hideRequested: hideAvailable,
+                // Background can live-verify; UI already painted from cache stamps.
+                trustAttachedAvailability: false,
+                pageConcurrency: 4,
+            };
+            // Home always shows all original languages — Discover Language only filters Movies/Series browse.
+            const homeUrl = (url: string) => `${url}${url.includes('?') ? '&' : '?'}allLanguages=1`;
             const movieSources = hideAvailable
                 ? [
-                    (page: number) => `/api/discovery/proxy/discover/movies/upcoming?page=${page}`,
-                    (page: number) => `/api/discovery/proxy/discover/movies?sortBy=primary_release_date.desc&page=${page}`,
-                    (page: number) => `/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`,
+                    (page: number) => homeUrl(`/api/discovery/proxy/discover/movies?sortBy=primary_release_date.desc&page=${page}`),
+                    (page: number) => homeUrl(`/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`),
+                    (page: number) => homeUrl(`/api/discovery/proxy/discover/movies/upcoming?page=${page}`),
+                    (page: number) => homeUrl(`/api/discovery/proxy/discover/movies?sortBy=vote_count.desc&page=${page}`),
                 ]
                 : [
-                    (page: number) => `/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`,
+                    (page: number) => homeUrl(`/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`),
                 ];
             const seriesSources = hideAvailable
                 ? [
-                    (page: number) => `/api/discovery/proxy/discover/tv/upcoming?page=${page}`,
-                    (page: number) => `/api/discovery/proxy/discover/tv?sortBy=first_air_date.desc&page=${page}`,
-                    (page: number) => `/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`,
+                    (page: number) => homeUrl(`/api/discovery/proxy/discover/tv?sortBy=first_air_date.desc&page=${page}`),
+                    (page: number) => homeUrl(`/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`),
+                    (page: number) => homeUrl(`/api/discovery/proxy/discover/tv/upcoming?page=${page}`),
+                    (page: number) => homeUrl(`/api/discovery/proxy/discover/tv?sortBy=vote_count.desc&page=${page}`),
                 ]
                 : [
-                    (page: number) => `/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`,
+                    (page: number) => homeUrl(`/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`),
                 ];
+            const upcomingMovieSources = hideAvailable
+                ? [
+                    (page: number) => homeUrl(`/api/discovery/proxy/discover/movies/upcoming?page=${page}`),
+                    (page: number) => homeUrl(`/api/discovery/proxy/discover/movies?sortBy=primary_release_date.desc&page=${page}`),
+                ]
+                : [
+                    (page: number) => homeUrl(`/api/discovery/proxy/discover/movies/upcoming?page=${page}`),
+                ];
+            const upcomingSeriesSources = hideAvailable
+                ? [
+                    (page: number) => homeUrl(`/api/discovery/proxy/discover/tv/upcoming?page=${page}`),
+                    (page: number) => homeUrl(`/api/discovery/proxy/discover/tv?sortBy=first_air_date.desc&page=${page}`),
+                ]
+                : [
+                    (page: number) => homeUrl(`/api/discovery/proxy/discover/tv/upcoming?page=${page}`),
+                ];
+            const trendingSources = hideAvailable
+                ? [
+                    (page: number) => homeUrl(`/api/discovery/proxy/discover/trending?page=${page}`),
+                    (page: number) => homeUrl(`/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`),
+                    (page: number) => homeUrl(`/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`),
+                ]
+                : [
+                    (page: number) => homeUrl(`/api/discovery/proxy/discover/trending?page=${page}`),
+                ];
+
+            const fetchRow = (
+                sources: Array<(page: number) => string>,
+                opts: typeof quickPaint,
+            ) => (
+                sources.length > 1
+                    ? fetchDiscoverHomeRowResultsFromSources(sources, hideAvailable, opts)
+                    : fetchDiscoverHomeRowResults(sources[0], hideAvailable, opts)
+            );
+
             const [
                 trendingRes,
                 popularMovies,
@@ -137,29 +189,11 @@ export const DiscoverHome: React.FC<{
                 popularSeries,
                 upcomingSeries,
             ] = await Promise.all([
-                fetchDiscoverHomeRowResults(
-                    (page) => `/api/discovery/proxy/discover/trending?page=${page}`,
-                    hideAvailable,
-                    firstPaint,
-                ).catch(() => []),
-                (hideAvailable
-                    ? fetchDiscoverHomeRowResultsFromSources(movieSources, hideAvailable, firstPaint)
-                    : fetchDiscoverHomeRowResults(movieSources[0], hideAvailable, firstPaint)
-                ).catch(() => []),
-                fetchDiscoverHomeRowResults(
-                    (page) => `/api/discovery/proxy/discover/movies/upcoming?page=${page}`,
-                    hideAvailable,
-                    firstPaint,
-                ).catch(() => []),
-                (hideAvailable
-                    ? fetchDiscoverHomeRowResultsFromSources(seriesSources, hideAvailable, firstPaint)
-                    : fetchDiscoverHomeRowResults(seriesSources[0], hideAvailable, firstPaint)
-                ).catch(() => []),
-                fetchDiscoverHomeRowResults(
-                    (page) => `/api/discovery/proxy/discover/tv/upcoming?page=${page}`,
-                    hideAvailable,
-                    firstPaint,
-                ).catch(() => []),
+                fetchRow(trendingSources, quickPaint).catch(() => []),
+                fetchRow(movieSources, quickPaint).catch(() => []),
+                fetchRow(upcomingMovieSources, quickPaint).catch(() => []),
+                fetchRow(seriesSources, quickPaint).catch(() => []),
+                fetchRow(upcomingSeriesSources, quickPaint).catch(() => []),
             ]);
 
             setRows({
@@ -173,6 +207,83 @@ export const DiscoverHome: React.FC<{
                 upcomingSeries,
             });
             setLoading(false);
+
+            // Background refill when hide empties popular rails (never block the skeleton again).
+            if (hideAvailable) {
+                void (async () => {
+                    try {
+                        const [trendingFill, moviesFill, upcomingMoviesFill, seriesFill, upcomingSeriesFill] = await Promise.all([
+                            fetchRow(trendingSources, deepFill).catch(() => []),
+                            fetchRow(movieSources, deepFill).catch(() => []),
+                            fetchRow(upcomingMovieSources, deepFill).catch(() => []),
+                            fetchRow(seriesSources, deepFill).catch(() => []),
+                            fetchRow(upcomingSeriesSources, deepFill).catch(() => []),
+                        ]);
+                        const next = {
+                            trending: trendingFill.length > trendingRes.length ? trendingFill : trendingRes,
+                            popularMovies: moviesFill.length > popularMovies.length ? moviesFill : popularMovies,
+                            upcomingMovies: upcomingMoviesFill.length > upcomingMovies.length ? upcomingMoviesFill : upcomingMovies,
+                            popularSeries: seriesFill.length > popularSeries.length ? seriesFill : popularSeries,
+                            upcomingSeries: upcomingSeriesFill.length > upcomingSeries.length ? upcomingSeriesFill : upcomingSeries,
+                        };
+                        setRows((prev) => ({ ...prev, ...next }));
+
+                        // Badges after refill so newly added posters get mediaInfo too.
+                        const [
+                            trendingBadges,
+                            moviesBadges,
+                            upcomingMoviesBadges,
+                            seriesBadges,
+                            upcomingSeriesBadges,
+                        ] = await Promise.all([
+                            enrichDiscoverItemsWithAvailability(next.trending),
+                            enrichDiscoverItemsWithAvailability(next.popularMovies),
+                            enrichDiscoverItemsWithAvailability(next.upcomingMovies),
+                            enrichDiscoverItemsWithAvailability(next.popularSeries),
+                            enrichDiscoverItemsWithAvailability(next.upcomingSeries),
+                        ]);
+                        setRows((current) => ({
+                            ...current,
+                            trending: trendingBadges,
+                            popularMovies: moviesBadges,
+                            upcomingMovies: upcomingMoviesBadges,
+                            popularSeries: seriesBadges,
+                            upcomingSeries: upcomingSeriesBadges,
+                        }));
+                    } catch {
+                        // Refill is best-effort.
+                    }
+                })();
+            } else {
+                // Badge pass when not hiding — first paint already has a full row.
+                void (async () => {
+                    try {
+                        const [
+                            trending,
+                            popularMoviesEnriched,
+                            upcomingMoviesEnriched,
+                            popularSeriesEnriched,
+                            upcomingSeriesEnriched,
+                        ] = await Promise.all([
+                            enrichDiscoverItemsWithAvailability(trendingRes),
+                            enrichDiscoverItemsWithAvailability(popularMovies),
+                            enrichDiscoverItemsWithAvailability(upcomingMovies),
+                            enrichDiscoverItemsWithAvailability(popularSeries),
+                            enrichDiscoverItemsWithAvailability(upcomingSeries),
+                        ]);
+                        setRows((current) => ({
+                            ...current,
+                            trending,
+                            popularMovies: popularMoviesEnriched,
+                            upcomingMovies: upcomingMoviesEnriched,
+                            popularSeries: popularSeriesEnriched,
+                            upcomingSeries: upcomingSeriesEnriched,
+                        }));
+                    } catch {
+                        // Badges are best-effort.
+                    }
+                })();
+            }
 
             // Side rails + poster enrich after first paint (never block the skeleton).
             void (async () => {
@@ -206,58 +317,31 @@ export const DiscoverHome: React.FC<{
                 }
             })();
 
-            // Second pass: attach available/requested badges once *arr catalogs are warm.
+            // Genre sliders after rows are visible (best-effort, no per-genre fan-out).
             void (async () => {
                 try {
-                    const [
-                        trending,
-                        popularMoviesEnriched,
-                        upcomingMoviesEnriched,
-                        popularSeriesEnriched,
-                        upcomingSeriesEnriched,
-                    ] = await Promise.all([
-                        enrichDiscoverItemsWithAvailability(trendingRes),
-                        enrichDiscoverItemsWithAvailability(popularMovies),
-                        enrichDiscoverItemsWithAvailability(upcomingMovies),
-                        enrichDiscoverItemsWithAvailability(popularSeries),
-                        enrichDiscoverItemsWithAvailability(upcomingSeries),
+                    const [movieGenreRes, tvGenreRes] = await Promise.all([
+                        apiFetch('/api/discovery/proxy/discover/genreslider/movie').catch(() => null),
+                        apiFetch('/api/discovery/proxy/discover/genreslider/tv').catch(() => null),
                     ]);
-                    setRows((prev) => ({
-                        ...prev,
-                        trending: filterDiscoverBrowseItems(trending, { hideAvailable, hideRequested: hideAvailable }),
-                        popularMovies: filterDiscoverBrowseItems(popularMoviesEnriched, { hideAvailable, hideRequested: hideAvailable }),
-                        upcomingMovies: filterDiscoverBrowseItems(upcomingMoviesEnriched, { hideAvailable, hideRequested: hideAvailable }),
-                        popularSeries: filterDiscoverBrowseItems(popularSeriesEnriched, { hideAvailable, hideRequested: hideAvailable }),
-                        upcomingSeries: filterDiscoverBrowseItems(upcomingSeriesEnriched, { hideAvailable, hideRequested: hideAvailable }),
-                    }));
+                    const mappedMovies = mapGenreSliderResponse(movieGenreRes);
+                    const mappedTv = mapGenreSliderResponse(tvGenreRes);
+                    setMovieGenres(mappedMovies.length
+                        ? mappedMovies.map((g) => ({ ...g, image: g.image || buildGenreSliderImage(g.id) }))
+                        : MOVIE_GENRES.map((g) => ({ id: g.id, name: g.name, image: buildGenreSliderImage(g.id) })));
+                    setTvGenres(mappedTv.length
+                        ? mappedTv.map((g) => ({ ...g, image: g.image || buildGenreSliderImage(g.id) }))
+                        : TV_GENRES.map((g) => ({ id: g.id, name: g.name, image: buildGenreSliderImage(g.id) })));
                 } catch {
-                    // Badges are best-effort; first paint already succeeded.
+                    setMovieGenres(MOVIE_GENRES.map((g) => ({ id: g.id, name: g.name, image: buildGenreSliderImage(g.id) })));
+                    setTvGenres(TV_GENRES.map((g) => ({ id: g.id, name: g.name, image: buildGenreSliderImage(g.id) })));
                 }
             })();
-
-            // Genre sliders after rows are visible (best-effort, no per-genre fan-out).
-            try {
-                const [movieGenreRes, tvGenreRes] = await Promise.all([
-                    apiFetch('/api/discovery/proxy/discover/genreslider/movie').catch(() => null),
-                    apiFetch('/api/discovery/proxy/discover/genreslider/tv').catch(() => null),
-                ]);
-                const mappedMovies = mapGenreSliderResponse(movieGenreRes);
-                const mappedTv = mapGenreSliderResponse(tvGenreRes);
-                setMovieGenres(mappedMovies.length
-                    ? mappedMovies.map((g) => ({ ...g, image: g.image || buildGenreSliderImage(g.id) }))
-                    : MOVIE_GENRES.map((g) => ({ id: g.id, name: g.name, image: buildGenreSliderImage(g.id) })));
-                setTvGenres(mappedTv.length
-                    ? mappedTv.map((g) => ({ ...g, image: g.image || buildGenreSliderImage(g.id) }))
-                    : TV_GENRES.map((g) => ({ id: g.id, name: g.name, image: buildGenreSliderImage(g.id) })));
-            } catch {
-                setMovieGenres(MOVIE_GENRES.map((g) => ({ id: g.id, name: g.name, image: buildGenreSliderImage(g.id) })));
-                setTvGenres(TV_GENRES.map((g) => ({ id: g.id, name: g.name, image: buildGenreSliderImage(g.id) })));
-            }
         } catch (e) {
             console.error(e);
             setLoading(false);
         }
-    }, [loaded, preferences.hideAvailableMedia, preferences.discoverLanguage, preferences.discoverRegion, locale]);
+    }, [loaded, preferences.hideAvailableMedia, preferences.discoverRegion, locale]);
 
     useEffect(() => {
         loadData();

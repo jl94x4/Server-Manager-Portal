@@ -5325,48 +5325,64 @@ const loadDiscoveryAvailabilityCacheFile = async () => (
     )
 );
 
-/** Overlay the current member's pending portal requests onto discover items (Requested badges). */
+/** Overlay the current member's active portal requests onto discover items (Requested badges). */
 const overlayPortalPendingRequestsOntoItems = async (config, sessionUser, items = []) => {
     if (getRequestEngine(config) !== 'portal' || !sessionUser || !Array.isArray(items) || !items.length) {
         return items;
     }
     try {
         const portalRequests = getPortalRequestService(config);
+        // Include pending + approved — auto-approve clears "pending" immediately and was
+        // leaving detail pages stuck on "Request Movie".
         const listed = await portalRequests.listMemberRequests(sessionUser, {
-            filter: 'pending',
-            take: 100,
+            filter: 'all',
+            take: 200,
             skip: 0,
         });
-        const pendingByKey = new Map();
+        const activeByKey = new Map();
         for (const row of listed.results || []) {
+            const status = Number(row?.status);
+            // Skip terminal states; library cache still owns Available/Partial.
+            if (status === 3 || status === 4) continue; // declined / failed
             const mediaType = row?.type === 'tv' ? 'tv' : 'movie';
             const tmdbId = Number(row?.tmdbId);
             if (!Number.isFinite(tmdbId) || tmdbId <= 0) continue;
-            pendingByKey.set(`${mediaType}:${tmdbId}`, row);
+            const key = `${mediaType}:${tmdbId}`;
+            const existing = activeByKey.get(key);
+            // Prefer pending over approved when both exist (HD + later update).
+            if (!existing || (status === 1 && Number(existing.status) !== 1)) {
+                activeByKey.set(key, row);
+            }
         }
-        if (!pendingByKey.size) return items;
+        if (!activeByKey.size) return items;
         return items.map((item) => {
             const mediaType = item?.mediaType === 'tv' || item?.mediaType === 2 || item?.mediaType === '2'
                 ? 'tv'
                 : 'movie';
             const tmdbId = Number(item?.tmdbId ?? item?.id);
-            const pending = pendingByKey.get(`${mediaType}:${tmdbId}`);
-            if (!pending) return item;
+            const active = activeByKey.get(`${mediaType}:${tmdbId}`);
+            if (!active) return item;
             const mediaInfo = { ...(item?.mediaInfo || {}) };
+            const requestStatus = Number(active.status) || 1;
             mediaInfo.requests = [
                 {
-                    id: pending.id,
-                    status: 1,
-                    is4k: !!pending.is4k,
-                    createdAt: pending.createdAt,
+                    id: active.id,
+                    status: requestStatus,
+                    is4k: !!active.is4k,
+                    createdAt: active.createdAt,
                 },
                 ...(Array.isArray(mediaInfo.requests) ? mediaInfo.requests : []),
             ];
-            if (mediaInfo.status == null) mediaInfo.status = 2;
+            const currentStatus = Number(mediaInfo.status);
+            // Don't clobber library available/partial — only fill unknown/empty.
+            if (!Number.isFinite(currentStatus) || currentStatus === 1) {
+                // MEDIA_STATUS: pending=2, processing=3 (approved / sent to *arr).
+                mediaInfo.status = requestStatus === 1 ? 2 : 3;
+            }
             return { ...item, mediaInfo };
         });
     } catch (error) {
-        log(`Discovery pending overlay skipped: ${error.message}`);
+        log(`Discovery request overlay skipped: ${error.message}`);
         return items;
     }
 };
@@ -5380,6 +5396,12 @@ const attachDiscoveryAvailabilityCacheToPayload = async (config, sessionUser, da
             ...next,
             results: await overlayPortalPendingRequestsOntoItems(config, sessionUser, next.results),
         };
+        return next;
+    }
+    // Detail pages: stamp pending request state onto the single title.
+    if (!Array.isArray(next) && (next?.mediaType === 'movie' || next?.mediaType === 'tv' || next?.id)) {
+        const [detailed] = await overlayPortalPendingRequestsOntoItems(config, sessionUser, [next]);
+        return detailed || next;
     }
     return next;
 };
@@ -5457,7 +5479,18 @@ app.post('/api/discovery/availability-batch', requireAuth, requireMember, async 
                 const mediaType = entry?.mediaType === 'tv' ? 'tv' : (entry?.mediaType === 'movie' ? 'movie' : null);
                 const tmdbId = Number(entry?.tmdbId ?? entry?.id);
                 if (!mediaType || !Number.isFinite(tmdbId) || tmdbId <= 0) return null;
-                return { mediaType, tmdbId, id: tmdbId };
+                const year = Number(entry?.year);
+                const tvdbId = Number(entry?.tvdbId);
+                return {
+                    mediaType,
+                    tmdbId,
+                    id: tmdbId,
+                    title: String(entry?.title || entry?.name || '').trim(),
+                    year: Number.isFinite(year) && year > 1900 ? year : null,
+                    tvdbId: Number.isFinite(tvdbId) && tvdbId > 0 ? tvdbId : null,
+                    firstAirDate: entry?.firstAirDate || null,
+                    releaseDate: entry?.releaseDate || null,
+                };
             })
             .filter(Boolean)
             .slice(0, 120);
@@ -5955,7 +5988,17 @@ app.get('/api/discovery/my-requests', requireAuth, requireMember, async (req, re
         if (getRequestEngine(config) === 'portal') {
             const portalRequests = getPortalRequestService(config);
             const payload = await portalRequests.listMemberRequests(req.user, { filter, take, skip });
-            return res.json({ configured: true, ...payload });
+            return res.json({
+                configured: true,
+                ...payload,
+                // Counts come from the same store read — clients should not also hit /count.
+                pending: payload.counts?.pending,
+                approved: payload.counts?.approved,
+                available: payload.counts?.available,
+                declined: payload.counts?.declined,
+                failed: payload.counts?.failed,
+                total: payload.counts?.total,
+            });
         }
 
         const gate = getRequestAppGate(config);
@@ -7111,6 +7154,7 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
         }
 
         const params = applyDiscoveryQueryParams(new URLSearchParams(req.query), path, prefs, metadataLanguage);
+        const allLanguages = String(req.query.allLanguages || '') === '1';
 
         let data;
         if (prefs.discoverySource === 'tmdb') {
@@ -7120,26 +7164,12 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
             const router = createTmdbDiscoverRouter(config, {
                 language: metadataLanguage,
                 region: prefs.discoverRegion,
-                originalLanguage: prefs.discoverLanguage,
+                // Home passes allLanguages=1 so Discover Language does not strip foreign originals.
+                originalLanguage: allLanguages ? '' : prefs.discoverLanguage,
             });
             data = await router.fetchPath(path, params);
-
-            try {
-                const library = createDiscoveryLibraryAvailability(config);
-                const isMovieDetail = /^\/movie\/\d+$/i.test(path);
-                const isTvDetail = /^\/tv\/\d+$/i.test(path);
-                if ((isMovieDetail || isTvDetail) && data && typeof data === 'object' && !Array.isArray(data)) {
-                    // Details can wait briefly for *arr — badges matter more here.
-                    data = await Promise.race([
-                        library.enrichDetails(data),
-                        new Promise((resolve) => setTimeout(() => resolve(data), 4000)),
-                    ]);
-                }
-                // Browse lists skip inline *arr enrich — client availability-batch fills badges
-                // after first paint so Discover home is not gated on catalog/queue work.
-            } catch (enrichError) {
-                log(`Discovery TMDB library enrich skipped for ${path}: ${enrichError.message}`);
-            }
+            // Detail *arr enrich is deferred — cache + client library-status/availability-batch
+            // fill badges after first paint (blocking enrich made movie/TV pages feel stuck).
         } else {
             const gate = getRequestAppGate(config);
             if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
@@ -7188,7 +7218,13 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
         data = await attachDiscoveryAvailabilityCacheToPayload(config, req.user, data);
         // Do not strip available titles here — client hide+backfill needs full pages so home/browse
         // can refill after filtering. Cache still attaches badges for first paint.
-        data = filterDiscoveryPayload(data, path, false, prefs.discoverLanguage);
+        // allLanguages=1 (Discover home) also skips original-language post-filter.
+        data = filterDiscoveryPayload(
+            data,
+            path,
+            false,
+            allLanguages ? '' : prefs.discoverLanguage,
+        );
         res.json(data);
     } catch (e) {
         res.status(500).json({ error: e.message });

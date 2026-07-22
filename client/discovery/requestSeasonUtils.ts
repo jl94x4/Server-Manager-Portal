@@ -570,6 +570,12 @@ export const getRequestButtonState = (
     details?: any,
 ) => {
     const status = Number(mediaStatus) || null;
+    const requests = Array.isArray(mediaInfo?.requests) ? mediaInfo.requests : [];
+    const activeRequest = requests.find((req: any) => {
+        const requestStatus = Number(req?.status);
+        return requestStatus === REQUEST_STATUS.PENDING || requestStatus === REQUEST_STATUS.APPROVED;
+    });
+
     if (mediaType === 'movie') {
         if (status === MEDIA_STATUS.AVAILABLE) {
             return { label: 'Available', disabled: true, variant: 'available' as const };
@@ -580,6 +586,12 @@ export const getRequestButtonState = (
         }
         if (status === MEDIA_STATUS.PENDING) {
             return { label: 'Request Pending', disabled: true, variant: 'pending' as const };
+        }
+        if (activeRequest) {
+            if (Number(activeRequest.status) === REQUEST_STATUS.PENDING) {
+                return { label: 'Request Pending', disabled: true, variant: 'pending' as const };
+            }
+            return { label: 'Requested', disabled: true, variant: 'pending' as const };
         }
         if (status === MEDIA_STATUS.BLACKLISTED) {
             return { label: 'Blacklisted', disabled: true, variant: 'blocked' as const };
@@ -616,6 +628,9 @@ export const getRequestButtonState = (
             return { label: 'Up to date', disabled: true, variant: 'available' as const };
         }
         return { label: 'All Seasons Requested', disabled: true, variant: 'pending' as const };
+    }
+    if (activeRequest && requestableCount === 0) {
+        return { label: 'Requested', disabled: true, variant: 'pending' as const };
     }
     if (status === MEDIA_STATUS.AVAILABLE && requestableCount === 0) {
         return { label: 'Available', disabled: true, variant: 'available' as const };

@@ -57,30 +57,24 @@ export const MyRequestsPage: React.FC<Props> = ({ navigate, pushToast, onCountsC
         else setRefreshing(true);
         setError(null);
         try {
-            const [countData, listData] = await Promise.all([
-                apiFetch('/api/discovery/my-requests/count'),
-                apiFetch(`/api/discovery/my-requests?filter=${encodeURIComponent(filter)}&take=40`),
-            ]);
+            // One round-trip — list payload includes counts (avoids double store scan).
+            const listData = await apiFetch(
+                `/api/discovery/my-requests?filter=${encodeURIComponent(filter)}&take=40`,
+            );
 
             setCounts({
-                pending: Number(countData?.pending) || 0,
-                approved: Number(countData?.approved) || 0,
-                available: Number(countData?.available) || 0,
-                declined: Number(countData?.declined) || 0,
-                failed: Number(countData?.failed) || 0,
-                total: Number(countData?.total) || 0,
-                userMapped: countData?.userMapped !== false,
+                pending: Number(listData?.pending ?? listData?.counts?.pending) || 0,
+                approved: Number(listData?.approved ?? listData?.counts?.approved) || 0,
+                available: Number(listData?.available ?? listData?.counts?.available) || 0,
+                declined: Number(listData?.declined ?? listData?.counts?.declined) || 0,
+                failed: Number(listData?.failed ?? listData?.counts?.failed) || 0,
+                total: Number(listData?.total ?? listData?.counts?.total) || 0,
+                userMapped: listData?.userMapped !== false,
             });
-
-            if (countData?.userMapped === false) {
-                setRequests([]);
-                setError('Your portal account is not linked to a Seerr user. Contact your admin.');
-                return;
-            }
 
             if (listData?.userMapped === false) {
                 setRequests([]);
-                setError(listData?.error || 'Your portal account is not linked to a Seerr user.');
+                setError(listData?.error || 'Your portal account is not linked to a Seerr user. Contact your admin.');
                 return;
             }
 
@@ -97,6 +91,15 @@ export const MyRequestsPage: React.FC<Props> = ({ navigate, pushToast, onCountsC
     useEffect(() => {
         loadData();
     }, [loadData]);
+
+    // If Pending is empty but another tab has items, jump there once counts arrive.
+    useEffect(() => {
+        if (loading || filter !== 'pending' || counts.pending > 0) return;
+        if (counts.approved > 0) setFilter('approved');
+        else if (counts.available > 0) setFilter('available');
+        else if (counts.failed > 0) setFilter('failed');
+        else if (counts.declined > 0) setFilter('declined');
+    }, [loading, filter, counts.pending, counts.approved, counts.available, counts.failed, counts.declined]);
 
     const filterTabs = useMemo(() => ([
         { id: 'pending' as const, label: t('status.pending'), count: counts.pending },
@@ -180,7 +183,7 @@ export const MyRequestsPage: React.FC<Props> = ({ navigate, pushToast, onCountsC
                 ))}
             </div>
 
-            {loading ? (
+            {loading && requests.length === 0 ? (
                 <div className="flex items-center justify-center py-20">
                     <Loader2 className="w-8 h-8 text-plex animate-spin" />
                 </div>

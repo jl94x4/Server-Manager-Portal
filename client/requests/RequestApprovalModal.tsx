@@ -37,6 +37,34 @@ const seasonStatusLabel = (status: number | null | undefined, selected: boolean)
     return 'Not requested';
 };
 
+/** Match Request As dropdown value to the real requester (id / plexId / email / name). */
+const resolveRequestAsUserId = (
+    users: PortalRequestUser[],
+    requestedBy?: PortalRequestDetail['requestedBy'] | null,
+): string | null => {
+    if (!requestedBy) return null;
+    const id = requestedBy.id != null ? String(requestedBy.id) : '';
+    const email = String(requestedBy.email || '').trim().toLowerCase();
+    const name = String(requestedBy.displayName || '').trim().toLowerCase();
+    const plexId = String((requestedBy as any)?.plexId || '').trim();
+    const username = String((requestedBy as any)?.username || '').trim().toLowerCase();
+
+    const hit = users.find((user) => {
+        const uid = String(user.id);
+        const uPlex = String((user as any).plexId || '');
+        const uEmail = String(user.email || '').trim().toLowerCase();
+        const uName = String(user.displayName || '').trim().toLowerCase();
+        const uUser = String((user as any).username || '').trim().toLowerCase();
+        if (id && (uid === id || uPlex === id)) return true;
+        if (plexId && (uid === plexId || uPlex === plexId)) return true;
+        if (email && uEmail && uEmail === email) return true;
+        if (username && (uUser === username || uName === username)) return true;
+        if (name && (uName === name || uUser === name)) return true;
+        return false;
+    });
+    return hit ? String(hit.id) : (id || null);
+};
+
 export const RequestApprovalModal: React.FC<Props> = ({
     requestId,
     initialTitle,
@@ -57,7 +85,7 @@ export const RequestApprovalModal: React.FC<Props> = ({
     const [profileId, setProfileId] = useState<number | null>(null);
     const [rootFolder, setRootFolder] = useState('');
     const [languageProfileId, setLanguageProfileId] = useState<number | null>(null);
-    const [userId, setUserId] = useState<number | null>(null);
+    const [userId, setUserId] = useState<string | null>(null);
     const [selectedTags, setSelectedTags] = useState<number[]>([]);
     const [selectedSeasons, setSelectedSeasons] = useState<number[]>([]);
 
@@ -90,7 +118,8 @@ export const RequestApprovalModal: React.FC<Props> = ({
 
                 const nextDetail = requestData as PortalRequestDetail;
                 setDetail(nextDetail);
-                setUsers(Array.isArray(usersData?.users) ? usersData.users : []);
+                const usersList: PortalRequestUser[] = Array.isArray(usersData?.users) ? usersData.users : [];
+                setUsers(usersList);
 
                 const segment = nextDetail.type === 'tv' ? 'sonarr' : 'radarr';
                 const serversData = await apiFetch(`/api/requests/services/${segment}`);
@@ -111,6 +140,7 @@ export const RequestApprovalModal: React.FC<Props> = ({
                 let nextRootFolder = nextDetail.rootFolder || '';
                 let nextLanguageProfileId = nextDetail.languageProfileId ?? null;
                 let nextTags = Array.isArray(nextDetail.tags) ? nextDetail.tags : [];
+                const resolvedUserId = resolveRequestAsUserId(usersList, nextDetail.requestedBy);
 
                 if (nextDetail.tmdbId) {
                     try {
@@ -119,7 +149,7 @@ export const RequestApprovalModal: React.FC<Props> = ({
                             body: JSON.stringify({
                                 mediaType: nextDetail.type,
                                 tmdbId: nextDetail.tmdbId,
-                                userId: nextDetail.requestedBy?.id,
+                                userId: resolvedUserId ?? nextDetail.requestedBy?.id,
                                 is4k: nextDetail.is4k,
                             }),
                         });
@@ -142,7 +172,7 @@ export const RequestApprovalModal: React.FC<Props> = ({
                 setRootFolder(nextRootFolder);
                 setLanguageProfileId(nextLanguageProfileId);
                 setSelectedTags(nextTags);
-                setUserId(nextDetail.requestedBy?.id ?? null);
+                setUserId(resolvedUserId);
                 setSelectedSeasons(
                     nextDetail.type === 'tv'
                         ? (nextDetail.seasons || []).map((s) => s.seasonNumber)
@@ -212,6 +242,22 @@ export const RequestApprovalModal: React.FC<Props> = ({
         tags: selectedTags,
         seasons: detail?.type === 'tv' ? selectedSeasons : undefined,
     }), [serverId, profileId, rootFolder, languageProfileId, userId, selectedTags, selectedSeasons, detail?.type]);
+
+    const requestAsOptions = useMemo(() => {
+        const opts = users.map((u) => ({
+            value: String(u.id),
+            label: u.email ? `${u.displayName} (${u.email})` : u.displayName,
+        }));
+        if (userId && !opts.some((o) => o.value === String(userId))) {
+            const name = detail?.requestedBy?.displayName || `User ${userId}`;
+            const email = detail?.requestedBy?.email;
+            opts.unshift({
+                value: String(userId),
+                label: email ? `${name} (${email})` : name,
+            });
+        }
+        return opts;
+    }, [users, userId, detail?.requestedBy?.displayName, detail?.requestedBy?.email]);
 
     const toggleSeason = (seasonNumber: number) => {
         setSelectedSeasons((prev) => (
@@ -427,16 +473,13 @@ export const RequestApprovalModal: React.FC<Props> = ({
                                         />
                                     </div>
                                 )}
-                                {users.length > 1 && (
+                                {requestAsOptions.length > 1 && (
                                     <div className="sm:col-span-2">
                                         <label className="block text-xs font-semibold text-muted mb-1.5">Request As</label>
                                         <CustomSelect
                                             value={String(userId ?? '')}
-                                            onChange={(val) => setUserId(Number(val))}
-                                            options={users.map((u) => ({
-                                                value: String(u.id),
-                                                label: u.email ? `${u.displayName} (${u.email})` : u.displayName,
-                                            }))}
+                                            onChange={(val) => setUserId(String(val))}
+                                            options={requestAsOptions}
                                         />
                                     </div>
                                 )}

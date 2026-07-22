@@ -49,8 +49,31 @@ export async function enrichDiscoverItemsWithAvailability<T>(items: T[]): Promis
             const hasRequests = Array.isArray((item as any)?.mediaInfo?.requests)
                 && (item as any).mediaInfo.requests.length > 0;
             if (Number.isFinite(status) || hasRequests) return null;
+            const normalized = normalizeRawDiscoveryItem(item) || item;
             const [mediaType, tmdbId] = key.split(':');
-            return { mediaType, tmdbId: Number(tmdbId) };
+            const yearRaw = String(
+                (normalized as any)?.firstAirDate
+                || (normalized as any)?.releaseDate
+                || (item as any)?.firstAirDate
+                || (item as any)?.releaseDate
+                || '',
+            ).slice(0, 4);
+            const year = Number(yearRaw);
+            const tvdbId = Number(
+                (normalized as any)?.tvdbId
+                || (normalized as any)?.externalIds?.tvdbId
+                || (item as any)?.tvdbId
+                || (item as any)?.externalIds?.tvdbId,
+            );
+            return {
+                mediaType,
+                tmdbId: Number(tmdbId),
+                title: String((normalized as any)?.title || (normalized as any)?.name || (item as any)?.title || (item as any)?.name || '').trim(),
+                year: Number.isFinite(year) && year > 1900 ? year : null,
+                tvdbId: Number.isFinite(tvdbId) && tvdbId > 0 ? tvdbId : null,
+                firstAirDate: (normalized as any)?.firstAirDate || (item as any)?.firstAirDate || null,
+                releaseDate: (normalized as any)?.releaseDate || (item as any)?.releaseDate || null,
+            };
         })
         .filter(Boolean);
 

@@ -12,6 +12,11 @@ const MAX_BACKFILL_PAGES = 50;
 type DiscoverBrowseFilterOptions = {
     hideAvailable?: boolean;
     hideRequested?: boolean;
+    /**
+     * Trust mediaInfo already attached by the discovery proxy cache (Seerr-style).
+     * Skips the slow per-page /availability-batch round-trip — required for fast home paint.
+     */
+    trustAttachedAvailability?: boolean;
 };
 
 const needsDiscoverBackfill = (options: DiscoverBrowseFilterOptions) => (
@@ -19,8 +24,8 @@ const needsDiscoverBackfill = (options: DiscoverBrowseFilterOptions) => (
 );
 
 /**
- * Browse lists ship without mediaInfo (proxy skips *arr enrich for speed).
- * Hide filters must enrich first or every title looks requestable and stays visible.
+ * Browse lists ship with disk-cache mediaInfo from the proxy (owned titles).
+ * Prefer that for hide filters; only live-enrich cache-miss survivors when asked.
  */
 async function filterDiscoverResultsWithAvailability(
     items: any[],
@@ -30,8 +35,16 @@ async function filterDiscoverResultsWithAvailability(
     if (!list.length || !needsDiscoverBackfill(options)) {
         return filterDiscoverBrowseItems(list, options);
     }
-    const enriched = await enrichDiscoverItemsWithAvailability(list);
-    return filterDiscoverBrowseItems(enriched, options);
+
+    // Drop titles the proxy cache already marked available/requested.
+    const prelim = filterDiscoverBrowseItems(list, options);
+    if (options.trustAttachedAvailability || !prelim.length) {
+        return prelim;
+    }
+
+    // Live-check survivors only (owned-but-uncached false negatives) — never re-enrich the whole page.
+    const verified = await enrichDiscoverItemsWithAvailability(prelim);
+    return filterDiscoverBrowseItems(verified, options);
 }
 
 export const buildDiscoverStudioApiUrl = (page: number, studioId: number | string, sort = 'popularity.desc') =>
@@ -84,17 +97,22 @@ export async function fetchDiscoverPage(
     };
 }
 
+type HomeRowFetchOptions = {
+    minItems?: number;
+    maxPages?: number;
+    maxItems?: number;
+    needsBackfill?: boolean;
+    hideRequested?: boolean;
+    trustAttachedAvailability?: boolean;
+    /** Parallel TMDB page fetches per round (hide-available refill). */
+    pageConcurrency?: number;
+};
+
 /** Fetch enough items for a discover home carousel row. */
 export async function fetchDiscoverHomeRowResults(
     buildUrl: (page: number) => string,
     hideAvailable: boolean,
-    options: {
-        minItems?: number;
-        maxPages?: number;
-        maxItems?: number;
-        needsBackfill?: boolean;
-        hideRequested?: boolean;
-    } = {},
+    options: HomeRowFetchOptions = {},
 ): Promise<any[]> {
     // Ultrawide layouts need ~30–40 posters before a row fills; fetch enough to scroll.
     const maxItems = options.maxItems ?? 40;
@@ -103,8 +121,14 @@ export async function fetchDiscoverHomeRowResults(
     const minItems = Math.min(options.minItems ?? Math.min(24, maxItems), maxItems);
     // Settings "Hide Available Media" should also drop requested/pending titles from home rows.
     const hideRequested = options.hideRequested ?? hideAvailable;
-    const filterOptions = { hideAvailable, hideRequested };
+    const filterOptions: DiscoverBrowseFilterOptions = {
+        hideAvailable,
+        hideRequested,
+        // Home must stay Seerr-fast: trust proxy cache, never N availability-batch calls.
+        trustAttachedAvailability: options.trustAttachedAvailability !== false,
+    };
     const needsBackfill = options.needsBackfill ?? needsDiscoverBackfill(filterOptions);
+    const concurrency = Math.max(1, Math.min(options.pageConcurrency ?? (needsBackfill ? 4 : 1), 8));
 
     if (!needsBackfill) {
         let merged: any[] = [];
@@ -120,14 +144,28 @@ export async function fetchDiscoverHomeRowResults(
     }
 
     let merged: any[] = [];
-    for (let page = 1; page <= maxPages; page += 1) {
-        const res = await apiFetch(buildUrl(page));
-        const totalPages = Math.max(1, Number(res?.totalPages) || 1);
-        const rawBatch = Array.isArray(res?.results) ? res.results : [];
-        // Proxy may already strip cached-available titles when hide is on, leaving short pages.
-        const batch = await filterDiscoverResultsWithAvailability(rawBatch, filterOptions);
-        merged = dedupeDiscoverResults([...merged, ...batch]);
-        if (merged.length >= minItems || page >= totalPages) break;
+    let totalPages = Number.POSITIVE_INFINITY;
+
+    for (let page = 1; page <= maxPages && merged.length < minItems;) {
+        const chunk: number[] = [];
+        for (let i = 0; i < concurrency && page + i <= maxPages; i += 1) {
+            if (page + i > totalPages) break;
+            chunk.push(page + i);
+        }
+        if (!chunk.length) break;
+
+        const responses = await Promise.all(chunk.map((p) => apiFetch(buildUrl(p)).catch(() => null)));
+        for (const res of responses) {
+            if (!res) continue;
+            totalPages = Math.min(totalPages, Math.max(1, Number(res?.totalPages) || 1));
+            const rawBatch = Array.isArray(res?.results) ? res.results : [];
+            const batch = await filterDiscoverResultsWithAvailability(rawBatch, filterOptions);
+            merged = dedupeDiscoverResults([...merged, ...batch]);
+        }
+
+        page += chunk.length;
+        if (merged.length >= minItems) break;
+        if (page > totalPages) break;
     }
 
     return merged.slice(0, maxItems);
@@ -140,13 +178,7 @@ export async function fetchDiscoverHomeRowResults(
 export async function fetchDiscoverHomeRowResultsFromSources(
     sources: Array<(page: number) => string>,
     hideAvailable: boolean,
-    options: {
-        minItems?: number;
-        maxPages?: number;
-        maxItems?: number;
-        needsBackfill?: boolean;
-        hideRequested?: boolean;
-    } = {},
+    options: HomeRowFetchOptions = {},
 ): Promise<any[]> {
     const list = Array.isArray(sources) ? sources.filter(Boolean) : [];
     if (!list.length) return [];
@@ -180,25 +212,47 @@ export async function fetchDiscoverPageWithBackfill(
         return { ...payload, lastFetchedPage: page };
     }
 
+    // Prefer cache stamps from the proxy; live-enrich only when callers opt in.
+    const filterOpts: DiscoverBrowseFilterOptions = {
+        ...options,
+        trustAttachedAvailability: options.trustAttachedAvailability !== false,
+    };
+
     let merged: any[] = [];
     let totalPages = 1;
     let currentPage = page;
     const maxPage = page + MAX_BACKFILL_PAGES - 1;
+    const concurrency = 4;
 
     while (currentPage <= maxPage) {
-        const payload = await fetchDiscoverPage(buildUrl(currentPage), options);
-        totalPages = payload.totalPages;
-        merged = dedupeDiscoverResults([...merged, ...payload.results]);
+        const chunk: number[] = [];
+        for (let i = 0; i < concurrency && currentPage + i <= maxPage; i += 1) {
+            chunk.push(currentPage + i);
+        }
 
-        if (merged.length > 0 || currentPage >= totalPages) {
+        const payloads = await Promise.all(
+            chunk.map((p) => fetchDiscoverPage(buildUrl(p), filterOpts).catch(() => null)),
+        );
+
+        let hitEnd = false;
+        for (let i = 0; i < payloads.length; i += 1) {
+            const payload = payloads[i];
+            if (!payload) continue;
+            totalPages = payload.totalPages;
+            merged = dedupeDiscoverResults([...merged, ...payload.results]);
+            if (chunk[i] >= totalPages) hitEnd = true;
+        }
+
+        const lastFetchedPage = chunk[chunk.length - 1] || currentPage;
+        if (merged.length > 0 || hitEnd || lastFetchedPage >= totalPages) {
             return {
                 results: merged,
                 totalPages,
-                lastFetchedPage: currentPage,
+                lastFetchedPage,
             };
         }
 
-        currentPage += 1;
+        currentPage += chunk.length;
     }
 
     // Keep the real totalPages when this window is empty so infinite scroll can

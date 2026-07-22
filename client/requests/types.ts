@@ -175,9 +175,11 @@ export type PortalServiceOptions = {
 };
 
 export type PortalRequestUser = {
-    id: number;
+    id: number | string;
     displayName: string;
     email?: string | null;
+    username?: string | null;
+    plexId?: number | string | null;
     avatar?: string | null;
 };
 
@@ -186,7 +188,7 @@ export type PortalRequestOverrides = {
     profileId?: number;
     rootFolder?: string;
     languageProfileId?: number;
-    userId?: number;
+    userId?: number | string;
     tags?: number[];
     seasons?: number[];
 };

@@ -12,6 +12,7 @@ import { RequestModal } from './RequestModal';
 import { ReportIssueModal } from './ReportIssueModal';
 import { SeasonEpisodesModal } from './SeasonEpisodesModal';
 import { resolveMediaAvailabilityState } from './discoverAvailability';
+import { enrichDiscoverItemsWithAvailability } from './discoverAvailabilityEnrich';
 import { MediaStatusPanel } from './DiscoverStatusOverlay';
 import { DiscoveryLogo } from './DiscoveryLogo';
 import { scrollPortalToTop } from './discoverNavigationUtils';
@@ -95,27 +96,32 @@ export const MediaDetailsPage: React.FC<{
             setLoading(true);
             setPosterFailed(false);
             setBackdropFailed(false);
+            setRecommendations([]);
             try {
                 const detailEndpoint = mediaType === 'movie'
                     ? `/api/discovery/proxy/movie/${mediaId}`
                     : `/api/discovery/proxy/tv/${mediaId}`;
-                const recEndpoint = mediaType === 'movie'
-                    ? `/api/discovery/proxy/movie/${mediaId}/recommendations`
-                    : `/api/discovery/proxy/tv/${mediaId}/recommendations`;
 
-                const [res, recRes] = await Promise.all([
-                    apiFetch(detailEndpoint),
-                    apiFetch(recEndpoint).catch(() => null),
-                ]);
-
+                // Paint on details alone — recommendations must not hold the spinner.
+                const res = await apiFetch(detailEndpoint);
                 if (cancelled) return;
                 if (!res?.error) setDetails(res);
-                if (recRes && !recRes.error && recRes.results) setRecommendations(recRes.results);
             } catch (err) {
                 console.error(err);
             } finally {
                 if (!cancelled) setLoading(false);
             }
+
+            if (cancelled) return;
+            const recEndpoint = mediaType === 'movie'
+                ? `/api/discovery/proxy/movie/${mediaId}/recommendations`
+                : `/api/discovery/proxy/tv/${mediaId}/recommendations`;
+            apiFetch(recEndpoint)
+                .then((recRes) => {
+                    if (cancelled || !recRes || recRes.error || !recRes.results) return;
+                    setRecommendations(recRes.results);
+                })
+                .catch(() => undefined);
         };
 
         fetchDetails();
@@ -125,37 +131,50 @@ export const MediaDetailsPage: React.FC<{
     }, [mediaId, mediaType, locale]);
 
     useEffect(() => {
-        if (mediaType !== 'tv' || loading || !details) return undefined;
+        if (loading || !details) return undefined;
 
         let cancelled = false;
 
-        apiFetch(`/api/discovery/tv/${mediaId}/library-status`)
-            .then((res) => {
-                if (cancelled || !res?.sonarrLibraryStatus?.matched) return;
-                const sonarr = res.sonarrLibraryStatus;
-                setDetails((prev) => {
-                    if (!prev) return prev;
-                    let nextStatus = prev.mediaInfo?.status;
-                    if (sonarr.hasActiveDownloads) {
-                        nextStatus = 3; // PROCESSING — still downloading
-                    } else if (sonarr.showComplete) {
-                        nextStatus = 5; // AVAILABLE
-                    } else if (Number(sonarr.fileCount) > 0) {
-                        nextStatus = 4; // PARTIAL
-                    } else if (Number(sonarr.episodeCount) > 0) {
-                        nextStatus = 3; // tracked in Sonarr, nothing on disk yet
-                    }
-                    return {
-                        ...prev,
-                        sonarrLibraryStatus: sonarr,
-                        mediaInfo: {
-                            ...(prev.mediaInfo || {}),
-                            ...(nextStatus != null ? { status: nextStatus } : {}),
-                        },
-                    };
-                });
-            })
-            .catch(() => undefined);
+        // Live library badge when disk cache missed (movies + TV).
+        const needsLive = !Number.isFinite(Number(details?.mediaInfo?.status));
+        if (needsLive) {
+            enrichDiscoverItemsWithAvailability([details])
+                .then((enriched) => {
+                    if (cancelled || !enriched?.[0]) return;
+                    setDetails((prev) => (prev ? { ...prev, ...enriched[0] } : enriched[0]));
+                })
+                .catch(() => undefined);
+        }
+
+        if (mediaType === 'tv') {
+            apiFetch(`/api/discovery/tv/${mediaId}/library-status`)
+                .then((res) => {
+                    if (cancelled || !res?.sonarrLibraryStatus?.matched) return;
+                    const sonarr = res.sonarrLibraryStatus;
+                    setDetails((prev) => {
+                        if (!prev) return prev;
+                        let nextStatus = prev.mediaInfo?.status;
+                        if (sonarr.hasActiveDownloads) {
+                            nextStatus = 3; // PROCESSING — still downloading
+                        } else if (sonarr.showComplete) {
+                            nextStatus = 5; // AVAILABLE
+                        } else if (Number(sonarr.fileCount) > 0) {
+                            nextStatus = 4; // PARTIAL
+                        } else if (Number(sonarr.episodeCount) > 0) {
+                            nextStatus = 3; // tracked in Sonarr, nothing on disk yet
+                        }
+                        return {
+                            ...prev,
+                            sonarrLibraryStatus: sonarr,
+                            mediaInfo: {
+                                ...(prev.mediaInfo || {}),
+                                ...(nextStatus != null ? { status: nextStatus } : {}),
+                            },
+                        };
+                    });
+                })
+                .catch(() => undefined);
+        }
 
         return () => {
             cancelled = true;
@@ -245,7 +264,29 @@ export const MediaDetailsPage: React.FC<{
 
     const handleRequestSuccess = (message: string) => {
         pushToast?.(message, 'success');
-        refreshDetails();
+        // Optimistic stamp so the button flips immediately (auto-approve used to leave it as Request).
+        setDetails((prev) => {
+            if (!prev) return prev;
+            const prevInfo = prev.mediaInfo || {};
+            const currentStatus = Number(prevInfo.status);
+            return {
+                ...prev,
+                mediaInfo: {
+                    ...prevInfo,
+                    status: (Number.isFinite(currentStatus) && currentStatus >= 4)
+                        ? currentStatus
+                        : 3, // PROCESSING / requested until refresh confirms
+                    requests: [
+                        {
+                            status: 2, // REQUEST_STATUS.APPROVED-or-pending stand-in; refresh corrects
+                            createdAt: new Date().toISOString(),
+                        },
+                        ...(Array.isArray(prevInfo.requests) ? prevInfo.requests : []),
+                    ],
+                },
+            };
+        });
+        void refreshDetails();
     };
 
     const discoveryNavigate = (path: string) => {
