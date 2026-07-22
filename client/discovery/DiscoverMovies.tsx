@@ -52,8 +52,8 @@ export const DiscoverMovies: React.FC<{
     }, [readFiltersFromUrl]);
 
     const resetKey = useMemo(
-        () => `${JSON.stringify(filters)}:${preferences.hideAvailableMedia}:${hideRequested}:${gridSize}:${locale}`,
-        [filters, preferences.hideAvailableMedia, hideRequested, gridSize, locale],
+        () => `${JSON.stringify(filters)}:${preferences.hideAvailableMedia}:${preferences.discoverLanguage}:${hideRequested}:${gridSize}:${locale}`,
+        [filters, preferences.hideAvailableMedia, preferences.discoverLanguage, hideRequested, gridSize, locale],
     );
 
     const browseFilterOptions = useMemo(() => ({

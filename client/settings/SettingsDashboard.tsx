@@ -2267,7 +2267,7 @@ export const SettingsDashboard: React.FC = () => {
                             <div id={getSettingsSectionElementId('language')} className="scroll-mt-24">
                                 <SettingFieldLabel
                                     htmlFor="requestDiscoverLanguage"
-                                    hint={<SettingHint>Only show titles whose original language matches your selection on discover browse pages.</SettingHint>}
+                                    hint={<SettingHint>Only show titles whose original language matches your selection on Discover browse rows (trending, popular, movies, series). Titles may still appear in English translation — this filters by original language (e.g. French or Korean originals are hidden when English is selected). Search is not filtered.</SettingHint>}
                                 >
                                     Discover Language
                                 </SettingFieldLabel>

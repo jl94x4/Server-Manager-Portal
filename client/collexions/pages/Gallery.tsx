@@ -642,12 +642,12 @@ const Gallery: React.FC = () => {
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="font-bold text-text truncate hover:text-plex transition-colors"
-                                                title="Open in Plex"
+                                                title={coll.title}
                                             >
                                                 {coll.title}
                                             </a>
                                         ) : (
-                                            <h3 className="font-bold text-text truncate group-hover:text-plex transition-colors">
+                                            <h3 className="font-bold text-text truncate group-hover:text-plex transition-colors" title={coll.title}>
                                                 {coll.title}
                                             </h3>
                                         )}
@@ -716,7 +716,7 @@ const Gallery: React.FC = () => {
                     return (
                         <div
                             key={uniqueKey}
-                            className={`group relative flex flex-col bg-card/50 border overflow-hidden hover:border-plex/40 transition-all hover:shadow-2xl hover:shadow-black/50 ${isCompact ? 'rounded-xl' : 'rounded-2xl'} ${isSelected ? 'border-plex ring-1 ring-plex/40' : 'border-border'}`}
+                            className={`group relative flex h-full min-w-0 flex-col bg-card/50 border overflow-hidden hover:border-plex/40 transition-all hover:shadow-2xl hover:shadow-black/50 ${isCompact ? 'rounded-xl' : 'rounded-2xl'} ${isSelected ? 'border-plex ring-1 ring-plex/40' : 'border-border'}`}
                         >
                             {selectMode && (
                                 <button
@@ -808,25 +808,28 @@ const Gallery: React.FC = () => {
                                 )}
                             </div>
 
-                            <div className={`${isCompact ? 'p-2' : 'p-4'} flex-1 flex flex-col justify-between`}>
-                                <div className={isCompact ? 'mb-1' : 'mb-3'}>
+                            <div className={`${isCompact ? 'p-2 gap-1.5' : 'p-4 gap-3'} flex flex-col`}>
+                                <div className={`min-w-0 ${isCompact ? 'min-h-[2rem]' : 'min-h-[3.25rem]'}`}>
                                     {coll.plexUrl ? (
                                         <a
                                             href={coll.plexUrl}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className={`font-bold text-text line-clamp-2 leading-snug hover:text-plex transition-colors block ${isCompact ? 'text-[10px]' : 'text-sm'}`}
-                                            title="Open in Plex"
+                                            className={`font-bold text-text line-clamp-2 leading-snug hover:text-plex transition-colors ${isCompact ? 'text-[10px]' : 'text-sm'}`}
+                                            title={coll.title}
                                         >
                                             {coll.title}
                                         </a>
                                     ) : (
-                                        <h3 className={`font-bold text-text line-clamp-2 leading-snug group-hover:text-plex transition-colors ${isCompact ? 'text-[10px]' : 'text-sm'}`}>
+                                        <h3
+                                            className={`font-bold text-text line-clamp-2 leading-snug group-hover:text-plex transition-colors ${isCompact ? 'text-[10px]' : 'text-sm'}`}
+                                            title={coll.title}
+                                        >
                                             {coll.title}
                                         </h3>
                                     )}
                                     {!isCompact && (
-                                        <p className="text-[10px] text-muted font-medium uppercase mt-1">
+                                        <p className="text-[10px] text-muted font-medium uppercase mt-1 truncate" title={coll.library}>
                                             {coll.library}
                                         </p>
                                     )}

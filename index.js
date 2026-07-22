@@ -5321,7 +5321,7 @@ app.get('/api/discovery/trending', requireAuth, requireMember, async (req, res) 
             { headers: { 'Accept-Language': metadataLanguage } },
         );
         const prefs = getDiscoveryPreferences(config);
-        res.json(filterDiscoveryPayload(data, '/discover/trending', prefs.hideAvailableMedia));
+        res.json(filterDiscoveryPayload(data, '/discover/trending', prefs.hideAvailableMedia, prefs.discoverLanguage));
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -6516,7 +6516,7 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
                 log(`Discovery Sonarr library check skipped for tv/${tvDetailMatch[1]}: ${sonarrError.message}`);
             }
         }
-        data = filterDiscoveryPayload(data, path, prefs.hideAvailableMedia);
+        data = filterDiscoveryPayload(data, path, prefs.hideAvailableMedia, prefs.discoverLanguage);
         res.json(data);
     } catch (e) {
         res.status(500).json({ error: e.message });

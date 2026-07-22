@@ -124,6 +124,8 @@ export const DiscoverHome: React.FC<{
         setLoading(true);
         try {
             const hideAvailable = preferences.hideAvailableMedia;
+            const languageFilterActive = Boolean(preferences.discoverLanguage);
+            const rowBackfill = { needsBackfill: hideAvailable || languageFilterActive };
             const [
                 addedRes, reqRes, watchlistRes, trendingRes,
                 popularMovies,
@@ -140,22 +142,27 @@ export const DiscoverHome: React.FC<{
                 fetchDiscoverHomeRowResults(
                     (page) => `/api/discovery/proxy/discover/trending?page=${page}`,
                     hideAvailable,
+                    rowBackfill,
                 ).catch(() => []),
                 fetchDiscoverHomeRowResults(
                     (page) => `/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`,
                     hideAvailable,
+                    rowBackfill,
                 ).catch(() => []),
                 fetchDiscoverHomeRowResults(
                     (page) => `/api/discovery/proxy/discover/movies/upcoming?page=${page}`,
                     hideAvailable,
+                    rowBackfill,
                 ).catch(() => []),
                 fetchDiscoverHomeRowResults(
                     (page) => `/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`,
                     hideAvailable,
+                    rowBackfill,
                 ).catch(() => []),
                 fetchDiscoverHomeRowResults(
                     (page) => `/api/discovery/proxy/discover/tv/upcoming?page=${page}`,
                     hideAvailable,
+                    rowBackfill,
                 ).catch(() => []),
                 apiFetch('/api/discovery/proxy/discover/genreslider/movie').catch(() => null),
                 apiFetch('/api/discovery/proxy/discover/genreslider/tv').catch(() => null),

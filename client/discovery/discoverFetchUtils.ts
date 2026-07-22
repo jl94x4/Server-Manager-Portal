@@ -70,15 +70,16 @@ export async function fetchDiscoverPage(
 export async function fetchDiscoverHomeRowResults(
     buildUrl: (page: number) => string,
     hideAvailable: boolean,
-    options: { minItems?: number; maxPages?: number; maxItems?: number } = {},
+    options: { minItems?: number; maxPages?: number; maxItems?: number; needsBackfill?: boolean } = {},
 ): Promise<any[]> {
     // Ultrawide layouts need ~30–40 posters before a row fills; fetch enough to scroll.
     const minItems = options.minItems ?? 36;
     const maxPages = options.maxPages ?? 8;
     const maxItems = options.maxItems ?? 40;
     const filterOptions = { hideAvailable };
+    const needsBackfill = options.needsBackfill ?? hideAvailable;
 
-    if (!hideAvailable) {
+    if (!needsBackfill) {
         let merged: any[] = [];
         for (let page = 1; page <= Math.min(3, maxPages); page += 1) {
             const res = await apiFetch(buildUrl(page));
