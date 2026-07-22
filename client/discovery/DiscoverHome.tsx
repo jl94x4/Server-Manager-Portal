@@ -111,7 +111,8 @@ export const DiscoverHome: React.FC<{
                 maxPages: hideAvailable ? 4 : 2,
                 maxItems: 24,
                 minItems: hideAvailable ? 8 : 12,
-                hideRequested: hideAvailable,
+                // Keep requested titles on Discover; only drop available/partial.
+                hideRequested: false,
                 trustAttachedAvailability: true,
                 pageConcurrency: 4,
                 requirePoster: true,
@@ -121,7 +122,7 @@ export const DiscoverHome: React.FC<{
                 maxPages: 12,
                 maxItems: 24,
                 minItems: 20,
-                hideRequested: hideAvailable,
+                hideRequested: false,
                 trustAttachedAvailability: false,
                 pageConcurrency: 4,
                 requirePoster: true,
@@ -231,11 +232,11 @@ export const DiscoverHome: React.FC<{
                         ]);
                         setRows((current) => ({
                             ...current,
-                            trending: trendingBadges,
-                            popularMovies: moviesBadges,
-                            upcomingMovies: upcomingMoviesBadges,
-                            popularSeries: seriesBadges,
-                            upcomingSeries: upcomingSeriesBadges,
+                            trending: filterHiddenAvailableItems(trendingBadges, hideAvailable),
+                            popularMovies: filterHiddenAvailableItems(moviesBadges, hideAvailable),
+                            upcomingMovies: filterHiddenAvailableItems(upcomingMoviesBadges, hideAvailable),
+                            popularSeries: filterHiddenAvailableItems(seriesBadges, hideAvailable),
+                            upcomingSeries: filterHiddenAvailableItems(upcomingSeriesBadges, hideAvailable),
                         }));
                     } catch {
                         // Refill is best-effort.

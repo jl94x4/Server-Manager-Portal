@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UpgraderGridSize } from '../shared/portalLayout';
 import { mergeDiscoverResults } from './discoverItemUtils';
 import { enrichDiscoverItemsWithAvailability } from './discoverAvailabilityEnrich';
+import { filterDiscoverBrowseItems } from './discoverAvailability';
 import { initialDiscoverPagesForGrid, DISCOVER_API_PAGE_SIZE } from './discoverPaginationUtils';
 
 export type DiscoverPagePayload = {
@@ -10,11 +11,18 @@ export type DiscoverPagePayload = {
     lastFetchedPage?: number;
 };
 
+type BrowseFilterOptions = {
+    hideAvailable?: boolean;
+    hideRequested?: boolean;
+};
+
 type Options = {
     resetKey: string;
     gridSize: UpgraderGridSize;
     containerRef: React.RefObject<HTMLElement | null>;
     fetchPage: (page: number) => Promise<DiscoverPagePayload>;
+    /** Re-applied after live badge enrich so newly-marked available titles drop out. */
+    filterOptions?: BrowseFilterOptions;
 };
 
 /** Cap how far the first paint scans when hide filters empty early pages. */
@@ -25,7 +33,10 @@ export function useDiscoverInfiniteScroll({
     gridSize,
     containerRef,
     fetchPage,
+    filterOptions,
 }: Options) {
+    const filterOptionsRef = useRef(filterOptions);
+    filterOptionsRef.current = filterOptions;
     const [results, setResults] = useState<any[]>([]);
     const [loadedPage, setLoadedPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
@@ -76,9 +87,10 @@ export function useDiscoverInfiniteScroll({
                     setResults(merged);
                     setLoadedPage(lastPage);
                     setTotalPages(maxTotalPages);
-                    // Badges: enrich then re-apply hide filters (enrich can reveal available/requested).
+                    // Badges: enrich then re-apply hide filters (enrich can reveal available titles).
                     void enrichDiscoverItemsWithAvailability(merged).then((enriched) => {
-                        if (!cancelled) setResults(enriched);
+                        if (cancelled) return;
+                        setResults(filterDiscoverBrowseItems(enriched, filterOptionsRef.current || {}));
                     }).catch(() => {});
                 }
             } catch (e) {
@@ -112,7 +124,8 @@ export function useDiscoverInfiniteScroll({
             const payload = await fetchPage(nextPage);
             const batch = Array.isArray(payload.results) ? payload.results : [];
             const enrichedBatch = await enrichDiscoverItemsWithAvailability(batch).catch(() => batch);
-            setResults((prev) => mergeDiscoverResults(prev, enrichedBatch));
+            const filteredBatch = filterDiscoverBrowseItems(enrichedBatch, filterOptionsRef.current || {});
+            setResults((prev) => mergeDiscoverResults(prev, filteredBatch));
             setLoadedPage(payload.lastFetchedPage ?? nextPage);
             setTotalPages(Math.max(1, Number(payload.totalPages) || totalPages));
         } catch (e) {

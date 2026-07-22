@@ -57,9 +57,9 @@ export const DiscoverMovies: React.FC<{
     );
 
     const browseFilterOptions = useMemo(() => ({
-        // Browse toggle hides library + requested titles (requested alone is rarely useful).
+        // Hide library titles (available/partial); keep requested visible with badges.
         hideAvailable: preferences.hideAvailableMedia || hideRequested,
-        hideRequested,
+        hideRequested: false,
     }), [preferences.hideAvailableMedia, hideRequested]);
 
     const fetchPage = useCallback(async (page: number) => fetchDiscoverPageWithBackfill(
@@ -79,6 +79,7 @@ export const DiscoverMovies: React.FC<{
         gridSize,
         containerRef,
         fetchPage,
+        filterOptions: browseFilterOptions,
     });
 
     const applyFilters = (newFilters: FilterState) => {

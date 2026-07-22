@@ -133,8 +133,8 @@ export async function fetchDiscoverHomeRowResults(
     const maxPages = options.maxPages ?? 8;
     // Never chase more items than we will keep — otherwise hide-available scans every page.
     const minItems = Math.min(options.minItems ?? Math.min(24, maxItems), maxItems);
-    // Settings "Hide Available Media" should also drop requested/pending titles from home rows.
-    const hideRequested = options.hideRequested ?? hideAvailable;
+    // Only hide requested when callers opt in — available/partial hide stays independent.
+    const hideRequested = options.hideRequested === true;
     const filterOptions: DiscoverBrowseFilterOptions = {
         hideAvailable,
         hideRequested,

@@ -84,6 +84,7 @@ export const DiscoverCategoryPage: React.FC<Props> = ({ kind, id, onBack, onSele
         gridSize,
         containerRef,
         fetchPage,
+        filterOptions: { hideAvailable: preferences.hideAvailableMedia, hideRequested: false },
     });
 
     const title = entityName || meta?.name || (kind === 'studio' ? 'Studio' : 'Network');

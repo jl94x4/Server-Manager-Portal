@@ -115,7 +115,7 @@ export const en = {
         moviesHeading: 'Movies',
         seriesHeading: 'Series',
         filters: 'Filters',
-        hideRequested: 'Hide available & requested',
+        hideRequested: 'Hide available',
         gridSmall: 'Grid: Small',
         gridMedium: 'Grid: Medium',
         gridLarge: 'Grid: Large',

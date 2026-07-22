@@ -5,6 +5,15 @@
 
 import { apiFetch } from '../shared/api';
 import { normalizeRawDiscoveryItem } from './discoverItemUtils';
+import { MEDIA_STATUS } from './requestSeasonUtils';
+
+const RESOLVED_MEDIA_STATUSES = new Set<number>([
+    MEDIA_STATUS.PENDING,
+    MEDIA_STATUS.PROCESSING,
+    MEDIA_STATUS.PARTIAL,
+    MEDIA_STATUS.AVAILABLE,
+    MEDIA_STATUS.BLACKLISTED,
+]);
 
 const itemKey = (item: any) => {
     const normalized = normalizeRawDiscoveryItem(item) || item;
@@ -41,6 +50,7 @@ export async function enrichDiscoverItemsWithAvailability<T>(items: T[]): Promis
     if (!Array.isArray(items) || items.length === 0) return items;
 
     // Skip titles that already have library/request status (e.g. from the disk cache on browse).
+    // UNKNOWN (1) is not resolved — still live-check those.
     const payloadItems = items
         .map((item) => {
             const key = itemKey(item);
@@ -48,7 +58,7 @@ export async function enrichDiscoverItemsWithAvailability<T>(items: T[]): Promis
             const status = Number((item as any)?.mediaInfo?.status);
             const hasRequests = Array.isArray((item as any)?.mediaInfo?.requests)
                 && (item as any).mediaInfo.requests.length > 0;
-            if (Number.isFinite(status) || hasRequests) return null;
+            if (RESOLVED_MEDIA_STATUSES.has(status) || hasRequests) return null;
             const normalized = normalizeRawDiscoveryItem(item) || item;
             const [mediaType, tmdbId] = key.split(':');
             const yearRaw = String(

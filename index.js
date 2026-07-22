@@ -3962,11 +3962,14 @@ const pickPlexConnection = (connections = []) => {
 };
 
 const fetchWithTimeout = async (url, options = {}, timeoutMs = 15000) => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    // Callers (e.g. fetchArrInstance) may own AbortSignal + timeoutMs — don't double-abort.
+    const { timeoutMs: optTimeout, signal: outerSignal, ...rest } = options;
+    const ms = Number(optTimeout) > 0 ? Number(optTimeout) : timeoutMs;
+    const controller = outerSignal ? null : new AbortController();
+    const timer = controller ? setTimeout(() => controller.abort(), ms) : null;
     try {
         const urlStr = String(url || '');
-        const existing = options.headers || {};
+        const existing = rest.headers || {};
         const hasPlexId = !!(existing['X-Plex-Client-Identifier'] || existing['x-plex-client-identifier']);
         // Safety net: any tokenised PMS/plex.tv URL must carry our stable device identity
         // (otherwise Plex names the device after the Docker container hostname).
@@ -3986,9 +3989,13 @@ const fetchWithTimeout = async (url, options = {}, timeoutMs = 15000) => {
             }
             headers = { ...plexClientHeaders(token), ...existing };
         }
-        return await fetch(url, { ...options, headers, signal: controller.signal });
+        return await fetch(url, {
+            ...rest,
+            headers,
+            signal: outerSignal || controller.signal,
+        });
     } finally {
-        clearTimeout(timer);
+        if (timer) clearTimeout(timer);
     }
 };
 
