@@ -368,6 +368,7 @@ import {
     UPGRADER_INDEX_PATH,
     PLEX_STATS_CACHE_PATH,
     REQUESTS_DIR,
+    ISSUES_DIR,
     migrateConfigFiles,
 } from './lib/data-paths.js';
 import {
@@ -433,6 +434,12 @@ import {
     createTmdbDiscoverRouter,
     createLibraryAvailability,
     createPortalRequestService,
+    createPortalIssueService,
+    evaluatePortalMemberQuota,
+    shouldPortalAutoApprove,
+    getPortalRequestQuotaSettings,
+    normalizeRequestQuotaLimit,
+    normalizeRequestQuotaDays,
 } from './lib/portal-request/index.js';
 const PLEX_API = 'https://plex.tv/api';
 
@@ -2821,6 +2828,11 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 requestHideAvailableMedia: !!config.requestHideAvailableMedia,
                 discoverySource: getDiscoverySource(config),
                 requestEngine: getRequestEngine(config),
+                requestQuotaLimit: Number(config.requestQuotaLimit) || 0,
+                requestQuotaDays: Number(config.requestQuotaDays) || 7,
+                requestQuotaLimit4k: Number(config.requestQuotaLimit4k) || 0,
+                autoApproveMovies: !!config.autoApproveMovies,
+                autoApproveTv: !!config.autoApproveTv,
                 primaryColor: config.primaryColor || '#F7C600',
                 customLogoUrl: config.customLogoUrl || '',
                 brandingTheme: config.brandingTheme || 'plex',
@@ -2920,6 +2932,11 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 requestHideAvailableMedia: false,
                 discoverySource: 'tmdb',
                 requestEngine: 'seerr',
+                requestQuotaLimit: 0,
+                requestQuotaDays: 7,
+                requestQuotaLimit4k: 0,
+                autoApproveMovies: false,
+                autoApproveTv: false,
                 primaryColor: '#F7C600',
                 customLogoUrl: '',
                 brandingTheme: 'plex',
@@ -2982,6 +2999,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         sonarrUrl, sonarrApiKey, radarrUrl, radarrApiKey, arrInstances, downloadClients, tautulliUrl, tautulliApiKey, jellystatUrl, jellystatApiKey,
         requestAppType, requestAppUrl, requestAppFetchUrl, requestAppApiKey,
         requestDiscoverRegion, requestDiscoverLanguage, requestHideAvailableMedia, discoverySource, requestEngine,
+        requestQuotaLimit, requestQuotaDays, requestQuotaLimit4k, autoApproveMovies, autoApproveTv,
         inactiveCleanupEnabled, inactiveCleanupDays,
         primaryColor, customLogoUrl, brandingTheme, sidebarIdentityPosition, pwaIconSource, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, navHiddenKeys, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges, showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds,
         showPublicStatusMonitor, showPublicLibraryStats,
@@ -3141,6 +3159,21 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         requestEngine: normalizeRequestEngine(
             requestEngine !== undefined ? requestEngine : existingConfig.requestEngine
         ),
+        requestQuotaLimit: normalizeRequestQuotaLimit(
+            requestQuotaLimit !== undefined ? requestQuotaLimit : existingConfig.requestQuotaLimit
+        ),
+        requestQuotaDays: normalizeRequestQuotaDays(
+            requestQuotaDays !== undefined ? requestQuotaDays : existingConfig.requestQuotaDays
+        ),
+        requestQuotaLimit4k: normalizeRequestQuotaLimit(
+            requestQuotaLimit4k !== undefined ? requestQuotaLimit4k : existingConfig.requestQuotaLimit4k
+        ),
+        autoApproveMovies: autoApproveMovies !== undefined
+            ? !!autoApproveMovies
+            : !!existingConfig.autoApproveMovies,
+        autoApproveTv: autoApproveTv !== undefined
+            ? !!autoApproveTv
+            : !!existingConfig.autoApproveTv,
         primaryColor: primaryColor || '#F7C600',
         customLogoUrl: customLogoUrl || '',
         brandingTheme: ['dynamic', 'plex', 'slate', 'nordic', 'jellyfin', 'emerald', 'midnight', 'crimson', 'amethyst', 'sunset', 'ocean', 'rose', 'royal', 'graphite', 'cyberlime', 'aurora'].includes(String(brandingTheme || '').toLowerCase()) ? String(brandingTheme).toLowerCase() : (existingConfig.brandingTheme || 'plex'),
@@ -5285,6 +5318,16 @@ const getPortalRequestService = (config) => createPortalRequestService({
     },
 });
 
+const getPortalIssueService = (config) => createPortalIssueService({
+    dataDir: ISSUES_DIR,
+    config,
+    resolveUser: async (userId) => {
+        const users = await loadFile(USERS_PATH, []);
+        const key = String(userId || '');
+        return users.find((user) => String(user?.id) === key || String(user?.plexId) === key) || null;
+    },
+});
+
 /** Batch library (+ optional portal request) availability for Discover card badges. */
 app.post('/api/discovery/availability-batch', requireAuth, requireMember, async (req, res) => {
     try {
@@ -5590,14 +5633,39 @@ app.get('/api/discovery/hero-backdrops', requireAuth, requireMember, async (req,
 app.get('/api/discovery/request-options', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
         const mediaType = String(req.query.mediaType || '').toLowerCase();
         const mediaId = Number(req.query.mediaId);
         if ((mediaType !== 'movie' && mediaType !== 'tv') || !Number.isFinite(mediaId)) {
             return res.status(400).json({ error: 'Invalid mediaType or mediaId' });
         }
+
+        if (getRequestEngine(config) === 'portal') {
+            const portalRequests = getPortalRequestService(config);
+            const records = await portalRequests.store.list({ userId: String(req.user?.id || '') });
+            const quotaEval = evaluatePortalMemberQuota(config, records, { is4k: false });
+            const servers = portalRequests.listPortalArrServers(mediaType);
+            return res.json({
+                canRequest: true,
+                canRequest4k: true,
+                canRequestAdvanced: servers.length > 0,
+                canCreateIssues: true,
+                blockReason: null,
+                standardQuotaBlocked: quotaEval.standardQuotaBlocked,
+                fourKQuotaBlocked: quotaEval.fourKQuotaBlocked,
+                quota: quotaEval.quota,
+                servers,
+                seasons: [],
+                permissions: {
+                    request: true,
+                    request4k: true,
+                    requestAdvanced: servers.length > 0,
+                    createIssues: true,
+                },
+            });
+        }
+
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
 
         const payload = await requestAppService.getMemberRequestOptions(config, req.user, {
             mediaType,
@@ -5613,6 +5681,37 @@ app.get('/api/discovery/request-options', requireAuth, requireMember, async (req
 app.get('/api/discovery/me', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
+        if (getRequestEngine(config) === 'portal') {
+            const portalRequests = getPortalRequestService(config);
+            const records = await portalRequests.store.list({ userId: String(req.user?.id || '') });
+            const quotaEval = evaluatePortalMemberQuota(config, records);
+            const settings = getPortalRequestQuotaSettings(config);
+            return res.json({
+                configured: true,
+                engine: 'portal',
+                userMapped: true,
+                permissions: {
+                    request: true,
+                    request4k: true,
+                    requestAdvanced: true,
+                    createIssues: true,
+                    viewIssues: true,
+                },
+                quota: {
+                    movie: quotaEval.quota,
+                    tv: quotaEval.quota,
+                },
+                autoApprove: {
+                    requests: settings.autoApproveMovies || settings.autoApproveTv,
+                    movies: settings.autoApproveMovies,
+                    tv: settings.autoApproveTv,
+                    requests4k: false,
+                    movies4k: false,
+                    tv4k: false,
+                },
+            });
+        }
+
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
 
@@ -5813,9 +5912,13 @@ app.post('/api/discovery/my-requests/:id/retry', requireAuth, requireMember, asy
 app.get('/api/discovery/my-issues/count', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
+        if (getRequestEngine(config) === 'portal') {
+            const portalIssues = getPortalIssueService(config);
+            const counts = await portalIssues.getMemberIssueCounts(req.user);
+            return res.json({ configured: true, engine: 'portal', ...counts });
+        }
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
         const counts = await requestAppService.getMemberIssueCounts(config, req.user);
         res.json({ configured: true, ...counts });
     } catch (e) {
@@ -5827,13 +5930,16 @@ app.get('/api/discovery/my-issues/count', requireAuth, requireMember, async (req
 app.get('/api/discovery/my-issues', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
         const filter = String(req.query.filter || 'all').toLowerCase();
         const take = Math.min(50, Math.max(1, Number(req.query.take) || 20));
         const skip = Math.max(0, Number(req.query.skip) || 0);
-
+        if (getRequestEngine(config) === 'portal') {
+            const portalIssues = getPortalIssueService(config);
+            const payload = await portalIssues.listMemberIssues(req.user, { filter, take, skip });
+            return res.json({ configured: true, engine: 'portal', ...payload });
+        }
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
         const payload = await requestAppService.listMemberIssues(config, req.user, { filter, take, skip });
         res.json({ configured: true, ...payload });
     } catch (e) {
@@ -5845,15 +5951,25 @@ app.get('/api/discovery/my-issues', requireAuth, requireMember, async (req, res)
 app.post('/api/discovery/issues', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
+        const { mediaId, tmdbId, mediaType, issueType, message, problemSeason, problemEpisode } = req.body || {};
+        if (getRequestEngine(config) === 'portal') {
+            const portalIssues = getPortalIssueService(config);
+            const issue = await portalIssues.createIssue(req.user, {
+                tmdbId: tmdbId ?? mediaId,
+                mediaType: mediaType === 'tv' ? 'tv' : 'movie',
+                issueType,
+                message,
+                problemSeason,
+                problemEpisode,
+            });
+            return res.status(201).json({ success: true, issue });
+        }
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
         const profile = await requestAppService.getMemberDiscoveryProfile(config, req.user);
         if (!profile.permissions?.createIssues) {
             return res.status(403).json({ error: 'You do not have permission to report issues.' });
         }
-
-        const { mediaId, issueType, message, problemSeason, problemEpisode } = req.body || {};
         const issue = await requestAppService.createIssue(config, req.user, {
             mediaId,
             issueType,
@@ -5865,75 +5981,94 @@ app.post('/api/discovery/issues', requireAuth, requireMember, async (req, res) =
     } catch (e) {
         const mapped = mapSeerrClientError(e.message, e.status);
         log(`Discovery create issue error: ${e.message}`);
-        res.status(mapped.status || (e.message?.includes('not linked') ? 403 : 502)).json({ error: mapped.error });
+        res.status(mapped.status || e.status || (e.message?.includes('not linked') ? 403 : 502)).json({ error: mapped.error || e.message });
     }
 });
 
 app.post('/api/discovery/my-issues/:id/comment', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
         const issueId = String(req.params.id || '').trim();
         if (!issueId) return res.status(400).json({ error: 'Issue ID is required' });
-
+        if (getRequestEngine(config) === 'portal') {
+            const portalIssues = getPortalIssueService(config);
+            await portalIssues.assertMemberOwnsIssue(req.user, issueId);
+            await portalIssues.addIssueComment(issueId, req.body?.message, req.user);
+            return res.json({ success: true, message: 'Comment added.' });
+        }
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
         await requestAppService.assertMemberOwnsIssue(config, req.user, issueId);
         await requestAppService.addIssueComment(config, issueId, req.body?.message);
         res.json({ success: true, message: 'Comment added.' });
     } catch (e) {
         log(`Discovery issue comment error: ${e.message}`);
-        res.status(e.message?.includes('not linked') || e.message?.includes('only manage') ? 403 : 502).json({ error: e.message });
+        res.status(e.status || (e.message?.includes('not linked') || e.message?.includes('only manage') ? 403 : 502)).json({ error: e.message });
     }
 });
 
 app.post('/api/discovery/my-issues/:id/:status', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
         const issueId = String(req.params.id || '').trim();
         const status = String(req.params.status || '').toLowerCase();
         if (!issueId) return res.status(400).json({ error: 'Issue ID is required' });
         if (status !== 'open' && status !== 'resolved') {
             return res.status(400).json({ error: 'Status must be open or resolved' });
         }
-
+        if (getRequestEngine(config) === 'portal') {
+            const portalIssues = getPortalIssueService(config);
+            await portalIssues.assertMemberOwnsIssue(req.user, issueId);
+            await portalIssues.updateIssueStatus(issueId, status, req.user);
+            return res.json({ success: true, message: status === 'resolved' ? 'Issue marked resolved.' : 'Issue reopened.' });
+        }
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
         await requestAppService.assertMemberOwnsIssue(config, req.user, issueId);
         await requestAppService.updateIssueStatus(config, issueId, status);
         res.json({ success: true, message: status === 'resolved' ? 'Issue marked resolved.' : 'Issue reopened.' });
     } catch (e) {
         log(`Discovery issue status error: ${e.message}`);
-        res.status(e.message?.includes('not linked') || e.message?.includes('only manage') ? 403 : 502).json({ error: e.message });
+        res.status(e.status || (e.message?.includes('not linked') || e.message?.includes('only manage') ? 403 : 502)).json({ error: e.message });
     }
 });
 
 app.delete('/api/discovery/my-issues/:id', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
         const issueId = String(req.params.id || '').trim();
         if (!issueId) return res.status(400).json({ error: 'Issue ID is required' });
-
+        if (getRequestEngine(config) === 'portal') {
+            const portalIssues = getPortalIssueService(config);
+            const { issue } = await portalIssues.assertMemberOwnsIssue(req.user, issueId);
+            if ((issue?.commentCount || 0) > 1) {
+                return res.status(403).json({ error: 'Issues with replies cannot be deleted.' });
+            }
+            await portalIssues.deleteIssue(issueId);
+            return res.json({ success: true, message: 'Issue deleted.' });
+        }
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
         const { issue } = await requestAppService.assertMemberOwnsIssue(config, req.user, issueId);
         if ((issue?.commentCount || 0) > 1) {
             return res.status(403).json({ error: 'Issues with replies cannot be deleted.' });
         }
-
         await requestAppService.deleteIssue(config, issueId);
         res.json({ success: true, message: 'Issue deleted.' });
     } catch (e) {
         log(`Discovery delete issue error: ${e.message}`);
-        res.status(e.message?.includes('not linked') || e.message?.includes('only manage') ? 403 : 502).json({ error: e.message });
+        res.status(e.status || (e.message?.includes('not linked') || e.message?.includes('only manage') ? 403 : 502)).json({ error: e.message });
     }
 });
 
 app.get('/api/issues/count', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
+        if (getRequestEngine(config) === 'portal') {
+            const portalIssues = getPortalIssueService(config);
+            const counts = await portalIssues.getIssueCounts();
+            return res.json({ configured: true, supported: true, connected: true, engine: 'portal', ...counts });
+        }
         const gate = getRequestAppGate(config);
         if (!gate.ready) {
             return res.json(buildRequestAppStatusPayload(config));
@@ -5958,15 +6093,18 @@ app.get('/api/issues/count', requireAdmin, async (req, res) => {
 app.get('/api/issues', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
+        const filter = String(req.query.filter || 'open').toLowerCase();
+        const take = Math.min(50, Math.max(1, Number(req.query.take) || 30));
+        const skip = Math.max(0, Number(req.query.skip) || 0);
+        if (getRequestEngine(config) === 'portal') {
+            const portalIssues = getPortalIssueService(config);
+            const payload = await portalIssues.listIssues({ filter, take, skip });
+            return res.json({ configured: true, supported: true, connected: true, engine: 'portal', ...payload });
+        }
         const gate = getRequestAppGate(config);
         if (!gate.ready) {
             return res.json({ ...buildRequestAppStatusPayload(config), results: [] });
         }
-
-        const filter = String(req.query.filter || 'open').toLowerCase();
-        const take = Math.min(50, Math.max(1, Number(req.query.take) || 30));
-        const skip = Math.max(0, Number(req.query.skip) || 0);
-
         try {
             const payload = await requestAppService.listIssues(config, { filter, take, skip });
             res.json({ configured: true, supported: true, connected: true, ...payload });
@@ -5988,48 +6126,64 @@ app.get('/api/issues', requireAdmin, async (req, res) => {
 app.get('/api/issues/:id', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
         const issueId = String(req.params.id || '').trim();
         if (!issueId) return res.status(400).json({ error: 'Issue ID is required' });
-
+        if (getRequestEngine(config) === 'portal') {
+            const portalIssues = getPortalIssueService(config);
+            const issue = await portalIssues.getIssue(issueId);
+            return res.json({ configured: true, engine: 'portal', issue });
+        }
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
         const issue = await requestAppService.getIssue(config, issueId);
         res.json({ configured: true, issue });
     } catch (error) {
-        res.status(502).json({ error: error.message || 'Failed to fetch issue' });
+        res.status(error.status || 502).json({ error: error.message || 'Failed to fetch issue' });
     }
 });
 
 app.post('/api/issues/:id/comment', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
         const issueId = String(req.params.id || '').trim();
         if (!issueId) return res.status(400).json({ error: 'Issue ID is required' });
-
+        if (getRequestEngine(config) === 'portal') {
+            const portalIssues = getPortalIssueService(config);
+            await portalIssues.addIssueComment(issueId, req.body?.message, req.user);
+            return res.json({ success: true, message: 'Comment added.' });
+        }
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
         await requestAppService.addIssueComment(config, issueId, req.body?.message);
         res.json({ success: true, message: 'Comment added.' });
     } catch (error) {
-        res.status(502).json({ error: error.message || 'Failed to add comment' });
+        res.status(error.status || 502).json({ error: error.message || 'Failed to add comment' });
     }
 });
 
 app.post('/api/issues/:id/:status', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
         const issueId = String(req.params.id || '').trim();
         const status = String(req.params.status || '').toLowerCase();
         if (!issueId) return res.status(400).json({ error: 'Issue ID is required' });
         if (status !== 'open' && status !== 'resolved') {
             return res.status(400).json({ error: 'Status must be open or resolved' });
         }
-
+        if (getRequestEngine(config) === 'portal') {
+            const portalIssues = getPortalIssueService(config);
+            await portalIssues.updateIssueStatus(issueId, status, req.user);
+            const title = String(req.body?.title || '').trim();
+            await appendAuditLog(
+                status === 'resolved' ? 'issue_resolved' : 'issue_reopened',
+                req.user,
+                null,
+                { issueId, title: title || null, engine: 'portal' },
+            );
+            return res.json({ success: true, message: status === 'resolved' ? 'Issue resolved.' : 'Issue reopened.' });
+        }
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
         await requestAppService.updateIssueStatus(config, issueId, status);
         const title = String(req.body?.title || '').trim();
         await appendAuditLog(
@@ -6040,24 +6194,28 @@ app.post('/api/issues/:id/:status', requireAdmin, async (req, res) => {
         );
         res.json({ success: true, message: status === 'resolved' ? 'Issue resolved.' : 'Issue reopened.' });
     } catch (error) {
-        res.status(502).json({ error: error.message || 'Failed to update issue' });
+        res.status(error.status || 502).json({ error: error.message || 'Failed to update issue' });
     }
 });
 
 app.delete('/api/issues/:id', requireAdmin, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
-        const gate = getRequestAppGate(config);
-        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
-
         const issueId = String(req.params.id || '').trim();
         if (!issueId) return res.status(400).json({ error: 'Issue ID is required' });
-
+        if (getRequestEngine(config) === 'portal') {
+            const portalIssues = getPortalIssueService(config);
+            await portalIssues.deleteIssue(issueId);
+            await appendAuditLog('issue_deleted', req.user, null, { issueId, engine: 'portal' });
+            return res.json({ success: true, message: 'Issue deleted.' });
+        }
+        const gate = getRequestAppGate(config);
+        if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
         await requestAppService.deleteIssue(config, issueId);
         await appendAuditLog('issue_deleted', req.user, null, { issueId });
         res.json({ success: true, message: 'Issue deleted.' });
     } catch (error) {
-        res.status(502).json({ error: error.message || 'Failed to delete issue' });
+        res.status(error.status || 502).json({ error: error.message || 'Failed to delete issue' });
     }
 });
 
@@ -6220,41 +6378,20 @@ app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) 
         const type = mediaType === 'tv' ? 'tv' : 'movie';
         const tmdbId = Number(mediaId);
 
-        // Phase 5: portal engine persists pending JSON requests (no *arr push yet).
+        // Phase 5–8: portal engine — JSON store + portal quotas + optional auto-approve.
         if (getRequestEngine(config) === 'portal') {
-            const gate = getRequestAppGate(config);
-            // Prefer Seerr permission/quota checks when available; otherwise allow create.
-            if (gate.ready) {
-                try {
-                    const options = await requestAppService.getMemberRequestOptions(config, req.user, {
-                        mediaType: type,
-                        mediaId: tmdbId,
-                    });
-                    if (!options.canRequest) {
-                        return res.status(403).json({ error: options.blockReason || 'You cannot request this title.' });
-                    }
-                    if (is4k && !options.canRequest4k) {
-                        return res.status(403).json({ error: 'You do not have permission to request 4K media.' });
-                    }
-                    if (is4k) {
-                        const fourKQuota = options.quota?.fourK;
-                        if (fourKQuota?.limit > 0 && fourKQuota.remaining === 0) {
-                            return res.status(429).json({ error: `You have used all ${fourKQuota.limit} 4K requests for this period.` });
-                        }
-                    } else if (options.standardQuotaBlocked) {
-                        const limit = options.quota?.standard?.limit;
-                        return res.status(429).json({
-                            error: limit
-                                ? `You have used all ${limit} requests for this period.`
-                                : 'You have reached your request quota for this period.',
-                        });
-                    }
-                } catch (optionsError) {
-                    log(`Portal request options check skipped: ${optionsError.message}`);
-                }
+            const portalRequests = getPortalRequestService(config);
+            const records = await portalRequests.store.list({ userId: String(req.user?.id || '') });
+            const quotaEval = evaluatePortalMemberQuota(config, records, { is4k: !!is4k });
+            if (quotaEval.blocked) {
+                const bucket = is4k ? quotaEval.quota.fourK : quotaEval.quota.standard;
+                return res.status(429).json({
+                    error: bucket.limit
+                        ? `You have used all ${bucket.limit} ${is4k ? '4K ' : ''}requests for this period.`
+                        : 'You have reached your request quota for this period.',
+                });
             }
 
-            const portalRequests = getPortalRequestService(config);
             const created = await portalRequests.createMemberRequest(req.user, {
                 mediaType: type,
                 mediaId: tmdbId,
@@ -6266,6 +6403,20 @@ app.post('/api/discovery/request', requireAuth, requireMember, async (req, res) 
                 languageProfileId,
                 tags,
             });
+
+            if (shouldPortalAutoApprove(config, type)) {
+                try {
+                    const approved = await portalRequests.approveAdminRequest(created.id, null, req.user);
+                    return res.status(201).json(approved);
+                } catch (approveError) {
+                    log(`Portal auto-approve failed for request ${created.id}: ${approveError.message}`);
+                    return res.status(201).json({
+                        ...created,
+                        autoApproveError: approveError.message,
+                    });
+                }
+            }
+
             return res.status(201).json(created);
         }
 

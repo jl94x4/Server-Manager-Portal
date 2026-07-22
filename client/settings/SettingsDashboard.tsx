@@ -431,6 +431,11 @@ export const SettingsDashboard: React.FC = () => {
     const [requestHideAvailableMedia, setRequestHideAvailableMedia] = useState(false);
     const [discoverySource, setDiscoverySource] = useState('tmdb');
     const [requestEngine, setRequestEngine] = useState('seerr');
+    const [requestQuotaLimit, setRequestQuotaLimit] = useState(0);
+    const [requestQuotaDays, setRequestQuotaDays] = useState(7);
+    const [requestQuotaLimit4k, setRequestQuotaLimit4k] = useState(0);
+    const [autoApproveMovies, setAutoApproveMovies] = useState(false);
+    const [autoApproveTv, setAutoApproveTv] = useState(false);
     const [maintenanceExperimentalEnabled, setMaintenanceExperimentalEnabled] = useState(false);
     const [upgraderEnabled, setUpgraderEnabled] = useState(false);
     const [collexionsEnabled, setCollexionsEnabled] = useState(false);
@@ -977,6 +982,11 @@ export const SettingsDashboard: React.FC = () => {
             setRequestHideAvailableMedia(!!initialSettings.requestHideAvailableMedia);
             setDiscoverySource(initialSettings.discoverySource === 'seerr' ? 'seerr' : 'tmdb');
             setRequestEngine(initialSettings.requestEngine === 'portal' ? 'portal' : 'seerr');
+            setRequestQuotaLimit(Number(initialSettings.requestQuotaLimit) || 0);
+            setRequestQuotaDays(Number(initialSettings.requestQuotaDays) || 7);
+            setRequestQuotaLimit4k(Number(initialSettings.requestQuotaLimit4k) || 0);
+            setAutoApproveMovies(!!initialSettings.autoApproveMovies);
+            setAutoApproveTv(!!initialSettings.autoApproveTv);
             const savedBrandingTheme = localStorage.getItem('portal-theme') || initialSettings.brandingTheme || 'plex';
             setBrandingTheme(savedBrandingTheme === 'light' ? 'plex' : savedBrandingTheme);
             setCustomLogoUrl(initialSettings.customLogoUrl || '');
@@ -1213,6 +1223,11 @@ export const SettingsDashboard: React.FC = () => {
             requestHideAvailableMedia,
             discoverySource,
             requestEngine,
+            requestQuotaLimit,
+            requestQuotaDays,
+            requestQuotaLimit4k,
+            autoApproveMovies,
+            autoApproveTv,
             primaryColor: '',
             customLogoUrl: savedCustomLogoUrl,
             brandingTheme,
@@ -2289,8 +2304,7 @@ export const SettingsDashboard: React.FC = () => {
                                     hint={(
                                         <SettingHint>
                                             Seerr (default) creates requests in your request app.
-                                            Portal stores requests as JSON under config/requests, pushes to Sonarr/Radarr on admin approve, and syncs downloading/available from *arr about every minute.
-                                            Member request options still prefer Seerr when connected; admin services use portal *arr instances in portal mode.
+                                            Portal stores requests/issues as JSON, pushes to *arr on approve, syncs status from *arr, and applies portal quotas/auto-approve below.
                                         </SettingHint>
                                     )}
                                 >
@@ -2306,6 +2320,63 @@ export const SettingsDashboard: React.FC = () => {
                                     ]}
                                 />
                             </div>
+
+                            {requestEngine === 'portal' && (
+                                <div id={getSettingsSectionElementId('portal-quotas')} className="scroll-mt-24 space-y-4">
+                                    <SettingFieldLabel
+                                        htmlFor="requestQuotaLimit"
+                                        hint={<SettingHint>0 = unlimited. Rolling window applies to member requests when Request Engine is Portal.</SettingHint>}
+                                    >
+                                        Request quota (standard)
+                                    </SettingFieldLabel>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <input
+                                            id="requestQuotaLimit"
+                                            type="number"
+                                            min={0}
+                                            className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm"
+                                            value={requestQuotaLimit}
+                                            onChange={(e) => setRequestQuotaLimit(Math.max(0, Number(e.target.value) || 0))}
+                                        />
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm"
+                                            value={requestQuotaDays}
+                                            onChange={(e) => setRequestQuotaDays(Math.max(1, Number(e.target.value) || 7))}
+                                            aria-label="Quota days"
+                                        />
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm"
+                                            value={requestQuotaLimit4k}
+                                            onChange={(e) => setRequestQuotaLimit4k(Math.max(0, Number(e.target.value) || 0))}
+                                            aria-label="4K quota limit"
+                                            placeholder="4K limit"
+                                        />
+                                    </div>
+                                    <p className="text-xs text-white/45">Limit · Days · 4K limit (0 = unlimited)</p>
+                                    <div className="flex flex-wrap gap-4">
+                                        <label className="inline-flex items-center gap-2 text-sm text-white/80">
+                                            <input
+                                                type="checkbox"
+                                                checked={autoApproveMovies}
+                                                onChange={(e) => setAutoApproveMovies(e.target.checked)}
+                                            />
+                                            Auto-approve movies
+                                        </label>
+                                        <label className="inline-flex items-center gap-2 text-sm text-white/80">
+                                            <input
+                                                type="checkbox"
+                                                checked={autoApproveTv}
+                                                onChange={(e) => setAutoApproveTv(e.target.checked)}
+                                            />
+                                            Auto-approve TV
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
 
                             <div id={getSettingsSectionElementId('region')} className="scroll-mt-24">
                                 <SettingFieldLabel

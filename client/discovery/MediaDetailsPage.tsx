@@ -330,8 +330,12 @@ export const MediaDetailsPage: React.FC<{
     const mediaStatus = details.mediaInfo?.status ?? null;
     const requestButton = getRequestButtonState(mediaType, mediaStatus, seasonRows, details.mediaInfo, details);
     const seerrMediaId = Number(details.mediaInfo?.id);
-    const canReportIssue = Number.isFinite(seerrMediaId) && seerrMediaId > 0
-        && discoveryMe.permissions?.createIssues !== false
+    const tmdbId = Number(details.tmdbId ?? details.id);
+    const canReportIssue = discoveryMe.permissions?.createIssues !== false
+        && (
+            (Number.isFinite(seerrMediaId) && seerrMediaId > 0)
+            || (Number.isFinite(tmdbId) && tmdbId > 0)
+        )
         && (
             mediaStatus === 4
             || mediaStatus === 5
@@ -860,7 +864,8 @@ export const MediaDetailsPage: React.FC<{
                 open={issueModalOpen}
                 mediaType={mediaType}
                 title={title}
-                seerrMediaId={seerrMediaId}
+                seerrMediaId={Number.isFinite(seerrMediaId) && seerrMediaId > 0 ? seerrMediaId : null}
+                tmdbId={Number.isFinite(tmdbId) && tmdbId > 0 ? tmdbId : null}
                 onClose={() => setIssueModalOpen(false)}
                 onSuccess={(msg) => pushToast?.(msg, 'success')}
                 onError={(msg) => pushToast?.(msg, 'error')}
