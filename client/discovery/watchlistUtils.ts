@@ -43,7 +43,15 @@ export const isWatchlistItemRequestable = (item: any): boolean => {
     const ref = resolveWatchlistMediaRef(item);
     if (!ref) return false;
     const availability = resolveMediaAvailabilityState(item);
-    if (availability.kind === 'blacklisted' || availability.kind === 'failed' || availability.kind === 'declined') {
+    if (
+        availability.kind === 'blacklisted'
+        || availability.kind === 'failed'
+        || availability.kind === 'declined'
+        || availability.kind === 'available'
+        || availability.kind === 'requested'
+        || availability.kind === 'pending'
+        || availability.kind === 'processing'
+    ) {
         return false;
     }
 
@@ -51,14 +59,16 @@ export const isWatchlistItemRequestable = (item: any): boolean => {
     if (ref.mediaType === 'movie') {
         if (isMovieFullyAvailable(mediaStatus)) return false;
         if (isMovieRequestPending(mediaStatus)) return false;
-        return availability.kind !== 'available';
+        if (availability.kind === 'partial') return false;
+        return true;
     }
 
     const seasons = buildSeasonStatusFromDetails(item);
     if (seasons.length > 0) return seasons.some((s) => s.requestable);
     if (mediaStatus === MEDIA_STATUS.AVAILABLE) return false;
     if (mediaStatus === MEDIA_STATUS.PROCESSING || mediaStatus === MEDIA_STATUS.PENDING) return false;
-    return availability.kind !== 'available';
+    // Partial with no season rows: still allow request (missing seasons may exist).
+    return availability.kind === 'none' || availability.kind === 'partial';
 };
 
 export const countRequestableWatchlistItems = (items: any[]) => (

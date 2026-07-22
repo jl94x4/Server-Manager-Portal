@@ -74,7 +74,7 @@ export const RequestModal: React.FC<Props> = ({
     const [selectedQualities, setSelectedQualities] = useState<Set<QualityKey>>(() => new Set(['hd']));
     const [advancedQuality, setAdvancedQuality] = useState<QualityKey>('hd');
     const [selectedSeasons, setSelectedSeasons] = useState<number[]>([]);
-    const [showAdvanced, setShowAdvanced] = useState(true);
+    const [showAdvanced, setShowAdvanced] = useState(mediaType !== 'tv');
     const [qualityForms, setQualityForms] = useState<Record<QualityKey, QualityFormState>>({
         hd: emptyQualityForm(),
         '4k': emptyQualityForm(),
@@ -83,6 +83,7 @@ export const RequestModal: React.FC<Props> = ({
     const [tagCreating, setTagCreating] = useState(false);
     const [tagSuggestionsOpen, setTagSuggestionsOpen] = useState(false);
     const loadGenRef = useRef(0);
+    const advancedSectionRef = useRef<HTMLDivElement>(null);
     const onErrorRef = useRef(onError);
     const onSuccessRef = useRef(onSuccess);
     const onCloseRef = useRef(onClose);
@@ -287,7 +288,8 @@ export const RequestModal: React.FC<Props> = ({
             else initial.add('hd');
             setSelectedQualities(initial);
             setAdvancedQuality(initial.has('hd') ? 'hd' : '4k');
-            setShowAdvanced(!!payload.canRequestAdvanced);
+            // TV seasons already fill the viewport — keep Advanced collapsed so Root Folder isn't hidden below the fold.
+            setShowAdvanced(!!payload.canRequestAdvanced && payload.mediaType !== 'tv');
 
             if (payload.mediaType === 'tv' && Array.isArray(payload.seasons)) {
                 setSelectedSeasons(
@@ -356,8 +358,21 @@ export const RequestModal: React.FC<Props> = ({
     const filteredServers = useMemo(() => {
         const list = options?.servers || [];
         const want4k = advancedQuality === '4k';
-        return list.filter((server) => server.is4k === want4k);
+        const matched = list.filter((server) => !!server.is4k === want4k);
+        // Fall back to full list if nothing is tagged for this quality (misconfigured is4k).
+        return matched.length ? matched : list;
     }, [options?.servers, advancedQuality]);
+
+    const hdServerName = useMemo(
+        () => (options?.servers || []).find((server) => !server.is4k)?.name
+            || (mediaType === 'tv' ? 'Sonarr' : 'Radarr'),
+        [options?.servers, mediaType],
+    );
+    const fourKServerName = useMemo(
+        () => (options?.servers || []).find((server) => !!server.is4k)?.name
+            || `${mediaType === 'tv' ? 'Sonarr' : 'Radarr'} 4K`,
+        [options?.servers, mediaType],
+    );
 
     const quotaHints = useMemo(() => {
         if (!options) return [] as string[];
@@ -607,6 +622,11 @@ export const RequestModal: React.FC<Props> = ({
     );
     const advancedLoading = showAdvancedSection && activeForm.loading && !activeForm.loaded;
     const bothQualitiesSelected = selectedQualities.has('hd') && selectedQualities.has('4k');
+    const showRoutingSection = showAdvancedSection && !advancedLoading && (
+        filteredServers.length > 1
+        || (activeForm.serviceOptions?.rootFolders || []).length > 0
+        || !!activeForm.rootFolder
+    );
 
     return (
         <ModalPortal open={open}>
@@ -621,7 +641,7 @@ export const RequestModal: React.FC<Props> = ({
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="request-modal-title"
-                className="relative w-full sm:max-w-3xl lg:max-w-4xl max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-0.5rem))] sm:max-h-[85vh] bg-card border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-fade-in"
+                className="relative w-full sm:max-w-3xl lg:max-w-4xl max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-0.5rem))] sm:max-h-[85vh] min-h-0 bg-card border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-fade-in"
             >
                 <div className="flex items-start justify-between gap-4 p-5 border-b border-white/10 bg-black/20 shrink-0">
                     <div className="flex items-start gap-4 min-w-0">
@@ -726,8 +746,8 @@ export const RequestModal: React.FC<Props> = ({
                                                 </span>
                                                 <span className="text-sm font-bold">1080p / HD</span>
                                             </span>
-                                            <span className="text-[11px] text-white/40 pl-8">
-                                                {mediaType === 'tv' ? 'Sonarr' : 'Radarr'} · standard
+                                            <span className="text-[11px] text-white/40 pl-8 truncate max-w-full">
+                                                {hdServerName}
                                             </span>
                                         </button>
                                         <button
@@ -750,10 +770,79 @@ export const RequestModal: React.FC<Props> = ({
                                                 </span>
                                                 <span className="text-sm font-bold">Ultra HD</span>
                                             </span>
-                                            <span className="text-[11px] text-white/40 pl-8">
-                                                {mediaType === 'tv' ? 'Sonarr' : 'Radarr'} · 4K server
+                                            <span className="text-[11px] text-white/40 pl-8 truncate max-w-full">
+                                                {fourKServerName}
                                             </span>
                                         </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {showRoutingSection && (
+                                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 flex flex-col gap-3">
+                                    {bothQualitiesSelected && (
+                                        <div className="flex gap-1">
+                                            {(['hd', '4k'] as QualityKey[]).map((q) => (
+                                                <button
+                                                    key={q}
+                                                    type="button"
+                                                    onClick={() => setAdvancedQuality(q)}
+                                                    className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide border transition-colors ${
+                                                        advancedQuality === q
+                                                            ? 'bg-white/10 border-white/20 text-white'
+                                                            : 'bg-transparent border-transparent text-white/40 hover:text-white/70'
+                                                    }`}
+                                                >
+                                                    {q === '4k' ? '4K options' : 'HD options'}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {(filteredServers.length > 1) && (
+                                        <div>
+                                            <label className="block text-xs font-bold uppercase tracking-wider text-white/40 mb-2">
+                                                Destination Server
+                                            </label>
+                                            <CustomSelect
+                                                value={String(activeForm.serverId ?? '')}
+                                                onChange={(val) => {
+                                                    const nextId = Number(val);
+                                                    updateQualityForm(advancedQuality, { serverId: nextId });
+                                                    if (options) {
+                                                        loadServiceOptions(options, advancedQuality, nextId, null, {
+                                                            preserveSelections: false,
+                                                        });
+                                                    }
+                                                }}
+                                                options={filteredServers.map((server) => ({
+                                                    value: String(server.id),
+                                                    label: server.isDefault ? `${server.name} (Default)` : server.name,
+                                                }))}
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <label className="block text-xs font-bold uppercase tracking-wider text-white/40 mb-2">
+                                            Root Folder
+                                        </label>
+                                        {(activeForm.serviceOptions?.rootFolders || []).length > 0 ? (
+                                            <CustomSelect
+                                                value={activeForm.rootFolder}
+                                                onChange={(val) => updateQualityForm(advancedQuality, {
+                                                    rootFolder: val,
+                                                })}
+                                                options={(activeForm.serviceOptions?.rootFolders || []).map((folder) => ({
+                                                    value: folder.path,
+                                                    label: rootFolderLabel(folder),
+                                                }))}
+                                            />
+                                        ) : (
+                                            <p className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+                                                No root folders returned from Sonarr/Radarr for this server.
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -840,39 +929,45 @@ export const RequestModal: React.FC<Props> = ({
                             )}
 
                             {showAdvancedSection && (
-                                <div className="rounded-xl border border-white/10 bg-white/[0.03] overflow-hidden">
+                                <div
+                                    ref={advancedSectionRef}
+                                    className="rounded-xl border border-white/10 bg-white/[0.03] overflow-hidden"
+                                >
                                     <button
                                         type="button"
-                                        onClick={() => setShowAdvanced((prev) => !prev)}
+                                        onClick={() => {
+                                            setShowAdvanced((prev) => {
+                                                const next = !prev;
+                                                if (next) {
+                                                    window.requestAnimationFrame(() => {
+                                                        advancedSectionRef.current?.scrollIntoView({
+                                                            behavior: 'smooth',
+                                                            block: 'nearest',
+                                                        });
+                                                    });
+                                                }
+                                                return next;
+                                            });
+                                        }}
                                         className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-white/[0.03] transition-colors"
                                     >
-                                        <span className="text-xs font-bold uppercase tracking-wider text-white/50">Advanced</span>
+                                        <span className="min-w-0 flex flex-col gap-0.5">
+                                            <span className="text-xs font-bold uppercase tracking-wider text-white/50">Advanced</span>
+                                            {!showAdvanced && activeForm.profileId != null ? (
+                                                <span className="text-[11px] font-medium normal-case tracking-normal text-white/35 truncate">
+                                                    {(activeForm.serviceOptions?.profiles || [])
+                                                        .find((profile) => Number(profile.id) === Number(activeForm.profileId))
+                                                        ?.name || 'Quality profile'}
+                                                </span>
+                                            ) : null}
+                                        </span>
                                         {showAdvanced
-                                            ? <ChevronUp className="w-4 h-4 text-white/40" />
-                                            : <ChevronDown className="w-4 h-4 text-white/40" />}
+                                            ? <ChevronUp className="w-4 h-4 text-white/40 shrink-0" />
+                                            : <ChevronDown className="w-4 h-4 text-white/40 shrink-0" />}
                                     </button>
 
                                     {showAdvanced && (
                                         <div className="px-4 pb-4 flex flex-col gap-3 border-t border-white/10">
-                                            {bothQualitiesSelected && (
-                                                <div className="flex gap-1 pt-3">
-                                                    {(['hd', '4k'] as QualityKey[]).map((q) => (
-                                                        <button
-                                                            key={q}
-                                                            type="button"
-                                                            onClick={() => setAdvancedQuality(q)}
-                                                            className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide border transition-colors ${
-                                                                advancedQuality === q
-                                                                    ? 'bg-white/10 border-white/20 text-white'
-                                                                    : 'bg-transparent border-transparent text-white/40 hover:text-white/70'
-                                                            }`}
-                                                        >
-                                                            {q === '4k' ? '4K options' : 'HD options'}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
-
                                             {advancedLoading ? (
                                                 <div className="flex items-center gap-2 py-6 justify-center text-white/50 text-sm">
                                                     <Loader2 className="w-4 h-4 animate-spin text-plex" />
@@ -880,31 +975,26 @@ export const RequestModal: React.FC<Props> = ({
                                                 </div>
                                             ) : (
                                                 <>
-                                                    {filteredServers.length > 1 && (
-                                                        <div className={bothQualitiesSelected ? '' : 'pt-3'}>
-                                                            <label className="block text-xs font-bold uppercase tracking-wider text-white/40 mb-2">
-                                                                Destination Server
-                                                            </label>
-                                                            <CustomSelect
-                                                                value={String(activeForm.serverId ?? '')}
-                                                                onChange={(val) => {
-                                                                    const nextId = Number(val);
-                                                                    updateQualityForm(advancedQuality, { serverId: nextId });
-                                                                    if (options) {
-                                                                        loadServiceOptions(options, advancedQuality, nextId, null, {
-                                                                            preserveSelections: false,
-                                                                        });
-                                                                    }
-                                                                }}
-                                                                options={filteredServers.map((server) => ({
-                                                                    value: String(server.id),
-                                                                    label: server.isDefault ? `${server.name} (Default)` : server.name,
-                                                                }))}
-                                                            />
+                                                    {bothQualitiesSelected && (
+                                                        <div className="flex gap-1 pt-3">
+                                                            {(['hd', '4k'] as QualityKey[]).map((q) => (
+                                                                <button
+                                                                    key={q}
+                                                                    type="button"
+                                                                    onClick={() => setAdvancedQuality(q)}
+                                                                    className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide border transition-colors ${
+                                                                        advancedQuality === q
+                                                                            ? 'bg-white/10 border-white/20 text-white'
+                                                                            : 'bg-transparent border-transparent text-white/40 hover:text-white/70'
+                                                                    }`}
+                                                                >
+                                                                    {q === '4k' ? '4K options' : 'HD options'}
+                                                                </button>
+                                                            ))}
                                                         </div>
                                                     )}
 
-                                                    <div className={!bothQualitiesSelected && filteredServers.length <= 1 ? 'pt-3' : ''}>
+                                                    <div className={bothQualitiesSelected ? '' : 'pt-3'}>
                                                         <label className="block text-xs font-bold uppercase tracking-wider text-white/40 mb-2">
                                                             Quality Profile
                                                         </label>
@@ -916,22 +1006,6 @@ export const RequestModal: React.FC<Props> = ({
                                                             options={(activeForm.serviceOptions?.profiles || []).map((profile) => ({
                                                                 value: String(profile.id),
                                                                 label: profile.name,
-                                                            }))}
-                                                        />
-                                                    </div>
-
-                                                    <div>
-                                                        <label className="block text-xs font-bold uppercase tracking-wider text-white/40 mb-2">
-                                                            Root Folder
-                                                        </label>
-                                                        <CustomSelect
-                                                            value={activeForm.rootFolder}
-                                                            onChange={(val) => updateQualityForm(advancedQuality, {
-                                                                rootFolder: val,
-                                                            })}
-                                                            options={(activeForm.serviceOptions?.rootFolders || []).map((folder) => ({
-                                                                value: folder.path,
-                                                                label: rootFolderLabel(folder),
                                                             }))}
                                                         />
                                                     </div>

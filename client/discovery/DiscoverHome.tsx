@@ -13,7 +13,7 @@ import {
 } from './discoverConstants';
 import { enrichDiscoveryItems, normalizeRawDiscoveryItem } from './discoverItemUtils';
 import { portalRequestToDiscoveryRowItem } from './myRequestUtils';
-import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
+import { filterDiscoverBrowseItems, filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
 import { fetchDiscoverHomeRowResults } from './discoverFetchUtils';
 import { enrichDiscoverItemsWithAvailability } from './discoverAvailabilityEnrich';
 import { WatchlistPanel } from './WatchlistPanel';
@@ -104,8 +104,14 @@ export const DiscoverHome: React.FC<{
         setLoading(true);
         try {
             const hideAvailable = preferences.hideAvailableMedia;
-            // First paint: one page per poster row only. Side rails / badges / extra pages follow.
-            const firstPaint = { needsBackfill: hideAvailable, maxPages: hideAvailable ? 2 : 1, maxItems: 20, minItems: 12 };
+            // First paint: when hiding available/requested, scan more pages after enrich+filter.
+            const firstPaint = {
+                needsBackfill: hideAvailable,
+                maxPages: hideAvailable ? 6 : 1,
+                maxItems: 20,
+                minItems: 12,
+                hideRequested: hideAvailable,
+            };
             const [
                 trendingRes,
                 popularMovies,
@@ -167,10 +173,11 @@ export const DiscoverHome: React.FC<{
                         ? reqRes.results.map(portalRequestToDiscoveryRowItem)
                         : [];
 
-                    // Normalize library/requests; enrich watchlist posters (Seerr payloads are often poster-sparse).
+                    // Normalize library/requests; enrich watchlist posters + availability (Request vs Available).
                     const recentlyAdded = (addedRes?.results || []).map(normalizeRawDiscoveryItem);
                     const recentRequests = await enrichDiscoveryItems(myRequestItems);
-                    const plexWatchlist = await enrichDiscoveryItems(watchlistRes?.results || []);
+                    const watchlistPosters = await enrichDiscoveryItems(watchlistRes?.results || []);
+                    const plexWatchlist = await enrichDiscoverItemsWithAvailability(watchlistPosters);
 
                     setRows((prev) => ({
                         ...prev,
@@ -201,11 +208,11 @@ export const DiscoverHome: React.FC<{
                     ]);
                     setRows((prev) => ({
                         ...prev,
-                        trending,
-                        popularMovies: popularMoviesEnriched,
-                        upcomingMovies: upcomingMoviesEnriched,
-                        popularSeries: popularSeriesEnriched,
-                        upcomingSeries: upcomingSeriesEnriched,
+                        trending: filterDiscoverBrowseItems(trending, { hideAvailable, hideRequested: hideAvailable }),
+                        popularMovies: filterDiscoverBrowseItems(popularMoviesEnriched, { hideAvailable, hideRequested: hideAvailable }),
+                        upcomingMovies: filterDiscoverBrowseItems(upcomingMoviesEnriched, { hideAvailable, hideRequested: hideAvailable }),
+                        popularSeries: filterDiscoverBrowseItems(popularSeriesEnriched, { hideAvailable, hideRequested: hideAvailable }),
+                        upcomingSeries: filterDiscoverBrowseItems(upcomingSeriesEnriched, { hideAvailable, hideRequested: hideAvailable }),
                     }));
                 } catch {
                     // Badges are best-effort; first paint already succeeded.

@@ -2,6 +2,7 @@ import { apiFetch } from '../shared/api';
 import type { FilterState } from './FilterDrawer';
 import { appendDiscoverQuery, hasAdvancedDiscoverFilters } from './discoverUrlUtils';
 import { filterDiscoverBrowseItems } from './discoverAvailability';
+import { enrichDiscoverItemsWithAvailability } from './discoverAvailabilityEnrich';
 import { dedupeDiscoverResults } from './discoverItemUtils';
 import type { DiscoverPagePayload } from './useDiscoverInfiniteScroll';
 
@@ -16,6 +17,22 @@ type DiscoverBrowseFilterOptions = {
 const needsDiscoverBackfill = (options: DiscoverBrowseFilterOptions) => (
     !!options.hideAvailable || !!options.hideRequested
 );
+
+/**
+ * Browse lists ship without mediaInfo (proxy skips *arr enrich for speed).
+ * Hide filters must enrich first or every title looks requestable and stays visible.
+ */
+async function filterDiscoverResultsWithAvailability(
+    items: any[],
+    options: DiscoverBrowseFilterOptions,
+): Promise<any[]> {
+    const list = Array.isArray(items) ? items : [];
+    if (!list.length || !needsDiscoverBackfill(options)) {
+        return filterDiscoverBrowseItems(list, options);
+    }
+    const enriched = await enrichDiscoverItemsWithAvailability(list);
+    return filterDiscoverBrowseItems(enriched, options);
+}
 
 export const buildDiscoverStudioApiUrl = (page: number, studioId: number | string, sort = 'popularity.desc') =>
     `/api/discovery/proxy/discover/movies/studio/${studioId}?page=${page}&sortBy=${encodeURIComponent(sort)}`;
@@ -60,8 +77,9 @@ export async function fetchDiscoverPage(
     options: DiscoverBrowseFilterOptions = {},
 ): Promise<DiscoverPagePayload> {
     const res = await apiFetch(url);
+    const filtered = await filterDiscoverResultsWithAvailability(res?.results || [], options);
     return {
-        results: dedupeDiscoverResults(filterDiscoverBrowseItems(res?.results || [], options)),
+        results: dedupeDiscoverResults(filtered),
         totalPages: Math.max(1, Number(res?.totalPages) || 1),
     };
 }
@@ -70,15 +88,23 @@ export async function fetchDiscoverPage(
 export async function fetchDiscoverHomeRowResults(
     buildUrl: (page: number) => string,
     hideAvailable: boolean,
-    options: { minItems?: number; maxPages?: number; maxItems?: number; needsBackfill?: boolean } = {},
+    options: {
+        minItems?: number;
+        maxPages?: number;
+        maxItems?: number;
+        needsBackfill?: boolean;
+        hideRequested?: boolean;
+    } = {},
 ): Promise<any[]> {
     // Ultrawide layouts need ~30–40 posters before a row fills; fetch enough to scroll.
     const maxItems = options.maxItems ?? 40;
     const maxPages = options.maxPages ?? 8;
     // Never chase more items than we will keep — otherwise hide-available scans every page.
     const minItems = Math.min(options.minItems ?? Math.min(24, maxItems), maxItems);
-    const filterOptions = { hideAvailable };
-    const needsBackfill = options.needsBackfill ?? hideAvailable;
+    // Settings "Hide Available Media" should also drop requested/pending titles from home rows.
+    const hideRequested = options.hideRequested ?? hideAvailable;
+    const filterOptions = { hideAvailable, hideRequested };
+    const needsBackfill = options.needsBackfill ?? needsDiscoverBackfill(filterOptions);
 
     if (!needsBackfill) {
         let merged: any[] = [];
@@ -97,7 +123,7 @@ export async function fetchDiscoverHomeRowResults(
     for (let page = 1; page <= maxPages; page += 1) {
         const res = await apiFetch(buildUrl(page));
         const totalPages = Math.max(1, Number(res?.totalPages) || 1);
-        const batch = filterDiscoverBrowseItems(res?.results || [], filterOptions);
+        const batch = await filterDiscoverResultsWithAvailability(res?.results || [], filterOptions);
         merged = dedupeDiscoverResults([...merged, ...batch]);
         if (merged.length >= minItems || page >= totalPages) break;
     }

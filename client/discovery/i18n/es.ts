@@ -117,7 +117,7 @@ export const es: DeepPartial<EnCatalog> = {
         moviesHeading: 'Películas',
         seriesHeading: 'Series',
         filters: 'Filtros',
-        hideRequested: 'Ocultar solicitados',
+        hideRequested: 'Ocultar disponibles y solicitados',
         gridSmall: 'Cuadrícula: Pequeña',
         gridMedium: 'Cuadrícula: Mediana',
         gridLarge: 'Cuadrícula: Grande',

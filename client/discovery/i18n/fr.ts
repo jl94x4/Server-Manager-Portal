@@ -117,7 +117,7 @@ export const fr: DeepPartial<EnCatalog> = {
         moviesHeading: 'Films',
         seriesHeading: 'Séries',
         filters: 'Filtres',
-        hideRequested: 'Masquer les demandés',
+        hideRequested: 'Masquer dispo. et demandés',
         gridSmall: 'Grille : Petite',
         gridMedium: 'Grille : Moyenne',
         gridLarge: 'Grille : Grande',

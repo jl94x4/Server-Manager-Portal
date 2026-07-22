@@ -194,37 +194,37 @@ export const GENRE_COLOR_MAP: Record<number, [string, string]> = {
 
 /**
  * Portal-owned TMDB backdrop paths for genre cards.
- * Avoids Seerr/TMDB per-genre discover fan-out on Discover home.
+ * Paths are HEAD-verified against image.tmdb.org — broken hashes fall back to solid gradients.
  */
 export const GENRE_BACKDROP_PATHS: Record<number, string> = {
-    // Movies
-    28: '/9n5e1vWeKUTfhuLSPKl7dcImDlg.jpg', // Action
-    12: '/8rpDcsfLJypbO6vREc0547VKqEv.jpg', // Adventure
-    16: '/7d6EY00g1c39SGZOkGvIOb32rkN.jpg', // Animation
-    35: '/ctMserH8g2SeOAnKw5GOvt2OXko.jpg', // Comedy
-    80: '/tmU7GeKUxk1EnE7K2XI9ADbWBmU.jpg', // Crime
-    99: '/rLb2cwF3Pazuxaj0sRXQ037tGI1.jpg', // Documentary (dramatic still)
-    18: '/hqkIcbrOHL86UncnHIsHVcVmzue.jpg', // Drama
-    10751: '/uLvppZTLPLR4kyea6y4PlwCgJRU.jpg', // Family
-    14: '/jsoz1HlxczSuTx0mDl2hZpmrdug.jpg', // Fantasy
+    // Movies — only verified-live TMDB hashes
+    28: '/b0PlSFdDwbyK0cf5RxwDpaOJQvQ.jpg', // Action — The Batman
+    12: '/8rpDcsfLJypbO6vREc0547VKqEv.jpg', // Adventure — Avatar
+    16: '/4HodYYKEIsGOdinkGi2Ucz6X9i0.jpg', // Animation — Spider-Verse
+    35: '/3Rfvhy1Nl6sSGJwyjb0QiZzZYlB.jpg', // Comedy — Toy Story energy
+    80: '/b0PlSFdDwbyK0cf5RxwDpaOJQvQ.jpg', // Crime — The Batman
+    99: '/rLb2cwF3Pazuxaj0sRXQ037tGI1.jpg', // Documentary
+    18: '/fm6KqXpk3M2HVveHwCrBSSBaO0V.jpg', // Drama — Oppenheimer
+    10751: '/3Rfvhy1Nl6sSGJwyjb0QiZzZYlB.jpg', // Family
+    14: '/8rpDcsfLJypbO6vREc0547VKqEv.jpg', // Fantasy
     36: '/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg', // History
-    27: '/xbSuFiJbbBWCkyCCGIMxlxgGy6Q.jpg', // Horror
-    10402: '/9n2tJBpl0koYLRqTvbwqwbEHjtF.jpg', // Music
-    9648: '/suaEOtk1NXtYmMPRj6STae01BSj.jpg', // Mystery
-    10749: '/6VmFqApQRyZZzhmua1gT5FvmtW0.jpg', // Romance
-    878: '/xJHokMblPvgzNyuaPF9JTLzMGXw.jpg', // Science Fiction
+    27: '/b0PlSFdDwbyK0cf5RxwDpaOJQvQ.jpg', // Horror (dark urban)
+    10402: '/dIWwZW7dJJtqC6CgWzYkNVKIUm8.jpg', // Music
+    9648: '/s3TBrRGB1iav7gFOCNx3H31MoES.jpg', // Mystery — Inception
+    10749: '/dIWwZW7dJJtqC6CgWzYkNVKIUm8.jpg', // Romance
+    878: '/pbrkL804c8yAv3zBZR4QPEafpAR.jpg', // Science Fiction — Interstellar
     53: '/s3TBrRGB1iav7gFOCNx3H31MoES.jpg', // Thriller
-    10752: '/iZf0KyrE25z1sfcg5B9SToAqLMT.jpg', // War
+    10752: '/7RyHsO4yDXtBv1zUU3mTpHeQ0d5.jpg', // War — Endgame scale
     37: '/x2RS3uTcsJJ9IfjNPcgDmukoEcQ.jpg', // Western
-    // TV-only genres (shared ids reuse movie paths above)
-    10759: '/9ijMGlN0Ys5DQTVHlPOWqK5ManR.jpg', // Action & Adventure
-    10762: '/uLvppZTLPLR4kyea6y4PlwCgJRU.jpg', // Kids
-    10763: '/hqkIcbrOHL86UncnHIsHVcVmzue.jpg', // News
-    10764: '/mY7SeH4HFFxW1hiIHyZttIkMEtn.jpg', // Reality
+    // TV-only genres
+    10759: '/7RyHsO4yDXtBv1zUU3mTpHeQ0d5.jpg', // Action & Adventure
+    10762: '/3Rfvhy1Nl6sSGJwyjb0QiZzZYlB.jpg', // Kids
+    10763: '/rLb2cwF3Pazuxaj0sRXQ037tGI1.jpg', // News
+    10764: '/56v2KjBlU4XaOv9rVYEQypROD7P.jpg', // Reality
     10765: '/56v2KjBlU4XaOv9rVYEQypROD7P.jpg', // Sci-Fi & Fantasy
     10766: '/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg', // Soap
-    10767: '/ctMserH8g2SeOAnKw5GOvt2OXko.jpg', // Talk
-    10768: '/iZf0KyrE25z1sfcg5B9SToAqLMT.jpg', // War & Politics
+    10767: '/3Rfvhy1Nl6sSGJwyjb0QiZzZYlB.jpg', // Talk
+    10768: '/7RyHsO4yDXtBv1zUU3mTpHeQ0d5.jpg', // War & Politics
 };
 
 /** Build Seerr-style duotone backdrop URL for a genre slider card. */

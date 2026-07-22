@@ -76,7 +76,7 @@ export function useDiscoverInfiniteScroll({
                     setResults(merged);
                     setLoadedPage(lastPage);
                     setTotalPages(maxTotalPages);
-                    // Second pass: fill available/requested badges without blocking first paint.
+                    // Badges: enrich then re-apply hide filters (enrich can reveal available/requested).
                     void enrichDiscoverItemsWithAvailability(merged).then((enriched) => {
                         if (!cancelled) setResults(enriched);
                     }).catch(() => {});

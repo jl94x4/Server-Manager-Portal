@@ -57,7 +57,8 @@ export const DiscoverMovies: React.FC<{
     );
 
     const browseFilterOptions = useMemo(() => ({
-        hideAvailable: preferences.hideAvailableMedia,
+        // Browse toggle hides library + requested titles (requested alone is rarely useful).
+        hideAvailable: preferences.hideAvailableMedia || hideRequested,
         hideRequested,
     }), [preferences.hideAvailableMedia, hideRequested]);
 

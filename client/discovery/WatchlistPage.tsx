@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { enrichDiscoveryItems } from './discoverItemUtils';
+import { enrichDiscoverItemsWithAvailability } from './discoverAvailabilityEnrich';
 import { useDiscoveryPreferences } from './useDiscoveryPreferences';
 import { WatchlistPanel } from './WatchlistPanel';
 
@@ -26,7 +27,8 @@ export const WatchlistPage: React.FC<Props> = ({ formatItem, onSelect, navigate,
             const res = await apiFetch('/api/discovery/watchlist');
             if (res?.error) throw new Error(res.error);
             const enriched = await enrichDiscoveryItems(res?.results || []);
-            setItems(enriched);
+            const withAvailability = await enrichDiscoverItemsWithAvailability(enriched);
+            setItems(withAvailability);
         } catch (e: any) {
             setError(e?.message || 'Failed to load watchlist');
             setItems([]);
