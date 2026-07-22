@@ -14,7 +14,7 @@ import {
 import { enrichDiscoveryItems, normalizeRawDiscoveryItem } from './discoverItemUtils';
 import { portalRequestToDiscoveryRowItem } from './myRequestUtils';
 import { filterDiscoverBrowseItems, filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
-import { fetchDiscoverHomeRowResults } from './discoverFetchUtils';
+import { fetchDiscoverHomeRowResults, fetchDiscoverHomeRowResultsFromSources } from './discoverFetchUtils';
 import { enrichDiscoverItemsWithAvailability } from './discoverAvailabilityEnrich';
 import { WatchlistPanel } from './WatchlistPanel';
 import { DiscoverHomeSkeleton } from '../shared/skeletons';
@@ -104,14 +104,32 @@ export const DiscoverHome: React.FC<{
         setLoading(true);
         try {
             const hideAvailable = preferences.hideAvailableMedia;
-            // First paint: when hiding available/requested, scan more pages after enrich+filter.
+            // Large libraries own most of "popular" — dig deep and mix newer lists for requestable holes.
             const firstPaint = {
                 needsBackfill: hideAvailable,
-                maxPages: hideAvailable ? 6 : 1,
-                maxItems: 20,
-                minItems: 12,
+                maxPages: hideAvailable ? 40 : 1,
+                maxItems: 24,
+                minItems: hideAvailable ? 16 : 12,
                 hideRequested: hideAvailable,
             };
+            const movieSources = hideAvailable
+                ? [
+                    (page: number) => `/api/discovery/proxy/discover/movies/upcoming?page=${page}`,
+                    (page: number) => `/api/discovery/proxy/discover/movies?sortBy=primary_release_date.desc&page=${page}`,
+                    (page: number) => `/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`,
+                ]
+                : [
+                    (page: number) => `/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`,
+                ];
+            const seriesSources = hideAvailable
+                ? [
+                    (page: number) => `/api/discovery/proxy/discover/tv/upcoming?page=${page}`,
+                    (page: number) => `/api/discovery/proxy/discover/tv?sortBy=first_air_date.desc&page=${page}`,
+                    (page: number) => `/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`,
+                ]
+                : [
+                    (page: number) => `/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`,
+                ];
             const [
                 trendingRes,
                 popularMovies,
@@ -124,20 +142,18 @@ export const DiscoverHome: React.FC<{
                     hideAvailable,
                     firstPaint,
                 ).catch(() => []),
-                fetchDiscoverHomeRowResults(
-                    (page) => `/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`,
-                    hideAvailable,
-                    firstPaint,
+                (hideAvailable
+                    ? fetchDiscoverHomeRowResultsFromSources(movieSources, hideAvailable, firstPaint)
+                    : fetchDiscoverHomeRowResults(movieSources[0], hideAvailable, firstPaint)
                 ).catch(() => []),
                 fetchDiscoverHomeRowResults(
                     (page) => `/api/discovery/proxy/discover/movies/upcoming?page=${page}`,
                     hideAvailable,
                     firstPaint,
                 ).catch(() => []),
-                fetchDiscoverHomeRowResults(
-                    (page) => `/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`,
-                    hideAvailable,
-                    firstPaint,
+                (hideAvailable
+                    ? fetchDiscoverHomeRowResultsFromSources(seriesSources, hideAvailable, firstPaint)
+                    : fetchDiscoverHomeRowResults(seriesSources[0], hideAvailable, firstPaint)
                 ).catch(() => []),
                 fetchDiscoverHomeRowResults(
                     (page) => `/api/discovery/proxy/discover/tv/upcoming?page=${page}`,

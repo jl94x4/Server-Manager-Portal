@@ -2448,7 +2448,7 @@ export const SettingsDashboard: React.FC = () => {
                                     title="Hide Available Media"
                                     hint={(
                                         <SettingHint>
-                                            Hides titles already in your library (and requested/pending ones on home rows) from discover browse. Movies/Series also have a per-page toggle for the same filter. Search results are never filtered.
+                                            Discover should show titles you can still request. When this is on, already-on-server and requested/pending titles are hidden from home/browse so you see TMDB titles that are not in your library. Movies/Series also have a per-page toggle. Search is never filtered.
                                         </SettingHint>
                                     )}
                                     checked={requestHideAvailableMedia}

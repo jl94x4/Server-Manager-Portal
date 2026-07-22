@@ -7186,7 +7186,9 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
             }
         }
         data = await attachDiscoveryAvailabilityCacheToPayload(config, req.user, data);
-        data = filterDiscoveryPayload(data, path, prefs.hideAvailableMedia, prefs.discoverLanguage);
+        // Do not strip available titles here — client hide+backfill needs full pages so home/browse
+        // can refill after filtering. Cache still attaches badges for first paint.
+        data = filterDiscoveryPayload(data, path, false, prefs.discoverLanguage);
         res.json(data);
     } catch (e) {
         res.status(500).json({ error: e.message });

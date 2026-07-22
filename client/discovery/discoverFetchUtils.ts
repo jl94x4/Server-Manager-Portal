@@ -7,7 +7,7 @@ import { dedupeDiscoverResults } from './discoverItemUtils';
 import type { DiscoverPagePayload } from './useDiscoverInfiniteScroll';
 
 /** Pages to scan per backfill window when hide-available / hide-requested empties results. */
-const MAX_BACKFILL_PAGES = 25;
+const MAX_BACKFILL_PAGES = 50;
 
 type DiscoverBrowseFilterOptions = {
     hideAvailable?: boolean;
@@ -123,9 +123,47 @@ export async function fetchDiscoverHomeRowResults(
     for (let page = 1; page <= maxPages; page += 1) {
         const res = await apiFetch(buildUrl(page));
         const totalPages = Math.max(1, Number(res?.totalPages) || 1);
-        const batch = await filterDiscoverResultsWithAvailability(res?.results || [], filterOptions);
+        const rawBatch = Array.isArray(res?.results) ? res.results : [];
+        // Proxy may already strip cached-available titles when hide is on, leaving short pages.
+        const batch = await filterDiscoverResultsWithAvailability(rawBatch, filterOptions);
         merged = dedupeDiscoverResults([...merged, ...batch]);
         if (merged.length >= minItems || page >= totalPages) break;
+    }
+
+    return merged.slice(0, maxItems);
+}
+
+/**
+ * Fill a home row from multiple TMDB discover sorts/endpoints.
+ * When hide-available is on, popularity alone is mostly already-owned — mix in newer/less-owned lists.
+ */
+export async function fetchDiscoverHomeRowResultsFromSources(
+    sources: Array<(page: number) => string>,
+    hideAvailable: boolean,
+    options: {
+        minItems?: number;
+        maxPages?: number;
+        maxItems?: number;
+        needsBackfill?: boolean;
+        hideRequested?: boolean;
+    } = {},
+): Promise<any[]> {
+    const list = Array.isArray(sources) ? sources.filter(Boolean) : [];
+    if (!list.length) return [];
+
+    const maxItems = options.maxItems ?? 40;
+    const minItems = Math.min(options.minItems ?? Math.min(24, maxItems), maxItems);
+    let merged: any[] = [];
+
+    for (const buildUrl of list) {
+        if (merged.length >= minItems) break;
+        const remainingMin = Math.max(0, minItems - merged.length);
+        const batch = await fetchDiscoverHomeRowResults(buildUrl, hideAvailable, {
+            ...options,
+            maxItems: Math.max(remainingMin, maxItems - merged.length),
+            minItems: remainingMin,
+        });
+        merged = dedupeDiscoverResults([...merged, ...batch]);
     }
 
     return merged.slice(0, maxItems);
