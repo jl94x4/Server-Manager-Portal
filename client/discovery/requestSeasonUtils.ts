@@ -470,6 +470,7 @@ export type RequestOptionsPayload = {
     userMapped: boolean;
     blockReason?: string | null;
     posterPath?: string | null;
+    engine?: string;
 };
 
 export const formatQuotaHint = (slot: QuotaSlot | undefined, label: string): string | null => {

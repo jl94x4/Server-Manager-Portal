@@ -412,6 +412,11 @@ export const RequestApprovalModal: React.FC<Props> = ({
                                 </div>
                             </div>
                         )}
+                        {detail.type === 'tv' && tvSeasonRows.length === 0 && (
+                            <p className="mb-5 text-sm text-amber-200/90">
+                                No season list loaded for this series. Check TMDB API key / network, then reopen this request.
+                            </p>
+                        )}
 
                         <div className="mb-4">
                             <p className="text-sm font-semibold text-text mb-3">Advanced</p>

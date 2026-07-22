@@ -125,52 +125,51 @@ export const DiscoverHome: React.FC<{
                 trustAttachedAvailability: false,
                 pageConcurrency: 4,
             };
-            // Home always shows all original languages — Discover Language only filters Movies/Series browse.
-            const homeUrl = (url: string) => `${url}${url.includes('?') ? '&' : '?'}allLanguages=1`;
+            // Seerr parity: Discover Language filters original language on home + Movies/Series.
             const movieSources = hideAvailable
                 ? [
-                    (page: number) => homeUrl(`/api/discovery/proxy/discover/movies?sortBy=primary_release_date.desc&page=${page}`),
-                    (page: number) => homeUrl(`/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`),
-                    (page: number) => homeUrl(`/api/discovery/proxy/discover/movies/upcoming?page=${page}`),
-                    (page: number) => homeUrl(`/api/discovery/proxy/discover/movies?sortBy=vote_count.desc&page=${page}`),
+                    (page: number) => `/api/discovery/proxy/discover/movies?sortBy=primary_release_date.desc&page=${page}`,
+                    (page: number) => `/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`,
+                    (page: number) => `/api/discovery/proxy/discover/movies/upcoming?page=${page}`,
+                    (page: number) => `/api/discovery/proxy/discover/movies?sortBy=vote_count.desc&page=${page}`,
                 ]
                 : [
-                    (page: number) => homeUrl(`/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`),
+                    (page: number) => `/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`,
                 ];
             const seriesSources = hideAvailable
                 ? [
-                    (page: number) => homeUrl(`/api/discovery/proxy/discover/tv?sortBy=first_air_date.desc&page=${page}`),
-                    (page: number) => homeUrl(`/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`),
-                    (page: number) => homeUrl(`/api/discovery/proxy/discover/tv/upcoming?page=${page}`),
-                    (page: number) => homeUrl(`/api/discovery/proxy/discover/tv?sortBy=vote_count.desc&page=${page}`),
+                    (page: number) => `/api/discovery/proxy/discover/tv?sortBy=first_air_date.desc&page=${page}`,
+                    (page: number) => `/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`,
+                    (page: number) => `/api/discovery/proxy/discover/tv/upcoming?page=${page}`,
+                    (page: number) => `/api/discovery/proxy/discover/tv?sortBy=vote_count.desc&page=${page}`,
                 ]
                 : [
-                    (page: number) => homeUrl(`/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`),
+                    (page: number) => `/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`,
                 ];
             const upcomingMovieSources = hideAvailable
                 ? [
-                    (page: number) => homeUrl(`/api/discovery/proxy/discover/movies/upcoming?page=${page}`),
-                    (page: number) => homeUrl(`/api/discovery/proxy/discover/movies?sortBy=primary_release_date.desc&page=${page}`),
+                    (page: number) => `/api/discovery/proxy/discover/movies/upcoming?page=${page}`,
+                    (page: number) => `/api/discovery/proxy/discover/movies?sortBy=primary_release_date.desc&page=${page}`,
                 ]
                 : [
-                    (page: number) => homeUrl(`/api/discovery/proxy/discover/movies/upcoming?page=${page}`),
+                    (page: number) => `/api/discovery/proxy/discover/movies/upcoming?page=${page}`,
                 ];
             const upcomingSeriesSources = hideAvailable
                 ? [
-                    (page: number) => homeUrl(`/api/discovery/proxy/discover/tv/upcoming?page=${page}`),
-                    (page: number) => homeUrl(`/api/discovery/proxy/discover/tv?sortBy=first_air_date.desc&page=${page}`),
+                    (page: number) => `/api/discovery/proxy/discover/tv/upcoming?page=${page}`,
+                    (page: number) => `/api/discovery/proxy/discover/tv?sortBy=first_air_date.desc&page=${page}`,
                 ]
                 : [
-                    (page: number) => homeUrl(`/api/discovery/proxy/discover/tv/upcoming?page=${page}`),
+                    (page: number) => `/api/discovery/proxy/discover/tv/upcoming?page=${page}`,
                 ];
             const trendingSources = hideAvailable
                 ? [
-                    (page: number) => homeUrl(`/api/discovery/proxy/discover/trending?page=${page}`),
-                    (page: number) => homeUrl(`/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`),
-                    (page: number) => homeUrl(`/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`),
+                    (page: number) => `/api/discovery/proxy/discover/trending?page=${page}`,
+                    (page: number) => `/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`,
+                    (page: number) => `/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`,
                 ]
                 : [
-                    (page: number) => homeUrl(`/api/discovery/proxy/discover/trending?page=${page}`),
+                    (page: number) => `/api/discovery/proxy/discover/trending?page=${page}`,
                 ];
 
             const fetchRow = (
@@ -341,7 +340,7 @@ export const DiscoverHome: React.FC<{
             console.error(e);
             setLoading(false);
         }
-    }, [loaded, preferences.hideAvailableMedia, preferences.discoverRegion, locale]);
+    }, [loaded, preferences.hideAvailableMedia, preferences.discoverRegion, preferences.discoverLanguage, locale]);
 
     useEffect(() => {
         loadData();

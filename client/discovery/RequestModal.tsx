@@ -229,24 +229,27 @@ export const RequestModal: React.FC<Props> = ({
         let nextServerId = servers.find((server) => server.isDefault)?.id ?? servers[0]?.id ?? null;
         let defaults: Record<string, unknown> | null = null;
 
-        try {
-            defaults = await apiFetch('/api/discovery/request-override-defaults', {
-                method: 'POST',
-                body: JSON.stringify({
-                    mediaType: opts.mediaType || mediaType,
-                    tmdbId: opts.tmdbId,
-                    is4k,
-                }),
-            });
-            if (defaults?.serverId != null) {
-                const candidate = Number(defaults.serverId);
-                // Only accept override server when it matches this quality's HD/4K pool.
-                if (servers.some((server) => Number(server.id) === candidate)) {
-                    nextServerId = candidate;
+        // Portal engine has no Seerr override rules — skip the Seerr round-trip (can hang minutes).
+        if (opts.engine !== 'portal') {
+            try {
+                defaults = await apiFetch('/api/discovery/request-override-defaults', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        mediaType: opts.mediaType || mediaType,
+                        tmdbId: opts.tmdbId,
+                        is4k,
+                    }),
+                });
+                if (defaults?.serverId != null) {
+                    const candidate = Number(defaults.serverId);
+                    // Only accept override server when it matches this quality's HD/4K pool.
+                    if (servers.some((server) => Number(server.id) === candidate)) {
+                        nextServerId = candidate;
+                    }
                 }
+            } catch {
+                defaults = null;
             }
-        } catch {
-            defaults = null;
         }
 
         if (nextServerId != null) {
@@ -299,17 +302,19 @@ export const RequestModal: React.FC<Props> = ({
                 setSelectedSeasons([]);
             }
 
+            // Paint seasons / canRequest immediately — advanced *arr options load in the background.
+            if (gen === loadGenRef.current) setLoading(false);
+
             if (payload.canRequestAdvanced) {
                 const toLoad: QualityKey[] = [];
                 if (payload.hasHdServer !== false) toLoad.push('hd');
                 if (payload.canRequest4k && payload.has4kServer) toLoad.push('4k');
-                await Promise.all(toLoad.map((q) => loadAdvancedForQuality(payload, q, { force: true })));
+                void Promise.all(toLoad.map((q) => loadAdvancedForQuality(payload, q, { force: true })));
             }
         } catch (e: any) {
             if (gen !== loadGenRef.current) return;
             onErrorRef.current(e?.message || 'Failed to load request options');
             setOptions(null);
-        } finally {
             if (gen === loadGenRef.current) setLoading(false);
         }
     }, [mediaId, mediaType, loadAdvancedForQuality]);

@@ -5932,6 +5932,10 @@ app.post('/api/discovery/request-tags', requireAuth, requireMember, async (req, 
 app.post('/api/discovery/request-override-defaults', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
+        if (getRequestEngine(config) === 'portal') {
+            // Portal uses *arr defaults from request-services — Seerr override rules do not apply.
+            return res.json({});
+        }
         const gate = getRequestAppGate(config);
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
 
@@ -7154,7 +7158,9 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
         }
 
         const params = applyDiscoveryQueryParams(new URLSearchParams(req.query), path, prefs, metadataLanguage);
+        // Optional escape hatch only — Discover home no longer sends this (Seerr language parity).
         const allLanguages = String(req.query.allLanguages || '') === '1';
+        const discoverLanguage = allLanguages ? '' : prefs.discoverLanguage;
 
         let data;
         if (prefs.discoverySource === 'tmdb') {
@@ -7164,8 +7170,7 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
             const router = createTmdbDiscoverRouter(config, {
                 language: metadataLanguage,
                 region: prefs.discoverRegion,
-                // Home passes allLanguages=1 so Discover Language does not strip foreign originals.
-                originalLanguage: allLanguages ? '' : prefs.discoverLanguage,
+                originalLanguage: discoverLanguage,
             });
             data = await router.fetchPath(path, params);
             // Detail *arr enrich is deferred — cache + client library-status/availability-batch
@@ -7218,12 +7223,12 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
         data = await attachDiscoveryAvailabilityCacheToPayload(config, req.user, data);
         // Do not strip available titles here — client hide+backfill needs full pages so home/browse
         // can refill after filtering. Cache still attaches badges for first paint.
-        // allLanguages=1 (Discover home) also skips original-language post-filter.
+        // Post-filter by Discover Language (needed for trending / any list TMDB can't filter server-side).
         data = filterDiscoveryPayload(
             data,
             path,
             false,
-            allLanguages ? '' : prefs.discoverLanguage,
+            discoverLanguage,
         );
         res.json(data);
     } catch (e) {
