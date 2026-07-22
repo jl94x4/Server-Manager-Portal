@@ -74,6 +74,7 @@ export const MediaDetailsPage: React.FC<{
     const { profile: discoveryMe } = useDiscoveryMe(true);
     const [details, setDetails] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [recommendations, setRecommendations] = useState<any[]>([]);
     const [posterFailed, setPosterFailed] = useState(false);
     const [backdropFailed, setBackdropFailed] = useState(false);
@@ -94,9 +95,11 @@ export const MediaDetailsPage: React.FC<{
 
         const fetchDetails = async () => {
             setLoading(true);
+            setLoadError(null);
             setPosterFailed(false);
             setBackdropFailed(false);
             setRecommendations([]);
+            setDetails(null);
             try {
                 const detailEndpoint = mediaType === 'movie'
                     ? `/api/discovery/proxy/movie/${mediaId}`
@@ -112,11 +115,19 @@ export const MediaDetailsPage: React.FC<{
                     );
                     if (cancelled) return;
                     if (!res?.error) setDetails(res);
+                    else setLoadError(res.error || 'Failed to load details');
                 } finally {
                     if (timer) window.clearTimeout(timer);
                 }
-            } catch (err) {
+            } catch (err: any) {
                 console.error(err);
+                if (!cancelled) {
+                    setLoadError(
+                        err?.name === 'AbortError'
+                            ? 'Timed out loading this title. Try again.'
+                            : (err?.message || 'Failed to load details'),
+                    );
+                }
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -367,10 +378,25 @@ export const MediaDetailsPage: React.FC<{
         window.dispatchEvent(new Event('popstate'));
     };
 
-    if (loading || !details) {
+    if (loading) {
         return (
             <div className="w-full h-[80vh] flex items-center justify-center">
                 <Loader2 className="w-8 h-8 text-plex animate-spin" />
+            </div>
+        );
+    }
+
+    if (!details) {
+        return (
+            <div className="w-full h-[80vh] flex flex-col items-center justify-center gap-3 px-6 text-center">
+                <p className="text-lg font-bold text-text">{loadError || 'Could not load this title.'}</p>
+                <button
+                    type="button"
+                    onClick={onBack}
+                    className="px-4 py-2 rounded-lg border border-border bg-card text-sm font-bold text-text hover:border-plex/40"
+                >
+                    Go back
+                </button>
             </div>
         );
     }

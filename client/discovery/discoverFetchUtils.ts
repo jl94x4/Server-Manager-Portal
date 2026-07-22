@@ -2,7 +2,6 @@ import { apiFetch } from '../shared/api';
 import type { FilterState } from './FilterDrawer';
 import { appendDiscoverQuery, hasAdvancedDiscoverFilters } from './discoverUrlUtils';
 import { filterDiscoverBrowseItems } from './discoverAvailability';
-import { enrichDiscoverItemsWithAvailability } from './discoverAvailabilityEnrich';
 import { dedupeDiscoverResults } from './discoverItemUtils';
 import type { DiscoverPagePayload } from './useDiscoverInfiniteScroll';
 
@@ -13,8 +12,8 @@ type DiscoverBrowseFilterOptions = {
     hideAvailable?: boolean;
     hideRequested?: boolean;
     /**
-     * Trust mediaInfo already attached by the discovery proxy cache (Seerr-style).
-     * Skips the slow per-page /availability-batch round-trip — required for fast home paint.
+     * Trust mediaInfo already attached by the discovery proxy (disk cache + warm catalog).
+     * Client must not round-trip /availability-batch — that caused badge pop-in after paint.
      */
     trustAttachedAvailability?: boolean;
 };
@@ -24,8 +23,7 @@ const needsDiscoverBackfill = (options: DiscoverBrowseFilterOptions) => (
 );
 
 /**
- * Browse lists ship with disk-cache mediaInfo from the proxy (owned titles).
- * Prefer that for hide filters; only live-enrich cache-miss survivors when asked.
+ * Browse lists ship with disk-cache / warm-catalog mediaInfo from the proxy.
  */
 async function filterDiscoverResultsWithAvailability(
     items: any[],
@@ -36,15 +34,9 @@ async function filterDiscoverResultsWithAvailability(
         return filterDiscoverBrowseItems(list, options);
     }
 
-    // Drop titles the proxy cache already marked available/requested.
-    const prelim = filterDiscoverBrowseItems(list, options);
-    if (options.trustAttachedAvailability || !prelim.length) {
-        return prelim;
-    }
-
-    // Live-check survivors only (owned-but-uncached false negatives) — never re-enrich the whole page.
-    const verified = await enrichDiscoverItemsWithAvailability(prelim);
-    return filterDiscoverBrowseItems(verified, options);
+    // Drop titles the proxy already marked available/requested.
+    // Do not live-call /availability-batch here — that stamped badges after paint ("pop-in").
+    return filterDiscoverBrowseItems(list, options);
 }
 
 export const buildDiscoverStudioApiUrl = (page: number, studioId: number | string, sort = 'popularity.desc') =>

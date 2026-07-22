@@ -188,11 +188,11 @@ export const DiscoverHome: React.FC<{
                 recentlyAdded: [],
                 recentRequests: [],
                 plexWatchlist: [],
-                trending: trendingRes,
-                popularMovies,
-                upcomingMovies,
-                popularSeries,
-                upcomingSeries,
+                trending: filterHiddenAvailableItems(trendingRes, hideAvailable),
+                popularMovies: filterHiddenAvailableItems(popularMovies, hideAvailable),
+                upcomingMovies: filterHiddenAvailableItems(upcomingMovies, hideAvailable),
+                popularSeries: filterHiddenAvailableItems(popularSeries, hideAvailable),
+                upcomingSeries: filterHiddenAvailableItems(upcomingSeries, hideAvailable),
             });
             setLoading(false);
 
@@ -207,70 +207,34 @@ export const DiscoverHome: React.FC<{
                             fetchRow(seriesSources, deepFill).catch(() => []),
                             fetchRow(upcomingSeriesSources, deepFill).catch(() => []),
                         ]);
+                        const pickRow = (fill, quick) => (
+                            // When hiding available, always prefer the filtered refill — even if shorter.
+                            // Preferring the longer quick paint reintroduced Silo/Lucky after filter.
+                            Array.isArray(fill) ? fill : quick
+                        );
                         const next = {
-                            trending: trendingFill.length > trendingRes.length ? trendingFill : trendingRes,
-                            popularMovies: moviesFill.length > popularMovies.length ? moviesFill : popularMovies,
-                            upcomingMovies: upcomingMoviesFill.length > upcomingMovies.length ? upcomingMoviesFill : upcomingMovies,
-                            popularSeries: seriesFill.length > popularSeries.length ? seriesFill : popularSeries,
-                            upcomingSeries: upcomingSeriesFill.length > upcomingSeries.length ? upcomingSeriesFill : upcomingSeries,
+                            trending: pickRow(trendingFill, trendingRes),
+                            popularMovies: pickRow(moviesFill, popularMovies),
+                            upcomingMovies: pickRow(upcomingMoviesFill, upcomingMovies),
+                            popularSeries: pickRow(seriesFill, popularSeries),
+                            upcomingSeries: pickRow(upcomingSeriesFill, upcomingSeries),
                         };
-                        setRows((prev) => ({ ...prev, ...next }));
-
-                        // Badges after refill so newly added posters get mediaInfo too.
-                        const [
-                            trendingBadges,
-                            moviesBadges,
-                            upcomingMoviesBadges,
-                            seriesBadges,
-                            upcomingSeriesBadges,
-                        ] = await Promise.all([
-                            enrichDiscoverItemsWithAvailability(next.trending),
-                            enrichDiscoverItemsWithAvailability(next.popularMovies),
-                            enrichDiscoverItemsWithAvailability(next.upcomingMovies),
-                            enrichDiscoverItemsWithAvailability(next.popularSeries),
-                            enrichDiscoverItemsWithAvailability(next.upcomingSeries),
-                        ]);
-                        setRows((current) => ({
-                            ...current,
-                            trending: filterHiddenAvailableItems(trendingBadges, hideAvailable),
-                            popularMovies: filterHiddenAvailableItems(moviesBadges, hideAvailable),
-                            upcomingMovies: filterHiddenAvailableItems(upcomingMoviesBadges, hideAvailable),
-                            popularSeries: filterHiddenAvailableItems(seriesBadges, hideAvailable),
-                            upcomingSeries: filterHiddenAvailableItems(upcomingSeriesBadges, hideAvailable),
+                        setRows((prev) => ({
+                            ...prev,
+                            trending: filterHiddenAvailableItems(next.trending, hideAvailable),
+                            popularMovies: filterHiddenAvailableItems(next.popularMovies, hideAvailable),
+                            upcomingMovies: filterHiddenAvailableItems(next.upcomingMovies, hideAvailable),
+                            popularSeries: filterHiddenAvailableItems(next.popularSeries, hideAvailable),
+                            upcomingSeries: filterHiddenAvailableItems(next.upcomingSeries, hideAvailable),
                         }));
+                        // Badges are stamped server-side (disk cache + warm catalog). Do not
+                        // client-enrich here — that caused status badges to "pop in" later.
                     } catch {
                         // Refill is best-effort.
                     }
                 })();
             } else {
-                // Badge pass when not hiding — first paint already has a full row.
-                void (async () => {
-                    try {
-                        const [
-                            trending,
-                            popularMoviesEnriched,
-                            upcomingMoviesEnriched,
-                            popularSeriesEnriched,
-                            upcomingSeriesEnriched,
-                        ] = await Promise.all([
-                            enrichDiscoverItemsWithAvailability(trendingRes),
-                            enrichDiscoverItemsWithAvailability(popularMovies),
-                            enrichDiscoverItemsWithAvailability(upcomingMovies),
-                            enrichDiscoverItemsWithAvailability(popularSeries),
-                            enrichDiscoverItemsWithAvailability(upcomingSeries),
-                        ]);
-                        setRows((current) => ({
-                            ...current,
-                            trending,
-                            popularMovies: popularMoviesEnriched,
-                            upcomingMovies: upcomingMoviesEnriched,
-                            popularSeries: popularSeriesEnriched,
-                            upcomingSeries: upcomingSeriesEnriched,
-                        }));
-                    } catch {
-                        // Badges are best-effort.
-                    }
-                })();
+                // Server already attached mediaInfo — no client availability-batch pass.
             }
 
             // Side rails + poster enrich after first paint (never block the skeleton).

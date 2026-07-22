@@ -5454,17 +5454,56 @@ const attachDiscoveryAvailabilityCacheToPayload = async (config, sessionUser, da
     if (!data || typeof data !== 'object') return data;
     const cache = await loadDiscoveryAvailabilityCacheFile();
     let next = applyDiscoveryAvailabilityCacheToPayload(data, cache);
+
+    // Stamp cache misses from the warm *arr catalog BEFORE responding — badges on first paint,
+    // no client-side availability-batch pop-in. Skip when catalogs are cold (non-blocking).
+    const stampWarmCatalog = async (items) => {
+        const list = Array.isArray(items) ? items : [];
+        if (!list.length) return list;
+        const misses = list.filter((item) => {
+            const status = Number(item?.mediaInfo?.status);
+            const hasRequests = Array.isArray(item?.mediaInfo?.requests) && item.mediaInfo.requests.length > 0;
+            return !Number.isFinite(status) && !hasRequests;
+        });
+        if (!misses.length) return list;
+        try {
+            const library = createDiscoveryLibraryAvailability(config);
+            const enrichedMisses = await library.enrichItems(misses, { blockForCatalog: false });
+            const byKey = new Map();
+            for (const item of Array.isArray(enrichedMisses) ? enrichedMisses : []) {
+                const mediaType = item?.mediaType === 'tv' || item?.mediaType === 2 ? 'tv' : 'movie';
+                const tmdbId = Number(item?.tmdbId ?? item?.id);
+                if (!Number.isFinite(tmdbId) || tmdbId <= 0) continue;
+                if (item?.mediaInfo && Number.isFinite(Number(item.mediaInfo.status))) {
+                    byKey.set(`${mediaType}:${tmdbId}`, item);
+                }
+            }
+            if (!byKey.size) return list;
+            return list.map((item) => {
+                const mediaType = item?.mediaType === 'tv' || item?.mediaType === 2 ? 'tv' : 'movie';
+                const tmdbId = Number(item?.tmdbId ?? item?.id);
+                const hit = byKey.get(`${mediaType}:${tmdbId}`);
+                return hit || item;
+            });
+        } catch (error) {
+            log(`Discovery warm availability stamp skipped: ${error.message}`);
+            return list;
+        }
+    };
+
     if (Array.isArray(next?.results)) {
+        const stamped = await stampWarmCatalog(next.results);
         next = {
             ...next,
-            results: await overlayPortalPendingRequestsOntoItems(config, sessionUser, next.results),
+            results: await overlayPortalPendingRequestsOntoItems(config, sessionUser, stamped),
         };
         return next;
     }
     // Detail pages: stamp pending request state onto the single title.
     if (!Array.isArray(next) && (next?.mediaType === 'movie' || next?.mediaType === 'tv' || next?.id)) {
-        const [detailed] = await overlayPortalPendingRequestsOntoItems(config, sessionUser, [next]);
-        return detailed || next;
+        const [warmed] = await stampWarmCatalog([next]);
+        const [detailed] = await overlayPortalPendingRequestsOntoItems(config, sessionUser, [warmed || next]);
+        return detailed || warmed || next;
     }
     return next;
 };

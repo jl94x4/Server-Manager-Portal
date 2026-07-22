@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UpgraderGridSize } from '../shared/portalLayout';
 import { mergeDiscoverResults } from './discoverItemUtils';
-import { enrichDiscoverItemsWithAvailability } from './discoverAvailabilityEnrich';
 import { filterDiscoverBrowseItems } from './discoverAvailability';
 import { initialDiscoverPagesForGrid, DISCOVER_API_PAGE_SIZE } from './discoverPaginationUtils';
 
@@ -84,14 +83,11 @@ export function useDiscoverInfiniteScroll({
                 }
 
                 if (!cancelled) {
-                    setResults(merged);
+                    // Server stamps mediaInfo (disk cache + warm catalog). Re-apply hide only —
+                    // do not client availability-batch (that made badges pop in after paint).
+                    setResults(filterDiscoverBrowseItems(merged, filterOptionsRef.current || {}));
                     setLoadedPage(lastPage);
                     setTotalPages(maxTotalPages);
-                    // Badges: enrich then re-apply hide filters (enrich can reveal available titles).
-                    void enrichDiscoverItemsWithAvailability(merged).then((enriched) => {
-                        if (cancelled) return;
-                        setResults(filterDiscoverBrowseItems(enriched, filterOptionsRef.current || {}));
-                    }).catch(() => {});
                 }
             } catch (e) {
                 console.error(e);
@@ -123,8 +119,8 @@ export function useDiscoverInfiniteScroll({
         try {
             const payload = await fetchPage(nextPage);
             const batch = Array.isArray(payload.results) ? payload.results : [];
-            const enrichedBatch = await enrichDiscoverItemsWithAvailability(batch).catch(() => batch);
-            const filteredBatch = filterDiscoverBrowseItems(enrichedBatch, filterOptionsRef.current || {});
+            const batch = Array.isArray(payload.results) ? payload.results : [];
+            const filteredBatch = filterDiscoverBrowseItems(batch, filterOptionsRef.current || {});
             setResults((prev) => mergeDiscoverResults(prev, filteredBatch));
             setLoadedPage(payload.lastFetchedPage ?? nextPage);
             setTotalPages(Math.max(1, Number(payload.totalPages) || totalPages));
