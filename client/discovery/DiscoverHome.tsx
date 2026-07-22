@@ -91,8 +91,12 @@ export const DiscoverHome: React.FC<{
         popularSeries: [] as any[],
         upcomingSeries: [] as any[],
     });
-    const [movieGenres, setMovieGenres] = useState<GenreSliderItem[]>([]);
-    const [tvGenres, setTvGenres] = useState<GenreSliderItem[]>([]);
+    const [movieGenres, setMovieGenres] = useState<GenreSliderItem[]>(() => (
+        MOVIE_GENRES.map((g) => ({ id: g.id, name: g.name, image: buildGenreSliderImage(g.id) }))
+    ));
+    const [tvGenres, setTvGenres] = useState<GenreSliderItem[]>(() => (
+        TV_GENRES.map((g) => ({ id: g.id, name: g.name, image: buildGenreSliderImage(g.id) }))
+    ));
     const [loading, setLoading] = useState(true);
 
     const loadData = useCallback(async () => {
@@ -217,14 +221,14 @@ export const DiscoverHome: React.FC<{
                 const mappedMovies = mapGenreSliderResponse(movieGenreRes);
                 const mappedTv = mapGenreSliderResponse(tvGenreRes);
                 setMovieGenres(mappedMovies.length
-                    ? mappedMovies
-                    : MOVIE_GENRES.map((g) => ({ id: g.id, name: g.name })));
+                    ? mappedMovies.map((g) => ({ ...g, image: g.image || buildGenreSliderImage(g.id) }))
+                    : MOVIE_GENRES.map((g) => ({ id: g.id, name: g.name, image: buildGenreSliderImage(g.id) })));
                 setTvGenres(mappedTv.length
-                    ? mappedTv
-                    : TV_GENRES.map((g) => ({ id: g.id, name: g.name })));
+                    ? mappedTv.map((g) => ({ ...g, image: g.image || buildGenreSliderImage(g.id) }))
+                    : TV_GENRES.map((g) => ({ id: g.id, name: g.name, image: buildGenreSliderImage(g.id) })));
             } catch {
-                setMovieGenres(MOVIE_GENRES.map((g) => ({ id: g.id, name: g.name })));
-                setTvGenres(TV_GENRES.map((g) => ({ id: g.id, name: g.name })));
+                setMovieGenres(MOVIE_GENRES.map((g) => ({ id: g.id, name: g.name, image: buildGenreSliderImage(g.id) })));
+                setTvGenres(TV_GENRES.map((g) => ({ id: g.id, name: g.name, image: buildGenreSliderImage(g.id) })));
             }
         } catch (e) {
             console.error(e);
@@ -302,7 +306,11 @@ export const DiscoverHome: React.FC<{
     ) => {
         const items = apiGenres.length
             ? apiGenres
-            : fallbackGenres.map((g) => ({ id: g.id, name: g.name, image: undefined as string | undefined }));
+            : fallbackGenres.map((g) => ({
+                id: g.id,
+                name: g.name,
+                image: buildGenreSliderImage(g.id),
+            }));
 
         return (
             <div className="flex flex-col gap-2 relative">

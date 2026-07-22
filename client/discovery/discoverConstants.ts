@@ -192,12 +192,49 @@ export const GENRE_COLOR_MAP: Record<number, [string, string]> = {
     10768: GENRE_COLOR_TONES.darkred,
 };
 
+/**
+ * Portal-owned TMDB backdrop paths for genre cards.
+ * Avoids Seerr/TMDB per-genre discover fan-out on Discover home.
+ */
+export const GENRE_BACKDROP_PATHS: Record<number, string> = {
+    // Movies
+    28: '/9n5e1vWeKUTfhuLSPKl7dcImDlg.jpg', // Action
+    12: '/8rpDcsfLJypbO6vREc0547VKqEv.jpg', // Adventure
+    16: '/7d6EY00g1c39SGZOkGvIOb32rkN.jpg', // Animation
+    35: '/ctMserH8g2SeOAnKw5GOvt2OXko.jpg', // Comedy
+    80: '/tmU7GeKUxk1EnE7K2XI9ADbWBmU.jpg', // Crime
+    99: '/rLb2cwF3Pazuxaj0sRXQ037tGI1.jpg', // Documentary (dramatic still)
+    18: '/hqkIcbrOHL86UncnHIsHVcVmzue.jpg', // Drama
+    10751: '/uLvppZTLPLR4kyea6y4PlwCgJRU.jpg', // Family
+    14: '/jsoz1HlxczSuTx0mDl2hZpmrdug.jpg', // Fantasy
+    36: '/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg', // History
+    27: '/xbSuFiJbbBWCkyCCGIMxlxgGy6Q.jpg', // Horror
+    10402: '/9n2tJBpl0koYLRqTvbwqwbEHjtF.jpg', // Music
+    9648: '/suaEOtk1NXtYmMPRj6STae01BSj.jpg', // Mystery
+    10749: '/6VmFqApQRyZZzhmua1gT5FvmtW0.jpg', // Romance
+    878: '/xJHokMblPvgzNyuaPF9JTLzMGXw.jpg', // Science Fiction
+    53: '/s3TBrRGB1iav7gFOCNx3H31MoES.jpg', // Thriller
+    10752: '/iZf0KyrE25z1sfcg5B9SToAqLMT.jpg', // War
+    37: '/x2RS3uTcsJJ9IfjNPcgDmukoEcQ.jpg', // Western
+    // TV-only genres (shared ids reuse movie paths above)
+    10759: '/9ijMGlN0Ys5DQTVHlPOWqK5ManR.jpg', // Action & Adventure
+    10762: '/uLvppZTLPLR4kyea6y4PlwCgJRU.jpg', // Kids
+    10763: '/hqkIcbrOHL86UncnHIsHVcVmzue.jpg', // News
+    10764: '/mY7SeH4HFFxW1hiIHyZttIkMEtn.jpg', // Reality
+    10765: '/56v2KjBlU4XaOv9rVYEQypROD7P.jpg', // Sci-Fi & Fantasy
+    10766: '/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg', // Soap
+    10767: '/ctMserH8g2SeOAnKw5GOvt2OXko.jpg', // Talk
+    10768: '/iZf0KyrE25z1sfcg5B9SToAqLMT.jpg', // War & Politics
+};
+
 /** Build Seerr-style duotone backdrop URL for a genre slider card. */
 export const buildGenreSliderImage = (genreId: number, backdrops?: string[] | null) => {
     const list = (Array.isArray(backdrops) ? backdrops : []).filter(Boolean);
-    if (!list.length) return undefined;
-    const path = list[Math.min(4, list.length - 1)];
+    const rawPath = list.length
+        ? list[Math.min(4, list.length - 1)]
+        : GENRE_BACKDROP_PATHS[genreId];
+    if (!rawPath) return undefined;
     const tones = GENRE_COLOR_MAP[genreId] || GENRE_COLOR_MAP[0];
-    const normalized = String(path).startsWith('/') ? String(path) : `/${path}`;
-    return `https://image.tmdb.org/t/p/w1280_filter(duotone,${tones[0]},${tones[1]})${normalized}`;
+    const normalized = String(rawPath).startsWith('/') ? String(rawPath) : `/${rawPath}`;
+    return `https://image.tmdb.org/t/p/w780_filter(duotone,${tones[0]},${tones[1]})${normalized}`;
 };
