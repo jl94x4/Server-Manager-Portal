@@ -15,6 +15,7 @@ import { enrichDiscoveryItems } from './discoverItemUtils';
 import { portalRequestToDiscoveryRowItem } from './myRequestUtils';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
 import { fetchDiscoverHomeRowResults } from './discoverFetchUtils';
+import { enrichDiscoverItemsWithAvailability } from './discoverAvailabilityEnrich';
 import { WatchlistPanel } from './WatchlistPanel';
 import { DiscoverHomeSkeleton } from '../shared/skeletons';
 import { discoveryTheme } from './discoveryThemeClasses';
@@ -166,6 +167,35 @@ export const DiscoverHome: React.FC<{
                 upcomingSeries,
             });
             setLoading(false);
+
+            // Second pass: attach available/requested badges once *arr catalogs are warm.
+            void (async () => {
+                try {
+                    const [
+                        trending,
+                        popularMoviesEnriched,
+                        upcomingMoviesEnriched,
+                        popularSeriesEnriched,
+                        upcomingSeriesEnriched,
+                    ] = await Promise.all([
+                        enrichDiscoverItemsWithAvailability(trendingRes),
+                        enrichDiscoverItemsWithAvailability(popularMovies),
+                        enrichDiscoverItemsWithAvailability(upcomingMovies),
+                        enrichDiscoverItemsWithAvailability(popularSeries),
+                        enrichDiscoverItemsWithAvailability(upcomingSeries),
+                    ]);
+                    setRows((prev) => ({
+                        ...prev,
+                        trending,
+                        popularMovies: popularMoviesEnriched,
+                        upcomingMovies: upcomingMoviesEnriched,
+                        popularSeries: popularSeriesEnriched,
+                        upcomingSeries: upcomingSeriesEnriched,
+                    }));
+                } catch {
+                    // Badges are best-effort; first paint already succeeded.
+                }
+            })();
 
             // Genre sliders after rows are visible (best-effort, no per-genre fan-out).
             try {

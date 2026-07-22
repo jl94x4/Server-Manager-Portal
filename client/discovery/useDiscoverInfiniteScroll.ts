@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UpgraderGridSize } from '../shared/portalLayout';
 import { mergeDiscoverResults } from './discoverItemUtils';
+import { enrichDiscoverItemsWithAvailability } from './discoverAvailabilityEnrich';
 import { initialDiscoverPagesForGrid, DISCOVER_API_PAGE_SIZE } from './discoverPaginationUtils';
 
 export type DiscoverPagePayload = {
@@ -75,6 +76,10 @@ export function useDiscoverInfiniteScroll({
                     setResults(merged);
                     setLoadedPage(lastPage);
                     setTotalPages(maxTotalPages);
+                    // Second pass: fill available/requested badges without blocking first paint.
+                    void enrichDiscoverItemsWithAvailability(merged).then((enriched) => {
+                        if (!cancelled) setResults(enriched);
+                    }).catch(() => {});
                 }
             } catch (e) {
                 console.error(e);
@@ -106,7 +111,8 @@ export function useDiscoverInfiniteScroll({
         try {
             const payload = await fetchPage(nextPage);
             const batch = Array.isArray(payload.results) ? payload.results : [];
-            setResults((prev) => mergeDiscoverResults(prev, batch));
+            const enrichedBatch = await enrichDiscoverItemsWithAvailability(batch).catch(() => batch);
+            setResults((prev) => mergeDiscoverResults(prev, enrichedBatch));
             setLoadedPage(payload.lastFetchedPage ?? nextPage);
             setTotalPages(Math.max(1, Number(payload.totalPages) || totalPages));
         } catch (e) {

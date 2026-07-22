@@ -5272,6 +5272,95 @@ const createDiscoveryLibraryAvailability = (config) => createLibraryAvailability
     catalogTimeoutMs: 8000,
 });
 
+/** Batch library (+ optional portal request) availability for Discover card badges. */
+app.post('/api/discovery/availability-batch', requireAuth, requireMember, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const incoming = Array.isArray(req.body?.items) ? req.body.items : [];
+        const items = incoming
+            .map((entry) => {
+                const mediaType = entry?.mediaType === 'tv' ? 'tv' : (entry?.mediaType === 'movie' ? 'movie' : null);
+                const tmdbId = Number(entry?.tmdbId ?? entry?.id);
+                if (!mediaType || !Number.isFinite(tmdbId) || tmdbId <= 0) return null;
+                return { mediaType, tmdbId, id: tmdbId };
+            })
+            .filter(Boolean)
+            .slice(0, 120);
+
+        if (!items.length) return res.json({ results: [] });
+
+        const library = createDiscoveryLibraryAvailability(config);
+        // Second-pass badge fill: wait briefly for catalogs, then Map-lookup enrich.
+        let enriched = items;
+        try {
+            const blocked = library.enrichItems(items, { blockForCatalog: true });
+            const timedOut = await Promise.race([
+                blocked.then(() => false),
+                new Promise((resolve) => setTimeout(() => resolve(true), 3000)),
+            ]);
+            enriched = timedOut
+                ? await library.enrichItems(items, { blockForCatalog: false })
+                : await blocked;
+        } catch (enrichError) {
+            log(`Discovery availability-batch enrich skipped: ${enrichError.message}`);
+            enriched = items;
+        }
+
+        // Overlay portal pending requests so "Requested" badges work without Seerr mediaInfo.
+        let pendingByKey = new Map();
+        if (getRequestEngine(config) === 'portal') {
+            try {
+                const portalRequests = createPortalRequestService({ dataDir: REQUESTS_DIR, config });
+                const listed = await portalRequests.listMemberRequests(req.user, {
+                    filter: 'pending',
+                    take: 100,
+                    skip: 0,
+                });
+                for (const row of listed.results || []) {
+                    const mediaType = row?.type === 'tv' ? 'tv' : 'movie';
+                    const tmdbId = Number(row?.tmdbId);
+                    if (!Number.isFinite(tmdbId) || tmdbId <= 0) continue;
+                    pendingByKey.set(`${mediaType}:${tmdbId}`, row);
+                }
+            } catch (requestError) {
+                log(`Discovery availability-batch portal requests skipped: ${requestError.message}`);
+            }
+        }
+
+        const results = (Array.isArray(enriched) ? enriched : items).map((item) => {
+            const mediaType = item?.mediaType === 'tv' ? 'tv' : 'movie';
+            const tmdbId = Number(item?.tmdbId ?? item?.id);
+            const key = `${mediaType}:${tmdbId}`;
+            const pending = pendingByKey.get(key);
+            const mediaInfo = { ...(item?.mediaInfo || {}) };
+            if (pending) {
+                mediaInfo.requests = [
+                    {
+                        id: pending.id,
+                        status: 1,
+                        is4k: !!pending.is4k,
+                        createdAt: pending.createdAt,
+                    },
+                    ...(Array.isArray(mediaInfo.requests) ? mediaInfo.requests : []),
+                ];
+                if (mediaInfo.status == null) mediaInfo.status = 2; // pending media status
+            }
+            return {
+                mediaType,
+                tmdbId,
+                mediaInfo: Object.keys(mediaInfo).length ? mediaInfo : null,
+                sonarrLibraryStatus: item?.sonarrLibraryStatus || null,
+                radarrLibraryStatus: item?.radarrLibraryStatus || null,
+            };
+        });
+
+        res.json({ results });
+    } catch (e) {
+        log(`Discovery availability-batch error: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.get('/api/discovery/search', requireAuth, requireMember, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
