@@ -69,6 +69,114 @@ const EmptyRail: React.FC<{
     </div>
 );
 
+/** Stable row component — must live outside DiscoverHome or every setState remounts posters. */
+const DiscoverHomeRow: React.FC<{
+    title: string;
+    items: any[];
+    posterCardClass: string;
+    viewAllLabel: string;
+    formatItem: (item: any) => any;
+    onSelect: (item: any) => void;
+    onViewAll?: () => void;
+    empty?: React.ReactNode;
+    animateEnter?: boolean;
+}> = ({
+    title,
+    items,
+    posterCardClass,
+    viewAllLabel,
+    formatItem,
+    onSelect,
+    onViewAll,
+    empty,
+    animateEnter = false,
+}) => {
+    if (!items?.length) {
+        if (!empty) return null;
+        return (
+            <div className="flex flex-col gap-2 relative">
+                <div className="flex items-center gap-3 min-w-0 px-2 pr-16">
+                    <h2 className={`${discoveryTheme.sectionTitle} truncate`}>{title}</h2>
+                    {onViewAll && (
+                        <button type="button" onClick={onViewAll} className="shrink-0 text-xs font-bold text-plex hover:underline">
+                            {viewAllLabel}
+                        </button>
+                    )}
+                </div>
+                {empty}
+            </div>
+        );
+    }
+    return (
+        <div className="flex flex-col gap-2 relative">
+            <div className="flex items-center gap-3 min-w-0 px-2 pr-16">
+                <h2 className={`${discoveryTheme.sectionTitle} truncate`}>{title}</h2>
+                {onViewAll && (
+                    <button type="button" onClick={onViewAll} className="shrink-0 text-xs font-bold text-plex hover:underline">
+                        {viewAllLabel}
+                    </button>
+                )}
+            </div>
+            <Carousel>
+                {items.map((rawItem, idx) => {
+                    if (!rawItem) return null;
+                    const formatted = formatItem(rawItem);
+                    return (
+                        <div
+                            key={`${title}-${formatted.id || idx}`}
+                            className={`${posterCardClass} flex-shrink-0 relative group${animateEnter ? ' discover-poster-enter' : ''}`}
+                            style={animateEnter ? { animationDelay: `${Math.min(idx, 12) * 30}ms` } : undefined}
+                        >
+                            <DiscoverPosterCard
+                                item={formatted}
+                                overlay={formatted.overlay}
+                                showQualityBadges={false}
+                                onPosterClick={() => onSelect(formatted)}
+                            />
+                        </div>
+                    );
+                })}
+            </Carousel>
+        </div>
+    );
+};
+
+const DiscoverGenreSliderRow: React.FC<{
+    title: string;
+    apiGenres: GenreSliderItem[];
+    fallbackGenres: typeof MOVIE_GENRES;
+    basePath: '/discovery/movies' | '/discovery/series';
+    navigate: (path: string) => void;
+}> = ({ title, apiGenres, fallbackGenres, basePath, navigate }) => {
+    const items = apiGenres.length
+        ? apiGenres
+        : fallbackGenres.map((g) => ({
+            id: g.id,
+            name: g.name,
+            image: buildGenreSliderImage(g.id),
+        }));
+
+    return (
+        <div className="flex flex-col gap-2 relative">
+            <h2 className={`${discoveryTheme.sectionTitle} px-2 pr-16`}>{title}</h2>
+            <Carousel>
+                {items.map((g) => {
+                    const fallback = fallbackGenres.find((fg) => fg.id === g.id);
+                    return (
+                        <GenreCard
+                            key={g.id}
+                            name={g.name}
+                            image={g.image}
+                            gradient={fallback?.gradient}
+                            onClick={() => navigate(`${basePath}?genre=${g.id}`)}
+                        />
+                    );
+                })}
+            </Carousel>
+        </div>
+    );
+};
+
 export const DiscoverHome: React.FC<{
     onSelect: (item: any) => void;
     formatItem: (item: any) => any;
@@ -99,13 +207,16 @@ export const DiscoverHome: React.FC<{
     ));
     const [loading, setLoading] = useState(true);
     const loadGenRef = useRef(0);
+    const hasPaintedRef = useRef(false);
+    const [enterAnim, setEnterAnim] = useState(true);
 
     const loadData = useCallback(async () => {
         if (!loaded) return;
         const gen = ++loadGenRef.current;
         const paintAbort = new AbortController();
         const paintTimer = window.setTimeout(() => paintAbort.abort(), 10000);
-        setLoading(true);
+        // Avoid skeleton ↔ content flicker on preference/locale refreshes after first paint.
+        if (!hasPaintedRef.current) setLoading(true);
         try {
             const hideAvailable = preferences.hideAvailableMedia;
             // Seerr-style: one endpoint per rail; advance same URL pages only (no multi-source storm).
@@ -152,7 +263,10 @@ export const DiscoverHome: React.FC<{
                 popularSeries: filterHiddenAvailableItems(popularSeries, hideAvailable),
                 upcomingSeries: filterHiddenAvailableItems(upcomingSeries, hideAvailable),
             });
+            hasPaintedRef.current = true;
             setLoading(false);
+            // Stagger enter only on the first successful paint.
+            window.setTimeout(() => setEnterAnim(false), 700);
 
             // Side rails + poster enrich after first paint (never block the skeleton).
             void (async () => {
@@ -231,112 +345,16 @@ export const DiscoverHome: React.FC<{
         };
     }, [loadData]);
 
-    const DiscoveryRow = ({
-        title,
-        items,
-        onViewAll,
-        empty,
-    }: {
-        title: string;
-        items: any[];
-        onViewAll?: () => void;
-        empty?: React.ReactNode;
-    }) => {
-        if (!items?.length) {
-            if (!empty) return null;
-            return (
-                <div className="flex flex-col gap-2 relative">
-                    <div className="flex items-center gap-3 min-w-0 px-2 pr-16">
-                        <h2 className={`${discoveryTheme.sectionTitle} truncate`}>{title}</h2>
-                        {onViewAll && (
-                            <button type="button" onClick={onViewAll} className="shrink-0 text-xs font-bold text-plex hover:underline">
-                                {t('common.viewAll')}
-                            </button>
-                        )}
-                    </div>
-                    {empty}
-                </div>
-            );
-        }
-        return (
-            <div className="flex flex-col gap-2 relative">
-                <div className="flex items-center gap-3 min-w-0 px-2 pr-16">
-                    <h2 className={`${discoveryTheme.sectionTitle} truncate`}>{title}</h2>
-                    {onViewAll && (
-                        <button type="button" onClick={onViewAll} className="shrink-0 text-xs font-bold text-plex hover:underline">
-                            {t('common.viewAll')}
-                        </button>
-                    )}
-                </div>
-                <Carousel>
-                    {items.map((rawItem, idx) => {
-                        if (!rawItem) return null;
-                        const formatted = formatItem(rawItem);
-                        return (
-                            <div
-                                key={`${title}-${formatted.id || idx}`}
-                                className={`${posterCardClass} flex-shrink-0 relative group discover-poster-enter`}
-                                style={{ animationDelay: `${Math.min(idx, 12) * 30}ms` }}
-                            >
-                                <DiscoverPosterCard
-                                    item={formatted}
-                                    overlay={formatted.overlay}
-                                    showQualityBadges={false}
-                                    onPosterClick={() => onSelect(formatted)}
-                                />
-                            </div>
-                        );
-                    })}
-                </Carousel>
-            </div>
-        );
-    };
-
-    const renderGenreSlider = (
-        title: string,
-        apiGenres: GenreSliderItem[],
-        fallbackGenres: typeof MOVIE_GENRES,
-        basePath: '/discovery/movies' | '/discovery/series',
-    ) => {
-        const items = apiGenres.length
-            ? apiGenres
-            : fallbackGenres.map((g) => ({
-                id: g.id,
-                name: g.name,
-                image: buildGenreSliderImage(g.id),
-            }));
-
-        return (
-            <div className="flex flex-col gap-2 relative">
-                <h2 className={`${discoveryTheme.sectionTitle} px-2 pr-16`}>{title}</h2>
-                <Carousel>
-                    {items.map((g) => {
-                        const fallback = fallbackGenres.find((fg) => fg.id === g.id);
-                        return (
-                            <GenreCard
-                                key={g.id}
-                                name={g.name}
-                                image={g.image}
-                                gradient={fallback?.gradient}
-                                onClick={() => navigate(`${basePath}?genre=${g.id}`)}
-                            />
-                        );
-                    })}
-                </Carousel>
-            </div>
-        );
-    };
-
     if (loading) {
         return (
-            <div className="discover-content-enter" aria-busy="true">
+            <div aria-busy="true">
                 <DiscoverHomeSkeleton />
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col gap-6 w-full max-w-full overflow-hidden pb-8 px-1 discover-content-enter">
+        <div className={`flex flex-col gap-6 w-full max-w-full overflow-hidden pb-8 px-1${enterAnim ? ' discover-content-enter' : ''}`}>
             <section className={discoveryTheme.personalPanel}>
                 <div className="px-1 flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -361,9 +379,14 @@ export const DiscoverHome: React.FC<{
 
                 {showLibraryQueue && (
                     <div id="discover-library-queue" className="flex flex-col gap-5">
-                        <DiscoveryRow
+                        <DiscoverHomeRow
                             title={t('home.yourRequests')}
                             items={rows.recentRequests}
+                            posterCardClass={posterCardClass}
+                            viewAllLabel={t('common.viewAll')}
+                            formatItem={formatItem}
+                            onSelect={onSelect}
+                            animateEnter={enterAnim}
                             onViewAll={() => navigate('/discovery/requests')}
                             empty={(
                                 <EmptyRail
@@ -425,14 +448,53 @@ export const DiscoverHome: React.FC<{
                 </div>
 
                 {preferences.showRecentlyAdded !== false && (
-                    <DiscoveryRow title={t('home.recentlyAdded')} items={rows.recentlyAdded} />
+                    <DiscoverHomeRow
+                        title={t('home.recentlyAdded')}
+                        items={rows.recentlyAdded}
+                        posterCardClass={posterCardClass}
+                        viewAllLabel={t('common.viewAll')}
+                        formatItem={formatItem}
+                        onSelect={onSelect}
+                        animateEnter={enterAnim}
+                    />
                 )}
                 <div id="discover-trending">
-                    <DiscoveryRow title={t('home.trending')} items={rows.trending} />
+                    <DiscoverHomeRow
+                        title={t('home.trending')}
+                        items={rows.trending}
+                        posterCardClass={posterCardClass}
+                        viewAllLabel={t('common.viewAll')}
+                        formatItem={formatItem}
+                        onSelect={onSelect}
+                        animateEnter={enterAnim}
+                    />
                 </div>
-                <DiscoveryRow title={t('home.popularMovies')} items={rows.popularMovies} onViewAll={() => navigate('/discovery/movies')} />
-                {renderGenreSlider(t('home.movieGenres'), movieGenres, MOVIE_GENRES, '/discovery/movies')}
-                <DiscoveryRow title={t('home.upcomingMovies')} items={rows.upcomingMovies} />
+                <DiscoverHomeRow
+                    title={t('home.popularMovies')}
+                    items={rows.popularMovies}
+                    posterCardClass={posterCardClass}
+                    viewAllLabel={t('common.viewAll')}
+                    formatItem={formatItem}
+                    onSelect={onSelect}
+                    animateEnter={enterAnim}
+                    onViewAll={() => navigate('/discovery/movies')}
+                />
+                <DiscoverGenreSliderRow
+                    title={t('home.movieGenres')}
+                    apiGenres={movieGenres}
+                    fallbackGenres={MOVIE_GENRES}
+                    basePath="/discovery/movies"
+                    navigate={navigate}
+                />
+                <DiscoverHomeRow
+                    title={t('home.upcomingMovies')}
+                    items={rows.upcomingMovies}
+                    posterCardClass={posterCardClass}
+                    viewAllLabel={t('common.viewAll')}
+                    formatItem={formatItem}
+                    onSelect={onSelect}
+                    animateEnter={enterAnim}
+                />
 
                 <div className="flex flex-col gap-2 relative rounded-2xl border border-border/60 bg-white/[0.02] p-3 sm:p-4">
                     <h2 className={`${discoveryTheme.sectionTitle} px-1 pr-16`}>{t('home.studios')}</h2>
@@ -448,9 +510,32 @@ export const DiscoverHome: React.FC<{
                     </Carousel>
                 </div>
 
-                <DiscoveryRow title={t('home.popularSeries')} items={rows.popularSeries} onViewAll={() => navigate('/discovery/series')} />
-                {renderGenreSlider(t('home.seriesGenres'), tvGenres, TV_GENRES, '/discovery/series')}
-                <DiscoveryRow title={t('home.upcomingSeries')} items={rows.upcomingSeries} />
+                <DiscoverHomeRow
+                    title={t('home.popularSeries')}
+                    items={rows.popularSeries}
+                    posterCardClass={posterCardClass}
+                    viewAllLabel={t('common.viewAll')}
+                    formatItem={formatItem}
+                    onSelect={onSelect}
+                    animateEnter={enterAnim}
+                    onViewAll={() => navigate('/discovery/series')}
+                />
+                <DiscoverGenreSliderRow
+                    title={t('home.seriesGenres')}
+                    apiGenres={tvGenres}
+                    fallbackGenres={TV_GENRES}
+                    basePath="/discovery/series"
+                    navigate={navigate}
+                />
+                <DiscoverHomeRow
+                    title={t('home.upcomingSeries')}
+                    items={rows.upcomingSeries}
+                    posterCardClass={posterCardClass}
+                    viewAllLabel={t('common.viewAll')}
+                    formatItem={formatItem}
+                    onSelect={onSelect}
+                    animateEnter={enterAnim}
+                />
 
                 <div className="flex flex-col gap-2 relative rounded-2xl border border-border/60 bg-white/[0.02] p-3 sm:p-4">
                     <h2 className={`${discoveryTheme.sectionTitle} px-1 pr-16`}>{t('home.networks')}</h2>
