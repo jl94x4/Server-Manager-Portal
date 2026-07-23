@@ -11740,7 +11740,7 @@ if (BASE_PATH) {
 
 // Chromium Android uses this for WebAPK installability. Firefox deliberately does not
 // register it (a bad SW makes Firefox Install silently no-op).
-const serviceWorkerScript = `/* portal-sw v5 */
+const serviceWorkerScript = `/* portal-sw v6 */
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
@@ -11749,10 +11749,10 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-// Chrome Android still expects a fetch handler for Install (vs Create shortcut).
-self.addEventListener('fetch', (event) => {
-  event.respondWith(fetch(event.request));
-});
+// Presence-only fetch listener — required for Chrome Android Install.
+// Do NOT event.respondWith(fetch(...)): proxying every request breaks
+// cross-origin posters (TMDB), fonts (Google), and Plex/user thumbs.
+self.addEventListener('fetch', () => {});
 `;
 
 const sendServiceWorker = (_req, res) => {

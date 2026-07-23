@@ -153,6 +153,15 @@ export const MainApp: React.FC = () => {
 
         const isFirefox = /Firefox/i.test(navigator.userAgent || '');
         let cancelled = false;
+        let refreshing = false;
+
+        const onControllerChange = () => {
+            // Pick up portal-sw v6 (no fetch proxy) without requiring a manual hard refresh.
+            if (refreshing || cancelled) return;
+            refreshing = true;
+            window.location.reload();
+        };
+        navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
 
         (async () => {
             try {
@@ -184,7 +193,10 @@ export const MainApp: React.FC = () => {
             }
         })();
 
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+            navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+        };
     }, []);
 
     useEffect(() => {
