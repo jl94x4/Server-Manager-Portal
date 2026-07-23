@@ -5375,11 +5375,12 @@ app.get('/api/discovery/preferences', requireAuth, requireMember, async (req, re
     }
 });
 
-const createDiscoveryLibraryAvailability = (config) => createLibraryAvailability(config, {
+const createDiscoveryLibraryAvailability = (config, extras = {}) => createLibraryAvailability(config, {
     resolveUrl: resolveIntegrationUrlForFetch,
     fetchImpl: fetch,
     upgraderItems: [],
     catalogTimeoutMs: 8000,
+    ...extras,
 });
 
 let discoveryAvailabilityCacheMemo = null;
@@ -5486,56 +5487,15 @@ const attachDiscoveryAvailabilityCacheToPayload = async (config, sessionUser, da
     const cache = await loadDiscoveryAvailabilityCacheFile();
     let next = applyDiscoveryAvailabilityCacheToPayload(data, cache);
 
-    // Stamp cache misses from the warm *arr catalog BEFORE responding — badges on first paint,
-    // no client-side availability-batch pop-in. Peek/Map only (networkLookups:false); cold
-    // catalogs return immediately and warm in background (Seerr-style Media DB join).
-    const stampWarmCatalog = async (items) => {
-        const list = Array.isArray(items) ? items : [];
-        if (!list.length) return list;
-        const misses = list.filter((item) => {
-            const status = Number(item?.mediaInfo?.status);
-            const hasRequests = Array.isArray(item?.mediaInfo?.requests) && item.mediaInfo.requests.length > 0;
-            return !Number.isFinite(status) && !hasRequests;
-        });
-        if (!misses.length) return list;
-        try {
-            const library = createDiscoveryLibraryAvailability(config);
-            // Peek lookups are sync-fast once warm. Still race so a stuck stamp cannot freeze lists.
-            const enrichedMisses = await Promise.race([
-                library.enrichItems(misses, {
-                    blockForCatalog: false,
-                    networkLookups: false,
-                }),
-                new Promise((resolve) => setTimeout(() => resolve(misses), 500)),
-            ]);
-            const byKey = new Map();
-            for (const item of Array.isArray(enrichedMisses) ? enrichedMisses : []) {
-                const mediaType = item?.mediaType === 'tv' || item?.mediaType === 2 ? 'tv' : 'movie';
-                const tmdbId = Number(item?.tmdbId ?? item?.id);
-                if (!Number.isFinite(tmdbId) || tmdbId <= 0) continue;
-                if (item?.mediaInfo && Number.isFinite(Number(item.mediaInfo.status))) {
-                    byKey.set(`${mediaType}:${tmdbId}`, item);
-                }
-            }
-            if (!byKey.size) return list;
-            return list.map((item) => {
-                const mediaType = item?.mediaType === 'tv' || item?.mediaType === 2 ? 'tv' : 'movie';
-                const tmdbId = Number(item?.tmdbId ?? item?.id);
-                const hit = byKey.get(`${mediaType}:${tmdbId}`);
-                return hit || item;
-            });
-        } catch (error) {
-            log(`Discovery warm availability stamp skipped: ${error.message}`);
-            return list;
-        }
-    };
+    // Disk cache is the Seerr-style Media DB join for list paths.
+    // Do NOT warm-stamp / kick *arr catalog downloads on the request path — that
+    // saturated Node (JSON-parsing huge Sonarr/Radarr catalogs) and froze Settings,
+    // session, and every other route including /api/config.
 
     if (Array.isArray(next?.results)) {
-        const stamped = await stampWarmCatalog(next.results);
-        // Pending-request overlay is memoized; still budget so list paint can't stall.
         const overlaid = await Promise.race([
-            overlayPortalPendingRequestsOntoItems(config, sessionUser, stamped),
-            new Promise((resolve) => setTimeout(() => resolve(stamped), 800)),
+            overlayPortalPendingRequestsOntoItems(config, sessionUser, next.results),
+            new Promise((resolve) => setTimeout(() => resolve(next.results), 400)),
         ]);
         next = {
             ...next,
@@ -5543,12 +5503,11 @@ const attachDiscoveryAvailabilityCacheToPayload = async (config, sessionUser, da
         };
         return next;
     }
-    // Detail pages: disk cache + pending overlay only — skip warm-catalog stamp so
-    // click→details isn't blocked on Sonarr/TMDB lookups (library-status fills accuracy).
+    // Detail pages: disk cache + pending overlay only.
     if (!Array.isArray(next) && (next?.mediaType === 'movie' || next?.mediaType === 'tv' || next?.id)) {
         const overlaid = await Promise.race([
             overlayPortalPendingRequestsOntoItems(config, sessionUser, [next]),
-            new Promise((resolve) => setTimeout(() => resolve([next]), 800)),
+            new Promise((resolve) => setTimeout(() => resolve([next]), 400)),
         ]);
         const [detailed] = Array.isArray(overlaid) ? overlaid : [next];
         return detailed || next;
@@ -12185,10 +12144,13 @@ const startPortalRequestStatusSyncBackgroundTask = () => {
 };
 
 const startDiscoveryAvailabilityCacheBackgroundTask = () => {
-    systemJobs.discoveryAvailabilityCache.nextRun = new Date(Date.now() + 20 * 1000).toISOString();
+    // Delay well past boot so Settings/session/dashboard are not starved by Sonarr/Radarr
+    // catalog downloads + JSON parse on the event loop.
+    const startupDelayMs = 5 * 60 * 1000;
+    systemJobs.discoveryAvailabilityCache.nextRun = new Date(Date.now() + startupDelayMs).toISOString();
     setTimeout(() => {
         runDiscoveryAvailabilityCacheRebuild('startup').catch(() => {});
-    }, 20 * 1000);
+    }, startupDelayMs);
     setInterval(() => {
         runDiscoveryAvailabilityCacheRebuild('scheduled').catch(() => {});
     }, DISCOVERY_AVAILABILITY_CACHE_INTERVAL_MS);
