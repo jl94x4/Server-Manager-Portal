@@ -5385,7 +5385,7 @@ const createDiscoveryLibraryAvailability = (config, extras = {}) => createLibrar
 
 let discoveryAvailabilityCacheMemo = null;
 let discoveryAvailabilityCacheMemoAt = 0;
-const DISCOVERY_AVAILABILITY_MEMO_TTL_MS = 30 * 1000;
+const DISCOVERY_AVAILABILITY_MEMO_TTL_MS = 5 * 60 * 1000;
 
 const loadDiscoveryAvailabilityCacheFile = async ({ force = false } = {}) => {
     if (
@@ -12009,7 +12009,7 @@ const systemJobs = {
     discoveryAvailabilityCache: {
         id: 'discoveryAvailabilityCache',
         name: 'Discovery Availability Cache',
-        description: 'Rebuilds Sonarr/Radarr availability badges for Discover browse into a shared on-disk cache.',
+        description: 'Scans Sonarr/Radarr every 12 hours into an on-disk badge cache; Discover reads the cache (no live *arr on browse).',
         lastRun: null,
         nextRun: null,
         running: false,
@@ -12045,7 +12045,8 @@ const markTaskEnd = (task, error = null) => {
 };
 
 const REQUEST_STATUS_SYNC_INTERVAL_MS = 60 * 1000;
-const DISCOVERY_AVAILABILITY_CACHE_INTERVAL_MS = 10 * 60 * 1000;
+/** Sonarr/Radarr library badge snapshot — Discover serves from disk; rescans infrequently. */
+const DISCOVERY_AVAILABILITY_CACHE_INTERVAL_MS = 12 * 60 * 60 * 1000;
 
 const runDiscoveryAvailabilityCacheRebuild = async (reason = 'scheduled') => {
     const job = systemJobs.discoveryAvailabilityCache;
@@ -12144,13 +12145,33 @@ const startPortalRequestStatusSyncBackgroundTask = () => {
 };
 
 const startDiscoveryAvailabilityCacheBackgroundTask = () => {
-    // Delay well past boot so Settings/session/dashboard are not starved by Sonarr/Radarr
-    // catalog downloads + JSON parse on the event loop.
-    const startupDelayMs = 5 * 60 * 1000;
-    systemJobs.discoveryAvailabilityCache.nextRun = new Date(Date.now() + startupDelayMs).toISOString();
-    setTimeout(() => {
-        runDiscoveryAvailabilityCacheRebuild('startup').catch(() => {});
-    }, startupDelayMs);
+    // Prefer existing on-disk cache at boot. Only rebuild soon if the cache is empty;
+    // otherwise wait for the 12h schedule so Settings/session stay responsive.
+    const scheduleNext = (delayMs) => {
+        systemJobs.discoveryAvailabilityCache.nextRun = new Date(Date.now() + delayMs).toISOString();
+        setTimeout(() => {
+            runDiscoveryAvailabilityCacheRebuild('startup').catch(() => {});
+        }, delayMs);
+    };
+
+    void (async () => {
+        try {
+            const existing = await loadDiscoveryAvailabilityCacheFile({ force: true });
+            const itemCount = Number(existing?.itemCount) || Object.keys(existing?.byKey || {}).length || 0;
+            if (itemCount > 0) {
+                log(`[DiscoveryAvailabilityCache] using on-disk cache (${itemCount} items); next scan in 12h`);
+                systemJobs.discoveryAvailabilityCache.nextRun = new Date(
+                    Date.now() + DISCOVERY_AVAILABILITY_CACHE_INTERVAL_MS,
+                ).toISOString();
+                return;
+            }
+            // Empty cache — fill once after boot settles (not immediately).
+            scheduleNext(2 * 60 * 1000);
+        } catch {
+            scheduleNext(2 * 60 * 1000);
+        }
+    })();
+
     setInterval(() => {
         runDiscoveryAvailabilityCacheRebuild('scheduled').catch(() => {});
     }, DISCOVERY_AVAILABILITY_CACHE_INTERVAL_MS);
