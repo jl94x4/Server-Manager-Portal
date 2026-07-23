@@ -7992,7 +7992,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
     }, [fetchDashboardOnly, fetchData]);
 
     if (dashboardLoading && !dashboardData) {
-        return <DiscoverPageSkeleton recentLimit={recentLimit} />;
+        return <DiscoverPageSkeleton recentLimit={recentLimit} gridSize={gridSize} />;
     }
 
     const totalStreams = dashboardData?.activeSessions?.length || 0;
@@ -8236,7 +8236,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                             {(() => {
                                                 const progressBarText = `${Math.round(session.progress)}%${session.timeRemaining > 0 && session.state === 'playing' ? ` • ETA ${formatTime(new Date(Date.now() + session.timeRemaining))}` : ''}`;
                                                 return (
-                                                    <div className="w-full h-4 bg-background/80 relative mt-auto z-10 overflow-hidden rounded-b-lg">
+                                                    <div className="w-full h-4 bg-white/10 relative mt-auto z-10 overflow-hidden rounded-b-lg">
                                                         {/* Progress fill */}
                                                         <div className="h-full bg-plex absolute top-0 left-0 transition-all duration-1000 z-10" style={{ width: `${session.progress}%` }}></div>
 

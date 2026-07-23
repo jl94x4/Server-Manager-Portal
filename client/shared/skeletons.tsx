@@ -1,5 +1,10 @@
 import React from 'react';
-import { discoverPosterGridClass } from './portalLayout';
+import {
+    discoverPosterGridClass,
+    type UpgraderGridSize,
+    upgraderPosterGridClass,
+    upgraderPosterGridStyle,
+} from './portalLayout';
 import { useSkeletonLayoutCounts } from './useSkeletonLayoutCounts';
 
 const pulse = 'skeleton-base';
@@ -142,49 +147,82 @@ export const HomeRecentlyAddedSkeleton: React.FC = () => (
     </div>
 );
 
-export const DiscoverSectionSkeleton: React.FC<{ title: string; count?: number; aspect?: '2/3' | 'square'; rows?: number }> = ({
+export const DiscoverSectionSkeleton: React.FC<{
+    title: string;
+    count?: number;
+    aspect?: '2/3' | 'square';
+    rows?: number;
+    gridSize?: UpgraderGridSize;
+}> = ({
     title,
     count,
     aspect = '2/3',
     rows = 2,
-}) => (
-    <div className="flex flex-col" aria-hidden="true">
-        <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">{title}</h2>
-        <PosterGridSkeleton count={count} aspect={aspect} rows={rows} />
-    </div>
-);
+    gridSize = 'large',
+}) => {
+    const { grid: defaultCount } = useSkeletonLayoutCounts({ gridRows: rows });
+    const itemCount = count ?? defaultCount;
 
-export const DiscoverPageSkeleton: React.FC<{ recentLimit?: number }> = () => (
-    <div className="w-full flex flex-col min-h-screen" aria-busy="true" aria-label="Loading discover">
-        <main className="discover-layout-container w-full pb-8 mt-4 md:mt-0">
-            <section className="mb-12 w-full">
-                <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">ACTIVITY</h2>
-                <ActivityGridSkeleton count={3} />
-            </section>
-
-            <div className="flex justify-end gap-4 items-center mb-8">
-                <SkeletonBlock className="h-4 w-36 rounded" />
-                <SkeletonBlock className="h-10 w-32 rounded-lg" />
+    return (
+        <div className="flex flex-col" aria-hidden="true">
+            <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">{title}</h2>
+            <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
+                {Array.from({ length: itemCount }, (_, i) => (
+                    <div key={i} className="flex flex-col gap-1 min-w-0">
+                        <SkeletonBlock className={`w-full rounded-lg border border-white/5 ${aspect === 'square' ? 'aspect-square' : 'aspect-[2/3]'}`} />
+                        <SkeletonBlock className="h-3 w-full rounded" />
+                    </div>
+                ))}
             </div>
+        </div>
+    );
+};
 
-            <div className="flex flex-col gap-12 w-full">
-                <DiscoverSectionSkeleton title="RECENTLY ADDED MOVIES" />
-                <DiscoverSectionSkeleton title="RECENTLY ADDED TV SHOWS" />
-                <DiscoverSectionSkeleton title="RECENTLY ADDED MUSIC" aspect="square" />
-            </div>
+export const DiscoverPageSkeleton: React.FC<{ recentLimit?: number; gridSize?: UpgraderGridSize }> = ({
+    recentLimit = 20,
+    gridSize = 'large',
+}) => {
+    const sectionCount = Math.max(6, Math.min(40, Number(recentLimit) || 20));
 
-            <div className="mt-16 w-full flex flex-col gap-12">
-                <div className="flex flex-col gap-2 items-center text-center mb-4">
-                    <SkeletonBlock className="h-10 w-72 max-w-full rounded" />
-                    <SkeletonBlock className="h-4 w-96 max-w-full rounded" />
+    return (
+        <div className="w-full flex flex-col min-h-screen" aria-busy="true" aria-label="Loading dashboard">
+            <main className="discover-layout-container w-full pb-8 mt-4 md:mt-0">
+                <section className="mb-12 w-full">
+                    <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">ACTIVITY</h2>
+                    <ActivityGridSkeleton count={3} />
+                </section>
+
+                {/* Match loaded Grid / Per section controls so they don't look like stray floating bones */}
+                <div className="flex justify-end gap-2 sm:gap-3 items-end mb-8 flex-wrap" aria-hidden="true">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted px-0.5">Grid</span>
+                        <SkeletonBlock className="h-10 w-36 rounded-lg" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted px-0.5">Per section</span>
+                        <SkeletonBlock className="h-10 w-28 rounded-lg" />
+                    </div>
                 </div>
-                <DiscoverSectionSkeleton title="🔥 TRENDING THIS WEEK" />
-                <DiscoverSectionSkeleton title="🍿 MOST WATCHED MOVIES (THIS MONTH)" />
-                <DiscoverSectionSkeleton title="📺 MOST WATCHED SHOWS (THIS MONTH)" />
-            </div>
-        </main>
-    </div>
-);
+
+                <div className="flex flex-col gap-12 w-full">
+                    <DiscoverSectionSkeleton title="RECENTLY ADDED MOVIES" count={sectionCount} gridSize={gridSize} />
+                    <DiscoverSectionSkeleton title="RECENTLY ADDED TV SHOWS" count={sectionCount} gridSize={gridSize} />
+                    <DiscoverSectionSkeleton title="RECENTLY ADDED MUSIC" count={sectionCount} aspect="square" gridSize={gridSize} />
+                </div>
+
+                <div className="mt-16 w-full flex flex-col gap-12">
+                    <div className="flex flex-col gap-2 items-center text-center mb-4" aria-hidden="true">
+                        <SkeletonBlock className="h-10 w-72 max-w-full rounded" />
+                        <SkeletonBlock className="h-4 w-96 max-w-full rounded" />
+                    </div>
+                    <DiscoverSectionSkeleton title="🔥 TRENDING THIS WEEK" count={sectionCount} gridSize={gridSize} />
+                    <DiscoverSectionSkeleton title="🍿 MOST WATCHED MOVIES (THIS MONTH)" count={sectionCount} gridSize={gridSize} />
+                    <DiscoverSectionSkeleton title="📺 MOST WATCHED SHOWS (THIS MONTH)" count={sectionCount} gridSize={gridSize} />
+                </div>
+            </main>
+        </div>
+    );
+};
 
 export const LibraryStatsSkeleton: React.FC = () => (
     <div className="space-y-3" aria-hidden="true">
@@ -219,20 +257,23 @@ export const ActivityCardSkeleton: React.FC = () => (
         <div className="flex flex-row flex-1 items-stretch min-h-0">
             <SkeletonBlock className="w-32 md:w-40 flex-shrink-0 self-stretch rounded-none min-h-[11.5rem] md:min-h-[14.5rem]" />
             <div className="p-4 flex flex-col flex-1 gap-3 min-w-0">
-            <SkeletonBlock className="h-4 w-3/4 rounded" />
-            <SkeletonBlock className="h-3 w-1/2 rounded" />
-            <div className="flex gap-2 mt-1">
-                <SkeletonBlock className="h-4 w-12 rounded" />
-                <SkeletonBlock className="h-4 w-12 rounded" />
-            </div>
-            <div className="flex flex-col gap-2 mt-auto pt-2">
-                <SkeletonBlock className="h-3 w-full rounded" />
-                <SkeletonBlock className="h-3 w-4/5 rounded" />
-                <SkeletonBlock className="h-3 w-3/5 rounded" />
+                <SkeletonBlock className="h-4 w-3/4 rounded" />
+                <SkeletonBlock className="h-3 w-1/2 rounded" />
+                <div className="flex gap-2 mt-1">
+                    <SkeletonBlock className="h-4 w-12 rounded" />
+                    <SkeletonBlock className="h-4 w-12 rounded" />
+                </div>
+                <div className="flex flex-col gap-2 mt-auto pt-2">
+                    <SkeletonBlock className="h-3 w-full rounded" />
+                    <SkeletonBlock className="h-3 w-4/5 rounded" />
+                    <SkeletonBlock className="h-3 w-3/5 rounded" />
+                </div>
             </div>
         </div>
+        {/* Match real activity progress track (solid, not a second shimmer bar) */}
+        <div className="w-full h-4 bg-white/10 mt-auto overflow-hidden rounded-b-lg">
+            <SkeletonBlock className="h-full w-2/5 rounded-none" />
         </div>
-        <SkeletonBlock className="h-4 w-full rounded-none" />
     </div>
 );
 
