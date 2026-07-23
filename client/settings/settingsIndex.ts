@@ -15,7 +15,8 @@ export type SettingsIndexEntry = {
 };
 
 export const SETTINGS_INDEX: SettingsIndexEntry[] = [
-    { id: 'branding', tabId: 'branding', label: 'Portal UI', group: 'Portal', keywords: ['theme', 'logo', 'color', 'branding', 'ui'] },
+    { id: 'branding', tabId: 'branding', label: 'Portal UI', group: 'Portal', keywords: ['theme', 'logo', 'color', 'branding', 'ui', 'public url', 'public base url', 'invite link'] },
+    { id: 'branding/public-base-url', tabId: 'branding', sectionId: 'public-base-url', label: 'Public Base URL', group: 'Portal', keywords: ['public', 'url', 'domain', 'invite', 'email', 'newsletter', 'base url', 'https', 'reverse proxy'] },
     { id: 'branding/logo', tabId: 'branding', sectionId: 'logo', label: 'Custom Logo', group: 'Portal', keywords: ['logo', 'icon', 'favicon', 'upload'] },
     { id: 'branding/theme', tabId: 'branding', sectionId: 'theme', label: 'Portal Theme', group: 'Portal', keywords: ['theme', 'light', 'plex dark', 'slate', 'jellyfin purple', 'ocean', 'rose', 'royal', 'graphite', 'cyber lime', 'aurora'] },
     { id: 'branding/announcement', tabId: 'branding', sectionId: 'announcement', label: 'Portal Announcement', group: 'Portal', keywords: ['announcement', 'banner', 'notice'] },

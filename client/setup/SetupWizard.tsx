@@ -817,8 +817,9 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                             </div>
                             <div className={`${sectionCardClass} flex flex-col gap-5`}>
                                 <div className="flex flex-col gap-2.5">
-                                    <label className={labelClass}>Public Domain / URL</label>
+                                    <label className={labelClass}>Public Base URL</label>
                                     <input type="text" className={inputClass} value={publicDomain} onChange={(e) => setPublicDomain(e.target.value)} placeholder="https://portal.yourdomain.com" />
+                                    <p className="text-xs text-muted mt-1.5">Used for invite emails and shareable portal links. Include a subpath when hosted under one.</p>
                                 </div>
                                 <div className="flex flex-col gap-2.5">
                                     <label className={labelClass}>Theme</label>
