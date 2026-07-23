@@ -126,6 +126,15 @@ Stubs are wired; Phase 4 defaults Discover metadata to TMDB (`discoverySource` d
 - [x] Phase 8 — Issues + quotas
 - [x] Phase 9 — Watchlist/blocklist + migration
 - [ ] Phase 10 — Hard cut + cleanup
+  - [x] Setup wizard portal-first + optional Seerr import (`/api/setup/import-seerr`)
+  - [ ] Remove Seerr dual-run routes / `requestEngine=seerr` / seerr service modules
+  - [ ] Docs / Unraid template cleanup
+
+## Phase 10 notes (in progress)
+
+- **Setup:** Integrations → Requests defaults to portal Discover & Request (TMDB key). Optional “Coming from Seerr?” imports history via setup-token route; `requestEngine` forced to `portal` on first save.
+- **Import fallback:** Unmapped Seerr users attach to the setup admin Plex id (`fallbackUserId`) so wizard imports are not empty before members exist.
+- **Settings:** Seerr engine labeled legacy rollback; import button remains for upgrades.
 
 ## Phase 2 notes
 

@@ -73,11 +73,9 @@ const setupAuthHeaders = (setupToken: string): Record<string, string> => ({
     ...(setupToken ? { 'X-Setup-Token': setupToken } : {}),
 });
 
-const REQUEST_APP_OPTIONS = [
-    { label: 'Disabled', value: 'none' },
-    { label: 'Seerr', value: 'seerr' },
+const MIGRATE_SEERR_OPTIONS = [
+    { label: 'Seerr / Overseerr', value: 'seerr' },
     { label: 'Jellyseerr', value: 'jellyseerr' },
-    { label: 'Ombi', value: 'ombi' },
 ];
 
 const SELFHST_ICON_BASE = 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg';
@@ -91,6 +89,7 @@ const APP_ICONS: Record<string, string> = {
     overseerr: `${SELFHST_ICON_BASE}/seerr.svg`,
     jellyseerr: `${SELFHST_ICON_BASE}/jellyseerr.svg`,
     ombi: `${SELFHST_ICON_BASE}/ombi.svg`,
+    tmdb: `${SELFHST_ICON_BASE}/themoviedb.svg`,
     jellystat: 'https://cdn.jsdelivr.net/gh/selfhst/icons@main/png/jellystat.png',
 };
 
@@ -189,6 +188,8 @@ const readStoredSetupPlex = () => {
             requestAppType?: string;
             requestAppUrl?: string;
             requestAppApiKey?: string;
+            tmdbApiKey?: string;
+            migrateFromSeerr?: boolean;
         };
     } catch {
         return null;
@@ -241,9 +242,16 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
     const [tautulliApiKey, setTautulliApiKey] = useState(storedPlex?.tautulliApiKey ?? '');
     const [jellystatUrl, setJellystatUrl] = useState(storedPlex?.jellystatUrl ?? '');
     const [jellystatApiKey, setJellystatApiKey] = useState(storedPlex?.jellystatApiKey ?? '');
-    const [requestAppType, setRequestAppType] = useState(storedPlex?.requestAppType === 'overseerr' ? 'seerr' : (storedPlex?.requestAppType ?? 'none'));
+    const [tmdbApiKey, setTmdbApiKey] = useState(storedPlex?.tmdbApiKey ?? '');
+    const [migrateFromSeerr, setMigrateFromSeerr] = useState(!!storedPlex?.migrateFromSeerr);
+    const [requestAppType, setRequestAppType] = useState(
+        storedPlex?.requestAppType === 'jellyseerr' ? 'jellyseerr' : 'seerr',
+    );
     const [requestAppUrl, setRequestAppUrl] = useState(storedPlex?.requestAppUrl ?? '');
     const [requestAppApiKey, setRequestAppApiKey] = useState(storedPlex?.requestAppApiKey ?? '');
+    const [seerrImportBusy, setSeerrImportBusy] = useState(false);
+    const [seerrImportSummary, setSeerrImportSummary] = useState<string | null>(null);
+    const [seerrImportDone, setSeerrImportDone] = useState(false);
     const [integrationTab, setIntegrationTab] = useState<'arr' | 'requests' | 'analytics'>('arr');
 
     const stepIndex = STEPS.findIndex((s) => s.id === step);
@@ -265,8 +273,8 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
         if (brandTheme === 'plex' || brandTheme === 'jellyfin') {
             applyBrandTheme(nextType);
         }
-        if (requestAppType === 'none' || requestAppType === 'seerr' || requestAppType === 'overseerr' || requestAppType === 'jellyseerr') {
-            setRequestAppType(nextType === 'jellyfin' ? 'jellyseerr' : 'seerr');
+        if (migrateFromSeerr) {
+            setRequestAppType(nextType === 'jellyfin' || nextType === 'emby' ? 'jellyseerr' : 'seerr');
         }
     };
 
@@ -342,6 +350,8 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
             tautulliApiKey,
             jellystatUrl,
             jellystatApiKey,
+            tmdbApiKey,
+            migrateFromSeerr,
             requestAppType,
             requestAppUrl,
             requestAppApiKey,
@@ -508,12 +518,52 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                     tautulliApiKey,
                     jellystatUrl,
                     jellystatApiKey,
-                    requestAppType,
-                    requestAppUrl,
-                    requestAppApiKey,
+                    tmdbApiKey,
+                    requestEngine: 'portal',
+                    discoverySource: 'tmdb',
+                    // Keep Seerr credentials only when migrating — engine stays portal.
+                    requestAppType: migrateFromSeerr && requestAppUrl && requestAppApiKey ? requestAppType : 'none',
+                    requestAppUrl: migrateFromSeerr ? requestAppUrl : '',
+                    requestAppApiKey: migrateFromSeerr ? requestAppApiKey : '',
                     ...(setupToken ? { setupToken } : {}),
                 }),
             });
+
+            if (migrateFromSeerr && requestAppUrl && requestAppApiKey && !seerrImportDone) {
+                try {
+                    const summary = await apiFetch('/api/setup/import-seerr', {
+                        method: 'POST',
+                        headers: setupAuthHeaders(setupToken),
+                        body: JSON.stringify({
+                            requestAppType,
+                            requestAppUrl,
+                            requestAppApiKey,
+                            plexToken: token.trim(),
+                            includeIssues: true,
+                            includeBlocklist: true,
+                            ...(setupToken ? { setupToken } : {}),
+                        }),
+                    });
+                    const req = summary?.requests || {};
+                    setSeerrImportSummary(
+                        `Imported ${req.imported || 0} requests` +
+                        (req.importedWithFallback ? ` (${req.importedWithFallback} under your account until members log in)` : '') +
+                        `, ${summary?.issues?.imported || 0} issues` +
+                        `, ${summary?.blocklist?.imported || 0} blocklist.`,
+                    );
+                    setSeerrImportDone(true);
+                } catch (importError) {
+                    // Config is already saved — surface import failure without blocking launch.
+                    setError(
+                        importError instanceof Error
+                            ? `Portal saved, but Seerr import failed: ${importError.message}`
+                            : 'Portal saved, but Seerr import failed. You can retry from Settings → Request.',
+                    );
+                    setIsLoading(false);
+                    return;
+                }
+            }
+
             sessionStorage.removeItem(SETUP_PLEX_STORAGE_KEY);
             sessionStorage.removeItem('setupReturnPath');
             sessionStorage.removeItem(SETUP_TOKEN_STORAGE_KEY);
@@ -1034,20 +1084,137 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                             {integrationTab === 'requests' && (
                                 <div className={`${sectionCardClass} flex flex-col gap-3.5`}>
                                     <div className="flex items-center gap-3">
-                                        <ProgramIcon app={requestAppType === 'none' ? (mediaServerType !== 'plex' ? 'jellyseerr' : 'seerr') : requestAppType} label="Request App" />
+                                        <ProgramIcon app="tmdb" label="TMDB" />
                                         <div>
-                                            <h3 className="font-bold text-text text-base leading-tight">Request App</h3>
-                                            <p className="text-xs text-muted mt-0.5">Seerr, Jellyseerr, or Ombi for user requests.</p>
+                                            <h3 className="font-bold text-text text-base leading-tight">Portal Discover &amp; Request</h3>
+                                            <p className="text-xs text-muted mt-0.5">
+                                                Built-in requests (no Seerr required). Needs a TMDB API key plus Sonarr/Radarr above.
+                                            </p>
                                         </div>
                                     </div>
-                                    <CustomSelect value={requestAppType} onChange={setRequestAppType} options={REQUEST_APP_OPTIONS} />
-                                    {requestAppType !== 'none' && (
-                                        <>
-                                            <input type="text" className={inputClass} value={requestAppUrl} onChange={(e) => setRequestAppUrl(e.target.value)} placeholder="http://localhost:5055" />
-                                            <input type="password" className={inputClass} value={requestAppApiKey} onChange={(e) => setRequestAppApiKey(e.target.value)} placeholder="API Key" />
-                                            <IntegrationTestButton type="requestApp" payload={{ requestAppType, requestAppUrl, requestAppApiKey }} disabled={!requestAppUrl || !requestAppApiKey} />
-                                        </>
-                                    )}
+                                    <div>
+                                        <label className={labelClass}>TMDB API Key</label>
+                                        <input
+                                            type="password"
+                                            className={inputClass}
+                                            value={tmdbApiKey}
+                                            onChange={(e) => setTmdbApiKey(e.target.value)}
+                                            placeholder="Required for Discover posters &amp; search"
+                                        />
+                                        <p className="text-[11px] text-muted mt-1.5">
+                                            Free from{' '}
+                                            <a
+                                                href="https://www.themoviedb.org/settings/api"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-plex hover:underline"
+                                            >
+                                                themoviedb.org/settings/api
+                                            </a>
+                                        </p>
+                                        <div className="mt-2">
+                                            <IntegrationTestButton
+                                                type="tmdb"
+                                                payload={{ tmdbApiKey }}
+                                                disabled={!String(tmdbApiKey || '').trim()}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
+                                        <label className="flex items-start gap-3 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="mt-1"
+                                                checked={migrateFromSeerr}
+                                                onChange={(e) => setMigrateFromSeerr(e.target.checked)}
+                                            />
+                                            <span>
+                                                <span className="block text-sm font-bold text-text">Coming from Seerr / Jellyseerr?</span>
+                                                <span className="block text-xs text-muted mt-0.5">
+                                                    Optional one-time import of requests, issues, and blocklist. Portal stays the request engine.
+                                                </span>
+                                            </span>
+                                        </label>
+                                        {migrateFromSeerr && (
+                                            <>
+                                                <div className="flex items-center gap-3">
+                                                    <ProgramIcon app={requestAppType} label="Seerr" />
+                                                    <CustomSelect
+                                                        value={requestAppType}
+                                                        onChange={setRequestAppType}
+                                                        options={MIGRATE_SEERR_OPTIONS}
+                                                    />
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    className={inputClass}
+                                                    value={requestAppUrl}
+                                                    onChange={(e) => setRequestAppUrl(e.target.value)}
+                                                    placeholder="http://localhost:5055"
+                                                />
+                                                <input
+                                                    type="password"
+                                                    className={inputClass}
+                                                    value={requestAppApiKey}
+                                                    onChange={(e) => setRequestAppApiKey(e.target.value)}
+                                                    placeholder="API Key"
+                                                />
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <IntegrationTestButton
+                                                        type="requestApp"
+                                                        payload={{ requestAppType, requestAppUrl, requestAppApiKey }}
+                                                        disabled={!requestAppUrl || !requestAppApiKey}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        disabled={seerrImportBusy || !requestAppUrl || !requestAppApiKey}
+                                                        onClick={async () => {
+                                                            setSeerrImportBusy(true);
+                                                            setSeerrImportSummary(null);
+                                                            setError('');
+                                                            try {
+                                                                const summary = await apiFetch('/api/setup/import-seerr', {
+                                                                    method: 'POST',
+                                                                    headers: setupAuthHeaders(setupToken),
+                                                                    body: JSON.stringify({
+                                                                        requestAppType,
+                                                                        requestAppUrl,
+                                                                        requestAppApiKey,
+                                                                        plexToken: token.trim(),
+                                                                        includeIssues: true,
+                                                                        includeBlocklist: true,
+                                                                        ...(setupToken ? { setupToken } : {}),
+                                                                    }),
+                                                                });
+                                                                const req = summary?.requests || {};
+                                                                setSeerrImportSummary(
+                                                                    `Imported ${req.imported || 0} requests` +
+                                                                    (req.importedWithFallback ? ` (${req.importedWithFallback} under your account for now)` : '') +
+                                                                    `, ${summary?.issues?.imported || 0} issues` +
+                                                                    `, ${summary?.blocklist?.imported || 0} blocklist.`,
+                                                                );
+                                                                setSeerrImportDone(true);
+                                                            } catch (e) {
+                                                                setError(e instanceof Error ? e.message : 'Seerr import failed');
+                                                            } finally {
+                                                                setSeerrImportBusy(false);
+                                                            }
+                                                        }}
+                                                        className="inline-flex items-center rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 px-3 py-2 text-sm font-semibold disabled:opacity-50"
+                                                    >
+                                                        {seerrImportBusy ? 'Importing…' : 'Import now'}
+                                                    </button>
+                                                </div>
+                                                {seerrImportSummary && (
+                                                    <p className="text-xs text-emerald-300/90">{seerrImportSummary}</p>
+                                                )}
+                                                <p className="text-[11px] text-muted">
+                                                    Unmapped Seerr users are attached to your admin account until those members log into the portal. You can re-run import later from Settings.
+                                                </p>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             )}
 

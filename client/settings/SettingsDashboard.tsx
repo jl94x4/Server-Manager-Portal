@@ -2377,8 +2377,8 @@ export const SettingsDashboard: React.FC = () => {
                                     htmlFor="requestEngine"
                                     hint={(
                                         <SettingHint>
-                                            Portal (default) stores requests/issues as JSON, pushes to *arr on approve, syncs status from *arr, and applies portal quotas/auto-approve below.
-                                            Seerr remains available as a rollback that creates requests in your request app.
+                                            Portal (default) stores requests/issues as JSON and pushes to *arr on approve.
+                                            Seerr/Jellyseerr is only needed if you want to import history — it is no longer required to run requests.
                                         </SettingHint>
                                     )}
                                 >
@@ -2389,8 +2389,8 @@ export const SettingsDashboard: React.FC = () => {
                                     value={requestEngine}
                                     onChange={setRequestEngine}
                                     options={[
-                                        { value: 'portal', label: 'Portal JSON store (default)' },
-                                        { value: 'seerr', label: 'Seerr / Overseerr (rollback)' },
+                                        { value: 'portal', label: 'Portal (recommended)' },
+                                        { value: 'seerr', label: 'Seerr / Overseerr (legacy rollback)' },
                                     ]}
                                 />
                                 <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -2402,13 +2402,14 @@ export const SettingsDashboard: React.FC = () => {
                                             try {
                                                 const summary = await apiFetch('/api/requests/import-from-seerr', {
                                                     method: 'POST',
-                                                    body: JSON.stringify({ includeIssues: true }),
+                                                    body: JSON.stringify({ includeIssues: true, includeBlocklist: true }),
                                                 });
                                                 const req = summary?.requests || {};
                                                 const iss = summary?.issues || {};
                                                 addToast(
                                                     `Imported ${req.imported || 0} requests` +
-                                                    (req.skippedUnmapped ? ` (${req.skippedUnmapped} unmapped users)` : '') +
+                                                    (req.importedWithFallback ? ` (${req.importedWithFallback} via fallback owner)` : '') +
+                                                    (req.skippedUnmapped ? ` (${req.skippedUnmapped} unmapped)` : '') +
                                                     `, ${iss.imported || 0} issues` +
                                                     `, ${summary?.blocklist?.imported || 0} blocklist.`,
                                                     'success',
@@ -2424,7 +2425,7 @@ export const SettingsDashboard: React.FC = () => {
                                         {importingSeerrHistory ? 'Importing…' : 'Import Seerr history'}
                                     </button>
                                     <p className="text-xs text-white/45 max-w-md">
-                                        Copies existing Seerr requests/issues/blocklist into portal JSON (safe to re-run). Match users by email / Plex id. Also available under Tasks. Watchlist syncs live from Plex after members log in.
+                                        One-shot copy from your configured Seerr/Jellyseerr into portal JSON (safe to re-run). Requires Seerr URL + API key under Integrations. New installs should use the setup wizard migrate option instead.
                                     </p>
                                 </div>
                             </div>

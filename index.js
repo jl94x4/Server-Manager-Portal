@@ -3348,6 +3348,11 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
             : normalizeSectionLayout(existingConfig.dashboardLayout)
     };
     const config = migrateArrConfig(configDraft);
+    // Phase 10: first-time setup always uses the portal request engine.
+    if (!isConfigured) {
+        config.requestEngine = 'portal';
+        config.discoverySource = String(config.tmdbApiKey || '').trim() ? 'tmdb' : 'tmdb';
+    }
     const { config: collexionsConfig, changed: collexionsDefaultsChanged } = applyCollexionsBundledDefaults(config, {
         configDir: CONFIG_DIR,
         log,
@@ -7624,6 +7629,7 @@ app.post('/api/requests/import-from-seerr', requireAdmin, async (req, res) => {
         const portalUsers = await loadFile(USERS_PATH, []);
         const includeIssues = req.body?.includeIssues !== false;
         const includeBlocklist = req.body?.includeBlocklist !== false;
+        const fallbackUserId = String(req.body?.fallbackUserId || req.user?.id || req.user?.plexId || '').trim() || null;
         const summary = await importSeerrHistoryToPortal({
             config,
             fetchSeerrJson: requestAppService.rawFetch,
@@ -7633,11 +7639,74 @@ app.post('/api/requests/import-from-seerr', requireAdmin, async (req, res) => {
             portalUsers,
             includeIssues,
             includeBlocklist,
+            fallbackUserId,
         });
         log(`[SeerrImport] requests imported=${summary.requests.imported} skippedExisting=${summary.requests.skippedExisting} unmapped=${summary.requests.skippedUnmapped}; issues imported=${summary.issues.imported}; blocklist imported=${summary.blocklist.imported}`);
         res.json({ ok: true, ...summary });
     } catch (error) {
         log(`[SeerrImport] failed: ${error.message}`);
+        res.status(502).json({ error: error.message || 'Failed to import Seerr history' });
+    }
+});
+
+/** One-shot Seerr → portal import during initial setup (before admin session exists). */
+app.post('/api/setup/import-seerr', setupRateLimit, async (req, res) => {
+    try {
+        if (!(await assertInitialSetupAccess(req, res))) return;
+
+        const body = req.body || {};
+        const appType = String(body.requestAppType || 'seerr').toLowerCase() === 'jellyseerr'
+            ? 'jellyseerr'
+            : 'seerr';
+        const requestAppUrl = String(body.requestAppUrl || '').trim();
+        const requestAppApiKey = String(body.requestAppApiKey || '').trim();
+        if (!requestAppUrl || !requestAppApiKey) {
+            return res.status(400).json({ error: 'Seerr URL and API key are required to import.' });
+        }
+
+        const existingConfig = await loadFile(CONFIG_PATH, {});
+        const importConfig = {
+            ...existingConfig,
+            requestAppType: appType,
+            requestAppUrl,
+            requestAppApiKey,
+            requestAppFetchUrl: String(body.requestAppFetchUrl || '').trim() || undefined,
+        };
+
+        let fallbackUserId = String(body.fallbackUserId || '').trim() || null;
+        const plexToken = String(body.plexToken || body.token || '').trim();
+        if (!fallbackUserId && plexToken) {
+            try {
+                const account = await fetchWithTimeout('https://plex.tv/api/v2/user', {
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Plex-Token': plexToken,
+                        'X-Plex-Product': 'Server Manager Portal',
+                        'X-Plex-Client-Identifier': process.env.CLIENT_ID || 'server-manager-portal',
+                    },
+                }, 10000).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+                if (account?.id != null) fallbackUserId = String(account.id);
+            } catch {
+                // Import can still proceed; unmapped rows stay skipped without a fallback.
+            }
+        }
+
+        const portalUsers = await loadFile(USERS_PATH, []);
+        const summary = await importSeerrHistoryToPortal({
+            config: importConfig,
+            fetchSeerrJson: requestAppService.rawFetch,
+            requestsDir: REQUESTS_DIR,
+            issuesDir: ISSUES_DIR,
+            blocklistDir: BLOCKLIST_DIR,
+            portalUsers,
+            includeIssues: body.includeIssues !== false,
+            includeBlocklist: body.includeBlocklist !== false,
+            fallbackUserId,
+        });
+        log(`[SeerrImport/setup] requests imported=${summary.requests.imported} fallback=${summary.requests.importedWithFallback || 0}`);
+        res.json({ ok: true, ...summary });
+    } catch (error) {
+        log(`[SeerrImport/setup] failed: ${error.message}`);
         res.status(502).json({ error: error.message || 'Failed to import Seerr history' });
     }
 });
