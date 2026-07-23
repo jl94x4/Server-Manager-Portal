@@ -77,3 +77,5 @@ Use URLs reachable from inside the container. On Docker Desktop, `http://host.do
 Server Manager Portal includes an Unraid template at `unraid/server-manager-portal.xml`.
 
 The template uses `ghcr.io/jl94x4/server-manager-portal:latest` and stores app data under `/mnt/user/appdata/server-manager-portal/` by default.
+
+Unraid template `Registry` must point at the package page (`https://github.com/jl94x4/Server-Manager-Portal/pkgs/container/server-manager-portal`), not bare `https://ghcr.io`, or Docker update status can show **not available**.
