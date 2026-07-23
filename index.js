@@ -11686,39 +11686,23 @@ if (BASE_PATH) {
     app.use(`${BASE_PATH}/static`, express.static(staticDir, staticAssetOptions));
 }
 
-const buildPwaManifest = async (req) => {
+const buildPwaManifest = async () => {
     const config = await loadFile(CONFIG_PATH, {});
     const profile = await getAdminProfile(config);
     const serverName = profile.serverName || 'Server Portal';
+    // App home is /portal when BASE_PATH is empty — matches login redirect + client router.
     const startUrl = BASE_PATH ? `${BASE_PATH}/` : '/portal';
     const scope = BASE_PATH ? `${BASE_PATH}/` : '/';
-    const useServerIcon = normalizePwaIconSource(config.pwaIconSource) !== 'application';
-    // Firefox Android silently aborts Install on dynamic/API icons — keep static PNGs there.
-    // Chromium can use the server logo via the fast /api/public/pwa-icon route.
-    const ua = String(req?.get?.('user-agent') || '');
-    const isFirefox = /Firefox/i.test(ua);
-    const useDynamicServerIcons = useServerIcon && !isFirefox;
-    const iconVer = '3';
-    let icons;
-    if (useDynamicServerIcons) {
-        const cacheKey = getPortalBrandingIconCacheKey(config, profile);
-        const pwaIcon = resolvePublicAssetHref('/api/public/pwa-icon');
-        icons = [
-            { src: `${pwaIcon}?size=192&v=${cacheKey}c2`, sizes: '192x192', type: 'image/png', purpose: 'any' },
-            { src: `${pwaIcon}?size=512&v=${cacheKey}c2`, sizes: '512x512', type: 'image/png', purpose: 'any' },
-            { src: `${pwaIcon}?size=512&v=${cacheKey}c2`, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
-        ];
-    } else {
-        const icon192 = `${resolvePublicAssetHref('/static/pwa-icon-192.png')}?v=${iconVer}`;
-        const icon512 = `${resolvePublicAssetHref('/static/pwa-icon-512.png')}?v=${iconVer}`;
-        const iconMaskable = `${resolvePublicAssetHref('/static/pwa-icon-maskable-512.png')}?v=${iconVer}`;
-        icons = [
-            { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
-            { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
-            { src: iconMaskable, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
-        ];
-    }
+    // ALWAYS use exact-size static PNGs for installability.
+    // Dynamic /api/public/pwa-icon branding (even "fast") makes Chrome Android fall back to
+    // Create shortcut only (WebAPK minting times out / rejects), and Firefox aborts Install entirely.
+    // Server branding still applies to in-app favicon via branding-icon.
+    const iconVer = '4';
+    const icon192 = `${resolvePublicAssetHref('/static/pwa-icon-192.png')}?v=${iconVer}`;
+    const icon512 = `${resolvePublicAssetHref('/static/pwa-icon-512.png')}?v=${iconVer}`;
+    const iconMaskable = `${resolvePublicAssetHref('/static/pwa-icon-maskable-512.png')}?v=${iconVer}`;
     return {
+        id: startUrl,
         name: `${serverName} Portal`,
         short_name: serverName.length > 12 ? 'Portal' : serverName,
         description: `Install ${serverName} Portal for quick access.`,
@@ -11727,17 +11711,19 @@ const buildPwaManifest = async (req) => {
         display: 'standalone',
         background_color: '#0b0f19',
         theme_color: '#0b0f19',
-        icons
+        icons: [
+            { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: iconMaskable, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+        ]
     };
 };
 
-const sendPwaManifest = async (req, res) => {
+const sendPwaManifest = async (_req, res) => {
     try {
         res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-        // Vary so Chrome vs Firefox each keep the right icon set cached.
-        res.setHeader('Vary', 'User-Agent');
-        res.json(await buildPwaManifest(req));
+        res.json(await buildPwaManifest());
     } catch (e) {
         res.status(500).json({ error: 'Failed to build web app manifest.' });
     }
@@ -11752,9 +11738,9 @@ if (BASE_PATH) {
     ], sendPwaManifest);
 }
 
-// Chromium uses this for installability. Firefox deliberately does not register it
-// (a bad SW makes Firefox Install silently no-op).
-const serviceWorkerScript = `/* portal-sw v4 */
+// Chromium Android uses this for WebAPK installability. Firefox deliberately does not
+// register it (a bad SW makes Firefox Install silently no-op).
+const serviceWorkerScript = `/* portal-sw v5 */
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
@@ -11763,7 +11749,10 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-self.addEventListener('fetch', () => {});
+// Chrome Android still expects a fetch handler for Install (vs Create shortcut).
+self.addEventListener('fetch', (event) => {
+  event.respondWith(fetch(event.request));
+});
 `;
 
 const sendServiceWorker = (_req, res) => {

@@ -170,10 +170,15 @@ export const MainApp: React.FC = () => {
                 }
                 if (cancelled) return;
 
-                await navigator.serviceWorker.register(portalUrl('/service-worker.js'), {
+                const reg = await navigator.serviceWorker.register(portalUrl('/service-worker.js'), {
                     scope: portalUrl('/'),
                     updateViaCache: 'none',
                 });
+                try {
+                    await reg.update();
+                } catch {
+                    // ignore update probe failures
+                }
             } catch {
                 // ignore
             }

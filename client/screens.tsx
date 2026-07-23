@@ -9710,6 +9710,18 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                 }
             }
             try {
+                if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && !/Firefox/i.test(navigator.userAgent || '')) {
+                    try {
+                        const regs = await navigator.serviceWorker.getRegistrations();
+                        if (!regs.length) {
+                            notes.push('No service worker registered yet — Chrome Android needs one for Install (not just Create shortcut). Reload once over HTTPS and try again.');
+                        } else if (!navigator.serviceWorker.controller) {
+                            notes.push('Service worker is registered but not controlling this page yet — reload once, then retry Install.');
+                        }
+                    } catch {
+                        // ignore SW probe failures
+                    }
+                }
                 const manifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement | null;
                 const manifestHref = manifestLink?.href || portalUrl('/manifest.webmanifest');
                 const manifestRes = await fetch(manifestHref, { credentials: 'same-origin', cache: 'no-store' });
@@ -9738,7 +9750,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                         }
                     }
                     if (!notes.length) {
-                        notes.push('Manifest and icons look OK. In Firefox: menu ⋮ → Install. If that still does nothing, clear site data for this site and retry once over HTTPS.');
+                        notes.push('Manifest and icons look OK. Chrome Android: menu ⋮ → Install app / Install and create shortcut → Install. Firefox: menu ⋮ → Install. If you still only see Create shortcut, clear site data for this origin and open the portal over HTTPS once more.');
                     }
                 }
             } catch {

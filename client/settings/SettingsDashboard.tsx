@@ -2833,7 +2833,7 @@ export const SettingsDashboard: React.FC = () => {
 
                                                 <div>
                                                     <SettingFieldLabel
-                                                        hint={<SettingHint>Chrome / Edge home-screen install uses your server logo when set. Firefox always uses the Application icon (required for reliable install).</SettingHint>}
+                                                        hint={<SettingHint>Home-screen Install always uses the Application icon so Chrome/Firefox can mint a real app (not just a shortcut). Server logo still applies to the in-app favicon and bookmarks.</SettingHint>}
                                                     >
                                                         PWA Home Screen Icon
                                                     </SettingFieldLabel>
@@ -2841,7 +2841,7 @@ export const SettingsDashboard: React.FC = () => {
                                                         value={pwaIconSource}
                                                         onChange={(value) => setPwaIconSource(value === 'application' ? 'application' : 'server')}
                                                         options={[
-                                                            { label: 'Server logo', value: 'server' },
+                                                            { label: 'Server logo (favicon)', value: 'server' },
                                                             { label: 'Application logo', value: 'application' },
                                                         ]}
                                                     />
