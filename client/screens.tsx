@@ -10222,7 +10222,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
 
             {/* Mobile Bottom Nav */}
             <div className="md:hidden fixed bottom-0 left-0 right-0 w-full nav-shell border-t z-[310] pb-[env(safe-area-inset-bottom)]">
-                <div className="flex items-center justify-between w-full h-16 px-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))]">
+                <div className="flex items-stretch justify-between w-full h-16 px-[max(0.25rem,env(safe-area-inset-left))] pr-[max(0.25rem,env(safe-area-inset-right))]">
                     {(() => {
                         const maxPrimary = MOBILE_NAV_PRIMARY_SLOTS;
                         const showMore = normalizedNavOrder.length > maxPrimary;
@@ -10237,15 +10237,22 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                     return renderNavAction(key, { ...item, label: labelOverride }, { mobile: true, isCurrent, compactLabel: labelOverride, badgeCount: getNavBadgeCount(key) });
                                 })}
                                 {showMore && (
-                                    <button 
-                                        type="button" 
-                                        className="relative flex flex-col items-center justify-center gap-1 h-full flex-1 min-w-[4.25rem] px-1 text-center text-[0.65rem] transition-colors text-muted hover:text-text bg-transparent border-0" 
+                                    <button
+                                        type="button"
+                                        aria-label="More menu"
+                                        aria-expanded={mobileMoreOpen}
+                                        className={`relative flex flex-col items-center justify-center gap-0.5 h-full flex-1 min-w-0 px-0.5 text-center text-[0.6rem] sm:text-[0.65rem] transition-colors bg-transparent border-0 cursor-pointer ${
+                                            mobileMoreOpen ? 'text-plex font-bold' : 'text-muted hover:text-text'
+                                        }`}
                                         onClick={() => setMobileMoreOpen(true)}
                                     >
                                         <span className="relative shrink-0">
                                             <MoreHorizontal className="w-5 h-5" />
                                         </span>
                                         <span>More</span>
+                                        {mobileMoreOpen && (
+                                            <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />
+                                        )}
                                     </button>
                                 )}
                             </>
@@ -10254,19 +10261,35 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                 </div>
             </div>
 
-            {/* Mobile More Drawer */}
+            {/* Mobile More Drawer — above the tab bar (nav is z-310). */}
             {mobileMoreOpen && (
-                <div className="md:hidden fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm animate-fade-in flex flex-col justify-end" onClick={() => setMobileMoreOpen(false)}>
-                    <div className="bg-card border-t border-border rounded-t-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-between p-4 border-b border-white/5">
+                <div
+                    className="md:hidden fixed inset-0 z-[320] bg-black/60 backdrop-blur-sm animate-fade-in flex flex-col justify-end pb-[calc(4rem+env(safe-area-inset-bottom,0px))]"
+                    onClick={() => setMobileMoreOpen(false)}
+                >
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="More menu"
+                        className="bg-card border-t border-border rounded-t-2xl animate-slide-up shadow-2xl max-h-[min(70dvh,calc(100dvh-5.5rem-env(safe-area-inset-bottom,0px)))] overflow-y-auto"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between p-4 border-b border-white/5 sticky top-0 bg-card z-10">
                             <h3 className="font-bold text-text">More Menu</h3>
-                            <button className="text-muted hover:text-text p-1 bg-white/5 rounded-full" onClick={() => setMobileMoreOpen(false)}><X className="w-5 h-5" /></button>
+                            <button
+                                type="button"
+                                className="text-muted hover:text-text p-1 bg-white/5 rounded-full"
+                                onClick={() => setMobileMoreOpen(false)}
+                                aria-label="Close more menu"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
                         </div>
                         <div className="p-5 grid grid-cols-4 gap-4">
                             {(() => {
                                 const maxPrimary = MOBILE_NAV_PRIMARY_SLOTS;
                                 const secondary = normalizedNavOrder.length > maxPrimary ? normalizedNavOrder.slice(maxPrimary) : [];
-                                return secondary.map(key => {
+                                return secondary.map((key) => {
                                     const item = navItemsConfig[key];
                                     if (!item) return null;
                                     const isCurrent = item.route ? isNavCurrent(key, item.route) : false;
@@ -10279,12 +10302,12 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                     };
                                     const badgeCount = getNavBadgeCount(key);
                                     return (
-                                        <button key={key} onClick={handleActivate} className="flex flex-col items-center gap-2 relative bg-transparent border-0">
+                                        <button key={key} type="button" onClick={handleActivate} className="flex flex-col items-center gap-2 relative bg-transparent border-0">
                                             <div className={`w-[3.25rem] h-[3.25rem] rounded-full flex items-center justify-center transition-colors ${isCurrent ? 'bg-plex text-background shadow-[0_0_15px_rgba(229,160,13,0.35)]' : 'bg-background/50 text-text hover:bg-white/10 border border-white/5'}`}>
                                                 <item.icon className="w-6 h-6" />
                                             </div>
                                             {badgeCount > 0 && (
-                                                <span className="absolute -top-1 -right-1 min-w-[18px] h-4.5 px-1 rounded-full bg-plex text-background text-[10px] font-bold flex items-center justify-center leading-none">
+                                                <span className="absolute -top-1 right-1 min-w-[18px] h-4.5 px-1 rounded-full bg-plex text-background text-[10px] font-bold flex items-center justify-center leading-none">
                                                     {badgeCount > 9 ? '9+' : badgeCount}
                                                 </span>
                                             )}
@@ -10294,7 +10317,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                 });
                             })()}
                         </div>
-                        <div className="pb-[calc(env(safe-area-inset-bottom)+1rem)]"></div>
+                        <div className="pb-4" />
                     </div>
                 </div>
             )}
