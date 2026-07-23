@@ -75,7 +75,7 @@ export const RequestModal: React.FC<Props> = ({
     const [selectedQualities, setSelectedQualities] = useState<Set<QualityKey>>(() => new Set(['hd']));
     const [advancedQuality, setAdvancedQuality] = useState<QualityKey>('hd');
     const [selectedSeasons, setSelectedSeasons] = useState<number[]>([]);
-    const [showAdvanced, setShowAdvanced] = useState(false);
+    const [showAdvanced, setShowAdvanced] = useState(true);
     const [qualityForms, setQualityForms] = useState<Record<QualityKey, QualityFormState>>({
         hd: emptyQualityForm(),
         '4k': emptyQualityForm(),
@@ -301,9 +301,8 @@ export const RequestModal: React.FC<Props> = ({
             else initial.add('hd');
             setSelectedQualities(initial);
             setAdvancedQuality(initial.has('hd') ? 'hd' : '4k');
-            // Keep Advanced collapsed until the user opens it — avoids a multi-minute
-            // "Loading server options…" spinner owning the modal (Seerr keeps defaults hidden).
-            setShowAdvanced(false);
+            // Beta: keep Advanced open so quality / language profiles are visible for HD + 4K.
+            setShowAdvanced(true);
 
             if (payload.mediaType === 'tv' && Array.isArray(payload.seasons)) {
                 setSelectedSeasons(
@@ -925,27 +924,35 @@ export const RequestModal: React.FC<Props> = ({
                                         </div>
                                     )}
 
-                                    {(filteredServers.length > 1) && (
+                                    {(filteredServers.length > 0) && (
                                         <div>
                                             <label className="block text-xs font-bold uppercase tracking-wider text-white/40 mb-2">
                                                 Destination Server
                                             </label>
-                                            <CustomSelect
-                                                value={String(activeForm.serverId ?? '')}
-                                                onChange={(val) => {
-                                                    const nextId = Number(val);
-                                                    updateQualityForm(advancedQuality, { serverId: nextId });
-                                                    if (options) {
-                                                        loadServiceOptions(options, advancedQuality, nextId, null, {
-                                                            preserveSelections: false,
-                                                        });
-                                                    }
-                                                }}
-                                                options={filteredServers.map((server) => ({
-                                                    value: String(server.id),
-                                                    label: server.isDefault ? `${server.name} (Default)` : server.name,
-                                                }))}
-                                            />
+                                            {filteredServers.length === 1 ? (
+                                                <p className="rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-sm text-white/80">
+                                                    {filteredServers[0].isDefault
+                                                        ? `${filteredServers[0].name} (Default)`
+                                                        : filteredServers[0].name}
+                                                </p>
+                                            ) : (
+                                                <CustomSelect
+                                                    value={String(activeForm.serverId ?? '')}
+                                                    onChange={(val) => {
+                                                        const nextId = Number(val);
+                                                        updateQualityForm(advancedQuality, { serverId: nextId });
+                                                        if (options) {
+                                                            loadServiceOptions(options, advancedQuality, nextId, null, {
+                                                                preserveSelections: false,
+                                                            });
+                                                        }
+                                                    }}
+                                                    options={filteredServers.map((server) => ({
+                                                        value: String(server.id),
+                                                        label: server.isDefault ? `${server.name} (Default)` : server.name,
+                                                    }))}
+                                                />
+                                            )}
                                         </div>
                                     )}
 
