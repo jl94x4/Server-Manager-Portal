@@ -431,7 +431,7 @@ export const SettingsDashboard: React.FC = () => {
     const [requestDiscoverLanguage, setRequestDiscoverLanguage] = useState('');
     const [requestHideAvailableMedia, setRequestHideAvailableMedia] = useState(false);
     const [discoverySource, setDiscoverySource] = useState('tmdb');
-    const [requestEngine, setRequestEngine] = useState('seerr');
+    const [requestEngine, setRequestEngine] = useState('portal');
     const [importingSeerrHistory, setImportingSeerrHistory] = useState(false);
     const [requestQuotaLimit, setRequestQuotaLimit] = useState(0);
     const [requestQuotaDays, setRequestQuotaDays] = useState(7);
@@ -1010,7 +1010,7 @@ export const SettingsDashboard: React.FC = () => {
             setRequestDiscoverLanguage(initialSettings.requestDiscoverLanguage || '');
             setRequestHideAvailableMedia(!!initialSettings.requestHideAvailableMedia);
             setDiscoverySource(initialSettings.discoverySource === 'seerr' ? 'seerr' : 'tmdb');
-            setRequestEngine(initialSettings.requestEngine === 'portal' ? 'portal' : 'seerr');
+            setRequestEngine(initialSettings.requestEngine === 'seerr' ? 'seerr' : 'portal');
             setRequestQuotaLimit(Number(initialSettings.requestQuotaLimit) || 0);
             setRequestQuotaDays(Number(initialSettings.requestQuotaDays) || 7);
             setRequestQuotaLimit4k(Number(initialSettings.requestQuotaLimit4k) || 0);
@@ -2368,8 +2368,8 @@ export const SettingsDashboard: React.FC = () => {
                                     htmlFor="requestEngine"
                                     hint={(
                                         <SettingHint>
-                                            Seerr (default) creates requests in your request app.
-                                            Portal stores requests/issues as JSON, pushes to *arr on approve, syncs status from *arr, and applies portal quotas/auto-approve below.
+                                            Portal (default) stores requests/issues as JSON, pushes to *arr on approve, syncs status from *arr, and applies portal quotas/auto-approve below.
+                                            Seerr remains available as a rollback that creates requests in your request app.
                                         </SettingHint>
                                     )}
                                 >
@@ -2380,8 +2380,8 @@ export const SettingsDashboard: React.FC = () => {
                                     value={requestEngine}
                                     onChange={setRequestEngine}
                                     options={[
-                                        { value: 'seerr', label: 'Seerr / Overseerr (default)' },
-                                        { value: 'portal', label: 'Portal JSON store (beta)' },
+                                        { value: 'portal', label: 'Portal JSON store (default)' },
+                                        { value: 'seerr', label: 'Seerr / Overseerr (rollback)' },
                                     ]}
                                 />
                                 <div className="mt-3 flex flex-wrap items-center gap-3">

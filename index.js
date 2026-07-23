@@ -2956,7 +2956,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 requestDiscoverLanguage: '',
                 requestHideAvailableMedia: false,
                 discoverySource: 'tmdb',
-                requestEngine: 'seerr',
+                requestEngine: 'portal',
                 requestQuotaLimit: 0,
                 requestQuotaDays: 7,
                 requestQuotaLimit4k: 0,
