@@ -609,6 +609,24 @@ export const getRequestButtonState = (
     if (hasActiveShowDownloads(details, mediaInfo)) {
         return { label: 'Processing', disabled: true, variant: 'pending' as const };
     }
+
+    // Already monitored in Sonarr and still airing / Partial continuing — Sonarr will
+    // pick up new episodes. Do not offer "Request Seasons" for that case.
+    // Ended incomplete shows (missing seasons) still get a Request CTA.
+    const sonarr = details?.sonarrLibraryStatus;
+    const returning = !!(details && isReturningSeries(details));
+    const monitoredContinuing = !!sonarr?.matched
+        && (!!sonarr?.nextAiring || returning);
+    const stampedContinuingPartial = status === MEDIA_STATUS.PARTIAL && returning;
+    if (monitoredContinuing || stampedContinuingPartial) {
+        return {
+            label: 'Up to date',
+            disabled: true,
+            variant: 'available' as const,
+            hide: true,
+        };
+    }
+
     const libraryComplete = isTvShowLibraryComplete(details, seasonRows, mediaInfo);
     if (libraryComplete) {
         return {

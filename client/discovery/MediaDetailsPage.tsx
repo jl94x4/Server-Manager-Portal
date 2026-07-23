@@ -582,7 +582,8 @@ export const MediaDetailsPage: React.FC<{
                         </div>
                     </div>
 
-                    <div className={`grid gap-2.5 w-full ${canReportIssue ? 'grid-cols-2 md:grid-cols-1' : 'grid-cols-1'}`}>
+                    <div className={`grid gap-2.5 w-full ${canReportIssue && !requestButton.hide ? 'grid-cols-2 md:grid-cols-1' : 'grid-cols-1'}`}>
+                    {!requestButton.hide && (
                     <button
                         type="button"
                         onClick={() => setRequestModalOpen(true)}
@@ -605,6 +606,7 @@ export const MediaDetailsPage: React.FC<{
                             <><PlusCircle className="w-4 h-4" /> {requestButton.label}</>
                         )}
                     </button>
+                    )}
 
                     {canReportIssue && (
                         <button
