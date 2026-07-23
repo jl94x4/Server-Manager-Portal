@@ -77,6 +77,9 @@ jobs:
           provenance: false
           sbom: false
           tags: ${{ steps.meta.outputs.tags }}
+          # Unraid Docker update checks report "not available" for OCI-only
+          # manifests; publish Docker Schema 2 media types instead.
+          outputs: type=image,push=true,oci-mediatypes=false
           build-args: |
             GIT_SHA=${{ github.sha }}
             GITHUB_REF=${{ github.ref }}
