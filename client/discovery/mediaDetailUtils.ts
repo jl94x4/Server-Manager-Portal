@@ -216,8 +216,10 @@ export const buildMediaFactRows = (
         });
     }
 
-    if (details?.originalTitle && details.originalTitle !== (details.title || details.name)) {
-        rows.push({ key: 'original-title', label: 'Original title', value: details.originalTitle });
+    const originalTitle = details?.originalTitle || details?.originalName;
+    const displayTitle = details?.title || details?.name;
+    if (originalTitle && originalTitle !== displayTitle) {
+        rows.push({ key: 'original-title', label: 'Original title', value: String(originalTitle) });
     }
 
     if (mediaType === 'tv' && details?.episodeRunTime?.length) {

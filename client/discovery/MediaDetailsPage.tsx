@@ -467,9 +467,6 @@ export const MediaDetailsPage: React.FC<{
     }
 
     const extraDetails: { label: string; value: string }[] = [];
-    if (details.tagline && mediaType === 'tv') {
-        extraDetails.push({ label: 'Tagline', value: details.tagline });
-    }
 
     const visibleRecommendations = filterHiddenAvailableItems(recommendations, preferences.hideAvailableMedia);
     const releaseDateRows = mediaType === 'movie' && radarrReleases
@@ -478,7 +475,18 @@ export const MediaDetailsPage: React.FC<{
             { key: 'streaming', icon: Cloud, label: 'Streaming', date: formatRadarrReleaseDate(radarrReleases.digitalRelease) },
             { key: 'bluray', icon: Disc, label: 'Blu-ray', date: formatRadarrReleaseDate(radarrReleases.physicalRelease) },
         ].filter((row) => row.date)
-        : [];
+        : mediaType === 'tv'
+            ? [
+                { key: 'premiere', icon: Calendar, label: 'First aired', date: formatRadarrReleaseDate(details.firstAirDate) },
+                { key: 'last-aired', icon: Calendar, label: 'Last aired', date: formatRadarrReleaseDate(details.lastAirDate) },
+                {
+                    key: 'next-aired',
+                    icon: Cloud,
+                    label: 'Next episode',
+                    date: formatRadarrReleaseDate(details.nextEpisodeToAir?.airDate || details.nextEpisodeToAir?.air_date),
+                },
+            ].filter((row) => row.date)
+            : [];
 
     return (
         <>
@@ -677,7 +685,7 @@ export const MediaDetailsPage: React.FC<{
                         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-[1.05] tracking-tight drop-shadow-lg">
                             {title}
                         </h1>
-                        {details.tagline && mediaType === 'movie' && (
+                        {details.tagline && (
                             <p className="text-sm sm:text-base text-white/55 italic max-w-4xl">{details.tagline}</p>
                         )}
                         <div className="flex flex-wrap items-center gap-2">

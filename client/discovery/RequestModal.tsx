@@ -322,16 +322,19 @@ export const RequestModal: React.FC<Props> = ({
         }
     }, [mediaId, mediaType]);
 
+    // Preload *arr options as soon as the modal opens so Destination / Root Folder
+    // appear for TV the same way they do for movies (not only after opening Advanced).
     useEffect(() => {
-        if (!open || !options?.canRequestAdvanced || !showAdvanced) return undefined;
+        if (!open || !options?.canRequestAdvanced) return undefined;
         const toLoad: QualityKey[] = [];
         if (options.hasHdServer !== false) toLoad.push('hd');
         if (options.canRequest4k && options.has4kServer) toLoad.push('4k');
+        else if (options.has4kServer) toLoad.push('4k');
         toLoad.forEach((q) => {
             void loadAdvancedForQuality(options, q);
         });
         return undefined;
-    }, [open, showAdvanced, options, loadAdvancedForQuality]);
+    }, [open, options, loadAdvancedForQuality]);
 
     useEffect(() => {
         if (!open) return undefined;
@@ -649,15 +652,91 @@ export const RequestModal: React.FC<Props> = ({
     const overview = (options?.overview || '').trim();
     const posterUrl = options?.posterPath ? `https://image.tmdb.org/t/p/w342${options.posterPath}` : '';
     const showAdvancedSection = !!options?.canRequestAdvanced;
-    // Show HD + UHD whenever a 4K *arr is configured (both can be selected together).
+    // Show HD + UHD whenever a 4K *arr exists (same for movies and series).
     const showQualityPicker = !!options?.has4kServer;
     const advancedLoading = showAdvancedSection && activeForm.loading && !activeForm.loaded;
     const bothQualitiesSelected = selectedQualities.has('hd') && selectedQualities.has('4k');
+    // Surface destination / root folder for series without forcing Advanced open first.
     const showRoutingSection = showAdvancedSection && !advancedLoading && (
         filteredServers.length > 1
         || (activeForm.serviceOptions?.rootFolders || []).length > 0
         || !!activeForm.rootFolder
     );
+
+    const seasonsSection = mediaType === 'tv' && (options?.seasons?.length || 0) > 0 ? (
+        <div>
+            <div className="flex items-center justify-between gap-3 mb-3">
+                <p className="text-xs font-bold uppercase tracking-wider text-white/40">Seasons</p>
+                {requestableSeasons.length > 0 && (
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            onClick={selectAllRequestable}
+                            className="text-[11px] font-bold text-plex hover:text-plex-hover transition-colors"
+                        >
+                            Select all
+                        </button>
+                        <span className="text-white/20">·</span>
+                        <button
+                            type="button"
+                            onClick={selectMissingOnly}
+                            className="text-[11px] font-bold text-plex hover:text-plex-hover transition-colors"
+                        >
+                            Missing only
+                        </button>
+                    </div>
+                )}
+            </div>
+            <div className="flex flex-col gap-2 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+                {(options?.seasons || []).map((season) => {
+                    const selected = selectedSeasons.includes(season.seasonNumber);
+                    const disabled = !season.requestable;
+                    return (
+                        <label
+                            key={season.seasonNumber}
+                            className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
+                                disabled
+                                    ? 'border-white/5 bg-white/[0.02] opacity-70 cursor-not-allowed'
+                                    : selected
+                                        ? 'border-plex/35 bg-plex/10 cursor-pointer'
+                                        : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer'
+                            }`}
+                        >
+                            <input
+                                type="checkbox"
+                                className="sr-only"
+                                checked={selected}
+                                disabled={disabled || submitting}
+                                onChange={() => {
+                                    if (!disabled) toggleSeason(season.seasonNumber);
+                                }}
+                            />
+                            <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border ${
+                                selected ? 'border-plex bg-plex/20' : 'border-white/20 bg-black/20'
+                            }`}>
+                                {selected && <CheckCircle className="w-3.5 h-3.5 text-plex" />}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-bold text-white truncate">
+                                        {season.name}
+                                    </span>
+                                    <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${seasonStatusBadgeClass(season.statusLabel, season.requestable)}`}>
+                                        {season.statusLabel}
+                                    </span>
+                                </div>
+                                {season.episodeCount > 0 && (
+                                    <p className="text-xs text-white/45 mt-0.5">
+                                        {season.episodeCount} episode{season.episodeCount === 1 ? '' : 's'}
+                                    </p>
+                                )}
+                            </div>
+                        </label>
+                    );
+                })}
+            </div>
+        </div>
+    ) : null;
 
     return (
         <ModalPortal open={open}>
@@ -889,84 +968,11 @@ export const RequestModal: React.FC<Props> = ({
                                 </div>
                             )}
 
-                            {mediaType === 'movie' && options.canRequest && !showAdvancedSection && (
+                            {options.canRequest && !showAdvancedSection && (
                                 <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/70">
-                                    Submit a request for this movie. An admin will review it unless auto-approval is enabled in Seerr.
-                                </div>
-                            )}
-
-                            {mediaType === 'tv' && (options.seasons?.length || 0) > 0 && (
-                                <div>
-                                    <div className="flex items-center justify-between gap-3 mb-3">
-                                        <p className="text-xs font-bold uppercase tracking-wider text-white/40">Seasons</p>
-                                        {requestableSeasons.length > 0 && (
-                                            <div className="flex gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={selectAllRequestable}
-                                                    className="text-[11px] font-bold text-plex hover:text-plex-hover transition-colors"
-                                                >
-                                                    Select all
-                                                </button>
-                                                <span className="text-white/20">·</span>
-                                                <button
-                                                    type="button"
-                                                    onClick={selectMissingOnly}
-                                                    className="text-[11px] font-bold text-plex hover:text-plex-hover transition-colors"
-                                                >
-                                                    Missing only
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="flex flex-col gap-2 max-h-64 overflow-y-auto custom-scrollbar pr-1">
-                                        {options.seasons.map((season) => {
-                                            const selected = selectedSeasons.includes(season.seasonNumber);
-                                            const disabled = !season.requestable;
-                                            return (
-                                                <label
-                                                    key={season.seasonNumber}
-                                                    className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
-                                                        disabled
-                                                            ? 'border-white/5 bg-white/[0.02] opacity-70 cursor-not-allowed'
-                                                            : selected
-                                                                ? 'border-plex/35 bg-plex/10 cursor-pointer'
-                                                                : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer'
-                                                    }`}
-                                                >
-                                                    <input
-                                                        type="checkbox"
-                                                        className="sr-only"
-                                                        checked={selected}
-                                                        disabled={disabled || submitting}
-                                                        onChange={() => {
-                                                            if (!disabled) toggleSeason(season.seasonNumber);
-                                                        }}
-                                                    />
-                                                    <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border ${
-                                                        selected ? 'border-plex bg-plex/20' : 'border-white/20 bg-black/20'
-                                                    }`}>
-                                                        {selected && <CheckCircle className="w-3.5 h-3.5 text-plex" />}
-                                                    </span>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-sm font-bold text-white truncate">
-                                                                {season.name}
-                                                            </span>
-                                                            <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${seasonStatusBadgeClass(season.statusLabel, season.requestable)}`}>
-                                                                {season.statusLabel}
-                                                            </span>
-                                                        </div>
-                                                        {season.episodeCount > 0 && (
-                                                            <p className="text-xs text-white/45 mt-0.5">
-                                                                {season.episodeCount} episode{season.episodeCount === 1 ? '' : 's'}
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                </label>
-                                            );
-                                        })}
-                                    </div>
+                                    {mediaType === 'tv'
+                                        ? 'Choose seasons and quality below. An admin will review it unless auto-approval is enabled.'
+                                        : 'Submit a request for this movie. An admin will review it unless auto-approval is enabled.'}
                                 </div>
                             )}
 
@@ -1141,6 +1147,9 @@ export const RequestModal: React.FC<Props> = ({
                                     )}
                                 </div>
                             )}
+
+                            {/* Seasons last so Quality / Destination / Advanced match the movie modal above the fold. */}
+                            {seasonsSection}
                         </>
                     )}
                 </div>
@@ -1157,7 +1166,7 @@ export const RequestModal: React.FC<Props> = ({
                     <button
                         type="button"
                         onClick={handleSubmit}
-                        disabled={submitting || loading || advancedLoading || !canSubmitRequest}
+                        disabled={submitting || loading || (showAdvanced && advancedLoading) || !canSubmitRequest}
                         className="flex-1 py-3 rounded-xl bg-plex text-black font-black hover:bg-plex-hover transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                         {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
