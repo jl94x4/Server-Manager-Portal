@@ -113,18 +113,42 @@ if not os.path.exists(LOG_DIR):
         sys.stderr.write(f"CRITICAL: Error creating log directory '{LOG_DIR}': {e}. Exiting.\n")
         sys.exit(1)
 
+
+class _ReopeningFileHandler(logging.Handler):
+    """Append by path on every emit so clears/truncates never leave a stale FD."""
+
+    def __init__(self, filepath, encoding='utf-8'):
+        super().__init__()
+        self.filepath = filepath
+        self.encoding = encoding
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            with open(self.filepath, 'a', encoding=self.encoding) as handle:
+                handle.write(msg + '\n')
+                handle.flush()
+        except Exception:
+            self.handleError(record)
+
+
 log_handlers = [logging.StreamHandler(sys.stdout)]
 try:
-    log_handlers.append(logging.FileHandler(LOG_FILE, mode='a', encoding='utf-8'))
+    log_handlers.append(_ReopeningFileHandler(LOG_FILE, encoding='utf-8'))
 except Exception as e:
     sys.stderr.write(f"Warning: Error setting up file log handler for '{LOG_FILE}': {e}\n")
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - [%(funcName)s] %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    handlers=log_handlers
-)
+_basic_config_kwargs = {
+    'level': logging.INFO,
+    'format': '%(asctime)s - %(levelname)s - [%(funcName)s] %(message)s',
+    'datefmt': '%Y-%m-%d %H:%M:%S',
+    'handlers': log_handlers,
+}
+# force=True (3.8+) so early plex_identity logging cannot skip attaching our handlers.
+try:
+    logging.basicConfig(**_basic_config_kwargs, force=True)
+except TypeError:
+    logging.basicConfig(**_basic_config_kwargs)
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 

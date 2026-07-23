@@ -1621,7 +1621,12 @@ def get_logs():
                 if len(lines) > 1 and not content.startswith('\n'):
                     # Discard the first (potentially partial) line
                     lines.pop(0)
-                return "\n".join(lines)
+                body = "\n".join(lines)
+                return Response(
+                    body,
+                    mimetype='text/plain; charset=utf-8',
+                    headers={'Cache-Control': 'no-store, no-cache, must-revalidate'},
+                )
         except Exception as e:
             return f"Error reading log file: {e}"
     return "No logs found. Run the script to generate logs."

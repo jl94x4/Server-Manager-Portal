@@ -140,8 +140,9 @@ class CollexionsApiService {
 
     async getLogs(): Promise<string> {
         try {
-            const response = await fetch(portalUrl(base('/logs')), {
+            const response = await fetch(portalUrl(`${base('/logs')}?_=${Date.now()}`), {
                 credentials: 'same-origin',
+                cache: 'no-store',
                 headers: portalRequestHeaders(),
             });
             if (!response.ok) throw new Error('Failed to load logs');
