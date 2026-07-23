@@ -1142,15 +1142,6 @@ html.branded-skeleton .skeleton-base::after {
   animation: discover-poster-in 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.discover-poster-img {
-  opacity: 0;
-  transition: opacity 0.35s ease-out, transform 0.3s ease-out;
-}
-
-.discover-poster-img.is-loaded {
-  opacity: 1;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .skeleton-base,
   .skeleton-base::after,
@@ -1165,11 +1156,6 @@ html.branded-skeleton .skeleton-base::after {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
-  }
-
-  .discover-poster-img {
-    opacity: 1;
-    transition: none;
   }
 }
 

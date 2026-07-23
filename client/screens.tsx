@@ -5654,11 +5654,9 @@ export const DiscoverPosterCard: React.FC<{
         : '';
     const [posterSrc, setPosterSrc] = useState(primaryPosterSrc);
     const [posterFailed, setPosterFailed] = useState(false);
-    const [posterLoaded, setPosterLoaded] = useState(false);
     useEffect(() => {
         setPosterSrc(primaryPosterSrc);
         setPosterFailed(false);
-        setPosterLoaded(false);
     }, [primaryPosterSrc]);
 
     const hasPoster = !!(primaryPosterSrc || fallbackPosterSrc);
@@ -5672,7 +5670,6 @@ export const DiscoverPosterCard: React.FC<{
                     src={posterSrc || fallbackPosterSrc}
                     alt={item.title}
                     loading="lazy"
-                    onLoad={() => setPosterLoaded(true)}
                     onError={() => {
                         if (fallbackPosterSrc && posterSrc !== fallbackPosterSrc) {
                             setPosterSrc(fallbackPosterSrc);
@@ -5680,7 +5677,7 @@ export const DiscoverPosterCard: React.FC<{
                         }
                         setPosterFailed(true);
                     }}
-                    className={`discover-poster-img w-full h-full object-cover ${posterLoaded ? 'is-loaded' : ''} ${variant === 'home' ? 'group-hover:scale-105 group-hover:opacity-80' : ''}`}
+                    className={`w-full h-full object-cover ${variant === 'home' ? 'transition-[transform,opacity] duration-300 group-hover:scale-105 group-hover:opacity-80' : ''}`}
                 />
             )}
             {overlay}
