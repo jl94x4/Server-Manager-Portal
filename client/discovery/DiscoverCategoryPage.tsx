@@ -13,7 +13,7 @@ import { discoverSkeletonCountForGrid } from './discoverPaginationUtils';
 import {
     buildDiscoverNetworkApiUrl,
     buildDiscoverStudioApiUrl,
-    fetchDiscoverPageWithBackfill,
+    fetchDiscoverPageWithAdvance,
 } from './discoverFetchUtils';
 import { useDiscoverI18n } from './i18n';
 
@@ -58,14 +58,14 @@ export const DiscoverCategoryPage: React.FC<Props> = ({ kind, id, onBack, onSele
 
     const fetchPage = useCallback(async (page: number) => {
         try {
-            return await fetchDiscoverPageWithBackfill(
+            return await fetchDiscoverPageWithAdvance(
                 buildUrl,
                 page,
                 { hideAvailable: preferences.hideAvailableMedia },
             );
         } catch (primaryError) {
             console.error(primaryError);
-            return fetchDiscoverPageWithBackfill(
+            return fetchDiscoverPageWithAdvance(
                 buildFallbackUrl,
                 page,
                 { hideAvailable: preferences.hideAvailableMedia },

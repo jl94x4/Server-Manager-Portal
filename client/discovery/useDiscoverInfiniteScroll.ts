@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UpgraderGridSize } from '../shared/portalLayout';
 import { mergeDiscoverResults } from './discoverItemUtils';
 import { filterDiscoverBrowseItems } from './discoverAvailability';
-import { initialDiscoverPagesForGrid, DISCOVER_API_PAGE_SIZE } from './discoverPaginationUtils';
 
 export type DiscoverPagePayload = {
     results: any[];
@@ -24,8 +23,8 @@ type Options = {
     filterOptions?: BrowseFilterOptions;
 };
 
-/** Cap how far the first paint scans when hide filters empty early pages. */
-const MAX_INITIAL_SCAN_PAGES = 80;
+/** Seerr useDiscover initialSize — three API pages on first paint. */
+const INITIAL_PAGE_COUNT = 3;
 
 export function useDiscoverInfiniteScroll({
     resetKey,
@@ -55,31 +54,23 @@ export function useDiscoverInfiniteScroll({
             setLoadedPage(0);
             setTotalPages(1);
 
-            const width = containerRef.current?.clientWidth
-                || (typeof window !== 'undefined' ? Math.max(window.innerWidth - 320, 640) : 1200);
-            const initialPages = initialDiscoverPagesForGrid(gridSize, width);
-            const targetItemCount = initialPages * DISCOVER_API_PAGE_SIZE;
-
             fetchingRef.current = false;
             let merged: any[] = [];
             let lastPage = 0;
             let maxTotalPages = 1;
 
             try {
-                let pageNumber = 1;
-                while (
-                    merged.length < targetItemCount
-                    && pageNumber <= maxTotalPages
-                    && lastPage < MAX_INITIAL_SCAN_PAGES
-                ) {
+                // Seerr-style: fetch a fixed initialSize of pages, not "scan until grid full".
+                for (let i = 0; i < INITIAL_PAGE_COUNT; i += 1) {
                     if (cancelled) return;
+                    const pageNumber = lastPage + 1;
+                    if (lastPage > 0 && pageNumber > maxTotalPages) break;
                     const payload = await fetchPage(pageNumber);
                     maxTotalPages = Math.max(1, Number(payload.totalPages) || 1);
                     const batch = Array.isArray(payload.results) ? payload.results : [];
                     merged = mergeDiscoverResults(merged, batch);
                     lastPage = payload.lastFetchedPage ?? pageNumber;
                     if (lastPage >= maxTotalPages) break;
-                    pageNumber = lastPage + 1;
                 }
 
                 if (!cancelled) {
@@ -93,7 +84,6 @@ export function useDiscoverInfiniteScroll({
                 console.error(e);
                 if (!cancelled) {
                     setResults([]);
-                    // Prevent stuck "Loading more…" when the first fetch fails
                     setLoadedPage(1);
                     setTotalPages(1);
                 }
@@ -125,7 +115,6 @@ export function useDiscoverInfiniteScroll({
             setTotalPages(Math.max(1, Number(payload.totalPages) || totalPages));
         } catch (e) {
             console.error(e);
-            // Stop the sentinel loop on repeated failures
             setLoadedPage(totalPages);
         } finally {
             fetchingRef.current = false;

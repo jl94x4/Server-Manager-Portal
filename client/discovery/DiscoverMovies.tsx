@@ -15,7 +15,7 @@ import { findStudio, MOVIE_GENRES } from './discoverConstants';
 import { useDiscoverInfiniteScroll } from './useDiscoverInfiniteScroll';
 import { DiscoverInfiniteScrollFooter } from './DiscoverInfiniteScrollFooter';
 import { discoverSkeletonCountForGrid } from './discoverPaginationUtils';
-import { buildDiscoverMoviesApiUrl, fetchDiscoverPageWithBackfill } from './discoverFetchUtils';
+import { buildDiscoverMoviesApiUrl, fetchDiscoverPageWithAdvance } from './discoverFetchUtils';
 import { DiscoverHideRequestedToggle } from './DiscoverHideRequestedToggle';
 import { useHideRequestedToggle } from './useHideRequestedToggle';
 import { discoveryTheme } from './discoveryThemeClasses';
@@ -62,7 +62,7 @@ export const DiscoverMovies: React.FC<{
         hideRequested: false,
     }), [preferences.hideAvailableMedia, hideRequested]);
 
-    const fetchPage = useCallback(async (page: number) => fetchDiscoverPageWithBackfill(
+    const fetchPage = useCallback(async (page: number) => fetchDiscoverPageWithAdvance(
         (nextPage) => buildDiscoverMoviesApiUrl(nextPage, filters),
         page,
         browseFilterOptions,

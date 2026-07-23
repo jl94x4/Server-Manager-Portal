@@ -5487,7 +5487,8 @@ const attachDiscoveryAvailabilityCacheToPayload = async (config, sessionUser, da
     let next = applyDiscoveryAvailabilityCacheToPayload(data, cache);
 
     // Stamp cache misses from the warm *arr catalog BEFORE responding — badges on first paint,
-    // no client-side availability-batch pop-in. Skip when catalogs are cold (non-blocking).
+    // no client-side availability-batch pop-in. Peek/Map only (networkLookups:false); cold
+    // catalogs return immediately and warm in background (Seerr-style Media DB join).
     const stampWarmCatalog = async (items) => {
         const list = Array.isArray(items) ? items : [];
         if (!list.length) return list;
@@ -5499,15 +5500,11 @@ const attachDiscoveryAvailabilityCacheToPayload = async (config, sessionUser, da
         if (!misses.length) return list;
         try {
             const library = createDiscoveryLibraryAvailability(config);
-            const enrichPromise = library.enrichItems(misses, {
+            // Peek lookups are sync-fast once warm — do not race-drop stamps under load.
+            const enrichedMisses = await library.enrichItems(misses, {
                 blockForCatalog: false,
                 networkLookups: false,
             });
-            // Never let warm-catalog stamp hang list responses (refresh storms).
-            const enrichedMisses = await Promise.race([
-                enrichPromise,
-                new Promise((resolve) => setTimeout(() => resolve(misses), 1200)),
-            ]);
             const byKey = new Map();
             for (const item of Array.isArray(enrichedMisses) ? enrichedMisses : []) {
                 const mediaType = item?.mediaType === 'tv' || item?.mediaType === 2 ? 'tv' : 'movie';

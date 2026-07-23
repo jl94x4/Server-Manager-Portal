@@ -14,7 +14,7 @@ import {
 import { enrichDiscoveryItems, normalizeRawDiscoveryItem } from './discoverItemUtils';
 import { portalRequestToDiscoveryRowItem } from './myRequestUtils';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
-import { fetchDiscoverHomeRowResults, fetchDiscoverHomeRowResultsFromSources } from './discoverFetchUtils';
+import { fetchDiscoverHomeRowResults } from './discoverFetchUtils';
 import { enrichDiscoverItemsWithAvailability } from './discoverAvailabilityEnrich';
 import { WatchlistPanel } from './WatchlistPanel';
 import { DiscoverHomeSkeleton } from '../shared/skeletons';
@@ -99,87 +99,32 @@ export const DiscoverHome: React.FC<{
     ));
     const [loading, setLoading] = useState(true);
     const loadGenRef = useRef(0);
-    const fillAbortRef = useRef<AbortController | null>(null);
 
     const loadData = useCallback(async () => {
         if (!loaded) return;
         const gen = ++loadGenRef.current;
-        // Cancel any prior deep-fill storm so refreshes don't queue forever behind it.
-        fillAbortRef.current?.abort();
-        fillAbortRef.current = null;
         const paintAbort = new AbortController();
         const paintTimer = window.setTimeout(() => paintAbort.abort(), 10000);
         setLoading(true);
         try {
             const hideAvailable = preferences.hideAvailableMedia;
-            // Fast first paint: one source, few pages. Background deepFill densifies rows.
-            const quickPaint = {
+            // Seerr-style: one endpoint per rail; advance same URL pages only (no multi-source storm).
+            const rowOpts = {
                 needsBackfill: hideAvailable,
                 maxPages: hideAvailable ? 2 : 1,
                 maxItems: 20,
-                minItems: hideAvailable ? 4 : 10,
-                // Keep requested titles on Discover; only drop available/partial.
+                minItems: hideAvailable ? 8 : 10,
                 hideRequested: false,
                 trustAttachedAvailability: true,
-                pageConcurrency: hideAvailable ? 2 : 1,
+                pageConcurrency: 1,
                 requirePoster: true,
                 signal: paintAbort.signal,
             };
-            const deepFill = {
-                needsBackfill: true,
-                maxPages: 6,
-                maxItems: 24,
-                minItems: 16,
-                hideRequested: false,
-                trustAttachedAvailability: true,
-                pageConcurrency: 2,
-                requirePoster: true,
-            };
-            const movieSourcesQuick = [
-                (page: number) => `/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`,
-            ];
-            const movieSourcesDeep = hideAvailable
-                ? [
-                    (page: number) => `/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`,
-                    (page: number) => `/api/discovery/proxy/discover/movies?sortBy=vote_count.desc&page=${page}`,
-                    (page: number) => `/api/discovery/proxy/discover/movies/upcoming?page=${page}`,
-                ]
-                : movieSourcesQuick;
-            const seriesSourcesQuick = [
-                (page: number) => `/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`,
-            ];
-            const seriesSourcesDeep = hideAvailable
-                ? [
-                    (page: number) => `/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`,
-                    (page: number) => `/api/discovery/proxy/discover/tv?sortBy=vote_count.desc&page=${page}`,
-                    (page: number) => `/api/discovery/proxy/discover/tv/upcoming?page=${page}`,
-                ]
-                : seriesSourcesQuick;
-            const upcomingMovieSources = [
-                (page: number) => `/api/discovery/proxy/discover/movies/upcoming?page=${page}`,
-            ];
-            const upcomingSeriesSources = [
-                (page: number) => `/api/discovery/proxy/discover/tv/upcoming?page=${page}`,
-            ];
-            const trendingSourcesQuick = [
-                (page: number) => `/api/discovery/proxy/discover/trending?page=${page}`,
-            ];
-            const trendingSourcesDeep = hideAvailable
-                ? [
-                    (page: number) => `/api/discovery/proxy/discover/trending?page=${page}`,
-                    (page: number) => `/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`,
-                    (page: number) => `/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`,
-                ]
-                : trendingSourcesQuick;
-
-            const fetchRow = (
-                sources: Array<(page: number) => string>,
-                opts: typeof quickPaint,
-            ) => (
-                sources.length > 1
-                    ? fetchDiscoverHomeRowResultsFromSources(sources, hideAvailable, opts)
-                    : fetchDiscoverHomeRowResults(sources[0], hideAvailable, opts)
-            );
+            const trendingUrl = (page: number) => `/api/discovery/proxy/discover/trending?page=${page}`;
+            const moviesUrl = (page: number) => `/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`;
+            const upcomingMoviesUrl = (page: number) => `/api/discovery/proxy/discover/movies/upcoming?page=${page}`;
+            const seriesUrl = (page: number) => `/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`;
+            const upcomingSeriesUrl = (page: number) => `/api/discovery/proxy/discover/tv/upcoming?page=${page}`;
 
             const [
                 trendingRes,
@@ -188,11 +133,11 @@ export const DiscoverHome: React.FC<{
                 popularSeries,
                 upcomingSeries,
             ] = await Promise.all([
-                fetchRow(trendingSourcesQuick, quickPaint).catch(() => []),
-                fetchRow(movieSourcesQuick, quickPaint).catch(() => []),
-                fetchRow(upcomingMovieSources, quickPaint).catch(() => []),
-                fetchRow(seriesSourcesQuick, quickPaint).catch(() => []),
-                fetchRow(upcomingSeriesSources, quickPaint).catch(() => []),
+                fetchDiscoverHomeRowResults(trendingUrl, hideAvailable, rowOpts).catch(() => []),
+                fetchDiscoverHomeRowResults(moviesUrl, hideAvailable, rowOpts).catch(() => []),
+                fetchDiscoverHomeRowResults(upcomingMoviesUrl, hideAvailable, rowOpts).catch(() => []),
+                fetchDiscoverHomeRowResults(seriesUrl, hideAvailable, rowOpts).catch(() => []),
+                fetchDiscoverHomeRowResults(upcomingSeriesUrl, hideAvailable, rowOpts).catch(() => []),
             ]);
 
             if (gen !== loadGenRef.current) return;
@@ -208,52 +153,6 @@ export const DiscoverHome: React.FC<{
                 upcomingSeries: filterHiddenAvailableItems(upcomingSeries, hideAvailable),
             });
             setLoading(false);
-
-            // Background refill when hide empties popular rails (never block the skeleton again).
-            if (hideAvailable) {
-                const fillAbort = new AbortController();
-                fillAbortRef.current?.abort();
-                fillAbortRef.current = fillAbort;
-                const fillOpts = { ...deepFill, signal: fillAbort.signal };
-                void (async () => {
-                    try {
-                        const [trendingFill, moviesFill, upcomingMoviesFill, seriesFill, upcomingSeriesFill] = await Promise.all([
-                            fetchRow(trendingSourcesDeep, fillOpts).catch(() => []),
-                            fetchRow(movieSourcesDeep, fillOpts).catch(() => []),
-                            fetchRow(upcomingMovieSources, fillOpts).catch(() => []),
-                            fetchRow(seriesSourcesDeep, fillOpts).catch(() => []),
-                            fetchRow(upcomingSeriesSources, fillOpts).catch(() => []),
-                        ]);
-                        if (gen !== loadGenRef.current || fillAbort.signal.aborted) return;
-                        const pickRow = (fill, quick) => (
-                            // When hiding available, always prefer the filtered refill — even if shorter.
-                            // Preferring the longer quick paint reintroduced Silo/Lucky after filter.
-                            Array.isArray(fill) ? fill : quick
-                        );
-                        const next = {
-                            trending: pickRow(trendingFill, trendingRes),
-                            popularMovies: pickRow(moviesFill, popularMovies),
-                            upcomingMovies: pickRow(upcomingMoviesFill, upcomingMovies),
-                            popularSeries: pickRow(seriesFill, popularSeries),
-                            upcomingSeries: pickRow(upcomingSeriesFill, upcomingSeries),
-                        };
-                        setRows((prev) => ({
-                            ...prev,
-                            trending: filterHiddenAvailableItems(next.trending, hideAvailable),
-                            popularMovies: filterHiddenAvailableItems(next.popularMovies, hideAvailable),
-                            upcomingMovies: filterHiddenAvailableItems(next.upcomingMovies, hideAvailable),
-                            popularSeries: filterHiddenAvailableItems(next.popularSeries, hideAvailable),
-                            upcomingSeries: filterHiddenAvailableItems(next.upcomingSeries, hideAvailable),
-                        }));
-                        // Badges are stamped server-side (disk cache + warm catalog). Do not
-                        // client-enrich here — that caused status badges to "pop in" later.
-                    } catch {
-                        // Refill is best-effort.
-                    }
-                })();
-            } else {
-                // Server already attached mediaInfo — no client availability-batch pass.
-            }
 
             // Side rails + poster enrich after first paint (never block the skeleton).
             void (async () => {
@@ -329,8 +228,6 @@ export const DiscoverHome: React.FC<{
         loadData();
         return () => {
             loadGenRef.current += 1;
-            fillAbortRef.current?.abort();
-            fillAbortRef.current = null;
         };
     }, [loadData]);
 

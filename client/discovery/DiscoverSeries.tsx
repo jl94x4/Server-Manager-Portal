@@ -15,7 +15,7 @@ import { findNetwork, TV_GENRES } from './discoverConstants';
 import { useDiscoverInfiniteScroll } from './useDiscoverInfiniteScroll';
 import { DiscoverInfiniteScrollFooter } from './DiscoverInfiniteScrollFooter';
 import { discoverSkeletonCountForGrid } from './discoverPaginationUtils';
-import { buildDiscoverSeriesApiUrl, fetchDiscoverPageWithBackfill } from './discoverFetchUtils';
+import { buildDiscoverSeriesApiUrl, fetchDiscoverPageWithAdvance } from './discoverFetchUtils';
 import { DiscoverHideRequestedToggle } from './DiscoverHideRequestedToggle';
 import { useHideRequestedToggle } from './useHideRequestedToggle';
 import { discoveryTheme } from './discoveryThemeClasses';
@@ -62,7 +62,7 @@ export const DiscoverSeries: React.FC<{
         hideRequested: false,
     }), [preferences.hideAvailableMedia, hideRequested]);
 
-    const fetchPage = useCallback(async (page: number) => fetchDiscoverPageWithBackfill(
+    const fetchPage = useCallback(async (page: number) => fetchDiscoverPageWithAdvance(
         (nextPage) => buildDiscoverSeriesApiUrl(nextPage, filters),
         page,
         browseFilterOptions,
