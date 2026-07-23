@@ -12145,30 +12145,31 @@ const startPortalRequestStatusSyncBackgroundTask = () => {
 };
 
 const startDiscoveryAvailabilityCacheBackgroundTask = () => {
-    // Prefer existing on-disk cache at boot. Only rebuild soon if the cache is empty;
-    // otherwise wait for the 12h schedule so Settings/session stay responsive.
-    const scheduleNext = (delayMs) => {
-        systemJobs.discoveryAvailabilityCache.nextRun = new Date(Date.now() + delayMs).toISOString();
-        setTimeout(() => {
-            runDiscoveryAvailabilityCacheRebuild('startup').catch(() => {});
-        }, delayMs);
-    };
-
+    // Serving Discover is always instant from the on-disk cache (loaded below).
+    // Background *arr scan is separate and must never block boot / Settings.
     void (async () => {
         try {
             const existing = await loadDiscoveryAvailabilityCacheFile({ force: true });
             const itemCount = Number(existing?.itemCount) || Object.keys(existing?.byKey || {}).length || 0;
             if (itemCount > 0) {
-                log(`[DiscoveryAvailabilityCache] using on-disk cache (${itemCount} items); next scan in 12h`);
+                log(`[DiscoveryAvailabilityCache] ready (${itemCount} items); next *arr scan in 12h`);
                 systemJobs.discoveryAvailabilityCache.nextRun = new Date(
                     Date.now() + DISCOVERY_AVAILABILITY_CACHE_INTERVAL_MS,
                 ).toISOString();
                 return;
             }
-            // Empty cache — fill once after boot settles (not immediately).
-            scheduleNext(2 * 60 * 1000);
-        } catch {
-            scheduleNext(2 * 60 * 1000);
+            // Empty cache: fill in the background right away (non-blocking). Browse still
+            // responds instantly — badges just appear after this first snapshot finishes.
+            log('[DiscoveryAvailabilityCache] empty — scanning *arr in background');
+            systemJobs.discoveryAvailabilityCache.nextRun = new Date().toISOString();
+            setImmediate(() => {
+                runDiscoveryAvailabilityCacheRebuild('startup').catch(() => {});
+            });
+        } catch (error) {
+            log(`[DiscoveryAvailabilityCache] boot load failed: ${error.message}`);
+            setImmediate(() => {
+                runDiscoveryAvailabilityCacheRebuild('startup').catch(() => {});
+            });
         }
     })();
 
