@@ -92,14 +92,14 @@ export const ReportIssueModal: React.FC<Props> = ({
 
     return (
         <ModalPortal open={open}>
-        <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-x-0 top-0 z-[340] flex items-end sm:items-center justify-center p-0 sm:p-4 bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] sm:inset-0 sm:bottom-0">
             <button
                 type="button"
                 aria-label="Close"
                 className="absolute inset-0 bg-black/80 backdrop-blur-sm"
                 onClick={() => { if (!submitting) onClose(); }}
             />
-            <div className="relative w-full sm:max-w-lg max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-0.5rem))] sm:max-h-[85vh] rounded-t-2xl sm:rounded-2xl border border-white/10 bg-card shadow-2xl overflow-hidden flex flex-col">
+            <div className="relative w-full sm:max-w-lg max-h-[min(92dvh,calc(100dvh-5.5rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))] sm:max-h-[85vh] rounded-t-2xl sm:rounded-2xl border border-white/10 bg-card shadow-2xl overflow-hidden flex flex-col">
                 <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-white/10">
                     <div className="flex items-center gap-2 min-w-0">
                         <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
@@ -115,7 +115,7 @@ export const ReportIssueModal: React.FC<Props> = ({
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 pb-4">
                     <div>
                         <p className="text-xs uppercase tracking-wider text-white/45 font-bold mb-1">Title</p>
                         <p className="text-sm font-semibold text-white">{title}</p>

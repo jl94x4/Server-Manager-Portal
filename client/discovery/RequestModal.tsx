@@ -716,7 +716,7 @@ export const RequestModal: React.FC<Props> = ({
                     </div>
                 )}
             </div>
-            <div className="flex flex-col gap-2 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+            <div className="flex flex-col gap-2 max-h-none sm:max-h-64 sm:overflow-y-auto custom-scrollbar pr-1">
                 {(options?.seasons || []).map((season) => {
                     const seasonNumber = Number(season.seasonNumber);
                     const selected = selectedSeasons.includes(seasonNumber);
@@ -772,7 +772,7 @@ export const RequestModal: React.FC<Props> = ({
 
     return (
         <ModalPortal open={open}>
-        <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-x-0 top-0 z-[340] flex items-end sm:items-center justify-center p-0 sm:p-4 bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] sm:inset-0 sm:bottom-0">
             <button
                 type="button"
                 aria-label="Close request modal"
@@ -784,7 +784,7 @@ export const RequestModal: React.FC<Props> = ({
                 aria-modal="true"
                 aria-labelledby="request-modal-title"
                 onMouseDown={(event) => event.stopPropagation()}
-                className="relative w-full sm:max-w-3xl lg:max-w-4xl max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-0.5rem))] sm:max-h-[85vh] min-h-0 bg-card border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+                className="relative w-full sm:max-w-3xl lg:max-w-4xl h-auto max-h-full sm:max-h-[85vh] min-h-0 bg-card border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden"
             >
                 <div className="flex items-start justify-between gap-4 p-5 border-b border-white/10 bg-black/20 shrink-0">
                     <div className="flex items-start gap-4 min-w-0">
@@ -833,7 +833,7 @@ export const RequestModal: React.FC<Props> = ({
                     </button>
                 </div>
 
-                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar p-5 flex flex-col gap-5">
+                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain touch-pan-y custom-scrollbar p-5 flex flex-col gap-5">
                     {loading ? (
                         <div className="flex flex-col items-center justify-center gap-3 py-10">
                             <Loader2 className="w-7 h-7 text-plex animate-spin" />
@@ -1202,7 +1202,7 @@ export const RequestModal: React.FC<Props> = ({
                     )}
                 </div>
 
-                <div className="p-4 sm:p-5 pt-4 border-t border-white/10 bg-black/20 flex gap-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-5 shrink-0">
+                <div className="p-4 sm:p-5 pt-4 border-t border-white/10 bg-black/20 flex gap-3 pb-4 sm:pb-5 shrink-0">
                     <button
                         type="button"
                         onClick={onClose}
