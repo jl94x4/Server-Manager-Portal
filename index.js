@@ -8015,6 +8015,9 @@ const getTasksSnapshot = (config = {}) => {
     ];
 };
 
+/** Clear "already running" after this long so a hung *arr download can be retried. */
+const DISCOVERY_AVAILABILITY_STUCK_MS = 10 * 60 * 1000;
+
 const findRunnableTask = (taskId) => {
     const scheduled = tasksInfo.find(t => t.id === taskId);
     if (scheduled) return { task: scheduled, kind: 'scheduled' };
@@ -8036,11 +8039,21 @@ app.post('/api/tasks/run/:taskId', requireAdmin, async (req, res) => {
     const { task, kind } = match;
 
     if (task.running) {
-        return res.status(400).json({ error: `Task "${task.name}" is already running.` });
+        // Allow retry when Discovery Availability Cache is stuck mid-download.
+        const startedAt = Number(task._startedAt) || 0;
+        const stuck = startedAt > 0 && (Date.now() - startedAt) > DISCOVERY_AVAILABILITY_STUCK_MS;
+        if (!(taskId === 'discoveryAvailabilityCache' && stuck)) {
+            return res.status(400).json({ error: `Task "${task.name}" is already running.` });
+        }
+        markTaskEnd(task, new Error('Cleared stuck run before manual retry'));
     }
 
-    // Respond to the client immediately
-    res.json({ message: `Task "${task.name}" started in the background.`, task });
+    // Mark running before responding so Tasks UI shows Running on the first refresh.
+    if (kind === 'scheduled' || taskId === 'discoveryAvailabilityCache') {
+        markTaskStart(task);
+    }
+
+    res.json({ message: `Task "${task.name}" started in the background.`, task: { ...task } });
 
     // Execute the task in the background
     (async () => {
@@ -8048,7 +8061,6 @@ app.post('/api/tasks/run/:taskId', requireAdmin, async (req, res) => {
             const currentConfig = await loadFile(CONFIG_PATH, {});
 
             if (kind === 'scheduled') {
-                markTaskStart(task);
                 try {
                     switch (taskId) {
                         case 'syncPlexUsers': await syncUsers(currentConfig); break;
@@ -8080,11 +8092,16 @@ app.post('/api/tasks/run/:taskId', requireAdmin, async (req, res) => {
                     case 'autoBackup': await runAutoBackupCycle('manual', { force: true }); break;
                     case 'maintenanceIndex': await buildMaintenanceMediaIndex({ actor: req.user, force: true }); break;
                     case 'requestStatusSync': await runPortalRequestStatusSync('manual'); break;
-                    case 'discoveryAvailabilityCache': await runDiscoveryAvailabilityCacheRebuild('manual'); break;
+                    case 'discoveryAvailabilityCache':
+                        await runDiscoveryAvailabilityCacheRebuild('manual', { alreadyStarted: true });
+                        break;
                     case 'seerrHistoryImport': await runSeerrHistoryImport('manual'); break;
+                    default:
+                        markTaskEnd(task, new Error('Invalid system task'));
                 }
             }
         } catch (e) {
+            markTaskEnd(task, e);
             log(`[Tasks] Fatal error in background task execution wrapper for "${task.name}": ${e.message}`);
         }
     })();
@@ -12055,30 +12072,43 @@ const markTaskEnd = (task, error = null) => {
 const REQUEST_STATUS_SYNC_INTERVAL_MS = 60 * 1000;
 /** Sonarr/Radarr library badge snapshot — Discover serves from disk; rescans infrequently. */
 const DISCOVERY_AVAILABILITY_CACHE_INTERVAL_MS = 12 * 60 * 60 * 1000;
+/** Full Sonarr/Radarr JSON downloads need far longer than Discover browse (8s). */
+const DISCOVERY_AVAILABILITY_CATALOG_TIMEOUT_MS = 3 * 60 * 1000;
 
-const runDiscoveryAvailabilityCacheRebuild = async (reason = 'scheduled') => {
+const runDiscoveryAvailabilityCacheRebuild = async (reason = 'scheduled', { alreadyStarted = false } = {}) => {
     const job = systemJobs.discoveryAvailabilityCache;
-    if (job.running) return null;
-    markTaskStart(job);
+    if (job.running && !alreadyStarted) {
+        const startedAt = Number(job._startedAt) || 0;
+        if (startedAt > 0 && (Date.now() - startedAt) > DISCOVERY_AVAILABILITY_STUCK_MS) {
+            log('[DiscoveryAvailabilityCache] clearing stuck running flag before retry');
+            markTaskEnd(job, new Error('Cleared stuck run after 10 minutes'));
+        } else {
+            return null;
+        }
+    }
+    if (!alreadyStarted) markTaskStart(job);
     try {
         const config = await loadFile(CONFIG_PATH, {});
         const summary = await rebuildDiscoveryAvailabilityCache({
             config,
-            createLibraryAvailability: createDiscoveryLibraryAvailability,
+            createLibraryAvailability: (cfg, extras = {}) => createDiscoveryLibraryAvailability(cfg, {
+                ...extras,
+                warmOnCreate: false,
+                forceCatalogRefresh: true,
+                catalogTimeoutMs: DISCOVERY_AVAILABILITY_CATALOG_TIMEOUT_MS,
+            }),
             saveFile,
             cachePath: DISCOVERY_AVAILABILITY_CACHE_PATH,
         });
         invalidateDiscoveryAvailabilityCacheMemo();
         job.nextRun = new Date(Date.now() + DISCOVERY_AVAILABILITY_CACHE_INTERVAL_MS).toISOString();
         markTaskEnd(job, null);
-        if (reason === 'manual' || reason === 'startup' || summary?.itemCount > 0) {
-            log(`[DiscoveryAvailabilityCache] ${reason}: items=${summary.itemCount} movies=${summary.movieCount} tv=${summary.tvCount}`);
-        }
+        log(`[DiscoveryAvailabilityCache] ${reason}: items=${summary.itemCount} movies=${summary.movieCount} tv=${summary.tvCount}`);
         return summary;
     } catch (error) {
         job.nextRun = new Date(Date.now() + DISCOVERY_AVAILABILITY_CACHE_INTERVAL_MS).toISOString();
         markTaskEnd(job, error);
-        log(`[DiscoveryAvailabilityCache] failed: ${error.message}`);
+        log(`[DiscoveryAvailabilityCache] failed (${reason}): ${error.message}`);
         return null;
     }
 };
