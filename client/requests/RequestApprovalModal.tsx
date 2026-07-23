@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Film, Loader2, Tv, X } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { formatDateTime } from '../shared/format';
@@ -89,6 +89,11 @@ export const RequestApprovalModal: React.FC<Props> = ({
     const [selectedTags, setSelectedTags] = useState<number[]>([]);
     const [selectedSeasons, setSelectedSeasons] = useState<number[]>([]);
 
+    const onErrorRef = useRef(onError);
+    const onCompleteRef = useRef(onComplete);
+    useEffect(() => { onErrorRef.current = onError; }, [onError]);
+    useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
+
     const serviceType = detail?.type === 'tv' ? 'sonarr' : 'radarr';
 
     const loadServiceOptions = useCallback(async (type: 'movie' | 'tv', nextServerId: number) => {
@@ -98,12 +103,12 @@ export const RequestApprovalModal: React.FC<Props> = ({
             const data = await apiFetch(`/api/requests/services/${segment}/${nextServerId}`);
             setServiceOptions(data);
         } catch (e: any) {
-            onError(e?.message || 'Failed to load service options');
+            onErrorRef.current(e?.message || 'Failed to load service options');
             setServiceOptions(null);
         } finally {
             setOptionsLoading(false);
         }
-    }, [onError]);
+    }, []);
 
     useEffect(() => {
         let cancelled = false;
@@ -179,13 +184,13 @@ export const RequestApprovalModal: React.FC<Props> = ({
                         : []
                 );
             } catch (e: any) {
-                if (!cancelled) onError(e?.message || 'Failed to load request');
+                if (!cancelled) onErrorRef.current(e?.message || 'Failed to load request');
             } finally {
                 if (!cancelled) setLoading(false);
             }
         })();
         return () => { cancelled = true; };
-    }, [requestId, loadServiceOptions, onError]);
+    }, [requestId]);
 
     useEffect(() => {
         if (!detail || serverId == null) return;
@@ -276,7 +281,7 @@ export const RequestApprovalModal: React.FC<Props> = ({
     const handleSave = async (andApprove: boolean) => {
         if (!detail) return;
         if (detail.type === 'tv' && selectedSeasons.length === 0) {
-            onError('Select at least one season to approve');
+            onErrorRef.current('Select at least one season to approve');
             return;
         }
         setSaving(true);
@@ -286,17 +291,17 @@ export const RequestApprovalModal: React.FC<Props> = ({
                     method: 'POST',
                     body: JSON.stringify({ title: detail.title, overrides }),
                 });
-                onComplete(`Approved "${detail.title}"`);
+                onCompleteRef.current(`Approved "${detail.title}"`);
             } else {
                 await apiFetch(`/api/requests/${requestId}`, {
                     method: 'PUT',
                     body: JSON.stringify({ title: detail.title, overrides }),
                 });
-                onComplete(`Updated "${detail.title}"`);
+                onCompleteRef.current(`Updated "${detail.title}"`);
             }
             onClose();
         } catch (e: any) {
-            onError(e?.message || (andApprove ? 'Failed to approve request' : 'Failed to update request'));
+            onErrorRef.current(e?.message || (andApprove ? 'Failed to approve request' : 'Failed to update request'));
         } finally {
             setSaving(false);
         }
