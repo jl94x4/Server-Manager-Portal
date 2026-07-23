@@ -406,15 +406,15 @@ const UserModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (user:
     ) => (
         <div className="mb-3">
             <label className="text-xs font-semibold text-muted mb-1 block">{label}</label>
-            <select
-                className="w-full p-2 rounded-lg border border-border bg-background text-text text-sm"
+            <CustomSelect
                 value={value}
-                onChange={(e) => onChange(e.target.value as 'default' | 'on' | 'off')}
-            >
-                <option value="default">Use global default</option>
-                <option value="on">Allow</option>
-                <option value="off">Deny</option>
-            </select>
+                onChange={(val) => onChange((val as 'default' | 'on' | 'off') || 'default')}
+                options={[
+                    { value: 'default', label: 'Use global default' },
+                    { value: 'on', label: 'Allow' },
+                    { value: 'off', label: 'Deny' },
+                ]}
+            />
         </div>
     );
 
