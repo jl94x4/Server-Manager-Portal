@@ -11,6 +11,7 @@ import type { User, AuditEntry, DeletedUser } from '../shared/types';
 import { formatDateTime, formatEventName, hexToRgb, getDaysUntilExpiry, addMonths, addYears, formatDate } from '../shared/format';
 export const InvitesSettings: React.FC<{
     addToast: (msg: string, type: 'success' | 'error') => void;
+    publicDomain?: string;
     referralEnabled: boolean;
     setReferralEnabled: (value: boolean) => void;
     referralTrialDays: number;
@@ -19,6 +20,7 @@ export const InvitesSettings: React.FC<{
     setReferralRewardDays: (value: number) => void;
 }> = ({
     addToast,
+    publicDomain = '',
     referralEnabled,
     setReferralEnabled,
     referralTrialDays,
@@ -26,6 +28,11 @@ export const InvitesSettings: React.FC<{
     referralRewardDays,
     setReferralRewardDays,
 }) => {
+    const inviteBaseUrl = useMemo(() => {
+        const configured = String(publicDomain || '').trim().replace(/\/+$/, '');
+        return configured || getPublicOrigin();
+    }, [publicDomain]);
+    const inviteUrlFor = useCallback((code: string) => `${inviteBaseUrl}/invite/${code}`, [inviteBaseUrl]);
     const [invites, setInvites] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [durationDays, setDurationDays] = useState(30);
@@ -94,7 +101,7 @@ export const InvitesSettings: React.FC<{
     };
 
     const handleCopy = (code: string) => {
-        navigator.clipboard.writeText(`${getPublicOrigin()}/invite/${code}`);
+        navigator.clipboard.writeText(inviteUrlFor(code));
         addToast('Invite link copied to clipboard!', 'success');
     };
 
@@ -133,7 +140,10 @@ export const InvitesSettings: React.FC<{
 
             <section id={getSettingsSectionElementId('invite-links')} className="scroll-mt-24">
             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Automated Invite Links</h3>
-            <p className="text-sm text-muted mb-6">Generate unique links to automatically invite users to your Plex server.</p>
+            <p className="text-sm text-muted mb-2">Generate unique links to automatically invite users to your Plex server.</p>
+            <p className="text-sm text-muted mb-6">
+                Links use Public Base URL{publicDomain ? ` (${inviteBaseUrl})` : ' (currently your browser origin — set Settings → Portal UI → Public Base URL for public/email links)'}.
+            </p>
 
             <div className="space-y-6 mb-8">
                 <h4 className="font-bold">Create New Invite Link</h4>
@@ -205,7 +215,7 @@ export const InvitesSettings: React.FC<{
                             <tr key={inv.code} className="border-b border-border/50 hover:bg-white/5 transition-colors">
                                 <td className="p-3">
                                     <div className="flex items-center gap-2">
-                                        <span className="font-mono text-sm text-plex select-all">{getPublicOrigin()}/invite/{inv.code}</span>
+                                        <span className="font-mono text-sm text-plex select-all">{inviteUrlFor(inv.code)}</span>
                                         <button onClick={() => handleCopy(inv.code)} className="text-muted hover:text-plex transition-colors p-1" title="Copy Link">
                                             <Copy size={16} />
                                         </button>

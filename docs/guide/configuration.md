@@ -12,7 +12,7 @@ Most configuration is managed from the browser in Settings. Environment variable
 | `PORT` | No | Listen port. Defaults to `2121`. |
 | `BIND_HOST` | No | Bind address. Defaults to `0.0.0.0`. |
 | `CONFIG_DIR` | No | Runtime data directory. Defaults to `./config` locally and `/app/config` in Docker. |
-| `PUBLIC_BASE_URL` | Recommended | Public URL for links and emails. Include the subpath if the app is not hosted at the domain root. |
+| `PUBLIC_BASE_URL` | Optional | Bootstrap public HTTPS URL (and subpath for reverse-proxy hosting). After setup, prefer **Settings → Portal UI → Public Base URL** — invite emails and shareable links use that UI value first. |
 | `BASE_PATH` | No | URL prefix when hosted under a subpath, such as `/portal`. |
 | `FORCE_SECURE_COOKIES` | Recommended for HTTPS | Set to `true` when the portal is served over HTTPS. |
 | `ALLOW_PRIVATE_INTEGRATION_URLS` | No | Allows private/LAN URLs when saving integration settings. |
