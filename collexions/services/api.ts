@@ -14,6 +14,18 @@ class ApiService {
     };
   }
 
+  /** Authenticated image URL for <img src> (Bearer headers cannot be set on images). */
+  proxyImageUrl(thumb: string, size: { width?: number; height?: number } = {}) {
+    if (!thumb) return '';
+    const token = localStorage.getItem('collexions_token') || '';
+    const params = new URLSearchParams();
+    params.set('thumb', thumb);
+    if (size.width) params.set('width', String(size.width));
+    if (size.height) params.set('height', String(size.height));
+    if (token) params.set('access_token', token);
+    return `/api/proxy/image?${params.toString()}`;
+  }
+
   private async get(url: string) {
     const response = await fetch(`/api${url.startsWith('/') ? url : '/' + url}${url.includes('?') ? '&' : '?'}__=${Date.now()}`, {
       headers: this.getHeaders()

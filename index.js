@@ -6090,6 +6090,13 @@ app.post('/api/discovery/request-tags', requireAuth, requireMember, async (req, 
         if (!type || !label) return res.status(400).json({ error: 'Missing mediaType or label' });
 
         if (getRequestEngine(config) === 'portal') {
+            const users = await loadFile(USERS_PATH, []);
+            const key = String(req.user?.id || req.user?.plexId || '');
+            const portalUser = users.find((u) => String(u?.id) === key || String(u?.plexId) === key) || req.user;
+            const policy = resolveMemberRequestPolicy(config, portalUser);
+            if (!policy.allowAdvancedRequests) {
+                return res.status(403).json({ error: 'Advanced request options are disabled.' });
+            }
             const portalRequests = getPortalRequestService(config);
             const tag = await portalRequests.createPortalTag({
                 mediaType: type,

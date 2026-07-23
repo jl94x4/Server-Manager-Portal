@@ -66,17 +66,49 @@ os.makedirs(DATA_DIR, exist_ok=True)
 process = None
 
 # --- Security ---
-SECRET_KEY = os.environ.get('COLLEXIONS_SECRET_KEY', 'dev-secret-key-replace-me-in-production')
+import secrets as _secrets_mod
+import hmac as _hmac
+
+_WEAK_SECRETS = {
+    '',
+    'dev-secret-key-replace-me-in-production',
+    'portal-collexions',
+}
+_raw_secret = (os.environ.get('COLLEXIONS_SECRET_KEY') or '').strip()
+if _raw_secret in _WEAK_SECRETS:
+    SECRET_KEY = _secrets_mod.token_hex(32)
+    logging.warning(
+        'COLLEXIONS_SECRET_KEY missing or weak — generated ephemeral secret for this process. '
+        'Set a strong COLLEXIONS_SECRET_KEY (or JWT_SECRET via the portal embedder) in production.'
+    )
+else:
+    SECRET_KEY = _raw_secret
+
 SERVICE_KEY = os.environ.get('COLLEXIONS_SERVICE_KEY', '').strip()
 TRUE_ENV_VALUES = {'1', 'true', 'yes', 'on'}
 PORTAL_MODE = os.environ.get('COLLEXIONS_PORTAL_MODE', '').strip().lower() in TRUE_ENV_VALUES
+# Homelab Plex often uses self-signed TLS — set COLLEXIONS_PLEX_VERIFY_SSL=false to disable.
+_plex_verify_raw = os.environ.get('COLLEXIONS_PLEX_VERIFY_SSL', 'true').strip().lower()
+PLEX_SSL_VERIFY = _plex_verify_raw not in ('0', 'false', 'no', 'off')
+
+if PORTAL_MODE and not SERVICE_KEY:
+    logging.error('COLLEXIONS_SERVICE_KEY is required when COLLEXIONS_PORTAL_MODE=true')
 
 def _service_key_ok():
     """Accept portal BFF service-key auth (no end-user Collexions password)."""
     if not SERVICE_KEY:
         return False
     header = (request.headers.get('X-Collexions-Service-Key') or '').strip()
-    return bool(header) and header == SERVICE_KEY
+    return bool(header) and _hmac.compare_digest(header, SERVICE_KEY)
+
+def _jwt_token_ok(token):
+    if not token:
+        return False
+    try:
+        jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+        return True
+    except Exception:
+        return False
 
 def require_auth(f):
     @wraps(f)
@@ -87,15 +119,46 @@ def require_auth(f):
         auth_header = request.headers.get('Authorization')
         if not auth_header or not auth_header.startswith('Bearer '):
             return jsonify({'error': 'Authentication required'}), 401
-        
-        try:
-            token = auth_header.split(' ')[1]
-            jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
-        except Exception as e:
+
+        token = auth_header.split(' ', 1)[1]
+        if not _jwt_token_ok(token):
             return jsonify({'error': 'Invalid or expired token'}), 401
-            
+
         return f(*args, **kwargs)
     return decorated
+
+def require_auth_or_query_token(f):
+    """Like require_auth, but also accepts ?access_token= for <img src> (Bearer cannot be set)."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if _service_key_ok():
+            return f(*args, **kwargs)
+
+        auth_header = request.headers.get('Authorization')
+        token = None
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ', 1)[1]
+        else:
+            token = (request.args.get('access_token') or request.args.get('token') or '').strip() or None
+
+        if not _jwt_token_ok(token):
+            return jsonify({'error': 'Authentication required'}), 401
+
+        return f(*args, **kwargs)
+    return decorated
+
+def is_safe_plex_media_path(raw_path):
+    """Block SSRF/path tricks — mirror portal isSafePlexMediaPath."""
+    thumb_path = str(raw_path or '')
+    if not thumb_path.startswith('/') or thumb_path.startswith('//'):
+        return False
+    if '://' in thumb_path or '\\' in thumb_path:
+        return False
+    if '..' in thumb_path:
+        return False
+    if re.search(r'[\s\x00-\x1f\x7f]', thumb_path):
+        return False
+    return True
 
 # --- Cache System ---
 # version bumped by list_collections (3=light, 4=full pin resolve)
@@ -1372,7 +1435,7 @@ def _check_plex_quick(config, timeout=3):
             f'{url}/identity',
             headers=plex_request_headers(token),
             timeout=timeout,
-            verify=False,
+            verify=PLEX_SSL_VERIFY,
         )
         if resp.status_code == 200:
             return True, None
@@ -2657,6 +2720,7 @@ def get_trending():
     return jsonify(presets)
 
 @app.route('/api/proxy/image')
+@require_auth_or_query_token
 def proxy_image():
     """Proxy collection artwork from Plex via photo transcode (small, cacheable)."""
     global IMAGE_CACHE
@@ -2683,13 +2747,16 @@ def proxy_image():
     if '?' in thumb_path:
         thumb_path = thumb_path.split('?', 1)[0]
 
+    if not is_safe_plex_media_path(thumb_path):
+        return Response(status=400)
+
     cache_key = f'{thumb_path}|{width}x{height}'
     if cache_key in IMAGE_CACHE:
         cached = IMAGE_CACHE[cache_key]
         if cached.get('missing'):
             return Response(status=404)
         resp = Response(cached['data'], mimetype=cached['mimetype'], status=200)
-        resp.headers['Cache-Control'] = 'public, max-age=86400'
+        resp.headers['Cache-Control'] = 'private, max-age=86400'
         return resp
 
     config = load_config()
@@ -2712,7 +2779,7 @@ def proxy_image():
             'User-Agent': 'Server Manager Portal',
             'Accept': 'image/*,*/*',
         })
-        upstream = requests.get(plex_url, timeout=8, verify=False, headers=headers)
+        upstream = requests.get(plex_url, timeout=8, verify=PLEX_SSL_VERIFY, headers=headers)
 
         if upstream.status_code != 200 or not upstream.content:
             logging.warning(f"Plex image proxy miss {upstream.status_code} for: {thumb_path}")
@@ -2727,7 +2794,7 @@ def proxy_image():
 
         IMAGE_CACHE[cache_key] = {'data': data, 'mimetype': mimetype}
         resp = Response(data, mimetype=mimetype, status=200)
-        resp.headers['Cache-Control'] = 'public, max-age=86400'
+        resp.headers['Cache-Control'] = 'private, max-age=86400'
         return resp
     except Exception as e:
         logging.warning(f"Image proxy exception for {thumb_path}: {e}")

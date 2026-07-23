@@ -985,7 +985,7 @@ const Creator: React.FC = () => {
                                             >
                                                 {item.thumb ? (
                                                     <img
-                                                        src={`/api/proxy/image?thumb=${encodeURIComponent(item.thumb)}`}
+                                                        src={api.proxyImageUrl(item.thumb)}
                                                         alt=""
                                                         className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${isSelected ? 'opacity-60' : ''}`}
                                                     />
@@ -1035,7 +1035,7 @@ const Creator: React.FC = () => {
                                         <div className="w-8 h-12 rounded bg-slate-800 flex-shrink-0 overflow-hidden">
                                             {item.poster || item.thumb ? (
                                                 <img
-                                                    src={item.poster || `/api/proxy/image?thumb=${encodeURIComponent(item.thumb)}`}
+                                                    src={item.poster || api.proxyImageUrl(item.thumb)}
                                                     alt=""
                                                     className="w-full h-full object-cover"
                                                 />

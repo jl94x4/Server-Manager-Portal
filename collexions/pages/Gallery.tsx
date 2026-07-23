@@ -233,7 +233,7 @@ const Gallery: React.FC = () => {
                             <div className="aspect-[2/3] bg-slate-800 relative overflow-hidden">
                                 {coll.thumb ? (
                                     <img
-                                        src={`/api/proxy/image?thumb=${encodeURIComponent(coll.thumb)}`}
+                                        src={api.proxyImageUrl(coll.thumb)}
                                         alt={coll.title}
                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                         loading="lazy"
