@@ -308,6 +308,29 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
         }
     }
 
+    // TV list stamps from the disk cache (no full season rows). Trust mediaInfo.status.
+    if (mediaType === 'tv' && mediaStatus === MEDIA_STATUS.PARTIAL) {
+        return {
+            ...base,
+            kind: 'partial',
+            label: 'Partially available',
+            detail: item?.sonarrLibraryStatus?.nextAiring
+                ? 'Some episodes are on disk; more are scheduled to air.'
+                : (formatSeasonSummary(seasonRows) || 'Part of this series is already in your library.'),
+        };
+    }
+    if (mediaType === 'tv' && mediaStatus === MEDIA_STATUS.AVAILABLE) {
+        const showUpToDate = isReturningSeries(item) && hasAnyEpisodeAired(item);
+        return {
+            ...base,
+            kind: 'available',
+            label: showUpToDate ? 'Up to date' : 'Available in library',
+            detail: item?.sonarrLibraryStatus?.showComplete
+                ? 'All aired episodes are on disk (verified via Sonarr).'
+                : 'This series is in your media library.',
+        };
+    }
+
     // Seerr show-level AVAILABLE is unreliable for TV during/after approve —
     // only trust it for movies, or when Sonarr already confirmed completeness above.
     if (mediaStatus === MEDIA_STATUS.AVAILABLE && mediaType === 'movie') {
