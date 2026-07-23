@@ -24,6 +24,7 @@ import {
     Radio,
     Shield,
     ScrollText,
+    Plus,
 } from 'lucide-react';
 import { apiFetch, PORTAL_CSRF_HEADER, PORTAL_CSRF_VALUE } from '../shared/api';
 import { portalUrl, resolvePortalAssetUrl } from '../shared/basePath';
@@ -429,6 +430,29 @@ export const SettingsDashboard: React.FC = () => {
     const [requestDiscoverRegion, setRequestDiscoverRegion] = useState('');
     const [requestDiscoverLanguage, setRequestDiscoverLanguage] = useState('');
     const [requestHideAvailableMedia, setRequestHideAvailableMedia] = useState(false);
+    const [discoverySource, setDiscoverySource] = useState('tmdb');
+    const [requestEngine, setRequestEngine] = useState('seerr');
+    const [importingSeerrHistory, setImportingSeerrHistory] = useState(false);
+    const [requestQuotaLimit, setRequestQuotaLimit] = useState(0);
+    const [requestQuotaDays, setRequestQuotaDays] = useState(7);
+    const [requestQuotaLimit4k, setRequestQuotaLimit4k] = useState(0);
+    const [autoApproveMovies, setAutoApproveMovies] = useState(false);
+    const [autoApproveTv, setAutoApproveTv] = useState(false);
+    const [autoApproveMovies4k, setAutoApproveMovies4k] = useState(false);
+    const [autoApproveTv4k, setAutoApproveTv4k] = useState(false);
+    const [portalAllowRequestMovies, setPortalAllowRequestMovies] = useState(true);
+    const [portalAllowRequestTv, setPortalAllowRequestTv] = useState(true);
+    const [portalAllowRequest4kMovies, setPortalAllowRequest4kMovies] = useState(true);
+    const [portalAllowRequest4kTv, setPortalAllowRequest4kTv] = useState(true);
+    const [portalAllowAdvancedRequests, setPortalAllowAdvancedRequests] = useState(true);
+    const [portalShowRecentlyAdded, setPortalShowRecentlyAdded] = useState(true);
+    const [portalShowWatchlist, setPortalShowWatchlist] = useState(true);
+    const [portalAutoRequestMovies, setPortalAutoRequestMovies] = useState(false);
+    const [portalAutoRequestTv, setPortalAutoRequestTv] = useState(false);
+    const [seriesMetadataProvider, setSeriesMetadataProvider] = useState('tmdb');
+    const [animeMetadataProvider, setAnimeMetadataProvider] = useState('tmdb');
+    const [tvdbApiKey, setTvdbApiKey] = useState('');
+    const [testingTvdb, setTestingTvdb] = useState(false);
     const [maintenanceExperimentalEnabled, setMaintenanceExperimentalEnabled] = useState(false);
     const [upgraderEnabled, setUpgraderEnabled] = useState(false);
     const [collexionsEnabled, setCollexionsEnabled] = useState(false);
@@ -752,6 +776,18 @@ export const SettingsDashboard: React.FC = () => {
         }
     }, [activeTab]);
 
+    // Keep Tasks UI live while any background job is running (refreshing Settings does not
+    // stop server jobs — the list was just not polling).
+    useEffect(() => {
+        if (activeTab !== 'tasks' && activeTab !== 'system') return undefined;
+        const anyRunning = Array.isArray(tasks) && tasks.some((task) => !!task?.running);
+        if (!anyRunning) return undefined;
+        const timer = window.setInterval(() => {
+            fetchTasks();
+        }, 2000);
+        return () => window.clearInterval(timer);
+    }, [activeTab, tasks]);
+
     const handleUnblockDeletedUser = async (deletedUser: any) => {
         const label = deletedUser.username || deletedUser.email || 'this user';
         appConfirm(`Allow ${label} to use the portal again? This does not invite them automatically.`, async () => {
@@ -921,6 +957,9 @@ export const SettingsDashboard: React.FC = () => {
             const res = await apiFetch(`/api/tasks/run/${taskId}`, { method: 'POST' });
             addToast(res.message || 'Task executed successfully', 'success');
             await fetchTasks();
+            // Poll briefly so "Running" stays accurate after Run is clicked.
+            window.setTimeout(() => { fetchTasks(); }, 1500);
+            window.setTimeout(() => { fetchTasks(); }, 4000);
         } catch (e) {
             addToast(e instanceof Error ? e.message : 'Task failed', 'error');
         } finally {
@@ -973,6 +1012,27 @@ export const SettingsDashboard: React.FC = () => {
             setRequestDiscoverRegion(initialSettings.requestDiscoverRegion || '');
             setRequestDiscoverLanguage(initialSettings.requestDiscoverLanguage || '');
             setRequestHideAvailableMedia(!!initialSettings.requestHideAvailableMedia);
+            setDiscoverySource(initialSettings.discoverySource === 'seerr' ? 'seerr' : 'tmdb');
+            setRequestEngine(initialSettings.requestEngine === 'portal' ? 'portal' : 'seerr');
+            setRequestQuotaLimit(Number(initialSettings.requestQuotaLimit) || 0);
+            setRequestQuotaDays(Number(initialSettings.requestQuotaDays) || 7);
+            setRequestQuotaLimit4k(Number(initialSettings.requestQuotaLimit4k) || 0);
+            setAutoApproveMovies(!!initialSettings.autoApproveMovies);
+            setAutoApproveTv(!!initialSettings.autoApproveTv);
+            setAutoApproveMovies4k(!!initialSettings.autoApproveMovies4k);
+            setAutoApproveTv4k(!!initialSettings.autoApproveTv4k);
+            setPortalAllowRequestMovies(initialSettings.portalAllowRequestMovies !== false);
+            setPortalAllowRequestTv(initialSettings.portalAllowRequestTv !== false);
+            setPortalAllowRequest4kMovies(initialSettings.portalAllowRequest4kMovies !== false);
+            setPortalAllowRequest4kTv(initialSettings.portalAllowRequest4kTv !== false);
+            setPortalAllowAdvancedRequests(initialSettings.portalAllowAdvancedRequests !== false);
+            setPortalShowRecentlyAdded(initialSettings.portalShowRecentlyAdded !== false);
+            setPortalShowWatchlist(initialSettings.portalShowWatchlist !== false);
+            setPortalAutoRequestMovies(!!initialSettings.portalAutoRequestMovies);
+            setPortalAutoRequestTv(!!initialSettings.portalAutoRequestTv);
+            setSeriesMetadataProvider(initialSettings.seriesMetadataProvider === 'tvdb' ? 'tvdb' : 'tmdb');
+            setAnimeMetadataProvider(initialSettings.animeMetadataProvider === 'tvdb' ? 'tvdb' : 'tmdb');
+            setTvdbApiKey(initialSettings.tvdbApiKey || '');
             const savedBrandingTheme = localStorage.getItem('portal-theme') || initialSettings.brandingTheme || 'plex';
             setBrandingTheme(savedBrandingTheme === 'light' ? 'plex' : savedBrandingTheme);
             setCustomLogoUrl(initialSettings.customLogoUrl || '');
@@ -1207,6 +1267,27 @@ export const SettingsDashboard: React.FC = () => {
             requestDiscoverRegion,
             requestDiscoverLanguage,
             requestHideAvailableMedia,
+            discoverySource,
+            requestEngine,
+            requestQuotaLimit,
+            requestQuotaDays,
+            requestQuotaLimit4k,
+            autoApproveMovies,
+            autoApproveTv,
+            autoApproveMovies4k,
+            autoApproveTv4k,
+            portalAllowRequestMovies,
+            portalAllowRequestTv,
+            portalAllowRequest4kMovies,
+            portalAllowRequest4kTv,
+            portalAllowAdvancedRequests,
+            portalShowRecentlyAdded,
+            portalShowWatchlist,
+            portalAutoRequestMovies,
+            portalAutoRequestTv,
+            seriesMetadataProvider,
+            animeMetadataProvider,
+            tvdbApiKey,
             primaryColor: '',
             customLogoUrl: savedCustomLogoUrl,
             brandingTheme,
@@ -2022,9 +2103,10 @@ export const SettingsDashboard: React.FC = () => {
                                 <button
                                     type="button"
                                     onClick={() => setDownloadClients([...downloadClients, createEmptyDownloadClient()])}
-                                    className="px-3 py-2 rounded-lg border border-border text-sm font-medium text-text hover:bg-white/5 transition-colors"
+                                    className="px-3 py-2 rounded-lg border border-border text-sm font-medium text-text hover:bg-white/5 transition-colors flex items-center gap-2 shrink-0"
                                 >
-                                    Add Client
+                                    <Plus className="w-4 h-4" />
+                                    Add Instance
                                 </button>
                             </div>
                             {downloadClients.length === 0 ? (
@@ -2246,8 +2328,246 @@ export const SettingsDashboard: React.FC = () => {
                         <div className="mb-8 animate-fade-in space-y-6">
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Request Discovery</h3>
                             <p className="text-muted text-sm max-w-3xl">
-                                Control how the in-portal Discover experience behaves. These settings are synced to your Seerr/Overseerr instance when connected, matching Overseerr&apos;s main settings.
+                                Control how the in-portal Discover experience behaves. Region and language are portal-owned (not synced to Seerr).
                             </p>
+
+                            <div id={getSettingsSectionElementId('discovery-source')} className="scroll-mt-24">
+                                <SettingFieldLabel
+                                    htmlFor="discoverySource"
+                                    hint={(
+                                        <SettingHint>
+                                            TMDB (default) browses Discover without Seerr — needs a TMDB API key; library overlays use Sonarr/Radarr.
+                                            Seerr remains available as a rollback for metadata proxying.
+                                        </SettingHint>
+                                    )}
+                                >
+                                    Discover Metadata Source
+                                </SettingFieldLabel>
+                                <CustomSelect
+                                    id="discoverySource"
+                                    value={discoverySource}
+                                    onChange={setDiscoverySource}
+                                    options={[
+                                        { value: 'tmdb', label: 'TMDB direct (default)' },
+                                        { value: 'seerr', label: 'Seerr / Overseerr (rollback)' },
+                                    ]}
+                                />
+                                {discoverySource === 'tmdb' && !String(tmdbApiKey || '').trim() && !String(initialSettings.tmdbApiKey || '').trim() && (
+                                    <p className="text-amber-300 text-sm mt-2">
+                                        Set a TMDB API key under Integrations — required for Discover browse.
+                                    </p>
+                                )}
+                            </div>
+
+                            <div id={getSettingsSectionElementId('request-engine')} className="scroll-mt-24">
+                                <SettingFieldLabel
+                                    htmlFor="requestEngine"
+                                    hint={(
+                                        <SettingHint>
+                                            Seerr (default) creates requests in your request app.
+                                            Portal stores requests/issues as JSON, pushes to *arr on approve, syncs status from *arr, and applies portal quotas/auto-approve below.
+                                        </SettingHint>
+                                    )}
+                                >
+                                    Request Engine
+                                </SettingFieldLabel>
+                                <CustomSelect
+                                    id="requestEngine"
+                                    value={requestEngine}
+                                    onChange={setRequestEngine}
+                                    options={[
+                                        { value: 'seerr', label: 'Seerr / Overseerr (default)' },
+                                        { value: 'portal', label: 'Portal JSON store (beta)' },
+                                    ]}
+                                />
+                                <div className="mt-3 flex flex-wrap items-center gap-3">
+                                    <button
+                                        type="button"
+                                        disabled={importingSeerrHistory}
+                                        onClick={async () => {
+                                            setImportingSeerrHistory(true);
+                                            try {
+                                                const summary = await apiFetch('/api/requests/import-from-seerr', {
+                                                    method: 'POST',
+                                                    body: JSON.stringify({ includeIssues: true }),
+                                                });
+                                                const req = summary?.requests || {};
+                                                const iss = summary?.issues || {};
+                                                addToast(
+                                                    `Imported ${req.imported || 0} requests` +
+                                                    (req.skippedUnmapped ? ` (${req.skippedUnmapped} unmapped users)` : '') +
+                                                    `, ${iss.imported || 0} issues` +
+                                                    `, ${summary?.blocklist?.imported || 0} blocklist.`,
+                                                    'success',
+                                                );
+                                            } catch (e: any) {
+                                                addToast(e?.message || 'Seerr import failed', 'error');
+                                            } finally {
+                                                setImportingSeerrHistory(false);
+                                            }
+                                        }}
+                                        className="inline-flex items-center rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 px-3 py-2 text-sm font-semibold disabled:opacity-50"
+                                    >
+                                        {importingSeerrHistory ? 'Importing…' : 'Import Seerr history'}
+                                    </button>
+                                    <p className="text-xs text-white/45 max-w-md">
+                                        Copies existing Seerr requests/issues/blocklist into portal JSON (safe to re-run). Match users by email / Plex id. Also available under Tasks. Watchlist syncs live from Plex after members log in.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {requestEngine === 'portal' && (
+                                <div className="space-y-8">
+                                    <div id={getSettingsSectionElementId('metadata-providers')} className="scroll-mt-24 space-y-4">
+                                        <h4 className="text-sm font-bold text-text uppercase tracking-wider">Metadata providers</h4>
+                                        <p className="text-xs text-muted max-w-2xl">
+                                            Series/anime matching for Sonarr. TMDB is default; TVDB prefers TheTVDB ids when resolving library matches (browse catalog stays TMDB).
+                                        </p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <SettingFieldLabel htmlFor="seriesMetadataProvider">Series provider</SettingFieldLabel>
+                                                <CustomSelect
+                                                    id="seriesMetadataProvider"
+                                                    value={seriesMetadataProvider}
+                                                    onChange={setSeriesMetadataProvider}
+                                                    options={[
+                                                        { value: 'tmdb', label: 'TMDB' },
+                                                        { value: 'tvdb', label: 'TVDB' },
+                                                    ]}
+                                                />
+                                            </div>
+                                            <div>
+                                                <SettingFieldLabel htmlFor="animeMetadataProvider">Anime provider</SettingFieldLabel>
+                                                <CustomSelect
+                                                    id="animeMetadataProvider"
+                                                    value={animeMetadataProvider}
+                                                    onChange={setAnimeMetadataProvider}
+                                                    options={[
+                                                        { value: 'tmdb', label: 'TMDB' },
+                                                        { value: 'tvdb', label: 'TVDB' },
+                                                    ]}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <SettingFieldLabel
+                                                htmlFor="tvdbApiKey"
+                                                hint={<SettingHint>Optional. Used for Discover TV poster fallback when TMDB has no art, and for connectivity tests. Sonarr matching still works via TMDB external_ids when empty.</SettingHint>}
+                                            >
+                                                TVDB API key
+                                            </SettingFieldLabel>
+                                            <div className="flex flex-wrap gap-2">
+                                                <input
+                                                    id="tvdbApiKey"
+                                                    type="password"
+                                                    autoComplete="off"
+                                                    className="flex-1 min-w-[12rem] rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm"
+                                                    value={tvdbApiKey}
+                                                    onChange={(e) => setTvdbApiKey(e.target.value)}
+                                                    placeholder={initialSettings.tvdbApiKey ? '•••••••• (unchanged if blank)' : 'Optional'}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    disabled={testingTvdb}
+                                                    className="rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 px-3 py-2 text-sm font-semibold disabled:opacity-50"
+                                                    onClick={async () => {
+                                                        setTestingTvdb(true);
+                                                        try {
+                                                            const res = await apiFetch('/api/integrations/tvdb/test', {
+                                                                method: 'POST',
+                                                                body: JSON.stringify({ apiKey: tvdbApiKey }),
+                                                            });
+                                                            addToast(res?.message || (res?.ok ? 'TVDB OK' : 'TVDB test failed'), res?.ok ? 'success' : 'error');
+                                                        } catch (e: any) {
+                                                            addToast(e?.message || 'TVDB test failed', 'error');
+                                                        } finally {
+                                                            setTestingTvdb(false);
+                                                        }
+                                                    }}
+                                                >
+                                                    {testingTvdb ? 'Testing…' : 'Test TVDB'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id={getSettingsSectionElementId('request-permissions')} className="scroll-mt-24 space-y-3">
+                                        <h4 className="text-sm font-bold text-text uppercase tracking-wider">Request permissions (defaults)</h4>
+                                        <SettingsToggleRow title="Request movies" checked={portalAllowRequestMovies} onChange={setPortalAllowRequestMovies} border={false} />
+                                        <SettingsToggleRow title="Request series" checked={portalAllowRequestTv} onChange={setPortalAllowRequestTv} border={false} />
+                                        <SettingsToggleRow title="Request 4K movies" checked={portalAllowRequest4kMovies} onChange={setPortalAllowRequest4kMovies} border={false} />
+                                        <SettingsToggleRow title="Request 4K series" checked={portalAllowRequest4kTv} onChange={setPortalAllowRequest4kTv} border={false} />
+                                        <SettingsToggleRow title="Advanced requests (root folder / profile)" checked={portalAllowAdvancedRequests} onChange={setPortalAllowAdvancedRequests} border={false} />
+                                        <SettingsToggleRow title="Show recently added on Discover home" checked={portalShowRecentlyAdded} onChange={setPortalShowRecentlyAdded} border={false} />
+                                        <SettingsToggleRow title="Show Plex watchlist on Discover home" checked={portalShowWatchlist} onChange={setPortalShowWatchlist} border={false} />
+                                    </div>
+
+                                    <div id={getSettingsSectionElementId('auto-approve')} className="scroll-mt-24 space-y-3">
+                                        <h4 className="text-sm font-bold text-text uppercase tracking-wider">Auto-approve</h4>
+                                        <SettingsToggleRow title="Auto-approve movies" checked={autoApproveMovies} onChange={setAutoApproveMovies} border={false} />
+                                        <SettingsToggleRow title="Auto-approve series" checked={autoApproveTv} onChange={setAutoApproveTv} border={false} />
+                                        <SettingsToggleRow title="Auto-approve 4K movies" checked={autoApproveMovies4k} onChange={setAutoApproveMovies4k} border={false} />
+                                        <SettingsToggleRow title="Auto-approve 4K series" checked={autoApproveTv4k} onChange={setAutoApproveTv4k} border={false} />
+                                    </div>
+
+                                    <div id={getSettingsSectionElementId('auto-request')} className="scroll-mt-24 space-y-3">
+                                        <h4 className="text-sm font-bold text-text uppercase tracking-wider">Auto-request (watchlist)</h4>
+                                        <p className="text-xs text-muted">When a member’s Plex watchlist syncs, create portal requests for new titles.</p>
+                                        <SettingsToggleRow title="Auto-request movies from watchlist" checked={portalAutoRequestMovies} onChange={setPortalAutoRequestMovies} border={false} />
+                                        <SettingsToggleRow title="Auto-request series from watchlist" checked={portalAutoRequestTv} onChange={setPortalAutoRequestTv} border={false} />
+                                    </div>
+
+                                    <div id={getSettingsSectionElementId('portal-quotas')} className="scroll-mt-24 space-y-4">
+                                        <h4 className="text-sm font-bold text-text uppercase tracking-wider">Quotas</h4>
+                                        <SettingFieldLabel
+                                            htmlFor="requestQuotaLimit"
+                                            hint={<SettingHint>0 = Unlimited. Rolling window applies to member requests. Per-user overrides live on Users → Edit User.</SettingHint>}
+                                        >
+                                            Request quota (standard)
+                                        </SettingFieldLabel>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                            <div>
+                                                <label className="text-xs text-muted mb-1 block">Limit</label>
+                                                <input
+                                                    id="requestQuotaLimit"
+                                                    type="number"
+                                                    min={0}
+                                                    className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm"
+                                                    value={requestQuotaLimit}
+                                                    onChange={(e) => setRequestQuotaLimit(Math.max(0, Number(e.target.value) || 0))}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-muted mb-1 block">Days</label>
+                                                <input
+                                                    type="number"
+                                                    min={1}
+                                                    className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm"
+                                                    value={requestQuotaDays}
+                                                    onChange={(e) => setRequestQuotaDays(Math.max(1, Number(e.target.value) || 7))}
+                                                    aria-label="Quota days"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-muted mb-1 block">4K limit</label>
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm"
+                                                    value={requestQuotaLimit4k}
+                                                    onChange={(e) => setRequestQuotaLimit4k(Math.max(0, Number(e.target.value) || 0))}
+                                                    aria-label="4K quota limit"
+                                                />
+                                            </div>
+                                        </div>
+                                        <p className="text-xs text-white/45">
+                                            {requestQuotaLimit === 0 ? 'Unlimited HD requests' : `${requestQuotaLimit} HD / ${requestQuotaDays} days`}
+                                            {' · '}
+                                            {requestQuotaLimit4k === 0 ? 'Unlimited 4K' : `${requestQuotaLimit4k} 4K`}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
 
                             <div id={getSettingsSectionElementId('region')} className="scroll-mt-24">
                                 <SettingFieldLabel
@@ -2267,7 +2587,7 @@ export const SettingsDashboard: React.FC = () => {
                             <div id={getSettingsSectionElementId('language')} className="scroll-mt-24">
                                 <SettingFieldLabel
                                     htmlFor="requestDiscoverLanguage"
-                                    hint={<SettingHint>Only show titles whose original language matches your selection on Discover browse rows (trending, popular, movies, series). Titles may still appear in English translation — this filters by original language (e.g. French or Korean originals are hidden when English is selected). Search is not filtered.</SettingHint>}
+                                    hint={<SettingHint>Only show titles whose original language matches your selection on Discover home and the Movies/Series browse tabs (same as Seerr). Titles may still appear in English translation — this filters by original language (e.g. French or Korean originals are hidden when English is selected). Search is not filtered.</SettingHint>}
                                 >
                                     Discover Language
                                 </SettingFieldLabel>
@@ -2284,7 +2604,7 @@ export const SettingsDashboard: React.FC = () => {
                                     title="Hide Available Media"
                                     hint={(
                                         <SettingHint>
-                                            Hides titles already in your library from discover browse pages (home rows, movies, series, studios, networks). Search results are never filtered. The portal applies this immediately; it also syncs to Seerr when connected.
+                                            When on, Available and Partially Available titles are hidden from Discover home/browse. Requested titles still appear (with badges) so you can track them. Movies/Series also have a per-page toggle. Search is never filtered.
                                         </SettingHint>
                                     )}
                                     checked={requestHideAvailableMedia}
