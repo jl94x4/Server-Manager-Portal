@@ -2,7 +2,7 @@
 <Container version="2">
   <Name>Server-Manager-Portal</Name>
   <Repository>ghcr.io/jl94x4/server-manager-portal:latest</Repository>
-  <Registry>https://ghcr.io</Registry>
+  <Registry>https://github.com/jl94x4/Server-Manager-Portal/pkgs/container/server-manager-portal</Registry>
   <Network>bridge</Network>
   <MyIP/>
   <Shell>sh</Shell>
