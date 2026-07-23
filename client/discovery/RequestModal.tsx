@@ -665,11 +665,13 @@ export const RequestModal: React.FC<Props> = ({
         || ((options?.servers || []).length > 1);
     const advancedLoading = showAdvancedSection && activeForm.loading && !activeForm.loaded;
     const bothQualitiesSelected = selectedQualities.has('hd') && selectedQualities.has('4k');
-    // Surface destination / root folder for series without forcing Advanced open first.
+    // Surface Destination / Quality / Root with the active *arr options (not buried only in Advanced).
     const showRoutingSection = showAdvancedSection && !advancedLoading && (
-        filteredServers.length > 1
+        filteredServers.length > 0
         || (activeForm.serviceOptions?.rootFolders || []).length > 0
+        || (activeForm.serviceOptions?.profiles || []).length > 0
         || !!activeForm.rootFolder
+        || !!activeForm.profileId
     );
 
     const seasonsSection = mediaType === 'tv' && (options?.seasons?.length || 0) > 0 ? (
@@ -819,8 +821,9 @@ export const RequestModal: React.FC<Props> = ({
 
                 <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar p-5 flex flex-col gap-5">
                     {loading ? (
-                        <div className="flex items-center justify-center py-12">
-                            <Loader2 className="w-8 h-8 text-plex animate-spin" />
+                        <div className="flex flex-col items-center justify-center gap-3 py-10">
+                            <Loader2 className="w-7 h-7 text-plex animate-spin" />
+                            <p className="text-sm text-white/45">Loading seasons and request options…</p>
                         </div>
                     ) : !options ? (
                         <p className="text-sm text-muted text-center py-8">Unable to load request options.</p>
@@ -971,6 +974,46 @@ export const RequestModal: React.FC<Props> = ({
 
                                     <div>
                                         <label className="block text-xs font-bold uppercase tracking-wider text-white/40 mb-2">
+                                            Quality Profile
+                                        </label>
+                                        {(activeForm.serviceOptions?.profiles || []).length > 0 ? (
+                                            <CustomSelect
+                                                value={String(activeForm.profileId ?? '')}
+                                                onChange={(val) => updateQualityForm(advancedQuality, {
+                                                    profileId: Number(val),
+                                                })}
+                                                options={(activeForm.serviceOptions?.profiles || []).map((profile) => ({
+                                                    value: String(profile.id),
+                                                    label: profile.name,
+                                                }))}
+                                            />
+                                        ) : (
+                                            <p className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+                                                No quality profiles returned from Sonarr/Radarr for this server.
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {mediaType === 'tv' && (activeForm.serviceOptions?.languageProfiles?.length ?? 0) > 0 && (
+                                        <div>
+                                            <label className="block text-xs font-bold uppercase tracking-wider text-white/40 mb-2">
+                                                Language Profile
+                                            </label>
+                                            <CustomSelect
+                                                value={String(activeForm.languageProfileId ?? '')}
+                                                onChange={(val) => updateQualityForm(advancedQuality, {
+                                                    languageProfileId: Number(val),
+                                                })}
+                                                options={(activeForm.serviceOptions?.languageProfiles || []).map((profile) => ({
+                                                    value: String(profile.id),
+                                                    label: profile.name,
+                                                }))}
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <label className="block text-xs font-bold uppercase tracking-wider text-white/40 mb-2">
                                             Root Folder
                                         </label>
                                         {(activeForm.serviceOptions?.rootFolders || []).length > 0 ? (
@@ -1068,40 +1111,6 @@ export const RequestModal: React.FC<Props> = ({
                                                     )}
 
                                                     <div className={bothQualitiesSelected ? '' : 'pt-3'}>
-                                                        <label className="block text-xs font-bold uppercase tracking-wider text-white/40 mb-2">
-                                                            Quality Profile
-                                                        </label>
-                                                        <CustomSelect
-                                                            value={String(activeForm.profileId ?? '')}
-                                                            onChange={(val) => updateQualityForm(advancedQuality, {
-                                                                profileId: Number(val),
-                                                            })}
-                                                            options={(activeForm.serviceOptions?.profiles || []).map((profile) => ({
-                                                                value: String(profile.id),
-                                                                label: profile.name,
-                                                            }))}
-                                                        />
-                                                    </div>
-
-                                                    {mediaType === 'tv' && (activeForm.serviceOptions?.languageProfiles?.length ?? 0) > 0 && (
-                                                        <div>
-                                                            <label className="block text-xs font-bold uppercase tracking-wider text-white/40 mb-2">
-                                                                Language Profile
-                                                            </label>
-                                                            <CustomSelect
-                                                                value={String(activeForm.languageProfileId ?? '')}
-                                                                onChange={(val) => updateQualityForm(advancedQuality, {
-                                                                    languageProfileId: Number(val),
-                                                                })}
-                                                                options={(activeForm.serviceOptions?.languageProfiles || []).map((profile) => ({
-                                                                    value: String(profile.id),
-                                                                    label: profile.name,
-                                                                }))}
-                                                            />
-                                                        </div>
-                                                    )}
-
-                                                    <div>
                                                         <label className="block text-xs font-bold uppercase tracking-wider text-white/40 mb-2">
                                                             Tags
                                                         </label>
