@@ -38,7 +38,13 @@ export const WatchlistPanel: React.FC<Props> = ({
     providerLabel = 'Plex',
     rowCardClassName,
 }) => {
-    const [requestTarget, setRequestTarget] = useState<{ mediaType: 'movie' | 'tv'; mediaId: number; title: string } | null>(null);
+    const [requestTarget, setRequestTarget] = useState<{
+        mediaType: 'movie' | 'tv';
+        mediaId: number;
+        title: string;
+        posterPath?: string | null;
+        overview?: string | null;
+    } | null>(null);
     const [bulkLoading, setBulkLoading] = useState(false);
     const { profile: discoveryMe } = useDiscoveryMe(true);
 
@@ -55,8 +61,13 @@ export const WatchlistPanel: React.FC<Props> = ({
             pushToast?.('Unable to request this item.', 'error');
             return;
         }
-        setRequestTarget(ref);
-    }, [pushToast]);
+        const formatted = formatItem(rawItem);
+        setRequestTarget({
+            ...ref,
+            posterPath: formatted?.posterPath ?? rawItem?.posterPath ?? rawItem?.poster_path ?? null,
+            overview: formatted?.overview ?? rawItem?.overview ?? null,
+        });
+    }, [pushToast, formatItem]);
 
     const handleRequestSuccess = useCallback((message: string) => {
         pushToast?.(message, 'success');
@@ -205,6 +216,8 @@ export const WatchlistPanel: React.FC<Props> = ({
                     mediaType={requestTarget.mediaType}
                     mediaId={requestTarget.mediaId}
                     title={requestTarget.title}
+                    posterPath={requestTarget.posterPath}
+                    overview={requestTarget.overview}
                     onClose={() => setRequestTarget(null)}
                     onSuccess={handleRequestSuccess}
                     onError={(msg) => pushToast?.(msg, 'error')}

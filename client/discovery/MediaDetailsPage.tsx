@@ -936,6 +936,8 @@ export const MediaDetailsPage: React.FC<{
             mediaType={mediaType}
             mediaId={mediaId}
             title={title}
+            posterPath={details.posterPath}
+            overview={details.overview}
             onClose={() => setRequestModalOpen(false)}
             onSuccess={handleRequestSuccess}
             onError={(msg) => pushToast?.(msg, 'error')}

@@ -17,6 +17,9 @@ type Props = {
     mediaType: 'movie' | 'tv';
     mediaId: number;
     title?: string;
+    /** Immediate header chrome from the parent so the modal paints before options load. */
+    posterPath?: string | null;
+    overview?: string | null;
     onClose: () => void;
     onSuccess: (message: string) => void;
     onError: (message: string) => void;
@@ -65,6 +68,8 @@ export const RequestModal: React.FC<Props> = ({
     mediaType,
     mediaId,
     title: fallbackTitle,
+    posterPath: fallbackPosterPath,
+    overview: fallbackOverview,
     onClose,
     onSuccess,
     onError,
@@ -322,19 +327,12 @@ export const RequestModal: React.FC<Props> = ({
         }
     }, [mediaId, mediaType]);
 
-    // Preload *arr options as soon as the modal opens so Destination / Root Folder
-    // appear for TV the same way they do for movies (not only after opening Advanced).
+    // Preload only the active quality first — load the other when the user switches tabs.
     useEffect(() => {
         if (!open || !options?.canRequestAdvanced) return undefined;
-        const toLoad: QualityKey[] = [];
-        if (options.hasHdServer !== false) toLoad.push('hd');
-        if (options.canRequest4k && options.has4kServer) toLoad.push('4k');
-        else if (options.has4kServer) toLoad.push('4k');
-        toLoad.forEach((q) => {
-            void loadAdvancedForQuality(options, q);
-        });
+        void loadAdvancedForQuality(options, advancedQuality);
         return undefined;
-    }, [open, options, loadAdvancedForQuality]);
+    }, [open, options, advancedQuality, loadAdvancedForQuality]);
 
     useEffect(() => {
         if (!open) return undefined;
@@ -450,8 +448,15 @@ export const RequestModal: React.FC<Props> = ({
         setSelectedSeasons(requestableSeasons.map((s) => s.seasonNumber));
     };
 
+    const deselectAllSeasons = () => {
+        setSelectedSeasons([]);
+    };
+
     const selectMissingOnly = () => {
-        setSelectedSeasons(requestableSeasons.map((s) => s.seasonNumber));
+        const missing = requestableSeasons
+            .filter((s) => s.statusLabel === 'Not requested')
+            .map((s) => s.seasonNumber);
+        setSelectedSeasons(missing);
     };
 
     const tagCatalog = activeForm.serviceOptions?.tags || [];
@@ -651,8 +656,8 @@ export const RequestModal: React.FC<Props> = ({
     if (!open) return null;
 
     const displayTitle = options?.title || fallbackTitle || 'Request media';
-    const overview = (options?.overview || '').trim();
-    const posterUrl = resolveTmdbImageUrl(options?.posterPath, 'w342');
+    const overview = (options?.overview || fallbackOverview || '').trim();
+    const posterUrl = resolveTmdbImageUrl(options?.posterPath || fallbackPosterPath, 'w342');
     const showAdvancedSection = !!options?.canRequestAdvanced;
     // Show HD + UHD chips whenever a 4K *arr exists, or 4K requests are allowed
     // (so members still see the dual picker when permissions are on).
@@ -672,13 +677,21 @@ export const RequestModal: React.FC<Props> = ({
             <div className="flex items-center justify-between gap-3 mb-3">
                 <p className="text-xs font-bold uppercase tracking-wider text-white/40">Seasons</p>
                 {requestableSeasons.length > 0 && (
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-x-2 gap-y-1 justify-end">
                         <button
                             type="button"
                             onClick={selectAllRequestable}
                             className="text-[11px] font-bold text-plex hover:text-plex-hover transition-colors"
                         >
                             Select all
+                        </button>
+                        <span className="text-white/20">·</span>
+                        <button
+                            type="button"
+                            onClick={deselectAllSeasons}
+                            className="text-[11px] font-bold text-plex hover:text-plex-hover transition-colors"
+                        >
+                            Deselect all
                         </button>
                         <span className="text-white/20">·</span>
                         <button
@@ -1178,7 +1191,7 @@ export const RequestModal: React.FC<Props> = ({
                     <button
                         type="button"
                         onClick={handleSubmit}
-                        disabled={submitting || loading || (showAdvanced && advancedLoading) || !canSubmitRequest}
+                        disabled={submitting || loading || !canSubmitRequest}
                         className="flex-1 py-3 rounded-xl bg-plex text-black font-black hover:bg-plex-hover transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                         {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
