@@ -3772,6 +3772,7 @@ app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
         tautulliUrl, tautulliApiKey,
         jellystatUrl, jellystatApiKey,
         requestAppType, requestAppUrl, requestAppFetchUrl, requestAppApiKey,
+        tmdbApiKey,
     } = req.body || {};
 
     const stored = await loadFile(CONFIG_PATH, {});
@@ -3925,6 +3926,21 @@ app.post('/api/config/test-integration', setupRateLimit, async (req, res) => {
                 return res.json({ ok: true, message: `Ombi v${data.version || data.applicationVersion || '?'} connected`, details: { version: data.version || data.applicationVersion } });
             }
             return res.status(400).json({ error: 'Unsupported request app type.' });
+        }
+
+        if (type === 'tmdb') {
+            const apiKey = resolveTestCredential(tmdbApiKey, stored.tmdbApiKey);
+            if (!apiKey) return res.status(400).json({ error: 'TMDB API key is required.' });
+            const configRes = await fetchWithTimeout(
+                `https://api.themoviedb.org/3/configuration?api_key=${encodeURIComponent(apiKey)}`,
+                { headers: { Accept: 'application/json' } },
+                12000,
+            );
+            if (!configRes.ok) {
+                if (configRes.status === 401) throw new Error('TMDB rejected the API key (unauthorized).');
+                throw new Error(`TMDB returned HTTP ${configRes.status}`);
+            }
+            return res.json({ ok: true, message: 'TMDB API key accepted.' });
         }
 
         return res.status(400).json({ error: 'Unknown integration type.' });
