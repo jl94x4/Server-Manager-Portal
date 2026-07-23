@@ -71,6 +71,35 @@ const ALLOW_PRIVATE_INTEGRATION_URLS = String(process.env.ALLOW_PRIVATE_INTEGRAT
 const FORCE_SECURE_COOKIES = String(process.env.FORCE_SECURE_COOKIES || '').toLowerCase() === 'true';
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || '';
 
+/** Normalize a public portal URL (no trailing slash). Returns '' if invalid/empty. */
+const normalizePublicBaseUrl = (raw = '') => {
+    const value = String(raw || '').trim().replace(/\/+$/, '');
+    if (!value) return '';
+    try {
+        return new URL(value).toString().replace(/\/+$/, '');
+    } catch {
+        return '';
+    }
+};
+
+const getEnvPublicBaseUrl = () => normalizePublicBaseUrl(PUBLIC_BASE_URL);
+
+/**
+ * Prefer Portal UI "Public Base URL" (config.publicDomain), then PUBLIC_BASE_URL env.
+ * Used for invite emails, newsletter links, OG tags, and CSRF allowed origins.
+ */
+const resolvePublicBaseUrlFromConfig = (config = {}) => (
+    normalizePublicBaseUrl(config?.publicDomain) || getEnvPublicBaseUrl()
+);
+
+/** Hot-updated when settings save so CSRF / sync helpers see the UI value. */
+let runtimePublicBaseUrl = getEnvPublicBaseUrl();
+
+const refreshRuntimePublicBaseUrl = (config = {}) => {
+    runtimePublicBaseUrl = resolvePublicBaseUrlFromConfig(config) || getEnvPublicBaseUrl();
+    return runtimePublicBaseUrl;
+};
+
 const normalizeBasePath = (raw = '') => {
     const value = String(raw || '').trim();
     if (!value || value === '/') return '';
@@ -302,9 +331,9 @@ const collectAllowedOrigins = (req) => {
         allowed.add(`https://${host}`);
         allowed.add(`http://${host}`);
     }
-    if (PUBLIC_BASE_URL) {
+    if (runtimePublicBaseUrl || PUBLIC_BASE_URL) {
         try {
-            allowed.add(new URL(PUBLIC_BASE_URL).origin);
+            allowed.add(new URL(runtimePublicBaseUrl || PUBLIC_BASE_URL).origin);
         } catch { /* ignore */ }
     }
     return allowed;
@@ -459,8 +488,8 @@ const createDefaultStatusConfig = (config = {}) => {
         services.push({ id, name, url, type: 'web', groupId, description });
     };
 
-    const publicDomain = String(config.publicDomain || '').trim();
-    if (publicDomain) addService('portal', 'Server Portal', `${publicDomain.replace(/\/+$/, '')}/api/health`, 'core', 'Portal API health');
+    const publicDomain = resolvePublicBaseUrlFromConfig(config);
+    if (publicDomain) addService('portal', 'Server Portal', `${publicDomain}/api/health`, 'core', 'Portal API health');
 
     const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
     if (mediaServerType !== 'plex') {
@@ -468,7 +497,7 @@ const createDefaultStatusConfig = (config = {}) => {
         addService(mediaServerType, mediaLabel, config.jellyfinUrl, 'media', `${mediaLabel} media server`);
         if (mediaServerType === 'jellyfin') addService('jellystat', 'Jellystat', config.jellystatUrl, 'media', 'Jellyfin analytics');
     } else {
-        addService('plex', 'Plex', config.plexServerUrl || config.publicDomain, 'media', 'Plex Media Server');
+        addService('plex', 'Plex', config.plexServerUrl || publicDomain, 'media', 'Plex Media Server');
         addService('tautulli', 'Tautulli', config.tautulliUrl, 'media', 'Plex analytics');
     }
 
@@ -2787,7 +2816,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 newsletterDay: config.newsletterDay || 0,
                 inactiveCleanupEnabled: !!config.inactiveCleanupEnabled,
                 inactiveCleanupDays: config.inactiveCleanupDays || 90,
-                publicDomain: config.publicDomain || 'https://portal.yourdomain.com',
+                publicDomain: resolvePublicBaseUrlFromConfig(config) || '',
                 requestUrl: config.requestUrl || 'https://yourdomain.com',
                 contactUrl: config.contactUrl || '',
                 contactWhatsApp,
@@ -2887,7 +2916,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 newsletterDay: 0,
                 inactiveCleanupEnabled: false,
                 inactiveCleanupDays: 90,
-                publicDomain: 'https://portal.yourdomain.com',
+                publicDomain: '',
                 requestUrl: 'https://yourdomain.com',
                 contactUrl: '',
                 sonarrUrl: '',
@@ -3097,7 +3126,10 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         newsletterDay: parseInt(newsletterDay, 10) || 0,
         inactiveCleanupEnabled: !!inactiveCleanupEnabled,
         inactiveCleanupDays: parseInt(inactiveCleanupDays, 10) || 90,
-        publicDomain: publicDomain || 'https://portal.yourdomain.com',
+        publicDomain: normalizePublicBaseUrl(publicDomain)
+            || normalizePublicBaseUrl(existingConfig.publicDomain)
+            || getEnvPublicBaseUrl()
+            || '',
         requestUrl: requestUrl || 'https://yourdomain.com',
         contactUrl: contactUrl || '',
         contactWhatsApp: contactWhatsApp || '',
@@ -3222,6 +3254,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         log,
     });
     await saveFile(CONFIG_PATH, collexionsConfig);
+    refreshRuntimePublicBaseUrl(collexionsConfig);
     syncIntegrationServicesInStatusConfig(collexionsConfig);
     try {
         await saveFile(STATUS_CONFIG_PATH, statusConfig);
@@ -3335,6 +3368,7 @@ app.get('/api/config/public', async (req, res) => {
             trendingBackgrounds: (!!config.useTrendingSlideshow || config.useTrendingSlideshowOnLogin !== false) ? await fetchTmdbTrendingBackgrounds(config.tmdbApiKey) : [],
             announcement: config.announcement || '',
             referralEnabled: !!config.referralEnabled,
+            publicBaseUrl: resolvePublicBaseUrlFromConfig(config) || '',
             appVersion: appVersion,
             use24HourClock: !!config.use24HourClock,
             allowTemporaryAccess: !!config.allowTemporaryAccess,
@@ -4866,7 +4900,7 @@ const generateNewsletterHtml = async (config, options = {}) => {
                         <tr>
                             <td align="center" style="padding: 30px; background-color: #0b0f19; border-top: 1px solid #1f2937;">
                                 <p style="margin: 0 0 10px 0; color: #6b7280; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 12px;">This is an automated message from Server Portal Manager.</p>
-                                <p style="margin: 0; color: #6b7280; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 12px;">To opt out of these newsletters, please visit your <a href="${config.publicDomain}" style="color: #eab308; text-decoration: none;">User Portal</a>.</p>
+                                <p style="margin: 0; color: #6b7280; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 12px;">To opt out of these newsletters, please visit your <a href="${resolvePublicBaseUrlFromConfig(config) || config.publicDomain || '#'}" style="color: #eab308; text-decoration: none;">User Portal</a>.</p>
                             </td>
                         </tr>
                     `;
@@ -5191,7 +5225,12 @@ app.post('/api/invites/email', requireAdmin, async (req, res) => {
     };
 
     try {
-        const publicDomain = config.publicDomain || 'https://portal.yourdomain.com';
+        const publicDomain = resolvePublicBaseUrlFromConfig(config);
+        if (!publicDomain) {
+            return res.status(400).json({
+                error: 'Set Public Base URL in Settings → Portal UI before sending invite emails.',
+            });
+        }
         const inviteUrl = `${publicDomain}/invite/${code}`;
         const adminProfile = await getAdminProfile(config);
         const serverName = adminProfile ? adminProfile.serverName : 'Our Plex Server';
@@ -10669,14 +10708,11 @@ const escapeHtmlAttr = (value = '') => String(value)
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
-const getRequestBaseUrl = (req) => {
-    if (PUBLIC_BASE_URL) {
-        try {
-            return new URL(PUBLIC_BASE_URL).toString().replace(/\/+$/, '');
-        } catch (e) {
-            log(`Invalid PUBLIC_BASE_URL configured: ${e.message}`);
-        }
-    }
+const getRequestBaseUrl = (req, config = null) => {
+    const configured = config
+        ? resolvePublicBaseUrlFromConfig(config)
+        : (runtimePublicBaseUrl || getEnvPublicBaseUrl());
+    if (configured) return configured;
     const host = req.get('host') || `localhost:${PORT}`;
     const normalizedHost = host.split(',')[0].trim();
     if (isBlockedHostName(normalizedHost.split(':')[0])) {
@@ -10735,7 +10771,7 @@ const injectBasePathHtml = (html) => {
 const buildSocialMetaTags = async (req) => {
     const config = await loadFile(CONFIG_PATH, {});
     const profile = await getAdminProfile(config);
-    const baseUrl = getRequestBaseUrl(req);
+    const baseUrl = getRequestBaseUrl(req, config);
     const pageUrl = `${baseUrl}${stripBasePathFromUrl(req.originalUrl || '/')}`;
     const serverName = profile.serverName || 'Server Portal';
     const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
@@ -17683,6 +17719,13 @@ app.listen(PORT, BIND_HOST, async () => {
     // Ensure unique, *stable* CLIENT_ID per installation (survives Docker recreates).
     // Without this, PMS may register the container hostname (e.g. 151a94f8…) as a new device each restart.
     let config = await loadFile(CONFIG_PATH, {});
+    // Seed Portal UI Public Base URL from PUBLIC_BASE_URL when the UI field was never set.
+    if (!normalizePublicBaseUrl(config.publicDomain) && getEnvPublicBaseUrl()) {
+        config.publicDomain = getEnvPublicBaseUrl();
+        await saveFile(CONFIG_PATH, config);
+        log(`Seeded publicDomain from PUBLIC_BASE_URL=${config.publicDomain}`);
+    }
+    refreshRuntimePublicBaseUrl(config);
     if (!config.clientId || config.clientId.startsWith('smp-') || config.clientId === 'plex-expiry-manager-client-id') {
         config.clientId = randomUUID();
         await saveFile(CONFIG_PATH, config);

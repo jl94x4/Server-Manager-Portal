@@ -518,7 +518,7 @@ The template uses `ghcr.io/jl94x4/server-manager-portal:latest` by default.
 | `PORT` | No | Listen port inside the container (default `2121`) |
 | `BIND_HOST` | No | Bind address (default `0.0.0.0`) |
 | `CONFIG_DIR` | No | Runtime data directory (default `/app/config` in Docker) |
-| `PUBLIC_BASE_URL` | Recommended | Public HTTPS URL for links and emails. Include the subpath when using one, e.g. `https://media.example.com/portal` |
+| `PUBLIC_BASE_URL` | Optional | Bootstrap public HTTPS URL for reverse-proxy / subpath hosting. After first login, set **Settings → Portal UI → Public Base URL** — invite emails and shareable links prefer that UI value. Include a subpath when needed, e.g. `https://media.example.com/portal` |
 | `BASE_PATH` | No | URL prefix when hosted under a subpath (e.g. `/portal`). Leave empty for root hosting |
 | `FORCE_SECURE_COOKIES` | Recommended | Set `true` when behind HTTPS |
 | `ALLOW_PRIVATE_INTEGRATION_URLS` | No | Allow LAN/private URLs for Arr stack integrations |

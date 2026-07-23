@@ -405,7 +405,7 @@ export const SettingsDashboard: React.FC = () => {
     // Newsletter States
     const [newsletterFrequency, setNewsletterFrequency] = useState('disabled');
     const [newsletterDay, setNewsletterDay] = useState(0);
-    const [publicDomain, setPublicDomain] = useState('https://yourdomain.com');
+    const [publicDomain, setPublicDomain] = useState('');
     const [requestUrl, setRequestUrl] = useState('https://yourdomain.com');
     const [contactUrl, setContactUrl] = useState('');
     const [contactWhatsApp, setContactWhatsApp] = useState('');
@@ -989,7 +989,7 @@ export const SettingsDashboard: React.FC = () => {
             setNewsletterDay(initialSettings.newsletterDay || 0);
             setInactiveCleanupEnabled(!!initialSettings.inactiveCleanupEnabled);
             setInactiveCleanupDays(initialSettings.inactiveCleanupDays || 90);
-            setPublicDomain(initialSettings.publicDomain || 'https://portal.yourdomain.com');
+            setPublicDomain(initialSettings.publicDomain || '');
             setRequestUrl(initialSettings.requestUrl || 'https://yourdomain.com');
             setContactUrl(initialSettings.contactUrl || '');
             setContactWhatsApp(initialSettings.contactWhatsApp || '');
@@ -1951,17 +1951,26 @@ export const SettingsDashboard: React.FC = () => {
                                             <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="newsletterDay" type="number" min="1" max="28" value={newsletterDay} onChange={e => setNewsletterDay(Number(e.target.value))} placeholder="Day of the month (1-28)" />
                                         )}
                                     </div>
-                                    <div className="mb-4" style={{ marginTop: '1rem' }}>
-                                        <SettingFieldLabel
-                                            htmlFor="publicDomain"
-                                            hint={<SettingHint>Your public URL. This is required to host the posters inside the email.</SettingHint>}
-                                        >
-                                            Public Domain
-                                        </SettingFieldLabel>
-                                        <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="publicDomain" type="text" value={publicDomain} onChange={e => setPublicDomain(e.target.value)} placeholder="https://portal.yourdomain.com" />
-                                    </div>
                                 </>
                             )}
+                            <p className="text-sm text-muted mt-4">
+                                Invite and newsletter email links use{' '}
+                                <button
+                                    type="button"
+                                    className="text-plex hover:underline font-semibold"
+                                    onClick={() => navigateToSetting({
+                                        id: 'branding/public-base-url',
+                                        tabId: 'branding',
+                                        sectionId: 'public-base-url',
+                                        label: 'Public Base URL',
+                                        group: 'Portal',
+                                        keywords: [],
+                                    })}
+                                >
+                                    Settings → Portal UI → Public Base URL
+                                </button>
+                                .
+                            </p>
                             <div className="mt-6 space-y-3">
                                 <h4 className="font-bold text-text">Generate Newsletter</h4>
                                 <div className="flex flex-col md:flex-row gap-4 mb-4">
@@ -2735,6 +2744,35 @@ export const SettingsDashboard: React.FC = () => {
                             </div>
 
                             <div className="space-y-6">
+                                    <section id={getSettingsSectionElementId('public-base-url')} className="scroll-mt-24 rounded-xl border border-border/70 p-4">
+                                        <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                                            <div className="lg:w-52 shrink-0">
+                                                <h4 className="font-bold text-text">Public Base URL</h4>
+                                                <p className="text-xs text-muted mt-1">Used for invite emails, newsletter links, and shareable portal URLs.</p>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <SettingFieldLabel
+                                                    htmlFor="publicDomain"
+                                                    hint={(
+                                                        <SettingHint>
+                                                            Your HTTPS URL as users reach the portal (no trailing slash). Include a subpath when hosted under one, e.g. https://media.example.com/portal. Falls back to the PUBLIC_BASE_URL Docker/env variable when empty.
+                                                        </SettingHint>
+                                                    )}
+                                                >
+                                                    Public Base URL
+                                                </SettingFieldLabel>
+                                                <input
+                                                    className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all"
+                                                    id="publicDomain"
+                                                    type="url"
+                                                    value={publicDomain}
+                                                    onChange={(e) => setPublicDomain(e.target.value)}
+                                                    placeholder="https://portal.yourdomain.com"
+                                                />
+                                            </div>
+                                        </div>
+                                    </section>
+
                                     <section id={getSettingsSectionElementId('logo')} className="scroll-mt-24 rounded-xl border border-border/70 p-4">
                                         <div className="flex flex-col lg:flex-row lg:items-start gap-4">
                                             <div className="lg:w-52 shrink-0">
@@ -3102,6 +3140,7 @@ export const SettingsDashboard: React.FC = () => {
                     {activeTab === 'invites' && (
                         <InvitesSettings
                             addToast={addToast}
+                            publicDomain={publicDomain}
                             referralEnabled={referralEnabled}
                             setReferralEnabled={setReferralEnabled}
                             referralTrialDays={referralTrialDays}
