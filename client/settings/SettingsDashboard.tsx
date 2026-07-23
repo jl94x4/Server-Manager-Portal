@@ -24,6 +24,7 @@ import {
     Radio,
     Shield,
     ScrollText,
+    Plus,
 } from 'lucide-react';
 import { apiFetch, PORTAL_CSRF_HEADER, PORTAL_CSRF_VALUE } from '../shared/api';
 import { portalUrl, resolvePortalAssetUrl } from '../shared/basePath';
@@ -2102,9 +2103,10 @@ export const SettingsDashboard: React.FC = () => {
                                 <button
                                     type="button"
                                     onClick={() => setDownloadClients([...downloadClients, createEmptyDownloadClient()])}
-                                    className="px-3 py-2 rounded-lg border border-border text-sm font-medium text-text hover:bg-white/5 transition-colors"
+                                    className="px-3 py-2 rounded-lg border border-border text-sm font-medium text-text hover:bg-white/5 transition-colors flex items-center gap-2 shrink-0"
                                 >
-                                    Add Client
+                                    <Plus className="w-4 h-4" />
+                                    Add Instance
                                 </button>
                             </div>
                             {downloadClients.length === 0 ? (
