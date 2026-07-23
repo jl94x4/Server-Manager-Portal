@@ -311,7 +311,10 @@ export const RequestModal: React.FC<Props> = ({
 
             if (payload.mediaType === 'tv' && Array.isArray(payload.seasons)) {
                 setSelectedSeasons(
-                    payload.seasons.filter((s) => s.requestable).map((s) => s.seasonNumber),
+                    payload.seasons
+                        .filter((s) => s.requestable)
+                        .map((s) => Number(s.seasonNumber))
+                        .filter((n) => Number.isFinite(n)),
                 );
             } else {
                 setSelectedSeasons([]);
@@ -437,15 +440,21 @@ export const RequestModal: React.FC<Props> = ({
     };
 
     const toggleSeason = (seasonNumber: number) => {
+        const n = Number(seasonNumber);
+        if (!Number.isFinite(n)) return;
         setSelectedSeasons((prev) => (
-            prev.includes(seasonNumber)
-                ? prev.filter((n) => n !== seasonNumber)
-                : [...prev, seasonNumber]
+            prev.includes(n)
+                ? prev.filter((x) => x !== n)
+                : [...prev, n]
         ));
     };
 
     const selectAllRequestable = () => {
-        setSelectedSeasons(requestableSeasons.map((s) => s.seasonNumber));
+        setSelectedSeasons(
+            requestableSeasons
+                .map((s) => Number(s.seasonNumber))
+                .filter((n) => Number.isFinite(n)),
+        );
     };
 
     const deselectAllSeasons = () => {
@@ -455,7 +464,8 @@ export const RequestModal: React.FC<Props> = ({
     const selectMissingOnly = () => {
         const missing = requestableSeasons
             .filter((s) => s.statusLabel === 'Not requested')
-            .map((s) => s.seasonNumber);
+            .map((s) => Number(s.seasonNumber))
+            .filter((n) => Number.isFinite(n));
         setSelectedSeasons(missing);
     };
 
@@ -557,7 +567,7 @@ export const RequestModal: React.FC<Props> = ({
         const allRequestableSelected = mediaType === 'tv'
             && requestableSeasons.length > 0
             && selectedSeasons.length === requestableSeasons.length
-            && requestableSeasons.every((s) => selectedSeasons.includes(s.seasonNumber));
+            && requestableSeasons.every((s) => selectedSeasons.includes(Number(s.seasonNumber)));
 
         const body: Record<string, unknown> = {
             mediaType,
@@ -708,12 +718,24 @@ export const RequestModal: React.FC<Props> = ({
             </div>
             <div className="flex flex-col gap-2 max-h-64 overflow-y-auto custom-scrollbar pr-1">
                 {(options?.seasons || []).map((season) => {
-                    const selected = selectedSeasons.includes(season.seasonNumber);
-                    const disabled = !season.requestable;
+                    const seasonNumber = Number(season.seasonNumber);
+                    const selected = selectedSeasons.includes(seasonNumber);
+                    const disabled = !season.requestable || submitting;
                     return (
-                        <label
-                            key={season.seasonNumber}
-                            className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
+                        // Use a button (not label + sr-only checkbox): focusing a clipped
+                        // checkbox inside overflow-hidden scrolls the dialog content away
+                        // and leaves an empty card.
+                        <button
+                            key={seasonNumber}
+                            type="button"
+                            disabled={disabled}
+                            aria-pressed={selected}
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                if (!disabled) toggleSeason(seasonNumber);
+                            }}
+                            className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors w-full ${
                                 disabled
                                     ? 'border-white/5 bg-white/[0.02] opacity-70 cursor-not-allowed'
                                     : selected
@@ -721,18 +743,9 @@ export const RequestModal: React.FC<Props> = ({
                                         : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer'
                             }`}
                         >
-                            <input
-                                type="checkbox"
-                                className="sr-only"
-                                checked={selected}
-                                disabled={disabled || submitting}
-                                onChange={() => {
-                                    if (!disabled) toggleSeason(season.seasonNumber);
-                                }}
-                            />
                             <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border ${
                                 selected ? 'border-plex bg-plex/20' : 'border-white/20 bg-black/20'
-                            }`}>
+                            }`} aria-hidden="true">
                                 {selected && <CheckCircle className="w-3.5 h-3.5 text-plex" />}
                             </span>
                             <div className="flex-1 min-w-0">
@@ -750,7 +763,7 @@ export const RequestModal: React.FC<Props> = ({
                                     </p>
                                 )}
                             </div>
-                        </label>
+                        </button>
                     );
                 })}
             </div>
@@ -770,7 +783,8 @@ export const RequestModal: React.FC<Props> = ({
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="request-modal-title"
-                className="relative w-full sm:max-w-3xl lg:max-w-4xl max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-0.5rem))] sm:max-h-[85vh] min-h-0 bg-card border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-fade-in"
+                onMouseDown={(event) => event.stopPropagation()}
+                className="relative w-full sm:max-w-3xl lg:max-w-4xl max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-0.5rem))] sm:max-h-[85vh] min-h-0 bg-card border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden"
             >
                 <div className="flex items-start justify-between gap-4 p-5 border-b border-white/10 bg-black/20 shrink-0">
                     <div className="flex items-start gap-4 min-w-0">
