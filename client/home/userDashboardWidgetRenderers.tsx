@@ -122,22 +122,30 @@ const LibraryStatsContent: React.FC<{ serverStats: any; variant?: 'plex' | 'jell
     const episodeCount = Number(serverStats.episodes) || 0;
     const trackCount = Number(serverStats.tracks) || 0;
 
+    // Only list library types that actually exist / have content — avoid showing
+    // a phantom "Music" row when Plex has no artist libraries (issue #75).
     const segments = [
         { label: 'Movies', bytes: movies, count: movieCount, countLabel: 'movies', icon: Film, color: 'bg-plex', dot: 'bg-plex' },
         { label: 'TV Shows', bytes: shows, count: showCount, countLabel: 'shows', icon: Tv, color: 'bg-amber-400', dot: 'bg-amber-400' },
         { label: 'Music', bytes: music, count: musicCount, countLabel: 'albums', icon: Music, color: 'bg-orange-500', dot: 'bg-orange-500' },
-    ];
+    ].filter((segment) => segment.bytes > 0 || segment.count > 0);
+
+    if (segments.length === 0) return null;
 
     const pct = (bytes: number) => Math.max(bytes > 0 ? (bytes / total) * 100 : 0, 0);
+    const summaryBits = [
+        episodeCount > 0 ? `${episodeCount.toLocaleString()} episodes` : null,
+        trackCount > 0 ? `${trackCount.toLocaleString()} tracks` : null,
+    ].filter(Boolean);
 
     return (
         <div className="space-y-3">
             <div>
                 <p className="text-[10px] uppercase tracking-widest font-bold text-muted">Total Library</p>
                 <p className="text-2xl md:text-3xl font-black text-text mt-1 tracking-tight">{formatBytes(total)}</p>
-                <p className="text-xs text-muted mt-1">
-                    {episodeCount.toLocaleString()} episodes · {trackCount.toLocaleString()} tracks
-                </p>
+                {summaryBits.length > 0 ? (
+                    <p className="text-xs text-muted mt-1">{summaryBits.join(' · ')}</p>
+                ) : null}
             </div>
 
             <div className="flex h-1.5 rounded-full overflow-hidden bg-white/5">
