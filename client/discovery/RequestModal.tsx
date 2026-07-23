@@ -10,6 +10,7 @@ import {
     formatQuotaHint,
     seasonStatusBadgeClass,
 } from './requestSeasonUtils';
+import { resolveTmdbImageUrl } from './tmdbImageUrl';
 
 type Props = {
     open: boolean;
@@ -650,7 +651,7 @@ export const RequestModal: React.FC<Props> = ({
 
     const displayTitle = options?.title || fallbackTitle || 'Request media';
     const overview = (options?.overview || '').trim();
-    const posterUrl = options?.posterPath ? `https://image.tmdb.org/t/p/w342${options.posterPath}` : '';
+    const posterUrl = resolveTmdbImageUrl(options?.posterPath, 'w342');
     const showAdvancedSection = !!options?.canRequestAdvanced;
     // Show HD + UHD whenever a 4K *arr exists (same for movies and series).
     const showQualityPicker = !!options?.has4kServer;

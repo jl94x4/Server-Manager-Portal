@@ -447,6 +447,7 @@ import {
     createPortalRequestService,
     createPortalIssueService,
     createPortalBlocklistService,
+    enrichDiscoveryPayloadWithTvdbPosters,
     createPortalWatchlistService,
     evaluatePortalMemberQuota,
     shouldPortalAutoApprove,
@@ -7372,6 +7373,12 @@ app.get('/api/discovery/proxy/*', requireAuth, requireMember, async (req, res) =
             false,
             discoverLanguage,
         );
+        // TMDB-missing TV posters → TheTVDB (requires tvdbApiKey; soft-timeout so browse stays snappy).
+        data = await enrichDiscoveryPayloadWithTvdbPosters(config, data, {
+            fetchImpl: fetch,
+            timeoutMs: 2800,
+            concurrency: 4,
+        });
         res.json(data);
     } catch (e) {
         res.status(500).json({ error: e.message });

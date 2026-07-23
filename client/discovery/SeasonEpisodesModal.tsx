@@ -4,6 +4,7 @@ import { apiFetch } from '../shared/api';
 import { ModalPortal } from '../shared/ModalPortal';
 import { NoPosterPlaceholder } from '../shared/NoPosterPlaceholder';
 import { useDiscoverI18n, translateDiscoverStatus } from './i18n';
+import { resolveTmdbImageUrl } from './tmdbImageUrl';
 
 type SeasonEpisode = {
     id: number;
@@ -111,7 +112,7 @@ export const SeasonEpisodesModal: React.FC<Props> = ({
 
     const episodes = Array.isArray(season?.episodes) ? season.episodes : [];
     const headerPoster = season?.posterPath || showPosterPath;
-    const headerPosterUrl = headerPoster ? `https://image.tmdb.org/t/p/w185${headerPoster}` : '';
+    const headerPosterUrl = resolveTmdbImageUrl(headerPoster, 'w185');
     const displaySeasonName = season?.name || seasonName;
     const totalEpisodes = episodes.length || episodeCount || 0;
 

@@ -8,6 +8,7 @@ import { NoPosterPlaceholder } from '../shared/NoPosterPlaceholder';
 import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscoveryPreferences';
 import { useDiscoveryMe } from './useDiscoveryMe';
 import { tmdbBackdropUrl } from './discoverConstants';
+import { resolveTmdbImageUrl } from './tmdbImageUrl';
 import { RequestModal } from './RequestModal';
 import { ReportIssueModal } from './ReportIssueModal';
 import { SeasonEpisodesModal } from './SeasonEpisodesModal';
@@ -426,8 +427,8 @@ export const MediaDetailsPage: React.FC<{
             || availability?.kind === 'available'
             || availability?.kind === 'partial'
         );
-    const posterUrl = details.posterPath ? `https://image.tmdb.org/t/p/w500${details.posterPath}` : '';
-    const posterHeroUrl = details.posterPath ? `https://image.tmdb.org/t/p/w780${details.posterPath}` : '';
+    const posterUrl = resolveTmdbImageUrl(details.posterPath, 'w500');
+    const posterHeroUrl = resolveTmdbImageUrl(details.posterPath, 'w780');
     const backdropUrl = tmdbBackdropUrl(details.backdropPath || '');
     const heroBackdropUrl = backdropUrl && !backdropFailed ? backdropUrl : '';
     const heroImageUrl = heroBackdropUrl || posterHeroUrl;
@@ -888,7 +889,7 @@ export const MediaDetailsPage: React.FC<{
                                 >
                                     <div className="w-11 h-16 rounded-md overflow-hidden flex-shrink-0 bg-white/5 border border-border">
                                         {season.posterPath ? (
-                                            <img src={`https://image.tmdb.org/t/p/w92${season.posterPath}`} className="w-full h-full object-cover" alt="" />
+                                            <img src={resolveTmdbImageUrl(season.posterPath, 'w92')} className="w-full h-full object-cover" alt="" />
                                         ) : (
                                             <NoPosterPlaceholder compact />
                                         )}

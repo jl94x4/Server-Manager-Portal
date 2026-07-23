@@ -19,6 +19,7 @@ import { useMyIssueCount } from './useMyIssueCount';
 import { useDiscoveryMe } from './useDiscoveryMe';
 import { WatchlistPage } from './WatchlistPage';
 import { scrollPortalToTop, stashDiscoverDetailSeed } from './discoverNavigationUtils';
+import { resolveTmdbImageUrl } from './tmdbImageUrl';
 import { useDiscoverI18n } from './i18n';
 import { discoveryTheme } from './discoveryThemeClasses';
 import { ToastContainer, pushToast as appendToast, type ToastMessage } from '../shared/toast';
@@ -146,8 +147,8 @@ const DiscoveryDashboardInner: React.FC<{
         const isMovie = item.mediaType === 'movie';
         const title = isPerson ? item.name : (isMovie ? (item.title || item.name) : (item.name || item.title));
         const year = (item.releaseDate || item.firstAirDate || '').substring(0, 4);
-        const posterUrl = item.posterPath ? `https://image.tmdb.org/t/p/w342${item.posterPath}` : '';
-        const profileUrl = item.profilePath ? `https://image.tmdb.org/t/p/w185${item.profilePath}` : '';
+        const posterUrl = resolveTmdbImageUrl(item.posterPath, 'w342');
+        const profileUrl = resolveTmdbImageUrl(item.profilePath, 'w185');
         const overview = item.overview;
         const mediaType = isPerson ? 'person' : (isMovie ? 'movie' : 'tv');
 

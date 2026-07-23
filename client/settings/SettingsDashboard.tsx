@@ -2450,7 +2450,7 @@ export const SettingsDashboard: React.FC = () => {
                                         <div>
                                             <SettingFieldLabel
                                                 htmlFor="tvdbApiKey"
-                                                hint={<SettingHint>Optional. Used for TVDB connectivity tests; Sonarr matching still works via TMDB external_ids when empty.</SettingHint>}
+                                                hint={<SettingHint>Optional. Used for Discover TV poster fallback when TMDB has no art, and for connectivity tests. Sonarr matching still works via TMDB external_ids when empty.</SettingHint>}
                                             >
                                                 TVDB API key
                                             </SettingFieldLabel>
