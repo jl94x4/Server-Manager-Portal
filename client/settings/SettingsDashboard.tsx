@@ -906,12 +906,8 @@ export const SettingsDashboard: React.FC = () => {
         const failingJobs = jobs.filter((job: any) => !!job.lastError).length;
         const alerts: string[] = [];
 
-        if (integrationsConfigured < integrationsTotal) {
-            const missingNames = trackedIntegrations
-                .filter(([, configured]) => !configured)
-                .map(([key]) => integrationLabels[key]);
-            alerts.push(`${missingNames.join(', ')} not configured.`);
-        }
+        // Not-configured integrations are informational only — they must not drag the
+        // health score (issue #74). Score reflects caches + job health of the setup in use.
         if (cacheHealthy < cacheTotal) {
             alerts.push(`${cacheTotal - cacheHealthy} cache file(s) are missing.`);
         }
@@ -923,7 +919,7 @@ export const SettingsDashboard: React.FC = () => {
         }
 
         const maxPenalty = 55;
-        const integrationPenalty = integrationsTotal > 0 ? Math.round(((integrationsTotal - integrationsConfigured) / integrationsTotal) * 25) : 0;
+        const integrationPenalty = 0;
         const cachePenalty = cacheTotal > 0 ? Math.round(((cacheTotal - cacheHealthy) / cacheTotal) * 20) : 0;
         const jobPenalty = Math.min(10, failingJobs * 5);
         const penalty = Math.min(maxPenalty, integrationPenalty + cachePenalty + jobPenalty);
@@ -935,7 +931,8 @@ export const SettingsDashboard: React.FC = () => {
             status,
             alerts,
             integrationsConfigured,
-            integrationsTotal,
+            // Denominator matches configured only — not-configured apps are out of scope for health.
+            integrationsTotal: integrationsConfigured,
             cacheHealthy,
             cacheTotal,
             runningJobs,
