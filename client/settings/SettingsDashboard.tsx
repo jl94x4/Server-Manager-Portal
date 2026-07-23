@@ -2207,6 +2207,13 @@ export const SettingsDashboard: React.FC = () => {
                                 </SettingFieldLabel>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="tmdbApiKey" type="password" value={tmdbApiKey} onChange={(e) => setTmdbApiKey(e.target.value)} placeholder="Enter TMDB API Key" />
                             </div>
+                            <IntegrationTestButton
+                                type="tmdb"
+                                payload={{ tmdbApiKey }}
+                                disabled={!String(tmdbApiKey || initialSettings.tmdbApiKey || '').trim()}
+                                className="mb-6"
+                                onMessage={(msg, ok) => addToast(msg, ok ? 'success' : 'error')}
+                            />
                             </div>
                             {mediaServerType === 'plex' && (
                                 <div id={getSettingsSectionElementId('tautulli')} className="scroll-mt-24">
