@@ -576,6 +576,22 @@ html[data-theme="light"] .media-details-hero-scrim-left {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Discover: content reveal after skeleton / filter changes */
+@keyframes discover-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes discover-poster-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes discover-skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.72; }
+}
+
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -1080,24 +1096,34 @@ html[data-theme="light"] .media-details-hero-scrim-left {
 }
 
 .skeleton-base {
-  @apply animate-pulse bg-white/10;
+  position: relative;
+  overflow: hidden;
+  background-color: rgba(255, 255, 255, 0.07);
+  animation: discover-skeleton-pulse 1.8s ease-in-out infinite;
+}
+
+.skeleton-base::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.06) 35%,
+    rgba(255, 255, 255, 0.14) 50%,
+    rgba(255, 255, 255, 0.06) 65%,
+    rgba(255, 255, 255, 0)
+  );
+  animation: skeleton-shimmer 1.55s ease-in-out infinite;
 }
 
 html.branded-skeleton .skeleton-base {
-  position: relative;
-  overflow: hidden;
   background-color: rgba(255, 255, 255, 0.03);
   animation: none;
 }
 
 html.branded-skeleton .skeleton-base::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  transform: translateX(-100%);
   background-image: linear-gradient(
     90deg,
     rgba(255, 255, 255, 0) 0,
@@ -1105,7 +1131,46 @@ html.branded-skeleton .skeleton-base::after {
     rgb(var(--color-plex) / 0.4) 60%,
     rgba(255, 255, 255, 0)
   );
-  animation: skeleton-shimmer 2s infinite;
+  animation: skeleton-shimmer 1.8s ease-in-out infinite;
+}
+
+.discover-content-enter {
+  animation: discover-enter 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.discover-poster-enter {
+  animation: discover-poster-in 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.discover-poster-img {
+  opacity: 0;
+  transition: opacity 0.35s ease-out, transform 0.3s ease-out;
+}
+
+.discover-poster-img.is-loaded {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-base,
+  .skeleton-base::after,
+  html.branded-skeleton .skeleton-base::after {
+    animation: none !important;
+  }
+
+  .discover-content-enter,
+  .discover-poster-enter,
+  .animate-fade-in,
+  .animate-slide-up {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .discover-poster-img {
+    opacity: 1;
+    transition: none;
+  }
 }
 
 @keyframes cinematic-draw {

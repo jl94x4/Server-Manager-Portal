@@ -273,7 +273,11 @@ export const DiscoverHome: React.FC<{
                         if (!rawItem) return null;
                         const formatted = formatItem(rawItem);
                         return (
-                            <div key={`${title}-${formatted.id || idx}`} className={`${posterCardClass} flex-shrink-0 relative group`}>
+                            <div
+                                key={`${title}-${formatted.id || idx}`}
+                                className={`${posterCardClass} flex-shrink-0 relative group discover-poster-enter`}
+                                style={{ animationDelay: `${Math.min(idx, 12) * 30}ms` }}
+                            >
                                 <DiscoverPosterCard
                                     item={formatted}
                                     overlay={formatted.overlay}
@@ -324,11 +328,15 @@ export const DiscoverHome: React.FC<{
     };
 
     if (loading) {
-        return <DiscoverHomeSkeleton />;
+        return (
+            <div className="discover-content-enter" aria-busy="true">
+                <DiscoverHomeSkeleton />
+            </div>
+        );
     }
 
     return (
-        <div className="flex flex-col gap-6 w-full max-w-full overflow-hidden pb-8 px-1">
+        <div className="flex flex-col gap-6 w-full max-w-full overflow-hidden pb-8 px-1 discover-content-enter">
             <section className={discoveryTheme.personalPanel}>
                 <div className="px-1 flex items-start justify-between gap-3">
                     <div className="min-w-0">
