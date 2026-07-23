@@ -136,15 +136,20 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
         };
     }
 
-    // List stamps often lack TMDB inProduction — trust Sonarr nextAiring / PARTIAL / !showComplete.
+    // List stamps often lack TMDB inProduction — only treat as "still airing" when
+    // the show is actually continuing (or Sonarr has a next airing). Ended shows with
+    // files must not be forced to Partial via showComplete===false alone.
     if (mediaType === 'tv') {
         const sonarr = item?.sonarrLibraryStatus;
         const stamped = Number(mediaInfo?.status);
+        const ended = isEndedShow(item);
+        const returning = isReturningSeries(item);
         const continuingInLibrary = Boolean(sonarr?.matched)
+            && !ended
             && (
                 Boolean(sonarr?.nextAiring)
-                || sonarr?.showComplete === false
-                || stamped === MEDIA_STATUS.PARTIAL
+                || (returning && sonarr?.showComplete === false)
+                || (returning && stamped === MEDIA_STATUS.PARTIAL)
             );
         if (
             continuingInLibrary

@@ -219,7 +219,9 @@ export const isTvShowLibraryComplete = (
     // Sonarr is the source of truth when the portal can see the series.
     if (sonarr?.matched) {
         if (sonarr.hasActiveDownloads) return false;
-        return !!sonarr.showComplete;
+        if (sonarr.showComplete) return true;
+        // Fall through: showComplete can be conservative (specials / undated eps).
+        // Prefer per-season evidence below when Sonarr matched but didn't flip complete.
     }
 
     // Without Sonarr verification, do not trust Seerr show-level AVAILABLE /

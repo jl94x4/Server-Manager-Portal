@@ -182,22 +182,45 @@ export const MediaDetailsPage: React.FC<{
                     const sonarr = res.sonarrLibraryStatus;
                     setDetails((prev) => {
                         if (!prev) return prev;
+                        const seasons = Array.isArray(sonarr.seasons) ? sonarr.seasons : [];
+                        const mainComplete = seasons
+                            .filter((s: any) => Number(s?.seasonNumber) > 0 && Number(s?.airedTotal) > 0)
+                            .every((s: any) => !!s.complete);
+                        const effectivelyComplete = !!sonarr.showComplete
+                            || (!sonarr.hasActiveDownloads && !sonarr.nextAiring && mainComplete && seasons.some((s: any) => Number(s?.seasonNumber) > 0));
+
                         let nextStatus = prev.mediaInfo?.status;
                         if (sonarr.hasActiveDownloads) {
                             nextStatus = 3; // PROCESSING — still downloading
-                        } else if (sonarr.showComplete) {
+                        } else if (effectivelyComplete) {
                             nextStatus = 5; // AVAILABLE
                         } else if (Number(sonarr.fileCount) > 0) {
                             nextStatus = 4; // PARTIAL
                         } else if (Number(sonarr.episodeCount) > 0) {
                             nextStatus = 3; // tracked in Sonarr, nothing on disk yet
                         }
+
+                        const librarySeasons = seasons
+                            .filter((s: any) => Number(s?.seasonNumber) > 0 && (Number(s?.airedTotal) > 0 || Number(s?.withFile) > 0))
+                            .map((s: any) => ({
+                                seasonNumber: Number(s.seasonNumber),
+                                status: s.complete ? 5 : 4,
+                            }));
+
                         return {
                             ...prev,
-                            sonarrLibraryStatus: sonarr,
+                            sonarrLibraryStatus: {
+                                ...sonarr,
+                                showComplete: effectivelyComplete,
+                            },
                             mediaInfo: {
                                 ...(prev.mediaInfo || {}),
                                 ...(nextStatus != null ? { status: nextStatus } : {}),
+                                ...(librarySeasons.length
+                                    ? {
+                                        seasons: librarySeasons,
+                                    }
+                                    : {}),
                             },
                         };
                     });
