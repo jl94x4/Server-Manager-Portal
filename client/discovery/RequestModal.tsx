@@ -385,9 +385,11 @@ export const RequestModal: React.FC<Props> = ({
         const list = options?.servers || [];
         const want4k = advancedQuality === '4k';
         const matched = list.filter((server) => !!server.is4k === want4k);
+        // When HD/UHD picker is active, keep destination lists quality-scoped.
+        if (options?.has4kServer) return matched;
         // Fall back to full list if nothing is tagged for this quality (misconfigured is4k).
         return matched.length ? matched : list;
-    }, [options?.servers, advancedQuality]);
+    }, [options?.servers, options?.has4kServer, advancedQuality]);
 
     const hdServerName = useMemo(
         () => (options?.servers || []).find((server) => !server.is4k)?.name
@@ -653,8 +655,10 @@ export const RequestModal: React.FC<Props> = ({
     const overview = (options?.overview || '').trim();
     const posterUrl = resolveTmdbImageUrl(options?.posterPath, 'w342');
     const showAdvancedSection = !!options?.canRequestAdvanced;
-    // Show HD + UHD whenever a 4K *arr exists (same for movies and series).
-    const showQualityPicker = !!options?.has4kServer;
+    // Show HD + UHD chips whenever a 4K *arr exists, or 4K requests are allowed
+    // (so members still see the dual picker when permissions are on).
+    const showQualityPicker = !!options?.has4kServer || !!options?.canRequest4k
+        || ((options?.servers || []).length > 1);
     const advancedLoading = showAdvancedSection && activeForm.loading && !activeForm.loaded;
     const bothQualitiesSelected = selectedQualities.has('hd') && selectedQualities.has('4k');
     // Surface destination / root folder for series without forcing Advanced open first.
