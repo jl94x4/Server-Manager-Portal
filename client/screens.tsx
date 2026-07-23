@@ -9856,6 +9856,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         }
 
         const handleActivate = () => {
+            if (options.mobile) setMobileMoreOpen(false);
             if (item.onClick) item.onClick({ preventDefault: () => {} });
             else if (item.route) onNavigate(item.route as any);
         };
@@ -10232,8 +10233,8 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                 </div>
             )}
 
-            {/* Mobile Bottom Nav */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 w-full nav-shell border-t z-[310] pb-[env(safe-area-inset-bottom)]">
+            {/* Mobile Bottom Nav — stay above the More overlay so iOS PWA keeps a full, tappable tab bar */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 w-full nav-shell border-t z-[330] pb-[env(safe-area-inset-bottom)]">
                 <div className="flex items-stretch justify-between w-full h-16 px-[max(0.25rem,env(safe-area-inset-left))] pr-[max(0.25rem,env(safe-area-inset-right))]">
                     {(() => {
                         const maxPrimary = MOBILE_NAV_PRIMARY_SLOTS;
@@ -10256,7 +10257,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                         className={`relative flex flex-col items-center justify-center gap-0.5 h-full flex-1 min-w-0 px-0.5 text-center text-[0.6rem] sm:text-[0.65rem] transition-colors bg-transparent border-0 cursor-pointer ${
                                             mobileMoreOpen ? 'text-plex font-bold' : 'text-muted hover:text-text'
                                         }`}
-                                        onClick={() => setMobileMoreOpen(true)}
+                                        onClick={() => setMobileMoreOpen((open) => !open)}
                                     >
                                         <span className="relative shrink-0">
                                             <MoreHorizontal className="w-5 h-5" />
@@ -10273,10 +10274,10 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                 </div>
             </div>
 
-            {/* Mobile More Drawer — above the tab bar (nav is z-310). */}
+            {/* Mobile More Drawer — backdrop stops above the tab bar so the nav stays fully visible on iOS PWA. */}
             {mobileMoreOpen && (
                 <div
-                    className="md:hidden fixed inset-0 z-[320] bg-black/60 backdrop-blur-sm animate-fade-in flex flex-col justify-end pb-[calc(4rem+env(safe-area-inset-bottom,0px))]"
+                    className="md:hidden fixed top-0 left-0 right-0 z-[320] bg-black/60 backdrop-blur-sm animate-fade-in flex flex-col justify-end bottom-[calc(4rem+env(safe-area-inset-bottom,0px))]"
                     onClick={() => setMobileMoreOpen(false)}
                 >
                     <div
