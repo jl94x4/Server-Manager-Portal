@@ -104,17 +104,16 @@ export const DiscoverHome: React.FC<{
         setLoading(true);
         try {
             const hideAvailable = preferences.hideAvailableMedia;
-            // Seerr-fast first paint: popularity + parallel pages. Never lead with release-date
-            // sorts (unreleased / poster-less junk). Background refill densifies rows.
+            // Fast first paint: one source, few pages. Background deepFill densifies rows.
             const quickPaint = {
                 needsBackfill: hideAvailable,
-                maxPages: hideAvailable ? 4 : 2,
-                maxItems: 24,
-                minItems: hideAvailable ? 8 : 12,
+                maxPages: 1,
+                maxItems: 20,
+                minItems: hideAvailable ? 6 : 10,
                 // Keep requested titles on Discover; only drop available/partial.
                 hideRequested: false,
                 trustAttachedAvailability: true,
-                pageConcurrency: 4,
+                pageConcurrency: 1,
                 requirePoster: true,
             };
             const deepFill = {
@@ -127,39 +126,42 @@ export const DiscoverHome: React.FC<{
                 pageConcurrency: 4,
                 requirePoster: true,
             };
-            const movieSources = hideAvailable
+            const movieSourcesQuick = [
+                (page: number) => `/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`,
+            ];
+            const movieSourcesDeep = hideAvailable
                 ? [
                     (page: number) => `/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`,
                     (page: number) => `/api/discovery/proxy/discover/movies?sortBy=vote_count.desc&page=${page}`,
                     (page: number) => `/api/discovery/proxy/discover/movies/upcoming?page=${page}`,
                 ]
-                : [
-                    (page: number) => `/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`,
-                ];
-            const seriesSources = hideAvailable
+                : movieSourcesQuick;
+            const seriesSourcesQuick = [
+                (page: number) => `/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`,
+            ];
+            const seriesSourcesDeep = hideAvailable
                 ? [
                     (page: number) => `/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`,
                     (page: number) => `/api/discovery/proxy/discover/tv?sortBy=vote_count.desc&page=${page}`,
                     (page: number) => `/api/discovery/proxy/discover/tv/upcoming?page=${page}`,
                 ]
-                : [
-                    (page: number) => `/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`,
-                ];
+                : seriesSourcesQuick;
             const upcomingMovieSources = [
                 (page: number) => `/api/discovery/proxy/discover/movies/upcoming?page=${page}`,
             ];
             const upcomingSeriesSources = [
                 (page: number) => `/api/discovery/proxy/discover/tv/upcoming?page=${page}`,
             ];
-            const trendingSources = hideAvailable
+            const trendingSourcesQuick = [
+                (page: number) => `/api/discovery/proxy/discover/trending?page=${page}`,
+            ];
+            const trendingSourcesDeep = hideAvailable
                 ? [
                     (page: number) => `/api/discovery/proxy/discover/trending?page=${page}`,
                     (page: number) => `/api/discovery/proxy/discover/movies?sortBy=popularity.desc&page=${page}`,
                     (page: number) => `/api/discovery/proxy/discover/tv?sortBy=popularity.desc&page=${page}`,
                 ]
-                : [
-                    (page: number) => `/api/discovery/proxy/discover/trending?page=${page}`,
-                ];
+                : trendingSourcesQuick;
 
             const fetchRow = (
                 sources: Array<(page: number) => string>,
@@ -177,10 +179,10 @@ export const DiscoverHome: React.FC<{
                 popularSeries,
                 upcomingSeries,
             ] = await Promise.all([
-                fetchRow(trendingSources, quickPaint).catch(() => []),
-                fetchRow(movieSources, quickPaint).catch(() => []),
+                fetchRow(trendingSourcesQuick, quickPaint).catch(() => []),
+                fetchRow(movieSourcesQuick, quickPaint).catch(() => []),
                 fetchRow(upcomingMovieSources, quickPaint).catch(() => []),
-                fetchRow(seriesSources, quickPaint).catch(() => []),
+                fetchRow(seriesSourcesQuick, quickPaint).catch(() => []),
                 fetchRow(upcomingSeriesSources, quickPaint).catch(() => []),
             ]);
 
@@ -201,10 +203,10 @@ export const DiscoverHome: React.FC<{
                 void (async () => {
                     try {
                         const [trendingFill, moviesFill, upcomingMoviesFill, seriesFill, upcomingSeriesFill] = await Promise.all([
-                            fetchRow(trendingSources, deepFill).catch(() => []),
-                            fetchRow(movieSources, deepFill).catch(() => []),
+                            fetchRow(trendingSourcesDeep, deepFill).catch(() => []),
+                            fetchRow(movieSourcesDeep, deepFill).catch(() => []),
                             fetchRow(upcomingMovieSources, deepFill).catch(() => []),
-                            fetchRow(seriesSources, deepFill).catch(() => []),
+                            fetchRow(seriesSourcesDeep, deepFill).catch(() => []),
                             fetchRow(upcomingSeriesSources, deepFill).catch(() => []),
                         ]);
                         const pickRow = (fill, quick) => (

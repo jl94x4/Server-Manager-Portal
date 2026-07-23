@@ -5382,39 +5382,70 @@ const createDiscoveryLibraryAvailability = (config) => createLibraryAvailability
     catalogTimeoutMs: 8000,
 });
 
-const loadDiscoveryAvailabilityCacheFile = async () => (
-    normalizeDiscoveryAvailabilityCache(
+let discoveryAvailabilityCacheMemo = null;
+let discoveryAvailabilityCacheMemoAt = 0;
+const DISCOVERY_AVAILABILITY_MEMO_TTL_MS = 30 * 1000;
+
+const loadDiscoveryAvailabilityCacheFile = async ({ force = false } = {}) => {
+    if (
+        !force
+        && discoveryAvailabilityCacheMemo
+        && (Date.now() - discoveryAvailabilityCacheMemoAt) < DISCOVERY_AVAILABILITY_MEMO_TTL_MS
+    ) {
+        return discoveryAvailabilityCacheMemo;
+    }
+    discoveryAvailabilityCacheMemo = normalizeDiscoveryAvailabilityCache(
         await loadFile(DISCOVERY_AVAILABILITY_CACHE_PATH, emptyDiscoveryAvailabilityCache()),
-    )
-);
+    );
+    discoveryAvailabilityCacheMemoAt = Date.now();
+    return discoveryAvailabilityCacheMemo;
+};
+
+const invalidateDiscoveryAvailabilityCacheMemo = () => {
+    discoveryAvailabilityCacheMemo = null;
+    discoveryAvailabilityCacheMemoAt = 0;
+};
 
 /** Overlay the current member's active portal requests onto discover items (Requested badges). */
+const memberActiveRequestsOverlayCache = new Map(); // userKey → { at, byKey: Map }
+const MEMBER_ACTIVE_REQUESTS_OVERLAY_TTL_MS = 20 * 1000;
+
 const overlayPortalPendingRequestsOntoItems = async (config, sessionUser, items = []) => {
     if (getRequestEngine(config) !== 'portal' || !sessionUser || !Array.isArray(items) || !items.length) {
         return items;
     }
     try {
-        const portalRequests = getPortalRequestService(config);
-        // Include pending + approved — auto-approve clears "pending" immediately and was
-        // leaving detail pages stuck on "Request Movie".
-        const listed = await portalRequests.listMemberRequests(sessionUser, {
-            filter: 'all',
-            take: 200,
-            skip: 0,
-        });
-        const activeByKey = new Map();
-        for (const row of listed.results || []) {
-            const status = Number(row?.status);
-            // Skip terminal states; library cache still owns Available/Partial.
-            if (status === 3 || status === 4) continue; // declined / failed
-            const mediaType = row?.type === 'tv' ? 'tv' : 'movie';
-            const tmdbId = Number(row?.tmdbId);
-            if (!Number.isFinite(tmdbId) || tmdbId <= 0) continue;
-            const key = `${mediaType}:${tmdbId}`;
-            const existing = activeByKey.get(key);
-            // Prefer pending over approved when both exist (HD + later update).
-            if (!existing || (status === 1 && Number(existing.status) !== 1)) {
-                activeByKey.set(key, row);
+        const userKey = String(sessionUser?.id || sessionUser?.plexId || '');
+        let activeByKey = null;
+        const cached = userKey ? memberActiveRequestsOverlayCache.get(userKey) : null;
+        if (cached && (Date.now() - cached.at) < MEMBER_ACTIVE_REQUESTS_OVERLAY_TTL_MS) {
+            activeByKey = cached.byKey;
+        } else {
+            const portalRequests = getPortalRequestService(config);
+            // Include pending + approved — auto-approve clears "pending" immediately and was
+            // leaving detail pages stuck on "Request Movie".
+            const listed = await portalRequests.listMemberRequests(sessionUser, {
+                filter: 'all',
+                take: 200,
+                skip: 0,
+            });
+            activeByKey = new Map();
+            for (const row of listed.results || []) {
+                const status = Number(row?.status);
+                // Skip terminal states; library cache still owns Available/Partial.
+                if (status === 3 || status === 4) continue; // declined / failed
+                const mediaType = row?.type === 'tv' ? 'tv' : 'movie';
+                const tmdbId = Number(row?.tmdbId);
+                if (!Number.isFinite(tmdbId) || tmdbId <= 0) continue;
+                const key = `${mediaType}:${tmdbId}`;
+                const existing = activeByKey.get(key);
+                // Prefer pending over approved when both exist (HD + later update).
+                if (!existing || (status === 1 && Number(existing.status) !== 1)) {
+                    activeByKey.set(key, row);
+                }
+            }
+            if (userKey) {
+                memberActiveRequestsOverlayCache.set(userKey, { at: Date.now(), byKey: activeByKey });
             }
         }
         if (!activeByKey.size) return items;
@@ -5468,7 +5499,10 @@ const attachDiscoveryAvailabilityCacheToPayload = async (config, sessionUser, da
         if (!misses.length) return list;
         try {
             const library = createDiscoveryLibraryAvailability(config);
-            const enrichedMisses = await library.enrichItems(misses, { blockForCatalog: false });
+            const enrichedMisses = await library.enrichItems(misses, {
+                blockForCatalog: false,
+                networkLookups: false,
+            });
             const byKey = new Map();
             for (const item of Array.isArray(enrichedMisses) ? enrichedMisses : []) {
                 const mediaType = item?.mediaType === 'tv' || item?.mediaType === 2 ? 'tv' : 'movie';
@@ -5499,11 +5533,11 @@ const attachDiscoveryAvailabilityCacheToPayload = async (config, sessionUser, da
         };
         return next;
     }
-    // Detail pages: stamp pending request state onto the single title.
+    // Detail pages: disk cache + pending overlay only — skip warm-catalog stamp so
+    // click→details isn't blocked on Sonarr/TMDB lookups (library-status fills accuracy).
     if (!Array.isArray(next) && (next?.mediaType === 'movie' || next?.mediaType === 'tv' || next?.id)) {
-        const [warmed] = await stampWarmCatalog([next]);
-        const [detailed] = await overlayPortalPendingRequestsOntoItems(config, sessionUser, [warmed || next]);
-        return detailed || warmed || next;
+        const [detailed] = await overlayPortalPendingRequestsOntoItems(config, sessionUser, [next]);
+        return detailed || next;
     }
     return next;
 };
@@ -12052,6 +12086,7 @@ const runDiscoveryAvailabilityCacheRebuild = async (reason = 'scheduled') => {
             saveFile,
             cachePath: DISCOVERY_AVAILABILITY_CACHE_PATH,
         });
+        invalidateDiscoveryAvailabilityCacheMemo();
         job.nextRun = new Date(Date.now() + DISCOVERY_AVAILABILITY_CACHE_INTERVAL_MS).toISOString();
         markTaskEnd(job, null);
         if (reason === 'manual' || reason === 'startup' || summary?.itemCount > 0) {

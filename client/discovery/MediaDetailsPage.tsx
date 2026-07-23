@@ -15,7 +15,7 @@ import { resolveMediaAvailabilityState } from './discoverAvailability';
 import { enrichDiscoverItemsWithAvailability } from './discoverAvailabilityEnrich';
 import { MediaStatusPanel } from './DiscoverStatusOverlay';
 import { DiscoveryLogo } from './DiscoveryLogo';
-import { scrollPortalToTop } from './discoverNavigationUtils';
+import { readDiscoverDetailSeed, scrollPortalToTop } from './discoverNavigationUtils';
 import { MediaOverviewExtras } from './MediaOverviewExtras';
 import { OpenInArrButton } from '../shared/OpenInArrButton';
 import { OpenInLibraryButton } from '../shared/OpenInLibraryButton';
@@ -72,8 +72,8 @@ export const MediaDetailsPage: React.FC<{
     const { t, locale } = useDiscoverI18n();
     const { preferences } = useDiscoveryPreferences();
     const { profile: discoveryMe } = useDiscoveryMe(true);
-    const [details, setDetails] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
+    const [details, setDetails] = useState<any>(() => readDiscoverDetailSeed(mediaType, mediaId));
+    const [loading, setLoading] = useState(() => !readDiscoverDetailSeed(mediaType, mediaId));
     const [loadError, setLoadError] = useState<string | null>(null);
     const [recommendations, setRecommendations] = useState<any[]>([]);
     const [posterFailed, setPosterFailed] = useState(false);
@@ -92,14 +92,18 @@ export const MediaDetailsPage: React.FC<{
 
     useEffect(() => {
         let cancelled = false;
+        const seed = readDiscoverDetailSeed(mediaType, mediaId);
+        // Instant paint from the clicked poster when available — no blank spinner.
+        setDetails(seed);
+        setLoading(!seed);
+        setLoadError(null);
+        setPosterFailed(false);
+        setBackdropFailed(false);
+        setRecommendations([]);
+        setRadarrReleases(null);
+        setRatings(null);
 
         const fetchDetails = async () => {
-            setLoading(true);
-            setLoadError(null);
-            setPosterFailed(false);
-            setBackdropFailed(false);
-            setRecommendations([]);
-            setDetails(null);
             try {
                 const detailEndpoint = mediaType === 'movie'
                     ? `/api/discovery/proxy/movie/${mediaId}`
@@ -107,21 +111,25 @@ export const MediaDetailsPage: React.FC<{
 
                 // Paint on details alone — hard-cap wait so a hung proxy never owns the page.
                 const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-                const timer = controller ? window.setTimeout(() => controller.abort(), 12000) : null;
+                const timer = controller ? window.setTimeout(() => controller.abort(), 8000) : null;
                 try {
                     const res = await apiFetch(
                         detailEndpoint,
                         controller ? { signal: controller.signal } : {},
                     );
                     if (cancelled) return;
-                    if (!res?.error) setDetails(res);
-                    else setLoadError(res.error || 'Failed to load details');
+                    if (!res?.error) {
+                        setDetails(res);
+                        setLoadError(null);
+                    } else if (!seed) {
+                        setLoadError(res.error || 'Failed to load details');
+                    }
                 } finally {
                     if (timer) window.clearTimeout(timer);
                 }
             } catch (err: any) {
                 console.error(err);
-                if (!cancelled) {
+                if (!cancelled && !seed) {
                     setLoadError(
                         err?.name === 'AbortError'
                             ? 'Timed out loading this title. Try again.'
@@ -378,7 +386,7 @@ export const MediaDetailsPage: React.FC<{
         window.dispatchEvent(new Event('popstate'));
     };
 
-    if (loading) {
+    if (loading && !details) {
         return (
             <div className="w-full h-[80vh] flex items-center justify-center">
                 <Loader2 className="w-8 h-8 text-plex animate-spin" />

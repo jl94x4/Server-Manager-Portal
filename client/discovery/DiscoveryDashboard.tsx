@@ -18,7 +18,7 @@ import { useMyRequestCount } from './useMyRequestCount';
 import { useMyIssueCount } from './useMyIssueCount';
 import { useDiscoveryMe } from './useDiscoveryMe';
 import { WatchlistPage } from './WatchlistPage';
-import { scrollPortalToTop } from './discoverNavigationUtils';
+import { scrollPortalToTop, stashDiscoverDetailSeed } from './discoverNavigationUtils';
 import { useDiscoverI18n } from './i18n';
 import { discoveryTheme } from './discoveryThemeClasses';
 import { ToastContainer, pushToast as appendToast, type ToastMessage } from '../shared/toast';
@@ -199,10 +199,16 @@ const DiscoveryDashboardInner: React.FC<{
             if (formatted.type === 'person') {
                 navigate(`/discovery/person/${formatted.id}`);
             } else {
+                stashDiscoverDetailSeed(formatted);
                 navigate(`/discovery/${formatted.type}/${formatted.id}`);
             }
         },
     };
+
+    const openMedia = useCallback((item: any) => {
+        stashDiscoverDetailSeed(item);
+        navigate(`/discovery/${item.type}/${item.id}`);
+    }, [navigate]);
 
     const routeParts = stripBasePath(path).split('/').filter(Boolean);
     const subRoute = routeParts[1] || 'home';
@@ -215,7 +221,7 @@ const DiscoveryDashboardInner: React.FC<{
                     kind="studio"
                     id={id}
                     onBack={() => navigate('/discovery')}
-                    onSelect={(item) => navigate(`/discovery/${item.type}/${item.id}`)}
+                    onSelect={openMedia}
                     formatItem={formatItem}
                 />
             );
@@ -230,7 +236,7 @@ const DiscoveryDashboardInner: React.FC<{
                     kind="network"
                     id={id}
                     onBack={() => navigate('/discovery')}
-                    onSelect={(item) => navigate(`/discovery/${item.type}/${item.id}`)}
+                    onSelect={openMedia}
                     formatItem={formatItem}
                 />
             );
@@ -243,7 +249,7 @@ const DiscoveryDashboardInner: React.FC<{
             <PersonDetailsPage
                 personId={id}
                 onBack={() => window.history.back()}
-                onSelect={(item) => navigate(`/discovery/${item.type}/${item.id}`)}
+                onSelect={openMedia}
                 formatItem={formatItem}
             />
         );
@@ -273,7 +279,7 @@ const DiscoveryDashboardInner: React.FC<{
                 <DiscoverHeroHeader {...heroProps} />
                 <WatchlistPage
                     formatItem={formatItem}
-                    onSelect={(item) => navigate(`/discovery/${item.type}/${item.id}`)}
+                    onSelect={openMedia}
                     navigate={navigate}
                     pushToast={pushToast}
                     providerLabel={providerLabel}
@@ -375,7 +381,7 @@ const DiscoveryDashboardInner: React.FC<{
                     <div className="w-full mt-1">
                         {subRoute === 'home' && (
                     <DiscoverHome
-                        onSelect={(item) => navigate(`/discovery/${item.type}/${item.id}`)}
+                        onSelect={openMedia}
                         formatItem={formatItem}
                         navigate={navigate}
                         pushToast={pushToast}
@@ -384,14 +390,14 @@ const DiscoveryDashboardInner: React.FC<{
                         )}
                         {subRoute === 'movies' && (
                             <DiscoverMovies
-                                onSelect={(item) => navigate(`/discovery/${item.type}/${item.id}`)}
+                                onSelect={openMedia}
                                 formatItem={formatItem}
                                 navigate={navigate}
                             />
                         )}
                         {subRoute === 'series' && (
                             <DiscoverSeries
-                                onSelect={(item) => navigate(`/discovery/${item.type}/${item.id}`)}
+                                onSelect={openMedia}
                                 formatItem={formatItem}
                                 navigate={navigate}
                             />
