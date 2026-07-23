@@ -53,6 +53,7 @@ export const createEmptyArrInstance = (type: ArrAppType, isDefault = false): Arr
     apiKey: '',
     enabled: true,
     isDefault,
+    is4k: false,
     plexLibraryIds: [],
 });
 
@@ -230,6 +231,22 @@ export const ArrInstancesPanel: React.FC<Props> = ({
                                         placeholder={appName}
                                     />
                                 </div>
+
+                                {supportsLibraryMapping && (
+                                    <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-background/40 px-3 py-2">
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-semibold text-text">4K / UHD instance</p>
+                                            <p className="text-[11px] text-muted">
+                                                Request modal routes Ultra HD requests here (can select HD + UHD together).
+                                            </p>
+                                        </div>
+                                        <SettingsSwitch
+                                            checked={!!instance.is4k}
+                                            onChange={(is4k) => updateInstance(instance.id, { is4k })}
+                                            className="!ml-0"
+                                        />
+                                    </div>
+                                )}
 
                                 <div>
                                     <label className="text-xs text-muted uppercase tracking-wider font-bold mb-1 block">URL</label>

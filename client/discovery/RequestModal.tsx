@@ -224,7 +224,7 @@ export const RequestModal: React.FC<Props> = ({
         }
 
         const is4k = quality === '4k';
-        const servers = (opts.servers || []).filter((server) => server.is4k === is4k);
+        const servers = (opts.servers || []).filter((server) => !!server.is4k === is4k);
         if (!servers.length) {
             updateQualityForm(quality, { ...emptyQualityForm(), loaded: true });
             return;
@@ -371,7 +371,10 @@ export const RequestModal: React.FC<Props> = ({
     );
 
     const hdAllowed = !!options?.canRequest && !hdQuotaBlocked && options?.hasHdServer !== false;
-    const fourKAllowed = !!options?.canRequest && !!options?.canRequest4k && !fourKQuotaBlocked;
+    const fourKAllowed = !!options?.canRequest
+        && !!options?.canRequest4k
+        && !!options?.has4kServer
+        && !fourKQuotaBlocked;
 
     const activeForm = qualityForms[advancedQuality];
     const filteredServers = useMemo(() => {
@@ -414,11 +417,12 @@ export const RequestModal: React.FC<Props> = ({
 
     const toggleQuality = (quality: QualityKey) => {
         const allowed = quality === 'hd' ? hdAllowed : fourKAllowed;
-        if (!allowed && !selectedQualities.has(quality)) return;
+        if (!allowed) return;
 
         setSelectedQualities((prev) => {
             const next = new Set(prev);
             if (next.has(quality)) {
+                // Keep at least one quality selected.
                 if (next.size === 1) return prev;
                 next.delete(quality);
             } else {
@@ -555,14 +559,22 @@ export const RequestModal: React.FC<Props> = ({
                 ? 'all'
                 : [...selectedSeasons].sort((a, b) => a - b);
         }
-        if (options.canRequestAdvanced) {
+        // Prefer the matching HD/4K server even when Advanced was never opened.
+        const fallbackServer = (options.servers || []).find((server) => !!server.is4k === is4k)
+            || (options.servers || []).find((server) => server.isDefault)
+            || (options.servers || [])[0]
+            || null;
+        if (options.canRequestAdvanced && form.loaded) {
             if (form.serverId != null) body.serverId = form.serverId;
+            else if (fallbackServer?.id != null) body.serverId = fallbackServer.id;
             if (form.profileId != null) body.profileId = form.profileId;
             if (form.rootFolder) body.rootFolder = form.rootFolder;
             if (mediaType === 'tv' && form.languageProfileId != null) {
                 body.languageProfileId = form.languageProfileId;
             }
             if (form.selectedTags.length) body.tags = form.selectedTags;
+        } else if (fallbackServer?.id != null) {
+            body.serverId = fallbackServer.id;
         }
         return body;
     };
@@ -579,12 +591,14 @@ export const RequestModal: React.FC<Props> = ({
             onError('Select at least one season to request.');
             return;
         }
+        // Only enforce Advanced fields when that quality's options were actually loaded/edited.
         if (options.canRequestAdvanced) {
             for (const quality of qualities) {
                 const form = qualityForms[quality];
-                if (!form.rootFolder) {
+                if (form.loaded && !form.rootFolder) {
                     onError(`Select a root folder for the ${quality === '4k' ? '4K' : 'HD'} request.`);
                     setAdvancedQuality(quality);
+                    setShowAdvanced(true);
                     return;
                 }
             }
@@ -635,10 +649,8 @@ export const RequestModal: React.FC<Props> = ({
     const overview = (options?.overview || '').trim();
     const posterUrl = options?.posterPath ? `https://image.tmdb.org/t/p/w342${options.posterPath}` : '';
     const showAdvancedSection = !!options?.canRequestAdvanced;
-    const showQualityPicker = !!(
-        (options?.canRequest4k && options?.has4kServer)
-        || options?.has4kServer
-    );
+    // Show HD + UHD whenever a 4K *arr is configured (both can be selected together).
+    const showQualityPicker = !!options?.has4kServer;
     const advancedLoading = showAdvancedSection && activeForm.loading && !activeForm.loaded;
     const bothQualitiesSelected = selectedQualities.has('hd') && selectedQualities.has('4k');
     const showRoutingSection = showAdvancedSection && !advancedLoading && (
@@ -741,58 +753,69 @@ export const RequestModal: React.FC<Props> = ({
                                     <p className="text-xs font-bold uppercase tracking-wider text-white/40 mb-3">
                                         Quality
                                         <span className="ml-2 font-medium normal-case tracking-normal text-white/30">
-                                            Select one or both
+                                            Select HD, UHD, or both
                                         </span>
                                     </p>
                                     <div className="grid grid-cols-2 gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => toggleQuality('hd')}
-                                            disabled={!hdAllowed && !selectedQualities.has('hd')}
-                                            className={`relative flex flex-col items-start gap-1 py-3 px-3.5 rounded-xl text-left transition-all border ${
-                                                selectedQualities.has('hd')
-                                                    ? 'bg-plex/15 border-plex/45 text-white shadow-[inset_0_0_0_1px_rgba(229,160,13,0.15)]'
-                                                    : 'bg-white/5 border-white/10 text-white/55 hover:text-white hover:bg-white/[0.07]'
-                                            } disabled:opacity-40 disabled:cursor-not-allowed`}
-                                        >
-                                            <span className="flex items-center gap-2">
-                                                <span className={`flex h-6 w-6 items-center justify-center rounded-md text-[10px] font-black tracking-tight ${
-                                                    selectedQualities.has('hd')
-                                                        ? 'bg-plex text-black'
-                                                        : 'bg-white/10 text-white/70'
-                                                }`}>
-                                                    HD
-                                                </span>
-                                                <span className="text-sm font-bold">1080p / HD</span>
-                                            </span>
-                                            <span className="text-[11px] text-white/40 pl-8 truncate max-w-full">
-                                                {hdServerName}
-                                            </span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => toggleQuality('4k')}
-                                            disabled={!fourKAllowed && !selectedQualities.has('4k')}
-                                            className={`relative flex flex-col items-start gap-1 py-3 px-3.5 rounded-xl text-left transition-all border ${
-                                                selectedQualities.has('4k')
-                                                    ? 'bg-plex/15 border-plex/45 text-white shadow-[inset_0_0_0_1px_rgba(229,160,13,0.15)]'
-                                                    : 'bg-white/5 border-white/10 text-white/55 hover:text-white hover:bg-white/[0.07]'
-                                            } disabled:opacity-40 disabled:cursor-not-allowed`}
-                                        >
-                                            <span className="flex items-center gap-2">
-                                                <span className={`flex h-6 w-6 items-center justify-center rounded-md text-[10px] font-black tracking-tight ${
-                                                    selectedQualities.has('4k')
-                                                        ? 'bg-plex text-black'
-                                                        : 'bg-white/10 text-white/70'
-                                                }`}>
-                                                    4K
-                                                </span>
-                                                <span className="text-sm font-bold">Ultra HD</span>
-                                            </span>
-                                            <span className="text-[11px] text-white/40 pl-8 truncate max-w-full">
-                                                {fourKServerName}
-                                            </span>
-                                        </button>
+                                        {([
+                                            {
+                                                key: 'hd' as QualityKey,
+                                                label: '1080p / HD',
+                                                badge: 'HD',
+                                                serverName: hdServerName,
+                                                allowed: hdAllowed,
+                                                blockedHint: hdQuotaBlocked
+                                                    ? 'HD quota used up'
+                                                    : 'HD requests unavailable',
+                                            },
+                                            {
+                                                key: '4k' as QualityKey,
+                                                label: 'Ultra HD',
+                                                badge: '4K',
+                                                serverName: fourKServerName,
+                                                allowed: fourKAllowed,
+                                                blockedHint: fourKQuotaBlocked
+                                                    ? '4K quota used up'
+                                                    : (!options?.canRequest4k
+                                                        ? '4K requests disabled in settings'
+                                                        : 'No 4K server configured'),
+                                            },
+                                        ]).map((entry) => {
+                                            const selected = selectedQualities.has(entry.key);
+                                            return (
+                                                <button
+                                                    key={entry.key}
+                                                    type="button"
+                                                    onClick={() => toggleQuality(entry.key)}
+                                                    disabled={!entry.allowed}
+                                                    aria-pressed={selected}
+                                                    className={`relative flex flex-col items-start gap-1 py-3 px-3.5 rounded-xl text-left transition-all border ${
+                                                        selected
+                                                            ? 'bg-plex/15 border-plex/45 text-white shadow-[inset_0_0_0_1px_rgba(229,160,13,0.15)]'
+                                                            : 'bg-white/5 border-white/10 text-white/55 hover:text-white hover:bg-white/[0.07]'
+                                                    } disabled:opacity-40 disabled:cursor-not-allowed`}
+                                                >
+                                                    <span className="flex items-center gap-2 w-full">
+                                                        <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border ${
+                                                            selected ? 'border-plex bg-plex/20' : 'border-white/20 bg-black/20'
+                                                        }`}>
+                                                            {selected && <CheckCircle className="w-3.5 h-3.5 text-plex" />}
+                                                        </span>
+                                                        <span className={`flex h-6 w-6 items-center justify-center rounded-md text-[10px] font-black tracking-tight ${
+                                                            selected
+                                                                ? 'bg-plex text-black'
+                                                                : 'bg-white/10 text-white/70'
+                                                        }`}>
+                                                            {entry.badge}
+                                                        </span>
+                                                        <span className="text-sm font-bold">{entry.label}</span>
+                                                    </span>
+                                                    <span className="text-[11px] text-white/40 pl-7 truncate max-w-full">
+                                                        {entry.allowed ? entry.serverName : entry.blockedHint}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )}

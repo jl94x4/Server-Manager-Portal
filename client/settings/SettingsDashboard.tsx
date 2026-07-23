@@ -441,8 +441,8 @@ export const SettingsDashboard: React.FC = () => {
     const [autoApproveTv4k, setAutoApproveTv4k] = useState(false);
     const [portalAllowRequestMovies, setPortalAllowRequestMovies] = useState(true);
     const [portalAllowRequestTv, setPortalAllowRequestTv] = useState(true);
-    const [portalAllowRequest4kMovies, setPortalAllowRequest4kMovies] = useState(false);
-    const [portalAllowRequest4kTv, setPortalAllowRequest4kTv] = useState(false);
+    const [portalAllowRequest4kMovies, setPortalAllowRequest4kMovies] = useState(true);
+    const [portalAllowRequest4kTv, setPortalAllowRequest4kTv] = useState(true);
     const [portalAllowAdvancedRequests, setPortalAllowAdvancedRequests] = useState(true);
     const [portalShowRecentlyAdded, setPortalShowRecentlyAdded] = useState(true);
     const [portalShowWatchlist, setPortalShowWatchlist] = useState(true);
@@ -1022,8 +1022,8 @@ export const SettingsDashboard: React.FC = () => {
             setAutoApproveTv4k(!!initialSettings.autoApproveTv4k);
             setPortalAllowRequestMovies(initialSettings.portalAllowRequestMovies !== false);
             setPortalAllowRequestTv(initialSettings.portalAllowRequestTv !== false);
-            setPortalAllowRequest4kMovies(!!initialSettings.portalAllowRequest4kMovies);
-            setPortalAllowRequest4kTv(!!initialSettings.portalAllowRequest4kTv);
+            setPortalAllowRequest4kMovies(initialSettings.portalAllowRequest4kMovies !== false);
+            setPortalAllowRequest4kTv(initialSettings.portalAllowRequest4kTv !== false);
             setPortalAllowAdvancedRequests(initialSettings.portalAllowAdvancedRequests !== false);
             setPortalShowRecentlyAdded(initialSettings.portalShowRecentlyAdded !== false);
             setPortalShowWatchlist(initialSettings.portalShowWatchlist !== false);

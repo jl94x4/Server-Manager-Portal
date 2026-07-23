@@ -60,6 +60,8 @@ export interface ArrInstance {
     apiKey: string;
     enabled: boolean;
     isDefault: boolean;
+    /** When true, Discover request modal routes UHD/4K requests to this instance. */
+    is4k?: boolean;
     plexLibraryIds?: string[];
 }
 
