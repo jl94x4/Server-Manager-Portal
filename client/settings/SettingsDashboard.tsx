@@ -775,6 +775,18 @@ export const SettingsDashboard: React.FC = () => {
         }
     }, [activeTab]);
 
+    // Keep Tasks UI live while any background job is running (refreshing Settings does not
+    // stop server jobs — the list was just not polling).
+    useEffect(() => {
+        if (activeTab !== 'tasks' && activeTab !== 'system') return undefined;
+        const anyRunning = Array.isArray(tasks) && tasks.some((task) => !!task?.running);
+        if (!anyRunning) return undefined;
+        const timer = window.setInterval(() => {
+            fetchTasks();
+        }, 2000);
+        return () => window.clearInterval(timer);
+    }, [activeTab, tasks]);
+
     const handleUnblockDeletedUser = async (deletedUser: any) => {
         const label = deletedUser.username || deletedUser.email || 'this user';
         appConfirm(`Allow ${label} to use the portal again? This does not invite them automatically.`, async () => {
@@ -944,6 +956,9 @@ export const SettingsDashboard: React.FC = () => {
             const res = await apiFetch(`/api/tasks/run/${taskId}`, { method: 'POST' });
             addToast(res.message || 'Task executed successfully', 'success');
             await fetchTasks();
+            // Poll briefly so "Running" stays accurate after Run is clicked.
+            window.setTimeout(() => { fetchTasks(); }, 1500);
+            window.setTimeout(() => { fetchTasks(); }, 4000);
         } catch (e) {
             addToast(e instanceof Error ? e.message : 'Task failed', 'error');
         } finally {
