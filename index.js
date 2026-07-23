@@ -5500,11 +5500,14 @@ const attachDiscoveryAvailabilityCacheToPayload = async (config, sessionUser, da
         if (!misses.length) return list;
         try {
             const library = createDiscoveryLibraryAvailability(config);
-            // Peek lookups are sync-fast once warm — do not race-drop stamps under load.
-            const enrichedMisses = await library.enrichItems(misses, {
-                blockForCatalog: false,
-                networkLookups: false,
-            });
+            // Peek lookups are sync-fast once warm. Still race so a stuck stamp cannot freeze lists.
+            const enrichedMisses = await Promise.race([
+                library.enrichItems(misses, {
+                    blockForCatalog: false,
+                    networkLookups: false,
+                }),
+                new Promise((resolve) => setTimeout(() => resolve(misses), 500)),
+            ]);
             const byKey = new Map();
             for (const item of Array.isArray(enrichedMisses) ? enrichedMisses : []) {
                 const mediaType = item?.mediaType === 'tv' || item?.mediaType === 2 ? 'tv' : 'movie';
@@ -12083,7 +12086,7 @@ const markTaskEnd = (task, error = null) => {
 };
 
 const REQUEST_STATUS_SYNC_INTERVAL_MS = 60 * 1000;
-const DISCOVERY_AVAILABILITY_CACHE_INTERVAL_MS = 2 * 60 * 1000;
+const DISCOVERY_AVAILABILITY_CACHE_INTERVAL_MS = 10 * 60 * 1000;
 
 const runDiscoveryAvailabilityCacheRebuild = async (reason = 'scheduled') => {
     const job = systemJobs.discoveryAvailabilityCache;
