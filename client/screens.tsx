@@ -404,7 +404,7 @@ const UserModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (user:
         value: 'default' | 'on' | 'off',
         onChange: (v: 'default' | 'on' | 'off') => void,
     ) => (
-        <div className="mb-3">
+        <div>
             <label className="text-xs font-semibold text-muted mb-1 block">{label}</label>
             <CustomSelect
                 value={value}
@@ -419,102 +419,114 @@ const UserModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (user:
     );
 
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-[1000]" onClick={onClose}>
-            <div className="bg-card p-4 md:p-8 rounded-2xl w-[90%] max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl border border-border" onClick={(e) => e.stopPropagation()}>
-                <h2 className="text-2xl font-bold text-text">Edit User</h2>
-                <div className="mb-4">
-                    <label>Plex Username</label>
-                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" type="text" value={username} disabled />
-                </div>
-                <div className="mb-4">
-                    <label>Joining Date</label>
-                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" type="date" value={joiningDate} disabled />
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-[1000] p-3 sm:p-6" onClick={onClose}>
+            <div className="bg-card p-4 md:p-6 lg:p-8 rounded-2xl w-full max-w-lg md:max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl border border-border" onClick={(e) => e.stopPropagation()}>
+                <h2 className="text-2xl font-bold text-text mb-4">Edit User</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label>Plex Username</label>
+                        <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" type="text" value={username} disabled />
+                    </div>
+                    <div>
+                        <label>Joining Date</label>
+                        <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" type="date" value={joiningDate} disabled />
+                    </div>
                 </div>
                 <div className="mb-4">
                     <label htmlFor="expiryDate">Expiry Date</label>
-                    <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="expiryDate" type="date" value={expiryDate ?? ''} onChange={(e) => setExpiryDate(e.target.value)} />
-                    <div className="mt-3 grid grid-cols-3 gap-2">
-                        <button className="w-full h-10 px-3 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center text-sm whitespace-nowrap" onClick={() => handleQuickAction('addMonth')}>+1M</button>
-                        <button className="w-full h-10 px-3 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center text-sm whitespace-nowrap" onClick={() => handleQuickAction('addYear')}>+1Y</button>
-                        <button className="w-full h-10 px-3 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center text-sm whitespace-nowrap" onClick={() => handleQuickAction('unlimited')}>Unlimited</button>
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-end">
+                        <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="expiryDate" type="date" value={expiryDate ?? ''} onChange={(e) => setExpiryDate(e.target.value)} />
+                        <div className="grid grid-cols-3 gap-2 md:w-[240px]">
+                            <button type="button" className="w-full h-11 px-3 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center text-sm whitespace-nowrap" onClick={() => handleQuickAction('addMonth')}>+1M</button>
+                            <button type="button" className="w-full h-11 px-3 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center text-sm whitespace-nowrap" onClick={() => handleQuickAction('addYear')}>+1Y</button>
+                            <button type="button" className="w-full h-11 px-3 bg-border text-text rounded-md font-medium hover:bg-opacity-80 transition-colors flex items-center justify-center text-sm whitespace-nowrap" onClick={() => handleQuickAction('unlimited')}>Unlimited</button>
+                        </div>
                     </div>
                 </div>
-                <div className="mb-4 flex items-center justify-between bg-black/10 p-4 rounded-lg border border-border">
-                    <div>
-                        <label className="font-bold block mb-1">Exempt from Cleanup</label>
-                        <span className="text-xs text-muted block">Prevent automated inactive user removal</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                    <div className="flex items-center justify-between bg-black/10 p-4 rounded-lg border border-border gap-3">
+                        <div className="min-w-0">
+                            <label className="font-bold block mb-1">Exempt from Cleanup</label>
+                            <span className="text-xs text-muted block">Prevent automated inactive user removal</span>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setExemptFromCleanup(!exemptFromCleanup)}
+                            className={`relative inline-flex items-center h-6 rounded-full w-11 shrink-0 transition-colors ${exemptFromCleanup ? 'bg-plex' : 'bg-border'}`}
+                        >
+                            <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${exemptFromCleanup ? 'translate-x-6' : 'translate-x-1'}`} />
+                        </button>
                     </div>
-                    <button
-                        onClick={() => setExemptFromCleanup(!exemptFromCleanup)}
-                        className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${exemptFromCleanup ? 'bg-plex' : 'bg-border'}`}
-                    >
-                        <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${exemptFromCleanup ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
-                </div>
-                <div className="mb-4 flex items-center justify-between bg-black/10 p-4 rounded-lg border border-border">
-                    <div>
-                        <label className="font-bold block mb-1">Disable Newsletter</label>
-                        <span className="text-xs text-muted block">Stop automated emails for this user</span>
+                    <div className="flex items-center justify-between bg-black/10 p-4 rounded-lg border border-border gap-3">
+                        <div className="min-w-0">
+                            <label className="font-bold block mb-1">Disable Newsletter</label>
+                            <span className="text-xs text-muted block">Stop automated emails for this user</span>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setOptOutNewsletter(!optOutNewsletter)}
+                            className={`relative inline-flex items-center h-6 rounded-full w-11 shrink-0 transition-colors ${optOutNewsletter ? 'bg-plex' : 'bg-border'}`}
+                        >
+                            <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${optOutNewsletter ? 'translate-x-6' : 'translate-x-1'}`} />
+                        </button>
                     </div>
-                    <button
-                        onClick={() => setOptOutNewsletter(!optOutNewsletter)}
-                        className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${optOutNewsletter ? 'bg-plex' : 'bg-border'}`}
-                    >
-                        <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${optOutNewsletter ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-border">
+                <div className="mt-2 pt-4 border-t border-border">
                     <h3 className="text-lg font-bold text-text mb-1">Requests</h3>
                     <p className="text-xs text-muted mb-4">Defaults come from Settings → Request Discovery. Override only what this user needs.</p>
 
-                    <div className="mb-4 p-3 rounded-lg border border-border bg-black/10 space-y-2">
-                        <label className="inline-flex items-center gap-2 text-sm font-semibold">
-                            <input type="checkbox" checked={overrideMovieQuota} onChange={(e) => setOverrideMovieQuota(e.target.checked)} />
-                            Override movie quota
-                        </label>
-                        {overrideMovieQuota && (
-                            <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                    <label className="text-xs text-muted">Limit (0 = unlimited)</label>
-                                    <input type="number" min={0} className="w-full p-2 rounded-lg border border-border bg-background text-sm" value={movieQuotaLimit} onChange={(e) => setMovieQuotaLimit(Math.max(0, Number(e.target.value) || 0))} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                        <div className="p-3 rounded-lg border border-border bg-black/10 space-y-2">
+                            <label className="inline-flex items-center gap-2 text-sm font-semibold">
+                                <input type="checkbox" checked={overrideMovieQuota} onChange={(e) => setOverrideMovieQuota(e.target.checked)} />
+                                Override movie quota
+                            </label>
+                            {overrideMovieQuota && (
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label className="text-xs text-muted">Limit (0 = unlimited)</label>
+                                        <input type="number" min={0} className="w-full p-2 rounded-lg border border-border bg-background text-sm" value={movieQuotaLimit} onChange={(e) => setMovieQuotaLimit(Math.max(0, Number(e.target.value) || 0))} />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-muted">Days</label>
+                                        <input type="number" min={1} className="w-full p-2 rounded-lg border border-border bg-background text-sm" value={movieQuotaDays} onChange={(e) => setMovieQuotaDays(Math.max(1, Number(e.target.value) || 7))} />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="text-xs text-muted">Days</label>
-                                    <input type="number" min={1} className="w-full p-2 rounded-lg border border-border bg-background text-sm" value={movieQuotaDays} onChange={(e) => setMovieQuotaDays(Math.max(1, Number(e.target.value) || 7))} />
+                            )}
+                        </div>
+
+                        <div className="p-3 rounded-lg border border-border bg-black/10 space-y-2">
+                            <label className="inline-flex items-center gap-2 text-sm font-semibold">
+                                <input type="checkbox" checked={overrideTvQuota} onChange={(e) => setOverrideTvQuota(e.target.checked)} />
+                                Override series quota
+                            </label>
+                            {overrideTvQuota && (
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label className="text-xs text-muted">Limit (0 = unlimited)</label>
+                                        <input type="number" min={0} className="w-full p-2 rounded-lg border border-border bg-background text-sm" value={tvQuotaLimit} onChange={(e) => setTvQuotaLimit(Math.max(0, Number(e.target.value) || 0))} />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-muted">Days</label>
+                                        <input type="number" min={1} className="w-full p-2 rounded-lg border border-border bg-background text-sm" value={tvQuotaDays} onChange={(e) => setTvQuotaDays(Math.max(1, Number(e.target.value) || 7))} />
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
 
-                    <div className="mb-4 p-3 rounded-lg border border-border bg-black/10 space-y-2">
-                        <label className="inline-flex items-center gap-2 text-sm font-semibold">
-                            <input type="checkbox" checked={overrideTvQuota} onChange={(e) => setOverrideTvQuota(e.target.checked)} />
-                            Override series quota
-                        </label>
-                        {overrideTvQuota && (
-                            <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                    <label className="text-xs text-muted">Limit (0 = unlimited)</label>
-                                    <input type="number" min={0} className="w-full p-2 rounded-lg border border-border bg-background text-sm" value={tvQuotaLimit} onChange={(e) => setTvQuotaLimit(Math.max(0, Number(e.target.value) || 0))} />
-                                </div>
-                                <div>
-                                    <label className="text-xs text-muted">Days</label>
-                                    <input type="number" min={1} className="w-full p-2 rounded-lg border border-border bg-background text-sm" value={tvQuotaDays} onChange={(e) => setTvQuotaDays(Math.max(1, Number(e.target.value) || 7))} />
-                                </div>
-                            </div>
-                        )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {permSelect('Request movies', allowRequestMovies, setAllowRequestMovies)}
+                        {permSelect('Request series', allowRequestTv, setAllowRequestTv)}
+                        {permSelect('Request 4K movies', allowRequest4kMovies, setAllowRequest4kMovies)}
+                        {permSelect('Request 4K series', allowRequest4kTv, setAllowRequest4kTv)}
+                        {permSelect('Advanced requests', allowAdvancedRequests, setAllowAdvancedRequests)}
                     </div>
-
-                    {permSelect('Request movies', allowRequestMovies, setAllowRequestMovies)}
-                    {permSelect('Request series', allowRequestTv, setAllowRequestTv)}
-                    {permSelect('Request 4K movies', allowRequest4kMovies, setAllowRequest4kMovies)}
-                    {permSelect('Request 4K series', allowRequest4kTv, setAllowRequest4kTv)}
-                    {permSelect('Advanced requests', allowAdvancedRequests, setAllowAdvancedRequests)}
                 </div>
 
-                <div className="flex justify-end gap-4 mt-8 pt-4 border-t border-border">
-                    <button className="px-6 py-3 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2" onClick={handleSave}>Save</button>
+                <div className="flex justify-end gap-4 mt-6 pt-4 border-t border-border">
+                    <button type="button" className="px-6 py-3 bg-plex text-background rounded-md font-bold hover:bg-plex-hover transition-colors flex items-center justify-center gap-2" onClick={handleSave}>Save</button>
                 </div>
             </div>
         </div>
