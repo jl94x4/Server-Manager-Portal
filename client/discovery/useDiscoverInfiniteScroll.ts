@@ -24,8 +24,8 @@ type Options = {
     filterOptions?: BrowseFilterOptions;
 };
 
-/** Seerr useDiscover initialSize — three API pages on first paint. */
-const INITIAL_PAGE_COUNT = 3;
+/** First paint: two batches (~60 titles), then +30 on each scroll. */
+const INITIAL_BATCH_COUNT = 2;
 
 export function useDiscoverInfiniteScroll({
     resetKey,
@@ -61,8 +61,9 @@ export function useDiscoverInfiniteScroll({
             let maxTotalPages = 1;
 
             try {
-                // Seerr-style: fetch a fixed initialSize of pages, not "scan until grid full".
-                for (let i = 0; i < INITIAL_PAGE_COUNT; i += 1) {
+                // First paint loads multiple 30-title batches; scroll keeps appending more.
+                const initialTarget = DISCOVER_LOAD_MORE_TARGET * INITIAL_BATCH_COUNT;
+                while (merged.length < initialTarget && lastPage < maxTotalPages) {
                     if (cancelled) return;
                     const pageNumber = lastPage + 1;
                     if (lastPage > 0 && pageNumber > maxTotalPages) break;

@@ -104,9 +104,9 @@ export async function fetchDiscoverHomeRowResults(
     hideAvailable: boolean,
     options: HomeRowFetchOptions = {},
 ): Promise<any[]> {
-    const maxItems = options.maxItems ?? 20;
-    const maxPages = options.maxPages ?? (hideAvailable ? 2 : 1);
-    const minItems = Math.min(options.minItems ?? Math.min(10, maxItems), maxItems);
+    const maxItems = options.maxItems ?? 30;
+    const maxPages = options.maxPages ?? (hideAvailable ? 4 : 2);
+    const minItems = Math.min(options.minItems ?? Math.min(30, maxItems), maxItems);
     const hideRequested = options.hideRequested === true;
     const signal = options.signal;
     const filterOptions: DiscoverBrowseFilterOptions = {

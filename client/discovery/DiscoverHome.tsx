@@ -111,9 +111,9 @@ export const DiscoverHome: React.FC<{
             // Seerr-style: one endpoint per rail; advance same URL pages only (no multi-source storm).
             const rowOpts = {
                 needsBackfill: hideAvailable,
-                maxPages: hideAvailable ? 2 : 1,
-                maxItems: 20,
-                minItems: hideAvailable ? 8 : 10,
+                maxPages: hideAvailable ? 4 : 2,
+                maxItems: 30,
+                minItems: hideAvailable ? 20 : 30,
                 hideRequested: false,
                 trustAttachedAvailability: true,
                 pageConcurrency: 1,
