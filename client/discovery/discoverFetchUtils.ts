@@ -100,6 +100,8 @@ type HomeRowFetchOptions = {
     pageConcurrency?: number;
     /** Drop poster-less titles so home never shows "POSTER NOT FOUND" tiles. */
     requirePoster?: boolean;
+    /** Cancel in-flight page fetches (home remount / refresh). */
+    signal?: AbortSignal;
 };
 
 const itemHasPoster = (item: any) => !!(
@@ -127,6 +129,7 @@ export async function fetchDiscoverHomeRowResults(
     const minItems = Math.min(options.minItems ?? Math.min(24, maxItems), maxItems);
     // Only hide requested when callers opt in — available/partial hide stays independent.
     const hideRequested = options.hideRequested === true;
+    const signal = options.signal;
     const filterOptions: DiscoverBrowseFilterOptions = {
         hideAvailable,
         hideRequested,
@@ -135,12 +138,20 @@ export async function fetchDiscoverHomeRowResults(
     };
     const needsBackfill = options.needsBackfill ?? needsDiscoverBackfill(filterOptions);
     const concurrency = Math.max(1, Math.min(options.pageConcurrency ?? (needsBackfill ? 4 : 1), 8));
+    const fetchPage = (page: number) => (
+        apiFetch(buildUrl(page), signal ? { signal } : {}).catch((err: any) => {
+            if (signal?.aborted || err?.name === 'AbortError') return null;
+            return null;
+        })
+    );
 
     if (!needsBackfill) {
         let merged: any[] = [];
         const pageLimit = Math.min(options.maxPages ?? 2, maxPages);
         for (let page = 1; page <= pageLimit; page += 1) {
-            const res = await apiFetch(buildUrl(page));
+            if (signal?.aborted) break;
+            const res = await fetchPage(page);
+            if (!res) continue;
             const totalPages = Math.max(1, Number(res?.totalPages) || 1);
             const batch = Array.isArray(res?.results) ? res.results : [];
             merged = dedupeDiscoverResults([...merged, ...batch]);
@@ -153,6 +164,7 @@ export async function fetchDiscoverHomeRowResults(
     let totalPages = Number.POSITIVE_INFINITY;
 
     for (let page = 1; page <= maxPages && merged.length < minItems;) {
+        if (signal?.aborted) break;
         const chunk: number[] = [];
         for (let i = 0; i < concurrency && page + i <= maxPages; i += 1) {
             if (page + i > totalPages) break;
@@ -160,7 +172,7 @@ export async function fetchDiscoverHomeRowResults(
         }
         if (!chunk.length) break;
 
-        const responses = await Promise.all(chunk.map((p) => apiFetch(buildUrl(p)).catch(() => null)));
+        const responses = await Promise.all(chunk.map((p) => fetchPage(p)));
         for (const res of responses) {
             if (!res) continue;
             totalPages = Math.min(totalPages, Math.max(1, Number(res?.totalPages) || 1));

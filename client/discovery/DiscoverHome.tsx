@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ChevronDown, ChevronUp, ClipboardList, Film, Sparkles } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { DiscoverPosterCard } from '../screens';
@@ -98,32 +98,41 @@ export const DiscoverHome: React.FC<{
         TV_GENRES.map((g) => ({ id: g.id, name: g.name, image: buildGenreSliderImage(g.id) }))
     ));
     const [loading, setLoading] = useState(true);
+    const loadGenRef = useRef(0);
+    const fillAbortRef = useRef<AbortController | null>(null);
 
     const loadData = useCallback(async () => {
         if (!loaded) return;
+        const gen = ++loadGenRef.current;
+        // Cancel any prior deep-fill storm so refreshes don't queue forever behind it.
+        fillAbortRef.current?.abort();
+        fillAbortRef.current = null;
+        const paintAbort = new AbortController();
+        const paintTimer = window.setTimeout(() => paintAbort.abort(), 10000);
         setLoading(true);
         try {
             const hideAvailable = preferences.hideAvailableMedia;
             // Fast first paint: one source, few pages. Background deepFill densifies rows.
             const quickPaint = {
                 needsBackfill: hideAvailable,
-                maxPages: 1,
+                maxPages: hideAvailable ? 2 : 1,
                 maxItems: 20,
-                minItems: hideAvailable ? 6 : 10,
+                minItems: hideAvailable ? 4 : 10,
                 // Keep requested titles on Discover; only drop available/partial.
                 hideRequested: false,
                 trustAttachedAvailability: true,
-                pageConcurrency: 1,
+                pageConcurrency: hideAvailable ? 2 : 1,
                 requirePoster: true,
+                signal: paintAbort.signal,
             };
             const deepFill = {
                 needsBackfill: true,
-                maxPages: 12,
+                maxPages: 6,
                 maxItems: 24,
-                minItems: 20,
+                minItems: 16,
                 hideRequested: false,
-                trustAttachedAvailability: false,
-                pageConcurrency: 4,
+                trustAttachedAvailability: true,
+                pageConcurrency: 2,
                 requirePoster: true,
             };
             const movieSourcesQuick = [
@@ -186,6 +195,8 @@ export const DiscoverHome: React.FC<{
                 fetchRow(upcomingSeriesSources, quickPaint).catch(() => []),
             ]);
 
+            if (gen !== loadGenRef.current) return;
+
             setRows({
                 recentlyAdded: [],
                 recentRequests: [],
@@ -200,15 +211,20 @@ export const DiscoverHome: React.FC<{
 
             // Background refill when hide empties popular rails (never block the skeleton again).
             if (hideAvailable) {
+                const fillAbort = new AbortController();
+                fillAbortRef.current?.abort();
+                fillAbortRef.current = fillAbort;
+                const fillOpts = { ...deepFill, signal: fillAbort.signal };
                 void (async () => {
                     try {
                         const [trendingFill, moviesFill, upcomingMoviesFill, seriesFill, upcomingSeriesFill] = await Promise.all([
-                            fetchRow(trendingSourcesDeep, deepFill).catch(() => []),
-                            fetchRow(movieSourcesDeep, deepFill).catch(() => []),
-                            fetchRow(upcomingMovieSources, deepFill).catch(() => []),
-                            fetchRow(seriesSourcesDeep, deepFill).catch(() => []),
-                            fetchRow(upcomingSeriesSources, deepFill).catch(() => []),
+                            fetchRow(trendingSourcesDeep, fillOpts).catch(() => []),
+                            fetchRow(movieSourcesDeep, fillOpts).catch(() => []),
+                            fetchRow(upcomingMovieSources, fillOpts).catch(() => []),
+                            fetchRow(seriesSourcesDeep, fillOpts).catch(() => []),
+                            fetchRow(upcomingSeriesSources, fillOpts).catch(() => []),
                         ]);
+                        if (gen !== loadGenRef.current || fillAbort.signal.aborted) return;
                         const pickRow = (fill, quick) => (
                             // When hiding available, always prefer the filtered refill — even if shorter.
                             // Preferring the longer quick paint reintroduced Silo/Lucky after filter.
@@ -242,6 +258,7 @@ export const DiscoverHome: React.FC<{
             // Side rails + poster enrich after first paint (never block the skeleton).
             void (async () => {
                 try {
+                    if (gen !== loadGenRef.current) return;
                     const [addedRes, reqRes, watchlistRes] = await Promise.all([
                         (hideAvailable || preferences.showRecentlyAdded === false)
                             ? Promise.resolve(null)
@@ -251,6 +268,8 @@ export const DiscoverHome: React.FC<{
                             ? Promise.resolve(null)
                             : apiFetch('/api/discovery/watchlist').catch(() => null),
                     ]);
+
+                    if (gen !== loadGenRef.current) return;
 
                     const myRequestItems = Array.isArray(reqRes?.results)
                         ? reqRes.results.map(portalRequestToDiscoveryRowItem)
@@ -262,6 +281,7 @@ export const DiscoverHome: React.FC<{
                     const watchlistPosters = await enrichDiscoveryItems(watchlistRes?.results || []);
                     const plexWatchlist = await enrichDiscoverItemsWithAvailability(watchlistPosters);
 
+                    if (gen !== loadGenRef.current) return;
                     setRows((prev) => ({
                         ...prev,
                         recentlyAdded,
@@ -276,10 +296,12 @@ export const DiscoverHome: React.FC<{
             // Genre sliders after rows are visible (best-effort, no per-genre fan-out).
             void (async () => {
                 try {
+                    if (gen !== loadGenRef.current) return;
                     const [movieGenreRes, tvGenreRes] = await Promise.all([
                         apiFetch('/api/discovery/proxy/discover/genreslider/movie').catch(() => null),
                         apiFetch('/api/discovery/proxy/discover/genreslider/tv').catch(() => null),
                     ]);
+                    if (gen !== loadGenRef.current) return;
                     const mappedMovies = mapGenreSliderResponse(movieGenreRes);
                     const mappedTv = mapGenreSliderResponse(tvGenreRes);
                     setMovieGenres(mappedMovies.length
@@ -289,19 +311,27 @@ export const DiscoverHome: React.FC<{
                         ? mappedTv.map((g) => ({ ...g, image: g.image || buildGenreSliderImage(g.id) }))
                         : TV_GENRES.map((g) => ({ id: g.id, name: g.name, image: buildGenreSliderImage(g.id) })));
                 } catch {
+                    if (gen !== loadGenRef.current) return;
                     setMovieGenres(MOVIE_GENRES.map((g) => ({ id: g.id, name: g.name, image: buildGenreSliderImage(g.id) })));
                     setTvGenres(TV_GENRES.map((g) => ({ id: g.id, name: g.name, image: buildGenreSliderImage(g.id) })));
                 }
             })();
         } catch (e) {
             console.error(e);
-            setLoading(false);
+            if (gen === loadGenRef.current) setLoading(false);
+        } finally {
+            window.clearTimeout(paintTimer);
+            if (gen === loadGenRef.current) setLoading(false);
         }
     }, [loaded, preferences.hideAvailableMedia, preferences.discoverRegion, preferences.discoverLanguage, preferences.showRecentlyAdded, preferences.showWatchlist, locale]);
 
     useEffect(() => {
         loadData();
-        return undefined;
+        return () => {
+            loadGenRef.current += 1;
+            fillAbortRef.current?.abort();
+            fillAbortRef.current = null;
+        };
     }, [loadData]);
 
     const DiscoveryRow = ({

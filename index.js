@@ -5499,10 +5499,15 @@ const attachDiscoveryAvailabilityCacheToPayload = async (config, sessionUser, da
         if (!misses.length) return list;
         try {
             const library = createDiscoveryLibraryAvailability(config);
-            const enrichedMisses = await library.enrichItems(misses, {
+            const enrichPromise = library.enrichItems(misses, {
                 blockForCatalog: false,
                 networkLookups: false,
             });
+            // Never let warm-catalog stamp hang list responses (refresh storms).
+            const enrichedMisses = await Promise.race([
+                enrichPromise,
+                new Promise((resolve) => setTimeout(() => resolve(misses), 1200)),
+            ]);
             const byKey = new Map();
             for (const item of Array.isArray(enrichedMisses) ? enrichedMisses : []) {
                 const mediaType = item?.mediaType === 'tv' || item?.mediaType === 2 ? 'tv' : 'movie';
@@ -5527,16 +5532,25 @@ const attachDiscoveryAvailabilityCacheToPayload = async (config, sessionUser, da
 
     if (Array.isArray(next?.results)) {
         const stamped = await stampWarmCatalog(next.results);
+        // Pending-request overlay is memoized; still budget so list paint can't stall.
+        const overlaid = await Promise.race([
+            overlayPortalPendingRequestsOntoItems(config, sessionUser, stamped),
+            new Promise((resolve) => setTimeout(() => resolve(stamped), 800)),
+        ]);
         next = {
             ...next,
-            results: await overlayPortalPendingRequestsOntoItems(config, sessionUser, stamped),
+            results: overlaid,
         };
         return next;
     }
     // Detail pages: disk cache + pending overlay only — skip warm-catalog stamp so
     // click→details isn't blocked on Sonarr/TMDB lookups (library-status fills accuracy).
     if (!Array.isArray(next) && (next?.mediaType === 'movie' || next?.mediaType === 'tv' || next?.id)) {
-        const [detailed] = await overlayPortalPendingRequestsOntoItems(config, sessionUser, [next]);
+        const overlaid = await Promise.race([
+            overlayPortalPendingRequestsOntoItems(config, sessionUser, [next]),
+            new Promise((resolve) => setTimeout(() => resolve([next]), 800)),
+        ]);
+        const [detailed] = Array.isArray(overlaid) ? overlaid : [next];
         return detailed || next;
     }
     return next;
