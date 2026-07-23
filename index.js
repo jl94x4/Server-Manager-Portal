@@ -438,7 +438,10 @@ import {
     createLibraryAvailability,
     emptyDiscoveryAvailabilityCache,
     normalizeDiscoveryAvailabilityCache,
+    getDiscoveryAvailabilityCacheVersion,
     lookupDiscoveryAvailability,
+    lookupDiscoveryAvailabilityForItem,
+    mergeAvailabilityEntryOntoItem,
     applyDiscoveryAvailabilityCacheToPayload,
     rebuildDiscoveryAvailabilityCache,
     createPortalRequestService,
@@ -5485,6 +5488,16 @@ const overlayPortalPendingRequestsOntoItems = async (config, sessionUser, items 
 const attachDiscoveryAvailabilityCacheToPayload = async (config, sessionUser, data) => {
     if (!data || typeof data !== 'object') return data;
     const cache = await loadDiscoveryAvailabilityCacheFile();
+    // Deployed hosts may keep a v1 snapshot until reboot — kick a v2 rebuild on first browse.
+    const cacheVersion = Number(cache?.version) || 0;
+    if (
+        cacheVersion < getDiscoveryAvailabilityCacheVersion()
+        && !systemJobs.discoveryAvailabilityCache.running
+    ) {
+        setImmediate(() => {
+            runDiscoveryAvailabilityCacheRebuild('upgrade').catch(() => {});
+        });
+    }
     let next = applyDiscoveryAvailabilityCacheToPayload(data, cache);
 
     // Disk cache is the Seerr-style Media DB join for list paths.
@@ -5610,14 +5623,9 @@ app.post('/api/discovery/availability-batch', requireAuth, requireMember, async 
         const cachedHits = [];
         const misses = [];
         for (const item of items) {
-            const hit = lookupDiscoveryAvailability(cache, item.mediaType, item.tmdbId);
+            const hit = lookupDiscoveryAvailabilityForItem(cache, item);
             if (hit?.mediaInfo) {
-                cachedHits.push({
-                    ...item,
-                    mediaInfo: hit.mediaInfo,
-                    sonarrLibraryStatus: hit.sonarrLibraryStatus || null,
-                    radarrLibraryStatus: hit.radarrLibraryStatus || null,
-                });
+                cachedHits.push(mergeAvailabilityEntryOntoItem(item, hit));
             } else {
                 misses.push(item);
             }
@@ -12151,16 +12159,18 @@ const startDiscoveryAvailabilityCacheBackgroundTask = () => {
         try {
             const existing = await loadDiscoveryAvailabilityCacheFile({ force: true });
             const itemCount = Number(existing?.itemCount) || Object.keys(existing?.byKey || {}).length || 0;
-            if (itemCount > 0) {
-                log(`[DiscoveryAvailabilityCache] ready (${itemCount} items); next *arr scan in 12h`);
+            const cacheVersion = Number(existing?.version) || 0;
+            const currentVersion = Number(getDiscoveryAvailabilityCacheVersion()) || 2;
+            // v2+ stamps continuing/nextAiring shows as Partial + title keys — force rescan when stale.
+            const needsRebuild = itemCount <= 0 || cacheVersion < currentVersion;
+            if (!needsRebuild) {
+                log(`[DiscoveryAvailabilityCache] ready (v${cacheVersion}, ${itemCount} items); next *arr scan in 12h`);
                 systemJobs.discoveryAvailabilityCache.nextRun = new Date(
                     Date.now() + DISCOVERY_AVAILABILITY_CACHE_INTERVAL_MS,
                 ).toISOString();
                 return;
             }
-            // Empty cache: fill in the background right away (non-blocking). Browse still
-            // responds instantly — badges just appear after this first snapshot finishes.
-            log('[DiscoveryAvailabilityCache] empty — scanning *arr in background');
+            log(`[DiscoveryAvailabilityCache] ${itemCount <= 0 ? 'empty' : `v${cacheVersion} stale`} — scanning *arr in background`);
             systemJobs.discoveryAvailabilityCache.nextRun = new Date().toISOString();
             setImmediate(() => {
                 runDiscoveryAvailabilityCacheRebuild('startup').catch(() => {});

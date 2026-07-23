@@ -214,6 +214,8 @@ export const isTvShowLibraryComplete = (
     if (hasActiveShowDownloads(details, info)) return false;
 
     const sonarr = details?.sonarrLibraryStatus;
+    // Future airings mean the show is still Partial for Discover badges.
+    if (sonarr?.nextAiring) return false;
     // Sonarr is the source of truth when the portal can see the series.
     if (sonarr?.matched) {
         if (sonarr.hasActiveDownloads) return false;

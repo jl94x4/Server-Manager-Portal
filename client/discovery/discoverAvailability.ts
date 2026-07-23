@@ -136,6 +136,42 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
         };
     }
 
+    // List stamps often lack TMDB inProduction — trust Sonarr nextAiring / PARTIAL / !showComplete.
+    if (mediaType === 'tv') {
+        const sonarr = item?.sonarrLibraryStatus;
+        const stamped = Number(mediaInfo?.status);
+        const continuingInLibrary = Boolean(sonarr?.matched)
+            && (
+                Boolean(sonarr?.nextAiring)
+                || sonarr?.showComplete === false
+                || stamped === MEDIA_STATUS.PARTIAL
+            );
+        if (
+            continuingInLibrary
+            && stamped >= MEDIA_STATUS.PROCESSING
+            && stamped <= MEDIA_STATUS.AVAILABLE
+        ) {
+            return {
+                ...base,
+                kind: 'partial',
+                label: 'Partially available',
+                detail: sonarr?.nextAiring
+                    ? 'Some episodes are on disk; more are scheduled to air.'
+                    : 'This series is in your library and still airing.',
+            };
+        }
+        if (stamped === MEDIA_STATUS.PARTIAL) {
+            return {
+                ...base,
+                kind: 'partial',
+                label: 'Partially available',
+                detail: sonarr?.nextAiring
+                    ? 'Some episodes are on disk; more are scheduled to air.'
+                    : (formatSeasonSummary(seasonRows) || 'Part of this series is already in your library.'),
+            };
+        }
+    }
+
     const tvLibraryComplete = mediaType === 'tv'
         ? isTvShowLibraryComplete(item, seasonRows, mediaInfo)
         : false;
