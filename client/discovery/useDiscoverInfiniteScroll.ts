@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UpgraderGridSize } from '../shared/portalLayout';
 import { mergeDiscoverResults } from './discoverItemUtils';
 import { filterDiscoverBrowseItems } from './discoverAvailability';
+import { DISCOVER_LOAD_MORE_TARGET } from './discoverPaginationUtils';
 
 export type DiscoverPagePayload = {
     results: any[];
@@ -101,18 +102,29 @@ export function useDiscoverInfiniteScroll({
 
     const loadNextPage = useCallback(async () => {
         if (fetchingRef.current || loading || loadingMore || !hasMore) return;
-        const nextPage = loadedPage + 1;
-        if (nextPage > totalPages) return;
+        if (loadedPage >= totalPages) return;
 
         setLoadingMore(true);
         fetchingRef.current = true;
         try {
-            const payload = await fetchPage(nextPage);
-            const batch = Array.isArray(payload.results) ? payload.results : [];
-            const filteredBatch = filterDiscoverBrowseItems(batch, filterOptionsRef.current || {});
-            setResults((prev) => mergeDiscoverResults(prev, filteredBatch));
-            setLoadedPage(payload.lastFetchedPage ?? nextPage);
-            setTotalPages(Math.max(1, Number(payload.totalPages) || totalPages));
+            let mergedBatch: any[] = [];
+            let lastPage = loadedPage;
+            let maxTotalPages = totalPages;
+
+            while (mergedBatch.length < DISCOVER_LOAD_MORE_TARGET && lastPage < maxTotalPages) {
+                const nextPage = lastPage + 1;
+                const payload = await fetchPage(nextPage);
+                maxTotalPages = Math.max(1, Number(payload.totalPages) || maxTotalPages);
+                const batch = Array.isArray(payload.results) ? payload.results : [];
+                const filteredBatch = filterDiscoverBrowseItems(batch, filterOptionsRef.current || {});
+                mergedBatch = mergeDiscoverResults(mergedBatch, filteredBatch);
+                lastPage = payload.lastFetchedPage ?? nextPage;
+                if (lastPage >= maxTotalPages) break;
+            }
+
+            setResults((prev) => mergeDiscoverResults(prev, mergedBatch));
+            setLoadedPage(lastPage);
+            setTotalPages(maxTotalPages);
         } catch (e) {
             console.error(e);
             setLoadedPage(totalPages);
