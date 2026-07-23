@@ -13,6 +13,10 @@ export const normalizeRawDiscoveryItem = (item: any) => {
             posterPath: media.posterPath,
             title: media.title || media.name,
             name: media.name || media.title,
+            // Keep request / library stamps — overlays need mediaInfo.requests + status.
+            mediaInfo: item.mediaInfo || media.mediaInfo,
+            isDownloading: item.isDownloading ?? media.isDownloading,
+            sonarrLibraryStatus: item.sonarrLibraryStatus || media.sonarrLibraryStatus,
         };
     }
 
@@ -119,10 +123,20 @@ export const enrichDiscoveryItems = async (items: any[]): Promise<any[]> => {
         const tmdbId = Number(item.tmdbId ?? item.id);
         try {
             const details = await apiFetch(`/api/discovery/proxy/${mediaType}/${tmdbId}`);
+            const priorInfo = item.mediaInfo && typeof item.mediaInfo === 'object' ? item.mediaInfo : null;
+            const nextInfo = details?.mediaInfo && typeof details.mediaInfo === 'object' ? details.mediaInfo : null;
             return {
                 ...item,
                 ...details,
-                mediaInfo: details?.mediaInfo ?? item.mediaInfo,
+                mediaInfo: {
+                    ...(priorInfo || {}),
+                    ...(nextInfo || {}),
+                    // Prefer library stamp from enrich when present; keep the member's request rows.
+                    status: nextInfo?.status ?? priorInfo?.status ?? null,
+                    requests: Array.isArray(priorInfo?.requests) && priorInfo.requests.length
+                        ? priorInfo.requests
+                        : (Array.isArray(nextInfo?.requests) ? nextInfo.requests : []),
+                },
                 mediaType,
                 tmdbId,
             };

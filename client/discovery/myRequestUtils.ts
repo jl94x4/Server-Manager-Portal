@@ -5,6 +5,7 @@ export const portalRequestToDiscoveryRowItem = (item: PortalRequestItem) => ({
     type: item.type,
     status: item.status,
     id: item.id,
+    isDownloading: !!item.isDownloading,
     media: {
         tmdbId: item.tmdbId,
         title: item.title,
@@ -13,7 +14,16 @@ export const portalRequestToDiscoveryRowItem = (item: PortalRequestItem) => ({
         mediaType: item.type,
         status: item.mediaStatus,
     },
-    mediaInfo: { status: item.mediaStatus },
+    mediaInfo: {
+        status: item.mediaStatus,
+        requests: [{
+            id: item.id,
+            status: item.status,
+            is4k: !!item.is4k,
+            seasons: Array.isArray(item.seasons) ? item.seasons : [],
+        }],
+        ...(item.isDownloading ? { downloadStatus: [{ status: 'downloading' }] } : {}),
+    },
 });
 
 export const memberRequestStatusClass = (label: string) => {
