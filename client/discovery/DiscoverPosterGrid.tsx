@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useLayoutEffect, useMemo, useRef } from 'react';
 import { DiscoverPosterCard } from '../screens';
 import { PosterCardSkeleton } from '../shared/skeletons';
 import { upgraderPosterGridClass, upgraderPosterGridStyle, type UpgraderGridSize } from '../shared/portalLayout';
@@ -25,6 +25,14 @@ export const DiscoverPosterGrid: React.FC<Props> = ({
     emptyMessage = 'No results found.',
 }) => {
     const visibleItems = useMemo(() => dedupeDiscoverResults(items), [items]);
+    // Enter-animate only the first paint after a loading cycle. Infinite-scroll appends
+    // must not remount or re-animate existing posters (that flashed the grid to opacity 0).
+    const wasLoadingRef = useRef(true);
+    const animateEnter = !loading && wasLoadingRef.current;
+
+    useLayoutEffect(() => {
+        wasLoadingRef.current = loading;
+    }, [loading]);
 
     if (loading) {
         return (
@@ -56,8 +64,7 @@ export const DiscoverPosterGrid: React.FC<Props> = ({
 
     return (
         <div
-            key={`grid-${visibleItems.length}-${getDiscoverItemKey(visibleItems[0]) || 'x'}`}
-            className={`${upgraderPosterGridClass(gridSize)} discover-content-enter`}
+            className={upgraderPosterGridClass(gridSize)}
             style={upgraderPosterGridStyle(gridSize)}
         >
             {visibleItems.map((rawItem, index) => {
@@ -66,8 +73,10 @@ export const DiscoverPosterGrid: React.FC<Props> = ({
                 return (
                     <div
                         key={itemKey}
-                        className="discover-poster-enter min-w-0"
-                        style={{ animationDelay: `${Math.min(index, 18) * 22}ms` }}
+                        className={animateEnter ? 'discover-poster-enter min-w-0' : 'min-w-0'}
+                        style={animateEnter
+                            ? { animationDelay: `${Math.min(index, 18) * 22}ms` }
+                            : undefined}
                     >
                         <DiscoverPosterCard
                             item={formatted}
