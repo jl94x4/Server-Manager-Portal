@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     Activity,
     Calendar,
@@ -86,7 +86,7 @@ const LibraryStatsContent: React.FC<{ serverStats: any; variant?: 'plex' | 'jell
                     <p className="text-[10px] uppercase tracking-widest font-bold text-muted">Total Catalog</p>
                     <p className="text-3xl md:text-4xl font-black text-text mt-1 tracking-tight">{formatBytes(totalBytes)}</p>
                     <p className="text-xs text-muted mt-1.5">
-                        {movies.toLocaleString()} movies · {shows.toLocaleString()} shows · {episodes.toLocaleString()} episodes
+                        {movies.toLocaleString()} movies ┬À {shows.toLocaleString()} shows ┬À {episodes.toLocaleString()} episodes
                     </p>
                 </div>
                 <div className="grid grid-cols-3 gap-2.5">
@@ -122,22 +122,30 @@ const LibraryStatsContent: React.FC<{ serverStats: any; variant?: 'plex' | 'jell
     const episodeCount = Number(serverStats.episodes) || 0;
     const trackCount = Number(serverStats.tracks) || 0;
 
+    // Only list library types that actually exist / have content ÔÇö avoid showing
+    // a phantom "Music" row when Plex has no artist libraries (issue #75).
     const segments = [
         { label: 'Movies', bytes: movies, count: movieCount, countLabel: 'movies', icon: Film, color: 'bg-plex', dot: 'bg-plex' },
         { label: 'TV Shows', bytes: shows, count: showCount, countLabel: 'shows', icon: Tv, color: 'bg-amber-400', dot: 'bg-amber-400' },
         { label: 'Music', bytes: music, count: musicCount, countLabel: 'albums', icon: Music, color: 'bg-orange-500', dot: 'bg-orange-500' },
-    ];
+    ].filter((segment) => segment.bytes > 0 || segment.count > 0);
+
+    if (segments.length === 0) return null;
 
     const pct = (bytes: number) => Math.max(bytes > 0 ? (bytes / total) * 100 : 0, 0);
+    const summaryBits = [
+        episodeCount > 0 ? `${episodeCount.toLocaleString()} episodes` : null,
+        trackCount > 0 ? `${trackCount.toLocaleString()} tracks` : null,
+    ].filter(Boolean);
 
     return (
         <div className="space-y-3">
             <div>
                 <p className="text-[10px] uppercase tracking-widest font-bold text-muted">Total Library</p>
                 <p className="text-2xl md:text-3xl font-black text-text mt-1 tracking-tight">{formatBytes(total)}</p>
-                <p className="text-xs text-muted mt-1">
-                    {episodeCount.toLocaleString()} episodes · {trackCount.toLocaleString()} tracks
-                </p>
+                {summaryBits.length > 0 ? (
+                    <p className="text-xs text-muted mt-1">{summaryBits.join(' ┬À ')}</p>
+                ) : null}
             </div>
 
             <div className="flex h-1.5 rounded-full overflow-hidden bg-white/5">
@@ -178,7 +186,7 @@ const LibraryStatsContent: React.FC<{ serverStats: any; variant?: 'plex' | 'jell
     );
 };
 
-/** Trial flag can linger after admin extends access — only treat as temp access while ≤3 days remain. */
+/** Trial flag can linger after admin extends access ÔÇö only treat as temp access while Ôëñ3 days remain. */
 const isActiveShortTermTrial = (user: any, daysLeft: number | null) => (
     !!user?.isTrial && daysLeft !== null && daysLeft <= 3
 );
@@ -242,7 +250,7 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                                 <div className="flex flex-wrap items-center gap-3">
                                     <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-black border uppercase tracking-wider shadow-sm ${isRevoked ? 'bg-red-500/10 border-red-500/30 text-red-400' : isExpiringSoon ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' : 'bg-green-500/10 border-green-500/30 text-green-400'}`}>
                                         <span className={`w-2 h-2 rounded-full animate-pulse ${isRevoked ? 'bg-red-400' : isExpiringSoon ? 'bg-yellow-400' : 'bg-green-400'}`} />
-                                        {user.plexAccessStatus}{isActiveShortTermTrial(user, daysLeft) && ' · Temp Access'}
+                                        {user.plexAccessStatus}{isActiveShortTermTrial(user, daysLeft) && ' ┬À Temp Access'}
                                     </span>
                                     {user.expiryDate ? (
                                         <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-white/5 border border-white/10 text-text shadow-sm">
@@ -278,7 +286,7 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                                         <p className="text-red-400/90 text-sm font-medium mt-3 flex items-center gap-2">Expired</p>
                                     )}
                                     {isExpiringSoon && !isExpired && (
-                                        <p className="text-yellow-400/90 text-sm font-medium mt-3 flex items-center gap-2">⚠️ Expiring soon — contact admin</p>
+                                        <p className="text-yellow-400/90 text-sm font-medium mt-3 flex items-center gap-2">ÔÜá´©Å Expiring soon ÔÇö contact admin</p>
                                     )}
                                 </div>
                             )}
@@ -317,7 +325,7 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                 return (
                     <div className="bg-plex/10 border border-plex/30 rounded-2xl p-3 md:p-4 shadow-lg">
                         <div className="flex items-start gap-3">
-                            <span className="text-xl mt-0.5">📢</span>
+                            <span className="text-xl mt-0.5">­ƒôó</span>
                             <div>
                                 <h3 className="text-plex font-bold text-sm uppercase tracking-wider mb-1">Announcement</h3>
                                 <p className="text-text whitespace-pre-wrap text-sm leading-relaxed">{publicConfig.announcement}</p>
@@ -329,7 +337,7 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                 if (!user) return null;
                 return (
                     <div className="glass-card p-4 md:p-5 shadow-lg">
-                        <p className="text-plex font-bold text-base mb-1">🎁 Invite Friends</p>
+                        <p className="text-plex font-bold text-base mb-1">­ƒÄü Invite Friends</p>
                         <p className="text-muted text-sm leading-relaxed mb-4">Share this link. They get temporary access, and you get reward days!</p>
                         <div className="flex flex-col gap-2">
                             <input type="text" readOnly value={`${getPublicOrigin()}/?ref=${user.id}`} className="w-full p-3 rounded-lg border border-border bg-background text-text text-sm outline-none" />
@@ -361,14 +369,14 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                     <div className="glass-card p-4 md:p-5 shadow-lg flex flex-col">
                         {showTempAccessMessage ? (
                             <div className="mb-3 md:mb-4 flex-shrink-0">
-                                <p className="text-plex font-bold text-base mb-1">🍿 Enjoying your Temporary Access?</p>
+                                <p className="text-plex font-bold text-base mb-1">­ƒì┐ Enjoying your Temporary Access?</p>
                                 <p className="text-muted text-sm leading-relaxed">
                                     Once your {daysLeft === 1 ? '1-day' : `${daysLeft}-day`} access ends, you'll lose access. Get in touch with the admin to extend your access!
                                 </p>
                             </div>
                         ) : (
                             <div className="mb-3 md:mb-4 flex-shrink-0">
-                                <p className="text-text font-bold text-base mb-1">💬 Need Help?</p>
+                                <p className="text-text font-bold text-base mb-1">­ƒÆ¼ Need Help?</p>
                                 <p className="text-muted text-sm leading-relaxed">
                                     Contact the owner to extend your access, report an issue, or get support.
                                 </p>
@@ -478,7 +486,7 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                             </div>
                         ) : (
                             <div className="flex flex-col items-center justify-center p-4 md:p-5 text-center flex-1 min-h-0 mt-2 md:mt-3">
-                                <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3 text-xl shadow-inner">🍿</div>
+                                <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3 text-xl shadow-inner">­ƒì┐</div>
                                 <h3 className="font-bold text-text mb-1">No Jellystat activity yet</h3>
                                 <p className="text-muted text-sm max-w-sm">Once Jellystat records playback activity, your server activity summary will appear right here.</p>
                             </div>
@@ -654,7 +662,7 @@ export const createBazarrToolsSectionRenderer = (deps: UserDashboardWidgetDeps) 
                             <div key={instance.id} className="flex items-center justify-between gap-2 rounded-lg bg-background/40 border border-white/5 px-3 py-2">
                                 <span className="text-xs font-bold text-text truncate">{instance.name || 'Bazarr'}</span>
                                 <span className="text-[10px] font-bold text-muted">
-                                    {Number(instance.wantedEpisodes || 0).toLocaleString()} episodes · {Number(instance.wantedMovies || 0).toLocaleString()} movies
+                                    {Number(instance.wantedEpisodes || 0).toLocaleString()} episodes ┬À {Number(instance.wantedMovies || 0).toLocaleString()} movies
                                 </span>
                             </div>
                         ))}
